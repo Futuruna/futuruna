@@ -16,7 +16,6 @@
     )
 ])
 
---@label:calculate_imported::meta:pathof_import_meta--
-
+@ meta(pathof_import_meta)
 @ calculate("Imported structural paths")
 | calculate_imported(input: ImportedInput) -> PathofResult(value = 0)

@@ -154,7 +154,6 @@ indkomst, kapitalindkomst, aktieindkomst og CFC-indkomst.
     )
 )
 
---@label:personskatteloven_par3::meta:personskatteloven_par3_metadata--
 ----
 § 3. Personlig indkomst omfatter alle de indkomster, der indgår i den
 skattepligtige indkomst, og som ikke er kapitalindkomst.
@@ -183,7 +182,9 @@ statsskatteloven for selvstændige erhvervsdrivende og
 iværksætterkonto
 ----
 
---@begin::personskatteloven_par3--
+@ meta(personskatteloven_par3_metadata)
+@ section personskatteloven_par3 {
+
 # IndkomstVurdering(indgår_i_skattepligtig_indkomst: Boolsk, er_kapitalindkomst: Boolsk)
 # PersonligFradrag = ErhverveSikreVedligeholdeSelvstændigIndkomst | LigningslovsudgiftVedSelvstændigErhverv | PensionsbidragOgPræmier | HusdyrbesætningForskelsbeløb | VarelagerNedskrivning | ArbejdsmarkedsbidragOgUdenlandskeSocialeBidrag | VirksomhedsskatteHenlæggelse | Ligningslov9BUdgift | TilbagebetaltKontanthjælp | AfskrivningerTabFradragSelvstændige | IværksætterkontoIndskud
 # Par3Stk2Nr1Udgiftsafgrænsning = IkkeStk2Nr1Udgift | SelvstændigErhvervsindkomstUdgift | Par4Stk1Nr1RenterOgLl6 | Par4Stk1Nr2Kursgevinst | Par4Stk1Nr7Provision | Par4Stk1Nr8Rentekorrektion | Ligningslov9GUdgift | Ligningslov13Udgift
@@ -940,7 +941,8 @@ iværksætterkonto
 | par3_stk2_nr6_delegerer_ligningslov8m: par3_stk2_nr6_fixture -> par3_stk2_nr6_fixture.arbejdsmarkedsbidrag_fradrag_kroner == 40000 && par3_stk2_nr6_fixture.udenlandsk_socialt_bidrag_fradrag_kroner == 8000 && par3_stk2_nr6_fixture.udenlandsk_arbejdsgiverbidrag_fradrag_kroner == 0 && par3_stk2_nr6_fixture.fradrag_i_personlig_indkomst_kroner == 48000
 | par3_stk2_nr3_råt_beløb_afskæres: par3_stk2_nr3_råt_beløb_afskåret -> par3_stk2_nr3_råt_beløb_afskåret == 0
 | par3_personlig_indkomst_beregnes_beløb: par3_personlig_indkomst_resultat_fixture -> par3_personlig_indkomst_resultat_fixture.brutto_personlig_indkomst_kroner == 600000 && par3_personlig_indkomst_resultat_fixture.fradrag_i_personlig_indkomst_kroner == 100000 && par3_personlig_indkomst_resultat_fixture.netto_personlig_indkomst_kroner == 500000
---@end::personskatteloven_par3--
+
+}
 
 = personskatteloven_par4_metadata = Metadata(
     attachments = (
@@ -953,7 +955,37 @@ iværksætterkonto
     )
 )
 
---@label:personskatteloven_par4::meta:personskatteloven_par4_metadata--
+----
+Lov nr. 679 af 03/06/2023, § 12:
+
+I personskatteloven, jf. lovbekendtgørelse nr. 1284 af 14. juni 2021, som
+ændret ved lov nr. 252 af 25. februar 2022, foretages følgende ændringer:
+
+1. I § 4, stk. 1, nr. 6, ændres »ejendomsværdiskattelovens § 4, nr. 1-5 og
+9-11« til: »ejendomsskattelovens § 3, stk. 1, nr. 1-5, 9 og 10, og stk. 2«.
+
+Lov nr. 679 af 03/06/2023, § 45, stk. 3:
+
+§§ 1 og 2, § 3, nr. 3, 4, 6, 8-18, 20, 21 og 29, §§ 4-8, § 9, nr. 1, 3 og 4,
+§§ 10-13, § 14, nr. 1, 2 og 7, §§ 15-18 og 21-29, § 30, nr. 2 og 4, og
+§§ 32-44 træder i kraft den 1. januar 2024.
+----
+
+----
+Lov nr. 615 af 30/06/2026, § 12:
+
+I personskatteloven, jf. lovbekendtgørelse nr. 1284 af 14. juni 2021, som ændret
+bl.a. ved § 12 i lov nr. 679 af 3. juni 2023 og senest ved § 4 i lov nr. 1691
+af 30. december 2024, foretages følgende ændring:
+
+1. I § 4, stk. 1, nr. 6, ændres »nr. 1-5, 9 og 10« til: »nr. 1-4, 8 og 9«.
+
+Lov nr. 615 af 30/06/2026, § 16, stk. 5:
+
+§ 2, nr. 1-3, 5-9, 15 og 16, §§ 3-12, § 13, nr. 2, og §§ 14 og 15 har virkning
+fra og med den 1. januar 2027.
+----
+
 ----
 § 4. Kapitalindkomst omfatter det samlede nettobeløb af
 1) renteindtægter og renteudgifter samt fradrag efter ligningslovens § 6 og § 6 A,
@@ -1046,38 +1078,9 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 § 8 P, stk. 2 og 3, medregnes ikke ved opgørelsen af antallet af ejere i stk. 1, nr. 9.
 ----
 
-----
-Lov nr. 679 af 03/06/2023, § 12:
+@ meta(personskatteloven_par4_metadata)
+@ section personskatteloven_par4 {
 
-I personskatteloven, jf. lovbekendtgørelse nr. 1284 af 14. juni 2021, som
-ændret ved lov nr. 252 af 25. februar 2022, foretages følgende ændringer:
-
-1. I § 4, stk. 1, nr. 6, ændres »ejendomsværdiskattelovens § 4, nr. 1-5 og
-9-11« til: »ejendomsskattelovens § 3, stk. 1, nr. 1-5, 9 og 10, og stk. 2«.
-
-Lov nr. 679 af 03/06/2023, § 45, stk. 3:
-
-§§ 1 og 2, § 3, nr. 3, 4, 6, 8-18, 20, 21 og 29, §§ 4-8, § 9, nr. 1, 3 og 4,
-§§ 10-13, § 14, nr. 1, 2 og 7, §§ 15-18 og 21-29, § 30, nr. 2 og 4, og
-§§ 32-44 træder i kraft den 1. januar 2024.
-----
-
-----
-Lov nr. 615 af 30/06/2026, § 12:
-
-I personskatteloven, jf. lovbekendtgørelse nr. 1284 af 14. juni 2021, som ændret
-bl.a. ved § 12 i lov nr. 679 af 3. juni 2023 og senest ved § 4 i lov nr. 1691
-af 30. december 2024, foretages følgende ændring:
-
-1. I § 4, stk. 1, nr. 6, ændres »nr. 1-5, 9 og 10« til: »nr. 1-4, 8 og 9«.
-
-Lov nr. 615 af 30/06/2026, § 16, stk. 5:
-
-§ 2, nr. 1-3, 5-9, 15 og 16, §§ 3-12, § 13, nr. 2, og §§ 14 og 15 har virkning
-fra og med den 1. januar 2027.
-----
-
---@begin:personskatteloven_par4--
 # Kapitalpost = RenterOgLigningslov6 | KursgevinstOgTab | KapitalafkastVsl7 | KapitalafkastVsl22 | AktieudbytteIkkeAktieindkomst | AktieavanceIkkeAktieindkomst | Medlemsbeviser | InvesteringsformidlerBeløb | MedarbejderinvesteringsselskabBeløb | EjendomsoverskudUnderskud | Provisioner | Rentekorrektion | PassivSelvstændigErhvervsvirksomhed | Ligningslov14AIndbetaling | UdlejningAfDriftsmidlerOgSkibe | Ligningslov5CVederlag | Pensionsbeskatning53AAfkast | Ejendomsavance | Ligningslov12BBeløb | Afskrivningslov40CBeløb | FremlejeOverskud
 # Næringsstatus = IkkeNæring | FordringsEllerKontraktNæring | FinansieringsNæring
 # Par4Stk2Omkostningsanvendelse = Par4Stk2ErhverveKapitalindkomst | Par4Stk2SikreKapitalindkomst | Par4Stk2VedligeholdeKapitalindkomst | Par4Stk2AndetFormål
@@ -2714,7 +2717,8 @@ fra og med den 1. januar 2027.
 | par4_nettokapitalindkomst_beregnes_beløb: par4_kapitalindkomst_resultat_fixture -> par4_kapitalindkomst_resultat_fixture.postbeløb_i_kapitalindkomst_kroner == 260000 && par4_kapitalindkomst_resultat_fixture.fradragsberettigede_omkostninger_kroner == 2000 && par4_kapitalindkomst_resultat_fixture.omklassificerede_personlige_omkostninger_kroner == 0 && par4_kapitalindkomst_resultat_fixture.nettokapitalindkomst_kroner == 258000 && par4_kapitalindkomst_resultat_fixture.positiv_nettokapitalindkomst_kroner == 258000 && par4_kapitalindkomst_resultat_fixture.omklassificeret_personlig_indkomst_kroner == 11000 && par4_kapitalindkomst_resultat_fixture.personlig_indkomst_tillæg_kroner == 3000
 | par4_negativ_nettokapitalindkomst_beregnes: par4_negativ_nettokapitalindkomst_fixture -> par4_negativ_nettokapitalindkomst_fixture.nettokapitalindkomst_kroner == -25000 && par4_negativ_nettokapitalindkomst_fixture.positiv_nettokapitalindkomst_kroner == 0 && par4_negativ_nettokapitalindkomst_fixture.negativ_nettokapitalindkomst_abs_kroner == 25000
 | par4_stk3_omklassificerer_poster_og_omkostninger: par4_næringsrente_med_omkostning_fixture -> par4_næringsrente_med_omkostning_fixture.postbeløb_i_kapitalindkomst_kroner == 0 && par4_næringsrente_med_omkostning_fixture.fradragsberettigede_omkostninger_kroner == 0 && par4_næringsrente_med_omkostning_fixture.omklassificerede_personlige_omkostninger_kroner == 3000 && par4_næringsrente_med_omkostning_fixture.nettokapitalindkomst_kroner == 0 && par4_næringsrente_med_omkostning_fixture.omklassificeret_personlig_indkomst_kroner == 12000
---@end:personskatteloven_par4--
+
+}
 
 = personskatteloven_par4a_metadata = Metadata(
     attachments = (
@@ -2723,7 +2727,6 @@ fra og med den 1. januar 2027.
     )
 )
 
---@label:personskatteloven_par4a::meta:personskatteloven_par4a_metadata--
 ----
 § 4 a. Aktieindkomst omfatter det samlede beløb af:
 1) aktieudbytte efter ligningslovens § 16 A samt beløb omfattet af
@@ -2783,7 +2786,9 @@ det pågældende indkomstår.
 Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 ----
 
---@begin::personskatteloven_par4a--
+@ meta(personskatteloven_par4a_metadata)
+@ section personskatteloven_par4a {
+
 # Aktiepost = Ligningslov16AUdbytte | VirksomhedsomdannelsePar4Stk4TredjePunktum | AktieInvesteringsselskabUdbytte | AktieFortjenesteTab | InvesteringsformidlerAktieBeløb | KursgevinstlovPar32Kontrakttabsmodregning
 # AktieUndtagelse = Aktieavance19C | Ligningslov16AStk5 | MedarbejderinvesteringsselskabAktie
 # AktiepostStk1Og2Afgrænsning = AktiepostOmfattetAfStk1 | AktiepostUdenforStk1 | AktiepostUndtagetAktieavance19C | AktiepostUndtagetLigningslov16AStk5 | AktiepostUndtagetMedarbejderinvesteringsselskab
@@ -3076,7 +3081,8 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 | par4a_ll7n_tab_forbliver_negativ_aktieindkomst: par4a_ll7n_tab_fixture -> par4a_ll7n_tab_fixture.afgrænsning == AktiepostOmfattetAfStk1 && par4a_ll7n_tab_fixture.beløb_kroner == -7000 && par4a_ll7n_tab_fixture.aktieindkomst_kroner == -7000
 | par4a_aktieindkomst_beregnes_beløb: par4a_aktieindkomst_resultat_fixture -> par4a_aktieindkomst_resultat_fixture.aktieindkomst_efter_stk1_og_2_kroner == 70000 && par4a_aktieindkomst_resultat_fixture.pensionsfradrag_i_aktieindkomst_kroner == 20000 && par4a_aktieindkomst_resultat_fixture.aktieindkomst_efter_pensionsfradrag_kroner == 50000 && par4a_aktieindkomst_resultat_fixture.omklassificeret_personlig_indkomst_kroner == 7000 && par4a_aktieindkomst_resultat_fixture.aktieindkomst_indgår_i_skattepligtig_indkomst == Falskt
 | par4a_negativ_aktieindkomst_bevares_uden_pension: par4a_negativ_aktieindkomst_fixture -> par4a_negativ_aktieindkomst_fixture.aktieindkomst_efter_stk1_og_2_kroner == -12000 && par4a_negativ_aktieindkomst_fixture.pensionsfradrag_i_aktieindkomst_kroner == 0 && par4a_negativ_aktieindkomst_fixture.aktieindkomst_efter_pensionsfradrag_kroner == -12000
---@end::personskatteloven_par4a--
+
+}
 
 | par1_almindelig_skattepligtig_indkomst_fra_indkomstresultater(personlig: Par3PersonligIndkomstResultat, kapital: Par4KapitalindkomstResultat, aktie: Par4aAktieindkomstResultat, cfc: Par4bCfcIndkomstResultat, ligningsmæssige_fradrag_kroner: Heltal) -> par1_almindelig_skattepligtig_indkomst_resultat(Par1AlmindeligSkattepligtigIndkomstInput(
     personlig_indkomst_kroner = personlig.netto_personlig_indkomst_kroner + kapital.omklassificeret_personlig_indkomst_kroner + kapital.personlig_indkomst_tillæg_kroner + aktie.omklassificeret_personlig_indkomst_kroner,

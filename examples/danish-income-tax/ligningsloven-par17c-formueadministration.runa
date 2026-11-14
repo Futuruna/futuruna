@@ -23,7 +23,6 @@
     )
 )
 
---@label:ligningsloven_par17c::meta:ligningsloven_par17c_metadata--
 ----
 § 17 C. Udgifter til depotgebyrer, boksleje, kontooversigter samt administration
 i øvrigt vedrørende værdipapirer og bankindeståender, der er anvendt til at
@@ -32,7 +31,9 @@ eller aktieindkomst, jf. personskattelovens § 4 a, kan ikke fradrages ved
 opgørelsen af den skattepligtige indkomst.
 ----
 
---@begin:ligningsloven_par17c--
+@ meta(ligningsloven_par17c_metadata)
+@ section ligningsloven_par17c {
+
 # Ligningslov17COmkostningsart = Ll17CAndenOmkostning | Ll17CDepotgebyr | Ll17CBoksleje | Ll17CKontooversigt | Ll17CAdministrationVedrørendeVærdipapirer | Ll17CAdministrationVedrørendeBankindestående
 # Ligningslov17CIndkomsttilknytning = Ll17CKapitalindkomst | Ll17CAktieindkomst | Ll17CAndenIndkomst
 # Ligningslov17CInput(art: Ligningslov17COmkostningsart, indkomsttilknytning: Ligningslov17CIndkomsttilknytning, beløb_kroner: Heltal)
@@ -68,4 +69,5 @@ opgørelsen af den skattepligtige indkomst.
 
 | ligningslov17c_sag(input: Ligningslov17CInput) -> Ligningslov17CSag(input)
 | ligningslov17c_resultat(input: Ligningslov17CInput) -> ligningslov17c_sag(input).resultat()
---@end:ligningsloven_par17c--
+
+}

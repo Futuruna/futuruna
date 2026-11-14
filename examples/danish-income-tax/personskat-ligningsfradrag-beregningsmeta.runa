@@ -172,7 +172,7 @@
     )
 )
 
---@label:Ligningslov9Stk1Årsinput::meta:personskat_ll9_stk1_beregningsmeta--
+@ meta(personskat_ll9_stk1_beregningsmeta) for Ligningslov9Stk1Årsinput
 
 = personskat_ll13_felt_skatteyderstatus = TypetBeregningsfelt(
     path = refof(Ligningslov13Årsinput::skatteyderstatus),
@@ -287,7 +287,7 @@
     )
 )
 
---@label:Ligningslov13Årsinput::meta:personskat_ll13_beregningsmeta--
+@ meta(personskat_ll13_beregningsmeta) for Ligningslov13Årsinput
 
 = personskat_pbl49_felt_skattepligtsposition = TypetBeregningsfelt(
     path = refof(Pbl49Til49BÅrsinput::skattepligtsposition::$variant),
@@ -476,7 +476,7 @@
     )
 )
 
---@label:Pbl49Til49BÅrsinput::meta:personskat_pbl49_beregningsmeta--
+@ meta(personskat_pbl49_beregningsmeta) for Pbl49Til49BÅrsinput
 
 = personskat_gave_felt_gaver = TypetBeregningsfelt(
     path = refof(LigningslovGaveÅrsinput::gaver),
@@ -720,4 +720,4 @@
     )
 )
 
---@label:LigningslovGaveÅrsinput::meta:personskat_gave_beregningsmeta--
+@ meta(personskat_gave_beregningsmeta) for LigningslovGaveÅrsinput

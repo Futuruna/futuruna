@@ -11,7 +11,6 @@
     )
 )
 
---@label:kursgevinstloven_valuta_scenarier::meta:kursgevinstloven_valuta_scenarier_metadata--
 ----
 Fokuserede regressionsscenarier for den typed opdeling af et instrument i
 fremmed valuta mellem kredit- eller prisændringen ved anskaffelseskursen og den
@@ -22,7 +21,9 @@ stk. 2, overgangsgrundlaget efter § 42, stk. 9, og tabsbegrænsningen efter § 
 stk. 2, gennem den kanoniske Personskat-beregning.
 ----
 
---@begin:kursgevinstloven_valuta_scenarier--
+@ meta(kursgevinstloven_valuta_scenarier_metadata)
+@ section kursgevinstloven_valuta_scenarier {
+
 | kgl_valuta_scenarie_kurs(dkk_øre_pr_valutahundrededel: Heltal) -> KglÅrsnettoValutakurs(dkk_øre_tæller = dkk_øre_pr_valutahundrededel, valuta_hundreddele_nævner = 1)
 | kgl_valuta_scenarie_værdi(beløb_hundreddele: Heltal, dkk_øre_pr_valutahundrededel: Heltal) -> KglÅrsnettoValutaværdi(beløb_hundreddele = beløb_hundreddele, kurs = kgl_valuta_scenarie_kurs(dkk_øre_pr_valutahundrededel))
 | kgl_valuta_scenarie_usd() -> KglÅrsnettoValuta(iso_4217_kode = "USD")
@@ -188,7 +189,8 @@ stk. 2, gennem den kanoniske Personskat-beregning.
 | kgl_valuta_lager_til_realisation_med_tilladelse_udskyder_ny_bevægelse: kgl_valuta_scenarie_skift_med_tilladelse -> kgl_valuta_scenarie_skift_med_tilladelse.input_gyldigt && kgl_valuta_scenarie_skift_med_tilladelse.øvrige_instrumentresultat.valutainstrumentresultater[0].valutakurs.årets_rå_netto_kroner == 0 && kgl_valuta_scenarie_position(kgl_valuta_scenarie_skift_med_tilladelse).valutakurs_tidligere_medregnet_øre == 3200000
 | kgl_valuta_gæld_vender_fortegnet_for_valutakursændringen: kgl_valuta_scenarie_gæld -> kgl_valuta_scenarie_gæld.input_gyldigt && kgl_valuta_scenarie_gæld.årets_samlede_netto_efter_par14_kroner == -30000 && kgl_valuta_scenarie_gæld.øvrige_instrumentresultat.valutainstrumentresultater[0].valutakurs.årets_rå_netto_kroner == -30000 && kgl_valuta_scenarie_gæld.kursgevinstlov_resultater[0].fradragsberettiget_tab_kroner == 30000
 | kgl_valuta_kollektivt_valg_kræver_typed_årsforløb_for_valutagæld: kgl_valuta_scenarie_legacy_gæld_med_valutavalg -> kgl_valuta_scenarie_legacy_gæld_med_valutavalg.input_gyldigt == Falskt && length(kgl_valuta_scenarie_legacy_gæld_med_valutavalg.kursgevinstlov_resultater) == 0
---@end:kursgevinstloven_valuta_scenarier--
+
+}
 
 ? kgl_valuta_nærtstående_tab_afskærer_kun_kreditkomponenten
 ? kgl_valuta_obligationsvalg_lagerbeskatter_begge_komponenter

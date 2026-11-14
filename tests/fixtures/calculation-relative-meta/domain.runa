@@ -1,3 +1,4 @@
+@ meta(imported_child_meta)
 # ImportedChild(age: Int)
 # RelativeField(path: ProgramReference, label: String)
 # RelativeMeta(fields: List(RelativeField))
@@ -6,5 +7,3 @@
 = imported_child_meta = RelativeMeta(fields = [
     RelativeField(path = refof(ImportedChild::age), label = "Imported child age")
 ])
-
---@label:ImportedChild::meta:imported_child_meta--

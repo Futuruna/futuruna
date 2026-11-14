@@ -10,19 +10,23 @@
 = personskat_atp_am_kilde = PersonskatAtpKilde(url = "https://www.retsinformation.dk/eli/lta/2020/121", identifier = "AMBL § 3, nr. 5: obligatorisk pension efter ATP-lovens § 17 s er undtaget fra AM", hentet_dato = "2026-09-22")
 = personskat_atp_metadata = Metadata(attachments = (Source(value = personskat_atp_lovkilde), DependencySource(value = personskat_atp_pbl19_kilde), DependencySource(value = personskat_atp_am_kilde), Guidance(value = personskat_atp_eindkomst_kilde)))
 
---@label:personskat_atp::meta:personskat_atp_metadata--
+-- LL § 9 J, stk. 1; § 9 K henviser til samme grundlag. LL § 9 L bruger
+-- derimod de relevante § 19-indbetalinger efter indeholdt AM. Ingen af
+-- grundlagene er et nyt lønbeløb eller et privat § 18-fradrag.
+-- Nettobeløbet er selvstændig kildeoplysning, ikke brutto gange 0,92.
 ----
 Indbetalinger til Arbejdsmarkedets Tillægspension indgår med de indbetalinger,
 som arbejdsgiverne indberetter til skatteforvaltningen. Indbetalinger omfattet
 af pensionsbeskatningslovens § 19, stk. 2 og 4, indgår ikke.
 ----
--- LL § 9 J, stk. 1; § 9 K henviser til samme grundlag. LL § 9 L bruger
--- derimod de relevante § 19-indbetalinger efter indeholdt AM. Ingen af
--- grundlagene er et nyt lønbeløb eller et privat § 18-fradrag.
--- Nettobeløbet er selvstændig kildeoplysning, ikke brutto gange 0,92.
---@begin:personskat_atp--
+
+@ meta(personskat_atp_metadata)
+@ section personskat_atp {
+
 # PersonskatAtpGrundlag = AtpArbejdsgiverPar19Stk1 | AtpOffentligYdelsePar19Stk2 | AtpSupplerendeArbejdsmarkedspensionPar19Stk4 | AtpObligatoriskPensionPar19Stk4 | AtpAndetEllerUoplystGrundlag
+@ meta(personskat_atp_post_beregningsmeta)
 # PersonskatAtpIndbetaling(identifikation: Tekst, indkomstår: Heltal, kildereference: Tekst, grundlag: PersonskatAtpGrundlag, indberettet_før_am_kroner: Heltal, indberettet_efter_am_kroner: Option(Heltal))
+@ meta(personskat_atp_beregningsmeta)
 # PersonskatAtpInput = AtpUoplyst | IngenAtpIndbetalinger | OplysteAtpIndbetalinger(oplysninger_for_året_komplette: Boolsk, poster: List(PersonskatAtpIndbetaling))
 # PersonskatAtpResultat(input: PersonskatAtpInput, kontroller: List(PersonskatInputkontrol), alle_input_gyldige: Boolsk, arbejdsfradragsgrundlag_kroner: Heltal, ekstra_pensionsfradragsgrundlag_kroner: Heltal)
 
@@ -68,7 +72,8 @@ af pensionsbeskatningslovens § 19, stk. 2 og 4, indgår ikke.
     )
 }
 | personskat_atp_resultat(input: PersonskatAtpInput, andre_betalingsidentifikationer: List(Tekst), indkomstår: Heltal) -> PersonskatAtpSag(input, andre_betalingsidentifikationer, indkomstår).resultat()
---@end:personskat_atp--
+
+}
 
 = personskat_atp_felt_valg = TypetBeregningsfelt(path = refof(PersonskatAtpInput::$variant), label = "Årets ATP-indbetalinger", question = Some("Er alle årets ATP-indbetalinger afklaret, også ved ingen almindelig pensionsordning?"), help = Some("Startvalget er uoplyst. Vælg ingen kun efter gennemgang. Brug skatteoplysninger og ATP-oplysninger for året; gæt ikke ud fra løn, timer eller standardsatser."), unit = None)
 = personskat_atp_felt_komplette = TypetBeregningsfelt(path = refof(PersonskatAtpInput::OplysteAtpIndbetalinger::oplysninger_for_året_komplette), label = "Alle ATP-kilder gennemgået", question = Some("Omfatter listen alle årets ATP-indbetalinger?"), help = Some("Gennemgå flere arbejdsgivere, offentlige ydelser, SUPP og obligatorisk pension særskilt. Falsk bevarer oplysningen som ufuldstændig."), unit = None)
@@ -79,6 +84,4 @@ af pensionsbeskatningslovens § 19, stk. 2 og 4, indgår ikke.
 = personskat_atp_felt_brutto = TypetBeregningsfelt(path = refof(PersonskatAtpIndbetaling::indberettet_før_am_kroner), label = "Samlet ATP-indbetaling før AM", question = Some("Hvad er årets dokumenterede samlede ATP-indbetaling før ATPs AM-indeholdelse?"), help = Some("eIndkomst felt 46 er lønmodtagerens og arbejdsgiverens bidrag i alt, ikke kun dit løntræk. Udled ikke totalen fra din andel. Felt 47 er særskilt obligatorisk pension. Beløbene er årlige og oplyses i hele kroner som i beregningsgrundlaget."), unit = Some("kr./år"))
 = personskat_atp_felt_netto = TypetBeregningsfelt(path = refof(PersonskatAtpIndbetaling::indberettet_efter_am_kroner), label = "ATP-indbetaling efter indeholdt AM", question = Some("Hvad er det dokumenterede ATP-bidrag efter indeholdt AM til årets ekstra pensionsfradrag?"), help = Some("Brug det indberettede nettobeløb; bevar null ved manglende oplysning. Intet nyt AM opkræves her. ATPs allerede indeholdte bidrag kan afhænge af året og personens alder; automatisk 8 % er ikke kildefakta."), unit = Some("kr./år"))
 = personskat_atp_beregningsmeta = TypetBeregningsmeta(felter = [personskat_atp_felt_valg, personskat_atp_felt_komplette], spørgsmål = [], beløbsfelter = [], attachments = (Source(value = personskat_atp_lovkilde), Guidance(value = personskat_atp_eindkomst_kilde)))
---@label:PersonskatAtpInput::meta:personskat_atp_beregningsmeta--
 = personskat_atp_post_beregningsmeta = TypetBeregningsmeta(felter = [personskat_atp_felt_id, personskat_atp_felt_år, personskat_atp_felt_kilde, personskat_atp_felt_grundlag, personskat_atp_felt_brutto, personskat_atp_felt_netto], spørgsmål = [], beløbsfelter = [], attachments = (Source(value = personskat_atp_lovkilde), Guidance(value = personskat_atp_eindkomst_kilde)))
---@label:PersonskatAtpIndbetaling::meta:personskat_atp_post_beregningsmeta--

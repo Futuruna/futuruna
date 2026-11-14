@@ -11,7 +11,6 @@
     )
 )
 
---@label:kursgevinstloven_par32_scenarier::meta:kursgevinstloven_par32_scenarier_metadata--
 ----
 § 32. Skattepligtige omfattet af § 12 kan fradrage tab på kontrakter, i det
 omfang det angives i stk. 2-5.
@@ -24,7 +23,9 @@ I § 32, stk. 3, 1., 2. og 3. pkt., indsættes efter »reguleret marked«:
 Stk. 1. Loven træder i kraft den 1. januar 2024.
 ----
 
---@begin:kursgevinstloven_par32_scenarier--
+@ meta(kursgevinstloven_par32_scenarier_metadata)
+@ section kursgevinstloven_par32_scenarier {
+
 | kgl_par32_scenarie_kontraktresultat(indkomstår: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal) -> kursgevinstlov_resultat(KursgevinstlovInput(
     indkomstår = indkomstår,
     rolle = KglPersonEfterKildeskatteloven,
@@ -470,4 +471,5 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 ? kgl_par32_kildefakta_afleder_kontraktresultater_og_bevarer_identitet
 ? kgl_par32_kildefakta_afleder_par30_modgående_genindtræden
 ? kgl_par32_kildefakta_afleder_abl17_relation_fra_entydig_reference
---@end:kursgevinstloven_par32_scenarier--
+
+}

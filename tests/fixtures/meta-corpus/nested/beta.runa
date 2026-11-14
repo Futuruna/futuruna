@@ -4,11 +4,10 @@
 = square_source = Square
 = shape_warning = Warning(message = "Review this shape")
 
---@label:square_rule::source:square_source::warning:shape_warning--
 ----
 Square source
 ----
 
---@begin::square_rule--
+@ meta(square_source)
+@ meta(shape_warning)
 | square_rule(shape: Shape) -> shape == Square
---@end::square_rule--

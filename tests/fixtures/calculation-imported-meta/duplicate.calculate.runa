@@ -10,8 +10,8 @@
     help = None,
     unit = None
 )
---@label:calculate_imported_fields::meta:local_amount_field--
 
+@ meta(local_amount_field)
 @ calculate
 | calculate_imported_fields(input: DuplicateImportedInput) -> DuplicateImportedResult(
     amount = input.amount

@@ -11,8 +11,9 @@
     )
 )
 
---@label:personskat_ebl_par10_stk9_scenarier::meta:personskat_ebl_par10_stk9_scenarier_metadata--
---@begin:personskat_ebl_par10_stk9_scenarier--
+@ meta(personskat_ebl_par10_stk9_scenarier_metadata)
+@ section personskat_ebl_par10_stk9_scenarier {
+
 = personskat_ebl_par10_stk9_skadefakta = PersonskatEjendomsavanceSkadefakta(
     identifikation = "blandet-brandgenopførelse",
     par10_fakta = EblPar10Fakta(
@@ -83,4 +84,5 @@
 
 ? personskat_ebl_par10_stk9_adskiller_bruttobeløb_fra_tabsmodregning
 ? personskat_ebl_par10_stk9_flyder_til_kapitalindkomst
---@end:personskat_ebl_par10_stk9_scenarier--
+
+}

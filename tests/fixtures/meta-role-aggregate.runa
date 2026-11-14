@@ -14,4 +14,4 @@
         DependencySource(value = dependency_source))
 )
 
---@label:calculate::meta:calculation_metadata--
+@ meta(calculation_metadata) for calculate

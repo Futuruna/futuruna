@@ -15,7 +15,7 @@
 = kgl_ebl_par6d_samspil_vejledningsmeta = Guidance(
     value = kgl_ebl_par6d_vejledning_2026
 )
---@label:kgl_ebl_par6d_samspil::meta:kgl_ebl_par6d_samspil_vejledningsmeta--
+
 ----
 Udskydelse af beskatningen ved udstedelse af et sælgerpantebrev, der opfylder
 betingelserne i EBL § 6 D, berøres ikke af beskatningen efter kursgevinstloven.
@@ -29,7 +29,9 @@ kursgevinstloven.
 Det samme gælder ved en (ekstraordinær) indfrielse af sælgerpantebrevet.
 ----
 
---@begin:kgl_ebl_par6d_samspil--
+@ meta(kgl_ebl_par6d_samspil_vejledningsmeta)
+@ section kgl_ebl_par6d_samspil {
+
 # KglEblPar6DSkatteyderfakta(udøver_næring_ved_køb_og_salg_af_fordringer: Boolsk, fordringen_erhvervet_uden_for_fordringsnæring: Boolsk, fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser: Boolsk, fordringen_erhvervet_i_direkte_tilknytning_til_erhvervsmæssig_drift: Boolsk, debitor_omfattet_af_tabsbegrænsningen_i_kgl_par14_stk2: Boolsk, renter_eller_gevinster_fritaget_efter_dobbeltbeskatningsoverenskomst: Boolsk)
 # KglEblPar6DSælgerpantebrevsfakta(sælgerpantebrev_identifikation: Tekst, oprindelig_skatteyder_identifikation: Tekst, skatteyderfakta: KglEblPar6DSkatteyderfakta, dispositioner_efter_ebl_forløbet: List(KglSælgerpantebrevDisposition))
 # KglEblPar6DFordringsdelejer(fordringsdel_identifikation: Tekst, skatteyder: KglSælgerpantebrevSkatteyder)
@@ -246,4 +248,5 @@ Det samme gælder ved en (ekstraordinær) indfrielse af sælgerpantebrevet.
 | kgl_ebl_par6d_resultat(fakta: KglEblPar6DSælgerpantebrevsfakta, par6d_resultat: EblPar6DResultat) -> kgl_ebl_par6d_sag(fakta, par6d_resultat).resultat()
 | kgl_ebl_par6d_medregnet_fortjeneste_for_skatteyder_i_indkomstår_kroner(resultat: KglEblPar6DSælgerpantebrevsresultat, indkomstår: Heltal, skatteyder_identifikation: Tekst) -> foldl(resultat.fortjenestemedregninger, 0, |sum: Heltal, medregning: KglEblPar6DFortjenestemedregning| sum + hvis medregning.medregning.indkomstår == indkomstår && medregning.skatteyder.identifikation == skatteyder_identifikation { medregning.medregning.beløb_kroner } ellers { 0 })
 | kgl_ebl_par6d_samlet_fordelt_fortjeneste_kroner(resultat: KglEblPar6DSælgerpantebrevsresultat) -> foldl(resultat.fortjenestemedregninger, 0, |sum: Heltal, medregning: KglEblPar6DFortjenestemedregning| sum + medregning.medregning.beløb_kroner)
---@end:kgl_ebl_par6d_samspil--
+
+}

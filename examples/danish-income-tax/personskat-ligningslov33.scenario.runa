@@ -12,14 +12,14 @@
     )
 )
 
---@label:personskat_ligningslov33_scenarier::meta:personskat_ligningslov33_scenarier_metadata--
 ----
 Scenarierne er ikke lovtekst. De fastholder den kanoniske kæde fra en persons
 udenlandske indkomst og skat gennem de særskilte danske skattekomponenter til
 nedslaget i personens slutskat.
 ----
 
---@begin:personskat_ligningslov33_scenarier--
+@ meta(personskat_ligningslov33_scenarier_metadata)
+@ section personskat_ligningslov33_scenarier {
 
 | personskat_ligningslov33_scenarie_lønmodtager(bruttoløn_kroner: Heltal) -> PersonskatLønmodtagerInput(
     skatteår = 2026,
@@ -416,4 +416,4 @@ nedslaget i personens slutskat.
 ? personskat_ligningslov33_fragtskat_fremførsel_nedsætter_slutskatten
 ? personskat_ligningslov33_fragtskat_indkomstår_skal_stemme
 
---@end:personskat_ligningslov33_scenarier--
+}

@@ -190,7 +190,6 @@ på den anden side indfrielsessummen.
     )
 )
 
---@label:kursgevinstloven_par29_par30_par33::meta:kursgevinstloven_par29_par30_par33_metadata--
 ----
 § 29. Skattepligtige omfattet af § 2 eller § 12 skal medregne gevinst og tab på
 terminskontrakter og aftaler om køberetter og salgsretter ved opgørelsen af den
@@ -237,7 +236,9 @@ eller passiv for erhvervet henholdsvis afstået på afviklingsdagen og til
 markedsværdien på afviklingsdagen.
 ----
 
---@begin:kursgevinstloven_par29_par30_par33--
+@ meta(kursgevinstloven_par29_par30_par33_metadata)
+@ section kursgevinstloven_par29_par30_par33 {
+
 # KursgevinstlovPar30FastEjendomFakta(løbetid_kan_overskride_12_måneder: Boolsk, parterne_er_nærtstående_efter_boafgiftslovens_par22: Boolsk)
 # KursgevinstlovPar30Aftaleart = KglPar30IngenUndtagelsesaftale | KglPar30FastEjendomsaftale(fakta: KursgevinstlovPar30FastEjendomFakta) | KglPar30TegningsretTilAktier | KglPar30KurssikringVedLånMedSærligSikkerhed | KglPar30KonverteringsretKnyttetTilFordring | KglPar30AftaleOmKøbEllerSalgAfAktier | KglPar30ValutakontraktVedVærdipapirhandelMedSædvanligAfvikling | KglPar30SædvanligLeveringsaftale(optaget_til_handel_på_reguleret_marked: Boolsk) | KglPar30AftaleOmVirksomhedsafståelse
 # KursgevinstlovKontraktKildeFakta(aftaleart: KursgevinstlovPar30Aftaleart, har_modgående_kontrakt_eller_forretning: Boolsk, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal, anskaffet_i_indkomståret: Boolsk, realiseret_i_indkomståret: Boolsk, udøver_næring_ved_køb_og_salg_af_finansielle_kontrakter: Boolsk)
@@ -305,7 +306,8 @@ markedsværdien på afviklingsdagen.
 | exception kgl_par33_kontrakt_anskaffet_og_realiseret kursgevinstlov_par33_kontrakt_resultat_kroner(kontrakt: KursgevinstlovKontraktOpgørelse) -> kontrakt.afståelsesværdi_kroner - kontrakt.anskaffelsessum_kroner under kontrakt.anskaffet_i_indkomståret && kontrakt.realiseret_i_indkomståret
 | exception kgl_par33_kontrakt_anskaffet kursgevinstlov_par33_kontrakt_resultat_kroner(kontrakt: KursgevinstlovKontraktOpgørelse) -> kontrakt.værdi_ultimo_kroner - kontrakt.anskaffelsessum_kroner under kontrakt.anskaffet_i_indkomståret && kontrakt.realiseret_i_indkomståret == Falskt
 | exception kgl_par33_kontrakt_realiseret kursgevinstlov_par33_kontrakt_resultat_kroner(kontrakt: KursgevinstlovKontraktOpgørelse) -> kontrakt.afståelsesværdi_kroner - kontrakt.værdi_primo_kroner under kontrakt.anskaffet_i_indkomståret == Falskt && kontrakt.realiseret_i_indkomståret
---@end:kursgevinstloven_par29_par30_par33--
+
+}
 
 # KursgevinstlovSag(input: KursgevinstlovInput) {
     | person_eller_dødsbo_efter_par12() -> kgl_person_eller_dødsbo_efter_par12(input.rolle)

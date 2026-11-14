@@ -220,7 +220,6 @@
     )
 )
 
---@label:pensionsbeskatningsloven_par16::meta:pensionsbeskatningsloven_par16_metadata--
 ----
 § 16. Til opsparing i pensionsøjemed uden fradrags- og bortseelsesret
 (aldersopsparing), kapitalforsikring i pensionsøjemed uden fradrags- og
@@ -278,7 +277,9 @@ grundbeløbet 43.900 kr. (2010-niveau). I 2021 udgør grundbeløbet 44.800 kr.
 Grundbeløbene reguleres efter personskattelovens § 20.
 ----
 
---@begin::pensionsbeskatningsloven_par16--
+@ meta(pensionsbeskatningsloven_par16_metadata)
+@ section pensionsbeskatningsloven_par16 {
+
 # Pbl16FradragsloftArt = Pbl16Kapitalordning | Pbl16Rateordning
 # Pbl16FradragsloftInput(indkomstår: Heltal, art: Pbl16FradragsloftArt)
 # Pbl16FradragsloftResultat(indkomstår: Heltal, art: Pbl16FradragsloftArt, årsparametre: Pbl16Og18Årsparametre, understøttet_indkomstår: Boolsk, grundbeløb_2010_niveau_kroner: Heltal, reguleret_bruttoloft_kroner: Heltal)
@@ -300,7 +301,8 @@ Grundbeløbene reguleres efter personskattelovens § 20.
     grundbeløb_2010_niveau_kroner = pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(input.indkomstår, input.art),
     reguleret_bruttoloft_kroner = pbl16_reguleret_bruttoloft_kroner(input)
 )
---@end::pensionsbeskatningsloven_par16--
+
+}
 
 = pensionsbeskatningsloven_par18_metadata = Metadata(
     attachments = (
@@ -309,7 +311,6 @@ Grundbeløbene reguleres efter personskattelovens § 20.
     )
 )
 
---@label:pensionsbeskatningsloven_par18::meta:pensionsbeskatningsloven_par18_metadata--
 ----
 § 18. Ved opgørelsen af den skattepligtige indkomst for ejeren af ordningen,
 jf. reglerne i afsnit III, kan med de i stk. 2-8 nævnte begrænsninger fradrages
@@ -433,7 +434,9 @@ pensionsordningen i et andet land og overførslen ikke har skatte- eller
 afgiftsmæssige konsekvenser for den pågældende person i dette land.
 ----
 
---@begin::pensionsbeskatningsloven_par18--
+@ meta(pensionsbeskatningsloven_par18_metadata)
+@ section pensionsbeskatningsloven_par18 {
+
 # Pbl18Ordning = Pbl18LivsvarigLivrente | Pbl18OphørendeLivrente | Pbl18Rateforsikring | Pbl18Rateopsparing | Pbl18Kapitalforsikring | Pbl18OpsparingIPensionsøjemed | Pbl18Aldersopsparing | Pbl18Aldersforsikring | Pbl18SupplerendeEngangssum | Pbl18SupplerendeEngangsydelse | Pbl18Indeksordning | Pbl18Par15ALøbendeUdbetaling | Pbl18Par15ARateordning | Pbl18Par15BRateforsikring | Pbl18Par15BRateopsparing | Pbl18UdenForKapitel1
 # Pbl18Indbetalingskilde = Pbl18EgenIndbetaling | Pbl18Arbejdsgiverindbetaling | Pbl18HjælpeEllerUnderstøttelsesfond
 # Pbl18Fradragsretshaver = Pbl18OrdningensEjer | Pbl18SamlevendeLængstlevendeÆgtefælle | Pbl18AndenEfterEjerensDød
@@ -629,36 +632,6 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
     ændringsstatus = "Betalingsår er udgangspunktet; Skattestyrelsen kan godkende året for løntilbageholdelsen ved indbetaling året efter"
 )
 = pbl19_bankår_meta = Guidance(value = pbl19_bankår_kilde)
---@label:pbl19_bankår::meta:pbl19_bankår_meta--
-----
-Det forudsættes, at indbetalingen foretages af arbejdsgiveren inden en rimelig tid efter indkomstårets udløb.
-----
---@begin:pbl19_bankår--
--- Kun almindelig rateopsparing her; en godkendelse er et dokumenteret input.
--- Særlige ordninger og kombination med § 22 E må ikke antage samme retsvirkning.
-| pbl19_bankår_kræver_afklaring(post: Pbl18Årsindbetaling) -> post.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && post.ordning == Pbl18Rateopsparing && post.betaling.beløb_kroner > 0 && post.betaling.hidrører_fra_par22e_tilbagebetaling == Falskt
-| pbl19_bankgodkendelse_gyldig(godkendelse: Pbl19BankGodkendelse) -> godkendelse.identifikation != "" && godkendelse.kildereference != "" && godkendelse.løntilbageholdelse_kildereference != "" && godkendelse.tilbageholdelsesår > 0 && godkendelse.tilbageholdelsesår < 9999 && godkendelse.godkendt_indkomstår == godkendelse.tilbageholdelsesår && godkendelse.godkendt_brutto_kroner > 0 && godkendelse.godkendt_brutto_kroner <= godkendelse.tilbageholdt_brutto_kroner
-| pbl19_bankår_gyldigt(post: Pbl18Årsindbetaling) -> match post.betaling.bank_årsplacering {
-    | None -> pbl19_bankår_kræver_afklaring(post) == Falskt
-    | Some(Pbl19BankBetalingsår) -> Sandt
-    | Some(Pbl19BankGodkendtÅr(godkendelse, indbetalingsdato, omfattet)) -> pbl19_bankår_kræver_afklaring(post) && pbl19_bankgodkendelse_gyldig(godkendelse) && omfattet && post.betaling.par22e_genindbetaling == None && dato_gyldig(indbetalingsdato) && indbetalingsdato.år == post.betaling.betalingsår && indbetalingsdato.år - 1 == godkendelse.tilbageholdelsesår && post.betaling.beløb_kroner <= godkendelse.godkendt_brutto_kroner && (post.betaling.betalt_senest_bankjusteret_1_april_efter_forfald || indbetalingsdato.år - 1 != post.betaling.forfaldsår || indbetalingsdato.måned > 4 || (indbetalingsdato.måned == 4 && indbetalingsdato.dag > 1))
-}
-| pbl19_bankgodkendelse_på_post(post: Pbl18Årsindbetaling) -> match post.betaling.bank_årsplacering {
-    | Some(Pbl19BankGodkendtÅr(godkendelse, _, _)) -> Some(godkendelse)
-    | _ -> None
-}
--- Samme godkendelses-id er én beløbsramme, også ved flere betalinger.
-| pbl19_bankgodkendelser_konsistente(poster: List(Pbl18Årsindbetaling)) -> all(poster, |post: Pbl18Årsindbetaling| match pbl19_bankgodkendelse_på_post(post) {
-        | None -> Sandt
-        | Some(godkendelse) -> all(poster, |anden: Pbl18Årsindbetaling| match pbl19_bankgodkendelse_på_post(anden) {
-                | None -> Sandt
-                | Some(anden_godkendelse) -> anden_godkendelse.identifikation != godkendelse.identifikation || anden_godkendelse == godkendelse
-            }) && foldl(poster, 0, |sum: Heltal, anden: Pbl18Årsindbetaling| sum + match pbl19_bankgodkendelse_på_post(anden) {
-                | None -> 0
-                | Some(anden_godkendelse) -> hvis anden_godkendelse.identifikation == godkendelse.identifikation { anden.betaling.beløb_kroner } ellers { 0 }
-            }) <= godkendelse.godkendt_brutto_kroner
-    })
---@end:pbl19_bankår--
 | pbl18_årsbetaling_gyldig(indbetalingskilde: Pbl18Indbetalingskilde, betaling: Pbl18Årsbetaling) -> betaling.beløb_kroner >= 0 && pbl18_årsbetaling_frister_konsistente(betaling) && pbl22e_oplysning_gyldig(betaling.hidrører_fra_par22e_tilbagebetaling, betaling.par22e_genindbetaling, betaling.betalingsår, betaling.beløb_kroner) && pbl18_par22e_apriloplysning_konsistent(betaling) && betaling.arbejdsmarkedsbidrag_kroner >= 0 && betaling.arbejdsmarkedsbidrag_kroner <= betaling.beløb_kroner && (indbetalingskilde == Pbl18Arbejdsgiverindbetaling || betaling.arbejdsmarkedsbidrag_kroner == 0)
 | pbl18_årsindbetaling_gyldig(indbetaling: Pbl18Årsindbetaling) -> indbetaling.identifikation != "" && pbl18_årsbetaling_gyldig(indbetaling.indbetalingskilde, indbetaling.betaling) && pbl19_bankår_gyldigt(indbetaling) && pbl18_par15a_placering_passer_til_ordning(indbetaling.ordning, indbetaling.betaling.par15a_fradragsplacering) && pbl18_årsfordelingsforløb_gyldigt(indbetaling.fordelingsforløb) && pbl18_årsindeksvalg_gyldigt(indbetaling.indeksvalg) && indbetaling.forfaldne_ikke_tidligere_fratrukket_kroner >= 0
 | pbl18_årsidentifikation_unik(indbetalinger: List(Pbl18Årsindbetaling), indbetaling: Pbl18Årsindbetaling) -> length(filter(indbetalinger, |anden: Pbl18Årsindbetaling| anden.identifikation == indbetaling.identifikation)) == 1
@@ -935,7 +908,41 @@ Det forudsættes, at indbetalingen foretages af arbejdsgiveren inden en rimelig 
 }
 | pbl18_årsresultat(input: Pbl18Årsinput) -> Pbl18ÅrsSag(input, 0, 0).resultat()
 | pbl18_årsresultat_med_supplerende_arbejdsgiverrate(input: Pbl18Årsinput, brutto_kroner: Heltal, am_kroner: Heltal) -> Pbl18ÅrsSag(input, brutto_kroner, am_kroner).resultat()
---@end::pensionsbeskatningsloven_par18--
+
+}
+----
+Det forudsættes, at indbetalingen foretages af arbejdsgiveren inden en rimelig tid efter indkomstårets udløb.
+----
+
+@ meta(pbl19_bankår_meta)
+@ section pbl19_bankår {
+
+-- Kun almindelig rateopsparing her; en godkendelse er et dokumenteret input.
+-- Særlige ordninger og kombination med § 22 E må ikke antage samme retsvirkning.
+| pbl19_bankår_kræver_afklaring(post: Pbl18Årsindbetaling) -> post.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && post.ordning == Pbl18Rateopsparing && post.betaling.beløb_kroner > 0 && post.betaling.hidrører_fra_par22e_tilbagebetaling == Falskt
+| pbl19_bankgodkendelse_gyldig(godkendelse: Pbl19BankGodkendelse) -> godkendelse.identifikation != "" && godkendelse.kildereference != "" && godkendelse.løntilbageholdelse_kildereference != "" && godkendelse.tilbageholdelsesår > 0 && godkendelse.tilbageholdelsesår < 9999 && godkendelse.godkendt_indkomstår == godkendelse.tilbageholdelsesår && godkendelse.godkendt_brutto_kroner > 0 && godkendelse.godkendt_brutto_kroner <= godkendelse.tilbageholdt_brutto_kroner
+| pbl19_bankår_gyldigt(post: Pbl18Årsindbetaling) -> match post.betaling.bank_årsplacering {
+    | None -> pbl19_bankår_kræver_afklaring(post) == Falskt
+    | Some(Pbl19BankBetalingsår) -> Sandt
+    | Some(Pbl19BankGodkendtÅr(godkendelse, indbetalingsdato, omfattet)) -> pbl19_bankår_kræver_afklaring(post) && pbl19_bankgodkendelse_gyldig(godkendelse) && omfattet && post.betaling.par22e_genindbetaling == None && dato_gyldig(indbetalingsdato) && indbetalingsdato.år == post.betaling.betalingsår && indbetalingsdato.år - 1 == godkendelse.tilbageholdelsesår && post.betaling.beløb_kroner <= godkendelse.godkendt_brutto_kroner && (post.betaling.betalt_senest_bankjusteret_1_april_efter_forfald || indbetalingsdato.år - 1 != post.betaling.forfaldsår || indbetalingsdato.måned > 4 || (indbetalingsdato.måned == 4 && indbetalingsdato.dag > 1))
+}
+| pbl19_bankgodkendelse_på_post(post: Pbl18Årsindbetaling) -> match post.betaling.bank_årsplacering {
+    | Some(Pbl19BankGodkendtÅr(godkendelse, _, _)) -> Some(godkendelse)
+    | _ -> None
+}
+-- Samme godkendelses-id er én beløbsramme, også ved flere betalinger.
+| pbl19_bankgodkendelser_konsistente(poster: List(Pbl18Årsindbetaling)) -> all(poster, |post: Pbl18Årsindbetaling| match pbl19_bankgodkendelse_på_post(post) {
+        | None -> Sandt
+        | Some(godkendelse) -> all(poster, |anden: Pbl18Årsindbetaling| match pbl19_bankgodkendelse_på_post(anden) {
+                | None -> Sandt
+                | Some(anden_godkendelse) -> anden_godkendelse.identifikation != godkendelse.identifikation || anden_godkendelse == godkendelse
+            }) && foldl(poster, 0, |sum: Heltal, anden: Pbl18Årsindbetaling| sum + match pbl19_bankgodkendelse_på_post(anden) {
+                | None -> 0
+                | Some(anden_godkendelse) -> hvis anden_godkendelse.identifikation == godkendelse.identifikation { anden.betaling.beløb_kroner } ellers { 0 }
+            }) <= godkendelse.godkendt_brutto_kroner
+    })
+
+}
 
 = pensionsbeskatningsloven_par19_stk1_metadata = Metadata(
     attachments = (
@@ -943,7 +950,6 @@ Det forudsættes, at indbetalingen foretages af arbejdsgiveren inden en rimelig 
     )
 )
 
---@label:pensionsbeskatningsloven_par19_stk1::meta:pensionsbeskatningsloven_par19_stk1_metadata--
 ----
 § 19. Ved opgørelsen af en arbejdstagers skattepligtige indkomst medregnes
 ikke beløb, der af arbejdsgiveren indbetales til en af kapitel 1 omfattet
@@ -984,7 +990,9 @@ pensionsøjemed omfattet af § 15 B er begrænset på samme måde som fradragsre
 for egne præmier og bidrag, jf. § 15 B, stk. 6.
 ----
 
---@begin::pensionsbeskatningsloven_par19_stk1--
+@ meta(pensionsbeskatningsloven_par19_stk1_metadata)
+@ section pensionsbeskatningsloven_par19_stk1 {
+
 # Pbl19Arbejdsgiverrelation = Pbl19NuværendeArbejdsgiver | Pbl19TidligereArbejdsgiver | Pbl19AndenIndbetaler
 # Pbl19Kapitalordningsstatus = Pbl19IngenTidligereAfgiftsberigtigelse | Pbl19AfgiftsberigtigetEfterPensionsalderen(afgiftsberigtigelsesår: Heltal)
 # Pbl19ArbejdsgiverindbetalingFakta(arbejdsgiverrelation: Pbl19Arbejdsgiverrelation, ordning: Pbl18Ordning, indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner: Option(Heltal), indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal, kapitalordningsstatus: Pbl19Kapitalordningsstatus)
@@ -1063,12 +1071,13 @@ for egne præmier og bidrag, jf. § 15 B, stk. 6.
 }
 | pbl19_rate_årsresultat(indkomstår: Heltal, indbetalinger: List(Pbl18Årsindbetaling)) -> Pbl19RateÅrsSag(indkomstår, indbetalinger, 0, 0).resultat()
 | pbl19_rate_årsresultat_med_supplerende_indbetalinger(indkomstår: Heltal, indbetalinger: List(Pbl18Årsindbetaling), brutto_kroner: Heltal, am_kroner: Heltal) -> Pbl19RateÅrsSag(indkomstår, indbetalinger, brutto_kroner, am_kroner).resultat()
---@end::pensionsbeskatningsloven_par19_stk1--
+
+}
 
 = pbl_par52_kildemeta = Source(
     value = pensionsbeskatningsloven_lbk1243_par52
 )
---@label:pensionsbeskatningsloven_par52::meta:pbl_par52_kildemeta--
+
 ----
 § 52. Ved opgørelsen af en arbejdsgivers skattepligtige indkomst kan fradrages
 bidrag til en hjælpe- og understøttelsesfond, hvis betingelserne i stk. 2-4 er
@@ -1086,7 +1095,9 @@ Stk. 4. Mindst et af fondsbestyrelsens medlemmer skal vælges af og blandt de af
 virksomhedens ansatte, der kan nyde godt af fondens virke.
 ----
 
---@begin::pensionsbeskatningsloven_par52--
+@ meta(pbl_par52_kildemeta)
+@ section pensionsbeskatningsloven_par52 {
+
 # Pbl52Understøttelsesmodtager = Pbl52TidligereAnsat | Pbl52EfterladtÆgtefælle | Pbl52FraskiltÆgtefælle | Pbl52Samlever | Pbl52BarnUnder24 | Pbl52StedbarnUnder24 | Pbl52AndenModtager
 # Pbl52FondVilkår(modtagerkreds: List(Pbl52Understøttelsesmodtager), har_andet_formål: Boolsk, midler_anbragt_efter_firmapensionskasseregler: Boolsk, medarbejdervalgt_bestyrelsesmedlem_opfyldt: Boolsk)
 # Pbl52Input(arbejdsgiverbidrag_kroner: Heltal, fond: Pbl52FondVilkår)
@@ -1113,7 +1124,8 @@ virksomhedens ansatte, der kan nyde godt af fondens virke.
 }
 | pbl52_sag(input: Pbl52Input) -> Pbl52Sag(input)
 | pbl52_resultat(input: Pbl52Input) -> pbl52_sag(input).resultat()
---@end::pensionsbeskatningsloven_par52--
+
+}
 
 = pbl_par53a_kildemeta = Metadata(
     attachments = (
@@ -1125,7 +1137,14 @@ virksomhedens ansatte, der kan nyde godt af fondens virke.
         PreparatorySource(value = pensionsbeskatningsloven_lsf24_2007_par53a_stk5),
     )
 )
---@label:pensionsbeskatningsloven_par53a::meta:pbl_par53a_kildemeta--
+
+= pbl_par53b_kildemeta = Metadata(
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1243_par53b),
+        Guidance(value = skat_juridisk_vejledning_pbl53b_omfang),
+    )
+)
+
 ----
 § 53 A. Reglerne i stk. 2-5 gælder for livsforsikring, der ikke omfattes af
 kapitel 1, livsforsikring, der opfylder betingelserne i kapitel 1, men hvor
@@ -1229,60 +1248,9 @@ pensionsordning gives afkald på beskatning efter reglerne i afsnit I, hvis
 pensionsordningen modtager statsstøtte.
 ----
 
-= pbl_par53b_kildemeta = Metadata(
-    attachments = (
-        Source(value = pensionsbeskatningsloven_lbk1243_par53b),
-        Guidance(value = skat_juridisk_vejledning_pbl53b_omfang),
-    )
-)
---@label:pensionsbeskatningsloven_par53b::meta:pbl_par53b_kildemeta--
-----
-§ 53 B. Uanset § 53 A gælder reglerne i stk. 4-6 for livsforsikringer som
-nævnt i § 53 A, stk. 1, nr. 1, pensionskasseordninger som nævnt i § 53 A,
-stk. 1, nr. 3, og syge- og ulykkesforsikringer som nævnt i § 53 A, stk. 1,
-nr. 5, hvis betingelserne i stk. 2 og 3 er opfyldt. Tilsvarende gælder
-udenlandske pensionsordninger oprettet i pengeinstitutter.
+@ meta(pbl_par53a_kildemeta)
+@ section pensionsbeskatningsloven_par53a {
 
-Stk. 2. Pensionsordningen m.v. som nævnt i stk. 1 skal være oprettet, mens
-forsikringstageren eller den pensionsberettigede ikke var skattepligtig efter
-kildeskattelovens § 1, eller mens den pågældende var skattepligtig efter
-kildeskattelovens § 1, men efter bestemmelserne i en
-dobbeltbeskatningsoverenskomst var hjemmehørende i en fremmed stat, på Færøerne
-eller i Grønland.
-
-Stk. 3. Samtlige indbetalinger til pensionsordningen m.v. som nævnt i stk. 1,
-som er foretaget i den periode, hvor forsikringstageren eller den
-pensionsberettigede ikke var skattepligtig til respektive hjemmehørende i
-Danmark, skal være fradraget i positiv skattepligtig indkomst i overensstemmelse
-med skattelovgivningen i den stat, hvor forsikringstageren eller den
-pensionsberettigede var skattepligtig respektive hjemmehørende på
-indbetalingstidspunktet eller skal være foretaget af en arbejdsgiver, således
-at indbetalingerne i overensstemmelse med skattelovgivningen i den stat, hvor
-forsikringstageren eller den pensionsberettigede var skattepligtig respektive
-hjemmehørende på indbetalingstidspunktet, ikke er medregnet ved opgørelsen af
-den pågældendes skattepligtige indkomst.
-
-Stk. 4. For præmier og bidrag til pensionsordninger m.v. som nævnt i stk. 1
-gælder § 53 A, stk. 2.
-
-Stk. 5. Ved opgørelsen af den skattepligtige indkomst bortses fra afkast af
-pensionsordninger m.v. som nævnt i stk. 1, herunder renter og
-bonustilskrivninger.
-
-Stk. 6. Udbetalinger fra pensionsordninger m.v. som nævnt i stk. 1 medregnes
-ved opgørelsen af den skattepligtige indkomst. Dog medregnes udbetalinger fra
-ordninger svarende til danske kapitalpensionsordninger med 75 pct., når
-udbetalingen efter betingelserne i ordningen sker samlet efter, at
-pensionsudbetalingsalderen er nået, ved ejerens invaliditet, ved indtrådt
-livstruende sygdom hos ejeren eller ved ejerens død. Udbetalingerne medregnes
-ikke ved opgørelsen af den skattepligtige indkomst, i det omfang de modsvares af
-indbetalinger, som forsikringstageren eller den pensionsberettigede har foretaget
-i perioden efter, at vedkommende blev skattepligtig til respektive hjemmehørende
-i Danmark, og som ikke har kunnet fradrages ved opgørelsen af den skattepligtige
-indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
-----
-
---@begin::pensionsbeskatningsloven_par53a--
 # Pensionsbeskatningslov53AOrdning = Pbl53ALivsforsikringUdenKapitel1 | Pbl53ALivsforsikringAfkaldAfsnitI | Pbl53APensionskasseUdenKapitel1 | Pbl53APensionskasseAfkaldAfsnitI | Pbl53ASygeOgUlykkesforsikring | Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse | Pbl53ADirektørGarantiforsikring | Pbl53APengeinstitutUdenKapitel1 | Pbl53APengeinstitutAfkaldAfsnitI | Pbl53ATidligerePar15DGodkendt
 # Pbl53AKapitel1Fakta = Pbl53AIkkeOmfattetAfKapitel1 | Pbl53AOmfattetAfKapitel1 | Pbl53ATidligereGodkendtEfterPar15D(godkendt_fra: Pbl15ADato, godkendt_til: Pbl15ADato)
 # Pbl53AAfsnitIAfkaldsgiver = Pbl53AForsikringsejerSomAfkaldsgiver | Pbl53APensionsberettigetSomAfkaldsgiver | Pbl53AKontohaverSomAfkaldsgiver | Pbl53AAndenAfkaldsgiver
@@ -1370,263 +1338,6 @@ indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
         Practice(value = skat_skm2025_658_lsr_pbl53a_blanketvalg),
     )
 )
---@label:pensionsbeskatningsloven_par53a_overgangsvalg::meta:pbl53a_overgangsvalg_kildemeta--
-----
-§ 5. I lov nr. 429 af 26. juni 1998 om ændring af
-pensionsbeskatningsloven, realrenteafgiftsloven, fondsbeskatningsloven,
-kildeskatteloven og skattekontrolloven. (Filialer af EU-forsikringsselskaber
-og -pengeinstitutter, symmetri i pensionsbeskatningen, afgift af aktieafkast
-og afskaffelse af kvoteordningen) foretages følgende ændringer:
-
-2. I § 6 indsættes som stk. 12:
-
-»Stk. 12. En forsikringstager eller pensionsopsparer, der har en forsikring
-eller pensionsordning, der er oprettet eller erhvervet før den 18. februar
-1992, kan med virkning fra og med indkomståret 2004 vælge, at § 1, nr. 4, 5,
-6 og 7, finder anvendelse på forsikringen eller pensionsordningen, såfremt
-pensionsbeskatningslovens § 53 A eller § 53 B i øvrigt er anvendelig på
-forsikringen eller pensionsordningen. Valget er bindende og skal træffes
-inden den 1. januar 2006 eller i forbindelse med indtræden af fuld
-skattepligt her til landet. Valget skal inden for fristen i 2. pkt. enten
-meddeles Told- og Skattestyrelsen eller forsikringsselskabet m.v., såfremt
-dette indgiver oplysninger til de statslige told- og skattemyndigheder efter
-skattekontrollovens § 8 B. Valget får i så fald virkning fra og med det
-tidspunkt, hvor Told- og Skattestyrelsen eller forsikringsselskabet m.v. får
-oplysningen. De personer, som inden den 1. april 2005 træffer beslutning om,
-at pensionsbeskatningslovens § 53 A eller § 53 B skal finde anvendelse på
-forsikringen eller pensionsordningen, kan vælge, at beslutningen får
-virkning fra og med den 1. januar 2004. I så fald gives Told- og
-Skattestyrelsen eller forsikringsselskabet m.v. oplysning herom.«
-
-§ 7
-
-Stk. 1. Loven træder i kraft dagen efter bekendtgørelsen i Lovtidende, jf. dog
-stk. 2-4.
-
-Den juridiske vejledning 2026-1, afsnit C.A.10.4.2.5:
-
-Landsskatterettens afgørelse i SKM2025.658.LSR medfører, at hvis skatteyder har
-indsendt blanket 49.020 på et tidspunkt, hvor den gældende blanket ikke gav
-mulighed for at vælge beskatning efter de nævnte bestemmelser, så skal
-Skattestyrelsen acceptere, at der er valgt beskatning efter PBL § 53 A eller
-§ 53 B, hvis skatteyder påberåber sig dette.
-
-Det er derfor Skattestyrelsens opfattelse, at det skal accepteres, hvis
-skatteyder, påberåber sig ikke at have valgt beskatning efter disse
-bestemmelser. Det er med andre ord Skattestyrelsens opfattelse, at det ikke
-skal komme skatteyder til ulempe, at den tidligere blanket 49.020 ikke har
-været udarbejdet på en måde, hvor det tydeligt fremgår, hvorvidt der er
-foretaget et valg om beskatning efter de nævnte bestemmelser.
-
-Blanket 49.020 er ændret i juni 2023 sådan, at der efter dette tidspunkt findes
-et afkrydsningsfelt, hvori der eksplicit skal vælges beskatning efter PBL § 53 A
-eller § 53 B ved at krydse feltet af. Det er Skattestyrelsens opfattelse, at
-Landsskatterettens afgørelse, alene angår situationer, hvor det er den tidligere
-blanket 49.020 (uden afkrydsningsfelt), der er anvendt.
-
-SKM2025.658.LSR:
-
-På baggrund af skattemyndighedens praksis på området og de anvisninger, der er
-givet på selve blanketten og i Den Juridiske Vejledning, finder
-Landsskatteretten, at klageren med indsendelsen af blanket 49.020 - Erklæring L
-har truffet et valg med fristafbrydende virkning i relation til bestemmelsen i
-lov nr. 429 af 26. juni 1998, stk. 12.
-
-Landsskatteretten finder endvidere, at klageren har valgt, at pensionsordningen
-skal være omfattet af pensionsbeskatningslovens §§ 53 A eller 53 B. Den
-omstændighed, at klageren har foretaget afkrydsning i en forkert rubrik i
-blankettens afsnit 5, er uden betydning for valget.
-----
-
---@begin::pensionsbeskatningsloven_par53a_overgangsvalg--
-| pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() -> 20041222
-| pbl53a_overgangsvalg_ordinær_frist_nøgle() -> 20060101
-| pbl53a_overgangsvalg_tilbagevirkende_beslutningsfrist_nøgle() -> 20050401
-| pbl53a_overgangsvalg_tilbagevirkende_startdato() -> Pbl15ADato(år = 2004, måned = 1, dag = 1)
-| pbl53a_overgangsvalg_har_kvalificerende_arv_på_dato(fakta: Pbl53AOmfangsfakta, arvedato: Pbl15ADato) -> any(fakta.erhvervelser, |erhvervelse: Pbl53AErhvervelseshændelse| pbl15a_dato_nøgle(erhvervelse.tidspunkt.dato) == pbl15a_dato_nøgle(arvedato) && pbl53a_erhvervelse_er_kvalificerende_arv(fakta.produkt, erhvervelse))
-| pbl53a_overgangsvalgfristfakta_gyldige(fakta: Pbl53AOmfangsfakta) -> match fakta.overgangsvalgfristfakta {
-    | Pbl53AIntetOvergangsvalgfristgrundlag -> Sandt
-    | Pbl53AFuldSkattepligtVedLovensIkrafttræden -> Sandt
-    | Pbl53ASenereIndtrådtFuldSkattepligt(indtrædelsesdato, oplysningsfrist) -> pbl15a_dato_gyldig(indtrædelsesdato) && pbl15a_dato_gyldig(oplysningsfrist) && pbl15a_dato_nøgle(indtrædelsesdato) >= pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() && pbl15a_dato_nøgle(oplysningsfrist) >= pbl15a_dato_nøgle(indtrædelsesdato)
-    | Pbl53ASenereArvUnderFuldSkattepligt(arvedato, oplysningsfrist, _, _, _) -> pbl15a_dato_gyldig(arvedato) && pbl15a_dato_gyldig(oplysningsfrist) && pbl15a_dato_nøgle(arvedato) >= pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() && pbl15a_dato_nøgle(oplysningsfrist) >= pbl15a_dato_nøgle(arvedato) && pbl53a_overgangsvalg_har_kvalificerende_arv_på_dato(fakta, arvedato)
-}
-| pbl53a_overgangsvalgfristgrundlag_findes(fristfakta: Pbl53AOvergangsvalgfristfakta) -> fristfakta != Pbl53AIntetOvergangsvalgfristgrundlag
-| pbl53a_overgangsvalgmodtager_gyldig(modtager: Pbl53AOvergangsvalgmodtager) -> modtager != Pbl53AValgMeddeltAndenModtager
-| pbl53a_overgangsvalg_datoer_rettidige(fristfakta: Pbl53AOvergangsvalgfristfakta, beslutningsdato: Pbl15ADato, modtagelsesdato: Pbl15ADato) -> {
-    = beslutningsnøgle = pbl15a_dato_nøgle(beslutningsdato)
-    = modtagelsesnøgle = pbl15a_dato_nøgle(modtagelsesdato)
-    match fristfakta {
-        | Pbl53AIntetOvergangsvalgfristgrundlag -> Falskt
-        | Pbl53AFuldSkattepligtVedLovensIkrafttræden -> beslutningsnøgle >= pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() && modtagelsesnøgle >= pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() && beslutningsnøgle < pbl53a_overgangsvalg_ordinær_frist_nøgle() && modtagelsesnøgle < pbl53a_overgangsvalg_ordinær_frist_nøgle()
-        | Pbl53ASenereIndtrådtFuldSkattepligt(indtrædelsesdato, oplysningsfrist) -> beslutningsnøgle >= pbl15a_dato_nøgle(indtrædelsesdato) && modtagelsesnøgle >= pbl15a_dato_nøgle(indtrædelsesdato) && beslutningsnøgle <= pbl15a_dato_nøgle(oplysningsfrist) && modtagelsesnøgle <= pbl15a_dato_nøgle(oplysningsfrist)
-        | Pbl53ASenereArvUnderFuldSkattepligt(arvedato, oplysningsfrist, fuld_skattepligtig_på_arvedatoen, tidligere_ejer_fuld_skattepligtig_i_ejerperioden, tidligere_ejer_havde_valgt_afsnit_iia) -> fuld_skattepligtig_på_arvedatoen && tidligere_ejer_fuld_skattepligtig_i_ejerperioden == Falskt && tidligere_ejer_havde_valgt_afsnit_iia == Falskt && beslutningsnøgle >= pbl15a_dato_nøgle(arvedato) && modtagelsesnøgle >= pbl15a_dato_nøgle(arvedato) && beslutningsnøgle <= pbl15a_dato_nøgle(oplysningsfrist) && modtagelsesnøgle <= pbl15a_dato_nøgle(oplysningsfrist)
-    }
-}
-| pbl53a_overgangsvalg_rettidigt(fristfakta: Pbl53AOvergangsvalgfristfakta, meddelelse: Pbl53AOvergangsvalgmeddelelse) -> pbl53a_overgangsvalg_datoer_rettidige(fristfakta, meddelelse.beslutningsdato, meddelelse.modtagelsesdato)
-| pbl53a_overgangsvalg_virkning_tilladt_for_beslutning(fristfakta: Pbl53AOvergangsvalgfristfakta, beslutningsdato: Pbl15ADato, ønsket_virkning: Pbl53AOvergangsvalgvirkning) -> match ønsket_virkning {
-    | Pbl53AValgVirkningFraModtagelse -> Sandt
-    | Pbl53AValgVirkningFra1Januar2004 -> fristfakta == Pbl53AFuldSkattepligtVedLovensIkrafttræden && pbl15a_dato_nøgle(beslutningsdato) >= pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() && pbl15a_dato_nøgle(beslutningsdato) < pbl53a_overgangsvalg_tilbagevirkende_beslutningsfrist_nøgle()
-}
-| pbl53a_overgangsvalg_ønsket_virkning_tilladt(fristfakta: Pbl53AOvergangsvalgfristfakta, meddelelse: Pbl53AOvergangsvalgmeddelelse) -> pbl53a_overgangsvalg_virkning_tilladt_for_beslutning(fristfakta, meddelelse.beslutningsdato, meddelelse.ønsket_virkning)
-| pbl53a_overgangsvalg_valgt_regime(mål: Pbl53AOvergangsvalgmål) -> match mål {
-    | Pbl53AValgAfPar53A -> Pbl53AOvergangsvalgTilPar53A
-    | Pbl53AValgAfPar53B -> Pbl53AOvergangsvalgTilPar53B
-}
-| pbl53a_overgangsvalg_vurderingsår(meddelelse: Pbl53AOvergangsvalgmeddelelse) -> match meddelelse.ønsket_virkning {
-    | Pbl53AValgVirkningFraModtagelse -> meddelelse.modtagelsesdato.år
-    | Pbl53AValgVirkningFra1Januar2004 -> 2004
-}
-| pbl53a_overgangsvalgmål_i_øvrigt_anvendeligt(mål: Pbl53AOvergangsvalgmål, vurderingsår: Heltal, fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> match mål {
-    | Pbl53AValgAfPar53A -> pbl53a_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser)
-    | Pbl53AValgAfPar53B -> pbl53b_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser)
-}
-| pbl53a_overgangsvalg_virkningsstart(meddelelse: Pbl53AOvergangsvalgmeddelelse) -> match meddelelse.ønsket_virkning {
-    | Pbl53AValgVirkningFraModtagelse -> Pbl53AModerneVirkningsstartFra(dato = meddelelse.modtagelsesdato)
-    | Pbl53AValgVirkningFra1Januar2004 -> Pbl53AModerneVirkningsstartFra(dato = pbl53a_overgangsvalg_tilbagevirkende_startdato())
-}
-| pbl53a_overgangsvalg_virkningsstart_for_modtagelse(modtagelsesdato: Pbl15ADato, ønsket_virkning: Pbl53AOvergangsvalgvirkning) -> match ønsket_virkning {
-    | Pbl53AValgVirkningFraModtagelse -> Pbl53AModerneVirkningsstartFra(dato = modtagelsesdato)
-    | Pbl53AValgVirkningFra1Januar2004 -> Pbl53AModerneVirkningsstartFra(dato = pbl53a_overgangsvalg_tilbagevirkende_startdato())
-}
-| pbl53a_overgangsvalgmeddelelsesresultat(fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse), historisk_ordning_uden_valg: Boolsk, meddelelse: Pbl53AOvergangsvalgmeddelelse) -> {
-    = datoer_gyldige = pbl15a_dato_gyldig(meddelelse.beslutningsdato) && pbl15a_dato_gyldig(meddelelse.modtagelsesdato)
-    = beslutning_ikke_efter_modtagelse = datoer_gyldige && pbl15a_dato_nøgle(meddelelse.beslutningsdato) <= pbl15a_dato_nøgle(meddelelse.modtagelsesdato)
-    = modtager_gyldig = pbl53a_overgangsvalgmodtager_gyldig(meddelelse.modtager)
-    = fristgrundlag_gyldigt = pbl53a_overgangsvalgfristfakta_gyldige(fakta) && pbl53a_overgangsvalgfristgrundlag_findes(fakta.overgangsvalgfristfakta)
-    = rettidig = fristgrundlag_gyldigt && datoer_gyldige && beslutning_ikke_efter_modtagelse && pbl53a_overgangsvalg_rettidigt(fakta.overgangsvalgfristfakta, meddelelse)
-    = mål_i_øvrigt_anvendeligt = pbl53a_overgangsvalgmål_i_øvrigt_anvendeligt(meddelelse.mål, pbl53a_overgangsvalg_vurderingsår(meddelelse), fakta, hændelser)
-    = ønsket_virkning_tilladt = pbl53a_overgangsvalg_ønsket_virkning_tilladt(fakta.overgangsvalgfristfakta, meddelelse)
-    = meddelelse_opfylder_betingelser = datoer_gyldige && beslutning_ikke_efter_modtagelse && modtager_gyldig && fristgrundlag_gyldigt && rettidig && historisk_ordning_uden_valg && mål_i_øvrigt_anvendeligt && ønsket_virkning_tilladt
-    Pbl53AOvergangsvalgmeddelelsesresultat(
-        meddelelse = meddelelse,
-        datoer_gyldige = datoer_gyldige,
-        beslutning_ikke_efter_modtagelse = beslutning_ikke_efter_modtagelse,
-        modtager_gyldig = modtager_gyldig,
-        fristgrundlag_gyldigt = fristgrundlag_gyldigt,
-        rettidig = rettidig,
-        historisk_ordning_uden_valg = historisk_ordning_uden_valg,
-        mål_i_øvrigt_anvendeligt = mål_i_øvrigt_anvendeligt,
-        ønsket_virkning_tilladt = ønsket_virkning_tilladt,
-        meddelelse_opfylder_betingelser = meddelelse_opfylder_betingelser,
-        valgt_regime = pbl53a_overgangsvalg_valgt_regime(meddelelse.mål),
-        virkningsstart = pbl53a_overgangsvalg_virkningsstart(meddelelse)
-    )
-}
-| pbl53a_historisk_blanket_tidligere_udgave_uden_valgfelt(indsendelse: Pbl53AHistoriskBlanket49020Indsendelse) -> indsendelse.udgave == Pbl53ATidligereBlanket49020UdenValgfelt
-| pbl53a_historisk_blanket_modtager_gyldig(indsendelse: Pbl53AHistoriskBlanket49020Indsendelse) -> indsendelse.modtager == Pbl53AValgMeddeltSkattestyrelsen
-| pbl53a_historisk_blanket_valg_påberåbt(påberåbelse: Pbl53AHistoriskBlanketpåberåbelse) -> påberåbelse == Pbl53AValgEfterPar53AEllerPar53BPåberåbt
-| pbl53a_historisk_blanket_intet_valg_påberåbt(påberåbelse: Pbl53AHistoriskBlanketpåberåbelse) -> påberåbelse == Pbl53AIntetValgEfterPar53AEllerPar53BPåberåbt
-| pbl53a_historisk_blanket_vurderingsår(indsendelse: Pbl53AHistoriskBlanket49020Indsendelse) -> match indsendelse.ønsket_virkning {
-    | Pbl53AValgVirkningFraModtagelse -> indsendelse.modtagelsesdato.år
-    | Pbl53AValgVirkningFra1Januar2004 -> 2004
-}
-| pbl53a_historisk_blanket_afledt_regime(vurderingsår: Heltal, fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> hvis pbl53b_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser) { Pbl53AOvergangsvalgTilPar53B } ellers hvis pbl53a_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser) { Pbl53AOvergangsvalgTilPar53A } ellers { Pbl53AIntetGyldigtOvergangsvalg }
-| pbl53a_historisk_blanket49020_resultat(fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse), historisk_ordning_uden_valg: Boolsk, indsendelse: Pbl53AHistoriskBlanket49020Indsendelse) -> {
-    = datoer_gyldige = pbl15a_dato_gyldig(indsendelse.indsendelsesdato) && pbl15a_dato_gyldig(indsendelse.modtagelsesdato)
-    = indsendelse_ikke_efter_modtagelse = datoer_gyldige && pbl15a_dato_nøgle(indsendelse.indsendelsesdato) <= pbl15a_dato_nøgle(indsendelse.modtagelsesdato)
-    = tidligere_udgave_uden_valgfelt = pbl53a_historisk_blanket_tidligere_udgave_uden_valgfelt(indsendelse)
-    = modtager_gyldig = pbl53a_historisk_blanket_modtager_gyldig(indsendelse)
-    = fristgrundlag_gyldigt = pbl53a_overgangsvalgfristfakta_gyldige(fakta) && pbl53a_overgangsvalgfristgrundlag_findes(fakta.overgangsvalgfristfakta)
-    = rettidig = fristgrundlag_gyldigt && datoer_gyldige && indsendelse_ikke_efter_modtagelse && pbl53a_overgangsvalg_datoer_rettidige(fakta.overgangsvalgfristfakta, indsendelse.indsendelsesdato, indsendelse.modtagelsesdato)
-    = valg_påberåbt = pbl53a_historisk_blanket_valg_påberåbt(indsendelse.påberåbelse)
-    = intet_valg_påberåbt = pbl53a_historisk_blanket_intet_valg_påberåbt(indsendelse.påberåbelse)
-    = vurderingsår = pbl53a_historisk_blanket_vurderingsår(indsendelse)
-    = par53b_i_øvrigt_anvendelig = pbl53b_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser)
-    = par53a_i_øvrigt_anvendelig = pbl53a_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser)
-    = afledt_regime = pbl53a_historisk_blanket_afledt_regime(vurderingsår, fakta, hændelser)
-    = mål_entydigt_afledt = afledt_regime != Pbl53AIntetGyldigtOvergangsvalg && par53a_i_øvrigt_anvendelig != par53b_i_øvrigt_anvendelig
-    = ønsket_virkning_tilladt = pbl53a_overgangsvalg_virkning_tilladt_for_beslutning(fakta.overgangsvalgfristfakta, indsendelse.indsendelsesdato, indsendelse.ønsket_virkning)
-    = indsendelse_opfylder_betingelser = datoer_gyldige && indsendelse_ikke_efter_modtagelse && tidligere_udgave_uden_valgfelt && modtager_gyldig && fristgrundlag_gyldigt && rettidig && historisk_ordning_uden_valg && valg_påberåbt && mål_entydigt_afledt && ønsket_virkning_tilladt
-    Pbl53AHistoriskBlanket49020Resultat(
-        indsendelse = indsendelse,
-        datoer_gyldige = datoer_gyldige,
-        indsendelse_ikke_efter_modtagelse = indsendelse_ikke_efter_modtagelse,
-        tidligere_udgave_uden_valgfelt = tidligere_udgave_uden_valgfelt,
-        modtager_gyldig = modtager_gyldig,
-        fristgrundlag_gyldigt = fristgrundlag_gyldigt,
-        rettidig = rettidig,
-        historisk_ordning_uden_valg = historisk_ordning_uden_valg,
-        valg_påberåbt = valg_påberåbt,
-        intet_valg_påberåbt = intet_valg_påberåbt,
-        par53a_i_øvrigt_anvendelig = par53a_i_øvrigt_anvendelig,
-        par53b_i_øvrigt_anvendelig = par53b_i_øvrigt_anvendelig,
-        mål_entydigt_afledt = mål_entydigt_afledt,
-        ønsket_virkning_tilladt = ønsket_virkning_tilladt,
-        indsendelse_opfylder_betingelser = indsendelse_opfylder_betingelser,
-        afledt_regime = afledt_regime,
-        virkningsstart = pbl53a_overgangsvalg_virkningsstart_for_modtagelse(indsendelse.modtagelsesdato, indsendelse.ønsket_virkning)
-    )
-}
-| pbl53a_overgangsvalgpost_fra_meddelelsesresultat(resultat: Pbl53AOvergangsvalgmeddelelsesresultat) -> Pbl53AOvergangsvalgpost(
-    modtagelsesdato = resultat.meddelelse.modtagelsesdato,
-    datoer_gyldige = resultat.datoer_gyldige,
-    valg_opfylder_betingelser = resultat.meddelelse_opfylder_betingelser,
-    modstridende_valg_relevant = resultat.rettidig && resultat.modtager_gyldig && resultat.historisk_ordning_uden_valg && resultat.ønsket_virkning_tilladt,
-    valgt_regime = resultat.valgt_regime,
-    virkningsstart = resultat.virkningsstart
-)
-| pbl53a_overgangsvalgpost_fra_historisk_blanketresultat(resultat: Pbl53AHistoriskBlanket49020Resultat) -> Pbl53AOvergangsvalgpost(
-    modtagelsesdato = resultat.indsendelse.modtagelsesdato,
-    datoer_gyldige = resultat.datoer_gyldige,
-    valg_opfylder_betingelser = resultat.indsendelse_opfylder_betingelser,
-    modstridende_valg_relevant = resultat.rettidig && resultat.tidligere_udgave_uden_valgfelt && resultat.modtager_gyldig && resultat.historisk_ordning_uden_valg && resultat.valg_påberåbt && resultat.mål_entydigt_afledt && resultat.ønsket_virkning_tilladt,
-    valgt_regime = resultat.afledt_regime,
-    virkningsstart = resultat.virkningsstart
-)
-| pbl53a_overgangsvalgpost_sorteringsnøgle(post: Pbl53AOvergangsvalgpost) -> pbl15a_dato_nøgle(post.modtagelsesdato)
-| pbl53a_overgangsvalgfold_tom() -> Pbl53AOvergangsvalgfold(
-    seneste_modtagelsesdato_nøgle = 0,
-    datoer_gyldige = Sandt,
-    kronologiske = Sandt,
-    valgt_regime = Pbl53AIntetGyldigtOvergangsvalg,
-    virkningsstart = Pbl53AIngenModerneVirkningsstart,
-    gyldige_meddelelser_antal = 0,
-    senere_modstridende_valg = Falskt
-)
-| pbl53a_overgangsvalgfold_trin(tilstand: Pbl53AOvergangsvalgfold, post: Pbl53AOvergangsvalgpost) -> {
-    = modtagelsesdato_nøgle = pbl15a_dato_nøgle(post.modtagelsesdato)
-    = første_gyldige_valg = post.valg_opfylder_betingelser && tilstand.valgt_regime == Pbl53AIntetGyldigtOvergangsvalg
-    = senere_modstridende_valg = post.modstridende_valg_relevant && tilstand.valgt_regime != Pbl53AIntetGyldigtOvergangsvalg && post.valgt_regime != tilstand.valgt_regime
-    Pbl53AOvergangsvalgfold(
-        seneste_modtagelsesdato_nøgle = modtagelsesdato_nøgle,
-        datoer_gyldige = tilstand.datoer_gyldige && post.datoer_gyldige,
-        kronologiske = tilstand.kronologiske && post.datoer_gyldige && modtagelsesdato_nøgle > tilstand.seneste_modtagelsesdato_nøgle,
-        valgt_regime = hvis første_gyldige_valg { post.valgt_regime } ellers { tilstand.valgt_regime },
-        virkningsstart = hvis første_gyldige_valg { post.virkningsstart } ellers { tilstand.virkningsstart },
-        gyldige_meddelelser_antal = tilstand.gyldige_meddelelser_antal + hvis post.valg_opfylder_betingelser { 1 } ellers { 0 },
-        senere_modstridende_valg = tilstand.senere_modstridende_valg || senere_modstridende_valg
-    )
-}
-| pbl53a_overgangsvalgresultat(fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse), historisk_ordning_uden_valg: Boolsk) -> {
-    = meddelelsesresultater = map(fakta.overgangsvalg, |meddelelse: Pbl53AOvergangsvalgmeddelelse| pbl53a_overgangsvalgmeddelelsesresultat(fakta, hændelser, historisk_ordning_uden_valg, meddelelse))
-    = historiske_blanketresultater = map(fakta.historiske_blanket49020_indsendelser, |indsendelse: Pbl53AHistoriskBlanket49020Indsendelse| pbl53a_historisk_blanket49020_resultat(fakta, hændelser, historisk_ordning_uden_valg, indsendelse))
-    = meddelelsesposter = map(meddelelsesresultater, pbl53a_overgangsvalgpost_fra_meddelelsesresultat)
-    = historiske_blanketposter = map(historiske_blanketresultater, pbl53a_overgangsvalgpost_fra_historisk_blanketresultat)
-    = meddelelsestilstand = foldl(meddelelsesposter, pbl53a_overgangsvalgfold_tom(), pbl53a_overgangsvalgfold_trin)
-    = historisk_blankettilstand = foldl(historiske_blanketposter, pbl53a_overgangsvalgfold_tom(), pbl53a_overgangsvalgfold_trin)
-    = sorterede_poster = sort_by(concat(meddelelsesposter, historiske_blanketposter), pbl53a_overgangsvalgpost_sorteringsnøgle)
-    = tilstand = foldl(sorterede_poster, pbl53a_overgangsvalgfold_tom(), pbl53a_overgangsvalgfold_trin)
-    = fristfakta_gyldige = pbl53a_overgangsvalgfristfakta_gyldige(fakta)
-    = fakta_gyldige = fristfakta_gyldige && tilstand.datoer_gyldige && meddelelsestilstand.kronologiske && historisk_blankettilstand.kronologiske && tilstand.kronologiske
-    = valg_gyldigt = fakta_gyldige && tilstand.valgt_regime != Pbl53AIntetGyldigtOvergangsvalg
-    Pbl53AOvergangsvalgresultat(
-        fakta_gyldige = fakta_gyldige,
-        fristfakta_gyldige = fristfakta_gyldige,
-        datoer_gyldige = tilstand.datoer_gyldige,
-        meddelelser_kronologiske = meddelelsestilstand.kronologiske,
-        historiske_blanketter_kronologiske = historisk_blankettilstand.kronologiske,
-        indgivelser_entydige = tilstand.kronologiske,
-        meddelelsesresultater = meddelelsesresultater,
-        historiske_blanketresultater = historiske_blanketresultater,
-        gyldige_meddelelser_antal = tilstand.gyldige_meddelelser_antal,
-        valg_gyldigt = valg_gyldigt,
-        valg_bindende = valg_gyldigt,
-        valgt_regime = tilstand.valgt_regime,
-        virkningsstart = tilstand.virkningsstart,
-        senere_modstridende_valg = tilstand.senere_modstridende_valg
-    )
-}
---@end::pensionsbeskatningsloven_par53a_overgangsvalg--
 
 = pbl53a_kontraktændring_kildemeta = Metadata(
     attachments = (
@@ -1637,260 +1348,6 @@ blankettens afsnit 5, er uden betydning for valget.
         Practice(value = skat_skm2023_406_lsr_pbl53a_overflytning),
     )
 )
---@label:pensionsbeskatningsloven_par53a_kontraktaendringer::meta:pbl53a_kontraktændring_kildemeta--
-----
-Aftaleloven § 6, stk. 1:
-
-Svar, som går ud på, at tilbud antages, men som på grund af tillæg,
-indskrænkninger eller forbehold ikke stemmer med tilbudet, anses som afslag i
-forbindelse med nyt tilbud.
-
-Den juridiske vejledning 2026-1, afsnit C.A.10.4.2.3.6:
-
-Aftalelovens regler betyder ved fortolkning af ikrafttrædelsesbestemmelsen, at
-ændringer efter den 18. februar 1992 af en eksisterende forsikringsaftale mv.
-fører til, at der foreligger en nyoprettet ordning, der omfattes af reglerne i
-PBL § 53 A.
-
-For forsikringer mv. oprettet før den 18. februar 1992 gælder, at ændringer, der
-ikke er aftalt endeligt og bindende mellem forsikringstager eller den
-pensionsberettigede og selskab før den 18. februar 1992, fører til, at der
-foreligger en ny ordning omfattet af reglerne.
-
-En formålsfortolkning indebærer, at i tilfælde, hvor en ændring af
-forsikringsaftalen bringer mere uden for indkomstbeskatning, er forsikringen
-omfattet af reglerne i PBL § 53 A.
-
-SKM2013.481.SR:
-
-Skatterådet kunne ikke bekræfte, at en pensionsordning, der er omfattet af
-overgangsreglerne for pensionsbeskatningslovens § 50, bevarer sin skattemæssige
-behandling efter pensionsbeskatningslovens § 50, når pensionsordningen ændres
-fra et opsparingsprodukt (gennemsnitsrente) til et andet opsparingsprodukt
-(markedsrenteprodukt).
-
-SKM2023.406.LSR:
-
-Efter en konkret vurdering finder Landsskatteretten, at der ved klagerens
-flytning af forsikring fra Nordben til G1 er tale om en ændring i
-forsikringspolicen, som fører til, at der foreligger en nyoprettet
-forsikringsordning, som omfattes af pensionsbeskatningslovens § 53 A.
-----
-
---@begin::pensionsbeskatningsloven_par53a_kontraktaendringer--
-| pbl53a_kontraktændring_virkningstidspunkt_nøgle(tidspunkt: Pbl15ATidspunkt) -> pbl15a_dato_nøgle(tidspunkt.dato) * 1000000 + tidspunkt.rækkefølge_på_dagen
-| pbl53a_forhåndsaftalefakta_gyldige(fakta: Pbl53AForhåndsaftalefakta, ændringsdato: Pbl15ADato) -> match fakta {
-    | Pbl53AIngenDokumenteretForhåndsaftale -> Sandt
-    | Pbl53ADokumenteretForhåndsaftale(bindende_fra_dato, _, _) -> pbl15a_dato_gyldig(bindende_fra_dato) && pbl15a_dato_nøgle(bindende_fra_dato) <= pbl15a_dato_nøgle(ændringsdato)
-    | Pbl53AForhåndsaftaleUoplyst -> Falskt
-}
-| pbl53a_endeligt_og_bindende_aftalt_før_skæringsdatoen(fakta: Pbl53AForhåndsaftalefakta) -> match fakta {
-    | Pbl53ADokumenteretForhåndsaftale(bindende_fra_dato, vilkår_fuldt_fastlagt, indtræder_uden_nyt_valg) -> pbl15a_dato_gyldig(bindende_fra_dato) && pbl15a_dato_nøgle(bindende_fra_dato) < pbl53a_overgangsskæringsdato_nøgle() && vilkår_fuldt_fastlagt && indtræder_uden_nyt_valg
-    | _ -> Falskt
-}
-| pbl53a_kontraktændringsart_understøttet(art: Pbl53AKontraktændringsart) -> match art {
-    | Pbl53AÅrligOpsparingspræmieForhøjet(_, Pbl53APræmieforhøjelsesgrundlagUoplyst) -> Falskt
-    | Pbl53APræmiebetalingstidAfkortet(Pbl53APræmieafkortningsfølgeUoplyst) -> Falskt
-    | Pbl53AForsikringGenoptagetEfterMisligholdelse(Pbl53AMisligholdelsesfølgeUoplyst, _) -> Falskt
-    | Pbl53AHelBestandOverførtVedFusionOpkøbEllerOphør(Pbl53ABestandsoverførselsvilkårUoplyst) -> Falskt
-    | Pbl53AAndenKontraktændring(_) -> Falskt
-    | _ -> Sandt
-}
-| pbl53a_kontraktændringsart_grundfakta_gyldige(ændring: Pbl53AKontraktændring) -> match ændring.art {
-    | Pbl53APræmiebetalingsperiodeForlænget(oprindelig_slutdato) -> pbl15a_dato_gyldig(oprindelig_slutdato) && pbl15a_dato_nøgle(oprindelig_slutdato) == pbl15a_dato_nøgle(ændring.virkningstidspunkt.dato)
-    | Pbl53AÅrligOpsparingspræmieForhøjet(forhøjelse_kroner, grundlag) -> forhøjelse_kroner > 0 && grundlag != Pbl53APræmieforhøjelsesgrundlagUoplyst
-    | Pbl53APræmiebetalingstidAfkortet(følge) -> følge != Pbl53APræmieafkortningsfølgeUoplyst
-    | Pbl53AForsikringGenoptagetEfterMisligholdelse(følge, _) -> følge != Pbl53AMisligholdelsesfølgeUoplyst
-    | Pbl53AIkkefastsatIndskudsretUdnyttet(indskud_kroner) -> indskud_kroner > 0
-    | Pbl53ALøbendePræmieAfløstAfEngangsindskud(indskud_kroner) -> indskud_kroner > 0
-    | Pbl53AHelBestandOverførtVedFusionOpkøbEllerOphør(vilkår) -> vilkår != Pbl53ABestandsoverførselsvilkårUoplyst
-    | Pbl53ASelvvalgtOverflytningTilNyUdbyder(oprettelsesdato, _) -> pbl15a_dato_gyldig(oprettelsesdato) && pbl15a_dato_nøgle(oprettelsesdato) >= pbl53a_overgangsskæringsdato_nøgle() && pbl15a_dato_nøgle(oprettelsesdato) <= pbl15a_dato_nøgle(ændring.virkningstidspunkt.dato)
-    | Pbl53AAndenKontraktændring(beskrivelse) -> beskrivelse != ""
-    | _ -> Sandt
-}
-| pbl53a_ingen_ny_ordning_ved_kontraktændring() -> Pbl53AIngenNyOrdningVedKontraktændring
-| pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring: Pbl53AKontraktændring) -> match ændring.kapitalværdi_på_virkningstidspunktet {
-    | Pbl53AHeleOrdningensKapitalværdi(kroner) -> hvis kroner >= 0 { Pbl53AHeleOrdningenNyVedKontraktændring(ændringsidentifikation = ændring.identifikation, virkningstidspunkt = ændring.virkningstidspunkt, kapitalværdi_kroner = kroner) } ellers { Pbl53AKontraktændringUafklaret }
-    | _ -> Pbl53AKontraktændringUafklaret
-}
-| pbl53a_del_ny_ved_kontraktændring(ændring: Pbl53AKontraktændring) -> match ændring.kapitalværdi_på_virkningstidspunktet {
-    | Pbl53ANyeDelsKapitalværdi(kroner) -> hvis kroner >= 0 { Pbl53ADelNyVedKontraktændring(ændringsidentifikation = ændring.identifikation, virkningstidspunkt = ændring.virkningstidspunkt, kapitalværdi_kroner = kroner) } ellers { Pbl53AKontraktændringUafklaret }
-    | _ -> Pbl53AKontraktændringUafklaret
-}
-| pbl53a_kontraktændringsvirkning_for_art(ændring: Pbl53AKontraktændring) -> match ændring.art {
-    | Pbl53AForsikringsperiodeForlængetFørForsikringsbegivenhed -> pbl53a_del_ny_ved_kontraktændring(ændring)
-    | Pbl53APræmiebetalingsperiodeForlænget(_) -> pbl53a_del_ny_ved_kontraktændring(ændring)
-    | Pbl53AÅrligOpsparingspræmieForhøjet(_, grundlag) -> match grundlag {
-        | Pbl53ANyPræmieforhøjelse -> pbl53a_del_ny_ved_kontraktændring(ændring)
-        | Pbl53AAutomatiskPristalsreguleringUdenIndflydelse -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-        | Pbl53AAutomatiskForhøjelseVedBonustilskrivning -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-        | Pbl53AFørskæringsaftaltReguleringValgtLavere -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-        | Pbl53APræmieforhøjelsesgrundlagUoplyst -> Pbl53AKontraktændringUafklaret
-    }
-    | Pbl53AForsikringForlængetVedForsikringsbegivenhed -> pbl53a_del_ny_ved_kontraktændring(ændring)
-    | Pbl53APræmiebetalingstidAfkortet(følge) -> match følge {
-        | Pbl53AKunPræmiebetalingstidenAfkortet -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
-        | Pbl53APræmiebetalingstidAfkortetOgPræmieNedsat -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-        | Pbl53APræmiebetalingBortfaldtVedFripolice -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-        | Pbl53APræmiebetalingBortfaldtMedUændretForsikring -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-        | Pbl53APræmieafkortningsfølgeUoplyst -> Pbl53AKontraktændringUafklaret
-    }
-    | Pbl53AFripoliceGenopskrevet -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
-    | Pbl53AForsikringGenoptagetEfterMisligholdelse(følge, nye_helbredsoplysninger_krævet) -> hvis nye_helbredsoplysninger_krævet {
-        pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
-    } ellers {
-        match følge {
-            | Pbl53AForsikringsdækningOpretholdtUnderMisligholdelse -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-            | Pbl53AForsikringsaftaleBortfaldtUnderMisligholdelse -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
-            | Pbl53AMisligholdelsesfølgeUoplyst -> Pbl53AKontraktændringUafklaret
-        }
-    }
-    | Pbl53AIkkefastsatIndskudsretUdnyttet(_) -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
-    | Pbl53ABedreHelbredsvilkårMedHøjereForsikringssum -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-    | Pbl53ABedreHelbredsvilkårMedLaverePræmie -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-    | Pbl53APræmiebetalingsterminÆndretIndenForÅret -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-    | Pbl53ALøbendePræmieAfløstAfEngangsindskud(_) -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
-    | Pbl53AGennemsnitsrenteSkiftetTilMarkedsrente -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
-    | Pbl53AValutaÆndret -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-    | Pbl53APorteføljemanagerUdskiftet -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-    | Pbl53ADepotbankUdskiftet -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-    | Pbl53APolicePantsat -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-    | Pbl53ABegunstigetIndsatEllerTilbagekaldt -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-    | Pbl53APoliceOpdeltUdenVilkårsændring -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-    | Pbl53AHelBestandOverførtVedFusionOpkøbEllerOphør(vilkår) -> match vilkår {
-        | Pbl53ABestandOverførtPåUændredeVilkår -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
-        | Pbl53ABestandOverførtMedVilkårsændringer -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
-        | Pbl53ABestandsoverførselsvilkårUoplyst -> Pbl53AKontraktændringUafklaret
-    }
-    | Pbl53ASelvvalgtOverflytningTilNyUdbyder(_, _) -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
-    | Pbl53AAndenKontraktændring(_) -> Pbl53AKontraktændringUafklaret
-}
-| pbl53a_kapitalværdi_matcher_kontraktændringsvirkning(kapitalværdi: Pbl53AKapitalværdiVedKontraktændring, virkning: Pbl53AKontraktændringsvirkning) -> match virkning {
-    | Pbl53AIngenNyOrdningVedKontraktændring -> kapitalværdi == Pbl53AKapitalværdiIkkeRelevant
-    | Pbl53AHeleOrdningenNyVedKontraktændring(_, _, kroner) -> kapitalværdi == Pbl53AHeleOrdningensKapitalværdi(kroner = kroner)
-    | Pbl53ADelNyVedKontraktændring(_, _, kroner) -> kapitalværdi == Pbl53ANyeDelsKapitalværdi(kroner = kroner)
-    | Pbl53AKontraktændringUafklaret -> Falskt
-}
-| pbl53a_kontraktændringsresultat(oprettelsesdato: Pbl15ADato, ændring: Pbl53AKontraktændring) -> {
-    = datoer_gyldige = pbl15a_dato_gyldig(ændring.ændringsdato) && pbl15a_dato_gyldig(ændring.virkningstidspunkt.dato) && ændring.virkningstidspunkt.rækkefølge_på_dagen >= 0
-    = ændring_ikke_efter_virkning = datoer_gyldige && pbl15a_dato_nøgle(ændring.ændringsdato) <= pbl15a_dato_nøgle(ændring.virkningstidspunkt.dato)
-    = efter_oprettelsen = datoer_gyldige && pbl15a_dato_nøgle(ændring.ændringsdato) >= pbl15a_dato_nøgle(oprettelsesdato) && pbl15a_dato_nøgle(ændring.virkningstidspunkt.dato) >= pbl15a_dato_nøgle(oprettelsesdato)
-    = forhåndsaftalefakta_gyldige = pbl53a_forhåndsaftalefakta_gyldige(ændring.forhåndsaftale, ændring.ændringsdato)
-    = endeligt_og_bindende_aftalt_før_skæringsdatoen = pbl53a_endeligt_og_bindende_aftalt_før_skæringsdatoen(ændring.forhåndsaftale) || pbl15a_dato_nøgle(ændring.ændringsdato) < pbl53a_overgangsskæringsdato_nøgle()
-    = ændringsart_understøttet = pbl53a_kontraktændringsart_understøttet(ændring.art)
-    = grundfakta_gyldige = ændring.identifikation != "" && pbl15a_dato_gyldig(oprettelsesdato) && datoer_gyldige && ændring_ikke_efter_virkning && efter_oprettelsen && forhåndsaftalefakta_gyldige && ændringsart_understøttet && pbl53a_kontraktændringsart_grundfakta_gyldige(ændring)
-    = foreløbig_virkning = hvis grundfakta_gyldige == Falskt {
-        Pbl53AKontraktændringUafklaret
-    } ellers hvis pbl15a_dato_nøgle(ændring.virkningstidspunkt.dato) < pbl53a_overgangsskæringsdato_nøgle() || endeligt_og_bindende_aftalt_før_skæringsdatoen {
-        pbl53a_ingen_ny_ordning_ved_kontraktændring()
-    } ellers {
-        pbl53a_kontraktændringsvirkning_for_art(ændring)
-    }
-    = kapitalværdi_entydig = pbl53a_kapitalværdi_matcher_kontraktændringsvirkning(ændring.kapitalværdi_på_virkningstidspunktet, foreløbig_virkning)
-    = ændring_gyldig = grundfakta_gyldige && kapitalværdi_entydig
-    = virkning = hvis ændring_gyldig { foreløbig_virkning } ellers { Pbl53AKontraktændringUafklaret }
-    Pbl53AKontraktændringsresultat(
-        ændring = ændring,
-        datoer_gyldige = datoer_gyldige,
-        ændring_ikke_efter_virkning = ændring_ikke_efter_virkning,
-        efter_oprettelsen = efter_oprettelsen,
-        forhåndsaftalefakta_gyldige = forhåndsaftalefakta_gyldige,
-        endeligt_og_bindende_aftalt_før_skæringsdatoen = endeligt_og_bindende_aftalt_før_skæringsdatoen,
-        ændringsart_understøttet = ændringsart_understøttet,
-        kapitalværdi_entydig = kapitalværdi_entydig,
-        ændring_gyldig = ændring_gyldig,
-        virkning = virkning
-    )
-}
-| pbl53a_kontraktændringsidentifikation_unik(ændringer: List(Pbl53AKontraktændring), ændring: Pbl53AKontraktændring) -> length(filter(ændringer, |anden: Pbl53AKontraktændring| anden.identifikation == ændring.identifikation)) == 1
-| pbl53a_kontraktændringsidentifikationer_entydige(ændringer: List(Pbl53AKontraktændring)) -> all(ændringer, |ændring: Pbl53AKontraktændring| ændring.identifikation != "" && pbl53a_kontraktændringsidentifikation_unik(ændringer, ændring))
-| pbl53a_kontraktændringsrækkefølge_trin(tilstand: Pbl53AKontraktændringsrækkefølgetilstand, resultat: Pbl53AKontraktændringsresultat) -> {
-    = nøgle = pbl53a_kontraktændring_virkningstidspunkt_nøgle(resultat.ændring.virkningstidspunkt)
-    Pbl53AKontraktændringsrækkefølgetilstand(
-        seneste_virkningstidspunkt_nøgle = nøgle,
-        kronologiske = tilstand.kronologiske && resultat.datoer_gyldige && nøgle > tilstand.seneste_virkningstidspunkt_nøgle
-    )
-}
-| pbl53a_kontraktændringsvirkning_er_hel(virkning: Pbl53AKontraktændringsvirkning) -> match virkning {
-    | Pbl53AHeleOrdningenNyVedKontraktændring(_, _, _) -> Sandt
-    | _ -> Falskt
-}
-| pbl53a_kontraktændringsvirkning_er_delvis(virkning: Pbl53AKontraktændringsvirkning) -> match virkning {
-    | Pbl53ADelNyVedKontraktændring(_, _, _) -> Sandt
-    | _ -> Falskt
-}
-| pbl53a_kontraktændringsvirkning_er_uafklaret(virkning: Pbl53AKontraktændringsvirkning) -> virkning == Pbl53AKontraktændringUafklaret
-| pbl53a_kontraktændringsresultat_matcher_del(resultat: Pbl53AKontraktændringsresultat, ændringsidentifikation: Tekst) -> match resultat.virkning {
-    | Pbl53ADelNyVedKontraktændring(identifikation, _, _) -> identifikation == ændringsidentifikation
-    | _ -> Falskt
-}
-| pbl53a_kontraktdelsrepræsentation_gyldig(repræsentation: Pbl53AKontraktdelsrepræsentation, oprindelig_moderne_virkningsstart: Pbl53AModerneVirkningsstart, resultater: List(Pbl53AKontraktændringsresultat)) -> match repræsentation {
-    | Pbl53AHeleKontrakten -> oprindelig_moderne_virkningsstart != Pbl53AIngenModerneVirkningsstart || length(filter(resultater, |resultat: Pbl53AKontraktændringsresultat| pbl53a_kontraktændringsvirkning_er_delvis(resultat.virkning))) == 0
-    | Pbl53AHistoriskRestEfterDelviseKontraktændringer -> length(filter(resultater, |resultat: Pbl53AKontraktændringsresultat| pbl53a_kontraktændringsvirkning_er_delvis(resultat.virkning))) > 0
-    | Pbl53ADelSkabtVedKontraktændring(ændringsidentifikation) -> ændringsidentifikation != "" && length(filter(resultater, |resultat: Pbl53AKontraktændringsresultat| pbl53a_kontraktændringsresultat_matcher_del(resultat, ændringsidentifikation))) == 1
-}
-| pbl53a_tidligste_moderne_virkningsstart(nuværende: Pbl53AModerneVirkningsstart, kandidat: Pbl53AModerneVirkningsstart) -> match nuværende {
-    | Pbl53AIngenModerneVirkningsstart -> kandidat
-    | Pbl53AModerneVirkningsstartFra(nuværende_dato) -> match kandidat {
-        | Pbl53AIngenModerneVirkningsstart -> nuværende
-        | Pbl53AModerneVirkningsstartFra(kandidat_dato) -> hvis pbl15a_dato_nøgle(kandidat_dato) < pbl15a_dato_nøgle(nuværende_dato) { kandidat } ellers { nuværende }
-    }
-}
-| pbl53a_tidligste_moderne_afkastvirkningsgrænse(nuværende: Pbl53AModerneAfkastvirkningsgrænse, kandidat: Pbl53AModerneAfkastvirkningsgrænse) -> match nuværende {
-    | Pbl53AIngenModerneAfkastvirkningsgrænse -> kandidat
-    | Pbl53AKendtModerneAfkastvirkningsgrænse(_, nuværende_tidspunkt, _) -> match kandidat {
-        | Pbl53AKendtModerneAfkastvirkningsgrænse(_, kandidat_tidspunkt, _) -> hvis pbl15a_tidspunkt_før(kandidat_tidspunkt, nuværende_tidspunkt) { kandidat } ellers { nuværende }
-        | _ -> nuværende
-    }
-    | Pbl53AModerneAfkastvirkningsgrænseUdenKapitalværdi(_, _) -> nuværende
-}
-| pbl53a_kontraktændringsstart_for_repræsentation(resultat: Pbl53AKontraktændringsresultat, repræsentation: Pbl53AKontraktdelsrepræsentation) -> match resultat.virkning {
-    | Pbl53AHeleOrdningenNyVedKontraktændring(_, virkningstidspunkt, _) -> Pbl53AModerneVirkningsstartFra(dato = virkningstidspunkt.dato)
-    | Pbl53ADelNyVedKontraktændring(ændringsidentifikation, virkningstidspunkt, _) -> match repræsentation {
-        | Pbl53ADelSkabtVedKontraktændring(repræsenteret_ændringsidentifikation) -> hvis ændringsidentifikation == repræsenteret_ændringsidentifikation { Pbl53AModerneVirkningsstartFra(dato = virkningstidspunkt.dato) } ellers { Pbl53AIngenModerneVirkningsstart }
-        | _ -> Pbl53AIngenModerneVirkningsstart
-    }
-    | _ -> Pbl53AIngenModerneVirkningsstart
-}
-| pbl53a_kontraktændringsafkastgrænse_for_repræsentation(resultat: Pbl53AKontraktændringsresultat, repræsentation: Pbl53AKontraktdelsrepræsentation) -> match resultat.virkning {
-    | Pbl53AHeleOrdningenNyVedKontraktændring(ændringsidentifikation, virkningstidspunkt, kapitalværdi_kroner) -> Pbl53AKendtModerneAfkastvirkningsgrænse(kilde = Pbl53AVirkningFraKontraktændring(ændringsidentifikation = ændringsidentifikation), tidspunkt = virkningstidspunkt, kapitalværdi_kroner = kapitalværdi_kroner)
-    | Pbl53ADelNyVedKontraktændring(ændringsidentifikation, virkningstidspunkt, kapitalværdi_kroner) -> match repræsentation {
-        | Pbl53ADelSkabtVedKontraktændring(repræsenteret_ændringsidentifikation) -> hvis ændringsidentifikation == repræsenteret_ændringsidentifikation { Pbl53AKendtModerneAfkastvirkningsgrænse(kilde = Pbl53AVirkningFraKontraktændring(ændringsidentifikation = ændringsidentifikation), tidspunkt = virkningstidspunkt, kapitalværdi_kroner = kapitalværdi_kroner) } ellers { Pbl53AIngenModerneAfkastvirkningsgrænse }
-        | _ -> Pbl53AIngenModerneAfkastvirkningsgrænse
-    }
-    | _ -> Pbl53AIngenModerneAfkastvirkningsgrænse
-}
-| pbl53a_kontraktændringsforløbsresultat(fakta: Pbl53AOmfangsfakta, oprindelig_moderne_virkningsstart: Pbl53AModerneVirkningsstart, oprindelig_moderne_afkastvirkningsgrænse: Pbl53AModerneAfkastvirkningsgrænse) -> {
-    = ændringsresultater = map(fakta.kontraktændringer, |ændring: Pbl53AKontraktændring| pbl53a_kontraktændringsresultat(fakta.oprettelsesdato, ændring))
-    = rækkefølge = foldl(ændringsresultater, Pbl53AKontraktændringsrækkefølgetilstand(seneste_virkningstidspunkt_nøgle = 0, kronologiske = Sandt), pbl53a_kontraktændringsrækkefølge_trin)
-    = identifikationer_entydige = pbl53a_kontraktændringsidentifikationer_entydige(fakta.kontraktændringer)
-    = datoer_gyldige = all(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| resultat.datoer_gyldige && resultat.ændring_ikke_efter_virkning)
-    = alle_efter_oprettelsen = all(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| resultat.efter_oprettelsen)
-    = alle_ændringsarter_understøttede = all(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| resultat.ændringsart_understøttet)
-    = alle_kapitalværdier_entydige = all(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| resultat.kapitalværdi_entydig)
-    = repræsentation_gyldig = pbl53a_kontraktdelsrepræsentation_gyldig(fakta.repræsenteret_kontraktdel, oprindelig_moderne_virkningsstart, ændringsresultater)
-    = moderne_virkningsstart = foldl(ændringsresultater, oprindelig_moderne_virkningsstart, |nuværende: Pbl53AModerneVirkningsstart, resultat: Pbl53AKontraktændringsresultat| pbl53a_tidligste_moderne_virkningsstart(nuværende, pbl53a_kontraktændringsstart_for_repræsentation(resultat, fakta.repræsenteret_kontraktdel)))
-    = moderne_afkastvirkningsgrænse = foldl(ændringsresultater, oprindelig_moderne_afkastvirkningsgrænse, |nuværende: Pbl53AModerneAfkastvirkningsgrænse, resultat: Pbl53AKontraktændringsresultat| pbl53a_tidligste_moderne_afkastvirkningsgrænse(nuværende, pbl53a_kontraktændringsafkastgrænse_for_repræsentation(resultat, fakta.repræsenteret_kontraktdel)))
-    = uafklarede_ændringer_antal = length(filter(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| pbl53a_kontraktændringsvirkning_er_uafklaret(resultat.virkning)))
-    = fakta_gyldige = identifikationer_entydige && datoer_gyldige && rækkefølge.kronologiske && alle_efter_oprettelsen && alle_ændringsarter_understøttede && alle_kapitalværdier_entydige && repræsentation_gyldig && all(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| resultat.ændring_gyldig) && uafklarede_ændringer_antal == 0
-    Pbl53AKontraktændringsforløbsresultat(
-        fakta_gyldige = fakta_gyldige,
-        identifikationer_entydige = identifikationer_entydige,
-        datoer_gyldige = datoer_gyldige,
-        ændringer_kronologiske = rækkefølge.kronologiske,
-        alle_efter_oprettelsen = alle_efter_oprettelsen,
-        alle_ændringsarter_understøttede = alle_ændringsarter_understøttede,
-        alle_kapitalværdier_entydige = alle_kapitalværdier_entydige,
-        repræsentation_gyldig = repræsentation_gyldig,
-        ændringsresultater = ændringsresultater,
-        hele_nye_ordninger_antal = length(filter(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| pbl53a_kontraktændringsvirkning_er_hel(resultat.virkning))),
-        delvise_nye_ordninger_antal = length(filter(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| pbl53a_kontraktændringsvirkning_er_delvis(resultat.virkning))),
-        uafklarede_ændringer_antal = uafklarede_ændringer_antal,
-        moderne_virkningsstart = moderne_virkningsstart,
-        moderne_afkastvirkningsgrænse = moderne_afkastvirkningsgrænse
-    )
-}
---@end::pensionsbeskatningsloven_par53a_kontraktaendringer--
 
 | pbl53a_moderne_virkningsstart_fra_oprettelse(oprettelsesdato: Pbl15ADato) -> hvis pbl15a_dato_nøgle(oprettelsesdato) >= pbl53a_overgangsskæringsdato_nøgle() { Pbl53AModerneVirkningsstartFra(dato = oprettelsesdato) } ellers { Pbl53AIngenModerneVirkningsstart }
 | pbl53a_moderne_afkastvirkningsgrænse_fra_oprettelse(fakta: Pbl53AOmfangsfakta) -> hvis pbl15a_dato_nøgle(fakta.oprettelsesdato) >= pbl53a_overgangsskæringsdato_nøgle() && fakta.kapitalværdi_ved_oprettelsen_kroner >= 0 {
@@ -2200,65 +1657,6 @@ forsikringsordning, som omfattes af pensionsbeskatningslovens § 53 A.
     }
     | _ -> Falskt
 }
---@begin::pensionsbeskatningsloven_par53b--
-| pbl53a_udenlandsk_hjemsted_gyldigt(hjemsted: Pbl53BUdenlandskHjemsted) -> match hjemsted {
-    | Pbl53BFremmedStat(stat) -> stat != ""
-    | _ -> Sandt
-}
-| pbl53b_oprettelsesposition_gyldig(oprettelsesdato: Pbl15ADato, position: Pbl53BOprettelsesposition) -> match position {
-    | Pbl53BOprettetUnderDanskSkattepligtOgHjemsted -> Sandt
-    | Pbl53BOprettetUdenFuldDanskSkattepligt(hjemsted, sidste_dato) -> pbl53a_udenlandsk_hjemsted_gyldigt(hjemsted) && pbl15a_dato_gyldig(sidste_dato) && pbl15a_dato_nøgle(oprettelsesdato) <= pbl15a_dato_nøgle(sidste_dato)
-    | Pbl53BOprettetMedDboHjemstedIUdlandet(hjemsted, sidste_dato) -> pbl53a_udenlandsk_hjemsted_gyldigt(hjemsted) && pbl15a_dato_gyldig(sidste_dato) && pbl15a_dato_nøgle(oprettelsesdato) <= pbl15a_dato_nøgle(sidste_dato)
-}
-| pbl53b_oprettelsesbetingelse_opfyldt(position: Pbl53BOprettelsesposition) -> position != Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
-| pbl53b_sidste_udenlandsdato(position: Pbl53BOprettelsesposition) -> match position {
-    | Pbl53BOprettetUdenFuldDanskSkattepligt(_, sidste_dato) -> sidste_dato
-    | Pbl53BOprettetMedDboHjemstedIUdlandet(_, sidste_dato) -> sidste_dato
-    | _ -> Pbl15ADato(år = 1, måned = 1, dag = 1)
-}
-| pbl53b_indbetaling_foretaget_i_udenlandsperioden(fakta: Pbl53AIndbetalingsfakta, position: Pbl53BOprettelsesposition) -> pbl53b_oprettelsesbetingelse_opfyldt(position) && pbl15a_dato_nøgle(fakta.tidspunkt.dato) <= pbl15a_dato_nøgle(pbl53b_sidste_udenlandsdato(position))
-| pbl53b_indbetaler_er_arbejdsgiver(indbetaler: Pbl53AIndbetaler) -> indbetaler == Pbl53ANuværendeArbejdsgiver || indbetaler == Pbl53ATidligereArbejdsgiver
-| pbl53b_udenlandsk_indbetalingsbehandling_kvalificerer(fakta: Pbl53AIndbetalingsfakta) -> match fakta.par53b_udenlandsk_skattebehandling {
-    | Pbl53BEjerbidragFuldtFradragetIPositivIndkomst(positiv_indkomst_kroner, faktisk_fradrag_kroner) -> fakta.indbetaler == Pbl53AEjeren && positiv_indkomst_kroner >= fakta.beløb_kroner && faktisk_fradrag_kroner >= fakta.beløb_kroner
-    | Pbl53BArbejdsgiverbidragFuldtBortsetFraIndkomst -> pbl53b_indbetaler_er_arbejdsgiver(fakta.indbetaler)
-    | _ -> Falskt
-}
-| pbl53b_indbetalingsdokumentation_konsistent(fakta: Pbl53AIndbetalingsfakta, position: Pbl53BOprettelsesposition) -> hvis pbl53b_indbetaling_foretaget_i_udenlandsperioden(fakta, position) { fakta.periode == Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet && fakta.par53b_udenlandsk_skattebehandling != Pbl53BIkkeForetagetIUdenlandsperioden } ellers { fakta.par53b_udenlandsk_skattebehandling == Pbl53BIkkeForetagetIUdenlandsperioden }
-| pbl53b_hændelsesdokumentation_konsistent(hændelse: Pbl53AHændelse, position: Pbl53BOprettelsesposition) -> match hændelse {
-    | Pbl53AIndbetaling(fakta) -> pbl53b_indbetalingsdokumentation_konsistent(fakta, position)
-    | _ -> Sandt
-}
-| pbl53b_hændelse_kvalificerer(hændelse: Pbl53AHændelse, position: Pbl53BOprettelsesposition) -> match hændelse {
-    | Pbl53AIndbetaling(fakta) -> pbl53b_indbetaling_foretaget_i_udenlandsperioden(fakta, position) == Falskt || pbl53b_udenlandsk_indbetalingsbehandling_kvalificerer(fakta)
-    | _ -> Sandt
-}
-| pbl53b_produktkreds_omfattet(indkomstår: Heltal, fakta: Pbl53AOmfangsfakta) -> match fakta.produkt {
-    | Pbl53ALivsforsikringsprodukt(_, _, kapitel1fakta, _, _) -> pbl53a_ikke_omfattet_af_kapitel1(kapitel1fakta) || pbl53a_tidligere_par15d_udløbet_før_indkomstår(kapitel1fakta, indkomstår)
-    | Pbl53APensionskasseprodukt(_, kapitel1fakta, karakteristika, _) -> pbl53a_pensionskassekarakteristika_opfyldt(karakteristika) && (pbl53a_ikke_omfattet_af_kapitel1(kapitel1fakta) || pbl53a_tidligere_par15d_udløbet_før_indkomstår(kapitel1fakta, indkomstår))
-    | Pbl53ASygeOgUlykkesforsikringsprodukt(ejer_identifikation, forsikret_identifikation) -> ejer_identifikation == forsikret_identifikation
-    | Pbl53APengeEllerKreditinstitutprodukt(_, kapitel1fakta, institutionssted, karakteristika) -> pbl53a_udenlandsk_institution(institutionssted) && pbl53a_pengeinstitutkarakteristika_opfyldt(karakteristika) && (pbl53a_omfattet_af_kapitel1(kapitel1fakta) == Falskt || pbl53a_afkald_givet_ved_oprettelsen(fakta.afsnit_i_valg, fakta.oprettelsesdato))
-    | _ -> Falskt
-}
-| pbl53b_i_øvrigt_anvendelig(indkomstår: Heltal, fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> indkomstår > 0 && pbl15a_dato_gyldig(fakta.oprettelsesdato) && pbl53a_produktfakta_gyldige(fakta.produkt) && pbl53a_produkt_karakteristika_opfyldt(fakta.produkt) && pbl53a_afsnit_i_valgfakta_konsistente(fakta) && pbl53b_oprettelsesposition_gyldig(fakta.oprettelsesdato, fakta.par53b_oprettelsesposition) && pbl53b_produktkreds_omfattet(indkomstår, fakta) && pbl53b_oprettelsesbetingelse_opfyldt(fakta.par53b_oprettelsesposition) && all(hændelser, |hændelse: Pbl53AHændelse| pbl53b_hændelsesdokumentation_konsistent(hændelse, fakta.par53b_oprettelsesposition)) && all(hændelser, |hændelse: Pbl53AHændelse| pbl53b_hændelse_kvalificerer(hændelse, fakta.par53b_oprettelsesposition))
-| pbl53b_resultat(indkomstår: Heltal, fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> {
-    = overgangsresultat = pbl53a_overgangsresultat(fakta, hændelser)
-    = overgang_har_virkning = pbl53a_moderne_regler_har_virkning_i_indkomstår(overgangsresultat, indkomstår)
-    = produktkreds_omfattet = pbl53b_produktkreds_omfattet(indkomstår, fakta)
-    = oprettelsesbetingelse_opfyldt = pbl53b_oprettelsesbetingelse_opfyldt(fakta.par53b_oprettelsesposition)
-    = indbetalingsdokumentation_konsistent = all(hændelser, |hændelse: Pbl53AHændelse| pbl53b_hændelsesdokumentation_konsistent(hændelse, fakta.par53b_oprettelsesposition))
-    = samtlige_udenlandske_indbetalinger_kvalificerer = all(hændelser, |hændelse: Pbl53AHændelse| pbl53b_hændelse_kvalificerer(hændelse, fakta.par53b_oprettelsesposition))
-    = i_øvrigt_anvendelig = pbl53b_i_øvrigt_anvendelig(indkomstår, fakta, hændelser)
-    Pbl53BResultat(
-        overgang_har_virkning = overgang_har_virkning,
-        produktkreds_omfattet = produktkreds_omfattet,
-        oprettelsesbetingelse_opfyldt = oprettelsesbetingelse_opfyldt,
-        indbetalingsdokumentation_konsistent = indbetalingsdokumentation_konsistent,
-        samtlige_udenlandske_indbetalinger_kvalificerer = samtlige_udenlandske_indbetalinger_kvalificerer,
-        i_øvrigt_anvendelig = i_øvrigt_anvendelig,
-        omfattes_af_par53b = overgang_har_virkning && i_øvrigt_anvendelig
-    )
-}
---@end::pensionsbeskatningsloven_par53b--
 | pbl53a_livsforsikring_uden_direktørsikkerhed(produkt: Pbl53AProduktfakta) -> match produkt {
     | Pbl53ALivsforsikringsprodukt(_, _, _, _, Pbl53AIngenDirektørsikkerhed) -> Sandt
     | _ -> Falskt
@@ -2637,7 +2035,830 @@ forsikringsordning, som omfattes af pensionsbeskatningslovens § 53 A.
     )
 )
 
---@label:pensionsbeskatningsloven_par53a_afkastovergang::meta:pbl53a_afkastovergang_kildemeta--
+= pbl53a_privat_finansiering_fixture = Pbl53AInstitutionsfinansiering(
+    samlet_drift_løn_og_pension_kroner = 1000000,
+    statsligt_finansieret_drift_løn_og_pension_kroner = 0
+)
+= pbl53a_dansk_oprettelsesposition_fixture = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
+= pbl53a_almindelige_livsvilkår_fixture = Pbl53ALivsforsikringsvilkår(
+    dækninger = [Pbl53AAndenLivsforsikringsdækning],
+    aftalt_udløbsdato = Pbl15ADato(år = 2050, måned = 1, dag = 1),
+    første_policedag_efter_fyldte_80_år = Pbl15ADato(år = 2060, måned = 1, dag = 1)
+)
+= pbl53a_pensionskassekarakteristika_fixture = Pbl53APensionskassekarakteristika(
+    selvstændig_juridisk_person = Sandt,
+    uafhængig_af_arbejdsgiver = Sandt,
+    midler_afsondret_fra_berettigedes_formue = Sandt,
+    vedtægter_fastlægger_pensionsydelser = Sandt
+)
+= pbl53a_pengeinstitutkarakteristika_fixture = Pbl53APengeinstitutkarakteristika(
+    standardiseret_lovreguleret_pensionsprodukt = Sandt,
+    pensionsmidler_adskilt_fra_øvrig_formue = Sandt,
+    kan_disponeres_som_almindelig_bankkonto = Falskt
+)
+| pbl53a_omfang_fixture(produkt: Pbl53AProduktfakta) -> pbl53a_omfangsresultat(2026, Pbl53AOmfangsfakta(
+    oprettelsesdato = Pbl15ADato(år = 2020, måned = 1, dag = 1),
+    oprindelig_rettighedshaver_identifikation = "person-1",
+    kapitalværdi_ved_oprettelsen_kroner = 0,
+    repræsenteret_kontraktdel = Pbl53AHeleKontrakten,
+    kontraktændringer = [],
+    erhvervelser = [],
+    overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
+    overgangsvalg = [],
+    historiske_blanket49020_indsendelser = [],
+    produkt = produkt,
+    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
+    institutionsfinansiering = pbl53a_privat_finansiering_fixture,
+    par53b_oprettelsesposition = pbl53a_dansk_oprettelsesposition_fixture
+    ), [])
+= pbl53a_liv_uden_kapitel1_omfang_fixture = pbl53a_omfang_fixture(Pbl53ALivsforsikringsprodukt(
+    ejer_identifikation = "person-1",
+    forsikret_identifikation = "person-1",
+    kapitel1fakta = Pbl53AIkkeOmfattetAfKapitel1,
+    vilkår = pbl53a_almindelige_livsvilkår_fixture,
+    direktørsikkerhed = Pbl53AIngenDirektørsikkerhed
+))
+= pbl53a_pengeinstitut_uden_kapitel1_omfang_fixture = pbl53a_omfang_fixture(Pbl53APengeEllerKreditinstitutprodukt(
+    kontohaver_identifikation = "person-1",
+    kapitel1fakta = Pbl53AIkkeOmfattetAfKapitel1,
+    institutionssted = Pbl53ADanskInstitution,
+    karakteristika = pbl53a_pengeinstitutkarakteristika_fixture
+))
+= pbl53a_pensionskasse_uden_kapitel1_omfang_fixture = pbl53a_omfang_fixture(Pbl53APensionskasseprodukt(
+    pensionsberettiget_identifikation = "person-1",
+    kapitel1fakta = Pbl53AIkkeOmfattetAfKapitel1,
+    karakteristika = pbl53a_pensionskassekarakteristika_fixture,
+    direktørsikkerhed = Pbl53AIngenDirektørsikkerhed
+))
+= pbl53a_direktørpensionstilsagn_fixture = Pbl53ADirektørpensionstilsagnsfakta(
+    identifikation = "direktørtilsagn-1",
+    ansættelsesforhold_identifikation = "ansættelse-1",
+    berettigede = [Pbl53ADirektørenSomBerettiget(identifikation = "person-1")]
+)
+= pbl53a_direktørsikkerhed_omfang_fixture = pbl53a_omfang_fixture(Pbl53ALivsforsikringsprodukt(
+    ejer_identifikation = "arbejdsgiver-1",
+    forsikret_identifikation = "person-1",
+    kapitel1fakta = Pbl53AIkkeOmfattetAfKapitel1,
+    vilkår = pbl53a_almindelige_livsvilkår_fixture,
+    direktørsikkerhed = Pbl53ASikkerhedForDirektørpensionstilsagn(tilsagn = pbl53a_direktørpensionstilsagn_fixture)
+))
+= pbl53a_syge_ulykke_omfang_fixture = pbl53a_omfang_fixture(Pbl53ASygeOgUlykkesforsikringsprodukt(
+    ejer_identifikation = "person-1",
+    forsikret_identifikation = "person-1"
+))
+= pbl53a_par53b_indbetaling_fixture = Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
+    identifikation = "udenlandsk-bidrag-1",
+    tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2018, måned = 1, dag = 1), rækkefølge_på_dagen = 1),
+    beløb_kroner = 50000,
+    periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
+    indbetaler = Pbl53AEjeren,
+    ejerens_fradragsstatus = Pbl53AFradragEllerBortseelsesretIUdlandet,
+    par53b_udenlandsk_skattebehandling = Pbl53BEjerbidragFuldtFradragetIPositivIndkomst(positiv_skattepligtig_indkomst_kroner = 500000, faktisk_fradrag_kroner = 50000)
+))
+= pbl53a_par53b_omfang_fixture = pbl53a_omfangsresultat(2026, Pbl53AOmfangsfakta(
+    oprettelsesdato = Pbl15ADato(år = 2017, måned = 1, dag = 1),
+    oprindelig_rettighedshaver_identifikation = "person-1",
+    kapitalværdi_ved_oprettelsen_kroner = 0,
+    repræsenteret_kontraktdel = Pbl53AHeleKontrakten,
+    kontraktændringer = [],
+    erhvervelser = [],
+    overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
+    overgangsvalg = [],
+    historiske_blanket49020_indsendelser = [],
+    produkt = Pbl53ALivsforsikringsprodukt(
+        ejer_identifikation = "person-1",
+        forsikret_identifikation = "person-1",
+        kapitel1fakta = Pbl53ATidligereGodkendtEfterPar15D(
+            godkendt_fra = Pbl15ADato(år = 2017, måned = 1, dag = 1),
+            godkendt_til = Pbl15ADato(år = 2022, måned = 12, dag = 31)
+        ),
+        vilkår = pbl53a_almindelige_livsvilkår_fixture,
+        direktørsikkerhed = Pbl53AIngenDirektørsikkerhed
+    ),
+    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
+    institutionsfinansiering = pbl53a_privat_finansiering_fixture,
+    par53b_oprettelsesposition = Pbl53BOprettetUdenFuldDanskSkattepligt(
+        hjemsted = Pbl53BFremmedStat(stat = "Sverige"),
+        sidste_dato_uden_dansk_skattepligt = Pbl15ADato(år = 2019, måned = 12, dag = 31)
+    )
+    ), [pbl53a_par53b_indbetaling_fixture])
+
+= pbl53a_pal_afkast_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
+    indkomstår = 2026,
+    ordning = Pbl53ALivsforsikringUdenKapitel1,
+    omfangsresultat = pbl53a_liv_uden_kapitel1_omfang_fixture,
+    afkastmetode = Pbl53AAfkastEfterPalPar3Til5,
+    metodehistorik = Pbl53AFørsteAfkastopgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
+    afkast_efter_pal_par3_til_5_kroner = 28000,
+    kapitalværdi_primo_kroner = 0,
+    kapitalværdi_ultimo_kroner = 0,
+    udbetalinger_i_året_kroner = 0,
+    indbetalinger_i_året_kroner = 0,
+    fremført_negativt_afkast_primo_kroner = 6000,
+    andel_tæller = 1,
+    andel_nævner = 1,
+    udbetaling_til_afkastskat_kroner = 0
+))
+= pbl53a_alternativt_afkast_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
+    indkomstår = 2026,
+    ordning = Pbl53APengeinstitutUdenKapitel1,
+    omfangsresultat = pbl53a_pengeinstitut_uden_kapitel1_omfang_fixture,
+    afkastmetode = Pbl53AAlternativKapitalværdi,
+    metodehistorik = Pbl53ATidligereAlternativKapitalværdiOpgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Falskt,
+    afkast_efter_pal_par3_til_5_kroner = 0,
+    kapitalværdi_primo_kroner = 200000,
+    kapitalværdi_ultimo_kroner = 230000,
+    udbetalinger_i_året_kroner = 12000,
+    indbetalinger_i_året_kroner = 15000,
+    fremført_negativt_afkast_primo_kroner = 0,
+    andel_tæller = 1,
+    andel_nævner = 2,
+    udbetaling_til_afkastskat_kroner = 0
+))
+= pbl53a_negativt_afkast_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
+    indkomstår = 2026,
+    ordning = Pbl53APensionskasseUdenKapitel1,
+    omfangsresultat = pbl53a_pensionskasse_uden_kapitel1_omfang_fixture,
+    afkastmetode = Pbl53AAlternativKapitalværdi,
+    metodehistorik = Pbl53ATidligereAlternativKapitalværdiOpgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Falskt,
+    afkast_efter_pal_par3_til_5_kroner = 0,
+    kapitalværdi_primo_kroner = 140000,
+    kapitalværdi_ultimo_kroner = 128000,
+    udbetalinger_i_året_kroner = 4000,
+    indbetalinger_i_året_kroner = 0,
+    fremført_negativt_afkast_primo_kroner = 5000,
+    andel_tæller = 1,
+    andel_nævner = 1,
+    udbetaling_til_afkastskat_kroner = 0
+))
+= pbl53a_stk4_undtaget_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
+    indkomstår = 2026,
+    ordning = Pbl53ASygeOgUlykkesforsikring,
+    omfangsresultat = pbl53a_syge_ulykke_omfang_fixture,
+    afkastmetode = Pbl53AAfkastEfterPalPar3Til5,
+    metodehistorik = Pbl53ATidligerePalOpgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
+    afkast_efter_pal_par3_til_5_kroner = 18000,
+    kapitalværdi_primo_kroner = 0,
+    kapitalværdi_ultimo_kroner = 0,
+    udbetalinger_i_året_kroner = 0,
+    indbetalinger_i_året_kroner = 0,
+    fremført_negativt_afkast_primo_kroner = 0,
+    andel_tæller = 1,
+    andel_nævner = 1,
+    udbetaling_til_afkastskat_kroner = 0
+))
+= pbl53a_par53b_udelukket_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
+    indkomstår = 2026,
+    ordning = Pbl53ATidligerePar15DGodkendt,
+    omfangsresultat = pbl53a_par53b_omfang_fixture,
+    afkastmetode = Pbl53AAfkastEfterPalPar3Til5,
+    metodehistorik = Pbl53ATidligerePalOpgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
+    afkast_efter_pal_par3_til_5_kroner = 12000,
+    kapitalværdi_primo_kroner = 0,
+    kapitalværdi_ultimo_kroner = 0,
+    udbetalinger_i_året_kroner = 0,
+    indbetalinger_i_året_kroner = 0,
+    fremført_negativt_afkast_primo_kroner = 0,
+    andel_tæller = 1,
+    andel_nævner = 1,
+    udbetaling_til_afkastskat_kroner = 0
+))
+
+| pbl53a_pal_afkast_medregnes_efter_negativ_fremførsel: pbl53a_pal_afkast_fixture -> pbl53a_pal_afkast_fixture.afkast_efter_valgt_metode_kroner == 28000 && pbl53a_pal_afkast_fixture.fremført_negativt_afkast_anvendt_kroner == 6000 && pbl53a_pal_afkast_fixture.skattepligtigt_afkast_kroner == 22000
+| pbl53a_alternativt_afkast_med_andel_medregnes: pbl53a_alternativt_afkast_fixture -> pbl53a_alternativt_afkast_fixture.afkast_efter_valgt_metode_kroner == 27000 && pbl53a_alternativt_afkast_fixture.afkastandel_før_negativ_fremførsel_kroner == 13500 && pbl53a_alternativt_afkast_fixture.skattepligtigt_afkast_kroner == 13500 && pbl53a_alternativt_afkast_fixture.udbetaling_til_afkastskat_medregnes_kroner == 0
+| pbl53a_negativt_afkast_fremføres_kun_samme_ordning: pbl53a_negativt_afkast_fixture -> pbl53a_negativt_afkast_fixture.afkast_efter_valgt_metode_kroner == -8000 && pbl53a_negativt_afkast_fixture.skattepligtigt_afkast_kroner == 0 && pbl53a_negativt_afkast_fixture.fremført_negativt_afkast_ultimo_kroner == 13000
+| pbl53a_stk4_undtagelse_afskærer_afkast: pbl53a_stk4_undtaget_fixture -> pbl53a_stk4_undtaget_fixture.undtaget_efter_stk4 == Sandt && pbl53a_stk4_undtaget_fixture.skattepligtigt_afkast_kroner == 0
+| pbl53a_par53b_udelukker_stk1: pbl53a_par53b_udelukket_fixture -> pbl53a_par53b_udelukket_fixture.omfattet_af_stk1 == Falskt && pbl53a_par53b_udelukket_fixture.skattepligtigt_afkast_kroner == 0
+
+}
+----
+§ 5. I lov nr. 429 af 26. juni 1998 om ændring af
+pensionsbeskatningsloven, realrenteafgiftsloven, fondsbeskatningsloven,
+kildeskatteloven og skattekontrolloven. (Filialer af EU-forsikringsselskaber
+og -pengeinstitutter, symmetri i pensionsbeskatningen, afgift af aktieafkast
+og afskaffelse af kvoteordningen) foretages følgende ændringer:
+
+2. I § 6 indsættes som stk. 12:
+
+»Stk. 12. En forsikringstager eller pensionsopsparer, der har en forsikring
+eller pensionsordning, der er oprettet eller erhvervet før den 18. februar
+1992, kan med virkning fra og med indkomståret 2004 vælge, at § 1, nr. 4, 5,
+6 og 7, finder anvendelse på forsikringen eller pensionsordningen, såfremt
+pensionsbeskatningslovens § 53 A eller § 53 B i øvrigt er anvendelig på
+forsikringen eller pensionsordningen. Valget er bindende og skal træffes
+inden den 1. januar 2006 eller i forbindelse med indtræden af fuld
+skattepligt her til landet. Valget skal inden for fristen i 2. pkt. enten
+meddeles Told- og Skattestyrelsen eller forsikringsselskabet m.v., såfremt
+dette indgiver oplysninger til de statslige told- og skattemyndigheder efter
+skattekontrollovens § 8 B. Valget får i så fald virkning fra og med det
+tidspunkt, hvor Told- og Skattestyrelsen eller forsikringsselskabet m.v. får
+oplysningen. De personer, som inden den 1. april 2005 træffer beslutning om,
+at pensionsbeskatningslovens § 53 A eller § 53 B skal finde anvendelse på
+forsikringen eller pensionsordningen, kan vælge, at beslutningen får
+virkning fra og med den 1. januar 2004. I så fald gives Told- og
+Skattestyrelsen eller forsikringsselskabet m.v. oplysning herom.«
+
+§ 7
+
+Stk. 1. Loven træder i kraft dagen efter bekendtgørelsen i Lovtidende, jf. dog
+stk. 2-4.
+
+Den juridiske vejledning 2026-1, afsnit C.A.10.4.2.5:
+
+Landsskatterettens afgørelse i SKM2025.658.LSR medfører, at hvis skatteyder har
+indsendt blanket 49.020 på et tidspunkt, hvor den gældende blanket ikke gav
+mulighed for at vælge beskatning efter de nævnte bestemmelser, så skal
+Skattestyrelsen acceptere, at der er valgt beskatning efter PBL § 53 A eller
+§ 53 B, hvis skatteyder påberåber sig dette.
+
+Det er derfor Skattestyrelsens opfattelse, at det skal accepteres, hvis
+skatteyder, påberåber sig ikke at have valgt beskatning efter disse
+bestemmelser. Det er med andre ord Skattestyrelsens opfattelse, at det ikke
+skal komme skatteyder til ulempe, at den tidligere blanket 49.020 ikke har
+været udarbejdet på en måde, hvor det tydeligt fremgår, hvorvidt der er
+foretaget et valg om beskatning efter de nævnte bestemmelser.
+
+Blanket 49.020 er ændret i juni 2023 sådan, at der efter dette tidspunkt findes
+et afkrydsningsfelt, hvori der eksplicit skal vælges beskatning efter PBL § 53 A
+eller § 53 B ved at krydse feltet af. Det er Skattestyrelsens opfattelse, at
+Landsskatterettens afgørelse, alene angår situationer, hvor det er den tidligere
+blanket 49.020 (uden afkrydsningsfelt), der er anvendt.
+
+SKM2025.658.LSR:
+
+På baggrund af skattemyndighedens praksis på området og de anvisninger, der er
+givet på selve blanketten og i Den Juridiske Vejledning, finder
+Landsskatteretten, at klageren med indsendelsen af blanket 49.020 - Erklæring L
+har truffet et valg med fristafbrydende virkning i relation til bestemmelsen i
+lov nr. 429 af 26. juni 1998, stk. 12.
+
+Landsskatteretten finder endvidere, at klageren har valgt, at pensionsordningen
+skal være omfattet af pensionsbeskatningslovens §§ 53 A eller 53 B. Den
+omstændighed, at klageren har foretaget afkrydsning i en forkert rubrik i
+blankettens afsnit 5, er uden betydning for valget.
+----
+
+@ meta(pbl53a_overgangsvalg_kildemeta)
+@ section pensionsbeskatningsloven_par53a_overgangsvalg {
+
+| pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() -> 20041222
+| pbl53a_overgangsvalg_ordinær_frist_nøgle() -> 20060101
+| pbl53a_overgangsvalg_tilbagevirkende_beslutningsfrist_nøgle() -> 20050401
+| pbl53a_overgangsvalg_tilbagevirkende_startdato() -> Pbl15ADato(år = 2004, måned = 1, dag = 1)
+| pbl53a_overgangsvalg_har_kvalificerende_arv_på_dato(fakta: Pbl53AOmfangsfakta, arvedato: Pbl15ADato) -> any(fakta.erhvervelser, |erhvervelse: Pbl53AErhvervelseshændelse| pbl15a_dato_nøgle(erhvervelse.tidspunkt.dato) == pbl15a_dato_nøgle(arvedato) && pbl53a_erhvervelse_er_kvalificerende_arv(fakta.produkt, erhvervelse))
+| pbl53a_overgangsvalgfristfakta_gyldige(fakta: Pbl53AOmfangsfakta) -> match fakta.overgangsvalgfristfakta {
+    | Pbl53AIntetOvergangsvalgfristgrundlag -> Sandt
+    | Pbl53AFuldSkattepligtVedLovensIkrafttræden -> Sandt
+    | Pbl53ASenereIndtrådtFuldSkattepligt(indtrædelsesdato, oplysningsfrist) -> pbl15a_dato_gyldig(indtrædelsesdato) && pbl15a_dato_gyldig(oplysningsfrist) && pbl15a_dato_nøgle(indtrædelsesdato) >= pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() && pbl15a_dato_nøgle(oplysningsfrist) >= pbl15a_dato_nøgle(indtrædelsesdato)
+    | Pbl53ASenereArvUnderFuldSkattepligt(arvedato, oplysningsfrist, _, _, _) -> pbl15a_dato_gyldig(arvedato) && pbl15a_dato_gyldig(oplysningsfrist) && pbl15a_dato_nøgle(arvedato) >= pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() && pbl15a_dato_nøgle(oplysningsfrist) >= pbl15a_dato_nøgle(arvedato) && pbl53a_overgangsvalg_har_kvalificerende_arv_på_dato(fakta, arvedato)
+}
+| pbl53a_overgangsvalgfristgrundlag_findes(fristfakta: Pbl53AOvergangsvalgfristfakta) -> fristfakta != Pbl53AIntetOvergangsvalgfristgrundlag
+| pbl53a_overgangsvalgmodtager_gyldig(modtager: Pbl53AOvergangsvalgmodtager) -> modtager != Pbl53AValgMeddeltAndenModtager
+| pbl53a_overgangsvalg_datoer_rettidige(fristfakta: Pbl53AOvergangsvalgfristfakta, beslutningsdato: Pbl15ADato, modtagelsesdato: Pbl15ADato) -> {
+    = beslutningsnøgle = pbl15a_dato_nøgle(beslutningsdato)
+    = modtagelsesnøgle = pbl15a_dato_nøgle(modtagelsesdato)
+    match fristfakta {
+        | Pbl53AIntetOvergangsvalgfristgrundlag -> Falskt
+        | Pbl53AFuldSkattepligtVedLovensIkrafttræden -> beslutningsnøgle >= pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() && modtagelsesnøgle >= pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() && beslutningsnøgle < pbl53a_overgangsvalg_ordinær_frist_nøgle() && modtagelsesnøgle < pbl53a_overgangsvalg_ordinær_frist_nøgle()
+        | Pbl53ASenereIndtrådtFuldSkattepligt(indtrædelsesdato, oplysningsfrist) -> beslutningsnøgle >= pbl15a_dato_nøgle(indtrædelsesdato) && modtagelsesnøgle >= pbl15a_dato_nøgle(indtrædelsesdato) && beslutningsnøgle <= pbl15a_dato_nøgle(oplysningsfrist) && modtagelsesnøgle <= pbl15a_dato_nøgle(oplysningsfrist)
+        | Pbl53ASenereArvUnderFuldSkattepligt(arvedato, oplysningsfrist, fuld_skattepligtig_på_arvedatoen, tidligere_ejer_fuld_skattepligtig_i_ejerperioden, tidligere_ejer_havde_valgt_afsnit_iia) -> fuld_skattepligtig_på_arvedatoen && tidligere_ejer_fuld_skattepligtig_i_ejerperioden == Falskt && tidligere_ejer_havde_valgt_afsnit_iia == Falskt && beslutningsnøgle >= pbl15a_dato_nøgle(arvedato) && modtagelsesnøgle >= pbl15a_dato_nøgle(arvedato) && beslutningsnøgle <= pbl15a_dato_nøgle(oplysningsfrist) && modtagelsesnøgle <= pbl15a_dato_nøgle(oplysningsfrist)
+    }
+}
+| pbl53a_overgangsvalg_rettidigt(fristfakta: Pbl53AOvergangsvalgfristfakta, meddelelse: Pbl53AOvergangsvalgmeddelelse) -> pbl53a_overgangsvalg_datoer_rettidige(fristfakta, meddelelse.beslutningsdato, meddelelse.modtagelsesdato)
+| pbl53a_overgangsvalg_virkning_tilladt_for_beslutning(fristfakta: Pbl53AOvergangsvalgfristfakta, beslutningsdato: Pbl15ADato, ønsket_virkning: Pbl53AOvergangsvalgvirkning) -> match ønsket_virkning {
+    | Pbl53AValgVirkningFraModtagelse -> Sandt
+    | Pbl53AValgVirkningFra1Januar2004 -> fristfakta == Pbl53AFuldSkattepligtVedLovensIkrafttræden && pbl15a_dato_nøgle(beslutningsdato) >= pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() && pbl15a_dato_nøgle(beslutningsdato) < pbl53a_overgangsvalg_tilbagevirkende_beslutningsfrist_nøgle()
+}
+| pbl53a_overgangsvalg_ønsket_virkning_tilladt(fristfakta: Pbl53AOvergangsvalgfristfakta, meddelelse: Pbl53AOvergangsvalgmeddelelse) -> pbl53a_overgangsvalg_virkning_tilladt_for_beslutning(fristfakta, meddelelse.beslutningsdato, meddelelse.ønsket_virkning)
+| pbl53a_overgangsvalg_valgt_regime(mål: Pbl53AOvergangsvalgmål) -> match mål {
+    | Pbl53AValgAfPar53A -> Pbl53AOvergangsvalgTilPar53A
+    | Pbl53AValgAfPar53B -> Pbl53AOvergangsvalgTilPar53B
+}
+| pbl53a_overgangsvalg_vurderingsår(meddelelse: Pbl53AOvergangsvalgmeddelelse) -> match meddelelse.ønsket_virkning {
+    | Pbl53AValgVirkningFraModtagelse -> meddelelse.modtagelsesdato.år
+    | Pbl53AValgVirkningFra1Januar2004 -> 2004
+}
+| pbl53a_overgangsvalgmål_i_øvrigt_anvendeligt(mål: Pbl53AOvergangsvalgmål, vurderingsår: Heltal, fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> match mål {
+    | Pbl53AValgAfPar53A -> pbl53a_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser)
+    | Pbl53AValgAfPar53B -> pbl53b_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser)
+}
+| pbl53a_overgangsvalg_virkningsstart(meddelelse: Pbl53AOvergangsvalgmeddelelse) -> match meddelelse.ønsket_virkning {
+    | Pbl53AValgVirkningFraModtagelse -> Pbl53AModerneVirkningsstartFra(dato = meddelelse.modtagelsesdato)
+    | Pbl53AValgVirkningFra1Januar2004 -> Pbl53AModerneVirkningsstartFra(dato = pbl53a_overgangsvalg_tilbagevirkende_startdato())
+}
+| pbl53a_overgangsvalg_virkningsstart_for_modtagelse(modtagelsesdato: Pbl15ADato, ønsket_virkning: Pbl53AOvergangsvalgvirkning) -> match ønsket_virkning {
+    | Pbl53AValgVirkningFraModtagelse -> Pbl53AModerneVirkningsstartFra(dato = modtagelsesdato)
+    | Pbl53AValgVirkningFra1Januar2004 -> Pbl53AModerneVirkningsstartFra(dato = pbl53a_overgangsvalg_tilbagevirkende_startdato())
+}
+| pbl53a_overgangsvalgmeddelelsesresultat(fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse), historisk_ordning_uden_valg: Boolsk, meddelelse: Pbl53AOvergangsvalgmeddelelse) -> {
+    = datoer_gyldige = pbl15a_dato_gyldig(meddelelse.beslutningsdato) && pbl15a_dato_gyldig(meddelelse.modtagelsesdato)
+    = beslutning_ikke_efter_modtagelse = datoer_gyldige && pbl15a_dato_nøgle(meddelelse.beslutningsdato) <= pbl15a_dato_nøgle(meddelelse.modtagelsesdato)
+    = modtager_gyldig = pbl53a_overgangsvalgmodtager_gyldig(meddelelse.modtager)
+    = fristgrundlag_gyldigt = pbl53a_overgangsvalgfristfakta_gyldige(fakta) && pbl53a_overgangsvalgfristgrundlag_findes(fakta.overgangsvalgfristfakta)
+    = rettidig = fristgrundlag_gyldigt && datoer_gyldige && beslutning_ikke_efter_modtagelse && pbl53a_overgangsvalg_rettidigt(fakta.overgangsvalgfristfakta, meddelelse)
+    = mål_i_øvrigt_anvendeligt = pbl53a_overgangsvalgmål_i_øvrigt_anvendeligt(meddelelse.mål, pbl53a_overgangsvalg_vurderingsår(meddelelse), fakta, hændelser)
+    = ønsket_virkning_tilladt = pbl53a_overgangsvalg_ønsket_virkning_tilladt(fakta.overgangsvalgfristfakta, meddelelse)
+    = meddelelse_opfylder_betingelser = datoer_gyldige && beslutning_ikke_efter_modtagelse && modtager_gyldig && fristgrundlag_gyldigt && rettidig && historisk_ordning_uden_valg && mål_i_øvrigt_anvendeligt && ønsket_virkning_tilladt
+    Pbl53AOvergangsvalgmeddelelsesresultat(
+        meddelelse = meddelelse,
+        datoer_gyldige = datoer_gyldige,
+        beslutning_ikke_efter_modtagelse = beslutning_ikke_efter_modtagelse,
+        modtager_gyldig = modtager_gyldig,
+        fristgrundlag_gyldigt = fristgrundlag_gyldigt,
+        rettidig = rettidig,
+        historisk_ordning_uden_valg = historisk_ordning_uden_valg,
+        mål_i_øvrigt_anvendeligt = mål_i_øvrigt_anvendeligt,
+        ønsket_virkning_tilladt = ønsket_virkning_tilladt,
+        meddelelse_opfylder_betingelser = meddelelse_opfylder_betingelser,
+        valgt_regime = pbl53a_overgangsvalg_valgt_regime(meddelelse.mål),
+        virkningsstart = pbl53a_overgangsvalg_virkningsstart(meddelelse)
+    )
+}
+| pbl53a_historisk_blanket_tidligere_udgave_uden_valgfelt(indsendelse: Pbl53AHistoriskBlanket49020Indsendelse) -> indsendelse.udgave == Pbl53ATidligereBlanket49020UdenValgfelt
+| pbl53a_historisk_blanket_modtager_gyldig(indsendelse: Pbl53AHistoriskBlanket49020Indsendelse) -> indsendelse.modtager == Pbl53AValgMeddeltSkattestyrelsen
+| pbl53a_historisk_blanket_valg_påberåbt(påberåbelse: Pbl53AHistoriskBlanketpåberåbelse) -> påberåbelse == Pbl53AValgEfterPar53AEllerPar53BPåberåbt
+| pbl53a_historisk_blanket_intet_valg_påberåbt(påberåbelse: Pbl53AHistoriskBlanketpåberåbelse) -> påberåbelse == Pbl53AIntetValgEfterPar53AEllerPar53BPåberåbt
+| pbl53a_historisk_blanket_vurderingsår(indsendelse: Pbl53AHistoriskBlanket49020Indsendelse) -> match indsendelse.ønsket_virkning {
+    | Pbl53AValgVirkningFraModtagelse -> indsendelse.modtagelsesdato.år
+    | Pbl53AValgVirkningFra1Januar2004 -> 2004
+}
+| pbl53a_historisk_blanket_afledt_regime(vurderingsår: Heltal, fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> hvis pbl53b_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser) { Pbl53AOvergangsvalgTilPar53B } ellers hvis pbl53a_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser) { Pbl53AOvergangsvalgTilPar53A } ellers { Pbl53AIntetGyldigtOvergangsvalg }
+| pbl53a_historisk_blanket49020_resultat(fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse), historisk_ordning_uden_valg: Boolsk, indsendelse: Pbl53AHistoriskBlanket49020Indsendelse) -> {
+    = datoer_gyldige = pbl15a_dato_gyldig(indsendelse.indsendelsesdato) && pbl15a_dato_gyldig(indsendelse.modtagelsesdato)
+    = indsendelse_ikke_efter_modtagelse = datoer_gyldige && pbl15a_dato_nøgle(indsendelse.indsendelsesdato) <= pbl15a_dato_nøgle(indsendelse.modtagelsesdato)
+    = tidligere_udgave_uden_valgfelt = pbl53a_historisk_blanket_tidligere_udgave_uden_valgfelt(indsendelse)
+    = modtager_gyldig = pbl53a_historisk_blanket_modtager_gyldig(indsendelse)
+    = fristgrundlag_gyldigt = pbl53a_overgangsvalgfristfakta_gyldige(fakta) && pbl53a_overgangsvalgfristgrundlag_findes(fakta.overgangsvalgfristfakta)
+    = rettidig = fristgrundlag_gyldigt && datoer_gyldige && indsendelse_ikke_efter_modtagelse && pbl53a_overgangsvalg_datoer_rettidige(fakta.overgangsvalgfristfakta, indsendelse.indsendelsesdato, indsendelse.modtagelsesdato)
+    = valg_påberåbt = pbl53a_historisk_blanket_valg_påberåbt(indsendelse.påberåbelse)
+    = intet_valg_påberåbt = pbl53a_historisk_blanket_intet_valg_påberåbt(indsendelse.påberåbelse)
+    = vurderingsår = pbl53a_historisk_blanket_vurderingsår(indsendelse)
+    = par53b_i_øvrigt_anvendelig = pbl53b_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser)
+    = par53a_i_øvrigt_anvendelig = pbl53a_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser)
+    = afledt_regime = pbl53a_historisk_blanket_afledt_regime(vurderingsår, fakta, hændelser)
+    = mål_entydigt_afledt = afledt_regime != Pbl53AIntetGyldigtOvergangsvalg && par53a_i_øvrigt_anvendelig != par53b_i_øvrigt_anvendelig
+    = ønsket_virkning_tilladt = pbl53a_overgangsvalg_virkning_tilladt_for_beslutning(fakta.overgangsvalgfristfakta, indsendelse.indsendelsesdato, indsendelse.ønsket_virkning)
+    = indsendelse_opfylder_betingelser = datoer_gyldige && indsendelse_ikke_efter_modtagelse && tidligere_udgave_uden_valgfelt && modtager_gyldig && fristgrundlag_gyldigt && rettidig && historisk_ordning_uden_valg && valg_påberåbt && mål_entydigt_afledt && ønsket_virkning_tilladt
+    Pbl53AHistoriskBlanket49020Resultat(
+        indsendelse = indsendelse,
+        datoer_gyldige = datoer_gyldige,
+        indsendelse_ikke_efter_modtagelse = indsendelse_ikke_efter_modtagelse,
+        tidligere_udgave_uden_valgfelt = tidligere_udgave_uden_valgfelt,
+        modtager_gyldig = modtager_gyldig,
+        fristgrundlag_gyldigt = fristgrundlag_gyldigt,
+        rettidig = rettidig,
+        historisk_ordning_uden_valg = historisk_ordning_uden_valg,
+        valg_påberåbt = valg_påberåbt,
+        intet_valg_påberåbt = intet_valg_påberåbt,
+        par53a_i_øvrigt_anvendelig = par53a_i_øvrigt_anvendelig,
+        par53b_i_øvrigt_anvendelig = par53b_i_øvrigt_anvendelig,
+        mål_entydigt_afledt = mål_entydigt_afledt,
+        ønsket_virkning_tilladt = ønsket_virkning_tilladt,
+        indsendelse_opfylder_betingelser = indsendelse_opfylder_betingelser,
+        afledt_regime = afledt_regime,
+        virkningsstart = pbl53a_overgangsvalg_virkningsstart_for_modtagelse(indsendelse.modtagelsesdato, indsendelse.ønsket_virkning)
+    )
+}
+| pbl53a_overgangsvalgpost_fra_meddelelsesresultat(resultat: Pbl53AOvergangsvalgmeddelelsesresultat) -> Pbl53AOvergangsvalgpost(
+    modtagelsesdato = resultat.meddelelse.modtagelsesdato,
+    datoer_gyldige = resultat.datoer_gyldige,
+    valg_opfylder_betingelser = resultat.meddelelse_opfylder_betingelser,
+    modstridende_valg_relevant = resultat.rettidig && resultat.modtager_gyldig && resultat.historisk_ordning_uden_valg && resultat.ønsket_virkning_tilladt,
+    valgt_regime = resultat.valgt_regime,
+    virkningsstart = resultat.virkningsstart
+)
+| pbl53a_overgangsvalgpost_fra_historisk_blanketresultat(resultat: Pbl53AHistoriskBlanket49020Resultat) -> Pbl53AOvergangsvalgpost(
+    modtagelsesdato = resultat.indsendelse.modtagelsesdato,
+    datoer_gyldige = resultat.datoer_gyldige,
+    valg_opfylder_betingelser = resultat.indsendelse_opfylder_betingelser,
+    modstridende_valg_relevant = resultat.rettidig && resultat.tidligere_udgave_uden_valgfelt && resultat.modtager_gyldig && resultat.historisk_ordning_uden_valg && resultat.valg_påberåbt && resultat.mål_entydigt_afledt && resultat.ønsket_virkning_tilladt,
+    valgt_regime = resultat.afledt_regime,
+    virkningsstart = resultat.virkningsstart
+)
+| pbl53a_overgangsvalgpost_sorteringsnøgle(post: Pbl53AOvergangsvalgpost) -> pbl15a_dato_nøgle(post.modtagelsesdato)
+| pbl53a_overgangsvalgfold_tom() -> Pbl53AOvergangsvalgfold(
+    seneste_modtagelsesdato_nøgle = 0,
+    datoer_gyldige = Sandt,
+    kronologiske = Sandt,
+    valgt_regime = Pbl53AIntetGyldigtOvergangsvalg,
+    virkningsstart = Pbl53AIngenModerneVirkningsstart,
+    gyldige_meddelelser_antal = 0,
+    senere_modstridende_valg = Falskt
+)
+| pbl53a_overgangsvalgfold_trin(tilstand: Pbl53AOvergangsvalgfold, post: Pbl53AOvergangsvalgpost) -> {
+    = modtagelsesdato_nøgle = pbl15a_dato_nøgle(post.modtagelsesdato)
+    = første_gyldige_valg = post.valg_opfylder_betingelser && tilstand.valgt_regime == Pbl53AIntetGyldigtOvergangsvalg
+    = senere_modstridende_valg = post.modstridende_valg_relevant && tilstand.valgt_regime != Pbl53AIntetGyldigtOvergangsvalg && post.valgt_regime != tilstand.valgt_regime
+    Pbl53AOvergangsvalgfold(
+        seneste_modtagelsesdato_nøgle = modtagelsesdato_nøgle,
+        datoer_gyldige = tilstand.datoer_gyldige && post.datoer_gyldige,
+        kronologiske = tilstand.kronologiske && post.datoer_gyldige && modtagelsesdato_nøgle > tilstand.seneste_modtagelsesdato_nøgle,
+        valgt_regime = hvis første_gyldige_valg { post.valgt_regime } ellers { tilstand.valgt_regime },
+        virkningsstart = hvis første_gyldige_valg { post.virkningsstart } ellers { tilstand.virkningsstart },
+        gyldige_meddelelser_antal = tilstand.gyldige_meddelelser_antal + hvis post.valg_opfylder_betingelser { 1 } ellers { 0 },
+        senere_modstridende_valg = tilstand.senere_modstridende_valg || senere_modstridende_valg
+    )
+}
+| pbl53a_overgangsvalgresultat(fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse), historisk_ordning_uden_valg: Boolsk) -> {
+    = meddelelsesresultater = map(fakta.overgangsvalg, |meddelelse: Pbl53AOvergangsvalgmeddelelse| pbl53a_overgangsvalgmeddelelsesresultat(fakta, hændelser, historisk_ordning_uden_valg, meddelelse))
+    = historiske_blanketresultater = map(fakta.historiske_blanket49020_indsendelser, |indsendelse: Pbl53AHistoriskBlanket49020Indsendelse| pbl53a_historisk_blanket49020_resultat(fakta, hændelser, historisk_ordning_uden_valg, indsendelse))
+    = meddelelsesposter = map(meddelelsesresultater, pbl53a_overgangsvalgpost_fra_meddelelsesresultat)
+    = historiske_blanketposter = map(historiske_blanketresultater, pbl53a_overgangsvalgpost_fra_historisk_blanketresultat)
+    = meddelelsestilstand = foldl(meddelelsesposter, pbl53a_overgangsvalgfold_tom(), pbl53a_overgangsvalgfold_trin)
+    = historisk_blankettilstand = foldl(historiske_blanketposter, pbl53a_overgangsvalgfold_tom(), pbl53a_overgangsvalgfold_trin)
+    = sorterede_poster = sort_by(concat(meddelelsesposter, historiske_blanketposter), pbl53a_overgangsvalgpost_sorteringsnøgle)
+    = tilstand = foldl(sorterede_poster, pbl53a_overgangsvalgfold_tom(), pbl53a_overgangsvalgfold_trin)
+    = fristfakta_gyldige = pbl53a_overgangsvalgfristfakta_gyldige(fakta)
+    = fakta_gyldige = fristfakta_gyldige && tilstand.datoer_gyldige && meddelelsestilstand.kronologiske && historisk_blankettilstand.kronologiske && tilstand.kronologiske
+    = valg_gyldigt = fakta_gyldige && tilstand.valgt_regime != Pbl53AIntetGyldigtOvergangsvalg
+    Pbl53AOvergangsvalgresultat(
+        fakta_gyldige = fakta_gyldige,
+        fristfakta_gyldige = fristfakta_gyldige,
+        datoer_gyldige = tilstand.datoer_gyldige,
+        meddelelser_kronologiske = meddelelsestilstand.kronologiske,
+        historiske_blanketter_kronologiske = historisk_blankettilstand.kronologiske,
+        indgivelser_entydige = tilstand.kronologiske,
+        meddelelsesresultater = meddelelsesresultater,
+        historiske_blanketresultater = historiske_blanketresultater,
+        gyldige_meddelelser_antal = tilstand.gyldige_meddelelser_antal,
+        valg_gyldigt = valg_gyldigt,
+        valg_bindende = valg_gyldigt,
+        valgt_regime = tilstand.valgt_regime,
+        virkningsstart = tilstand.virkningsstart,
+        senere_modstridende_valg = tilstand.senere_modstridende_valg
+    )
+}
+
+}
+----
+Aftaleloven § 6, stk. 1:
+
+Svar, som går ud på, at tilbud antages, men som på grund af tillæg,
+indskrænkninger eller forbehold ikke stemmer med tilbudet, anses som afslag i
+forbindelse med nyt tilbud.
+
+Den juridiske vejledning 2026-1, afsnit C.A.10.4.2.3.6:
+
+Aftalelovens regler betyder ved fortolkning af ikrafttrædelsesbestemmelsen, at
+ændringer efter den 18. februar 1992 af en eksisterende forsikringsaftale mv.
+fører til, at der foreligger en nyoprettet ordning, der omfattes af reglerne i
+PBL § 53 A.
+
+For forsikringer mv. oprettet før den 18. februar 1992 gælder, at ændringer, der
+ikke er aftalt endeligt og bindende mellem forsikringstager eller den
+pensionsberettigede og selskab før den 18. februar 1992, fører til, at der
+foreligger en ny ordning omfattet af reglerne.
+
+En formålsfortolkning indebærer, at i tilfælde, hvor en ændring af
+forsikringsaftalen bringer mere uden for indkomstbeskatning, er forsikringen
+omfattet af reglerne i PBL § 53 A.
+
+SKM2013.481.SR:
+
+Skatterådet kunne ikke bekræfte, at en pensionsordning, der er omfattet af
+overgangsreglerne for pensionsbeskatningslovens § 50, bevarer sin skattemæssige
+behandling efter pensionsbeskatningslovens § 50, når pensionsordningen ændres
+fra et opsparingsprodukt (gennemsnitsrente) til et andet opsparingsprodukt
+(markedsrenteprodukt).
+
+SKM2023.406.LSR:
+
+Efter en konkret vurdering finder Landsskatteretten, at der ved klagerens
+flytning af forsikring fra Nordben til G1 er tale om en ændring i
+forsikringspolicen, som fører til, at der foreligger en nyoprettet
+forsikringsordning, som omfattes af pensionsbeskatningslovens § 53 A.
+----
+
+@ meta(pbl53a_kontraktændring_kildemeta)
+@ section pensionsbeskatningsloven_par53a_kontraktaendringer {
+
+| pbl53a_kontraktændring_virkningstidspunkt_nøgle(tidspunkt: Pbl15ATidspunkt) -> pbl15a_dato_nøgle(tidspunkt.dato) * 1000000 + tidspunkt.rækkefølge_på_dagen
+| pbl53a_forhåndsaftalefakta_gyldige(fakta: Pbl53AForhåndsaftalefakta, ændringsdato: Pbl15ADato) -> match fakta {
+    | Pbl53AIngenDokumenteretForhåndsaftale -> Sandt
+    | Pbl53ADokumenteretForhåndsaftale(bindende_fra_dato, _, _) -> pbl15a_dato_gyldig(bindende_fra_dato) && pbl15a_dato_nøgle(bindende_fra_dato) <= pbl15a_dato_nøgle(ændringsdato)
+    | Pbl53AForhåndsaftaleUoplyst -> Falskt
+}
+| pbl53a_endeligt_og_bindende_aftalt_før_skæringsdatoen(fakta: Pbl53AForhåndsaftalefakta) -> match fakta {
+    | Pbl53ADokumenteretForhåndsaftale(bindende_fra_dato, vilkår_fuldt_fastlagt, indtræder_uden_nyt_valg) -> pbl15a_dato_gyldig(bindende_fra_dato) && pbl15a_dato_nøgle(bindende_fra_dato) < pbl53a_overgangsskæringsdato_nøgle() && vilkår_fuldt_fastlagt && indtræder_uden_nyt_valg
+    | _ -> Falskt
+}
+| pbl53a_kontraktændringsart_understøttet(art: Pbl53AKontraktændringsart) -> match art {
+    | Pbl53AÅrligOpsparingspræmieForhøjet(_, Pbl53APræmieforhøjelsesgrundlagUoplyst) -> Falskt
+    | Pbl53APræmiebetalingstidAfkortet(Pbl53APræmieafkortningsfølgeUoplyst) -> Falskt
+    | Pbl53AForsikringGenoptagetEfterMisligholdelse(Pbl53AMisligholdelsesfølgeUoplyst, _) -> Falskt
+    | Pbl53AHelBestandOverførtVedFusionOpkøbEllerOphør(Pbl53ABestandsoverførselsvilkårUoplyst) -> Falskt
+    | Pbl53AAndenKontraktændring(_) -> Falskt
+    | _ -> Sandt
+}
+| pbl53a_kontraktændringsart_grundfakta_gyldige(ændring: Pbl53AKontraktændring) -> match ændring.art {
+    | Pbl53APræmiebetalingsperiodeForlænget(oprindelig_slutdato) -> pbl15a_dato_gyldig(oprindelig_slutdato) && pbl15a_dato_nøgle(oprindelig_slutdato) == pbl15a_dato_nøgle(ændring.virkningstidspunkt.dato)
+    | Pbl53AÅrligOpsparingspræmieForhøjet(forhøjelse_kroner, grundlag) -> forhøjelse_kroner > 0 && grundlag != Pbl53APræmieforhøjelsesgrundlagUoplyst
+    | Pbl53APræmiebetalingstidAfkortet(følge) -> følge != Pbl53APræmieafkortningsfølgeUoplyst
+    | Pbl53AForsikringGenoptagetEfterMisligholdelse(følge, _) -> følge != Pbl53AMisligholdelsesfølgeUoplyst
+    | Pbl53AIkkefastsatIndskudsretUdnyttet(indskud_kroner) -> indskud_kroner > 0
+    | Pbl53ALøbendePræmieAfløstAfEngangsindskud(indskud_kroner) -> indskud_kroner > 0
+    | Pbl53AHelBestandOverførtVedFusionOpkøbEllerOphør(vilkår) -> vilkår != Pbl53ABestandsoverførselsvilkårUoplyst
+    | Pbl53ASelvvalgtOverflytningTilNyUdbyder(oprettelsesdato, _) -> pbl15a_dato_gyldig(oprettelsesdato) && pbl15a_dato_nøgle(oprettelsesdato) >= pbl53a_overgangsskæringsdato_nøgle() && pbl15a_dato_nøgle(oprettelsesdato) <= pbl15a_dato_nøgle(ændring.virkningstidspunkt.dato)
+    | Pbl53AAndenKontraktændring(beskrivelse) -> beskrivelse != ""
+    | _ -> Sandt
+}
+| pbl53a_ingen_ny_ordning_ved_kontraktændring() -> Pbl53AIngenNyOrdningVedKontraktændring
+| pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring: Pbl53AKontraktændring) -> match ændring.kapitalværdi_på_virkningstidspunktet {
+    | Pbl53AHeleOrdningensKapitalværdi(kroner) -> hvis kroner >= 0 { Pbl53AHeleOrdningenNyVedKontraktændring(ændringsidentifikation = ændring.identifikation, virkningstidspunkt = ændring.virkningstidspunkt, kapitalværdi_kroner = kroner) } ellers { Pbl53AKontraktændringUafklaret }
+    | _ -> Pbl53AKontraktændringUafklaret
+}
+| pbl53a_del_ny_ved_kontraktændring(ændring: Pbl53AKontraktændring) -> match ændring.kapitalværdi_på_virkningstidspunktet {
+    | Pbl53ANyeDelsKapitalværdi(kroner) -> hvis kroner >= 0 { Pbl53ADelNyVedKontraktændring(ændringsidentifikation = ændring.identifikation, virkningstidspunkt = ændring.virkningstidspunkt, kapitalværdi_kroner = kroner) } ellers { Pbl53AKontraktændringUafklaret }
+    | _ -> Pbl53AKontraktændringUafklaret
+}
+| pbl53a_kontraktændringsvirkning_for_art(ændring: Pbl53AKontraktændring) -> match ændring.art {
+    | Pbl53AForsikringsperiodeForlængetFørForsikringsbegivenhed -> pbl53a_del_ny_ved_kontraktændring(ændring)
+    | Pbl53APræmiebetalingsperiodeForlænget(_) -> pbl53a_del_ny_ved_kontraktændring(ændring)
+    | Pbl53AÅrligOpsparingspræmieForhøjet(_, grundlag) -> match grundlag {
+        | Pbl53ANyPræmieforhøjelse -> pbl53a_del_ny_ved_kontraktændring(ændring)
+        | Pbl53AAutomatiskPristalsreguleringUdenIndflydelse -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+        | Pbl53AAutomatiskForhøjelseVedBonustilskrivning -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+        | Pbl53AFørskæringsaftaltReguleringValgtLavere -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+        | Pbl53APræmieforhøjelsesgrundlagUoplyst -> Pbl53AKontraktændringUafklaret
+    }
+    | Pbl53AForsikringForlængetVedForsikringsbegivenhed -> pbl53a_del_ny_ved_kontraktændring(ændring)
+    | Pbl53APræmiebetalingstidAfkortet(følge) -> match følge {
+        | Pbl53AKunPræmiebetalingstidenAfkortet -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
+        | Pbl53APræmiebetalingstidAfkortetOgPræmieNedsat -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+        | Pbl53APræmiebetalingBortfaldtVedFripolice -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+        | Pbl53APræmiebetalingBortfaldtMedUændretForsikring -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+        | Pbl53APræmieafkortningsfølgeUoplyst -> Pbl53AKontraktændringUafklaret
+    }
+    | Pbl53AFripoliceGenopskrevet -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
+    | Pbl53AForsikringGenoptagetEfterMisligholdelse(følge, nye_helbredsoplysninger_krævet) -> hvis nye_helbredsoplysninger_krævet {
+        pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
+    } ellers {
+        match følge {
+            | Pbl53AForsikringsdækningOpretholdtUnderMisligholdelse -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+            | Pbl53AForsikringsaftaleBortfaldtUnderMisligholdelse -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
+            | Pbl53AMisligholdelsesfølgeUoplyst -> Pbl53AKontraktændringUafklaret
+        }
+    }
+    | Pbl53AIkkefastsatIndskudsretUdnyttet(_) -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
+    | Pbl53ABedreHelbredsvilkårMedHøjereForsikringssum -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+    | Pbl53ABedreHelbredsvilkårMedLaverePræmie -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+    | Pbl53APræmiebetalingsterminÆndretIndenForÅret -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+    | Pbl53ALøbendePræmieAfløstAfEngangsindskud(_) -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
+    | Pbl53AGennemsnitsrenteSkiftetTilMarkedsrente -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
+    | Pbl53AValutaÆndret -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+    | Pbl53APorteføljemanagerUdskiftet -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+    | Pbl53ADepotbankUdskiftet -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+    | Pbl53APolicePantsat -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+    | Pbl53ABegunstigetIndsatEllerTilbagekaldt -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+    | Pbl53APoliceOpdeltUdenVilkårsændring -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+    | Pbl53AHelBestandOverførtVedFusionOpkøbEllerOphør(vilkår) -> match vilkår {
+        | Pbl53ABestandOverførtPåUændredeVilkår -> pbl53a_ingen_ny_ordning_ved_kontraktændring()
+        | Pbl53ABestandOverførtMedVilkårsændringer -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
+        | Pbl53ABestandsoverførselsvilkårUoplyst -> Pbl53AKontraktændringUafklaret
+    }
+    | Pbl53ASelvvalgtOverflytningTilNyUdbyder(_, _) -> pbl53a_hele_ordningen_ny_ved_kontraktændring(ændring)
+    | Pbl53AAndenKontraktændring(_) -> Pbl53AKontraktændringUafklaret
+}
+| pbl53a_kapitalværdi_matcher_kontraktændringsvirkning(kapitalværdi: Pbl53AKapitalværdiVedKontraktændring, virkning: Pbl53AKontraktændringsvirkning) -> match virkning {
+    | Pbl53AIngenNyOrdningVedKontraktændring -> kapitalværdi == Pbl53AKapitalværdiIkkeRelevant
+    | Pbl53AHeleOrdningenNyVedKontraktændring(_, _, kroner) -> kapitalværdi == Pbl53AHeleOrdningensKapitalværdi(kroner = kroner)
+    | Pbl53ADelNyVedKontraktændring(_, _, kroner) -> kapitalværdi == Pbl53ANyeDelsKapitalværdi(kroner = kroner)
+    | Pbl53AKontraktændringUafklaret -> Falskt
+}
+| pbl53a_kontraktændringsresultat(oprettelsesdato: Pbl15ADato, ændring: Pbl53AKontraktændring) -> {
+    = datoer_gyldige = pbl15a_dato_gyldig(ændring.ændringsdato) && pbl15a_dato_gyldig(ændring.virkningstidspunkt.dato) && ændring.virkningstidspunkt.rækkefølge_på_dagen >= 0
+    = ændring_ikke_efter_virkning = datoer_gyldige && pbl15a_dato_nøgle(ændring.ændringsdato) <= pbl15a_dato_nøgle(ændring.virkningstidspunkt.dato)
+    = efter_oprettelsen = datoer_gyldige && pbl15a_dato_nøgle(ændring.ændringsdato) >= pbl15a_dato_nøgle(oprettelsesdato) && pbl15a_dato_nøgle(ændring.virkningstidspunkt.dato) >= pbl15a_dato_nøgle(oprettelsesdato)
+    = forhåndsaftalefakta_gyldige = pbl53a_forhåndsaftalefakta_gyldige(ændring.forhåndsaftale, ændring.ændringsdato)
+    = endeligt_og_bindende_aftalt_før_skæringsdatoen = pbl53a_endeligt_og_bindende_aftalt_før_skæringsdatoen(ændring.forhåndsaftale) || pbl15a_dato_nøgle(ændring.ændringsdato) < pbl53a_overgangsskæringsdato_nøgle()
+    = ændringsart_understøttet = pbl53a_kontraktændringsart_understøttet(ændring.art)
+    = grundfakta_gyldige = ændring.identifikation != "" && pbl15a_dato_gyldig(oprettelsesdato) && datoer_gyldige && ændring_ikke_efter_virkning && efter_oprettelsen && forhåndsaftalefakta_gyldige && ændringsart_understøttet && pbl53a_kontraktændringsart_grundfakta_gyldige(ændring)
+    = foreløbig_virkning = hvis grundfakta_gyldige == Falskt {
+        Pbl53AKontraktændringUafklaret
+    } ellers hvis pbl15a_dato_nøgle(ændring.virkningstidspunkt.dato) < pbl53a_overgangsskæringsdato_nøgle() || endeligt_og_bindende_aftalt_før_skæringsdatoen {
+        pbl53a_ingen_ny_ordning_ved_kontraktændring()
+    } ellers {
+        pbl53a_kontraktændringsvirkning_for_art(ændring)
+    }
+    = kapitalværdi_entydig = pbl53a_kapitalværdi_matcher_kontraktændringsvirkning(ændring.kapitalværdi_på_virkningstidspunktet, foreløbig_virkning)
+    = ændring_gyldig = grundfakta_gyldige && kapitalværdi_entydig
+    = virkning = hvis ændring_gyldig { foreløbig_virkning } ellers { Pbl53AKontraktændringUafklaret }
+    Pbl53AKontraktændringsresultat(
+        ændring = ændring,
+        datoer_gyldige = datoer_gyldige,
+        ændring_ikke_efter_virkning = ændring_ikke_efter_virkning,
+        efter_oprettelsen = efter_oprettelsen,
+        forhåndsaftalefakta_gyldige = forhåndsaftalefakta_gyldige,
+        endeligt_og_bindende_aftalt_før_skæringsdatoen = endeligt_og_bindende_aftalt_før_skæringsdatoen,
+        ændringsart_understøttet = ændringsart_understøttet,
+        kapitalværdi_entydig = kapitalværdi_entydig,
+        ændring_gyldig = ændring_gyldig,
+        virkning = virkning
+    )
+}
+| pbl53a_kontraktændringsidentifikation_unik(ændringer: List(Pbl53AKontraktændring), ændring: Pbl53AKontraktændring) -> length(filter(ændringer, |anden: Pbl53AKontraktændring| anden.identifikation == ændring.identifikation)) == 1
+| pbl53a_kontraktændringsidentifikationer_entydige(ændringer: List(Pbl53AKontraktændring)) -> all(ændringer, |ændring: Pbl53AKontraktændring| ændring.identifikation != "" && pbl53a_kontraktændringsidentifikation_unik(ændringer, ændring))
+| pbl53a_kontraktændringsrækkefølge_trin(tilstand: Pbl53AKontraktændringsrækkefølgetilstand, resultat: Pbl53AKontraktændringsresultat) -> {
+    = nøgle = pbl53a_kontraktændring_virkningstidspunkt_nøgle(resultat.ændring.virkningstidspunkt)
+    Pbl53AKontraktændringsrækkefølgetilstand(
+        seneste_virkningstidspunkt_nøgle = nøgle,
+        kronologiske = tilstand.kronologiske && resultat.datoer_gyldige && nøgle > tilstand.seneste_virkningstidspunkt_nøgle
+    )
+}
+| pbl53a_kontraktændringsvirkning_er_hel(virkning: Pbl53AKontraktændringsvirkning) -> match virkning {
+    | Pbl53AHeleOrdningenNyVedKontraktændring(_, _, _) -> Sandt
+    | _ -> Falskt
+}
+| pbl53a_kontraktændringsvirkning_er_delvis(virkning: Pbl53AKontraktændringsvirkning) -> match virkning {
+    | Pbl53ADelNyVedKontraktændring(_, _, _) -> Sandt
+    | _ -> Falskt
+}
+| pbl53a_kontraktændringsvirkning_er_uafklaret(virkning: Pbl53AKontraktændringsvirkning) -> virkning == Pbl53AKontraktændringUafklaret
+| pbl53a_kontraktændringsresultat_matcher_del(resultat: Pbl53AKontraktændringsresultat, ændringsidentifikation: Tekst) -> match resultat.virkning {
+    | Pbl53ADelNyVedKontraktændring(identifikation, _, _) -> identifikation == ændringsidentifikation
+    | _ -> Falskt
+}
+| pbl53a_kontraktdelsrepræsentation_gyldig(repræsentation: Pbl53AKontraktdelsrepræsentation, oprindelig_moderne_virkningsstart: Pbl53AModerneVirkningsstart, resultater: List(Pbl53AKontraktændringsresultat)) -> match repræsentation {
+    | Pbl53AHeleKontrakten -> oprindelig_moderne_virkningsstart != Pbl53AIngenModerneVirkningsstart || length(filter(resultater, |resultat: Pbl53AKontraktændringsresultat| pbl53a_kontraktændringsvirkning_er_delvis(resultat.virkning))) == 0
+    | Pbl53AHistoriskRestEfterDelviseKontraktændringer -> length(filter(resultater, |resultat: Pbl53AKontraktændringsresultat| pbl53a_kontraktændringsvirkning_er_delvis(resultat.virkning))) > 0
+    | Pbl53ADelSkabtVedKontraktændring(ændringsidentifikation) -> ændringsidentifikation != "" && length(filter(resultater, |resultat: Pbl53AKontraktændringsresultat| pbl53a_kontraktændringsresultat_matcher_del(resultat, ændringsidentifikation))) == 1
+}
+| pbl53a_tidligste_moderne_virkningsstart(nuværende: Pbl53AModerneVirkningsstart, kandidat: Pbl53AModerneVirkningsstart) -> match nuværende {
+    | Pbl53AIngenModerneVirkningsstart -> kandidat
+    | Pbl53AModerneVirkningsstartFra(nuværende_dato) -> match kandidat {
+        | Pbl53AIngenModerneVirkningsstart -> nuværende
+        | Pbl53AModerneVirkningsstartFra(kandidat_dato) -> hvis pbl15a_dato_nøgle(kandidat_dato) < pbl15a_dato_nøgle(nuværende_dato) { kandidat } ellers { nuværende }
+    }
+}
+| pbl53a_tidligste_moderne_afkastvirkningsgrænse(nuværende: Pbl53AModerneAfkastvirkningsgrænse, kandidat: Pbl53AModerneAfkastvirkningsgrænse) -> match nuværende {
+    | Pbl53AIngenModerneAfkastvirkningsgrænse -> kandidat
+    | Pbl53AKendtModerneAfkastvirkningsgrænse(_, nuværende_tidspunkt, _) -> match kandidat {
+        | Pbl53AKendtModerneAfkastvirkningsgrænse(_, kandidat_tidspunkt, _) -> hvis pbl15a_tidspunkt_før(kandidat_tidspunkt, nuværende_tidspunkt) { kandidat } ellers { nuværende }
+        | _ -> nuværende
+    }
+    | Pbl53AModerneAfkastvirkningsgrænseUdenKapitalværdi(_, _) -> nuværende
+}
+| pbl53a_kontraktændringsstart_for_repræsentation(resultat: Pbl53AKontraktændringsresultat, repræsentation: Pbl53AKontraktdelsrepræsentation) -> match resultat.virkning {
+    | Pbl53AHeleOrdningenNyVedKontraktændring(_, virkningstidspunkt, _) -> Pbl53AModerneVirkningsstartFra(dato = virkningstidspunkt.dato)
+    | Pbl53ADelNyVedKontraktændring(ændringsidentifikation, virkningstidspunkt, _) -> match repræsentation {
+        | Pbl53ADelSkabtVedKontraktændring(repræsenteret_ændringsidentifikation) -> hvis ændringsidentifikation == repræsenteret_ændringsidentifikation { Pbl53AModerneVirkningsstartFra(dato = virkningstidspunkt.dato) } ellers { Pbl53AIngenModerneVirkningsstart }
+        | _ -> Pbl53AIngenModerneVirkningsstart
+    }
+    | _ -> Pbl53AIngenModerneVirkningsstart
+}
+| pbl53a_kontraktændringsafkastgrænse_for_repræsentation(resultat: Pbl53AKontraktændringsresultat, repræsentation: Pbl53AKontraktdelsrepræsentation) -> match resultat.virkning {
+    | Pbl53AHeleOrdningenNyVedKontraktændring(ændringsidentifikation, virkningstidspunkt, kapitalværdi_kroner) -> Pbl53AKendtModerneAfkastvirkningsgrænse(kilde = Pbl53AVirkningFraKontraktændring(ændringsidentifikation = ændringsidentifikation), tidspunkt = virkningstidspunkt, kapitalværdi_kroner = kapitalværdi_kroner)
+    | Pbl53ADelNyVedKontraktændring(ændringsidentifikation, virkningstidspunkt, kapitalværdi_kroner) -> match repræsentation {
+        | Pbl53ADelSkabtVedKontraktændring(repræsenteret_ændringsidentifikation) -> hvis ændringsidentifikation == repræsenteret_ændringsidentifikation { Pbl53AKendtModerneAfkastvirkningsgrænse(kilde = Pbl53AVirkningFraKontraktændring(ændringsidentifikation = ændringsidentifikation), tidspunkt = virkningstidspunkt, kapitalværdi_kroner = kapitalværdi_kroner) } ellers { Pbl53AIngenModerneAfkastvirkningsgrænse }
+        | _ -> Pbl53AIngenModerneAfkastvirkningsgrænse
+    }
+    | _ -> Pbl53AIngenModerneAfkastvirkningsgrænse
+}
+| pbl53a_kontraktændringsforløbsresultat(fakta: Pbl53AOmfangsfakta, oprindelig_moderne_virkningsstart: Pbl53AModerneVirkningsstart, oprindelig_moderne_afkastvirkningsgrænse: Pbl53AModerneAfkastvirkningsgrænse) -> {
+    = ændringsresultater = map(fakta.kontraktændringer, |ændring: Pbl53AKontraktændring| pbl53a_kontraktændringsresultat(fakta.oprettelsesdato, ændring))
+    = rækkefølge = foldl(ændringsresultater, Pbl53AKontraktændringsrækkefølgetilstand(seneste_virkningstidspunkt_nøgle = 0, kronologiske = Sandt), pbl53a_kontraktændringsrækkefølge_trin)
+    = identifikationer_entydige = pbl53a_kontraktændringsidentifikationer_entydige(fakta.kontraktændringer)
+    = datoer_gyldige = all(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| resultat.datoer_gyldige && resultat.ændring_ikke_efter_virkning)
+    = alle_efter_oprettelsen = all(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| resultat.efter_oprettelsen)
+    = alle_ændringsarter_understøttede = all(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| resultat.ændringsart_understøttet)
+    = alle_kapitalværdier_entydige = all(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| resultat.kapitalværdi_entydig)
+    = repræsentation_gyldig = pbl53a_kontraktdelsrepræsentation_gyldig(fakta.repræsenteret_kontraktdel, oprindelig_moderne_virkningsstart, ændringsresultater)
+    = moderne_virkningsstart = foldl(ændringsresultater, oprindelig_moderne_virkningsstart, |nuværende: Pbl53AModerneVirkningsstart, resultat: Pbl53AKontraktændringsresultat| pbl53a_tidligste_moderne_virkningsstart(nuværende, pbl53a_kontraktændringsstart_for_repræsentation(resultat, fakta.repræsenteret_kontraktdel)))
+    = moderne_afkastvirkningsgrænse = foldl(ændringsresultater, oprindelig_moderne_afkastvirkningsgrænse, |nuværende: Pbl53AModerneAfkastvirkningsgrænse, resultat: Pbl53AKontraktændringsresultat| pbl53a_tidligste_moderne_afkastvirkningsgrænse(nuværende, pbl53a_kontraktændringsafkastgrænse_for_repræsentation(resultat, fakta.repræsenteret_kontraktdel)))
+    = uafklarede_ændringer_antal = length(filter(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| pbl53a_kontraktændringsvirkning_er_uafklaret(resultat.virkning)))
+    = fakta_gyldige = identifikationer_entydige && datoer_gyldige && rækkefølge.kronologiske && alle_efter_oprettelsen && alle_ændringsarter_understøttede && alle_kapitalværdier_entydige && repræsentation_gyldig && all(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| resultat.ændring_gyldig) && uafklarede_ændringer_antal == 0
+    Pbl53AKontraktændringsforløbsresultat(
+        fakta_gyldige = fakta_gyldige,
+        identifikationer_entydige = identifikationer_entydige,
+        datoer_gyldige = datoer_gyldige,
+        ændringer_kronologiske = rækkefølge.kronologiske,
+        alle_efter_oprettelsen = alle_efter_oprettelsen,
+        alle_ændringsarter_understøttede = alle_ændringsarter_understøttede,
+        alle_kapitalværdier_entydige = alle_kapitalværdier_entydige,
+        repræsentation_gyldig = repræsentation_gyldig,
+        ændringsresultater = ændringsresultater,
+        hele_nye_ordninger_antal = length(filter(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| pbl53a_kontraktændringsvirkning_er_hel(resultat.virkning))),
+        delvise_nye_ordninger_antal = length(filter(ændringsresultater, |resultat: Pbl53AKontraktændringsresultat| pbl53a_kontraktændringsvirkning_er_delvis(resultat.virkning))),
+        uafklarede_ændringer_antal = uafklarede_ændringer_antal,
+        moderne_virkningsstart = moderne_virkningsstart,
+        moderne_afkastvirkningsgrænse = moderne_afkastvirkningsgrænse
+    )
+}
+
+}
+----
+§ 53 B. Uanset § 53 A gælder reglerne i stk. 4-6 for livsforsikringer som
+nævnt i § 53 A, stk. 1, nr. 1, pensionskasseordninger som nævnt i § 53 A,
+stk. 1, nr. 3, og syge- og ulykkesforsikringer som nævnt i § 53 A, stk. 1,
+nr. 5, hvis betingelserne i stk. 2 og 3 er opfyldt. Tilsvarende gælder
+udenlandske pensionsordninger oprettet i pengeinstitutter.
+
+Stk. 2. Pensionsordningen m.v. som nævnt i stk. 1 skal være oprettet, mens
+forsikringstageren eller den pensionsberettigede ikke var skattepligtig efter
+kildeskattelovens § 1, eller mens den pågældende var skattepligtig efter
+kildeskattelovens § 1, men efter bestemmelserne i en
+dobbeltbeskatningsoverenskomst var hjemmehørende i en fremmed stat, på Færøerne
+eller i Grønland.
+
+Stk. 3. Samtlige indbetalinger til pensionsordningen m.v. som nævnt i stk. 1,
+som er foretaget i den periode, hvor forsikringstageren eller den
+pensionsberettigede ikke var skattepligtig til respektive hjemmehørende i
+Danmark, skal være fradraget i positiv skattepligtig indkomst i overensstemmelse
+med skattelovgivningen i den stat, hvor forsikringstageren eller den
+pensionsberettigede var skattepligtig respektive hjemmehørende på
+indbetalingstidspunktet eller skal være foretaget af en arbejdsgiver, således
+at indbetalingerne i overensstemmelse med skattelovgivningen i den stat, hvor
+forsikringstageren eller den pensionsberettigede var skattepligtig respektive
+hjemmehørende på indbetalingstidspunktet, ikke er medregnet ved opgørelsen af
+den pågældendes skattepligtige indkomst.
+
+Stk. 4. For præmier og bidrag til pensionsordninger m.v. som nævnt i stk. 1
+gælder § 53 A, stk. 2.
+
+Stk. 5. Ved opgørelsen af den skattepligtige indkomst bortses fra afkast af
+pensionsordninger m.v. som nævnt i stk. 1, herunder renter og
+bonustilskrivninger.
+
+Stk. 6. Udbetalinger fra pensionsordninger m.v. som nævnt i stk. 1 medregnes
+ved opgørelsen af den skattepligtige indkomst. Dog medregnes udbetalinger fra
+ordninger svarende til danske kapitalpensionsordninger med 75 pct., når
+udbetalingen efter betingelserne i ordningen sker samlet efter, at
+pensionsudbetalingsalderen er nået, ved ejerens invaliditet, ved indtrådt
+livstruende sygdom hos ejeren eller ved ejerens død. Udbetalingerne medregnes
+ikke ved opgørelsen af den skattepligtige indkomst, i det omfang de modsvares af
+indbetalinger, som forsikringstageren eller den pensionsberettigede har foretaget
+i perioden efter, at vedkommende blev skattepligtig til respektive hjemmehørende
+i Danmark, og som ikke har kunnet fradrages ved opgørelsen af den skattepligtige
+indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
+----
+
+@ meta(pbl_par53b_kildemeta)
+@ section pensionsbeskatningsloven_par53b {
+
+| pbl53a_udenlandsk_hjemsted_gyldigt(hjemsted: Pbl53BUdenlandskHjemsted) -> match hjemsted {
+    | Pbl53BFremmedStat(stat) -> stat != ""
+    | _ -> Sandt
+}
+| pbl53b_oprettelsesposition_gyldig(oprettelsesdato: Pbl15ADato, position: Pbl53BOprettelsesposition) -> match position {
+    | Pbl53BOprettetUnderDanskSkattepligtOgHjemsted -> Sandt
+    | Pbl53BOprettetUdenFuldDanskSkattepligt(hjemsted, sidste_dato) -> pbl53a_udenlandsk_hjemsted_gyldigt(hjemsted) && pbl15a_dato_gyldig(sidste_dato) && pbl15a_dato_nøgle(oprettelsesdato) <= pbl15a_dato_nøgle(sidste_dato)
+    | Pbl53BOprettetMedDboHjemstedIUdlandet(hjemsted, sidste_dato) -> pbl53a_udenlandsk_hjemsted_gyldigt(hjemsted) && pbl15a_dato_gyldig(sidste_dato) && pbl15a_dato_nøgle(oprettelsesdato) <= pbl15a_dato_nøgle(sidste_dato)
+}
+| pbl53b_oprettelsesbetingelse_opfyldt(position: Pbl53BOprettelsesposition) -> position != Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
+| pbl53b_sidste_udenlandsdato(position: Pbl53BOprettelsesposition) -> match position {
+    | Pbl53BOprettetUdenFuldDanskSkattepligt(_, sidste_dato) -> sidste_dato
+    | Pbl53BOprettetMedDboHjemstedIUdlandet(_, sidste_dato) -> sidste_dato
+    | _ -> Pbl15ADato(år = 1, måned = 1, dag = 1)
+}
+| pbl53b_indbetaling_foretaget_i_udenlandsperioden(fakta: Pbl53AIndbetalingsfakta, position: Pbl53BOprettelsesposition) -> pbl53b_oprettelsesbetingelse_opfyldt(position) && pbl15a_dato_nøgle(fakta.tidspunkt.dato) <= pbl15a_dato_nøgle(pbl53b_sidste_udenlandsdato(position))
+| pbl53b_indbetaler_er_arbejdsgiver(indbetaler: Pbl53AIndbetaler) -> indbetaler == Pbl53ANuværendeArbejdsgiver || indbetaler == Pbl53ATidligereArbejdsgiver
+| pbl53b_udenlandsk_indbetalingsbehandling_kvalificerer(fakta: Pbl53AIndbetalingsfakta) -> match fakta.par53b_udenlandsk_skattebehandling {
+    | Pbl53BEjerbidragFuldtFradragetIPositivIndkomst(positiv_indkomst_kroner, faktisk_fradrag_kroner) -> fakta.indbetaler == Pbl53AEjeren && positiv_indkomst_kroner >= fakta.beløb_kroner && faktisk_fradrag_kroner >= fakta.beløb_kroner
+    | Pbl53BArbejdsgiverbidragFuldtBortsetFraIndkomst -> pbl53b_indbetaler_er_arbejdsgiver(fakta.indbetaler)
+    | _ -> Falskt
+}
+| pbl53b_indbetalingsdokumentation_konsistent(fakta: Pbl53AIndbetalingsfakta, position: Pbl53BOprettelsesposition) -> hvis pbl53b_indbetaling_foretaget_i_udenlandsperioden(fakta, position) { fakta.periode == Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet && fakta.par53b_udenlandsk_skattebehandling != Pbl53BIkkeForetagetIUdenlandsperioden } ellers { fakta.par53b_udenlandsk_skattebehandling == Pbl53BIkkeForetagetIUdenlandsperioden }
+| pbl53b_hændelsesdokumentation_konsistent(hændelse: Pbl53AHændelse, position: Pbl53BOprettelsesposition) -> match hændelse {
+    | Pbl53AIndbetaling(fakta) -> pbl53b_indbetalingsdokumentation_konsistent(fakta, position)
+    | _ -> Sandt
+}
+| pbl53b_hændelse_kvalificerer(hændelse: Pbl53AHændelse, position: Pbl53BOprettelsesposition) -> match hændelse {
+    | Pbl53AIndbetaling(fakta) -> pbl53b_indbetaling_foretaget_i_udenlandsperioden(fakta, position) == Falskt || pbl53b_udenlandsk_indbetalingsbehandling_kvalificerer(fakta)
+    | _ -> Sandt
+}
+| pbl53b_produktkreds_omfattet(indkomstår: Heltal, fakta: Pbl53AOmfangsfakta) -> match fakta.produkt {
+    | Pbl53ALivsforsikringsprodukt(_, _, kapitel1fakta, _, _) -> pbl53a_ikke_omfattet_af_kapitel1(kapitel1fakta) || pbl53a_tidligere_par15d_udløbet_før_indkomstår(kapitel1fakta, indkomstår)
+    | Pbl53APensionskasseprodukt(_, kapitel1fakta, karakteristika, _) -> pbl53a_pensionskassekarakteristika_opfyldt(karakteristika) && (pbl53a_ikke_omfattet_af_kapitel1(kapitel1fakta) || pbl53a_tidligere_par15d_udløbet_før_indkomstår(kapitel1fakta, indkomstår))
+    | Pbl53ASygeOgUlykkesforsikringsprodukt(ejer_identifikation, forsikret_identifikation) -> ejer_identifikation == forsikret_identifikation
+    | Pbl53APengeEllerKreditinstitutprodukt(_, kapitel1fakta, institutionssted, karakteristika) -> pbl53a_udenlandsk_institution(institutionssted) && pbl53a_pengeinstitutkarakteristika_opfyldt(karakteristika) && (pbl53a_omfattet_af_kapitel1(kapitel1fakta) == Falskt || pbl53a_afkald_givet_ved_oprettelsen(fakta.afsnit_i_valg, fakta.oprettelsesdato))
+    | _ -> Falskt
+}
+| pbl53b_i_øvrigt_anvendelig(indkomstår: Heltal, fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> indkomstår > 0 && pbl15a_dato_gyldig(fakta.oprettelsesdato) && pbl53a_produktfakta_gyldige(fakta.produkt) && pbl53a_produkt_karakteristika_opfyldt(fakta.produkt) && pbl53a_afsnit_i_valgfakta_konsistente(fakta) && pbl53b_oprettelsesposition_gyldig(fakta.oprettelsesdato, fakta.par53b_oprettelsesposition) && pbl53b_produktkreds_omfattet(indkomstår, fakta) && pbl53b_oprettelsesbetingelse_opfyldt(fakta.par53b_oprettelsesposition) && all(hændelser, |hændelse: Pbl53AHændelse| pbl53b_hændelsesdokumentation_konsistent(hændelse, fakta.par53b_oprettelsesposition)) && all(hændelser, |hændelse: Pbl53AHændelse| pbl53b_hændelse_kvalificerer(hændelse, fakta.par53b_oprettelsesposition))
+| pbl53b_resultat(indkomstår: Heltal, fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> {
+    = overgangsresultat = pbl53a_overgangsresultat(fakta, hændelser)
+    = overgang_har_virkning = pbl53a_moderne_regler_har_virkning_i_indkomstår(overgangsresultat, indkomstår)
+    = produktkreds_omfattet = pbl53b_produktkreds_omfattet(indkomstår, fakta)
+    = oprettelsesbetingelse_opfyldt = pbl53b_oprettelsesbetingelse_opfyldt(fakta.par53b_oprettelsesposition)
+    = indbetalingsdokumentation_konsistent = all(hændelser, |hændelse: Pbl53AHændelse| pbl53b_hændelsesdokumentation_konsistent(hændelse, fakta.par53b_oprettelsesposition))
+    = samtlige_udenlandske_indbetalinger_kvalificerer = all(hændelser, |hændelse: Pbl53AHændelse| pbl53b_hændelse_kvalificerer(hændelse, fakta.par53b_oprettelsesposition))
+    = i_øvrigt_anvendelig = pbl53b_i_øvrigt_anvendelig(indkomstår, fakta, hændelser)
+    Pbl53BResultat(
+        overgang_har_virkning = overgang_har_virkning,
+        produktkreds_omfattet = produktkreds_omfattet,
+        oprettelsesbetingelse_opfyldt = oprettelsesbetingelse_opfyldt,
+        indbetalingsdokumentation_konsistent = indbetalingsdokumentation_konsistent,
+        samtlige_udenlandske_indbetalinger_kvalificerer = samtlige_udenlandske_indbetalinger_kvalificerer,
+        i_øvrigt_anvendelig = i_øvrigt_anvendelig,
+        omfattes_af_par53b = overgang_har_virkning && i_øvrigt_anvendelig
+    )
+}
+
+}
 ----
 § 6. Loven træder i kraft dagen efter bekendtgørelsen i Lovtidende og har
 virkning for forsikring og pensionsordning, der oprettes eller erhverves den
@@ -2708,7 +2929,9 @@ e) Oplysning om ordningens ophør eller overdragelse med angivelse af tidspunkte
 for dette.
 ----
 
---@begin::pensionsbeskatningsloven_par53a_afkastovergang--
+@ meta(pbl53a_afkastovergang_kildemeta)
+@ section pensionsbeskatningsloven_par53a_afkastovergang {
+
 # Pbl53AAfkastgrundlag = Pbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner: Heltal) | Pbl53AAlternativtKapitalværdiAfkast(kalenderårets_primo_depotværdi_kroner: Heltal, kalenderårets_ultimo_depotværdi_kroner: Heltal)
 # Pbl53ASkattepligtsstatusVedÅretsBegyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse | Pbl53AIkkeSkattepligtigVedÅretsBegyndelse
 # Pbl53ASikkerhedsstatusVedÅretsBegyndelse = Pbl53ASikkerhedIkkeRelevant | Pbl53ASikkerhedBestårVedÅretsBegyndelse | Pbl53ASikkerhedBestårIkkeVedÅretsBegyndelse
@@ -3286,205 +3509,5 @@ for dette.
 | pbl53a_afkastforløbsresultat(input: Pbl53AAfkastforløbsinput) -> Pbl53AAfkastforløbssag(input).resultat()
 | pbl53a_afkastårsresultat_for_indkomstår(resultat: Pbl53AAfkastforløbsresultat, indkomstår: Heltal) -> filter(resultat.årsresultater, |årsresultat: Pbl53AAfkastårsresultat| årsresultat.fakta.indkomstår == indkomstår)[0]
 | pbl53a_afkastårsresultat_findes_entydigt(resultat: Pbl53AAfkastforløbsresultat, indkomstår: Heltal) -> length(filter(resultat.årsresultater, |årsresultat: Pbl53AAfkastårsresultat| årsresultat.fakta.indkomstår == indkomstår)) == 1
---@end::pensionsbeskatningsloven_par53a_afkastovergang--
 
-= pbl53a_privat_finansiering_fixture = Pbl53AInstitutionsfinansiering(
-    samlet_drift_løn_og_pension_kroner = 1000000,
-    statsligt_finansieret_drift_løn_og_pension_kroner = 0
-)
-= pbl53a_dansk_oprettelsesposition_fixture = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
-= pbl53a_almindelige_livsvilkår_fixture = Pbl53ALivsforsikringsvilkår(
-    dækninger = [Pbl53AAndenLivsforsikringsdækning],
-    aftalt_udløbsdato = Pbl15ADato(år = 2050, måned = 1, dag = 1),
-    første_policedag_efter_fyldte_80_år = Pbl15ADato(år = 2060, måned = 1, dag = 1)
-)
-= pbl53a_pensionskassekarakteristika_fixture = Pbl53APensionskassekarakteristika(
-    selvstændig_juridisk_person = Sandt,
-    uafhængig_af_arbejdsgiver = Sandt,
-    midler_afsondret_fra_berettigedes_formue = Sandt,
-    vedtægter_fastlægger_pensionsydelser = Sandt
-)
-= pbl53a_pengeinstitutkarakteristika_fixture = Pbl53APengeinstitutkarakteristika(
-    standardiseret_lovreguleret_pensionsprodukt = Sandt,
-    pensionsmidler_adskilt_fra_øvrig_formue = Sandt,
-    kan_disponeres_som_almindelig_bankkonto = Falskt
-)
-| pbl53a_omfang_fixture(produkt: Pbl53AProduktfakta) -> pbl53a_omfangsresultat(2026, Pbl53AOmfangsfakta(
-    oprettelsesdato = Pbl15ADato(år = 2020, måned = 1, dag = 1),
-    oprindelig_rettighedshaver_identifikation = "person-1",
-    kapitalværdi_ved_oprettelsen_kroner = 0,
-    repræsenteret_kontraktdel = Pbl53AHeleKontrakten,
-    kontraktændringer = [],
-    erhvervelser = [],
-    overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
-    overgangsvalg = [],
-    historiske_blanket49020_indsendelser = [],
-    produkt = produkt,
-    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
-    institutionsfinansiering = pbl53a_privat_finansiering_fixture,
-    par53b_oprettelsesposition = pbl53a_dansk_oprettelsesposition_fixture
-    ), [])
-= pbl53a_liv_uden_kapitel1_omfang_fixture = pbl53a_omfang_fixture(Pbl53ALivsforsikringsprodukt(
-    ejer_identifikation = "person-1",
-    forsikret_identifikation = "person-1",
-    kapitel1fakta = Pbl53AIkkeOmfattetAfKapitel1,
-    vilkår = pbl53a_almindelige_livsvilkår_fixture,
-    direktørsikkerhed = Pbl53AIngenDirektørsikkerhed
-))
-= pbl53a_pengeinstitut_uden_kapitel1_omfang_fixture = pbl53a_omfang_fixture(Pbl53APengeEllerKreditinstitutprodukt(
-    kontohaver_identifikation = "person-1",
-    kapitel1fakta = Pbl53AIkkeOmfattetAfKapitel1,
-    institutionssted = Pbl53ADanskInstitution,
-    karakteristika = pbl53a_pengeinstitutkarakteristika_fixture
-))
-= pbl53a_pensionskasse_uden_kapitel1_omfang_fixture = pbl53a_omfang_fixture(Pbl53APensionskasseprodukt(
-    pensionsberettiget_identifikation = "person-1",
-    kapitel1fakta = Pbl53AIkkeOmfattetAfKapitel1,
-    karakteristika = pbl53a_pensionskassekarakteristika_fixture,
-    direktørsikkerhed = Pbl53AIngenDirektørsikkerhed
-))
-= pbl53a_direktørpensionstilsagn_fixture = Pbl53ADirektørpensionstilsagnsfakta(
-    identifikation = "direktørtilsagn-1",
-    ansættelsesforhold_identifikation = "ansættelse-1",
-    berettigede = [Pbl53ADirektørenSomBerettiget(identifikation = "person-1")]
-)
-= pbl53a_direktørsikkerhed_omfang_fixture = pbl53a_omfang_fixture(Pbl53ALivsforsikringsprodukt(
-    ejer_identifikation = "arbejdsgiver-1",
-    forsikret_identifikation = "person-1",
-    kapitel1fakta = Pbl53AIkkeOmfattetAfKapitel1,
-    vilkår = pbl53a_almindelige_livsvilkår_fixture,
-    direktørsikkerhed = Pbl53ASikkerhedForDirektørpensionstilsagn(tilsagn = pbl53a_direktørpensionstilsagn_fixture)
-))
-= pbl53a_syge_ulykke_omfang_fixture = pbl53a_omfang_fixture(Pbl53ASygeOgUlykkesforsikringsprodukt(
-    ejer_identifikation = "person-1",
-    forsikret_identifikation = "person-1"
-))
-= pbl53a_par53b_indbetaling_fixture = Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
-    identifikation = "udenlandsk-bidrag-1",
-    tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2018, måned = 1, dag = 1), rækkefølge_på_dagen = 1),
-    beløb_kroner = 50000,
-    periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
-    indbetaler = Pbl53AEjeren,
-    ejerens_fradragsstatus = Pbl53AFradragEllerBortseelsesretIUdlandet,
-    par53b_udenlandsk_skattebehandling = Pbl53BEjerbidragFuldtFradragetIPositivIndkomst(positiv_skattepligtig_indkomst_kroner = 500000, faktisk_fradrag_kroner = 50000)
-))
-= pbl53a_par53b_omfang_fixture = pbl53a_omfangsresultat(2026, Pbl53AOmfangsfakta(
-    oprettelsesdato = Pbl15ADato(år = 2017, måned = 1, dag = 1),
-    oprindelig_rettighedshaver_identifikation = "person-1",
-    kapitalværdi_ved_oprettelsen_kroner = 0,
-    repræsenteret_kontraktdel = Pbl53AHeleKontrakten,
-    kontraktændringer = [],
-    erhvervelser = [],
-    overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
-    overgangsvalg = [],
-    historiske_blanket49020_indsendelser = [],
-    produkt = Pbl53ALivsforsikringsprodukt(
-        ejer_identifikation = "person-1",
-        forsikret_identifikation = "person-1",
-        kapitel1fakta = Pbl53ATidligereGodkendtEfterPar15D(
-            godkendt_fra = Pbl15ADato(år = 2017, måned = 1, dag = 1),
-            godkendt_til = Pbl15ADato(år = 2022, måned = 12, dag = 31)
-        ),
-        vilkår = pbl53a_almindelige_livsvilkår_fixture,
-        direktørsikkerhed = Pbl53AIngenDirektørsikkerhed
-    ),
-    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
-    institutionsfinansiering = pbl53a_privat_finansiering_fixture,
-    par53b_oprettelsesposition = Pbl53BOprettetUdenFuldDanskSkattepligt(
-        hjemsted = Pbl53BFremmedStat(stat = "Sverige"),
-        sidste_dato_uden_dansk_skattepligt = Pbl15ADato(år = 2019, måned = 12, dag = 31)
-    )
-    ), [pbl53a_par53b_indbetaling_fixture])
-
-= pbl53a_pal_afkast_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
-    indkomstår = 2026,
-    ordning = Pbl53ALivsforsikringUdenKapitel1,
-    omfangsresultat = pbl53a_liv_uden_kapitel1_omfang_fixture,
-    afkastmetode = Pbl53AAfkastEfterPalPar3Til5,
-    metodehistorik = Pbl53AFørsteAfkastopgørelse,
-    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
-    afkast_efter_pal_par3_til_5_kroner = 28000,
-    kapitalværdi_primo_kroner = 0,
-    kapitalværdi_ultimo_kroner = 0,
-    udbetalinger_i_året_kroner = 0,
-    indbetalinger_i_året_kroner = 0,
-    fremført_negativt_afkast_primo_kroner = 6000,
-    andel_tæller = 1,
-    andel_nævner = 1,
-    udbetaling_til_afkastskat_kroner = 0
-))
-= pbl53a_alternativt_afkast_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
-    indkomstår = 2026,
-    ordning = Pbl53APengeinstitutUdenKapitel1,
-    omfangsresultat = pbl53a_pengeinstitut_uden_kapitel1_omfang_fixture,
-    afkastmetode = Pbl53AAlternativKapitalværdi,
-    metodehistorik = Pbl53ATidligereAlternativKapitalværdiOpgørelse,
-    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Falskt,
-    afkast_efter_pal_par3_til_5_kroner = 0,
-    kapitalværdi_primo_kroner = 200000,
-    kapitalværdi_ultimo_kroner = 230000,
-    udbetalinger_i_året_kroner = 12000,
-    indbetalinger_i_året_kroner = 15000,
-    fremført_negativt_afkast_primo_kroner = 0,
-    andel_tæller = 1,
-    andel_nævner = 2,
-    udbetaling_til_afkastskat_kroner = 0
-))
-= pbl53a_negativt_afkast_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
-    indkomstår = 2026,
-    ordning = Pbl53APensionskasseUdenKapitel1,
-    omfangsresultat = pbl53a_pensionskasse_uden_kapitel1_omfang_fixture,
-    afkastmetode = Pbl53AAlternativKapitalværdi,
-    metodehistorik = Pbl53ATidligereAlternativKapitalværdiOpgørelse,
-    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Falskt,
-    afkast_efter_pal_par3_til_5_kroner = 0,
-    kapitalværdi_primo_kroner = 140000,
-    kapitalværdi_ultimo_kroner = 128000,
-    udbetalinger_i_året_kroner = 4000,
-    indbetalinger_i_året_kroner = 0,
-    fremført_negativt_afkast_primo_kroner = 5000,
-    andel_tæller = 1,
-    andel_nævner = 1,
-    udbetaling_til_afkastskat_kroner = 0
-))
-= pbl53a_stk4_undtaget_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
-    indkomstår = 2026,
-    ordning = Pbl53ASygeOgUlykkesforsikring,
-    omfangsresultat = pbl53a_syge_ulykke_omfang_fixture,
-    afkastmetode = Pbl53AAfkastEfterPalPar3Til5,
-    metodehistorik = Pbl53ATidligerePalOpgørelse,
-    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
-    afkast_efter_pal_par3_til_5_kroner = 18000,
-    kapitalværdi_primo_kroner = 0,
-    kapitalværdi_ultimo_kroner = 0,
-    udbetalinger_i_året_kroner = 0,
-    indbetalinger_i_året_kroner = 0,
-    fremført_negativt_afkast_primo_kroner = 0,
-    andel_tæller = 1,
-    andel_nævner = 1,
-    udbetaling_til_afkastskat_kroner = 0
-))
-= pbl53a_par53b_udelukket_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
-    indkomstår = 2026,
-    ordning = Pbl53ATidligerePar15DGodkendt,
-    omfangsresultat = pbl53a_par53b_omfang_fixture,
-    afkastmetode = Pbl53AAfkastEfterPalPar3Til5,
-    metodehistorik = Pbl53ATidligerePalOpgørelse,
-    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
-    afkast_efter_pal_par3_til_5_kroner = 12000,
-    kapitalværdi_primo_kroner = 0,
-    kapitalværdi_ultimo_kroner = 0,
-    udbetalinger_i_året_kroner = 0,
-    indbetalinger_i_året_kroner = 0,
-    fremført_negativt_afkast_primo_kroner = 0,
-    andel_tæller = 1,
-    andel_nævner = 1,
-    udbetaling_til_afkastskat_kroner = 0
-))
-
-| pbl53a_pal_afkast_medregnes_efter_negativ_fremførsel: pbl53a_pal_afkast_fixture -> pbl53a_pal_afkast_fixture.afkast_efter_valgt_metode_kroner == 28000 && pbl53a_pal_afkast_fixture.fremført_negativt_afkast_anvendt_kroner == 6000 && pbl53a_pal_afkast_fixture.skattepligtigt_afkast_kroner == 22000
-| pbl53a_alternativt_afkast_med_andel_medregnes: pbl53a_alternativt_afkast_fixture -> pbl53a_alternativt_afkast_fixture.afkast_efter_valgt_metode_kroner == 27000 && pbl53a_alternativt_afkast_fixture.afkastandel_før_negativ_fremførsel_kroner == 13500 && pbl53a_alternativt_afkast_fixture.skattepligtigt_afkast_kroner == 13500 && pbl53a_alternativt_afkast_fixture.udbetaling_til_afkastskat_medregnes_kroner == 0
-| pbl53a_negativt_afkast_fremføres_kun_samme_ordning: pbl53a_negativt_afkast_fixture -> pbl53a_negativt_afkast_fixture.afkast_efter_valgt_metode_kroner == -8000 && pbl53a_negativt_afkast_fixture.skattepligtigt_afkast_kroner == 0 && pbl53a_negativt_afkast_fixture.fremført_negativt_afkast_ultimo_kroner == 13000
-| pbl53a_stk4_undtagelse_afskærer_afkast: pbl53a_stk4_undtaget_fixture -> pbl53a_stk4_undtaget_fixture.undtaget_efter_stk4 == Sandt && pbl53a_stk4_undtaget_fixture.skattepligtigt_afkast_kroner == 0
-| pbl53a_par53b_udelukker_stk1: pbl53a_par53b_udelukket_fixture -> pbl53a_par53b_udelukket_fixture.omfattet_af_stk1 == Falskt && pbl53a_par53b_udelukket_fixture.skattepligtigt_afkast_kroner == 0
---@end::pensionsbeskatningsloven_par53a--
+}

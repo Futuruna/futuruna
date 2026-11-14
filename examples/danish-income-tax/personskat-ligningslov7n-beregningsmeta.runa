@@ -89,4 +89,4 @@
     )
 )
 
---@label:PersonskatLigningslov7NFakta::meta:personskat_ligningslov7n_beregningsmeta--
+@ meta(personskat_ligningslov7n_beregningsmeta) for PersonskatLigningslov7NFakta

@@ -12,8 +12,9 @@
     )
 )
 
---@label:ebl_par5_mælk_stk6_scenarier::meta:ebl_par5_mælk_stk6_scenarier_metadata--
---@begin:ebl_par5_mælk_stk6_scenarier--
+@ meta(ebl_par5_mælk_stk6_scenarier_metadata)
+@ section ebl_par5_mælk_stk6_scenarier {
+
 | ebl_par5_scenarie_fakta(
     anskaffelsesdato: EblDato,
     anskaffelsesgrundlag: EjendomsavancePar4Anskaffelsesgrundlag,
@@ -462,4 +463,5 @@
 ? ebl_par5_stk6_historisk_grundlag_kræver_anskaffelse_før_skæringsdatoen
 ? ebl_par5_stk6_skov_får_først_virkning_fra_2027
 ? ebl_par5_mælk_og_stk6_kan_anvendes_samtidigt
---@end:ebl_par5_mælk_stk6_scenarier--
+
+}

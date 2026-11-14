@@ -17,7 +17,6 @@
     )
 )
 
---@label:aktieavancebeskatningsloven_par6_og_par7::meta:aktieavancebeskatningsloven_par6_og_par7_metadata--
 ----
 § 6. Selskaber, fonde og foreninger m.v., der er skattepligtige efter
 selskabsskatteloven eller fondsbeskatningsloven, skal ved opgørelsen af den
@@ -32,7 +31,9 @@ og 2, efter de regler, der er angivet i § 5, §§ 12-15, kapitel 4, §§ 19 B o
 C, § 20, stk. 2, §§ 21 og 22, kapitel 6 og 7, §§ 37-39 B og 44-46.
 ----
 
---@begin:aktieavancebeskatningsloven_par6_og_par7--
+@ meta(aktieavancebeskatningsloven_par6_og_par7_metadata)
+@ section aktieavancebeskatningsloven_par6_og_par7 {
+
 # AktieavancePar6Par7Skattepligtsgrundlag = AblPar6EfterSelskabsskatteloven | AblPar6LivsforsikringsselskabEfterSelskabsskatteloven | AblPar6EfterFondsbeskatningsloven | AblPar7PersonEfterKildeskatteloven | AblPar7DødsboEfterDødsboskatteloven | AblUdenForPar6OgPar7
 # AktieavancePar6Par7Regelspor = AblPar6Regelspor | AblPar7Regelspor | AblUdenForPar6OgPar7Regelspor
 # AktieavancePar6Par7Resultat(grundlag: AktieavancePar6Par7Skattepligtsgrundlag, regelspor: AktieavancePar6Par7Regelspor, omfattet_af_par6: Boolsk, omfattet_af_par7: Boolsk, livsforsikringsselskab: Boolsk)
@@ -66,4 +67,5 @@ C, § 20, stk. 2, §§ 21 og 22, kapitel 6 og 7, §§ 37-39 B og 44-46.
 = aktieavance_par7_person_efter_kildeskatteloven = aktieavance_par6_par7_resultat(AblPar7PersonEfterKildeskatteloven)
 = aktieavance_par7_dødsbo_efter_dødsboskatteloven = aktieavance_par6_par7_resultat(AblPar7DødsboEfterDødsboskatteloven)
 = aktieavance_uden_for_par6_og_par7 = aktieavance_par6_par7_resultat(AblUdenForPar6OgPar7)
---@end:aktieavancebeskatningsloven_par6_og_par7--
+
+}

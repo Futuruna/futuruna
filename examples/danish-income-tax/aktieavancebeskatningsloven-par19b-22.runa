@@ -55,7 +55,6 @@
     )
 )
 
---@label:aktieavancebeskatningsloven_par19b_til_par22::meta:abl_par19b_til_par22_kildemeta--
 ----
 § 19 B. Gevinst og tab på aktier og investeringsbeviser m.v. udstedt af et
 investeringsselskab, jf. § 19, der er aktiebaseret, jf. stk. 2-6, medregnes ved
@@ -189,10 +188,7 @@ overholdt, skal investeringsinstituttet offentliggøre dette.
 Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 13 A, 19 B, 19 C og 44 ikke anvendelse. Stk. 1 finder ikke anvendelse i de i
 § 17 nævnte tilfælde.
-----
 
---@label:aktieavancebeskatningsloven_par19b_og_par21_historisk::meta:abl_par19b_til_par22_historisk_kildemeta--
-----
 Aktieavancebeskatningsloven, LBK nr. 172 af 29/01/2021:
 
 § 19 B, stk. 4. Meddelelse efter stk. 2, 1. pkt., om status som aktiebaseret
@@ -205,10 +201,7 @@ aktiebaseret, hvis 50 pct. eller mere af instituttets aktivmasse i løbet af
 instituttets indkomstår gennemsnitligt er placeret i værdipapirer m.v. omfattet
 af denne lov, bortset fra aktier m.v. omfattet af § 19 C og investeringsbeviser
 omfattet af § 22.
-----
 
---@label:aktieavancebeskatningsloven_par19b_og_par21_lov1179::meta:abl_par19b_til_par22_lov1179_kildemeta--
-----
 Lov nr. 1179 af 08/06/2021, § 2:
 
 I aktieavancebeskatningsloven, jf. lovbekendtgørelse nr. 172 af 29. januar
@@ -231,10 +224,7 @@ Stk. 1. Loven træder i kraft den 1. juli 2021, jf. dog stk. 2.
 
 Stk. 3. § 2, nr. 2-4, og § 8, nr. 2-13, har virkning fra og med den 1. januar
 2022.
-----
 
---@label:aktieavancebeskatningsloven_par20_til_par22_lov1563::meta:abl_par19b_til_par22_lov1563_kildemeta--
-----
 Lov nr. 1563 af 12/12/2023, § 2:
 
 I aktieavancebeskatningsloven, jf. lovbekendtgørelse nr. 172 af 29. januar
@@ -252,10 +242,12 @@ Lov nr. 1563 af 12/12/2023, § 8:
 Stk. 1. Loven træder i kraft den 1. januar 2024.
 ----
 
---@begin:aktieavancebeskatningsloven_par19b_til_par22--
---@begin:aktieavancebeskatningsloven_par19b_og_par21_historisk--
---@begin:aktieavancebeskatningsloven_par19b_og_par21_lov1179--
---@begin:aktieavancebeskatningsloven_par20_til_par22_lov1563--
+@ meta(abl_par19b_til_par22_kildemeta)
+@ meta(abl_par19b_til_par22_historisk_kildemeta)
+@ meta(abl_par19b_til_par22_lov1179_kildemeta)
+@ meta(abl_par19b_til_par22_lov1563_kildemeta)
+@ section aktieavancebeskatningsloven_par20_til_par22_lov1563 {
+
 # AktieavanceInvesteringsdato(år: Heltal, måned: Heltal, dag: Heltal)
 # AktieavanceInvesteringsaktivArt = AblKvalificerendeAktieaktiv | AblAktivOmfattetAfPar19C | AblInvesteringsbevisOmfattetAfPar22 | AblAndetVærdipapir | AblAndetAktiv
 # AktieavanceInvesteringsaktiv = AblDirekteInvesteringsaktiv(art: AktieavanceInvesteringsaktivArt, gennemsnitlig_værdi_kroner: Heltal) | AblKglPar29Til33Aktiv(underliggende_art: AktieavanceInvesteringsaktivArt, underliggende_gennemsnitlig_værdi_kroner: Heltal)
@@ -446,7 +438,5 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 | aktieavance_par21_par22_resultat(input: AktieavancePar21Par22Input) -> AktieavancePar21Par22Sag(input).resultat()
 | aktieavance_par21_par22_resultat_gyldigt(resultat: AktieavancePar21Par22Resultat) -> resultat == aktieavance_par21_par22_resultat(resultat.input)
 | aktieavance_investeringsklassifikation_gyldig(klassifikation: AktieavanceInvesteringsklassifikation) -> match klassifikation { | AblIngenInvesteringsklassifikation -> Sandt | AblPar19BPar19CKlassifikation(input) -> aktieavance_par19b_par19c_resultat(input).input_gyldigt | AblPar21Par22Klassifikation(input) -> aktieavance_par21_par22_resultat(input).input_gyldigt }
---@end:aktieavancebeskatningsloven_par20_til_par22_lov1563--
---@end:aktieavancebeskatningsloven_par19b_og_par21_lov1179--
---@end:aktieavancebeskatningsloven_par19b_og_par21_historisk--
---@end:aktieavancebeskatningsloven_par19b_til_par22--
+
+}

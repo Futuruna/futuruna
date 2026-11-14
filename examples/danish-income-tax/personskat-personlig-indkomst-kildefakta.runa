@@ -79,7 +79,6 @@
     )
 )
 
---@label:personskat_arbejdsgiverydelser::meta:personskat_personlig_indkomst_kildefakta_metadata--
 ----
 Personskatteloven § 3, stk. 1:
 
@@ -120,7 +119,9 @@ til aldersopsparing, aldersforsikring eller den del af et pensionskassemedlems
 nævnt i § 29 A, stk. 1.
 ----
 
---@begin:personskat_arbejdsgiverydelser--
+@ meta(personskat_personlig_indkomst_kildefakta_metadata)
+@ section personskat_arbejdsgiverydelser {
+
 # PersonskatArbejdsgiverydelse = DirekteArbejdsgiverbetaltGruppeliv(præmie_før_arbejdsmarkedsbidrag_kroner: Heltal) | GruppelivSomUadskiltDelAfPbl19Ordning(præmie_før_indeholdt_arbejdsmarkedsbidrag_kroner: Option(Heltal), personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal) | ArbejdsgiveradministreretPensionEfterPbl19(fakta: Pbl19ArbejdsgiverindbetalingFakta) | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(indberettet_beløb_før_indeholdt_arbejdsmarkedsbidrag_kroner: Option(Heltal), indberettet_beløb_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal) | NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2(art: ArbejdsmarkedsbidragNaturaliaArt, skattepligtig_værdi_kroner: Heltal) | UklassificeretArbejdsgiverbetaltYdelse(beskrivelse: Tekst, beløb_kroner: Heltal)
 # PersonskatArbejdsgiverydelseFakta(identifikation: Tekst, indkomstår: Heltal, ydelse: PersonskatArbejdsgiverydelse)
 # PersonskatArbejdsgiverydelseAmKlassifikation = AnsættelsesvederlagEfterPar2Stk1Nr1 | GruppelivMedAlleredeIndeholdtArbejdsmarkedsbidrag | PensionEfterPbl19MedAlleredeIndeholdtArbejdsmarkedsbidrag(resultat: Pbl19ArbejdsgiverindbetalingResultat) | SamlepostEfterPbl19EllerPbl56MedAlleredeIndeholdtArbejdsmarkedsbidrag | NaturalieOmfattetAfPar2Stk2(resultat: ArbejdsmarkedsbidragNaturaliaResultat) | IkkeUnderstøttetArbejdsgiverydelseAmKlassifikation
@@ -259,7 +260,8 @@ nævnt i § 29 A, stk. 1.
     | BeregnetArbejdsgiverydelse(beregning) -> beregning.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner
     | _ -> 0
 }
---@end:personskat_arbejdsgiverydelser--
+
+}
 
 = personskat_personligt_arbejdsvederlag_metadata = Metadata(
     attachments = (
@@ -269,7 +271,6 @@ nævnt i § 29 A, stk. 1.
     )
 )
 
---@label:personskat_personligt_arbejdsvederlag::meta:personskat_personligt_arbejdsvederlag_metadata--
 ----
 Personskatteloven § 3, stk. 1:
 
@@ -305,7 +306,9 @@ ligningslovens § 16 eller § 28, stk. 1 eller 2, jf. statsskattelovens § 4.
 præmie for forsikringer, der dækker de pågældende behandlinger m.v.
 ----
 
---@begin:personskat_personligt_arbejdsvederlag--
+@ meta(personskat_personligt_arbejdsvederlag_metadata)
+@ section personskat_personligt_arbejdsvederlag {
+
 # PersonskatPersonligtArbejdsvederlagsforhold = PsArbejdeUdenAnsættelse | PsArbejdeIAnsættelse | PsSelvstændigtArbejde
 # PersonskatPersonligtArbejdsvederlagsform = PsArbejdsvederlagIPenge | PsArbejdsvederlagINaturalie(art: ArbejdsmarkedsbidragNaturaliaArt)
 # PersonskatPersonligtArbejdsvederlagFakta(identifikation: Tekst, indkomstår: Heltal, forhold: PersonskatPersonligtArbejdsvederlagsforhold, vederlagsform: PersonskatPersonligtArbejdsvederlagsform, skattepligtig_værdi_kroner: Heltal, udgifter: PersonskatHonorarudgifter)
@@ -396,9 +399,9 @@ præmie for forsikringer, der dækker de pågældende behandlinger m.v.
     = aktiver = flat_map(fakta, |post: PersonskatPersonligtArbejdsvederlagFakta| personskat_honorarudgifter_aktividentifikationer(post.udgifter))
     length(distinct(ider)) == length(ider) && length(distinct(aktiver)) == length(aktiver)
 }
---@end:personskat_personligt_arbejdsvederlag--
 
---@label:personskat_par3_stk2_nr2_kildefakta::meta:personskat_par3_stk2_nr2_kildefakta_metadata--
+}
+
 ----
 Personskatteloven § 3, stk. 2, nr. 2:
 
@@ -408,7 +411,9 @@ Ved opgørelsen af den personlige indkomst fradrages
 stk. 3-5, ved selvstændig erhvervsvirksomhed,
 ----
 
---@begin:personskat_par3_stk2_nr2_kildefakta--
+@ meta(personskat_par3_stk2_nr2_kildefakta_metadata)
+@ section personskat_par3_stk2_nr2_kildefakta {
+
 # PersonskatPar3Nr2Ll8BFakta(indkomstår: Heltal, afholdelsesår: Heltal, erhvervsstart: Ligningslov8BErhvervsstart, udgiftsart: Ligningslov8BUdgiftsart, valg: Ligningslov8BValg, afholdt_udgift_kroner: Heltal, tilknytning_til_skattepligtiges_erhverv: Boolsk, igangværende_virksomhed: Boolsk, aktie_eller_anpartsselskab: Boolsk, told_skat_tillader_fradrag_før_erhvervsstart: Boolsk, selvstændigt_overskud_før_stk2_fradrag_kroner: Heltal, renteudgifter_og_valutakurstab_i_overskud_kroner: Heltal, rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner: Heltal, told_skat_tillader_straksfradrag_for_stort_råstofbeløb: Boolsk, tidligere_stk4_udgifter_under_koncernloft_kroner: Heltal)
 # PersonskatPar3Nr2Ligningslovskilde = PsPar3Nr2Ll8Stk1(input: Ligningslov8Stk1Input) | PsPar3Nr2Ll8B(fakta: PersonskatPar3Nr2Ll8BFakta) | PsPar3Nr2Ll8K(input: Ligningslov8KInput) | PsPar3Nr2Ll8L(input: Ligningslov8LInput) | PsPar3Nr2Ll8N(input: Ligningslov8NInput) | PsPar3Nr2Ll14Stk1(input: Ligningslov14Input) | PsPar3Nr2Ll14F(input: Ligningslov14FInput) | PsPar3Nr2Ll30A(input: Ligningslov30AInput)
 # PersonskatPar3Nr2Ligningslovsfakta(identifikation: Tekst, kilde: PersonskatPar3Nr2Ligningslovskilde)
@@ -480,9 +485,9 @@ stk. 3-5, ved selvstændig erhvervsvirksomhed,
 }
 | personskat_par3_nr2_ligningslovsresultater(fakta: List(PersonskatPar3Nr2Ligningslovsfakta)) -> map(fakta, personskat_par3_nr2_ligningslovsresultat)
 | personskat_par3_nr2_ligningslovsposter(resultater: List(PersonskatPar3Nr2Ligningslovsresultat)) -> map(resultater, |resultat: PersonskatPar3Nr2Ligningslovsresultat| resultat.par3_post)
---@end:personskat_par3_stk2_nr2_kildefakta--
 
---@label:personskat_ordinaer_virksomhedsindkomst::meta:personskat_personlig_indkomst_kildefakta_metadata--
+}
+
 ----
 Personskatteloven § 3, stk. 2, nr. 1:
 
@@ -511,7 +516,9 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 § 18, fragår dog ikke.
 ----
 
---@begin:personskat_ordinaer_virksomhedsindkomst--
+@ meta(personskat_personlig_indkomst_kildefakta_metadata)
+@ section personskat_ordinaer_virksomhedsindkomst {
+
 # PersonskatVirksomhedsindtægtsart = OrdinærDriftsindtægt | BiblioteksafgiftEfterLovOmBiblioteksafgift | KapitalindkomstEfterPersonskattelovensPar4 | AktieindkomstEfterPersonskattelovensPar4A | UklassificeretVirksomhedsindtægt
 # PersonskatVirksomhedsindtægtFakta(identifikation: Tekst, art: PersonskatVirksomhedsindtægtsart, beløb_kroner: Heltal)
 # PersonskatVirksomhedsudgiftFakta(identifikation: Tekst, afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning, beløb_kroner: Heltal)
@@ -614,9 +621,11 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
     | BeregnetOrdinærVirksomhed(beregning) -> beregning.biblioteksafgift_kroner
     | _ -> 0
 }
---@end:personskat_ordinaer_virksomhedsindkomst--
 
---@begin:personskat_personlig_indkomst_kildefakta--
+}
+
+@ section personskat_personlig_indkomst_kildefakta {
+
 # PersonskatForeningsOgArbejdsløshedsydelseFakta = PersonskatForeningsydelseEfterLigningslov13(fakta: Ligningslov13ForeningsydelseFakta) | PersonskatArbejdsløshedsforsikringsudbetalingEfterPbl49(fakta: Pbl49ArbejdsløshedsforsikringsudbetalingFakta) | PersonskatLovbestemteDagpenge(fakta: PersonskatDagpengeFakta) | PersonskatUddannelsesstøtte(fakta: PersonskatSuFakta) | PersonskatFolkepensionsudbetaling(fakta: PersonskatFolkepensionFakta) | PersonskatSocialpensionsudbetaling(fakta: PersonskatSocialpensionFakta) | PersonskatGruppelivFraPensionsbonus(fakta: PersonskatGruppelivBonusFakta)
 # PersonskatForeningsOgArbejdsløshedsydelseResultat = UgyldigForeningsEllerArbejdsløshedsydelse(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk) | BeregnetForeningsydelseEfterLigningslov13(resultat: Ligningslov13ForeningsydelseResultat) | BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(resultat: Pbl49ArbejdsløshedsforsikringsudbetalingResultat) | BeregnetLovbestemteDagpenge(resultat: PersonskatDagpengeResultat) | BeregnetUddannelsesstøtte(resultat: PersonskatSuResultat) | BeregnetFolkepensionsudbetaling(resultat: PersonskatFolkepensionResultat) | BeregnetSocialpensionsudbetaling(resultat: PersonskatSocialpensionResultat) | BeregnetGruppelivFraPensionsbonus(resultat: PersonskatGruppelivBonusResultat)
 # PersonskatOrdinærPersonligIndkomstInput(arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseFakta), personlige_arbejdsvederlag: List(PersonskatPersonligtArbejdsvederlagFakta), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedFakta), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseFakta))
@@ -825,4 +834,5 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
         samlet_endelig_arbejdsudlejebeskatning_kroner = resultat.samlet_endelig_arbejdsudlejebeskatning_kroner
     )
 }
---@end:personskat_personlig_indkomst_kildefakta--
+
+}

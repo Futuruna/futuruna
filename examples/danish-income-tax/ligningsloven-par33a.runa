@@ -116,7 +116,6 @@
     )
 )
 
---@label:ligningsloven_par33a_stk1::meta:ligningsloven_par33a_metadata--
 ----
 § 33 A. Har en person, der er skattepligtig efter kildeskattelovens § 1,
 under ophold uden for riget i mindst 6 måneder uden andre afbrydelser af
@@ -134,7 +133,8 @@ tilsvarende anvendelse på lønindkomst erhvervet i den periode, hvor
 skattepligten bestod, såfremt betingelserne i 1. pkt. i øvrigt er opfyldt.
 ----
 
---@begin:ligningsloven_par33a_stk1--
+@ meta(ligningsloven_par33a_metadata)
+@ section ligningsloven_par33a_stk1 {
 
 # Ligningslov33ADanskOpholdsart = Ll33ANødvendigtArbejdeMedDirekteForbindelseTilUdlandsopholdet | Ll33AFerieEllerLignende | Ll33AArbejdeIRigetUdenNødvendigDirekteForbindelseTilUdlandsopholdet | Ll33AModtogArbejdsløshedsdagpengeUnderOpholdIRiget
 # Ligningslov33ADanskOpholdsdag(dato: Dato, art: Ligningslov33ADanskOpholdsart)
@@ -155,9 +155,8 @@ skattepligten bestod, såfremt betingelserne i 1. pkt. i øvrigt er opfyldt.
 | ligningslov33a_lønindkomst_gyldig(indkomst: Ligningslov33ALønindkomstEfterDanskeRegler) -> indkomst.skattepligtig_nettoindkomst_kroner >= 0 && indkomst.personlig_nettoindkomst_kroner >= 0 && indkomst.arbejdsmarkedsbidragsgrundlag_kroner >= 0
 | ligningslov33a_dis_ophold_anses_som_udlandsophold() -> Sandt
 
---@end:ligningsloven_par33a_stk1--
+}
 
---@label:ligningsloven_par33a_stk2::meta:ligningsloven_par33a_metadata--
 ----
 § 33 A.
 
@@ -170,7 +169,8 @@ fastsat i henhold til en kollektiv aftale og det ikke udtrykkeligt fremgår af
 denne aftale, at lønnen er fastsat under hensyn til lempelse efter stk. 1.
 ----
 
---@begin:ligningsloven_par33a_stk2--
+@ meta(ligningsloven_par33a_metadata)
+@ section ligningsloven_par33a_stk2 {
 
 # Ligningslov33AOffentligYdelsesstatus = Ll33AIngenYdelseEfterPar7Nr15EllerPar9A | Ll33AYdelseEfterPar7Nr15 | Ll33AYdelseEfterPar9A | Ll33AYdelseEfterPar7Nr15OgPar9A
 # Ligningslov33AOffentligLønfastsættelse = Ll33AIndividuelOffentligLønaftale | Ll33AKollektivAftaleMedUdtrykkeligtLempelseshensyn | Ll33AKollektivAftaleUdenUdtrykkeligtLempelseshensyn
@@ -192,9 +192,8 @@ denne aftale, at lønnen er fastsat under hensyn til lempelse efter stk. 1.
     | Ll33ADanskStatEllerOffentligMyndighed(ydelser, lønfastsættelse, _) -> ligningslov33a_offentlig_ydelse_udelukker(ydelser) || ligningslov33a_offentlig_lønfastsættelse_udelukker(lønfastsættelse)
 }
 
---@end:ligningsloven_par33a_stk2--
+}
 
---@label:ligningsloven_par33a_stk3::meta:ligningsloven_par33a_metadata--
 ----
 § 33 A.
 
@@ -206,7 +205,8 @@ indkomst. Tilsvarende gælder for personer udsendt til udførelse af
 systemeksport for den danske stat eller anden dansk offentlig myndighed.
 ----
 
---@begin:ligningsloven_par33a_stk3--
+@ meta(ligningsloven_par33a_metadata)
+@ section ligningsloven_par33a_stk3 {
 
 # Ligningslov33ABeskatningsret = Ll33AIngenDobbeltbeskatningsoverenskomst | Ll33AArbejdslandetHarBeskatningsrettenEfterOverenskomst(dokumentreference: Tekst) | Ll33ADanmarkHarBeskatningsrettenEfterOverenskomst(dokumentreference: Tekst)
 
@@ -237,9 +237,8 @@ systemeksport for den danske stat eller anden dansk offentlig myndighed.
     }
 }
 
---@end:ligningsloven_par33a_stk3--
+}
 
---@label:ligningsloven_par33a_stk4::meta:ligningsloven_par33a_metadata--
 ----
 § 33 A.
 
@@ -247,7 +246,8 @@ Stk. 4. Skatteministeren kan fastsætte regler om henstand med opkrævning af
 skatten.
 ----
 
---@begin:ligningsloven_par33a_stk4--
+@ meta(ligningsloven_par33a_metadata)
+@ section ligningsloven_par33a_stk4 {
 
 # Ligningslov33AHenstandsstatus = Ll33AIngenHenstand | Ll33AHenstandEfterSkatteministerensRegler(dokumentreference: Tekst)
 
@@ -256,9 +256,8 @@ skatten.
     | Ll33AHenstandEfterSkatteministerensRegler(dokumentreference) -> dokumentreference != ""
 }
 
---@end:ligningsloven_par33a_stk4--
+}
 
---@label:ligningsloven_par33a_stk5::meta:ligningsloven_par33a_metadata--
 ----
 § 33 A.
 
@@ -266,7 +265,8 @@ Stk. 5. Stk. 1-4 finder tilsvarende anvendelse på dødsboer omfattet af
 dødsboskattelovens § 1, stk. 2.
 ----
 
---@begin:ligningsloven_par33a_stk5--
+@ meta(ligningsloven_par33a_metadata)
+@ section ligningsloven_par33a_stk5 {
 
 # Ligningslov33ASkattesubjekt = Ll33APerson | Ll33ADødsboOmfattetAfDødsboskattelovensPar1Stk2
 
@@ -275,9 +275,8 @@ dødsboskattelovens § 1, stk. 2.
     | Ll33ADødsboOmfattetAfDødsboskattelovensPar1Stk2 -> Sandt
 }
 
---@end:ligningsloven_par33a_stk5--
+}
 
---@label:ligningsloven_par33a_stk6::meta:ligningsloven_par33a_metadata--
 ----
 § 33 A.
 
@@ -292,7 +291,8 @@ periode. Valget skal træffes senest den 1. maj 2021 og kan omgøres til og med
 den 30. juni 2022.
 ----
 
---@begin:ligningsloven_par33a_stk6--
+@ meta(ligningsloven_par33a_metadata)
+@ section ligningsloven_par33a_stk6 {
 
 # Ligningslov33ACovidvalg = Ll33AUdenCovidvalg | Ll33ACovidvalgAnvendt(arbejde_genoptaget_i_arbejdslandet_dato: Option(Dato), valgdato: Dato) | Ll33ACovidvalgOmgjort(omgørelsesdato: Dato)
 
@@ -319,9 +319,8 @@ den 30. juni 2022.
     | _ -> Falskt
 }
 
---@end:ligningsloven_par33a_stk6--
+}
 
---@label:ligningsloven_par33a_aarsberegning::meta:ligningsloven_par33a_metadata--
 ----
 Den juridiske vejledning 2026-1, C.F.4.2.2.4:
 "Udlandsopholdet anses for at være afbrudt ved starten af det ferieophold mv.,
@@ -345,7 +344,8 @@ SKM2019.201.LSR fastslår, at en periode uden ansættelse ikke i sig selv
 afbryder udlandsopholdet, når opholdet i Danmark har karakter af ferie el.lign.
 ----
 
---@begin:ligningsloven_par33a_aarsberegning--
+@ meta(ligningsloven_par33a_metadata)
+@ section ligningsloven_par33a_aarsberegning {
 
 # Ligningslov33AOphold(fra_dato: Dato, til_dato: Dato, danske_opholdsdage: List(Ligningslov33ADanskOpholdsdag), arbejdsgiverforbindelse: Ligningslov33AArbejdsgiverforbindelse, tjenesteforhold: Ligningslov33ATjenesteforholdsstatus, skattepligt: Ligningslov33ASkattepligtsstatus, covidvalg: Ligningslov33ACovidvalg, dokumentreference: Tekst)
 # Ligningslov33AIndkomstfordeling(samlet_lønindkomst_efter_danske_regler: Ligningslov33ALønindkomstEfterDanskeRegler, heraf_arbejde_i_riget_efter_danske_regler: Ligningslov33ALønindkomstEfterDanskeRegler)
@@ -822,4 +822,4 @@ afbryder udlandsopholdet, når opholdet i Danmark har karakter af ferie el.lign.
     )
 }
 
---@end:ligningsloven_par33a_aarsberegning--
+}

@@ -18,12 +18,13 @@
     )
 )
 
---@label:personskat_lønmodtagerudgift_scenarier::meta:personskat_lønmodtagerudgift_scenarier_metadata--
 ----
 Scenarierne er ikke lovtekst. De fastholder samspillet mellem ligningslovens
 § 9, stk. 1, og sømandsbeskatningslovens § 4 i den kanoniske
 Personskat-beregning.
 ----
+
+@ meta(personskat_lønmodtagerudgift_scenarier_metadata) for personskat_lønmodtagerudgift_scenarier
 
 # PersonskatLønmodtagerudgiftÅrsforventning(indkomstår: Heltal, lovversion: Ligningslov9Stk1Lovversion, reguleringstalskilde: Par20ReguleringstalKilde, grundbeløb_kroner: Heltal, fradrag_kroner: Heltal)
 

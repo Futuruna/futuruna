@@ -42,7 +42,19 @@ EndDate: 2026-07-01
     )
 )
 
---@label:ligningsloven_par16a::meta:ligningsloven_par16a_metadata--
+----
+Lov nr. 1755 af 29/12/2025, § 4, nr. 2:
+
+I § 16 A, stk. 2, nr. 1, indsættes som 2. pkt.:
+
+»Alt, hvad der af medarbejderejevirksomheden, jf. selskabsskattelovens § 1,
+stk. 1, nr. 2 j, udloddes til deltagerne.«
+
+Lov nr. 1755 af 29/12/2025, § 8, stk. 1:
+
+Loven træder i kraft den 1. januar 2026.
+----
+
 ----
 § 16 A.
 Ved opgørelsen af den skattepligtige indkomst medregnes udbytte af aktier,
@@ -140,20 +152,9 @@ ikke anvendelse for udbytte i form af en helårsbolig, der stilles til rådighed
 for en hovedaktionær som nævnt i § 16, stk. 9, sidste pkt.
 ----
 
-----
-Lov nr. 1755 af 29/12/2025, § 4, nr. 2:
+@ meta(ligningsloven_par16a_metadata)
+@ section ligningsloven_par16a {
 
-I § 16 A, stk. 2, nr. 1, indsættes som 2. pkt.:
-
-»Alt, hvad der af medarbejderejevirksomheden, jf. selskabsskattelovens § 1,
-stk. 1, nr. 2 j, udloddes til deltagerne.«
-
-Lov nr. 1755 af 29/12/2025, § 8, stk. 1:
-
-Loven træder i kraft den 1. januar 2026.
-----
-
---@begin:ligningsloven_par16a--
 # Ligningslov16AUdbytteart = Ll16AStk1Udbytte | Ll16AStk2Nr1Udlodning | Ll16AStk2Nr2LikvidationsprovenuMinimumsbeskatning | Ll16AStk2Nr3IkkeUdloddetMinimumsindkomst | Ll16AStk2Nr4TilbagebetaltUdbytteskat | Ll16AStk2Nr5Gave | Ll16AStk3Aktieavancebehandling | Ll16AStk4Skattefri | Ll16AStk5Hovedaktionærgode
 # Ligningslov16AInput(indkomstår: Heltal, art: Ligningslov16AUdbytteart, beløb_kroner: Heltal)
 # Ligningslov16AResultat(indkomstår: Heltal, art: Ligningslov16AUdbytteart, omfattet_af_par16a_udbytte: Boolsk, behandles_efter_aktieavancebeskatningsloven: Boolsk, skattefri_efter_stk4: Boolsk, hovedaktionærgode_efter_stk5: Boolsk, udbytte_kroner: Heltal)
@@ -217,7 +218,8 @@ Loven træder i kraft den 1. januar 2026.
         ligningslov16a_resultat = ligningslov16a_resultat
     )
 }
---@end:ligningsloven_par16a--
+
+}
 
 = ligningsloven_par5c_lbk1500 = LigningslovKapitalindkomstKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
@@ -230,7 +232,6 @@ Loven træder i kraft den 1. januar 2026.
     )
 )
 
---@label:ligningsloven_par5c::meta:ligningsloven_par5c_metadata--
 ----
 § 5 C. Vederlag for vedhængende eller godskrevne renter i forbindelse med
 overdragelse af rentebærende fordringer eller gæld medregnes ved
@@ -254,7 +255,9 @@ skattepligtige indkomst. Tilsvarende gælder vederlag for provisioner og præmie
 m.v. omfattet af § 8, stk. 3, litra a og b.
 ----
 
---@begin:ligningsloven_par5c--
+@ meta(ligningsloven_par5c_metadata)
+@ section ligningsloven_par5c {
+
 # Ligningslov5CRolle = Ll5CKravPåVederlag | Ll5CForpligtetTilAtBetaleVederlag
 # Ligningslov5CVederlagsart = Ll5CVedhængendeEllerGodskrevneRenter | Ll5CProvisionerOgPræmierPar8Stk3
 # Ligningslov5CInput(indkomstår: Heltal, rolle: Ligningslov5CRolle, art: Ligningslov5CVederlagsart, vederlag_kroner: Heltal, handelsafviklingsår: Heltal, tilsvarende_renter_forfaldsår: Heltal, tilsvarende_renter_kroner: Heltal, anvender_par5_stk5_fordeling: Boolsk, erhvervelse_af_rentebærende_fordring_eller_gæld: Boolsk, dba_afskærer_rente_eller_kursgevinst: Boolsk)
@@ -293,7 +296,8 @@ m.v. omfattet af § 8, stk. 3, litra a og b.
 }
 | ligningslov5c_sag(input: Ligningslov5CInput) -> Ligningslov5CSag(input)
 | ligningslov5c_resultat(input: Ligningslov5CInput) -> ligningslov5c_sag(input).resultat()
---@end:ligningsloven_par5c--
+
+}
 
 = ll5c_kravshaver_fixture = ligningslov5c_resultat(Ligningslov5CInput(
     indkomstår = 2026,
@@ -360,7 +364,6 @@ m.v. omfattet af § 8, stk. 3, litra a og b.
     )
 )
 
---@label:ligningsloven_par6::meta:ligningsloven_par6_metadata--
 ----
 § 6. Ved opgørelsen af den skattepligtige indkomst kan kurstab ved indfrielse
 af kontantlån, der er optaget i et realkreditinstitut før 19. maj 1993,
@@ -423,7 +426,9 @@ Stk. 6. Stk. 1-5 finder ikke anvendelse i det omfang, kurstabet efter stk. 2
 medregnes ved opgørelsen af den skattepligtige indkomst efter kursgevinstloven.
 ----
 
---@begin:ligningsloven_par6--
+@ meta(ligningsloven_par6_metadata)
+@ section ligningsloven_par6 {
+
 # Ligningslov6KurstabInput(indkomstår: Heltal, kontantlån_optaget_i_realkreditinstitut_før_19_maj_1993: Boolsk, indfrielse_sker_ved_realkreditlån: Boolsk, nyt_lån_optaget_før_1_januar_1996: Boolsk, nyt_lån_mindst_samme_løbetid: Boolsk, transaktioner_inden_for_1_år: Boolsk, lånetilbud_før_indfrielse_hvis_indfrielse_før_optagelse: Boolsk, kurstab_kroner: Heltal, samlet_antal_terminer: Heltal, forfaldne_terminer_i_indkomståret: Heltal, ekstraordinær_indfrielse_af_nyt_lån: Boolsk, stk4_omlægning_undtager_stk3: Boolsk, stk3_nedsættelse_basispoint: Heltal, debitorskifte_i_året: Boolsk, debitordage_for_skattepligtig: Heltal, dage_i_overdragelsesår: Heltal, kurstab_medregnes_efter_kursgevinstloven: Boolsk)
 # Ligningslov6KurstabResultat(indkomstår: Heltal, fradragsret_efter_stk1: Boolsk, kurstab_pr_termin_kroner: Heltal, årligt_fradrag_før_stk3_kroner: Heltal, stk3_nedsættelse_anvendes: Boolsk, stk3_nedsættelse_kroner: Heltal, årligt_fradrag_efter_stk3_kroner: Heltal, stk5_debitordagsandel_kroner: Heltal, under_100_kr_bortfalder: Boolsk, afskåret_efter_stk6: Boolsk, fradrag_kroner: Heltal)
 
@@ -484,7 +489,8 @@ medregnes ved opgørelsen af den skattepligtige indkomst efter kursgevinstloven.
 }
 | ligningslov6_kurstab_sag(input: Ligningslov6KurstabInput) -> Ligningslov6KurstabSag(input)
 | ligningslov6_kurstab_resultat(input: Ligningslov6KurstabInput) -> ligningslov6_kurstab_sag(input).resultat()
---@end:ligningsloven_par6--
+
+}
 
 = ligningsloven_par6a_lbk1500 = LigningslovKapitalindkomstKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
@@ -497,7 +503,6 @@ medregnes ved opgørelsen af den skattepligtige indkomst efter kursgevinstloven.
     )
 )
 
---@label:ligningsloven_par6a::meta:ligningsloven_par6a_metadata--
 ----
 § 6 A. Ved opgørelsen af den skattepligtige indkomst kan skattepligtige
 personer fradrage
@@ -508,7 +513,9 @@ beløbet er betalt, og
 statshusmandsbrug m.m. og jordrente, forudsat at beløbet er betalt.
 ----
 
---@begin:ligningsloven_par6a--
+@ meta(ligningsloven_par6a_metadata)
+@ section ligningsloven_par6a {
+
 # Ligningslov6AInput(indkomstår: Heltal, skattepligtig_person: Boolsk, arbejderboliger_beløb_kroner: Heltal, arbejderboliger_betalt: Boolsk, statshusmandsbrug_jordrente_beløb_kroner: Heltal, statshusmandsbrug_jordrente_betalt: Boolsk)
 # Ligningslov6AResultat(indkomstår: Heltal, arbejderboliger_fradrag_kroner: Heltal, statshusmandsbrug_jordrente_fradrag_kroner: Heltal, fradrag_kroner: Heltal)
 
@@ -538,7 +545,8 @@ statshusmandsbrug m.m. og jordrente, forudsat at beløbet er betalt.
 }
 | ligningslov6a_sag(input: Ligningslov6AInput) -> Ligningslov6ASag(input)
 | ligningslov6a_resultat(input: Ligningslov6AInput) -> ligningslov6a_sag(input).resultat()
---@end:ligningsloven_par6a--
+
+}
 
 = ligningsloven_par7n_lbk1500 = LigningslovKapitalindkomstKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
@@ -551,7 +559,6 @@ statshusmandsbrug m.m. og jordrente, forudsat at beløbet er betalt.
     )
 )
 
---@label:ligningsloven_par7n::meta:ligningsloven_par7n_metadata--
 ----
 § 7 N.
 Ved opgørelsen af den skattepligtige indkomst for en medarbejderdeltager, jf.
@@ -617,7 +624,9 @@ selskaber m.v. efter stk. 3, om efterfølgende godkendelser efter stk. 6 og om
 tilbagekaldelse efter stk. 7.
 ----
 
---@begin:ligningsloven_par7n--
+@ meta(ligningsloven_par7n_metadata)
+@ section ligningsloven_par7n {
+
 # Ligningslov7NSelskab = Ll7NIkkeOmfattetSelskab | Ll7NMedarbejderinvesteringsselskabStk1 | Ll7NMedarbejderinvesteringsselskabslignendeStk3
 # Ligningslov7NPostart = Ll7NArbejdsgiverindskud | Ll7NUdbytteEllerUdbetaling | Ll7NFortjeneste | Ll7NTab | Ll7NTilbagekaldelsesværdi | Ll7NAndenPost
 # Ligningslov7NInput(indkomstår: Heltal, selskab: Ligningslov7NSelskab, postart: Ligningslov7NPostart, beløb_kroner: Heltal, kontant_løn_minus_amb_fra_arbejdsgiver_kroner: Heltal, tidligere_bortset_arbejdsgiverindskud_i_året_kroner: Heltal, registreret_i_erhvervsstyrelsen: Boolsk, godkendt_eu_eøs_selskab: Boolsk, godkendelse_tilbagekaldt: Boolsk)
@@ -668,7 +677,8 @@ tilbagekaldelse efter stk. 7.
 }
 | ligningslov7n_sag(input: Ligningslov7NInput) -> Ligningslov7NSag(input)
 | ligningslov7n_resultat(input: Ligningslov7NInput) -> ligningslov7n_sag(input).resultat()
---@end:ligningsloven_par7n--
+
+}
 
 = ll7n_dansk_indskud_fixture = ligningslov7n_resultat(Ligningslov7NInput(
     indkomstår = 2026,
@@ -731,7 +741,6 @@ tilbagekaldelse efter stk. 7.
     )
 )
 
---@label:ligningsloven_par8_stk3_kapitalindkomst::meta:ligningsloven_par8_stk3_metadata--
 ----
 § 8, stk. 3. Ved opgørelsen af den skattepligtige indkomst fradrages:
 a) løbende provisioner eller præmier for lån, som den skattepligtige optager,
@@ -743,7 +752,9 @@ sikring af tilgodehavender eller kaution, som nævnt under a) og b), såfremt
 løbetiden er mindre end 2 år.
 ----
 
---@begin:ligningsloven_par8_stk3_kapitalindkomst--
+@ meta(ligningsloven_par8_stk3_metadata)
+@ section ligningsloven_par8_stk3_kapitalindkomst {
+
 # Ligningslov8Stk3Art = Ll8Stk3LøbendeProvisionEllerPræmieForLånEllerSikring | Ll8Stk3LøbendeKautionspræmie | Ll8Stk3StiftelsesprovisionEllerEngangspræmie
 # Ligningslov8Stk3Input(indkomstår: Heltal, art: Ligningslov8Stk3Art, udgift_kroner: Heltal, løbetid_måneder: Heltal)
 # Ligningslov8Stk3Resultat(indkomstår: Heltal, art: Ligningslov8Stk3Art, omfattet_af_litra_a: Boolsk, omfattet_af_litra_b: Boolsk, omfattet_af_litra_c: Boolsk, løbetid_under_to_år: Boolsk, fradragsberettiget_efter_stk3: Boolsk, fradrag_kroner: Heltal, afskåret_kroner: Heltal)
@@ -776,7 +787,8 @@ løbetiden er mindre end 2 år.
 }
 | ligningslov8_stk3_sag(input: Ligningslov8Stk3Input) -> Ligningslov8Stk3Sag(input)
 | ligningslov8_stk3_resultat(input: Ligningslov8Stk3Input) -> ligningslov8_stk3_sag(input).resultat()
---@end:ligningsloven_par8_stk3_kapitalindkomst--
+
+}
 
 = ll8_stk3_løbende_lån_fixture = ligningslov8_stk3_resultat(Ligningslov8Stk3Input(
     indkomstår = 2026,
@@ -819,7 +831,6 @@ løbetiden er mindre end 2 år.
     )
 )
 
---@label:ligningsloven_par14a::meta:ligningsloven_par14a_metadata--
 ----
 § 14 A. Beløb, som låntager betaler til et realkreditinstitut efter § 10 b,
 stk. 3, 4. pkt., i bekendtgørelse nr. 571 af 15. august 1989 af lov om
@@ -835,7 +846,9 @@ lov om et finansieringsinstitut for landbrug mv., som ændret ved lov nr. 373
 af 6. juli 1988, medregnes ved opgørelsen af den skattepligtige indkomst.
 ----
 
---@begin:ligningsloven_par14a--
+@ meta(ligningsloven_par14a_metadata)
+@ section ligningsloven_par14a {
+
 # Ligningslov14AInput(indkomstår: Heltal, indbetalingsår: Heltal, indbetaling_kroner: Heltal, indbetaling_efter_realkreditinstitutlov10b_stk3_4pkt: Boolsk, indbetaling_efter_landbrugsfinansieringsinstitut4b: Boolsk, udbetalingsår: Heltal, udbetaling_kroner: Heltal, udbetaling_fra_restgældsreguleringsfond: Boolsk)
 # Ligningslov14AResultat(indkomstår: Heltal, indbetaling_omfattet_af_stk1: Boolsk, indbetaling_i_indbetalingsåret: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal, udbetaling_omfattet_af_stk2: Boolsk, udbetaling_i_udbetalingsåret: Boolsk, skattepligtig_udbetaling_kroner: Heltal, netto_skattepligtig_indkomst_kroner: Heltal)
 
@@ -864,7 +877,8 @@ af 6. juli 1988, medregnes ved opgørelsen af den skattepligtige indkomst.
 }
 | ligningslov14a_sag(input: Ligningslov14AInput) -> Ligningslov14ASag(input)
 | ligningslov14a_resultat(input: Ligningslov14AInput) -> ligningslov14a_sag(input).resultat()
---@end:ligningsloven_par14a--
+
+}
 
 = ll14a_indbetaling_fixture = ligningslov14a_resultat(Ligningslov14AInput(
     indkomstår = 2026,
@@ -948,7 +962,21 @@ af 6. juli 1988, medregnes ved opgørelsen af den skattepligtige indkomst.
     )
 )
 
---@label:ligningsloven_par12b_lbk1500::meta:ligningsloven_par12b_lbk1500_metadata--
+= ligningsloven_par12b_historisk_metadata = Metadata(
+    attachments = (
+        HistoricalSource(value = ligningslov12b_historisk_lbk42),
+        TransitionSource(value = ligningslov12b_lov749),
+    )
+)
+
+= ligningsloven_par12b_2026_aendring_metadata = Metadata(
+    attachments = (
+        AmendmentSource(value = ligningslov12b_lov749),
+        TransitionSource(value = ligningslov12b_lov749),
+        Guidance(value = ligningslov12b_juridisk_vejledning_henstand),
+    )
+)
+
 ----
 § 12 B. Udgør en løbende ydelse helt eller delvist vederlag i en gensidigt
 bebyrdende aftale om overdragelse af et eller flere aktiver, gælder reglerne i
@@ -1072,17 +1100,7 @@ som er stiftet af yderen selv eller yderens ægtefælle, disses forældre eller
 livsarvinger. Det samme gælder, hvis de i 1. pkt. nævnte personer har en
 indflydelse, der er egnet til at påvirke de beslutninger, institutionen m.v.
 træffer. Stedbørn og plejebørn sidestilles med livsarvinger.
-----
 
-= ligningsloven_par12b_historisk_metadata = Metadata(
-    attachments = (
-        HistoricalSource(value = ligningslov12b_historisk_lbk42),
-        TransitionSource(value = ligningslov12b_lov749),
-    )
-)
-
---@label:ligningsloven_par12b_historisk::meta:ligningsloven_par12b_historisk_metadata--
-----
 Stk. 2. Parterne skal til brug for opgørelsen af den skattepligtige indkomst
 foretage en kapitalisering af den løbende ydelse. Kapitaliseringen skal
 foretages i forbindelse med indgåelsen af den gensidigt bebyrdende aftale. Den
@@ -1161,18 +1179,7 @@ forpligtelsen, skal føre saldo efter reglen i stk. 3, idet det vederlag, yderen
 betaler, dog anvendes som indgangsværdi. Stk. 5, 1.-4. pkt., og stk. 7 finder
 tilsvarende anvendelse, dog således, at henvisningen til stk. 5 i stk. 7 i
 disse tilfælde alene gælder stk. 5, 1.-4. pkt.
-----
 
-= ligningsloven_par12b_2026_aendring_metadata = Metadata(
-    attachments = (
-        AmendmentSource(value = ligningslov12b_lov749),
-        TransitionSource(value = ligningslov12b_lov749),
-        Guidance(value = ligningslov12b_juridisk_vejledning_henstand),
-    )
-)
-
---@label:ligningsloven_par12b_2026_aendring::meta:ligningsloven_par12b_2026_aendring_metadata--
-----
 § 1
 
 I ligningsloven, jf. lovbekendtgørelse nr. 42 af 13. januar 2023, som ændret
@@ -1259,9 +1266,11 @@ gensidigt bebyrdende aftaler om overdragelse af et eller flere aktiver, der er
 indgået den 1. januar 2026 eller senere.
 ----
 
---@begin:ligningsloven_par12b_lbk1500--
---@begin:ligningsloven_par12b_historisk--
---@begin:ligningsloven_par12b_2026_aendring--
+@ meta(ligningsloven_par12b_lbk1500_metadata)
+@ meta(ligningsloven_par12b_historisk_metadata)
+@ meta(ligningsloven_par12b_2026_aendring_metadata)
+@ section ligningsloven_par12b_2026_aendring {
+
 # Ligningslov12BRolle = Ll12BModtager | Ll12BYder | Ll12BForpligtelsesOvertager | Ll12BTredjemandErhverver
 # Ligningslov12BRegime = Ll12BUdenForAnvendelsesperioden | Ll12B1Juli1999Til18Marts2025 | Ll12B19Marts2025Til31December2025 | Ll12BFra1Januar2026
 # Ligningslov12BParter(mindst_en_part_skattepligtig_ved_aftalen: Boolsk, anden_part_senere_fuldt_skattepligtig: Boolsk, ydelser_betalt_før_skattepligtsindtræden_kroner: Heltal, yder_betaler_til_selvejende_institution_med_stifterindflydelse: Boolsk)
@@ -1640,9 +1649,7 @@ indgået den 1. januar 2026 eller senere.
 | ligningslov12b_henstand_hændelsessag(input: Ligningslov12BHenstandHændelsesinput) -> Ligningslov12BHenstandHændelsessag(input)
 | ligningslov12b_henstand_hændelsesresultat(input: Ligningslov12BHenstandHændelsesinput) -> ligningslov12b_henstand_hændelsessag(input).resultat()
 
---@end:ligningsloven_par12b_2026_aendring--
---@end:ligningsloven_par12b_historisk--
---@end:ligningsloven_par12b_lbk1500--
+}
 
 = ll12b_standard_oplysninger = Ligningslov12BOplysninger(
     kapitalisering_foretaget_rettidigt = Sandt,

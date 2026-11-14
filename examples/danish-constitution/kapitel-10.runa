@@ -4,7 +4,6 @@
 
 -- Kapitel X -- Grundlovsændringer
 
---@label:grundlov_par88::meta:grundlov_kildemetadata--
 ----
 § 88. Vedtager folketinget et forslag til en ny grundlovsbestemmelse, og
 regeringen vil fremme sagen, udskrives nyvalg til folketinget. Vedtages
@@ -17,7 +16,8 @@ afgivet deres stemme for folketingets beslutning, og stadfæstes denne af
 kongen, er den grundlov.
 ----
 
---@begin:grundlov_par88--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par88 {
 
 # ForslagsskikkelsePar88 = UændretSkikkelse | ÆndretSkikkelse
 # Grundlovsforslagsforløb(første_folketing_har_vedtaget: Boolsk, regeringen_vil_fremme_sagen: Boolsk, nyvalg_til_folketinget_udskrevet: Boolsk, det_følgende_folketing_har_vedtaget: Boolsk, skikkelse_ved_genvedtagelsen: ForslagsskikkelsePar88) {
@@ -43,4 +43,5 @@ kongen, er den grundlov.
 }
 
 | grundlovsafstemningens_nærmere_regler_fastsættes_ved_lov()
---@end:grundlov_par88--
+
+}

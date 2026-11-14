@@ -57,7 +57,6 @@
     )
 )
 
---@label:pensionsbeskatningsloven_par49_fradrag::meta:pensionsbeskatningsloven_par49_metadata--
 ----
 § 49. Ved opgørelsen af den skattepligtige indkomst for den forsikrede kan
 fradrages udgifter til arbejdsløshedsforsikring, og for seniormedlemmer af en
@@ -86,7 +85,9 @@ Stk. 1. Loven træder i kraft den 1. juni 2023.
 Stk. 2. Loven har virkning fra og med indkomståret 2024.
 ----
 
---@begin::pensionsbeskatningsloven_par49_fradrag--
+@ meta(pensionsbeskatningsloven_par49_metadata)
+@ section pensionsbeskatningsloven_par49_fradrag {
+
 # Pbl49Lovversion = Pbl49Lbk1327MedÆndringerTilOgMed2023 | Pbl49Lbk1243MedSenereÆndringer | Pbl49LovversionUdenKildedækning
 # Pbl49PrivatForsikringsminimumVersion = Pbl49Stk3IkkeAnvendeligFør2024 | Pbl49Stk3Minimum1300Fra2024 | Pbl49Stk3UdenKildedækning
 # Pbl49ArbejdsløshedskasseStatus = Pbl49DanskAnerkendtArbejdsløshedskasse | Pbl49EUEØSArbejdsløshedskasseAnerkendtEfterArbejdsløshedsforsikringslov32 | Pbl49EUEØSArbejdsløshedskasseIkkeAnerkendtEfterArbejdsløshedsforsikringslov32 | Pbl49ArbejdsløshedskasseUdenForEUEØS | Pbl49IkkeArbejdsløshedskasse
@@ -118,7 +119,8 @@ Stk. 2. Loven har virkning fra og med indkomståret 2024.
 }
 | pbl49_bidrag_er_stk3_akassemedlemskab(fakta: Pbl49Til49BBidragsfakta) -> match fakta.art { | Pbl49Akassekontingent(arbejdsløshedskasse, skatteyderen_er_medlem_og_forsikret) -> skatteyderen_er_medlem_og_forsikret && pbl49_stk3_akassemedlemskab_opfyldt(arbejdsløshedskasse) | _ -> Falskt }
 | pbl49_akassemedlemskab_indbetalt_kroner(bidrag: List(Pbl49Til49BBidragsfakta), indkomstår: Heltal) -> foldl(bidrag, 0, |sum_kroner: Heltal, fakta: Pbl49Til49BBidragsfakta| sum_kroner + hvis fakta.indkomstår == indkomstår && fakta.betalt_beløb_kroner > 0 && pbl49_bidrag_er_stk3_akassemedlemskab(fakta) { fakta.betalt_beløb_kroner } ellers { 0 })
---@end::pensionsbeskatningsloven_par49_fradrag--
+
+}
 
 = pensionsbeskatningsloven_lbk1243_par49_stk2 = Pbl49KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/1243",
@@ -144,13 +146,14 @@ Stk. 2. Loven har virkning fra og med indkomståret 2024.
     )
 )
 
---@label:pensionsbeskatningsloven_par49_stk2_udbetaling::meta:pensionsbeskatningsloven_par49_stk2_metadata--
 ----
 § 49, stk. 2. Ved opgørelsen af den skattepligtige indkomst medregnes
 udbetalinger fra arbejdsløshedsforsikring, jf. dog ligningslovens §§ 30 og 31.
 ----
 
---@begin:pensionsbeskatningsloven_par49_stk2_udbetaling--
+@ meta(pensionsbeskatningsloven_par49_stk2_metadata)
+@ section pensionsbeskatningsloven_par49_stk2_udbetaling {
+
 # Pbl49Arbejdsløshedsforsikringsudbetalingsart = Pbl49UdbetalingFraArbejdsløshedskasse | Pbl49UdbetalingFraPrivatArbejdsløshedsforsikring | Pbl49UdbetalingFraAndenEllerSammensatForsikring
 # Pbl49SkatteyderrelationEfterPar55 = Pbl49SkatteyderenErEjer | Pbl49SkatteyderenErBerettigetEfterEjersDød | Pbl49EnAndenErSkattepligtigEfterPar55
 # Pbl49ArbejdsløshedsforsikringsudbetalingFakta(identifikation: Tekst, indkomstår: Heltal, beløb_kroner: Heltal, art: Pbl49Arbejdsløshedsforsikringsudbetalingsart, skatteyderrelation: Pbl49SkatteyderrelationEfterPar55, undtagelse: Ligningslov30Og31Undtagelse)
@@ -159,7 +162,8 @@ udbetalinger fra arbejdsløshedsforsikring, jf. dog ligningslovens §§ 30 og 31
 | pbl49_udbetalingsart_omfattet(art: Pbl49Arbejdsløshedsforsikringsudbetalingsart) -> art == Pbl49UdbetalingFraArbejdsløshedskasse || art == Pbl49UdbetalingFraPrivatArbejdsløshedsforsikring
 | pbl49_udbetaling_yderrelation(art: Pbl49Arbejdsløshedsforsikringsudbetalingsart) -> hvis art == Pbl49UdbetalingFraArbejdsløshedskasse { Ll30Og31Arbejdsløshedskasse } ellers { Ll30Og31AndenYder }
 | pbl49_skatteyderen_er_skattepligtig_efter_par55(relation: Pbl49SkatteyderrelationEfterPar55) -> relation == Pbl49SkatteyderenErEjer || relation == Pbl49SkatteyderenErBerettigetEfterEjersDød
---@end:pensionsbeskatningsloven_par49_stk2_udbetaling--
+
+}
 
 = pensionsbeskatningsloven_lbk1243_par49a = Pbl49KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/1243",
@@ -174,19 +178,21 @@ udbetalinger fra arbejdsløshedsforsikring, jf. dog ligningslovens §§ 30 og 31
     )
 )
 
---@label:pensionsbeskatningsloven_par49a_efterloensfradrag::meta:pensionsbeskatningsloven_par49a_metadata--
 ----
 § 49 A. Ved opgørelsen af den skattepligtige indkomst for et medlem af en
 arbejdsløshedskasse kan der fradrages udgifter til bidrag til
 efterlønsordningen, jf. lov om arbejdsløshedsforsikring m.v. § 77, stk. 4.
 ----
 
---@begin::pensionsbeskatningsloven_par49a_efterloensfradrag--
+@ meta(pensionsbeskatningsloven_par49a_metadata)
+@ section pensionsbeskatningsloven_par49a_efterloensfradrag {
+
 | pbl49a_ordningsbetingelser_opfyldt(art: Pbl49Til49BBidragsart) -> match art {
     | Pbl49AEfterlønsbidrag(arbejdsløshedskasse, medlem_af_arbejdsløshedskasse, bidrag_efter_arbejdsløshedsforsikringslov77_stk4) -> pbl49_arbejdsløshedskasse_opfyldt(arbejdsløshedskasse) && medlem_af_arbejdsløshedskasse && bidrag_efter_arbejdsløshedsforsikringslov77_stk4
     | _ -> Falskt
 }
---@end::pensionsbeskatningsloven_par49a_efterloensfradrag--
+
+}
 
 = pensionsbeskatningsloven_lbk1243_par49b = Pbl49KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/1243",
@@ -201,19 +207,21 @@ efterlønsordningen, jf. lov om arbejdsløshedsforsikring m.v. § 77, stk. 4.
     )
 )
 
---@label:pensionsbeskatningsloven_par49b_fleksydelsesfradrag::meta:pensionsbeskatningsloven_par49b_metadata--
 ----
 § 49 B. Ved opgørelsen af den skattepligtige indkomst kan en person, der er
 tilmeldt fleksydelsesordningen, jf. lov om fleksydelse § 4, fradrage udgifter til
 bidrag til fleksydelsesordningen, jf. lov om fleksydelse § 7.
 ----
 
---@begin::pensionsbeskatningsloven_par49b_fleksydelsesfradrag--
+@ meta(pensionsbeskatningsloven_par49b_metadata)
+@ section pensionsbeskatningsloven_par49b_fleksydelsesfradrag {
+
 | pbl49b_ordningsbetingelser_opfyldt(art: Pbl49Til49BBidragsart) -> match art {
     | Pbl49BFleksydelsesbidrag(tilmeldt_fleksydelsesordningen_efter_fleksydelseslov4, bidrag_efter_fleksydelseslov7) -> tilmeldt_fleksydelsesordningen_efter_fleksydelseslov4 && bidrag_efter_fleksydelseslov7
     | _ -> Falskt
 }
---@end::pensionsbeskatningsloven_par49b_fleksydelsesfradrag--
+
+}
 
 = pensionsbeskatningsloven_lbk1243_par54_stk2 = Pbl49KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/1243",
@@ -228,7 +236,6 @@ bidrag til fleksydelsesordningen, jf. lov om fleksydelse § 7.
     )
 )
 
---@label:pensionsbeskatningsloven_par54_ejer_af_forsikringen::meta:pensionsbeskatningsloven_par54_stk2_metadata--
 ----
 § 54. § 18 om fradragsret for forsikringspræmier m.v. gælder kun for personer,
 der er fuldt skattepligtige her i landet.
@@ -239,12 +246,15 @@ begrænset til forfaldne eller indbetalte forsikringspræmier m.v., mens ejeren 
 fuldt skattepligtig her i landet.
 ----
 
---@begin::pensionsbeskatningsloven_par54_ejer_af_forsikringen--
+@ meta(pensionsbeskatningsloven_par54_stk2_metadata)
+@ section pensionsbeskatningsloven_par54_ejer_af_forsikringen {
+
 | pbl54_ejer_og_forsikrede_opfyldt(art: Pbl49Til49BBidragsart) -> match art {
     | Pbl49PrivatArbejdsløshedsforsikring(skatteyderen_er_forsikringsejer, skatteyderen_er_forsikret) -> skatteyderen_er_forsikringsejer && skatteyderen_er_forsikret
     | _ -> Sandt
 }
---@end::pensionsbeskatningsloven_par54_ejer_af_forsikringen--
+
+}
 
 = pensionsbeskatningsloven_lbk1243_par55 = Pbl49KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/1243",
@@ -260,7 +270,6 @@ fuldt skattepligtig her i landet.
     )
 )
 
---@label:pensionsbeskatningsloven_par55_udbetalingsmodtager::meta:pensionsbeskatningsloven_par55_metadata--
 ----
 § 55. Indkomstskattepligten i henhold til § 20, § 46, stk. 1, § 49, stk. 2,
 § 53, § 53 A, stk. 2, 3 og 5, og § 53 B, stk. 6, påhviler ejeren, den
@@ -275,7 +284,9 @@ efter ægtefællens død i henhold til policen m.v. er berettiget til pension, j
 § 30, stk. 2.
 ----
 
---@begin:pensionsbeskatningsloven_par55_udbetalingsmodtager--
+@ meta(pensionsbeskatningsloven_par55_metadata)
+@ section pensionsbeskatningsloven_par55_udbetalingsmodtager {
+
 | pbl49_arbejdsløshedsforsikringsudbetaling_resultat(fakta: Pbl49ArbejdsløshedsforsikringsudbetalingFakta) -> {
     = udbetalingsart_omfattet = pbl49_udbetalingsart_omfattet(fakta.art)
     = skatteyderen_er_skattepligtig_efter_par55 = pbl49_skatteyderen_er_skattepligtig_efter_par55(fakta.skatteyderrelation)
@@ -294,7 +305,8 @@ efter ægtefællens død i henhold til policen m.v. er berettiget til pension, j
         skattepligtigt_beløb_kroner = hvis kan_sammensættes && skatteyderen_er_skattepligtig_efter_par55 { undtagelsesresultat.skattepligtigt_beløb_kroner } ellers { 0 }
     )
 }
---@end:pensionsbeskatningsloven_par55_udbetalingsmodtager--
+
+}
 
 = kildeskatteloven_lbk1330_par2_stk9_og_par5a_5b = Pbl49KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2023/1330",
@@ -318,7 +330,6 @@ efter ægtefællens død i henhold til policen m.v. er berettiget til pension, j
     )
 )
 
---@label:pensionsbeskatningsloven_par49_til49b_samordning::meta:pensionsbeskatningsloven_par49_til49b_samordning_metadata--
 ----
 Kildeskatteloven § 2, stk. 9:
 
@@ -354,7 +365,9 @@ forhold:
 fradragsberettigede efter pensionsbeskatningsloven.
 ----
 
---@begin::pensionsbeskatningsloven_par49_til49b_samordning--
+@ meta(pensionsbeskatningsloven_par49_til49b_samordning_metadata)
+@ section pensionsbeskatningsloven_par49_til49b_samordning {
+
 | pbl49a_49b_skattepligtsbetingelse_opfyldt(position: Pbl49Skattepligtsposition) -> position == Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark || position == Pbl49GrænsegængerEfterKildeskattelovensPar5ATil5D
 
 # Pbl49Til49BBidragSag(indkomstår: Heltal, skattepligtsposition: Pbl49Skattepligtsposition, akassemedlemskab_indbetalt_kroner: Heltal, fakta: Pbl49Til49BBidragsfakta) {
@@ -430,4 +443,5 @@ fradragsberettigede efter pensionsbeskatningsloven.
         ikke_fradraget_kroner = pbl49_til49b_betalt_kroner(input.bidrag) - samlet_fradrag_kroner
     )
 }
---@end::pensionsbeskatningsloven_par49_til49b_samordning--
+
+}

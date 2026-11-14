@@ -39,7 +39,6 @@
     )
 )
 
---@label:ligningsloven_par30_behandlingsydelser::meta:ligningsloven_par30_metadata--
 ----
 § 30. Ved opgørelsen af den skattepligtige indkomst medregnes ikke ydelser,
 som afholdes af arbejdsgiveren til behandling af medarbejderens misbrug af
@@ -92,7 +91,9 @@ rygeafvænning, der gives til medlemmer af en fagforening, pensionskasse
 el.lign.
 ----
 
---@begin:ligningsloven_par30_behandlingsydelser--
+@ meta(ligningsloven_par30_metadata)
+@ section ligningsloven_par30_behandlingsydelser {
+
 # Ligningslov30Og31Yderrelation = Ll30Og31Arbejdsgiver | Ll30Og31AftaleOmPersonligtArbejde | Ll30Og31KollektivtOrgan | Ll30Og31Fagforening | Ll30Og31Arbejdsløshedskasse | Ll30Og31PensionskasseEllerLignende | Ll30Og31AndenFagligSammenslutning | Ll30Og31ArbejdsgivernesUddannelsesbidrag | Ll30Og31AndenYder
 # Ligningslov30Behandlingsformål = Ll30MisbrugAfMedicin | Ll30Alkoholmisbrug | Ll30MisbrugAfAndreRusmidler | Ll30Rygeafvænning
 # Ligningslov30Medicindækning = Ll30IngenMedicindækning | Ll30MedicinIndenForSeksMåneder | Ll30MedicinEfterSeksMånederUnderIndlæggelse | Ll30MedicinEfterSeksMånederUdenIndlæggelse
@@ -108,7 +109,8 @@ el.lign.
     | Ll30ForsikringspræmieEllerRefusion(forsikringsvilkårene_begrænser_dækningen_til_omfattet_behandling) -> forsikringsvilkårene_begrænser_dækningen_til_omfattet_behandling
 }
 | ligningslov30_betingelser_opfyldt(relation: Ligningslov30Og31Yderrelation, fakta: Ligningslov30Behandlingsfakta) -> ligningslov30_yderrelation_omfattet(relation) && fakta.generel_ordning_for_personkredsen && ligningslov30_lægeerklæring_opfyldt(fakta) && ligningslov30_medicinperiode_opfyldt(fakta) && ligningslov30_ydelsesart_opfyldt(fakta.ydelsesart)
---@end:ligningsloven_par30_behandlingsydelser--
+
+}
 
 = ligningsloven_lbk42_par31 = Ligningslov30Og31KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2023/42",
@@ -177,7 +179,6 @@ el.lign.
     )
 )
 
---@label:ligningsloven_par31_uddannelsesydelser::meta:ligningsloven_par31_metadata--
 ----
 § 9 A, stk. 2. Følgende satser kan anvendes til dækning af udgifter til logi,
 kost og småfornødenheder i stedet for de faktiske beløb:
@@ -299,7 +300,9 @@ I § 31, stk. 3, indsættes som nr. 5:
 § 3, stk. 2. § 1, nr. 5-8 og 11, og § 2 træder i kraft den 1. juli 2026.
 ----
 
---@begin:ligningsloven_par31_uddannelsesydelser--
+@ meta(ligningsloven_par31_metadata)
+@ section ligningsloven_par31_uddannelsesydelser {
+
 # Ligningslov31Uddannelsesydelsesart = Ll31SkoleEllerDeltagerbetaling(almindeligt_kørekort: Boolsk, yder_har_lovpligt_til_at_betale_kørekortet: Boolsk) | Ll31BøgerOgMaterialer(relevante_for_uddannelsen_eller_kurset: Boolsk) | Ll31FaktiskeLogiudgifter(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, dokumenterede_udgifter_kroner: Heltal) | Ll31FaktiskeKostudgifter(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, kosten_indtages_på_uddannelses_eller_kursusstedet: Boolsk, dokumenterede_udgifter_kroner: Heltal) | Ll31SatsgodtgørelseLogi(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, fulde_døgn: Heltal, udelukket_transportarbejde_efter_par9a_stk2_nr4: Boolsk) | Ll31SatsgodtgørelseKostOgSmåfornødenheder(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, fulde_døgn: Heltal, påbegyndte_timer_efter_fulde_døgn: Heltal, opholdets_måned_nr: Heltal, fri_morgenmad_antal: Heltal, fri_frokost_antal: Heltal, fri_aftensmad_antal: Heltal) | Ll31BefordringIEgenBilEllerMotorcykel(kilometer_ad_normal_transportvej: Heltal, adgang_til_fri_befordring_for_strækningen: Boolsk, modtaget_par9b_godtgørelse_for_samme_strækning: Boolsk, tidligere_valgt_par9b_for_samme_uddannelse_eller_kursus: Boolsk) | Ll31FaktiskeUdgifterTilAndenBefordring(dokumenterede_udgifter_kroner: Heltal) | Ll31AubTilskudEllerRefusion(modtaget_fra_og_med_1_juli_2026: Boolsk)
 # Ligningslov31Uddannelsesfakta(uddannelsen_eller_kurset_udelukkende_privat: Boolsk, ydelsesart: Ligningslov31Uddannelsesydelsesart)
 # Ligningslov30Og31Lovversion = Ll30Og31Lbk42Af2023 | Ll30Og31Lbk1500Af2025 | Ll30Og31LovversionUdenKildedækning
@@ -394,4 +397,5 @@ I § 31, stk. 3, indsættes som nr. 5:
         skattepligtigt_beløb_kroner = hvis input_gyldigt { beløb_kroner - skattefri_beløb_kroner } ellers { 0 }
     )
 }
---@end:ligningsloven_par31_uddannelsesydelser--
+
+}

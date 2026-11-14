@@ -81,7 +81,6 @@
     )
 )
 
---@label:ebl_par6a::meta:ebl_par6a_metadata--
 ----
 § 6 A. Såfremt den skattepligtige erhverver en ejendom, der er omfattet af
 lovens regler, med undtagelse af ejendomme, der er omfattet af § 8, kan den
@@ -173,7 +172,9 @@ Stk. 6. Skatteministeren kan fastsætte nærmere regler om indgivelse af og
 indholdet i begæringer efter stk. 2.
 ----
 
---@begin:ebl_par6a--
+@ meta(ebl_par6a_metadata)
+@ section ebl_par6a {
+
 # EblGenanbringelsesHjemmel = EblIngenGenanbringelse | EblGenanbringelseEfterPar6A | EblGenanbringelseEfterPar6C | EblGenanbringelseEfterPar10
 # EblGenanbragtFortjenesteregulering(tillæg_for_genanbragt_del_kroner: Heltal, nedslag_for_genanbragt_del_kroner: Heltal)
 # EblOprindeligErhvervsfortjeneste(afståelsesindkomstår: Heltal, erhvervsfortjeneste_før_par6_stk2_kroner: Heltal, regulering: EblGenanbragtFortjenesteregulering)
@@ -273,7 +274,8 @@ indholdet i begæringer efter stk. 2.
     )
 }
 | ebl_par6a_resultat(fakta: EblPar6AFakta) -> ebl_par6a_genanbringelsesresultat(fakta, EblGenanbringelseEfterPar6A, Sandt)
---@end:ebl_par6a--
+
+}
 
 = ebl_par6c_metadata = Metadata(
     attachments = (
@@ -283,7 +285,6 @@ indholdet i begæringer efter stk. 2.
     )
 )
 
---@label:ebl_par6c::meta:ebl_par6c_metadata--
 ----
 § 6 C. Såfremt den skattepligtige ombygger, tilbygger eller nybygger på en
 ejendom, der er omfattet af § 6 A, kan den skattepligtige i stedet for at
@@ -293,12 +294,15 @@ eller nybygningen med fortjenesten.
 § 6 A finder tilsvarende anvendelse.
 ----
 
---@begin:ebl_par6c--
+@ meta(ebl_par6c_metadata)
+@ section ebl_par6c {
+
 # EblPar6CArbejdsart = EblPar6COmbygning | EblPar6CTilbygning | EblPar6CNybygning
 # EblPar6CFakta(par6a_fakta: EblPar6AFakta, arbejdsart: EblPar6CArbejdsart, arbejde_påbegyndt: Boolsk)
 
 | ebl_par6c_resultat(fakta: EblPar6CFakta) -> ebl_par6a_genanbringelsesresultat(fakta.par6a_fakta, EblGenanbringelseEfterPar6C, fakta.arbejde_påbegyndt)
---@end:ebl_par6c--
+
+}
 
 = ebl_par10_metadata = Metadata(
     attachments = (
@@ -311,7 +315,6 @@ eller nybygningen med fortjenesten.
     )
 )
 
---@label:ebl_par10::meta:ebl_par10_metadata--
 ----
 § 10. Såfremt en skattepligtig i anledning af en indtruffen skade på en
 ejendom, der ikke er omfattet af § 8, har modtaget en erstatnings- eller
@@ -393,7 +396,9 @@ flere af ejendommens bygninger er afskrivningsberettigede, skal reglerne i
 afskrivningslovens § 24 samtidig anvendes.
 ----
 
---@begin:ebl_par10--
+@ meta(ebl_par10_metadata)
+@ section ebl_par10 {
+
 # EblPar10Fristforhold = EblPar10UdenFristforlængelse | EblPar10FristforlængelseTilladt(til_indkomstår: Heltal)
 # EblPar10Meddelelse = EblPar10MeddelelseVedOplysningerEfterSkattekontrollovensPar2 | EblPar10BegæringEfterAnsættelsesændring(meddelelse_modtaget: EblDato, begæring_indgivet: EblDato) | EblPar10MeddelelseForSen
 # EblPar10AndenEjendomsgrund = EblPar10LovEllerMyndighedHindrerGenopførelsePåSkadested | EblPar10SammeEjersErhvervsejendommeUdgørDriftsenhed
@@ -723,7 +728,8 @@ afskrivningslovens § 24 samtidig anvendes.
         skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner = hvis betingelser_opfyldt { ebl_par10_fordelt_skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner(fordelingsresultat.fordelinger, ejendomsidentifikation) } ellers { 0 }
     )
 }
---@end:ebl_par10--
+
+}
 
 = ebl_genanbringelse_klassifikationsskifte_metadata = Metadata(
     attachments = (
@@ -733,7 +739,6 @@ afskrivningslovens § 24 samtidig anvendes.
     )
 )
 
---@label:ebl_genanbringelse_klassifikationsskifte::meta:ebl_genanbringelse_klassifikationsskifte_metadata--
 ----
 Bestemmelserne i § 8, stk. 5, og § 9, stk. 4, har virkning for ejendomme, der
 afstås den 14. december 2005 eller senere.
@@ -743,7 +748,9 @@ stk. 1-3, og for ejendomme omfattet af § 9, i det omfang boligandelen er
 forøget før den 15. december 2005.
 ----
 
---@begin:ebl_genanbringelse_klassifikationsskifte--
+@ meta(ebl_genanbringelse_klassifikationsskifte_metadata)
+@ section ebl_genanbringelse_klassifikationsskifte {
+
 # EblGenanbringelse = EblUdenAktivGenanbringelse | EblMedGenanbringelseEfterPar6A(fakta: EblPar6AFakta) | EblMedGenanbringelseEfterPar6C(fakta: EblPar6CFakta) | EblMedGenanbringelseEfterPar10(fakta: EblPar10Fakta, genopført_ejendom_identifikation: Tekst)
 
 | ebl_ingen_genanbringelsesresultat() -> EblGenanbringelsesResultat(
@@ -772,4 +779,5 @@ forøget før den 15. december 2005.
 }
 | ebl_genanbringelse_klassifikationsskiftedato_gyldig(genanbringelse: EblGenanbringelse, ændringsdato: EblDato, afståelsesdato: EblDato) -> ebl_genanbringelsesindkomstår(genanbringelse) > 0 && ebl_dato_gyldig(ændringsdato) && ændringsdato.år >= ebl_genanbringelsesindkomstår(genanbringelse) && ebl_dato_før_eller_lig_med(ændringsdato, afståelsesdato)
 | ebl_genanbringelse_klassifikationsregel_virker(afståelsesdato: EblDato, ændringsdato: EblDato) -> ebl_dato_gyldig(ændringsdato) && ebl_dato_før_eller_lig_med(ændringsdato, afståelsesdato) && ebl_dato_yyyymmdd(afståelsesdato) >= 20051214 && ebl_dato_yyyymmdd(ændringsdato) >= 20051215
---@end:ebl_genanbringelse_klassifikationsskifte--
+
+}

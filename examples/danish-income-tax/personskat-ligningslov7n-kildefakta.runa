@@ -13,7 +13,6 @@
     )
 )
 
---@label:personskat_ligningslov7n_kildefakta::meta:personskat_ligningslov7n_kildefakta_metadata--
 ----
 § 7 N. Ved opgørelsen af den skattepligtige indkomst for medarbejderdeltagere,
 der deltager i en medarbejderinvesteringsordning efter lov om
@@ -102,7 +101,9 @@ der er omfattet af aktieavancebeskatningslovens § 19 C. Aktieindkomst omfatter
 endvidere ikke udbytte efter ligningslovens § 16 A, stk. 5.
 ----
 
---@begin:personskat_ligningslov7n_kildefakta--
+@ meta(personskat_ligningslov7n_kildefakta_metadata)
+@ section personskat_ligningslov7n_kildefakta {
+
 # PersonskatLigningslov7NFakta(identifikation: Tekst, indkomstår: Heltal, selskab: Ligningslov7NSelskab, postart: Ligningslov7NPostart, beløb_kroner: Heltal, kontant_løn_minus_amb_fra_arbejdsgiver_kroner: Heltal, registreret_i_erhvervsstyrelsen: Boolsk, godkendt_eu_eøs_selskab: Boolsk, godkendelse_tilbagekaldt: Boolsk)
 # PersonskatLigningslov7NPostresultat(fakta: PersonskatLigningslov7NFakta, identifikation_unik: Boolsk, grundfakta_gyldige: Boolsk, tidligere_bortset_arbejdsgiverindskud_i_året_kroner: Heltal, ligningslov_input: Ligningslov7NInput, ligningslov_resultat: Ligningslov7NResultat, par4_stk7_resultat: Par4Stk7Ligningslov7NResultat, par4a_resultat: Par4aLigningslov7NResultat, input_gyldigt: Boolsk, kapitalpost: Par4Kapitalpost, aktiepost: Par4aAktiepost)
 # PersonskatLigningslov7NForløbstilstand(tidligere_bortset_arbejdsgiverindskud_i_året_kroner: Heltal, postresultater: List(PersonskatLigningslov7NPostresultat), alle_input_gyldige: Boolsk)
@@ -183,4 +184,5 @@ endvidere ikke udbytte efter ligningslovens § 16 A, stk. 5.
         aktieposter = hvis alle_input_gyldige { map(forløb.postresultater, |resultat: PersonskatLigningslov7NPostresultat| resultat.aktiepost) } ellers { [] }
     )
 }
---@end:personskat_ligningslov7n_kildefakta--
+
+}

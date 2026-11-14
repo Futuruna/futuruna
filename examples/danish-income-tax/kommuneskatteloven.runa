@@ -241,7 +241,7 @@ beløb, der tilkommer en andelsberettiget kommune.
 = kommuneskat_par5_stk1_stk3_kildemeta = Source(
     value = kommuneskatteloven_lbk935_par5
 )
---@label:kommuneskatteloven_par5_stk1_stk3::meta:kommuneskat_par5_stk1_stk3_kildemeta--
+
 ----
 § 5. Kommunal indkomstskat beregnes på grundlag af den i henhold til
 personskatteloven opgjorte skattepligtige indkomst.
@@ -257,7 +257,9 @@ Stk. 3. Omfatter indkomstansættelsen for en person en kortere periode end et
 indkomstskatten til staten.
 ----
 
---@begin::kommuneskatteloven_par5_stk1_stk3--
+@ meta(kommuneskat_par5_stk1_stk3_kildemeta)
+@ section kommuneskatteloven_par5_stk1_stk3 {
+
 # KommunalIndkomstskatInput(skattepligtig_indkomst_kroner: Heltal, udskrivningsprocent_basispoint: Heltal)
 # KommunalPar5DelårInput(omfatter_kortere_periode_end_år: Boolsk, omregning: Par14OmregningInput, valg: Par14ValgResultat, kommunal_helårsskat_kroner: Heltal, kommunal_skat_som_helårsskattepligtig_kroner: Heltal, stk2_indkomstfordeling: Par14Stk2Indkomstfordeling)
 # KommunalPar5DelårResultat(input_gyldigt: Boolsk, omfatter_kortere_periode_end_år: Boolsk, tilsvarende_par14_skattekomponent: Par14SkattekomponentResultat, kommunal_indkomstskat_efter_delår_kroner: Heltal)
@@ -293,7 +295,8 @@ indkomstskatten til staten.
 | kommunal_indkomstskat_før_personfradrag_kroner(input: KommunalIndkomstskatInput) -> penge_beløb_gange_basispoint_kroner(kommunal_indkomstskat_grundlag_kroner(input), input.udskrivningsprocent_basispoint)
 | kommunal_par5_delår_sag(input: KommunalPar5DelårInput) -> KommunalPar5DelårSag(input)
 | kommunal_par5_delår_resultat(input: KommunalPar5DelårInput) -> kommunal_par5_delår_sag(input).resultat()
---@end::kommuneskatteloven_par5_stk1_stk3--
+
+}
 
 ----
 § 6. Kommunal indkomstskat svares med en udskrivningsprocent, der fastsættes af
@@ -463,7 +466,7 @@ afskrivningslovens § 40 C, stk. 8-10.
 = kommuneskat_par16a_lov720_kildemeta = Source(
     value = kommuneskatteloven_lov720_par2
 )
---@label:kommuneskatteloven_par16a_lov720::meta:kommuneskat_par16a_lov720_kildemeta--
+
 ----
 § 2
 
@@ -508,7 +511,9 @@ Stk. 1. Loven træder i kraft den 1. juli 2025.
 Stk. 2. Loven har virkning fra og med tilskudsåret 2026.
 ----
 
---@begin::kommuneskatteloven_par16a_lov720--
+@ meta(kommuneskat_par16a_lov720_kildemeta)
+@ section kommuneskatteloven_par16a_lov720 {
+
 # KommunalPar16aStk1Input(kommunal_indkomstskat_efter_par16_stk1_kroner: Heltal, tilskuds_og_udligningsbeløb_til_efterregulering_kroner: Heltal, indtægt_ved_statsgaranteret_udskrivningsgrundlag_kroner: Heltal, statsgaranterede_tilskuds_og_udligningsbeløb_kroner: Heltal)
 # KommunalPar16aNationalInput(kalenderår: Heltal, samlede_stk1_beløb_kroner: Heltal, samlede_positive_stk1_beløb_kroner: Heltal, forrige_års_korrektionsramme_kroner: Heltal, udvikling_i_statsgaranteret_udskrivningsgrundlag_basispoint: Heltal)
 # KommunalPar16aInput(budgetvalg: KommunalBudgetvalg, kommune: KommunalPar16aStk1Input, nationalt: KommunalPar16aNationalInput)
@@ -545,7 +550,8 @@ Stk. 2. Loven har virkning fra og med tilskudsåret 2026.
 | kommunal_par16a_resultat(input: KommunalPar16aInput) -> kommunal_par16a_sag(input).resultat()
 | exception kommunal_par16a_korrektion_anvendes kommunal_par16_anvendt_korrektionsbeløb_efter_par16a_kroner(input: KommunalPar16EfterreguleringInput) -> penge_positivt_beløb(input.korrektionsbeløb_efter_par16a_kroner) under kommunal_par16_omfattes_af_efterregulering(input) && input.kalenderår >= 2026
 | exception kommunal_par16a_korrektion_fratrækkes kommunal_par16_efterreguleringsbeløb_kroner(input: KommunalPar16EfterreguleringInput) -> kommunal_par16_efterreguleringsbeløb_før_par16a_kroner(input) - kommunal_par16_anvendt_korrektionsbeløb_efter_par16a_kroner(input) under kommunal_par16_anvendt_korrektionsbeløb_efter_par16a_kroner(input) > 0
---@end::kommuneskatteloven_par16a_lov720--
+
+}
 
 | kommunal_par16_stk3_absolut_beløb_kroner(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner) + penge_positivt_beløb(0 - beløb_kroner)
 | kommunal_par16_stk3_samlet_efterregulering_kroner(input: KommunalPar16Stk3TillægInput) -> input.efterreguleringsbeløb_kroner + input.udligning_efterreguleringsbeløb_kroner

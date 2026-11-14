@@ -230,8 +230,6 @@ https://info.skat.dk/data.aspx?oid=1977389
     )
 )
 
---@label:beregn_personskat_delår::meta:personskat_par14_beregningsmeta--
-
 -- Vurder den afsluttede § 14-beregning, ikke et indlejret helårsmellemtrin.
 -- Afregningen valideres mod dette trins skat, ikke den ordinære mellemregning.
 | personskat_par14_beregningsvurdering(kontroller: List(PersonskatInputkontrol), afregningskontroller: List(PersonskatInputkontrol), slutskat_øre: Heltal) -> {
@@ -874,5 +872,6 @@ https://info.skat.dk/data.aspx?oid=1977389
 
 | personskat_par14_beregningssag(input: PersonskatPar14Input) -> PersonskatPar14BeregningSag(input)
 
+@ meta(personskat_par14_beregningsmeta)
 @ calculate("Dansk personskat ved delårsskattepligt")
 | beregn_personskat_delår(input: PersonskatPar14Input) -> personskat_par14_beregningssag(input).resultat()

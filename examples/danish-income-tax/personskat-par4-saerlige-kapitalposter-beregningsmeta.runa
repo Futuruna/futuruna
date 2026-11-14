@@ -216,13 +216,13 @@
     )
 )
 
---@label:PersonskatPar4SærligKapitalpostfakta::meta:personskat_par4_særlige_kapitalposter_beregningsmeta--
---@label:Afskrivningslov40CÅrskildefakta::meta:personskat_al40c_år_beregningsmeta--
---@label:Afskrivningslov40CPrimosaldo::meta:personskat_al40c_primosaldo_beregningsmeta--
---@label:Afskrivningslov40CSaldoposition::meta:personskat_al40c_saldoposition_beregningsmeta--
---@label:Afskrivningslov40CPosition::meta:personskat_al40c_position_beregningsmeta--
---@label:Afskrivningslov40CAktivgrundlag::meta:personskat_al40c_aktivgrundlag_beregningsmeta--
---@label:Afskrivningslov40CAnskaffelsesgrundlag::meta:personskat_al40c_anskaffelsesgrundlag_beregningsmeta--
---@label:Afskrivningslov40DInput::meta:personskat_al40d_input_beregningsmeta--
---@label:Afskrivningslov40DÅrstilgangsfakta::meta:personskat_al40d_årstilgang_beregningsmeta--
---@label:Afskrivningslov40CÅrshændelse::meta:personskat_al40c_hændelse_beregningsmeta--
+@ meta(personskat_par4_særlige_kapitalposter_beregningsmeta) for PersonskatPar4SærligKapitalpostfakta
+@ meta(personskat_al40c_år_beregningsmeta) for Afskrivningslov40CÅrskildefakta
+@ meta(personskat_al40c_primosaldo_beregningsmeta) for Afskrivningslov40CPrimosaldo
+@ meta(personskat_al40c_saldoposition_beregningsmeta) for Afskrivningslov40CSaldoposition
+@ meta(personskat_al40c_position_beregningsmeta) for Afskrivningslov40CPosition
+@ meta(personskat_al40c_aktivgrundlag_beregningsmeta) for Afskrivningslov40CAktivgrundlag
+@ meta(personskat_al40c_anskaffelsesgrundlag_beregningsmeta) for Afskrivningslov40CAnskaffelsesgrundlag
+@ meta(personskat_al40d_input_beregningsmeta) for Afskrivningslov40DInput
+@ meta(personskat_al40d_årstilgang_beregningsmeta) for Afskrivningslov40DÅrstilgangsfakta
+@ meta(personskat_al40c_hændelse_beregningsmeta) for Afskrivningslov40CÅrshændelse

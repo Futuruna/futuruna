@@ -8,6 +8,7 @@
 # ArbejdsfradragAuditBeløb(almindeligt_beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal)
 # ArbejdsfradragAuditResultat(afgrænsning: Ll9jUdlandsresultat, fradrag_til_sammenligning: Option(ArbejdsfradragAuditBeløb), forbehold: List(Tekst))
 
+@ meta(arbejdsfradrag_meta)
 @ calculate("Arbejdsfradrag med indkomstspecifik udlandsafgrænsning (2023–2026)")
 > arbejdsfradrag_audit(input: ArbejdsfradragAuditInput) -> ArbejdsfradragAuditResultat {
     = afgrænsning = ll9j_udlandsresultat(input.skatteår, input.grundlag_før_udlandsafgrænsning_kroner, input.grundlag_kildereference, input.fordeling)
@@ -37,4 +38,3 @@
 = arbejdsfradrag_felt_grundlag = TypetBeregningsfelt(path = refof(ArbejdsfradragAuditInput::grundlag_før_udlandsafgrænsning_kroner), label = "Selvstændigt opgjort arbejdsfradragsgrundlag", question = Some("Hvad er årets opgjorte § 9 J-grundlag før udlandsundtagelsen?"), help = Some("Ikke nettoløn eller årsopgørelsens fradrag. Medtag kun lovens relevante AM-grundlag og pensionsbidrag; bevar null, hvis opgørelsen mangler. Gæt ikke baglæns fra fradraget."), unit = Some("kr./år"))
 = arbejdsfradrag_felt_kilde = TypetBeregningsfelt(path = refof(ArbejdsfradragAuditInput::grundlag_kildereference), label = "Grundlagets dokumentation", question = Some("Hvor findes den selvstændige opgørelse af grundlaget?"), help = Some("Brug en lokal henvisning, ikke CPR eller upload af dokumenter. Fordelingslisten skal stemme med denne opgørelse."), unit = None)
 = arbejdsfradrag_meta = TypetBeregningsmeta(felter = [arbejdsfradrag_felt_år, arbejdsfradrag_felt_grundlag, arbejdsfradrag_felt_kilde], spørgsmål = [], beløbsfelter = [], attachments = (Source(value = ll9j_udland_lovkilde), Guidance(value = ll9j_udland_bemærkninger)))
---@label:arbejdsfradrag_audit::meta:arbejdsfradrag_meta--

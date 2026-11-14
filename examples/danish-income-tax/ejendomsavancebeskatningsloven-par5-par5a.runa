@@ -52,7 +52,21 @@
     )
 )
 
---@label:ebl_par5_par5a::meta:ebl_par5_par5a_metadata--
+= ebl_par5_par5a_natur_fra_2027_ændringsmeta = AmendmentSource(
+    value = ebl_par5_lov615
+)
+----
+I § 5, stk. 6, 1. pkt., ændres »landbrugsejendom« til: »landbrugs-, skov- og
+naturejendom«.
+
+I § 5 A, stk. 1, 1. pkt., og § 9, stk. 1, 1. pkt., ændres »landbrugs- eller
+skovejendom« til: »landbrugs-, skov- og naturejendom«.
+
+§§ 3-12 har virkning fra og med den 1. januar 2027.
+----
+
+@ meta(ebl_par5_par5a_natur_fra_2027_ændringsmeta) for ebl_par5_par5a_natur_fra_2027
+
 ----
 § 5. Anskaffelsessummen forhøjes med et tillæg på 10.000 kr. for
 anskaffelsesåret og hvert af de efterfølgende kalenderår, hvori den
@@ -249,21 +263,9 @@ reguleres efter stk. 1 fra kalenderåret for vedligeholdelsesarbejdets eller
 forbedringens fuldførelse til det kalenderår, hvori ejendommen afstås.
 ----
 
-= ebl_par5_par5a_natur_fra_2027_ændringsmeta = AmendmentSource(
-    value = ebl_par5_lov615
-)
---@label:ebl_par5_par5a_natur_fra_2027::meta:ebl_par5_par5a_natur_fra_2027_ændringsmeta--
-----
-I § 5, stk. 6, 1. pkt., ændres »landbrugsejendom« til: »landbrugs-, skov- og
-naturejendom«.
+@ meta(ebl_par5_par5a_metadata)
+@ section ebl_par5_par5a {
 
-I § 5 A, stk. 1, 1. pkt., og § 9, stk. 1, 1. pkt., ændres »landbrugs- eller
-skovejendom« til: »landbrugs-, skov- og naturejendom«.
-
-§§ 3-12 har virkning fra og med den 1. januar 2027.
-----
-
---@begin:ebl_par5_par5a--
 # EblDato(år: Heltal, måned: Heltal, dag: Heltal)
 # EjendomsavancePar4Anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag | EblPar4Stk3Nr1Anskaffelsesgrundlag | EblPar4Stk3Nr2Anskaffelsesgrundlag | EblPar4DagældendeVurderingslov4BAnskaffelsesgrundlag | EblPar4Stk3TredjePktAnskaffelsesgrundlag(tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner: Heltal) | EblPar4Stk3FemtePktUdenlandskHandelsværdiAnskaffelsesgrundlag | EblPar4Stk3SjettePktUdenlandskFaktiskAnskaffelsesgrundlag
 # EblPar5Udgiftsstatus = EblPar5UdgiftMedregningsberettiget | EblPar5UdgiftMedGenanbragtFortjenesteEfterPar6C(nedslag_for_afstået_del_kroner: Heltal) | EblPar5UdgiftKunStandardfradragEfterTidligereLigningslov15J | EblPar5UdgiftFradragsberettiget | EblPar5UdgiftStraksfradragetEllerStraksafskrevet | EblPar5UdgiftFredetBygningMedFremtidigtFradrag | EblPar5UdgiftModsvaretAfSkattefritTilskud | EblPar5UdgiftFradragetEfterTidligereLigningslov15N | EblPar5UdgiftLigningslov16TillagtBeregningsgrundlag | EblPar5UdgiftLigningslov16IkkeTillagtBeregningsgrundlag | EblPar5UdgiftEfterSenesteLigningslov16Omfattelse | EblPar5UdgiftFredetBygningUdenIndkomstfradrag
@@ -669,4 +671,5 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
 }
 | ebl_par5_sag(fakta: EblPar5Fakta, afståelsesdato: EblDato, anskaffelsessum_før_par5_kroner: Heltal) -> EblPar5Sag(fakta, afståelsesdato, anskaffelsessum_før_par5_kroner)
 | ebl_par5_resultat(fakta: EblPar5Fakta, afståelsesdato: EblDato, anskaffelsessum_før_par5_kroner: Heltal) -> ebl_par5_sag(fakta, afståelsesdato, anskaffelsessum_før_par5_kroner).resultat()
---@end:ebl_par5_par5a--
+
+}

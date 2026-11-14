@@ -13,7 +13,6 @@
     )
 )
 
---@label:personskat_investeringsbevis_beholdning::meta:personskat_investeringsbevis_beholdning_metadata--
 ----
 Scenarierne er ikke lovtekst. De kontrollerer den fælles, identificerede
 beholdning, som fører anskaffelsessummen efter ABL § 27 gennem gentagne
@@ -22,7 +21,9 @@ Personskat-grænse kontrollerer desuden, at samme udsteder ikke bruges i begge
 ruter for samme person, uden at sammenblande to ægtefællers beholdninger.
 ----
 
---@begin:personskat_investeringsbevis_beholdning--
+@ meta(personskat_investeringsbevis_beholdning_metadata)
+@ section personskat_investeringsbevis_beholdning {
+
 = personskat_investeringsbevis_par27_andel = AktieavancePar27OprindeligAndel(
     selskabsidentifikation = "DK-MIN-FÆLLES-1",
     kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
@@ -298,4 +299,5 @@ ruter for samme person, uden at sammenblande to ægtefællers beholdninger.
 ? scenarie_investeringsbevis_holder_ægtefællers_ruter_adskilt
 
 @ print("Investeringsbevisbeholdning: 13 kildebaserede scenarier kontrolleret")
---@end:personskat_investeringsbevis_beholdning--
+
+}

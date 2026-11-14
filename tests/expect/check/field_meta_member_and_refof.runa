@@ -4,6 +4,7 @@
 -- expect-status: fail
 -- expect-stderr: duplicate field metadata for `child.age` in bindings `child_meta.fields[0]` and `Child::age`
 
+@ meta(child_meta)
 # Child(
     @ field(label = "Age")
     age: Int
@@ -17,8 +18,6 @@
 = child_meta = RelativeMeta(fields = [
     RelativeField(path = refof(Child::age), label = "Child age")
 ])
-
---@label:Child::meta:child_meta--
 
 @ calculate
 | tax(input: Input) -> TaxResult(tax = input.child.age)

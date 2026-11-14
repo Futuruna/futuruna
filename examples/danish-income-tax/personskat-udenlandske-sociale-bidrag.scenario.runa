@@ -10,14 +10,15 @@
     )
 )
 
---@label:personskat_udenlandske_sociale_bidrag_scenarier::meta:personskat_udenlandske_sociale_bidrag_scenarier_metadata--
 ----
 Scenarierne er ikke lovtekst. De fastholder kæden fra borgerens fakta gennem
 ligningslovens § 8 M og personskattelovens § 3, stk. 2, nr. 6 til den
 kanoniske beregning af personlig indkomst.
 ----
 
---@begin:personskat_udenlandske_sociale_bidrag_scenarier--
+@ meta(personskat_udenlandske_sociale_bidrag_scenarier_metadata)
+@ section personskat_udenlandske_sociale_bidrag_scenarier {
+
 | personskat_socialbidrag_scenarie_input(sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, skatteforhold: PersonskatSkatteforholdInput) -> PersonskatInput(
     lønmodtager = PersonskatLønmodtagerInput(
         skatteår = 2026,
@@ -159,4 +160,5 @@ kanoniske beregning af personlig indkomst.
 ? personskat_socialbidrag_begrænset_arbejdsgiverbidrag_fradrages
 ? personskat_socialbidrag_uforenelig_skattepligt_afvises
 ? personskat_socialbidrag_personfradragsundtagelse_er_ikke_skattepligtsbevis
---@end:personskat_udenlandske_sociale_bidrag_scenarier--
+
+}

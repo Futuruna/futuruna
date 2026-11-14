@@ -13,14 +13,14 @@
     )
 )
 
---@label:ligningslov33_fragtskat_scenarier::meta:ligningslov33_fragtskat_scenarier_metadata--
 ----
 Scenarierne er ikke lovtekst. De fastholder den årsopdelte saldo for fragtskat
 efter ligningslovens § 33, stk. 9, uden at indføre en udløbsfrist eller en
 anvendelsesrækkefølge, som ikke findes i den gældende bestemmelse.
 ----
 
---@begin:ligningslov33_fragtskat_scenarier--
+@ meta(ligningslov33_fragtskat_scenarier_metadata)
+@ section ligningslov33_fragtskat_scenarier {
 
 | ll33_fragtskat_scenarie_skattebetaling(identifikation: Tekst, skatteart: Ligningslov33UdenlandskSkatteart, betalt_skat_øre: Heltal, overenskomstgrundlag: Ligningslov33Overenskomstgrundlag) -> Ligningslov33Skattebetaling(
     opkrævningsmåde = Ll33DirektePåligning,
@@ -316,4 +316,4 @@ anvendelsesrækkefølge, som ikke findes i den gældende bestemmelse.
 ? ll33_fragtskat_scenarie_fremført_saldo_kan_bruges_uden_ny_fragtskat
 ? ll33_fragtskat_scenarie_ugyldig_skattebetaling_kan_ikke_udelades
 
---@end:ligningslov33_fragtskat_scenarier--
+}

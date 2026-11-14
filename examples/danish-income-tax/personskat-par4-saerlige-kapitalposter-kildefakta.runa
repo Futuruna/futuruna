@@ -15,7 +15,6 @@
     )
 )
 
---@label:personskat_par4_saerlige_kapitalposter_kildefakta::meta:personskat_par4_saerlige_kapitalposter_kildefakta_metadata--
 ----
 § 4. Kapitalindkomst omfatter det samlede nettobeløb af
 9) indkomst ved selvstændig erhvervsvirksomhed, når antallet af ejere er større
@@ -42,7 +41,9 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 § 8 P, stk. 2 og 3, medregnes ikke ved opgørelsen af antallet af ejere i stk. 1, nr. 9.
 ----
 
---@begin:personskat_par4_saerlige_kapitalposter_kildefakta--
+@ meta(personskat_par4_saerlige_kapitalposter_kildefakta_metadata)
+@ section personskat_par4_saerlige_kapitalposter_kildefakta {
+
 # PersonskatPar4Virksomhedsopgørelseskilde(indtægter: List(PersonskatVirksomhedsindtægtFakta), udgifter: List(PersonskatVirksomhedsudgiftFakta), ligningslovsfradrag_efter_par3_stk2_nr2: List(PersonskatPar3Nr2Ligningslovsfakta), erhvervsposter_efter_par3_stk2_nr4_til_10: List(PersonskatPar3Erhvervspostfakta))
 # PersonskatPar4Nr9Virksomhedsklassifikation(virksomhed: PersonskatPar4Virksomhedsopgørelseskilde, virksomhedstype: Par4Stk1Nr9Virksomhedstype, samlet_ejerantal: Heltal, personligt_ejerantal: Heltal, ligningslov8p_ejere_der_ikke_medregnes: Heltal, deltager_væsentligt_i_drift: Boolsk)
 # PersonskatPar4Nr11Udlejningsklassifikation(virksomhed: PersonskatPar4Virksomhedsopgørelseskilde, aktiv: Par4Stk1Nr11Udlejningsaktiv, anskaffelse: Anskaffelsesstatus, skatteråds_tilladelse: SkatterådsTilladelse, rådets_skøn: RådetsSkøn, deltager_væsentligt_i_drift: Boolsk)
@@ -199,4 +200,5 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 | personskat_par4_særlige_postresultater(fakta: List(PersonskatPar4SærligKapitalpostfakta), skatteår: Heltal) -> personskat_par4_særlige_postresultater_med_personlige_virksomheder(fakta, skatteår, [])
 | personskat_par4_særlige_postresultater_gyldige(resultater: List(PersonskatPar4SærligKapitalpostresultat)) -> all(resultater, |resultat: PersonskatPar4SærligKapitalpostresultat| resultat.input_gyldigt)
 | personskat_par4_særlige_kapitalposter(resultater: List(PersonskatPar4SærligKapitalpostresultat)) -> hvis personskat_par4_særlige_postresultater_gyldige(resultater) { map(resultater, |resultat: PersonskatPar4SærligKapitalpostresultat| resultat.kapitalpost) } ellers { [] }
---@end:personskat_par4_saerlige_kapitalposter_kildefakta--
+
+}

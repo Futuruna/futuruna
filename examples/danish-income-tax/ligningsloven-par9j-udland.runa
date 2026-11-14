@@ -7,7 +7,6 @@
 = ll9j_udland_bemærkninger = Ll9jUdlandKilde(url = "https://www.ft.dk/ripdf/samling/20171/lovforslag/l238/20171_l238_som_fremsat.pdf", identifier = "L 238, 2017-18, bemærkninger til § 1, nr. 3, trykt side 15-16: videreførelse af indkomstspecifik undtagelse", hentet_dato = "2026-09-23")
 = ll9j_udland_meta = Metadata(attachments = (Source(value = ll9j_udland_lovkilde), Guidance(value = ll9j_udland_bemærkninger)))
 
---@label:ll9j_udlandsafgrænsning::meta:ll9j_udland_meta--
 -- § 9 J-undtagelsen kræver samtidig DBO-hjemsted i en fremmed stat,
 -- Grønland eller Færøerne, arbejde udført i udlandet og udenlandsk arbejdsgiver.
 -- L 238 præciserer, at undtagelsen vedrører den pågældende indkomst.
@@ -15,9 +14,14 @@
 -- Grundlaget er allerede opgjort efter § 9 J, stk. 1, 1.-4. pkt.; det er
 -- hverken al udenlandsk indkomst, nettoløn, betalt AM eller et oplyst fradrag.
 -- Modellen fastlægger ikke DBO-hjemsted eller arbejdsgiverens hjemsted.
---@begin:ll9j_udlandsafgrænsning--
+@ meta(ll9j_udland_meta)
+@ section ll9j_udlandsafgrænsning {
+
+@ meta(ll9j_udland_forholdsmeta)
 # Ll9jIndkomstforhold = Ll9jIndkomstforholdUoplyst | Ll9jIkkeAnsættelsesindkomst | Ll9jAnsættelsesindkomst(dbo_hjemmehørende_udland: Option(Boolsk), arbejde_udført_udland: Option(Boolsk), udenlandsk_arbejdsgiver: Option(Boolsk))
+@ meta(ll9j_udland_postmeta)
 # Ll9jGrundlagspost(identifikation: Tekst, indkomstkilde: Tekst, kildereference: Tekst, indkomstår: Heltal, første_dag_i_året: Heltal, sidste_dag_i_året: Heltal, grundlag_kroner: Heltal, forhold: Ll9jIndkomstforhold)
+@ meta(ll9j_udland_fordelingsmeta)
 # Ll9jUdlandsfordeling(alle_kilder_og_perioder_oplyst: Boolsk, poster: List(Ll9jGrundlagspost))
 # Ll9jUdlandsgrundlag(grundlag_før_udlandsafgrænsning_kroner: Heltal, udelukket_udenlandsk_ansættelsesindkomst_kroner: Heltal, grundlag_efter_udlandsafgrænsning_kroner: Heltal)
 # Ll9jUdlandsresultat(skatteår: Heltal, fordeling: Ll9jUdlandsfordeling, kontroller: List(PersonskatInputkontrol), alle_input_gyldige: Boolsk, grundlag: Option(Ll9jUdlandsgrundlag))
@@ -68,18 +72,17 @@
     } ellers { None }
     Ll9jUdlandsresultat(skatteår = skatteår, fordeling = fordeling, kontroller = kontroller, alle_input_gyldige = gyldigt, grundlag = grundlag)
 }
---@end:ll9j_udlandsafgrænsning--
+
+}
 
 = ll9j_udland_felt_komplet = TypetBeregningsfelt(path = refof(Ll9jUdlandsfordeling::alle_kilder_og_perioder_oplyst), label = "Alle indkomstkilder og perioder gennemgået", question = Some("Omfatter fordelingen hele årets allerede opgjorte arbejdsfradragsgrundlag?"), help = Some("Start med falsk. Medtag også dansk indkomst, relevante pensionsbidrag og negative øvrige grundlag. En indkomst må kun indgå én gang."), unit = None)
 = ll9j_udland_felt_poster = TypetBeregningsfelt(path = refof(Ll9jUdlandsfordeling::poster), label = "Grundlag fordelt på kilder og perioder", question = Some("Hvilke dokumenterede dele udgør det samlede grundlag?"), help = Some("Beløbene er grundlagsdele før denne udlandsundtagelse, ikke fradrag. Opdel ved ændrede forhold; der foretages ingen automatisk fordeling efter dage."), unit = None)
 = ll9j_udland_fordelingsmeta = TypetBeregningsmeta(felter = [ll9j_udland_felt_komplet, ll9j_udland_felt_poster], spørgsmål = [], beløbsfelter = [], attachments = (Source(value = ll9j_udland_lovkilde), Guidance(value = ll9j_udland_bemærkninger)))
---@label:Ll9jUdlandsfordeling::meta:ll9j_udland_fordelingsmeta--
 
 = ll9j_udland_felt_hjemsted = TypetBeregningsfelt(path = refof(Ll9jIndkomstforhold::Ll9jAnsættelsesindkomst::dbo_hjemmehørende_udland), label = "DBO-hjemsted uden for Danmark", question = Some("Anses personen efter en dobbeltbeskatningsoverenskomst for hjemmehørende i en fremmed stat, Grønland eller Færøerne for denne indkomstperiode?"), help = Some("Bopælsadresse, statsborgerskab og en udenlandsk arbejdsgiver afgør ikke alene DBO-hjemsted. Bevar null ved uafklaret hjemsted."), unit = None)
 = ll9j_udland_felt_arbejde = TypetBeregningsfelt(path = refof(Ll9jIndkomstforhold::Ll9jAnsættelsesindkomst::arbejde_udført_udland), label = "Arbejde udført i udlandet", question = Some("Vedrører netop dette beløb arbejde udført i udlandet?"), help = Some("Vurder arbejdsstedet, ikke hvorfra lønnen udbetales. Opdel dokumenteret dansk og udenlandsk arbejde; brug null ved uafklarede fakta."), unit = None)
 = ll9j_udland_felt_arbejdsgiver = TypetBeregningsfelt(path = refof(Ll9jIndkomstforhold::Ll9jAnsættelsesindkomst::udenlandsk_arbejdsgiver), label = "Udenlandsk arbejdsgiver", question = Some("Er arbejdsgiveren for netop denne indkomst og periode udenlandsk?"), help = Some("En udenlandsk bankkonto er ikke nok. Afklar arbejdsgiverforholdet; brug null hvis ukendt."), unit = None)
 = ll9j_udland_forholdsmeta = TypetBeregningsmeta(felter = [ll9j_udland_felt_hjemsted, ll9j_udland_felt_arbejde, ll9j_udland_felt_arbejdsgiver], spørgsmål = [], beløbsfelter = [], attachments = (Source(value = ll9j_udland_lovkilde), Guidance(value = ll9j_udland_bemærkninger)))
---@label:Ll9jIndkomstforhold::meta:ll9j_udland_forholdsmeta--
 
 = ll9j_udland_felt_id = TypetBeregningsfelt(path = refof(Ll9jGrundlagspost::identifikation), label = "Postens identifikation", question = Some("Hvilken entydig identifikation har denne grundlagsdel?"), help = Some("Genbrug ikke en identifikation. Kontrollen kan ikke afsløre samme betaling, hvis den omdøbes og oplyses igen."), unit = None)
 = ll9j_udland_felt_indkomstkilde = TypetBeregningsfelt(path = refof(Ll9jGrundlagspost::indkomstkilde), label = "Indkomstkildens identifikation", question = Some("Hvilken arbejdsgiver, virksomhed eller anden indkomstkilde vedrører posten?"), help = Some("Brug samme lokale identifikation gennem året. Samme kildes perioder må ikke overlappe. Tilknyt relevante løn- og pensionsdele til samme ansættelse, ikke kunstige nye kilder."), unit = None)
@@ -90,4 +93,3 @@
 = ll9j_udland_felt_postbeløb = TypetBeregningsfelt(path = refof(Ll9jGrundlagspost::grundlag_kroner), label = "Postens andel af arbejdsfradragsgrundlaget", question = Some("Hvilken del af det allerede opgjorte § 9 J-grundlag tilhører denne kilde og periode?"), help = Some("Oplys grundlagsdelen før udlandsundtagelsen. Ikke almindelig nettoløn, fradrag eller skat. Relevante pensionsdele følger den tilknyttede ansættelse; § 9 L's nettogrundlag er et andet beløb."), unit = Some("kr."))
 = ll9j_udland_felt_forhold = TypetBeregningsfelt(path = refof(Ll9jGrundlagspost::forhold::$variant), label = "Grundlagsdelens indkomstforhold", question = Some("Er delen knyttet til ansættelse eller til anden indkomst, fx selvstændig virksomhed?"), help = Some("Start med uoplyst. Ansættelsesrelaterede pensionsbidrag følger ansættelsen. Vælg ikke anden indkomst alene, fordi beløbet er ATP eller pension."), unit = None)
 = ll9j_udland_postmeta = TypetBeregningsmeta(felter = [ll9j_udland_felt_id, ll9j_udland_felt_indkomstkilde, ll9j_udland_felt_postkilde, ll9j_udland_felt_postår, ll9j_udland_felt_første, ll9j_udland_felt_sidste, ll9j_udland_felt_postbeløb, ll9j_udland_felt_forhold], spørgsmål = [], beløbsfelter = [], attachments = (Source(value = ll9j_udland_lovkilde), Guidance(value = ll9j_udland_bemærkninger)))
---@label:Ll9jGrundlagspost::meta:ll9j_udland_postmeta--

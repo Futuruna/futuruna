@@ -137,7 +137,11 @@ EndDate: 2026-07-29
     )
 )
 
---@label:aktieavancebeskatningsloven_ordinaere_aktier::meta:aktieavancebeskatningsloven_ordinaere_aktier_metadata--
+----
+Den juridiske vejledning 2026-1, C.H.2.1.15.6 kræver et selvstændigt
+skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
+----
+
 ----
 § 3. Omsættelige investeringsbeviser anses altid for investeringsbeviser, der
 er optaget til handel på et reguleret marked.
@@ -326,12 +330,9 @@ kapitalandele). Det er fortsat et krav, at det skal fremgå af selskabets
 vedtægter, hvilke typer kapitalandele selskabet har udstedt.
 ----
 
-----
-Den juridiske vejledning 2026-1, C.H.2.1.15.6 kræver et selvstændigt
-skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
-----
+@ meta(aktieavancebeskatningsloven_ordinaere_aktier_metadata)
+@ section aktieavancebeskatningsloven_ordinaere_aktier {
 
---@begin:aktieavancebeskatningsloven_ordinaere_aktier--
 # AktieavanceOrdinærMarkedsstatus = AblIkkeOptagetTilHandel | AblOptagetTilHandelPåReguleretMarked | AblOptagetTilHandelPåMultilateralHandelsfacilitet
 # AktieavanceOrdinærOplysningsstatus = AblOplystRettidigt | AblIndberettetAfAndenIndberetningspligtig | AblSkatteyderPåviserUkorrektIndberetning | AblTilflytningsbeholdningOplystRettidigt | AblIndgårIBeholdningsoversigtPar39A | AblOptagelseTilHandelOplystRettidigt | AblOptagelseTilHandelIndberettet | AblDødsboudlodningOplystMedBoopgørelse | AblOplysningsbetingelseIkkeOpfyldt
 # AktieavanceOrdinærBoligretAfståelsesform = AblPar15AlmindeligAfståelse | AblPar15Likvidationsprovenu(udloddet_i_endeligt_opløsningsår: Boolsk)
@@ -1136,7 +1137,8 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
         ægtefælle = aktieavance_ordinaer_person_årsresultat_med_årsresultat(ægtefælle_før_par, årspar.ægtefælle)
     )
 }
---@end:aktieavancebeskatningsloven_ordinaere_aktier--
+
+}
 
 = aktieavancebeskatningsloven_par25_rettigheder_metadata = Metadata(
     attachments = (
@@ -1148,7 +1150,6 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
     )
 )
 
---@label:aktieavancebeskatningsloven_par25_rettigheder::meta:aktieavancebeskatningsloven_par25_rettigheder_metadata--
 ----
 Stk. 4. Gevinst og tab ved afståelse af tegningsret til aktier, tegningsret
 til konvertible obligationer eller ret til fondsaktier (aktieretter) medregnes
@@ -1216,7 +1217,9 @@ sådanne aktieretter og tegningsretter til aktier finder de hidtil gældende
 regler anvendelse.
 ----
 
---@begin:aktieavancebeskatningsloven_par25_rettigheder--
+@ meta(aktieavancebeskatningsloven_par25_rettigheder_metadata)
+@ section aktieavancebeskatningsloven_par25_rettigheder {
+
 # AktieavanceRettighedLovregime = AblRettighedEfterAktieavancebeskatningsloven | AblTegningsretEfterLigningslov28
 # AktieavancePar25Rettighedsart = AblPar25Aktieret | AblPar25Tegningsret
 # AktieavancePar25Beskatningsprincip = AblPar25Realisationsprincip | AblPar25Lagerprincip
@@ -1409,7 +1412,8 @@ regler anvendelse.
     vilkår = vilkår,
     par5a_kildefakta = par5a_kildefakta
 )
---@end:aktieavancebeskatningsloven_par25_rettigheder--
+
+}
 
 = aktieavancebeskatningsloven_par17_til_par22_metadata = Metadata(
     attachments = (
@@ -1419,7 +1423,6 @@ regler anvendelse.
     )
 )
 
---@label:aktieavancebeskatningsloven_par17_til_par22::meta:aktieavancebeskatningsloven_par17_til_par22_metadata--
 ----
 § 17.
 Hvis den skattepligtige udøver næring ved køb og salg af aktier, medregnes
@@ -1596,7 +1599,9 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 § 17 nævnte tilfælde.
 ----
 
---@begin:aktieavancebeskatningsloven_par17_til_par22--
+@ meta(aktieavancebeskatningsloven_par17_til_par22_metadata)
+@ section aktieavancebeskatningsloven_par17_til_par22 {
+
 # AktieavancebeskatningslovAktiv = AblOrdinærAktiePar12Til15 | AblSkattepligtigPorteføljeaktiePar9 | AblNæringsaktiePar17 | AblAndelsbevisPar18 | AblInvesteringsselskabPar19TilKlassifikation | AblMinimumsinstitutTilKlassifikation | AblInvesteringsselskab19A | AblInvesteringsselskab19B | AblInvesteringsselskab19C | AblAkkumulerendeInvesteringsbevis20Stk1 | AblMinimumsbevis20A | AblMinimumsbevis21 | AblMinimumsbevis22 | AblUdenforDenneSlice
 # AktieavancebeskatningslovPslKategori = AblIkkeMedregnetISlice | AblKapitalindkomstEfterPslPar4Nr5 | AblAktieindkomstEfterPslPar4a | AblPersonligIndkomstEfterPslUndtagelse
 # AktieavancePar17Næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier | AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier
@@ -1883,7 +1888,8 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 | abl19b_aktieindkomstklassifikation: abl19b_aktieindkomst_fixture -> abl19b_aktieindkomst_fixture.effektiv_aktiv == AblInvesteringsselskab19B && abl19b_aktieindkomst_fixture.skattepligtig_gevinst_kroner == 20000 && abl19b_aktieindkomst_fixture.personskattelov_kategori == AblAktieindkomstEfterPslPar4a
 | abl19b_hvis_par17_bliver_personlig: abl19b_hvis17_fixture -> abl19b_hvis17_fixture.skattepligtig_gevinst_kroner == 7000 && abl19b_hvis17_fixture.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse
 | abl21_aktieindkomstklassifikation: abl21_aktieindkomst_fixture -> abl21_aktieindkomst_fixture.effektiv_aktiv == AblMinimumsbevis21 && abl21_aktieindkomst_fixture.skattepligtig_gevinst_kroner == 10000 && abl21_aktieindkomst_fixture.personskattelov_kategori == AblAktieindkomstEfterPslPar4a
---@end:aktieavancebeskatningsloven_par17_til_par22--
+
+}
 
 = aktieavancebeskatningsloven_par44_metadata = Metadata(
     attachments = (
@@ -1897,7 +1903,6 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
     )
 )
 
---@label:aktieavancebeskatningsloven_par44::meta:aktieavancebeskatningsloven_par44_metadata--
 ----
 § 44. Gevinst og tab på børsnoterede aktier, jf. § 3, nr. 1 og 2, i
 lovbekendtgørelse nr. 171 af 6. marts 2009, der er erhvervet før den 1. januar
@@ -1956,7 +1961,9 @@ dødsfaldet har fundet sted. Beløbene i 3. og 5. pkt. reguleres efter
 personskattelovens § 20.
 ----
 
---@begin:aktieavancebeskatningsloven_par44--
+@ meta(aktieavancebeskatningsloven_par44_metadata)
+@ section aktieavancebeskatningsloven_par44 {
+
 # AktieavancePar44Børsstatus2005 = AblPar44BørsnoteretEfterDagældendePar3Nr1Eller2 | AblPar44KunNasdaqMedRettidigtHelhedsvalg | AblPar44KunNasdaqUdenRettidigtHelhedsvalg | AblPar44IkkeBørsnoteret
 # AktieavancePar44Ægtefællestatus2005 = AblPar44UdenSamlevendeÆgtefælle | AblPar44SamlevendeÆgtefællerHelePerioden | AblPar44SamlevendeÆgtefælleDødIPerioden
 # AktieavancePar44Beholdningsfakta(egen_kursværdi_pr_31_december_2005_kroner: Heltal, ægtefællestatus: AktieavancePar44Ægtefællestatus2005, ægtefælles_kursværdi_pr_31_december_2005_kroner: Heltal)
@@ -2127,4 +2134,5 @@ personskattelovens § 20.
         | None -> AktieavancePar13AUdbytteKilderesultat(kildefakta = kildefakta, input_gyldigt = Falskt, udbytte_for_aktie_med_gevinst_efter_par12 = Falskt, udbytte_for_aktie_med_gevinst_efter_par19b = Falskt, udbytte_for_aktie_omfattet_af_par44 = Falskt)
     }
 }
---@end:aktieavancebeskatningsloven_par44--
+
+}

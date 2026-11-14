@@ -16,8 +16,9 @@
     )
 )
 
---@label:abl_investeringsklassifikation_beregning::meta:abl_investeringsklassifikation_beregning_metadata--
---@begin:abl_investeringsklassifikation_beregning--
+@ meta(abl_investeringsklassifikation_beregning_metadata)
+@ section abl_investeringsklassifikation_beregning {
+
 @ calculate
 | klassificer_investeringsselskab_efter_par19(input: AktieavancePar19Input) -> aktieavance_par19_resultat(input)
 
@@ -29,4 +30,5 @@
 
 @ calculate
 | klassificer_minimumsinstitut(input: AktieavancePar21Par22Input) -> aktieavance_par21_par22_resultat(input)
---@end:abl_investeringsklassifikation_beregning--
+
+}

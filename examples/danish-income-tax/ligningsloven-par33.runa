@@ -67,7 +67,6 @@
     )
 )
 
---@label:ligningsloven_par33f::meta:ligningsloven_par33_metadata--
 ----
 § 33 F. Ved beregning af den maksimale nedsættelse af dansk skat, enten i
 henhold til reglerne i ligningslovens § 33 eller i henhold til bestemmelserne
@@ -85,7 +84,8 @@ kreditsalg af varer mv., skal renteudgifter mv. som nævnt i § 5, stk. 1, i
 forbindelse hermed ikke fragå ved opgørelsen af den udenlandske indkomst.
 ----
 
---@begin:ligningsloven_par33f--
+@ meta(ligningsloven_par33_metadata)
+@ section ligningsloven_par33f {
 
 # Ligningslov33Skatteområde = Ll33FremmedStat(landekode: Tekst) | Ll33Grønland | Ll33Færøerne
 # Ligningslov33Opkrævningsmåde = Ll33DirektePåligning | Ll33Indeholdelse
@@ -161,9 +161,8 @@ forbindelse hermed ikke fragå ved opgørelsen af den udenlandske indkomst.
 }
 | ligningslov33_par33f_landelinje_resultater(input: Ligningslov33Årsinput) -> map(input.landelinjer, |fakta: Ligningslov33LandelinjeFakta| ligningslov33_par33f_landelinje_resultat(input, fakta))
 
---@end:ligningsloven_par33f--
+}
 
---@label:ligningsloven_par33::meta:ligningsloven_par33_metadata--
 ----
 § 33. Skat, der er betalt til fremmed stat, til Grønland eller til Færøerne og
 opkrævet af indkomst fra kilder dér, det være sig ved direkte påligning eller
@@ -179,7 +178,8 @@ gives fradrag for et større skattebeløb end det, som denne stat, Grønland ell
 Færøerne efter overenskomsten har et ubetinget krav på at oppebære.
 ----
 
---@begin:ligningsloven_par33--
+@ meta(ligningsloven_par33_metadata)
+@ section ligningsloven_par33 {
 
 # Ligningslov33DanskSkattekreds(samlet_beskattet_indkomst_kroner: Heltal, dansk_skat_før_nedslag_øre: Heltal)
 # Ligningslov33LandelinjeResultat(par33f: Ligningslov33FLandelinjeResultat, dansk_skattekreds_gyldig: Boolsk, udenlandsk_skat_efter_overenskomst_øre: Heltal, proportionalt_dansk_skatteloft_øre: Heltal, nedslag_øre: Heltal)
@@ -231,9 +231,8 @@ Færøerne efter overenskomsten har et ubetinget krav på at oppebære.
     )
 }
 
---@end:ligningsloven_par33--
+}
 
---@label:ligningsloven_par33_stk6::meta:ligningsloven_par33_metadata--
 ----
 § 33.
 
@@ -246,7 +245,8 @@ ejendom, såfremt det faste driftssted eller den faste ejendom var afstået på
 samme tidspunkt.
 ----
 
---@begin:ligningsloven_par33_stk6--
+@ meta(ligningsloven_par33_metadata)
+@ section ligningsloven_par33_stk6 {
 
 # Ligningslov33Par6Aktivgrundlag = Ll33Par6AktivIFastDriftssted(dokumentreference: Tekst) | Ll33Par6FastEjendomEfterEjendomsavancebeskatningsloven
 # Ligningslov33Par6Kreditgrundlag(kildeskat10_aktivfakta: Kildeskat10Aktivfakta, aktivgrundlag: Ligningslov33Par6Aktivgrundlag, udenlandsk_skat_som_kunne_være_pålignet_øre: Heltal, dokumentreference: Tekst)
@@ -261,9 +261,8 @@ samme tidspunkt.
     kildeskat10.input_gyldigt && kildeskat10.stk1_hændelse && kildeskat10.anses_for_afhændet && ligningslov33_par6_aktivgrundlag_gyldigt(grundlag.aktivgrundlag) && grundlag.udenlandsk_skat_som_kunne_være_pålignet_øre > 0 && grundlag.dokumentreference != ""
 }
 
---@end:ligningsloven_par33_stk6--
+}
 
---@label:ligningsloven_par33_stk8::meta:ligningsloven_par33_metadata--
 ----
 § 33.
 
@@ -271,7 +270,8 @@ Stk. 8. Stk. 1 gælder ikke med hensyn til lønindkomst, der er omfattet af § 3
 eller af sømandsbeskatningslovens §§ 5-8.
 ----
 
---@begin:ligningsloven_par33_stk8--
+@ meta(ligningsloven_par33_metadata)
+@ section ligningsloven_par33_stk8 {
 
 # Ligningslov33Lønlempelsesstatus = Ll33IngenLønindkomst | Ll33OrdinærCreditlempetLønindkomst | Ll33LønindkomstOmfattetAfPar33A | Ll33LønindkomstOmfattetAfSømandsbeskatningslovenPar5Til8
 
@@ -282,9 +282,8 @@ eller af sømandsbeskatningslovens §§ 5-8.
     | Ll33LønindkomstOmfattetAfSømandsbeskatningslovenPar5Til8 -> Falskt
 }
 
---@end:ligningsloven_par33_stk8--
+}
 
---@label:ligningsloven_par33_stk9::meta:ligningsloven_par33_metadata--
 ----
 § 33.
 
@@ -297,7 +296,8 @@ der i dette år falder på den udenlandske indkomst. Som fragtskat anses skat p�
 bruttofortjenesten ved international skibstrafik.
 ----
 
---@begin:ligningsloven_par33_stk9--
+@ meta(ligningsloven_par33_metadata)
+@ section ligningsloven_par33_stk9 {
 
 # Ligningslov33FragtskatSaldo(område: Ligningslov33Skatteområde, indkomstår: Heltal, saldo_øre: Heltal, dokumentreferencer: List(Tekst))
 
@@ -310,9 +310,8 @@ bruttofortjenesten ved international skibstrafik.
 | ligningslov33_fragtskat_dokumentreferencer_gyldige(dokumentreferencer: List(Tekst)) -> length(dokumentreferencer) > 0 && all(dokumentreferencer, |dokumentreference: Tekst| dokumentreference != "")
 | ligningslov33_fragtskat_saldo_gyldig(saldo: Ligningslov33FragtskatSaldo, aktuelt_indkomstår: Heltal) -> ligningslov33_fragtskat_område_gyldigt(saldo.område) && saldo.indkomstår + 1 == aktuelt_indkomstår && saldo.saldo_øre > 0 && ligningslov33_fragtskat_dokumentreferencer_gyldige(saldo.dokumentreferencer)
 
---@end:ligningsloven_par33_stk9--
+}
 
---@label:ligningsloven_par33_personberegning::meta:ligningsloven_par33_metadata--
 ----
 Med virkning fra indkomståret 2010 er der offentliggjort en praksisændring, som
 betyder, at beregningsmetoderne for lempelse for skat af udenlandsk indkomst
@@ -363,7 +362,8 @@ udenlandske indkomst. Det er derfor den udenlandske nettoindkomst, der indgår i
 lempelsesbrøkens tæller.
 ----
 
---@begin:ligningsloven_par33_personberegning--
+@ meta(ligningsloven_par33_metadata)
+@ section ligningsloven_par33_personberegning {
 
 # Ligningslov33PersonSkattekomponentart = Ll33PersonskattelovPar6 | Ll33PersonskattelovPar7 | Ll33PersonskattelovPar7A | Ll33PersonskattelovPar8 | Ll33PersonskattelovPar8A | Ll33PersonskattelovPar8B | Ll33ArbejdsmarkedsbidragslovPar1 | Ll33KommunalIndkomstskat | Ll33Kirkeskat
 # Ligningslov33DanskBeregningsgrundlag = Ll33SkattepligtigIndkomst(samlet_indkomst_kroner: Heltal) | Ll33PersonligIndkomst(samlet_indkomst_kroner: Heltal) | Ll33PersonligOgPositivKapitalindkomst(samlet_indkomst_kroner: Heltal) | Ll33Aktieindkomst(samlet_indkomst_kroner: Heltal) | Ll33CfcIndkomst(samlet_indkomst_kroner: Heltal) | Ll33Arbejdsmarkedsbidragsgrundlag(samlet_indkomst_kroner: Heltal)
@@ -725,4 +725,4 @@ lempelsesbrøkens tæller.
     )
 }
 
---@end:ligningsloven_par33_personberegning--
+}

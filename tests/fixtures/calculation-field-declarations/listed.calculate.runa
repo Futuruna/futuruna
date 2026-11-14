@@ -56,9 +56,6 @@
     )
 )
 
---@label:household_tax::meta:household_fields--
---@label:household_tax::meta:sourced_fields--
-
 @ calculate
 | spouse_share(s: Spouse) -> s.income_ore / 2
 
@@ -66,5 +63,7 @@
     foldl(trades, 0, |total, trade| total + trade.amount_ore)
 }
 
+@ meta(household_fields)
+@ meta(sourced_fields)
 @ calculate("Household tax")
 | household_tax(h: Household) -> HouseholdTax(total_ore = trade_total(h.trades) + h.spouse_share_ore)

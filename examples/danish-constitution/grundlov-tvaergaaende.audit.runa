@@ -47,8 +47,9 @@
     )
 }
 
---@label:audit_tvaergaaende_folkeafstemninger::meta:tvaergaaende_folkeafstemninger_fund--
---@begin:audit_tvaergaaende_folkeafstemninger--
+@ meta(tvaergaaende_folkeafstemninger_fund)
+@ section audit_tvaergaaende_folkeafstemninger {
+
 | tvaergaaende_par42_og_par88_har_forskellige_taerskeludfald() -> {
     = almindelig_folkeafstemning = Folkeafstemningsresultat(
         mod_stemmer = 35,
@@ -66,7 +67,8 @@
         && grundlovsafstemningens_tilslutningstærskel == Brøk(tæller = 2, nævner = 5)
     )
 }
---@end:audit_tvaergaaende_folkeafstemninger--
+
+}
 
 | tvaergaaende_par20_og_par88_adskiller_alternativ_og_fuld_procedure() -> {
     = suverænitetsforslag_uden_fem_sjettedele = Suverænitetsforslag(

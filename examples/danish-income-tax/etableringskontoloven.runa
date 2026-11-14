@@ -36,7 +36,6 @@
     )
 )
 
---@label:etableringskontoloven_par1_par4::meta:etableringskontoloven_par1_par4_metadata--
 ----
 § 1. Den, der med henblik på etablering af selvstændig
 erhvervsvirksomhed eller erhvervelse af virksomhed i selskabsform ved
@@ -130,7 +129,9 @@ betingelserne i § 5 er opfyldt. Beløb omfattet af 1. pkt. behandles
 efter reglerne om indskud.
 ----
 
---@begin:etableringskontoloven_par1_par4--
+@ meta(etableringskontoloven_par1_par4_metadata)
+@ section etableringskontoloven_par1_par4 {
+
 # EtableringskontoIndskudsfase = EtblFørEtablering | EtblEtableringsår | EtblEfterEtablering(antal_år_efter_etableringsåret: Heltal) | EtblEfterFradragsperioden
 # EtableringskontoPlacering = EtblSærligIndlånskonto | EtblSærskiltObligationsdepot | EtblIndlånskontoOgObligationsdepot | EtblIkkeGodkendtPlacering
 # EtableringskontoPar4Placering(placering: EtableringskontoPlacering, pengeinstitut_omfattet_af_par4_stk1: Boolsk, etableringskonto_og_iværksætterkonto_ført_særskilt: Boolsk, konto_korrekt_betegnet: Boolsk, navn_adresse_og_personnummer_påført: Boolsk, kontantkonto_og_depot_i_samme_pengeinstitut: Boolsk)
@@ -247,4 +248,5 @@ efter reglerne om indskud.
 }
 | etableringskonto_indskud_sag(input: EtableringskontoIndskudInput) -> EtableringskontoIndskudSag(input)
 | etableringskonto_indskud_resultat(input: EtableringskontoIndskudInput) -> etableringskonto_indskud_sag(input).resultat()
---@end:etableringskontoloven_par1_par4--
+
+}

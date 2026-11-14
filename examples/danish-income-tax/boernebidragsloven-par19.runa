@@ -25,7 +25,6 @@
     )
 )
 
---@label:børnebidragsloven_par19::meta:børnebidragsloven_par19_metadata--
 ----
 § 19. Der kan pålægges faderen eller medmoderen at udrede bidrag til udgifterne
 ved fødslen og ved barnets navngivning, herunder ved dåb, og til moderens
@@ -48,7 +47,9 @@ Stk. 4. Bidrag i henhold til nærværende kapitel tilkommer moderen eller den
 offentlige myndighed eller institution, der har afholdt de pågældende udgifter.
 ----
 
---@begin:børnebidragsloven_par19--
+@ meta(børnebidragsloven_par19_metadata)
+@ section børnebidragsloven_par19 {
+
 # Børnebidragslov19Fødselsudfald = Levendefødt | Dødfødt
 # Børnebidragslov19Hændelse = Fødsel(fødselsdato: Dato, udfald: Børnebidragslov19Fødselsudfald) | Abort(abortdato: Dato)
 # Børnebidragslov19Barselsperiode = AlmindeligBarselsperiode(måneder_før_fødslen: Heltal, måneder_efter_fødslen: Heltal) | ForlængetBarselsperiode(måneder_før_fødslen: Heltal, måneder_efter_fødslen: Heltal, særlige_omstændigheder_dokumentreference: Tekst)
@@ -172,7 +173,8 @@ offentlige myndighed eller institution, der har afholdt de pågældende udgifter
     fakta.navngivningsskattekontekst == UdenNavngivningsskattekontekst
 }
 | børnebidragslov19_input_gyldigt(fakta: Børnebidragslov19BidragFakta) -> fakta.identifikation != "" && dato_gyldig(børnebidragslov19_hændelsesdato(fakta.hændelse)) && dato_gyldig(fakta.fastsættelsesdato) && dato_gyldig(fakta.forfaldsdato) && dato_gyldig(fakta.betalingsdato) && fakta.indkomstår == fakta.betalingsdato.år && børnebidragslov19_satsår_understøttet(fakta.fastsættelsesdato.år) && børnebidragslov19_hændelse_og_bidragsart_svarer(fakta) && børnebidragslov19_bidragsydergrundlag_opfyldt(fakta) && børnebidragslov19_retlig_modtager_gyldig(fakta.retlig_modtager) && børnebidragslov19_fastsættelse_dokumenteret(fakta.fastsættelse) && børnebidragslov19_ansøgningsgrundlag_gyldigt(fakta) && børnebidragslov19_barselsperiode_gyldig(fakta.bidragsart) && børnebidragslov19_forfaldsgrundlag_opfyldt(fakta) && børnebidragslov19_beløb_svarer_til_offentlig_fastsættelse(fakta) && børnebidragslov19_rolle_og_modtager_svarer(fakta) && børnebidragslov19_navngivningsskattekontekst_gyldig(fakta)
---@end:børnebidragsloven_par19--
+
+}
 
 = børnebidragsbekendtgørelsen_bek285_par3_par4_par9_par10_par11 = Børnebidragslov19KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2019/285",
@@ -188,7 +190,6 @@ offentlige myndighed eller institution, der har afholdt de pågældende udgifter
     )
 )
 
---@label:børnebidragsbekendtgørelsen_par19_frist::meta:børnebidragsbekendtgørelsen_par19_frist_metadata--
 ----
 § 3. Børnebidrag efter § 14, stk. 1, i lov om børns forsørgelse fastsættes fra
 den relevante ændring i barnets forhold, der udløste ansøgningen om bidrag,
@@ -216,7 +217,9 @@ særlige udgifter efter § 19, stk. 2, i lov om børns forsørgelse, hvis ansøg
 er indgivet inden 2 måneder efter aborten.
 ----
 
---@begin:børnebidragsbekendtgørelsen_par19_frist--
+@ meta(børnebidragsbekendtgørelsen_par19_frist_metadata)
+@ section børnebidragsbekendtgørelsen_par19_frist {
+
 # Børnebidragslov19Fristgrundlag = FødslenSomFristgrundlag | FaderskabEllerMedmoderskabIndledtVedFødslen(sagsafslutningsdato: Dato, sagsreference: Tekst) | AbortenSomFristgrundlag | HeltSærligeOmstændigheder(afgørelsesreference: Tekst)
 # Børnebidragslov19Ansøgningsgrundlag = Myndighedsansøgning(ansøgningsdato: Dato, fristgrundlag: Børnebidragslov19Fristgrundlag) | PrivatAftaleUdenMyndighedsansøgning
 
@@ -243,7 +246,8 @@ er indgivet inden 2 måneder efter aborten.
     | DokumenteretBindendeAftale(_) -> fakta.ansøgningsgrundlag == PrivatAftaleUdenMyndighedsansøgning
     | Par19UdenDokumenteretFastsættelse -> Falskt
 }
---@end:børnebidragsbekendtgørelsen_par19_frist--
+
+}
 
 = skat_børnebidrag_fødsel_vejledning = Børnebidragslov19KildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2061803",
@@ -265,7 +269,16 @@ er indgivet inden 2 måneder efter aborten.
     )
 )
 
---@label:børnebidragsloven_par19_skat::meta:børnebidragsloven_par19_skat_metadata--
+----
+Implementeringsnote: C.A.9.5 afskærer udtrykkeligt fradrag for fødselsudgifter
+og moderens underhold efter § 19, stk. 1. Abortudgiftsbidragets nulfradrag
+afledes særskilt af § 19, stk. 2 og 4, sammenholdt med Ligningslovens §§ 10-11:
+betalingen tilkommer moren eller den myndighed eller institution, der har
+afholdt udgiften, og er ikke et underholdsbidrag til et barn. De fundne
+officielle kilder afklarer ikke modtagerbeskatningen hos moren; den gren fejler
+derfor lukket.
+----
+
 ----
 Bidrag, der efter pålæg efter § 19 i lov om børns forsørgelse betales af en far
 til et barn uden for ægteskab til dækning af udgifter ved fødslen og til
@@ -282,17 +295,9 @@ Det samme er gældende for bidrag i anledning af dåb eller navngivning, som
 udgør et beløb svarende til det månedlige normalbidrags grundbeløb.
 ----
 
-----
-Implementeringsnote: C.A.9.5 afskærer udtrykkeligt fradrag for fødselsudgifter
-og moderens underhold efter § 19, stk. 1. Abortudgiftsbidragets nulfradrag
-afledes særskilt af § 19, stk. 2 og 4, sammenholdt med Ligningslovens §§ 10-11:
-betalingen tilkommer moren eller den myndighed eller institution, der har
-afholdt udgiften, og er ikke et underholdsbidrag til et barn. De fundne
-officielle kilder afklarer ikke modtagerbeskatningen hos moren; den gren fejler
-derfor lukket.
-----
+@ meta(børnebidragsloven_par19_skat_metadata)
+@ section børnebidragsloven_par19_skat {
 
---@begin:børnebidragsloven_par19_skat--
 | børnebidragslov19_ll_rolle(rolle: Børnebidragslov19Skatterolle) -> match rolle {
     | BørnebidragsBidragsyder(modtageridentitet_oplyst, _) -> Bidragsyder(modtageridentitet_oplyst = modtageridentitet_oplyst)
     | BarnMedSkattemæssigHenføring -> Bidragsmodtager
@@ -407,7 +412,8 @@ derfor lukket.
         kan_sammensættes = kan_sammensættes
     )
 }
---@end:børnebidragsloven_par19_skat--
+
+}
 
 = børnebidragsloven_satser_2023 = Børnebidragslov19KildeInfo(
     url = "https://www.retsinformation.dk/eli/retsinfo/2022/10315",
@@ -442,7 +448,6 @@ derfor lukket.
     )
 )
 
---@label:børnebidragsloven_par19_satser::meta:børnebidragsloven_par19_satser_metadata--
 ----
 Styrelsen for Arbejdsmarked og Rekruttering har for 2023 fastsat størrelsen af
 fødselsbidraget til 913 kr. Størrelsen af barselsbidraget er fastsat til 1.589
@@ -465,7 +470,9 @@ fødselsbidraget til 1.020 kr. Størrelsen af barselsbidraget er fastsat til
 kr. (normalbidragets grundbeløb).
 ----
 
---@begin:børnebidragsloven_par19_satser--
+@ meta(børnebidragsloven_par19_satser_metadata)
+@ section børnebidragsloven_par19_satser {
+
 | børnebidragslov19_satsår_understøttet(år: Heltal) -> Falskt
 | exception børnebidragslov19_satsår_2023 børnebidragslov19_satsår_understøttet(år: Heltal) -> Sandt under år == 2023
 | exception børnebidragslov19_satsår_2024 børnebidragslov19_satsår_understøttet(år: Heltal) -> Sandt under år == 2024
@@ -486,4 +493,5 @@ kr. (normalbidragets grundbeløb).
 | exception børnebidragslov19_navngivningsbidrag_2024 børnebidragslov19_navngivningsbidrag_sats_kroner(år: Heltal) -> 1370 under år == 2024
 | exception børnebidragslov19_navngivningsbidrag_2025 børnebidragslov19_navngivningsbidrag_sats_kroner(år: Heltal) -> 1419 under år == 2025
 | exception børnebidragslov19_navngivningsbidrag_2026 børnebidragslov19_navngivningsbidrag_sats_kroner(år: Heltal) -> 1483 under år == 2026
---@end:børnebidragsloven_par19_satser--
+
+}

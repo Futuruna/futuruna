@@ -28,13 +28,12 @@
     attachments = ()
 )
 
---@label:household_tax::meta:household_meta--
-
 @ calculate
 | share_income(s: Spouse) -> Result(tax = s.income)
 
 | threshold(h: Household) -> 100
 | exception transferred threshold(h: Household) -> 200 - h.spouse_share_income under h.spouse_share_income < 100
 
+@ meta(household_meta)
 @ calculate
 | household_tax(h: Household) -> Result(tax = h.income - threshold(h))

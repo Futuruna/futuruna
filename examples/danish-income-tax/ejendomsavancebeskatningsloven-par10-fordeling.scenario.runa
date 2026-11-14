@@ -10,8 +10,9 @@
     )
 )
 
---@label:ebl_par10_fordeling_scenarier::meta:ebl_par10_fordeling_scenarier_metadata--
---@begin:ebl_par10_fordeling_scenarier--
+@ meta(ebl_par10_fordeling_scenarier_metadata)
+@ section ebl_par10_fordeling_scenarier {
+
 | ebl_par10_fordeling_scenarie_fakta(genopførelsessted: EblPar10Genopførelsessted) -> EblPar10Fakta(
     skadedato = EblDato(år = 2024, måned = 3, dag = 1),
     erstatningssum_endeligt_fastsat_indkomstår = 2024,
@@ -423,4 +424,5 @@
 ? ebl_par10_afskrivningsscenarie_afviser_dublet_aktiv_i_par24
 
 @ print("EBL § 10 allocation scenarios passed")
---@end:ebl_par10_fordeling_scenarier--
+
+}

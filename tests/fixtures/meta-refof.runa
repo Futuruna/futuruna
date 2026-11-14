@@ -8,7 +8,5 @@
     target = refof(tax_due)
 )
 
---@label:tax_due::meta:tax_evidence--
---@begin:tax_due--
+@ meta(tax_evidence)
 | tax_due(income: Int) -> income / 2
---@end:tax_due--

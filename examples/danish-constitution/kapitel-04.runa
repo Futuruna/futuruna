@@ -4,21 +4,21 @@
 
 -- Kapitel IV -- Folketinget
 
---@label:grundlov_par28::meta:grundlov_kildemetadata--
 ----
 § 28. Folketinget udgør een forsamling bestående af højst 179 medlemmer, hvoraf
 2 medlemmer vælges på Færøerne og 2 i Grønland.
 ----
 
---@begin:grundlov_par28--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par28 {
 
 = folketingets_max_medlemmer = 179
 = færøske_mandater = 2
 = grønlandske_mandater = 2
 | folketinget_udgør_en_forsamling()
---@end:grundlov_par28--
 
---@label:grundlov_par29::meta:grundlov_kildemetadata--
+}
+
 ----
 § 29. Stk. 1. Valgret til folketinget har enhver, som har dansk indfødsret,
 fast bopæl i riget og har nået den i stk. 2 omhandlede valgretsalder,
@@ -34,7 +34,8 @@ valgretsalderen i overensstemmelse med § 42, stk. 5, har været undergivet en
 folkeafstemning, der ikke har medført bestemmelsens bortfald.
 ----
 
---@begin:grundlov_par29--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par29 {
 
 # Valgretsforhold(har_dansk_indfødsret: Boolsk, har_fast_bopæl_i_riget: Boolsk, har_nået_valgretsalderen: Boolsk, er_umyndiggjort: Boolsk, valgret_tabt_efter_lovbestemmelse: Boolsk)
 # Valgretsalderændring(folketinget_har_vedtaget: Boolsk, folkeafstemning_afholdt: Boolsk, bestemmelsen_bortfaldet: Boolsk)
@@ -46,9 +47,9 @@ folkeafstemning, der ikke har medført bestemmelsens bortfald.
 
 | valgretsalder_fastsættes_ved_folkeafstemning()
 | valgretsalderændring_kan_stadfæstes(ændring: Valgretsalderændring) -> ændring.folketinget_har_vedtaget && ændring.folkeafstemning_afholdt && ændring.bestemmelsen_bortfaldet == Falskt
---@end:grundlov_par29--
 
---@label:grundlov_par30::meta:grundlov_kildemetadata--
+}
+
 ----
 § 30. Stk. 1. Valgbar til folketinget er enhver, som har valgret til dette,
 medmindre vedkommende er straffet for en handling, der i almindeligt omdømme
@@ -58,16 +59,17 @@ Stk. 2. Tjenestemænd, som vælges til medlemmer af folketinget, behøver ikke
 regeringens tilladelse til at modtage valget.
 ----
 
---@begin:grundlov_par30--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par30 {
 
 # Valgbarhedsforhold(valgretsforhold: Valgretsforhold, straffet_for_uværdig_handling: Boolsk)
 
 | opfylder_par30_stk1(forhold: Valgbarhedsforhold) -> opfylder_par29_stk1(forhold.valgretsforhold) && forhold.straffet_for_uværdig_handling == Falskt
 
 | valgte_tjenestemænd_behøver_ikke_regeringens_tilladelse_til_at_modtage_valget()
---@end:grundlov_par30--
 
---@label:grundlov_par31::meta:grundlov_kildemetadata--
+}
+
 ----
 § 31. Stk. 1. Folketingets medlemmer vælges ved almindelige, direkte og
 hemmelige valg.
@@ -88,7 +90,8 @@ Stk. 5. Særlige regler om Grønlands repræsentation i folketinget kan gives
 ved lov.
 ----
 
---@begin:grundlov_par31--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par31 {
 
 -- Stk. 1: tre valgprincipper
 | valg_er_almindelige()
@@ -111,9 +114,9 @@ ved lov.
 
 -- Stk. 5
 | grønlands_repræsentation_kan_fastsættes_ved_lov()
---@end:grundlov_par31--
 
---@label:grundlov_par32::meta:grundlov_kildemetadata--
+}
+
 ----
 § 32. Stk. 1. Folketingets medlemmer vælges for fire år.
 
@@ -137,7 +140,8 @@ Stk. 7. Ethvert nyt medlem afgiver, når hans valg er godkendt, en højtidelig
 forsikring om at ville holde grundloven.
 ----
 
---@begin:grundlov_par32--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par32 {
 
 # Nyvalgssituation(nyt_ministerium_udnævnt: Boolsk, statsministeren_har_fremstillet_sig: Boolsk)
 # Mandatforhold(nyvalg_afholdt: Boolsk, valgbarhed_bevaret: Boolsk)
@@ -159,31 +163,34 @@ forsikring om at ville holde grundloven.
 | særlige_regler_om_færøske_og_grønlandske_mandaters_ikrafttræden_og_ophør_kan_gives_ved_lov()
 
 | nyt_medlem_afgiver_højtidelig_forsikring_om_at_holde_grundloven(godkendelse: Valgsgodkendelse) -> godkendelse == GodkendtValg
---@end:grundlov_par32--
 
---@label:grundlov_par33::meta:grundlov_kildemetadata--
+}
+
 ----
 § 33. Folketinget afgør selv gyldigheden af sine medlemmers valg samt
 spørgsmål om, hvorvidt et medlem har mistet sin valgbarhed.
 ----
 
---@begin:grundlov_par33--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par33 {
 
 | folketinget_afgør_valgs_gyldighed()
 | folketinget_afgør_tab_af_valgbarhed()
---@end:grundlov_par33--
 
---@label:grundlov_par34::meta:grundlov_kildemetadata--
+}
+
 ----
 § 34. Folketinget er ukrænkeligt. Enhver, der antaster dets sikkerhed eller
 frihed, enhver, der udsteder eller adlyder nogen dertil sigtende befaling, gør
 sig skyldig i højforræderi.
 ----
 
---@begin:grundlov_par34--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par34 {
 
 # AntastelseAfFolketinget = AntasterSikkerheden | AntasterFriheden | UdstederBefalingOmAntastelse | AdlyderBefalingOmAntastelse
 
 | folketinget_er_ukrænkeligt()
 | antastelse_af_folketinget_er_højforræderi(handling: AntastelseAfFolketinget) -> Sandt
---@end:grundlov_par34--
+
+}

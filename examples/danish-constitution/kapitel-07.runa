@@ -4,24 +4,25 @@
 
 -- Kapitel VII -- Folkekirken og trossamfund
 
---@label:grundlov_par66::meta:grundlov_kildemetadata--
 ----
 § 66. Folkekirkens forfatning ordnes ved lov.
 ----
 
---@begin:grundlov_par66--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par66 {
 
 | folkekirkens_forfatning_ordnes_ved_lov()
---@end:grundlov_par66--
 
---@label:grundlov_par67::meta:grundlov_kildemetadata--
+}
+
 ----
 § 67. Borgerne har ret til at forene sig i samfund for at dyrke Gud på den
 måde, der stemmer med deres overbevisning, dog at intet læres eller foretages,
 som strider mod sædeligheden eller den offentlige orden.
 ----
 
---@begin:grundlov_par67--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par67 {
 
 # Religionsudtryk = Lære | Foretagelse
 # Religionsudøvelse(udtryk: Religionsudtryk, stemmer_med_overbevisningen: Boolsk, strider_mod_sædeligheden: Boolsk, strider_mod_den_offentlige_orden: Boolsk) {
@@ -31,15 +32,16 @@ som strider mod sædeligheden eller den offentlige orden.
     }
 }
 | borgerne_har_ret_til_at_forene_sig_i_samfund_for_at_dyrke_gud()
---@end:grundlov_par67--
 
---@label:grundlov_par68::meta:grundlov_kildemetadata--
+}
+
 ----
 § 68. Ingen er pligtig at yde personlige bidrag til nogen anden gudsdyrkelse
 end den, som er hans egen.
 ----
 
---@begin:grundlov_par68--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par68 {
 
 # Gudsdyrkelse = EgenGudsdyrkelse | AndenGudsdyrkelse
 # PersonligtBidragsforhold(gudsdyrkelse: Gudsdyrkelse, bidragspligt_pålagt: Boolsk) {
@@ -48,26 +50,28 @@ end den, som er hans egen.
         | AndenGudsdyrkelse -> bidragspligt_pålagt == Falskt
     }
 }
---@end:grundlov_par68--
 
---@label:grundlov_par69::meta:grundlov_kildemetadata--
+}
+
 ----
 § 69. De fra folkekirken afvigende trossamfunds forhold ordnes nærmere ved lov.
 ----
 
---@begin:grundlov_par69--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par69 {
 
 | de_fra_folkekirken_afvigende_trossamfunds_forhold_ordnes_nærmere_ved_lov()
---@end:grundlov_par69--
 
---@label:grundlov_par70::meta:grundlov_kildemetadata--
+}
+
 ----
 § 70. Ingen kan på grund af sin trosbekendelse eller afstamning berøves adgang
 til den fulde nydelse af borgerlige og politiske rettigheder eller unddrage sig
 opfyldelsen af nogen almindelig borgerpligt.
 ----
 
---@begin:grundlov_par70--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par70 {
 
 # Ligebehandlingsgrund = Trosbekendelse | AfstamningSomLigebehandlingsgrund
 # Rettighedstype = BorgerligRettighed | PolitiskRettighed
@@ -83,4 +87,5 @@ opfyldelsen af nogen almindelig borgerpligt.
         | UnddragelseFraAlmindeligBorgerpligt -> Sandt
     }
 }
---@end:grundlov_par70--
+
+}

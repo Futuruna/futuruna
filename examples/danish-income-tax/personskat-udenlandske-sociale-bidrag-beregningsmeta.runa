@@ -127,4 +127,4 @@
     )
 )
 
---@label:beregn_personskat::meta:personskat_udenlandske_sociale_bidrag_beregningsmeta--
+@ meta(personskat_udenlandske_sociale_bidrag_beregningsmeta) for beregn_personskat

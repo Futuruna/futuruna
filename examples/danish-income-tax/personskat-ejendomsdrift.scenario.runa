@@ -13,7 +13,6 @@
     )
 )
 
---@label:personskat_ejendomsdrift_scenarier::meta:personskat_ejendomsdrift_scenarier_metadata--
 ----
 Fokuserede regressionsscenarier for den kanoniske beregningsgrænse.
 
@@ -24,7 +23,9 @@ ejendomsskattelovens § 3 og personskattelovens § 4, stk. 1, nr. 6 afledes af
 Futuruna.
 ----
 
---@begin:personskat_ejendomsdrift_scenarier--
+@ meta(personskat_ejendomsdrift_scenarier_metadata)
+@ section personskat_ejendomsdrift_scenarier {
+
 | personskat_ejendomsdrift_scenarie_input(skatteår: Heltal, ejendomsdrift: PersonskatEjendomsdriftInput) -> PersonskatInput(
     lønmodtager = PersonskatLønmodtagerInput(
         skatteår = skatteår,
@@ -140,4 +141,5 @@ Futuruna.
 ? personskat_ejendomsdrift_2027_underskud_og_nummerering_afledes
 ? personskat_ejendomsdrift_udelukket_kategori_tilbageholder_sammenligning
 ? personskat_ejendomsdrift_erhvervsudlejning_afskaerer_synligt
---@end:personskat_ejendomsdrift_scenarier--
+
+}

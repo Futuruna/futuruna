@@ -39,7 +39,6 @@
     )
 )
 
---@label:ligningsloven_par13_kontingentfradrag::meta:ligningsloven_par13_metadata--
 ----
 § 13. Ved opgørelsen af den skattepligtige indkomst kan fradrages udgifter til
 kontingenter til arbejdsgiverforeninger, fagforeninger og andre faglige
@@ -56,7 +55,9 @@ er indberetningspligtig efter skatteindberetningslovens § 31, har indberettet
 kontingentudgiften til told- og skatteforvaltningen.
 ----
 
---@begin::ligningsloven_par13_kontingentfradrag--
+@ meta(ligningsloven_par13_metadata)
+@ section ligningsloven_par13_kontingentfradrag {
+
 # Ligningslov13Skatteyderstatus = Ll13Lønmodtager | Ll13SelvstændigtErhvervsdrivende | Ll13JuridiskPerson
 # Ligningslov13Foreningsart = Ll13Arbejdsgiverforening | Ll13Fagforening | Ll13AndenFagligSammenslutning | Ll13AndenForening
 # Ligningslov13Indberetningsstatus = Ll13IkkeIndberetningspligtig | Ll13IndberettetEfterSkatteindberetningslov31 | Ll13IkkeIndberettetEfterSkatteindberetningslov31
@@ -155,13 +156,13 @@ kontingentudgiften til told- og skatteforvaltningen.
         ikke_fradraget_kroner = ligningslov13_betalt_kontingent_kroner(input.kontingenter) - samlet_fradrag_kroner
     )
 }
---@end::ligningsloven_par13_kontingentfradrag--
+
+}
 
 = ligningsloven_par13_historiske_lofter_metadata = Metadata(
     attachments = AmendmentSource(value = ligningsloven_lov609_2023_par2_og_par3)
 )
 
---@label:ligningsloven_par13_historiske_lofter::meta:ligningsloven_par13_historiske_lofter_metadata--
 ----
 § 2
 
@@ -175,11 +176,14 @@ ved § 36 i lov nr. 871 af 21. juni 2022, foretages følgende ændring:
 Stk. 2. Loven har virkning fra og med indkomståret 2024.
 ----
 
---@begin::ligningsloven_par13_historiske_lofter--
+@ meta(ligningsloven_par13_historiske_lofter_metadata)
+@ section ligningsloven_par13_historiske_lofter {
+
 | exception ligningslov13_2023_understøttet ligningslov13_skatteår_understøttet(indkomstår: Heltal) -> Sandt under indkomstår == 2023
 | exception ligningslov13_2024_understøttet ligningslov13_skatteår_understøttet(indkomstår: Heltal) -> Sandt under indkomstår == 2024
 | exception ligningslov13_2023_årsloft ligningslov13_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus) -> 6000 under indkomstår == 2023 && skatteyderstatus == Ll13Lønmodtager
---@end::ligningsloven_par13_historiske_lofter--
+
+}
 
 = ligningsloven_lbk1500_par8a = LigningslovKontingentGaveKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
@@ -226,7 +230,6 @@ Stk. 2. Loven har virkning fra og med indkomståret 2024.
     )
 )
 
---@label:ligningsloven_par8a_gavefradrag::meta:ligningsloven_par8a_metadata--
 ----
 § 8 A. Ved opgørelsen af den skattepligtige indkomst kan fradrages gaver, som
 det godtgøres, at giveren har ydet til foreninger, stiftelser, institutioner
@@ -279,7 +282,9 @@ Stk. 4. Gaver, der er fradraget efter § 8 S, kan ikke fradrages efter stk. 1 og
 2.
 ----
 
---@begin::ligningsloven_par8a_gavefradrag--
+@ meta(ligningsloven_par8a_metadata)
+@ section ligningsloven_par8a_gavefradrag {
+
 # LigningslovGavemodtagerHjemsted = LlGaveDanmark | LlGaveAndetEUEØSLand | LlGaveUdenForEUEØS
 # LigningslovReligiøsAnerkendelse = LlGaveAnerkendtTrossamfund | LlGaveAnerkendtMenighedForsamlingEllerKreds | LlGaveAnerkendtValgmenighed | LlGaveIkkeAnerkendtReligiøstSamfund
 # LigningslovGavemodtagerFormål = LlGaveAlmenvelgørendeØkonomiskTrængte | LlGaveAlmennyttigtTilStørreKreds | LlGaveAlmennyttigForskning | LlGaveBeskyttelseAfNaturmiljøet | LlGaveReligiøstSamfund(anerkendelse: LigningslovReligiøsAnerkendelse) | LlGaveAndetFormål
@@ -316,7 +321,8 @@ Stk. 4. Gaver, der er fradraget efter § 8 S, kan ikke fradrages efter stk. 1 og
 | exception ligningslov8a_2024_årsloft ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 18300 under indkomstår == 2024
 | exception ligningslov8a_2025_årsloft ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 19000 under indkomstår == 2025
 | exception ligningslov8a_2026_årsloft ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 20000 under indkomstår == 2026
---@end::ligningsloven_par8a_gavefradrag--
+
+}
 
 = ligningsloven_lbk1500_par8h = LigningslovKontingentGaveKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
@@ -328,7 +334,6 @@ Stk. 4. Gaver, der er fradraget efter § 8 S, kan ikke fradrages efter stk. 1 og
     attachments = Source(value = ligningsloven_lbk1500_par8h)
 )
 
---@label:ligningsloven_par8h_forskningsgaver::meta:ligningsloven_par8h_metadata--
 ----
 § 8 H. Ved opgørelsen af den skattepligtige indkomst kan fradrages gaver, som
 giveren har ydet til almenvelgørende eller på anden måde almennyttige
@@ -352,12 +357,15 @@ interesseforbundne, jf. § 2.
 Stk. 4. I tilfælde, der er omfattet af stk. 1, finder § 8 A ikke anvendelse.
 ----
 
---@begin::ligningsloven_par8h_forskningsgaver--
+@ meta(ligningsloven_par8h_metadata)
+@ section ligningsloven_par8h_forskningsgaver {
+
 | ligningslov_gave_godkendt_efter_par8h(godkendelse: LigningslovGavemodtagerGodkendelse, indkomstår: Heltal) -> match godkendelse {
     | LlGaveGodkendtEfterPar8H(godkendelsesår, forskningsfondsudtalelse_indhentet) -> godkendelsesår == indkomstår && forskningsfondsudtalelse_indhentet
     | _ -> Falskt
 }
---@end::ligningsloven_par8h_forskningsgaver--
+
+}
 
 = ligningsloven_lbk1500_par12_stk1_til4 = LigningslovKontingentGaveKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
@@ -395,7 +403,6 @@ Stk. 4. I tilfælde, der er omfattet af stk. 1, finder § 8 A ikke anvendelse.
     )
 )
 
---@label:ligningsloven_par12_bindende_gaver::meta:ligningsloven_par12_metadata--
 ----
 § 12. Udgifter til løbende ydelser, som den skattepligtige ensidigt har
 forpligtet sig til at udrede, kan fradrages ved opgørelsen af den
@@ -444,7 +451,9 @@ til andre offentlige myndigheder, hvis oplysningerne er af betydning for
 myndighedens virksomhed eller for en afgørelse, som myndigheden skal træffe.
 ----
 
---@begin::ligningsloven_par12_bindende_gaver--
+@ meta(ligningsloven_par12_metadata)
+@ section ligningsloven_par12_bindende_gaver {
+
 | ligningslov12_tilladt_modtagerformål(formål: LigningslovGavemodtagerFormål) -> match formål {
     | LlGaveAlmenvelgørendeØkonomiskTrængte -> Sandt
     | LlGaveAlmennyttigForskning -> Sandt
@@ -477,7 +486,8 @@ myndighedens virksomhed eller for en afgørelse, som myndigheden skal træffe.
     | MedLigningslov12Indkomstgrundlag(personlig_indkomst_kroner, positiv_nettokapitalindkomst_kroner) -> penge_positivt_beløb(personlig_indkomst_kroner + penge_positivt_beløb(positiv_nettokapitalindkomst_kroner))
 }
 | ligningslov12_årsloft_kroner(indkomstgrundlag: Ligningslov12Indkomstgrundlag) -> penge_største_beløb(penge_beløb_gange_basispoint_kroner(ligningslov12_indkomstgrundlag_kroner(indkomstgrundlag), 1500), 15000)
---@end::ligningsloven_par12_bindende_gaver--
+
+}
 
 -- Identifikation og betalingsforløb er kildefakta, ikke afledt af skattebeløbet.
 -- Almindelige betalinger under årets samme forpligtelse deler ét aftaleloft.
@@ -495,7 +505,8 @@ myndighedens virksomhed eller for en afgørelse, som myndigheden skal træffe.
     | _ -> Falskt
 }
 
---@begin::ligningsloven_gavefradrag_samordning--
+@ section ligningsloven_gavefradrag_samordning {
+
 # LigningslovGaveSag(indkomstår: Heltal, fakta: LigningslovGaveFakta) {
     | input_gyldigt() -> fakta.identifikation != "" && fakta.indkomstår == indkomstår && fakta.betalt_beløb_kroner >= 0 && fakta.modtager.identifikation != "" && ligningslov12_art_input_gyldigt(fakta.art)
     | modtagerhjemsted_opfyldt() -> ligningslov_gavemodtager_hjemsted_opfyldt(fakta.modtager.hjemsted)
@@ -548,7 +559,7 @@ myndighedens virksomhed eller for en afgørelse, som myndigheden skal træffe.
 -- Betalingsrækkerne viser hver sit foreløbige grundlag. Det samlede § 12-
 -- grundlag kommer fra aftalerne, aldrig fra summen af de foreløbige rækker.
 -- Hjælperen kaldes kun for aftalereferencer fundet i de givne § 12-rækker.
---@label:ligningslov12_aftaleårsresultat::meta:ligningsloven_par12_aftalesamordning_metadata--
+@ meta(ligningsloven_par12_aftalesamordning_metadata)
 | ligningslov12_aftaleårsresultat(aftale_id: Tekst, resultater: List(LigningslovGaveResultat)) -> {
     = poster = filter(resultater, |r: LigningslovGaveResultat| ligningslov12_er_løbende_ydelse(r.fakta.art) && ligningslov12_aftale_identifikation(r.fakta.art) == aftale_id)
     = første = head(poster)
@@ -612,4 +623,5 @@ myndighedens virksomhed eller for en afgørelse, som myndigheden skal træffe.
         ikke_fradraget_kroner = ligningslov_gave_betalt_kroner(input.gaver) - samlet_fradrag_kroner
     )
 }
---@end::ligningsloven_gavefradrag_samordning--
+
+}

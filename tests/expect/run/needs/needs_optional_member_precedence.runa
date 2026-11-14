@@ -6,6 +6,7 @@
 -- expect-stdout: "help": "Exact metadata overrides projected metadata."
 -- expect-stdout-not: Projected spouse income
 
+@ meta(spouse_meta)
 # Spouse(income: Int, age: Int, cohabiting: Bool)
 # Household(income: Int, spouse: Spouse?)
 # TaxResult(tax: Int)
@@ -35,9 +36,7 @@
     RelativeField(path = refof(Spouse::income), label = "Projected spouse income", question = None)
 ])
 
---@label:household_tax::meta:household_meta--
---@label:Spouse::meta:spouse_meta--
-
+@ meta(household_meta)
 @ calculate
 | household_tax(h: Household) -> TaxResult(tax = match h.spouse {
         | None -> 0

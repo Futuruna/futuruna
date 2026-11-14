@@ -14,7 +14,6 @@
     )
 )
 
---@label:kursgevinstloven_par32_aktieklasser_scenarier::meta:kursgevinstloven_par32_aktieklasser_scenarier_metadata--
 ----
 § 32.
 
@@ -67,7 +66,9 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
 2.000 kr. Reglerne i § 14 finder tilsvarende anvendelse.
 ----
 
---@begin:kursgevinstloven_par32_aktieklasser_scenarier--
+@ meta(kursgevinstloven_par32_aktieklasser_scenarier_metadata)
+@ section kursgevinstloven_par32_aktieklasser_scenarier {
+
 | kgl_par32_aktieklasse_scenarie_intet_stk7_valg() -> AktieavancePar23Stk7Valg(
     selskabsidentifikation = "",
     første_optagelsesdato = AktieavancePar23Dato(år = 0, måned = 0, dag = 0),
@@ -506,4 +507,5 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
 ? kgl_par32_årets_par13a_tab_forbruges_før_kontrakttab
 ? kgl_par32_par19d_afskåret_tab_reducerer_ikke_grundlaget
 ? kgl_par32_ægtefælles_par13a_tab_forbruges_før_kontrakttab
---@end:kursgevinstloven_par32_aktieklasser_scenarier--
+
+}

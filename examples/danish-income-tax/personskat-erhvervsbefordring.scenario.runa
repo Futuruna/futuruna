@@ -18,7 +18,6 @@
     )
 )
 
---@label:personskat_erhvervsbefordring_scenarier::meta:personskat_erhvervsbefordring_scenarier_metadata--
 ----
 Scenarierne er ikke lovtekst. De fastholder den kanoniske beregningskæde fra
 flere identificerede kørsels- og godtgørelsessager gennem ligningslovens § 9 B
@@ -26,6 +25,8 @@ og personskattelovens § 3, stk. 2, nr. 8 til den samlede
 lønmodtagerberegning. Sagerne står i indkomstårets kronologiske rækkefølge;
 tidligere kilometer udledes af forløbet og er ikke kildefakta.
 ----
+
+@ meta(personskat_erhvervsbefordring_scenarier_metadata) for personskat_erhvervsbefordring_scenarier
 
 # PersonskatErhvervsbefordringÅrsforventning(skatteår: Heltal, lovversion: Ligningslov9BLovversion, satsversion: Ligningslov9BSatsversion, fradrag_i_personlig_indkomst_kroner: Heltal)
 

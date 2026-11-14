@@ -242,4 +242,4 @@
     )
 )
 
---@label:PersonskatCfcInput::meta:personskat_cfc_beregningsmeta--
+@ meta(personskat_cfc_beregningsmeta) for PersonskatCfcInput

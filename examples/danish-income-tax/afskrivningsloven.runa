@@ -348,7 +348,7 @@ Begge ændringer og deres virkningstidspunkter er modelleret særskilt.
 = al_2027_ejendomskategori_ændringsmeta = AmendmentSource(
     value = afskrivningsloven_lov615
 )
---@label:afskrivningsloven_2027_ejendomskategori::meta:al_2027_ejendomskategori_ændringsmeta--
+
 ----
 § 3. I afskrivningsloven, jf. lovbekendtgørelse nr. 1222 af 13. oktober
 2025, som ændret ved § 2 i lov nr. 749 af 20. juni 2025, foretages følgende
@@ -364,17 +364,20 @@ Begge ændringer og deres virkningstidspunkter er modelleret særskilt.
 og 15 har virkning fra og med den 1. januar 2027.
 ----
 
---@begin:afskrivningsloven_2027_ejendomskategori--
+@ meta(al_2027_ejendomskategori_ændringsmeta)
+@ section afskrivningsloven_2027_ejendomskategori {
+
 # AfskrivningslovEjendomskategori = AlLandbrugsejendom | AlSkovejendom | AlNaturejendom | AlAndenEjendom
 
 | afskrivningslov40c_ejendomskategori_omfattet(indkomstår: Heltal, kategori: AfskrivningslovEjendomskategori) -> kategori == AlLandbrugsejendom || kategori == AlSkovejendom || (indkomstår >= 2027 && kategori == AlNaturejendom)
 | afskrivningslov42_ejendomskategori_omfattet(indkomstår: Heltal, kategori: AfskrivningslovEjendomskategori) -> kategori == AlLandbrugsejendom || (indkomstår >= 2027 && (kategori == AlSkovejendom || kategori == AlNaturejendom))
---@end:afskrivningsloven_2027_ejendomskategori--
+
+}
 
 = al_par1_par2_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par1_par2::meta:al_par1_par2_kildemeta--
+
 ----
 § 1. Efter reglerne i denne lov kan skattemæssig afskrivning foretages
 på udgifter til anskaffelse og forbedring af aktiver, der benyttes
@@ -393,7 +396,9 @@ normalt ikke udsættes for værdiforringelse, kan ikke afskrives.
 Kunstværker kan dog afskrives efter §§ 44 A og 44 B.
 ----
 
---@begin:afskrivningsloven_par1_par2--
+@ meta(al_par1_par2_kildemeta)
+@ section afskrivningsloven_par1_par2 {
+
 # AfskrivningslovSkatteyder = AlSelvstændigErhvervsdrivendePerson | AlSelskabEllerForening | AlAndenFysiskPerson
 # AfskrivningslovAktivart = AlMaskine | AlInventar | AlAndetDriftsmiddel | AlSkib | AlSoftware | AlAntikvitetEllerAndetVærdifastAktiv | AlKunstværk
 # AfskrivningslovPar1Par2Input(skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, erhvervsmæssig_anvendelsesandel_basispoint: Heltal)
@@ -418,12 +423,13 @@ Kunstværker kan dog afskrives efter §§ 44 A og 44 B.
     aktivart_omfattet_af_kapitel2 = afskrivningslov_par1_par2_aktivart_omfattet(input.aktivart),
     omfattet_af_kapitel2 = afskrivningslov_par1_par2_erhvervsmæssigt_benyttet(input) && afskrivningslov_par1_par2_aktivart_omfattet(input.aktivart)
 )
---@end:afskrivningsloven_par1_par2--
+
+}
 
 = al_par3_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par3::meta:al_par3_kildemeta--
+
 ----
 § 3. Driftsmidler og skibe anses for anskaffet, når driftsmidlet eller skibet er
 
@@ -434,7 +440,9 @@ Kunstværker kan dog afskrives efter §§ 44 A og 44 B.
 3) færdiggjort i et sådant omfang, at det kan indgå i driften.
 ----
 
---@begin:afskrivningsloven_par3--
+@ meta(al_par3_kildemeta)
+@ section afskrivningsloven_par3 {
+
 # AfskrivningslovDato(år: Heltal, måned: Heltal, dag: Heltal)
 # Afskrivningslov3Input(anskaffelsesdato: AfskrivningslovDato, leveret_til_igangværende_virksomhed: Boolsk, bestemt_til_virksomhedens_drift: Boolsk, færdiggjort_til_at_indgå_i_driften: Boolsk)
 # Afskrivningslov3Resultat(anskaffelsesdato: AfskrivningslovDato, dato_gyldig: Boolsk, leveret_til_igangværende_virksomhed: Boolsk, bestemt_til_virksomhedens_drift: Boolsk, færdiggjort_til_at_indgå_i_driften: Boolsk, anskaffet_efter_par3: Boolsk)
@@ -477,12 +485,13 @@ Kunstværker kan dog afskrives efter §§ 44 A og 44 B.
     færdiggjort_til_at_indgå_i_driften = input.færdiggjort_til_at_indgå_i_driften,
     anskaffet_efter_par3 = afskrivningslov3_anskaffet(input)
 )
---@end:afskrivningsloven_par3--
+
+}
 
 = al_par4_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par4::meta:al_par4_kildemeta--
+
 ----
 § 4. Ændrer en skattepligtig benyttelsen af driftsmidler eller skibe fra
 udelukkende erhvervsmæssig benyttelse til privat benyttelse eller omvendt,
@@ -503,7 +512,9 @@ handelsværdien på det tidspunkt, hvor bilen, telefonen eller computeren med
 tilbehør tages ud af virksomhedsordningen.
 ----
 
---@begin:afskrivningsloven_par4--
+@ meta(al_par4_kildemeta)
+@ section afskrivningsloven_par4 {
+
 # Afskrivningslov4Benyttelsesændring = Al4IngenÆndring | Al4ErhvervTilPrivat | Al4PrivatTilErhverv | Al4ErhvervTilDelvis | Al4DelvisTilErhverv | Al4PrivatTilDelvis | Al4DelvisTilPrivat
 # Afskrivningslov4Aktivart = Al4Bil | Al4Telefon | Al4ComputerMedTilbehør | Al4Ladestander | Al4AndetDriftsmiddelEllerSkib
 # Afskrivningslov4Input(skatteyder: AfskrivningslovSkatteyder, aktivart: Afskrivningslov4Aktivart, benyttelsesændring: Afskrivningslov4Benyttelsesændring, handelsværdi_kroner: Heltal, overføres_fra_virksomhedsordningen_til_skattepligtige: Boolsk, blandet_benyttet_før_virksomhedsordningsoverførsel: Boolsk, fri_elbil_eller_pluginhybrid_beskattet_måneder: Heltal)
@@ -534,7 +545,8 @@ tilbehør tages ud af virksomhedsordningen.
     salgssum_kroner = afskrivningslov4_salgssum_kroner(input),
     købesum_kroner = afskrivningslov4_købesum_kroner(input)
 )
---@end:afskrivningsloven_par4--
+
+}
 
 = afskrivningsloven_2023_2026_parametre_metadata = Metadata(
     attachments = (
@@ -544,7 +556,6 @@ tilbehør tages ud af virksomhedsordningen.
     )
 )
 
---@label:afskrivningsloven_2023_2026_parametre::meta:afskrivningsloven_2023_2026_parametre_metadata--
 ----
 Skatteministeriets offentliggjorte satser til afskrivningsloven:
 
@@ -565,7 +576,9 @@ beddingsanlæg mv. (§ 10)                  921.500 kr. 965.800 kr.
 Småaktivgrænse (§ 11)                      16.200 kr.  16.900 kr.
 ----
 
---@begin:afskrivningsloven_2023_2026_parametre--
+@ meta(afskrivningsloven_2023_2026_parametre_metadata)
+@ section afskrivningsloven_2023_2026_parametre {
+
 # AfskrivningslovÅrsparameterKilde = AlSkatteministerietSatser2023_2024 | AlSkatteministerietSatser2025_2026
 # AfskrivningslovÅrsparametre(indkomstår: Heltal, kilde: AfskrivningslovÅrsparameterKilde, småsaldigrænse_kroner: Heltal, småaktivgrænse_kroner: Heltal, blandet_småaktivgrænse_kroner: Heltal, dok_og_bedding_minimum_kroner: Heltal, forskningsloft_kroner: Heltal, højeste_ordinære_sats_basispoint: Heltal, par5b_højeste_sats_basispoint: Heltal, par5b_nybygget_førsteårs_sats_basispoint: Heltal, par5c_stk1_højeste_sats_basispoint: Heltal, par5c_stk2_højeste_sats_basispoint: Heltal, forskning_sats_under_loft_basispoint: Heltal, forskning_sats_over_loft_basispoint: Heltal)
 
@@ -604,7 +617,8 @@ Småaktivgrænse (§ 11)                      16.200 kr.  16.900 kr.
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
 | afskrivningslov_årsparametre_opslag(indkomstår: Heltal) -> None
 | afskrivningslov_årsparametre(indkomstår: Heltal) -> head(match afskrivningslov_årsparametre_opslag(indkomstår) { | Some(værdi) -> [værdi] | None -> [] })
---@end:afskrivningsloven_2023_2026_parametre--
+
+}
 
 = afskrivningsloven_par5_metadata = Metadata(
     attachments = (
@@ -614,7 +628,6 @@ Småaktivgrænse (§ 11)                      16.200 kr.  16.900 kr.
     )
 )
 
---@label:afskrivningsloven_par5::meta:afskrivningsloven_par5_metadata--
 ----
 § 5. Driftsmidler og skibe, som en skattepligtig udelukkende benytter
 erhvervsmæssigt, skal afskrives på en samlet saldo for den enkelte
@@ -670,7 +683,9 @@ ved væsentlige ændringer i de forudsætninger, der har været afgørende for
 tilladelsen.
 ----
 
---@begin:afskrivningsloven_par5--
+@ meta(afskrivningsloven_par5_metadata)
+@ section afskrivningsloven_par5 {
+
 # AfskrivningslovSaldoordning = AlPar5AlmindeligSaldo | AlPar5BSkibssaldo | AlPar5CInfrastruktursaldo | AlPar5DMidlertidig116Saldo | AlPar5EMidlertidig108Saldo
 # Afskrivningslov5Valg = Al5IngenAfskrivning | Al5OrdinærAfskrivning(sats_basispoint: Heltal) | Al5FuldRestsaldo
 # Afskrivningslov5Aktivgrundlag = Al5Kapitel2Aktiv(input: AfskrivningslovPar1Par2Input) | Al5Par10DokEllerBedding(input: Afskrivningslov10Input) | Al5Par33ForskudsafskrevneAktiver(input: Afskrivningslov33Input)
@@ -771,7 +786,8 @@ tilladelsen.
     tab_kroner = afskrivningslov5_udlejningssalg_tab_kroner(input),
     saldoændring_ved_tidligt_salg_kroner = afskrivningslov5_udlejningssalg_tab_kroner(input) - afskrivningslov5_udlejningssalg_fortjeneste_kroner(input)
 )
---@end:afskrivningsloven_par5--
+
+}
 
 = afskrivningsloven_par5a_metadata = Metadata(
     attachments = (
@@ -780,7 +796,6 @@ tilladelsen.
     )
 )
 
---@label:afskrivningsloven_par5a::meta:afskrivningsloven_par5a_metadata--
 ----
 § 5 A. Har en skattepligtig solgt et driftsmiddel eller et skib omfattet
 af dette kapitel til et beløb, der er mindre end anskaffelsessummen med
@@ -797,7 +812,9 @@ del af anskaffelsessummen efter 5. pkt. ikke fører til en negativ saldo
 efter § 5.
 ----
 
---@begin:afskrivningsloven_par5a--
+@ meta(afskrivningsloven_par5a_metadata)
+@ section afskrivningsloven_par5a {
+
 # Afskrivningslov5AInput(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, saldoordning: AfskrivningslovSaldoordning, saldoværdi_primo_kroner: Heltal, anskaffelsessum_kroner: Heltal, samtlige_foretagne_afskrivninger_kroner: Heltal, salgssum_kroner: Heltal, vælger_tabsfradrag: Boolsk)
 # Afskrivningslov5AResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, saldoordning: AfskrivningslovSaldoordning, omfattet_af_par5a_modellen: Boolsk, vælger_tabsfradrag: Boolsk, uafskrevet_anskaffelsessum_kroner: Heltal, beregnet_tab_kroner: Heltal, saldoformindskelse_fører_til_negativ_saldo: Boolsk, saldoformindskelse_kroner: Heltal, tab_afskåret_af_saldogrænsen_kroner: Heltal, tabsvalg_gyldigt: Boolsk, afskrivning_i_salgsåret_afskåret: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal, saldoværdi_efter_formindskelse_kroner: Heltal)
 
@@ -830,7 +847,8 @@ efter § 5.
     fradrag_i_skattepligtig_indkomst_kroner = afskrivningslov5a_fradrag_kroner(input),
     saldoværdi_efter_formindskelse_kroner = afskrivningslov5a_saldoværdi_efter_formindskelse_kroner(input)
 )
---@end:afskrivningsloven_par5a--
+
+}
 
 = afskrivningsloven_par5b_metadata = Metadata(
     attachments = (
@@ -839,7 +857,6 @@ efter § 5.
     )
 )
 
---@label:afskrivningsloven_par5b::meta:afskrivningsloven_par5b_metadata--
 ----
 § 5 B. Skibe med en bruttotonnage på 20 t eller derover, der anvendes til
 erhvervsmæssig transport af passagerer eller gods, afskrives på en særskilt
@@ -869,7 +886,9 @@ skibe og den regnskabsmæssige værdi af øvrige aktiver. Reglerne i 1. pkt. fin
 tilsvarende anvendelse, når skibe omfattet af stk. 1 og 2 bliver omfattet af § 5.
 ----
 
---@begin:afskrivningsloven_par5b--
+@ meta(afskrivningsloven_par5b_metadata)
+@ section afskrivningsloven_par5b {
+
 # Afskrivningslov5BSkatteydergrundlag = Al5BSelskabPar1Stk1Nr1Nr2EllerStk6 | Al5BBegrænsetSkattepligtigEuPar2Stk1LitraA | Al5BIntetSkatteydergrundlag
 # Afskrivningslov5BInput(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, bruttotonnage: Heltal, erhvervsmæssig_transport_af_passagerer_eller_gods: Boolsk, skatteydergrundlag: Afskrivningslov5BSkatteydergrundlag, bareboat_udlejet_eller_erhvervet_til_bareboat: Boolsk, saldoværdi_primo_kroner: Heltal, øvrige_anskaffelsessummer_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, salgssummer_i_året_kroner: Heltal, valgt_saldosats_basispoint: Heltal, nybygget_førsteårs_anskaffelsessum_kroner: Heltal, nybygget_skib: Boolsk, første_afskrivningsår: Boolsk, undergivet_tonnageskat: Boolsk, valgt_nybygget_førsteårs_sats_basispoint: Heltal)
 # Afskrivningslov5BResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, omfattet_af_par5b: Boolsk, alene_omfattet_af_stk1_nr1_eller_nr2: Boolsk, valgt_saldosats_basispoint: Heltal, saldovalg_gyldigt: Boolsk, afskrivningsberettiget_saldoværdi_kroner: Heltal, saldoafskrivning_kroner: Heltal, nybygget_førsteårsvalg_gyldigt: Boolsk, nybygget_førsteårsafskrivning_kroner: Heltal, nybygget_rest_til_næste_års_saldo_kroner: Heltal, samlet_fradrag_i_skattepligtig_indkomst_kroner: Heltal, saldoværdi_efter_afskrivning_kroner: Heltal, saldoværdi_til_næste_indkomstår_kroner: Heltal)
@@ -918,7 +937,8 @@ tilsvarende anvendelse, når skibe omfattet af stk. 1 og 2 bliver omfattet af §
     resterende_kildesaldo_kroner = input.eksisterende_kildesaldo_kroner - afskrivningslov5b_overført_saldoværdi_kroner(input),
     tillæg_til_modtagersaldo_kroner = afskrivningslov5b_overført_saldoværdi_kroner(input)
 )
---@end:afskrivningsloven_par5b--
+
+}
 
 = afskrivningsloven_par5c_metadata = Metadata(
     attachments = (
@@ -929,7 +949,6 @@ tilsvarende anvendelse, når skibe omfattet af stk. 1 og 2 bliver omfattet af §
     )
 )
 
---@label:afskrivningsloven_par5c::meta:afskrivningsloven_par5c_metadata--
 ----
 § 5 C. Følgende driftsmidler afskrives på en særskilt saldo:
 
@@ -972,7 +991,9 @@ indkomstår, der udløber før indkomstår, der begynder den 1. januar 2013 elle
 senere.
 ----
 
---@begin:afskrivningsloven_par5c--
+@ meta(afskrivningsloven_par5c_metadata)
+@ section afskrivningsloven_par5c {
+
 # Afskrivningslov5CSaldoart = Al5CStk1LangLevetid | Al5CStk2Infrastruktur
 # Afskrivningslov5CAktivkategori = Al5CSkib20TIkkePar5B | Al5CLuftfartøj | Al5CRullendeJernbanemateriel | Al5COlieGasAnlæg | Al5CVarmeElOver1MW | Al5CVandindvindingsanlæg | Al5CSpildevandsanlæg | Al5CTransportLagringDistribution | Al5CTransmission | Al5CFastJernbanemateriel | Al5CVindmølleOver1MW | Al5CAndetAktiv
 # Afskrivningslov5CValg = Al5CIngenAfskrivning | Al5COrdinærAfskrivning(sats_basispoint: Heltal) | Al5CFuldRestsaldo
@@ -1029,7 +1050,8 @@ senere.
     fradrag_i_skattepligtig_indkomst_kroner = afskrivningslov5c_fradrag_kroner(input, parametre),
     saldoværdi_efter_afskrivning_kroner = afskrivningslov5c_saldoværdi_før_afskrivning_kroner(input) - afskrivningslov5c_fradrag_kroner(input, parametre)
 )
---@end:afskrivningsloven_par5c--
+
+}
 
 = afskrivningsloven_par5d_par5e_metadata = Metadata(
     attachments = (
@@ -1038,7 +1060,13 @@ senere.
     )
 )
 
---@label:afskrivningsloven_par5d_par5e::meta:afskrivningsloven_par5d_par5e_metadata--
+= afskrivningsloven_par5d_par5e_metadata_2 = Metadata(
+    attachments = (
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_saldoprincip_juridisk_vejledning),
+    )
+)
+
 ----
 § 5 D. Den skattepligtige kan i stedet for at afskrive efter § 5 vælge at
 afskrive udgifter til anskaffelse af nye driftsmidler, som udelukkende benyttes
@@ -1080,17 +1108,7 @@ perioden fra og med den 23. november 2020 til og med den 31. december 2022. Den
 afskrivningsberettigede saldoværdi efter stk. 4 lægges sammen med saldoværdien
 efter § 5 ved udgangen af indkomståret 2026. Den derved fremkomne samlede
 saldoværdi behandles fra og med indkomståret 2027 efter § 5.
-----
 
-= afskrivningsloven_par5d_par5e_metadata_2 = Metadata(
-    attachments = (
-        Source(value = afskrivningsloven_lbk1222),
-        Guidance(value = afskrivningsloven_saldoprincip_juridisk_vejledning),
-    )
-)
-
---@label:afskrivningsloven_par5d_par5e::meta:afskrivningsloven_par5d_par5e_metadata_2--
-----
 § 5 E. Den skattepligtige kan i stedet for at afskrive efter § 5 vælge at
 afskrive udgifter til anskaffelse af nye driftsmidler, som udelukkende benyttes
 erhvervsmæssigt, på en særskilt saldo, hvor anskaffelsessummen indgår med 108
@@ -1128,7 +1146,10 @@ efter § 5 ved udgangen af indkomståret 2030. Den derved fremkomne samlede
 saldoværdi behandles fra og med indkomståret 2031 efter § 5.
 ----
 
---@begin:afskrivningsloven_par5d_par5e--
+@ meta(afskrivningsloven_par5d_par5e_metadata)
+@ meta(afskrivningsloven_par5d_par5e_metadata_2)
+@ section afskrivningsloven_par5d_par5e {
+
 # AfskrivningslovForhøjetAktivkategori = AlForhøjetPersonbil | AlForhøjetSkib | AlForhøjetSoftware | AlForhøjetFossildrevetMaskine | AlForhøjetFossildrevetAndetDriftsmiddel | AlForhøjetAndetKøretøj | AlForhøjetAndetDriftsmiddel
 # AfskrivningslovForhøjetAnskaffelse(par3_input: Afskrivningslov3Input, anskaffelsessum_kroner: Heltal, fabriksnyt: Boolsk, udelukkende_erhvervsmæssigt_benyttet: Boolsk, straksafskrevet_efter_par6_stk1: Boolsk, aktivkategori: AfskrivningslovForhøjetAktivkategori, nummerpladevilkår_opfyldt: Boolsk)
 # AfskrivningslovForhøjetSalg(salgssum_kroner: Heltal)
@@ -1211,7 +1232,8 @@ saldoværdi behandles fra og med indkomståret 2031 efter § 5.
     saldo_til_par5_næste_indkomstår_kroner = if afskrivningslov_forhøjet_sammenlægges(input) { afskrivningslov_forhøjet_saldoværdi_før_afskrivning_kroner(input) - afskrivningslov_forhøjet_fradrag_kroner(input) } else { 0 },
     særskilt_saldo_til_næste_indkomstår_kroner = if afskrivningslov_forhøjet_sammenlægges(input) { 0 } else { afskrivningslov_forhøjet_saldoværdi_før_afskrivning_kroner(input) - afskrivningslov_forhøjet_fradrag_kroner(input) }
 )
---@end:afskrivningsloven_par5d_par5e--
+
+}
 
 = afskrivningsloven_par6_metadata = Metadata(
     attachments = (
@@ -1222,7 +1244,6 @@ saldoværdi behandles fra og med indkomståret 2031 efter § 5.
     )
 )
 
---@label:afskrivningsloven_par6::meta:afskrivningsloven_par6_metadata--
 ----
 § 6. Den skattepligtige kan i stedet for at afskrive efter § 5 vælge at
 fradrage (straksafskrive) hele anskaffelsessummen for nedennævnte
@@ -1287,7 +1308,9 @@ skattepligtige indkomst, medregnes i den skattepligtige indkomst for det
 indkomstår, hvori leveringen finder sted, jf. dog § 9.
 ----
 
---@begin:afskrivningsloven_par6--
+@ meta(afskrivningsloven_par6_metadata)
+@ section afskrivningsloven_par6 {
+
 # Afskrivningslov6Valg = Al6IngenStraksafskrivning | Al6KortFysiskLevetid | Al6Småaktiv | Al6ForsøgsOgForskningsaktiv
 # Afskrivningslov6Aktivgrundlag(aktiv_input: AfskrivningslovPar1Par2Input, anskaffelsesinput: Afskrivningslov3Input, anskaffelsessum_kroner: Heltal, samlet_anskaffelsessum_for_funktionsenhed_kroner: Heltal, fysisk_levetid_år: Heltal, anvendes_til_forsøgs_og_forskningsvirksomhed: Boolsk, anvendes_til_råstofefterforskning: Boolsk, forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner: Heltal)
 # Afskrivningslov6Udlejningsforhold(skatteyder_status: Afskrivningslov5UdlejningsSkatteyderStatus, erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen: Boolsk, tilladelse_i_anskaffelsesåret: Afskrivningslov5UdlejningsTilladelse)
@@ -1384,12 +1407,13 @@ indkomstår, hvori leveringen finder sted, jf. dog § 9.
     skattepligtig_indtægtsføring_kroner = penge_positivt_beløb(afskrivningslov6_salg_netto_beløb_kroner(input)),
     fradragsberettiget_negativt_beløb_kroner = penge_positivt_beløb(0 - afskrivningslov6_salg_netto_beløb_kroner(input))
 )
---@end:afskrivningsloven_par6--
+
+}
 
 = al_par7_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par7::meta:al_par7_kildemeta--
+
 ----
 § 7. Udgift til reparation af et skadelidt driftsmiddel eller skib fradrages i
 den skattepligtige indkomst for det indkomstår, hvori reparationen foretages.
@@ -1404,7 +1428,9 @@ Stk. 3. Som reparationsudgifter betragtes udgifter, der medgår til at sætte
 aktivet i den stand, det var i ved skadens indtræden.
 ----
 
---@begin:afskrivningsloven_par7--
+@ meta(al_par7_kildemeta)
+@ section afskrivningsloven_par7 {
+
 # Afskrivningslov7Input(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, saldoordning: AfskrivningslovSaldoordning, reparationsudgifter_kroner: Heltal, forsikrings_eller_erstatningssum_kroner: Heltal, udgifter_sætter_aktivet_i_stand_som_ved_skaden: Boolsk)
 # Afskrivningslov7Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, saldoordning: AfskrivningslovSaldoordning, omfattet_af_par7: Boolsk, reparationsudgifter_kroner: Heltal, forsikrings_eller_erstatningssum_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, reduktion_af_saldoværdi_kroner: Heltal)
 
@@ -1424,7 +1450,8 @@ aktivet i den stand, det var i ved skadens indtræden.
     fradrag_i_skattepligtig_indkomst_kroner = afskrivningslov7_reparationsfradrag_kroner(input),
     reduktion_af_saldoværdi_kroner = afskrivningslov7_saldoreduktion_kroner(input)
 )
---@end:afskrivningsloven_par7--
+
+}
 
 = afskrivningsloven_par8_metadata = Metadata(
     attachments = (
@@ -1433,7 +1460,6 @@ aktivet i den stand, det var i ved skadens indtræden.
     )
 )
 
---@label:afskrivningsloven_par8::meta:afskrivningsloven_par8_metadata--
 ----
 § 8. I det omfang en negativ saldo, der er fremkommet som følge af, at
 salgssummer m.v. skal fradrages i afskrivningsgrundlaget, jf. § 5, stk. 2, § 5
@@ -1456,7 +1482,9 @@ overskridelse af fristen efter stk. 1. Tilladelsen kan gøres betinget af, at de
 stilles sikkerhed for skattebetalingen.
 ----
 
---@begin:afskrivningsloven_par8--
+@ meta(afskrivningsloven_par8_metadata)
+@ section afskrivningsloven_par8 {
+
 # AfskrivningslovSaldoTreklang(par5_saldo_kroner: Heltal, par5d_saldo_kroner: Heltal, par5e_saldo_kroner: Heltal)
 # Afskrivningslov8Opgørelsesvalg = Al8SeparateSaldi | Al8SumPar5Par5DPar5E
 # Afskrivningslov8Fristforlængelse = Al8IngenFristforlængelse | Al8ForlængetFrist(til_indkomstår: Heltal, bestillingsaftale_indgået_før_ordinær_frist: Boolsk, bestilte_aktiver_kan_udligne_saldo: Boolsk, forsinkelse_skyldes_leverandøren: Boolsk, overskridelse_ikke_forudset_eller_afværgelig: Boolsk, sikkerhed_påkrævet: Boolsk, sikkerhed_stillet: Boolsk)
@@ -1503,7 +1531,8 @@ stilles sikkerhed for skattebetalingen.
     samlet_skattepligtig_indtægtsføring_kroner = afskrivningslov8_indtægtsføring_i_opståelsesåret_kroner(input) + afskrivningslov8_indtægtsføring_ved_frist_kroner(input),
     negativ_saldo_fremføres_kroner = afskrivningslov8_fremført_negativ_saldo_kroner(input)
 )
---@end:afskrivningsloven_par8--
+
+}
 
 = afskrivningsloven_par9_metadata = Metadata(
     attachments = (
@@ -1512,7 +1541,6 @@ stilles sikkerhed for skattebetalingen.
     )
 )
 
---@label:afskrivningsloven_par9::meta:afskrivningsloven_par9_metadata--
 ----
 § 9. I det indkomstår, hvori en virksomhed sælges eller i øvrigt ophører
 (ophørsåret), kan der ikke afskrives eller straksafskrives på driftsmidler eller
@@ -1546,7 +1574,9 @@ nævnte tilfælde, medregnes salgssummen fuldt ud i den skattepligtige indkomst
 for det indkomstår, hvori salget finder sted.
 ----
 
---@begin:afskrivningsloven_par9--
+@ meta(afskrivningsloven_par9_metadata)
+@ section afskrivningsloven_par9 {
+
 # Afskrivningslov9Opgørelsesvalg = Al9SeparateSaldi | Al9SammenlægPar5Par5DPar5E
 # Afskrivningslov9SaldoPost(saldoordning: AfskrivningslovSaldoordning, saldoværdi_primo_kroner: Heltal, salgssummer_inkl_straksafskrevne_aktiver_kroner: Heltal, nyanskaffelser_i_ophørsåret_kroner: Heltal, ikke_fradragne_anskaffelsessummer_uden_for_saldo_kroner: Heltal, alle_aktiver_på_saldoen_solgt: Boolsk)
 # Afskrivningslov9Input(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, virksomhed_solgt_eller_ophørt: Boolsk, opgørelsesvalg: Afskrivningslov9Opgørelsesvalg, saldoposter: List(Afskrivningslov9SaldoPost))
@@ -1615,7 +1645,8 @@ for det indkomstår, hvori salget finder sted.
     skattepligtig_salgssum_eller_overskud_kroner = afskrivningslov9_efterfølgende_skattepligtigt_kroner(input),
     fradragsberettiget_endeligt_tab_kroner = afskrivningslov9_efterfølgende_endeligt_tab_kroner(input)
 )
---@end:afskrivningsloven_par9--
+
+}
 
 = afskrivningsloven_par10_metadata = Metadata(
     attachments = (
@@ -1626,7 +1657,6 @@ for det indkomstår, hvori salget finder sted.
     )
 )
 
---@label:afskrivningsloven_par10::meta:afskrivningsloven_par10_metadata--
 ----
 § 10. Afskrivningsreglerne i §§ 5-9 kan anvendes på dok- og beddingsanlæg, der
 er beregnet til bygning og reparation af skibe, samt på de bygninger,
@@ -1637,7 +1667,9 @@ som nævnt i 1. pkt. til en samlet anskaffelsessum af et grundbeløb på mindst
 også behandles efter de nævnte regler.
 ----
 
---@begin:afskrivningsloven_par10--
+@ meta(afskrivningsloven_par10_metadata)
+@ section afskrivningsloven_par10 {
+
 # Afskrivningslov10Aktivart = Al10DokAnlæg | Al10Beddingsanlæg | Al10TilhørendeBygning | Al10TilhørendeInstallation | Al10AndetTilhørendeAktiv | Al10AndetAktiv
 # Afskrivningslov10Input(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: Afskrivningslov10Aktivart, beregnet_til_bygning_og_reparation_af_skibe: Boolsk, erhvervsmæssig_anvendelsesandel_basispoint: Heltal, samlet_anskaffelsessum_i_indkomståret_kroner: Heltal, vælger_par5_til_par9: Boolsk, fortjeneste_mv_behandles_efter_par5_til_par9: Boolsk)
 # Afskrivningslov10Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: Afskrivningslov10Aktivart, aktiv_omfattet: Boolsk, erhvervsmæssig_anvendelsesandel_basispoint: Heltal, udelukkende_erhvervsmæssigt_benyttet: Boolsk, samlet_anskaffelsessum_i_indkomståret_kroner: Heltal, minimumsanskaffelsessum_kroner: Heltal, minimum_opfyldt: Boolsk, valg_gyldigt: Boolsk, anskaffelsessum_til_par5_saldo_kroner: Heltal)
@@ -1660,7 +1692,8 @@ også behandles efter de nævnte regler.
     valg_gyldigt = afskrivningslov10_valg_gyldigt(input, parametre),
     anskaffelsessum_til_par5_saldo_kroner = afskrivningslov10_til_par5_saldo_kroner(input, parametre)
 )
---@end:afskrivningsloven_par10--
+
+}
 
 = afskrivningsloven_par11_metadata = Metadata(
     attachments = (
@@ -1671,7 +1704,6 @@ også behandles efter de nævnte regler.
     )
 )
 
---@label:afskrivningsloven_par11::meta:afskrivningsloven_par11_metadata--
 ----
 § 11. Driftsmidler og skibe, som en skattepligtig benytter både til
 erhvervsmæssige og til private formål, skal afskrives særskilt for hvert
@@ -1700,7 +1732,9 @@ kr. (2010-niveau) eller derunder, finder § 6, stk. 1, nr. 2, 2.-4. pkt.,
 tilsvarende anvendelse.
 ----
 
---@begin:afskrivningsloven_par11--
+@ meta(afskrivningsloven_par11_metadata)
+@ section afskrivningsloven_par11 {
+
 # AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder: Heltal, samlet_benyttelse_enheder: Heltal)
 # Afskrivningslov11Afskrivningskategori = Al11Par5Stk1 | Al11Par5CStk1 | Al11Par5CStk2
 # Afskrivningslov11Valg = Al11IngenAfskrivning | Al11OrdinærAfskrivning(sats_basispoint: Heltal) | Al11FuldRestfradrag
@@ -1760,7 +1794,8 @@ tilsvarende anvendelse.
     årsopgørelse = afskrivningslov11_årsopgørelse(input, parametre)
 )
 | afskrivningslov11_årsopgørelse_gyldig(årsopgørelse: Afskrivningslov11Årsopgørelse) -> afskrivningslov_benyttelse_er_blandet(årsopgørelse.benyttelse) && årsopgørelse.beregnet_afskrivning_før_erhvervsandel_kroner >= 0 && årsopgørelse.fradraget_afskrivning_kroner >= 0 && årsopgørelse.fradraget_afskrivning_kroner <= årsopgørelse.beregnet_afskrivning_før_erhvervsandel_kroner
---@end:afskrivningsloven_par11--
+
+}
 
 = afskrivningsloven_par12_metadata = Metadata(
     attachments = (
@@ -1769,7 +1804,10 @@ tilsvarende anvendelse.
     )
 )
 
---@label:afskrivningsloven_par12::meta:afskrivningsloven_par12_metadata--
+= al_par12_vejledningsmeta = Guidance(
+    value = afskrivningsloven_par11_par13_juridisk_vejledning
+)
+
 ----
 § 12. Sælges et driftsmiddel eller skib som nævnt i § 11, kan der ikke for
 salgsåret beregnes afskrivning på det solgte driftsmiddel eller skib.
@@ -1781,13 +1819,7 @@ de enkelte indkomstår. Fortjeneste eller tab medregnes ved opgørelsen af den
 skattepligtige indkomst for salgsåret med så stor en del, som svarer til
 forholdet mellem den erhvervsmæssige benyttelse for indkomstårene forud for
 salgsåret og den samlede benyttelse for disse indkomstår.
-----
 
-= al_par12_vejledningsmeta = Guidance(
-    value = afskrivningsloven_par11_par13_juridisk_vejledning
-)
---@label:afskrivningsloven_par12::meta:al_par12_vejledningsmeta--
-----
 Den juridiske vejledning, afsnit "Anskaffelse og afhændelse i samme
 indkomstår":
 
@@ -1799,7 +1831,10 @@ opgørelsen af den skattepligtige indkomst.
 Hvis afhændelsen sker med tab, kan der trækkes en tilsvarende del af tabet fra.
 ----
 
---@begin:afskrivningsloven_par12--
+@ meta(afskrivningsloven_par12_metadata)
+@ meta(al_par12_vejledningsmeta)
+@ section afskrivningsloven_par12 {
+
 # Afskrivningslov12Benyttelsesgrundlag = Al12TidligereÅr(årsopgørelser: List(Afskrivningslov11Årsopgørelse)) | Al12SammeIndkomstår(benyttelse: AfskrivningslovBenyttelse)
 # Afskrivningslov12Input(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, anskaffelsessum_kroner: Heltal, forbedringsudgifter_før_salgsåret_kroner: Heltal, forbedringsudgifter_i_salgsåret_kroner: Heltal, salgssum_kroner: Heltal, benyttelsesgrundlag: Afskrivningslov12Benyttelsesgrundlag)
 # Afskrivningslov12Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, omfattet_af_par12: Boolsk, afskrivning_i_salgsåret_afskåret: Boolsk, beregnede_afskrivninger_før_salgsåret_kroner: Heltal, uafskrevet_beløb_primo_i_salgsåret_kroner: Heltal, forbedringsudgifter_i_salgsåret_kroner: Heltal, salgssum_kroner: Heltal, erhvervsmæssig_benyttelse_enheder: Heltal, samlet_benyttelse_enheder: Heltal, erhvervsmæssig_andel_basispoint: Heltal, fortjeneste_før_erhvervsandel_kroner: Heltal, tab_før_erhvervsandel_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
@@ -1851,7 +1886,8 @@ Hvis afhændelsen sker med tab, kan der trækkes en tilsvarende del af tabet fra
     skattepligtig_fortjeneste_kroner = afskrivningslov12_skattepligtig_fortjeneste_kroner(input),
     fradragsberettiget_tab_kroner = afskrivningslov12_fradragsberettiget_tab_kroner(input)
 )
---@end:afskrivningsloven_par12--
+
+}
 
 = afskrivningsloven_par13_metadata = Metadata(
     attachments = (
@@ -1860,7 +1896,6 @@ Hvis afhændelsen sker med tab, kan der trækkes en tilsvarende del af tabet fra
     )
 )
 
---@label:afskrivningsloven_par13::meta:afskrivningsloven_par13_metadata--
 ----
 § 13. Udgår et driftsmiddel eller skib som nævnt i § 11 af driften på grund
 af en skade, kan der ikke afskrives på driftsmidlet eller skibet i det
@@ -1880,7 +1915,9 @@ afskrivninger på driftsmidlet eller skibet for disse indkomstår, medregnes i
 den skattepligtige indkomst.
 ----
 
---@begin:afskrivningsloven_par13--
+@ meta(afskrivningsloven_par13_metadata)
+@ section afskrivningsloven_par13 {
+
 # Afskrivningslov13Behandling = Al13UdgårAfDriften | Al13RepareresOgFortsætter
 # Afskrivningslov13UdgangInput(par12_input: Afskrivningslov12Input)
 # Afskrivningslov13ReparationInput(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, årets_benyttelse: AfskrivningslovBenyttelse, reparationsudgifter_kroner: Heltal, forsikrings_eller_erstatningssum_kroner: Heltal, tidligere_årsopgørelser: List(Afskrivningslov11Årsopgørelse))
@@ -1926,7 +1963,8 @@ den skattepligtige indkomst.
     samlet_skattepligtigt_beløb_kroner = afskrivningslov13_forsikringsoverskud_skattepligtigt_kroner(input),
     samlet_fradrag_i_skattepligtig_indkomst_kroner = afskrivningslov13_reparationsoverskud_fradrag_kroner(input)
 )
---@end:afskrivningsloven_par13--
+
+}
 
 = afskrivningsloven_par14_metadata = Metadata(
     attachments = (
@@ -1935,7 +1973,6 @@ den skattepligtige indkomst.
     )
 )
 
---@label:afskrivningsloven_par14::meta:afskrivningsloven_par14_metadata--
 ----
 § 14. Erhvervsmæssigt benyttede bygninger afskrives særskilt for hver enkelt
 bygning efter reglerne i dette kapitel.
@@ -1977,7 +2014,9 @@ betingelser omfatter bestemmelsen i 3. pkt. også udgravninger, veje,
 gårdspladser, parkeringspladser, hegn eller lignende.
 ----
 
---@begin:afskrivningsloven_par14--
+@ meta(afskrivningsloven_par14_metadata)
+@ section afskrivningsloven_par14 {
+
 # Afskrivningslov14Bygningsanvendelse = Al14Kontor | Al14FinansielVirksomhed | Al14Postvirksomhed | Al14Beboelse | Al14HotelEllerCampinghytte | Al14DøgninstitutionMedTilsvarendeSlid | Al14HotelEllerPlejehjemOpdeltIEjerlejligheder | Al14Sygdomsbehandling | Al14AndenErhvervsanvendelse
 # Afskrivningslov14Tilknytning = Al14IkkeTilknyttet | Al14TilknyttetAfskrivningsberettigetHovedbygning | Al14TilknyttetIkkeAfskrivningsberettigetHovedbygning
 # Afskrivningslov14TilknyttetArt = Al14BygningEllerLokale | Al14Garage | Al14Laboratorium | Al14UdgravningVejGårdspladsParkeringHegnEllerLignende | Al14Grund
@@ -2025,7 +2064,8 @@ gårdspladser, parkeringspladser, hegn eller lignende.
 }
 | afskrivningslov14_sag(input: Afskrivningslov14Input) -> Afskrivningslov14Sag(input)
 | afskrivningslov14_resultat(input: Afskrivningslov14Input) -> afskrivningslov14_sag(input).resultat()
---@end:afskrivningsloven_par14--
+
+}
 
 = afskrivningsloven_par15_metadata = Metadata(
     attachments = (
@@ -2034,7 +2074,6 @@ gårdspladser, parkeringspladser, hegn eller lignende.
     )
 )
 
---@label:afskrivningsloven_par15::meta:afskrivningsloven_par15_metadata--
 ----
 § 15. Installationer, der udelukkende tjener bygninger, hvorpå der kan
 afskrives efter § 14, behandles og afskrives som de nævnte bygninger. Det gælder
@@ -2058,7 +2097,9 @@ ejerlejligheder, der benyttes til beboelse, kan ikke afskrive på installationer
 i den bygning, hvori ejerlejligheden findes.
 ----
 
---@begin:afskrivningsloven_par15--
+@ meta(afskrivningsloven_par15_metadata)
+@ section afskrivningsloven_par15 {
+
 # Afskrivningslov15Anvendelse = Al15TjenerUdelukkendeBygning | Al15AndenUdelukkendeErhverv | Al15BlandetErhvervOgPrivat
 # Afskrivningslov15Behandling = Al15SomBygning | Al15SærskiltUdelukkendeErhverv | Al15SærskiltBlandet | Al15IkkeAfskrivningsberettiget
 # Afskrivningslov15Input(skatteyder: AfskrivningslovSkatteyder, anvendelse: Afskrivningslov15Anvendelse, bygning_input: Afskrivningslov14Input, har_kunnet_afskrives_efter_stk2_eller_stk3: Boolsk, flere_ved_samme_bygning_anskaffet_samme_indkomstår: Boolsk, benyttelse: AfskrivningslovBenyttelse, i_en_eller_tofamilieshus: Boolsk, ejer_af_ejerlejlighed_benyttet_til_beboelse: Boolsk)
@@ -2094,7 +2135,8 @@ i den bygning, hvori ejerlejligheden findes.
 }
 | afskrivningslov15_sag(input: Afskrivningslov15Input) -> Afskrivningslov15Sag(input)
 | afskrivningslov15_resultat(input: Afskrivningslov15Input) -> afskrivningslov15_sag(input).resultat()
---@end:afskrivningsloven_par15--
+
+}
 
 = afskrivningsloven_par16_metadata = Metadata(
     attachments = (
@@ -2103,7 +2145,6 @@ i den bygning, hvori ejerlejligheden findes.
     )
 )
 
---@label:afskrivningsloven_par16::meta:afskrivningsloven_par16_metadata--
 ----
 § 16. En bygning eller en installation anses for anskaffet i det indkomstår,
 hvori bygningen eller installationen erhverves eller opføres og benyttes
@@ -2112,7 +2153,9 @@ afskrivningsberettiget fra og med det indkomstår, hvori udgiften er afholdt,
 og ombygningen eller forbedringen benyttes erhvervsmæssigt.
 ----
 
---@begin:afskrivningsloven_par16--
+@ meta(afskrivningsloven_par16_metadata)
+@ section afskrivningsloven_par16 {
+
 # AfskrivningslovKapitel3Aktiv = AlK3Bygning(input: Afskrivningslov14Input) | AlK3Installation(input: Afskrivningslov15Input)
 # Afskrivningslov16Hændelse = Al16Anskaffelse | Al16OmbygningEllerForbedring
 # Afskrivningslov16Input(aktiv_identifikation: Tekst, aktiv: AfskrivningslovKapitel3Aktiv, hændelse: Afskrivningslov16Hændelse, indkomstår: Heltal, erhvervet_eller_opført: Boolsk, udgift_afholdt: Boolsk, benyttes_erhvervsmæssigt: Boolsk)
@@ -2159,7 +2202,8 @@ og ombygningen eller forbedringen benyttes erhvervsmæssigt.
 }
 | afskrivningslov16_sag(input: Afskrivningslov16Input) -> Afskrivningslov16Sag(input)
 | afskrivningslov16_resultat(input: Afskrivningslov16Input) -> afskrivningslov16_sag(input).resultat()
---@end:afskrivningsloven_par16--
+
+}
 
 = afskrivningsloven_par17_metadata = Metadata(
     attachments = (
@@ -2168,7 +2212,6 @@ og ombygningen eller forbedringen benyttes erhvervsmæssigt.
     )
 )
 
---@label:afskrivningsloven_par17::meta:afskrivningsloven_par17_metadata--
 ----
 § 17. Afskrivning på bygninger efter § 14 og installationer efter § 15, stk. 1
 og 2, kan fra og med anskaffelsesåret foretages med indtil 3 pct. årligt af
@@ -2208,7 +2251,9 @@ og en ideel andel, der er erhvervet den 1. januar 2023 eller senere, anses den
 først erhvervede ideelle andel for den først afståede.
 ----
 
---@begin:afskrivningsloven_par17--
+@ meta(afskrivningsloven_par17_metadata)
+@ section afskrivningsloven_par17 {
+
 # Afskrivningslov17Valg = Al17IngenAfskrivning | Al17ValgtAfskrivning(beregnet_afskrivning_før_erhvervsandel_kroner: Heltal)
 # Afskrivningslov17AccessoriskHovedbygning = Al17IngenAccessoriskHovedbygning | Al17HovedbygningEfterStk2(anskaffelsesår: Heltal, antaget_levetid_år: Heltal) | Al17HovedbygningEfterStk3(anskaffelsesår: Heltal, antaget_levetid_år: Heltal)
 # Afskrivningslov17Årsopgørelse(indkomstår: Heltal, beregnet_afskrivning_før_erhvervsandel_kroner: Heltal, fradraget_afskrivning_kroner: Heltal)
@@ -2309,7 +2354,8 @@ først erhvervede ideelle andel for den først afståede.
     afstår_ideel_andel = afstår_ideel_andel,
     først_erhvervede_andel_anses_først_afstået = ejer_andel_erhvervet_før_2023 && ejer_andel_erhvervet_2023_eller_senere && afstår_ideel_andel
 )
---@end:afskrivningsloven_par17--
+
+}
 
 = afskrivningsloven_par18_metadata = Metadata(
     attachments = (
@@ -2318,7 +2364,6 @@ først erhvervede ideelle andel for den først afståede.
     )
 )
 
---@label:afskrivningsloven_par18::meta:afskrivningsloven_par18_metadata--
 ----
 § 18. Udgifter til ombygning eller forbedring afskrives særskilt, jf. § 17.
 Såfremt udgifterne er afholdt i samme indkomstår, kan afskrivning dog foretages
@@ -2355,7 +2400,9 @@ forsikrings- eller erstatningssum, kan udgiften ikke fradrages efter reglen i
 stk. 2.
 ----
 
---@begin:afskrivningsloven_par18--
+@ meta(afskrivningsloven_par18_metadata)
+@ section afskrivningsloven_par18 {
+
 # Afskrivningslov18Fordeling = Al18Fuld | Al18BlandetInstallation(benyttelse: AfskrivningslovBenyttelse) | Al18DelvisBygningDirekte | Al18DelvisBygningFælles(afskrivningsberettiget_etageareal: Heltal, samlet_etageareal: Heltal) | Al18IkkeAfskrivningsberettigetDel
 # Afskrivningslov18Valg = Al18IntetStraksfradrag | Al18ValgtStraksfradrag(beløb_før_fordeling_kroner: Heltal)
 # Afskrivningslov18Input(indkomstår: Heltal, aktivets_par16_input: Afskrivningslov16Input, par20_input: Afskrivningslov20Input, afskrivningsgrundlag_forrige_indkomstår_kroner: Heltal, vedligeholdelsesudgifter_kroner: Heltal, ombygnings_og_forbedringsudgifter_kroner: Heltal, forsikrings_eller_erstatningssum_kroner: Heltal, udgiften_er_tilbygning: Boolsk, tilbygning_er_naturlig_del: Boolsk, fordeling: Afskrivningslov18Fordeling, valg: Afskrivningslov18Valg)
@@ -2430,7 +2477,8 @@ stk. 2.
 }
 | afskrivningslov18_sag(input: Afskrivningslov18Input) -> Afskrivningslov18Sag(input)
 | afskrivningslov18_resultat(input: Afskrivningslov18Input) -> afskrivningslov18_sag(input).resultat()
---@end:afskrivningsloven_par18--
+
+}
 
 = afskrivningsloven_par19_metadata = Metadata(
     attachments = (
@@ -2440,7 +2488,17 @@ stk. 2.
     )
 )
 
---@label:afskrivningsloven_par19::meta:afskrivningsloven_par19_metadata--
+= al_par19_ikrafttraedelsesnote_kildemeta = Source(
+    value = afskrivningsloven_lbk1222
+)
+----
+1) § 19, stk. 5, 2. pkt., har i denne affattelse virkning for bygninger, der
+anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
+27. maj 2025.
+----
+
+@ meta(al_par19_ikrafttraedelsesnote_kildemeta) for afskrivningsloven_par19_ikrafttraedelsesnote
+
 ----
 § 19. Anvendes kun en del af en bygning til formål, der berettiger til
 afskrivning efter § 14, kan der kun afskrives på den del af anskaffelsessummen,
@@ -2479,17 +2537,9 @@ til ejerboligen. Tilsvarende medregnes etagearealet af denne bygningsdel ikke
 efter stk. 1.
 ----
 
-= al_par19_ikrafttraedelsesnote_kildemeta = Source(
-    value = afskrivningsloven_lbk1222
-)
---@label:afskrivningsloven_par19_ikrafttraedelsesnote::meta:al_par19_ikrafttraedelsesnote_kildemeta--
-----
-1) § 19, stk. 5, 2. pkt., har i denne affattelse virkning for bygninger, der
-anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
-27. maj 2025.
-----
+@ meta(afskrivningsloven_par19_metadata)
+@ section afskrivningsloven_par19 {
 
---@begin:afskrivningsloven_par19--
 # Afskrivningslov19Interval(fra_kroner: Heltal, til_kroner: Heltal, afskrivningsberettiget_forrige_indkomstår: Boolsk, afskrivningsberettiget_i_indkomståret: Boolsk, afskrivningsberettigede_indkomstår: Heltal, anvendt_afskrivningsprocent_basispoint: Heltal, maksimalt_mulig_afskrivningsprocent_basispoint: Heltal)
 # Afskrivningslov19IntervalKontrol(næste_fra_kroner: Heltal, gyldig: Boolsk)
 # Afskrivningslov19Historik(skatteyder: AfskrivningslovSkatteyder, samlet_anskaffelsessum_kroner: Heltal, afskrivningsberettigede_indkomstår_for_bygningen: Heltal, intervaller: List(Afskrivningslov19Interval), gyldig: Boolsk)
@@ -2754,7 +2804,8 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
 }
 | afskrivningslov17_par19_sag(input: Afskrivningslov17Par19Input) -> Afskrivningslov17Par19Sag(input)
 | afskrivningslov17_par19_resultat(input: Afskrivningslov17Par19Input) -> afskrivningslov17_par19_sag(input).resultat()
---@end:afskrivningsloven_par19--
+
+}
 
 = afskrivningsloven_par20_metadata = Metadata(
     attachments = (
@@ -2763,7 +2814,6 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
     )
 )
 
---@label:afskrivningsloven_par20::meta:afskrivningsloven_par20_metadata--
 ----
 § 20. Afskrivning kan ikke foretages i det indkomstår, hvori bygningen sælges
 eller nedrives. Det samme gælder, når en installation omfattet af § 15, stk. 2
@@ -2774,7 +2824,9 @@ erhvervsmæssigt, kan bygningen eller installationen ikke afskrives i de
 indkomstår, hvori sådan anvendelse ikke har fundet sted.
 ----
 
---@begin:afskrivningsloven_par20--
+@ meta(afskrivningsloven_par20_metadata)
+@ section afskrivningsloven_par20 {
+
 # Afskrivningslov20Begivenhed = Al20FortsatErhvervsmæssigAnvendelse | Al20BygningSolgt | Al20BygningNedrevet | Al20InstallationSolgt | Al20InstallationUdskiftet | Al20InstallationEndeligtNedtaget | Al20ErhvervsmæssigAnvendelseOphørt
 # Afskrivningslov20Input(indkomstår: Heltal, aktiv: AfskrivningslovKapitel3Aktiv, begivenhed: Afskrivningslov20Begivenhed, erhvervsmæssigt_anvendt_i_indkomståret: Boolsk)
 # Afskrivningslov20Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktiv: AfskrivningslovKapitel3Aktiv, begivenhed: Afskrivningslov20Begivenhed, begivenhed_matcher_aktiv: Boolsk, aktiv_omfattet_af_kapitel3: Boolsk, afskrivning_afskåret_efter_stk1: Boolsk, afskrivning_afskåret_efter_stk2: Boolsk, kan_afskrives_i_indkomståret: Boolsk)
@@ -2816,7 +2868,8 @@ indkomstår, hvori sådan anvendelse ikke har fundet sted.
     afskrivning_afskåret_efter_stk2 = afskrivningslov20_begivenhed_matcher_aktiv(input) && input.erhvervsmæssigt_anvendt_i_indkomståret == Falskt,
     kan_afskrives_i_indkomståret = afskrivningslov_kapitel3_aktiv_omfattet(input.aktiv) && afskrivningslov20_begivenhed_matcher_aktiv(input) && input.begivenhed == Al20FortsatErhvervsmæssigAnvendelse && input.erhvervsmæssigt_anvendt_i_indkomståret
 )
---@end:afskrivningsloven_par20--
+
+}
 
 = afskrivningsloven_par21_metadata = Metadata(
     attachments = (
@@ -2825,7 +2878,6 @@ indkomstår, hvori sådan anvendelse ikke har fundet sted.
     )
 )
 
---@label:afskrivningsloven_par21::meta:afskrivningsloven_par21_metadata--
 ----
 § 21. Genvundne afskrivninger eller tab ved salg af bygninger eller
 installationer, hvorpå der er afskrevet efter § 14 eller § 15, medregnes i den
@@ -2878,7 +2930,9 @@ afskrivninger. Ved opgørelsen af samtlige foretagne afskrivninger medregnes de
 efter § 39, stk. 1 og 2, foretagne afskrivninger.
 ----
 
---@begin:afskrivningsloven_par21--
+@ meta(afskrivningsloven_par21_metadata)
+@ section afskrivningsloven_par21 {
+
 # Afskrivningslov21Afskrivningspost(beregnede_afskrivninger_kroner: Heltal, fratrukne_afskrivninger_kroner: Heltal)
 # Afskrivningslov21Par19Delgrundlag(samlede_anskaffelses_og_forbedringsudgifter_kroner: Heltal, straksfradrag_som_ikke_medregnes_kroner: Heltal, afskrivningsberettigede_indkomstår_for_grundlaget: Heltal, intervaller: List(Afskrivningslov19Interval))
 # Afskrivningslov21Grundlag = Al21OrdinærtGrundlag(samlede_anskaffelses_og_forbedringsudgifter_kroner: Heltal, straksfradrag_som_ikke_medregnes_kroner: Heltal, afskrivningsposter: List(Afskrivningslov21Afskrivningspost)) | Al21Par19Grundlag(bygningshistorik: Afskrivningslov19Historik, forbedringsgrundlag: List(Afskrivningslov21Par19Delgrundlag)) | Al21BlandetInstallation(samlede_anskaffelses_og_forbedringsudgifter_før_salgsåret_kroner: Heltal, straksfradrag_før_salgsåret_som_ikke_medregnes_kroner: Heltal, forbedringsudgifter_i_salgsåret_kroner: Heltal, straksfradrag_i_salgsåret_som_ikke_medregnes_kroner: Heltal, afskrivningsposter: List(Afskrivningslov21Afskrivningspost))
@@ -3041,7 +3095,8 @@ efter § 39, stk. 1 og 2, foretagne afskrivninger.
 | afskrivningslov21_resultat_med_beregningsværdi(input: Afskrivningslov21Input, beregningsværdi: Afskrivningslov21NedskrevetVærdiResultat) -> Afskrivningslov21Sag(input, beregningsværdi).resultat()
 | afskrivningslov21_resultat(input: Afskrivningslov21Input) -> afskrivningslov21_sag(input).resultat()
 | afskrivningslov21_salgssum_gyldig(input: Afskrivningslov21Input) -> afskrivningslov21_sag(input).salgssum_gyldig()
---@end:afskrivningsloven_par21--
+
+}
 
 = afskrivningsloven_par22_metadata = Metadata(
     attachments = (
@@ -3050,7 +3105,6 @@ efter § 39, stk. 1 og 2, foretagne afskrivninger.
     )
 )
 
---@label:afskrivningsloven_par22::meta:afskrivningsloven_par22_metadata--
 ----
 § 22. Når en bygning, hvorpå der er afskrevet efter § 14, nedrives, kan der
 foretages et fradrag i den skattepligtige indkomst for det indkomstår, hvori
@@ -3074,7 +3128,9 @@ installationens nedskrevne værdi på tidspunktet for nedrivningen nedsat med de
 eventuelle salgssum for bygninger, installationer eller materialer m.v.
 ----
 
---@begin:afskrivningsloven_par22--
+@ meta(afskrivningsloven_par22_metadata)
+@ section afskrivningsloven_par22 {
+
 # Afskrivningslov22Begivenhed = Al22BygningNedrevet | Al22InstallationUdskiftet | Al22InstallationEndeligtNedtaget
 # Afskrivningslov22Input(indkomstår: Heltal, nedskrevet_værdi_input: Afskrivningslov21NedskrevetVærdiInput, begivenhed: Afskrivningslov22Begivenhed, salgssum_for_bygning_installation_eller_materialer_kroner: Heltal, ejertid_før_nedrivning_år: Heltal, afskrivningsberettiget_anvendelse_i_ejertiden_år: Heltal, ejendommen_eller_den_relevante_del_solgt_i_indkomståret: Boolsk)
 # Afskrivningslov22Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, omfattet_af_par22: Boolsk, begivenhed_matcher_aktiv: Boolsk, femårs_ejertid_opfyldt: Boolsk, femårs_afskrivningsberettiget_anvendelse_opfyldt: Boolsk, nedskrevet_værdi_kroner: Heltal, salgssum_for_bygning_installation_eller_materialer_kroner: Heltal, beregnet_nedrivningstab_kroner: Heltal, fradrag_i_nedrivningsåret_kroner: Heltal, udskudt_tab_efter_stk2_kroner: Heltal, fradrag_ved_senere_ejendomssalg_kroner: Heltal)
@@ -3115,7 +3171,8 @@ eventuelle salgssum for bygninger, installationer eller materialer m.v.
 }
 | afskrivningslov22_sag(input: Afskrivningslov22Input) -> Afskrivningslov22Sag(input)
 | afskrivningslov22_resultat(input: Afskrivningslov22Input) -> afskrivningslov22_sag(input).resultat()
---@end:afskrivningsloven_par22--
+
+}
 
 = afskrivningsloven_par23_metadata = Metadata(
     attachments = (
@@ -3124,7 +3181,6 @@ eventuelle salgssum for bygninger, installationer eller materialer m.v.
     )
 )
 
---@label:afskrivningsloven_par23::meta:afskrivningsloven_par23_metadata--
 ----
 § 23. Hvis der på en bygning eller installation sker en skade, der ikke kan
 udbedres ved normal vedligeholdelse, kan afskrivning fra og med det indkomstår,
@@ -3136,7 +3192,9 @@ hensyn til udgifter, der anvendes til udbedring af en sådan skade, finder § 18
 stk. 1, anvendelse.
 ----
 
---@begin:afskrivningsloven_par23--
+@ meta(afskrivningsloven_par23_metadata)
+@ section afskrivningsloven_par23 {
+
 # Afskrivningslov23Input(indkomstår: Heltal, nedskrevet_værdi_input: Afskrivningslov21NedskrevetVærdiInput, skade_som_ikke_kan_udbedres_ved_normal_vedligeholdelse: Boolsk, værdi_umiddelbart_før_skaden_kroner: Heltal, værdi_efter_skaden_kroner: Heltal, udgift_til_udbedring_kroner: Heltal)
 # Afskrivningslov23Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, omfattet_af_par23: Boolsk, værdiforhold_basispoint: Heltal, afskrivningsgrundlag_før_skade_kroner: Heltal, afskrivningsgrundlag_efter_skade_kroner: Heltal, nedskrevet_værdi_før_skade_kroner: Heltal, nedskrevet_værdi_efter_skade_kroner: Heltal, fradragsberettiget_værdiforringelse_kroner: Heltal, udgift_til_udbedring_kroner: Heltal, udbedringsudgift_henvises_til_par18_stk1: Boolsk, par19_grundlag_efter_skade: List(Afskrivningslov21Par19Delgrundlag))
 
@@ -3184,7 +3242,8 @@ stk. 1, anvendelse.
 }
 | afskrivningslov23_sag(input: Afskrivningslov23Input) -> Afskrivningslov23Sag(input)
 | afskrivningslov23_resultat(input: Afskrivningslov23Input) -> afskrivningslov23_sag(input).resultat()
---@end:afskrivningsloven_par23--
+
+}
 
 = afskrivningsloven_par24_metadata = Metadata(
     attachments = (
@@ -3193,7 +3252,6 @@ stk. 1, anvendelse.
     )
 )
 
---@label:afskrivningsloven_par24::meta:afskrivningsloven_par24_metadata--
 ----
 § 24. Såfremt en skattepligtig ved en skade på sin ejendom har modtaget en
 erstatnings- eller forsikringssum og foretager genopførelse eller ombygning af
@@ -3272,7 +3330,9 @@ genopførelsen senest skulle være sket, medregnes i den skattepligtige indkomst
 for sidstnævnte indkomstår.
 ----
 
---@begin:afskrivningsloven_par24--
+@ meta(afskrivningsloven_par24_metadata)
+@ section afskrivningsloven_par24 {
+
 # Afskrivningslov24Placering = Al24SammeEjendom | Al24AndenEjendomHindretAfLovEllerMyndighed | Al24AndenEjendomISammeDriftsenhed | Al24AndenEjendomUdenUndtagelse
 # Afskrivningslov24Frist = Al24OrdinærFrist | Al24ForlængetFrist(seneste_genopførelsesår: Heltal)
 # Afskrivningslov24GenopførtAktiv(identifikation: Tekst, genopførelsesudgift_kroner: Heltal)
@@ -3390,7 +3450,8 @@ for sidstnævnte indkomstår.
         samlet_skattepligtigt_beløb_kroner = kandidat.skattepligtige_genvundne_afskrivninger_ved_fristsvigt_kroner
     )
 }
---@end:afskrivningsloven_par24--
+
+}
 
 = afskrivningsloven_par25_metadata = Metadata(
     attachments = (
@@ -3400,7 +3461,34 @@ for sidstnævnte indkomstår.
     )
 )
 
---@label:afskrivningsloven_par25::meta:afskrivningsloven_par25_metadata--
+= al_par25_hjemfaldsskala_kildemeta = Source(
+    value = afskrivningsloven_par25_hjemfaldsbekendtgørelse
+)
+----
+§ 1. Efterstående tabel skal anvendes ved afskrivning på ejendomme med
+hjemfaldsforpligtelse eller anden forpligtelse af lignende art.
+
+§ 2. Det beløb, der årligt kan afskrives på ejendomme, hvorpå der hviler en
+hjemfaldsforpligtelse eller anden forpligtelse af lignende art, beregnes
+således: Først foretages en beløbsmæssig opgørelse af hjemfaldsbyrden. Dette
+sker ved, at ejerens faktiske erhvervelsessum (købesum tillagt evt. byggesum)
+nedsættes med det beløb, der tilbagebetales ved hjemfald, ligesom der foretages
+fradrag for beløb, der er afskrevet efter de tidligere regler om ekstraordinære
+afskrivninger, samt for anskaffelsessummer for installationer, der afskrives
+særskilt. Dernæst opgøres antallet af år fra anskaffelsestidspunktet til
+hjemfaldstidspunktet. Hjemfaldsbyrden multipliceres herefter med den faktor i
+tabellens kolonne d, som står ud for det tal i kolonne c, der angiver antallet
+af år fra anskaffelsestidspunktet til hjemfaldstidspunktet. Herved beregnes den
+korrigerede hjemfaldsbyrde. Derpå opgøres antallet af år fra henholdsvis
+indkomstårets begyndelse og indkomstårets afslutning til hjemfaldstidspunktet.
+Det beløb, der kan afskrives pr. 10.000 kr. korrigeret hjemfaldsbyrde, kan
+herefter aflæses i kolonne b mellem de to tal i kolonne a, der angiver antallet
+af år fra henholdsvis indkomstårets begyndelse og indkomstårets afslutning til
+hjemfaldstidspunktet.
+----
+
+@ meta(al_par25_hjemfaldsskala_kildemeta) for afskrivningsloven_par25_hjemfaldsskala
+
 ----
 § 25. Udgifter til anskaffelse og forbedring af bygninger, som ikke opfylder
 betingelserne for afskrivning i § 14, kan afskrives, såfremt bygningen er opført
@@ -3471,34 +3559,9 @@ ydes erstatning efter vurdering for bygninger eller ejendom omfattet af stk. 1,
 lejeperiodens udløb på vilkår, der afviger fra markedsvilkår.
 ----
 
-= al_par25_hjemfaldsskala_kildemeta = Source(
-    value = afskrivningsloven_par25_hjemfaldsbekendtgørelse
-)
---@label:afskrivningsloven_par25_hjemfaldsskala::meta:al_par25_hjemfaldsskala_kildemeta--
-----
-§ 1. Efterstående tabel skal anvendes ved afskrivning på ejendomme med
-hjemfaldsforpligtelse eller anden forpligtelse af lignende art.
+@ meta(afskrivningsloven_par25_metadata)
+@ section afskrivningsloven_par25 {
 
-§ 2. Det beløb, der årligt kan afskrives på ejendomme, hvorpå der hviler en
-hjemfaldsforpligtelse eller anden forpligtelse af lignende art, beregnes
-således: Først foretages en beløbsmæssig opgørelse af hjemfaldsbyrden. Dette
-sker ved, at ejerens faktiske erhvervelsessum (købesum tillagt evt. byggesum)
-nedsættes med det beløb, der tilbagebetales ved hjemfald, ligesom der foretages
-fradrag for beløb, der er afskrevet efter de tidligere regler om ekstraordinære
-afskrivninger, samt for anskaffelsessummer for installationer, der afskrives
-særskilt. Dernæst opgøres antallet af år fra anskaffelsestidspunktet til
-hjemfaldstidspunktet. Hjemfaldsbyrden multipliceres herefter med den faktor i
-tabellens kolonne d, som står ud for det tal i kolonne c, der angiver antallet
-af år fra anskaffelsestidspunktet til hjemfaldstidspunktet. Herved beregnes den
-korrigerede hjemfaldsbyrde. Derpå opgøres antallet af år fra henholdsvis
-indkomstårets begyndelse og indkomstårets afslutning til hjemfaldstidspunktet.
-Det beløb, der kan afskrives pr. 10.000 kr. korrigeret hjemfaldsbyrde, kan
-herefter aflæses i kolonne b mellem de to tal i kolonne a, der angiver antallet
-af år fra henholdsvis indkomstårets begyndelse og indkomstårets afslutning til
-hjemfaldstidspunktet.
-----
-
---@begin:afskrivningsloven_par25--
 # Afskrivningslov25Aktivart = Al25BygningPåLejetGrund | Al25EjendomMedNedlæggelsesEllerNedrivningsklausul | Al25EjendomMedHjemfaldsforpligtelse | Al25InstallationPåLejetGrund | Al25InstallationVedNedlæggelsesEllerNedrivningsklausul | Al25InstallationVedHjemfaldsforpligtelse
 # Afskrivningslov25Hjemmel = Al25Stk1LejetGrund | Al25Stk2NedlæggelsesEllerNedrivningsklausul | Al25Stk3Hjemfaldsforpligtelse
 # Afskrivningslov25Hændelse = Al25FortsatAnvendelse | Al25LejemålOphørt | Al25NedlæggelseSket | Al25NedrivningSket | Al25NedlæggelsesEllerNedrivningsklausulOpgivet | Al25HjemfaldsforpligtelseOpgivet | Al25AktivSolgt
@@ -3591,7 +3654,8 @@ hjemfaldstidspunktet.
 }
 | afskrivningslov25_sag(input: Afskrivningslov25Input) -> Afskrivningslov25Sag(input)
 | afskrivningslov25_resultat(input: Afskrivningslov25Input) -> afskrivningslov25_sag(input).resultat()
---@end:afskrivningsloven_par25--
+
+}
 
 = afskrivningsloven_par26_metadata = Metadata(
     attachments = (
@@ -3600,7 +3664,6 @@ hjemfaldstidspunktet.
     )
 )
 
---@label:afskrivningsloven_par26::meta:afskrivningsloven_par26_metadata--
 ----
 § 26. Ved ophør af lejemålet eller nedlæggelse af en lejlighed m.v., inden der
 er foretaget fuld afskrivning af anskaffelsessummen for bygningerne m.v. efter
@@ -3623,7 +3686,9 @@ grundlag af den gennemsnitlige andel af anskaffelsessummen, som de
 afskrivningsberettigede udgifter til anskaffelse og forbedring udgør.
 ----
 
---@begin:afskrivningsloven_par26--
+@ meta(afskrivningsloven_par26_metadata)
+@ section afskrivningsloven_par26 {
+
 # Afskrivningslov26Input(par25_input: Afskrivningslov25Input, hændelse: Afskrivningslov25Hændelse, lejer_køber_grunden: Boolsk, salgssum_for_aktiv_kroner: Heltal, salgssum_for_materialer_kroner: Heltal, gennemsnitlig_afskrivningsberettiget_andel_basispoint: Heltal)
 # Afskrivningslov26Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, hjemmel: Afskrivningslov25Hjemmel, hændelse_matcher: Boolsk, uafskrevet_beløb_kroner: Heltal, gennemsnitlig_afskrivningsberettiget_andel_basispoint: Heltal, uafskrevet_beløb_efter_gennemsnitlig_andel_kroner: Heltal, fradrag_ved_lejemålsophør_eller_nedlæggelse_kroner: Heltal, beregnede_genvundne_afskrivninger_kroner: Heltal, skattepligtige_genvundne_afskrivninger_kroner: Heltal, råt_tab_ved_salg_kroner: Heltal, fradragsberettiget_tab_ved_salg_kroner: Heltal, nedrivningsfradrag_kroner: Heltal, samlet_fradrag_i_skattepligtig_indkomst_kroner: Heltal)
 
@@ -3663,7 +3728,8 @@ afskrivningsberettigede udgifter til anskaffelse og forbedring udgør.
 }
 | afskrivningslov26_sag(input: Afskrivningslov26Input) -> Afskrivningslov26Sag(input)
 | afskrivningslov26_resultat(input: Afskrivningslov26Input) -> afskrivningslov26_sag(input).resultat()
---@end:afskrivningsloven_par26--
+
+}
 
 = afskrivningsloven_par27_metadata = Metadata(
     attachments = (
@@ -3672,7 +3738,6 @@ afskrivningsberettigede udgifter til anskaffelse og forbedring udgør.
     )
 )
 
---@label:afskrivningsloven_par27::meta:afskrivningsloven_par27_metadata--
 ----
 § 27. Udgifter afholdt til opførelse af dræningsanlæg og jordfaste dele af
 markvandingsanlæg på jordbrugsbedrifter afskrives med indtil 20 pct. årligt i
@@ -3695,7 +3760,9 @@ forpagter til en anden forpagter, indtræder den anden forpagter i den første
 forpagters skattemæssige stilling vedrørende afskrivningen.
 ----
 
---@begin:afskrivningsloven_par27--
+@ meta(afskrivningsloven_par27_metadata)
+@ section afskrivningsloven_par27 {
+
 # Afskrivningslov27Anlægsart = Al27Dræningsanlæg | Al27JordfastDelAfMarkvandingsanlæg
 # Afskrivningslov27Rettighedshaver = Al27Ejer | Al27Forpagter | Al27Videreforpagter
 # Afskrivningslov27Position(skatteyder: AfskrivningslovSkatteyder, rettighedshaver: Afskrivningslov27Rettighedshaver, anlægsart: Afskrivningslov27Anlægsart, oprindelig_udgift_kroner: Heltal, samlede_foretagne_afskrivninger_kroner: Heltal)
@@ -3754,7 +3821,8 @@ forpagters skattemæssige stilling vedrørende afskrivningen.
 }
 | afskrivningslov27_sag(input: Afskrivningslov27Input) -> Afskrivningslov27Sag(input)
 | afskrivningslov27_resultat(input: Afskrivningslov27Input) -> afskrivningslov27_sag(input).resultat()
---@end:afskrivningsloven_par27--
+
+}
 
 = afskrivningsloven_par28_metadata = Metadata(
     attachments = (
@@ -3764,7 +3832,6 @@ forpagters skattemæssige stilling vedrørende afskrivningen.
     )
 )
 
---@label:afskrivningsloven_par28::meta:afskrivningsloven_par28_metadata--
 ----
 § 28. Forskudsafskrivning kan foretages efter reglerne i dette kapitel på
 driftsmidler og skibe, der udelukkende skal benyttes erhvervsmæssigt, og hvorpå
@@ -3779,7 +3846,9 @@ Stk. 3. Der kan ikke foretages forskudsafskrivninger på aktiver, som er omfatte
 af §§ 5 B og 5 C.
 ----
 
---@begin:afskrivningsloven_par28--
+@ meta(afskrivningsloven_par28_metadata)
+@ section afskrivningsloven_par28 {
+
 # AfskrivningslovForskudsAftaleform = Al28BindendeLeveringsaftale | Al28BindendeSkibsbygningsaftale | Al28EgenFremstillingsplan
 # AfskrivningslovForskudsSaldoart = Al28Par5Saldo | Al28Par5BSaldo | Al28Par5CSaldo
 # AfskrivningslovForskudsPlanlagtAktiv(identifikation: Tekst, planlagt_leverings_eller_færdiggørelsesår: Heltal, aftalt_eller_beregnet_anskaffelsessum_for_skatteyder_kroner: Heltal)
@@ -3826,7 +3895,8 @@ af §§ 5 B og 5 C.
 }
 | afskrivningslov28_sag(aftale: AfskrivningslovForskudsAftale) -> Afskrivningslov28Sag(aftale)
 | afskrivningslov28_resultat(aftale: AfskrivningslovForskudsAftale) -> afskrivningslov28_sag(aftale).resultat()
---@end:afskrivningsloven_par28--
+
+}
 
 = afskrivningsloven_par29_metadata = Metadata(
     attachments = (
@@ -3837,7 +3907,6 @@ af §§ 5 B og 5 C.
     )
 )
 
---@label:afskrivningsloven_par29::meta:afskrivningsloven_par29_metadata--
 ----
 § 29. Forskudsafskrivning kan foretages, når
 
@@ -3863,7 +3932,9 @@ forskudsafskrive, når anskaffelsessummen for aktiverne for hver enkelt
 virksomhed overstiger grundbeløbet.
 ----
 
---@begin:afskrivningsloven_par29--
+@ meta(afskrivningsloven_par29_metadata)
+@ section afskrivningsloven_par29 {
+
 # Afskrivningslov29Resultat(aftale: AfskrivningslovForskudsAftale, par28_resultat: Afskrivningslov28Resultat, grundbeløb_resultat: Afskrivningslov29GrundbeløbResultat, bestillings_eller_planlægningsår: Heltal, planlagte_aktiver_gyldige: Boolsk, identifikationer_entydige: Boolsk, levering_eller_færdiggørelse_i_første_til_fjerde_år: Boolsk, samlet_aftalt_eller_beregnet_anskaffelsessum_for_skatteyder_og_virksomhed_kroner: Heltal, grundbeløb_matcher_indkomståret: Boolsk, grundbeløb_oversteget: Boolsk, omfattet_af_par29: Boolsk)
 
 | afskrivningslov29_grundbeløb_resultat_opslag(indkomstår: Heltal) -> Some(Afskrivningslov29GrundbeløbResultat(
@@ -3911,7 +3982,8 @@ virksomhed overstiger grundbeløbet.
 | afskrivningslov29_sag(aftale: AfskrivningslovForskudsAftale, grundbeløb: Afskrivningslov29GrundbeløbResultat) -> Afskrivningslov29Sag(aftale, grundbeløb)
 | afskrivningslov29_resultat(aftale: AfskrivningslovForskudsAftale, grundbeløb: Afskrivningslov29GrundbeløbResultat) -> afskrivningslov29_sag(aftale, grundbeløb).resultat()
 | afskrivningslov_forskudsposition_grundbeløb_resultat(position: AfskrivningslovForskudsPosition) -> afskrivningslov29_grundbeløb_resultat(position.aftale.bestillings_eller_planlægningsdato.år)
---@end:afskrivningsloven_par29--
+
+}
 
 = afskrivningsloven_par30_metadata = Metadata(
     attachments = (
@@ -3920,7 +3992,6 @@ virksomhed overstiger grundbeløbet.
     )
 )
 
---@label:afskrivningsloven_par30::meta:afskrivningsloven_par30_metadata--
 ----
 § 30. Forskudsafskrivning kan første gang foretages ved opgørelsen af den
 skattepligtige indkomst for bestillings- eller planlægningsåret og sidste gang
@@ -3936,7 +4007,9 @@ Stk. 2. Forskudsafskrivning kan kun foretages på aktiver, der ved indkomståret
 udløb endnu ikke opfylder betingelserne i § 3 for at kunne afskrives.
 ----
 
---@begin:afskrivningsloven_par30--
+@ meta(afskrivningsloven_par30_metadata)
+@ section afskrivningsloven_par30 {
+
 # Afskrivningslov30Resultat(indkomstår: Heltal, første_forskudsafskrivningsår: Heltal, sidste_forskudsafskrivningsår: Heltal, selskabsudlejning_udskyder_første_år: Boolsk, inden_for_forskudsafskrivningsperioden: Boolsk, antal_aktiver_der_endnu_ikke_opfylder_par3: Heltal, kan_forskudsafskrive_i_indkomståret: Boolsk)
 
 | afskrivningslov30_selskabsudlejning_udskyder(aftale: AfskrivningslovForskudsAftale) -> aftale.selskab_omfattet_af_selskabsskattelov1_stk1_nr1_2_eller_4 && aftale.skatteyder == AlSelskabEllerForening && aftale.aktiver_erhverves_med_henblik_på_udlejning_eller_er_udlejet && aftale.tilladelse_efter_par5_stk6 == Falskt
@@ -3960,7 +4033,8 @@ udløb endnu ikke opfylder betingelserne i § 3 for at kunne afskrives.
 }
 | afskrivningslov30_sag(position: AfskrivningslovForskudsPosition, indkomstår: Heltal) -> Afskrivningslov30Sag(position, indkomstår)
 | afskrivningslov30_resultat(position: AfskrivningslovForskudsPosition, indkomstår: Heltal) -> afskrivningslov30_sag(position, indkomstår).resultat()
---@end:afskrivningsloven_par30--
+
+}
 
 = afskrivningsloven_par31_metadata = Metadata(
     attachments = (
@@ -3970,7 +4044,6 @@ udløb endnu ikke opfylder betingelserne i § 3 for at kunne afskrives.
     )
 )
 
---@label:afskrivningsloven_par31::meta:afskrivningsloven_par31_metadata--
 ----
 § 31. Forskudsafskrivning foretages på grundlag af den del af den samlede
 aftalte eller beregnede anskaffelsessum, der overstiger grundbeløbet efter § 29,
@@ -3983,7 +4056,9 @@ forskudsafskrivningsgrundlaget. Forskudsafskrivningen kan dog i alt højst udgø
 30 pct. af det nævnte grundlag.
 ----
 
---@begin:afskrivningsloven_par31--
+@ meta(afskrivningsloven_par31_metadata)
+@ section afskrivningsloven_par31 {
+
 # Afskrivningslov31Resultat(oprindeligt_forskudsafskrivningsgrundlag_kroner: Heltal, hidtil_anvendt_forskudsafskrivningssats_basispoint: Heltal, højeste_årlige_sats_basispoint: Heltal, højeste_samlede_sats_basispoint: Heltal, resterende_satsrum_basispoint: Heltal)
 
 | afskrivningslov31_oprindeligt_forskudsafskrivningsgrundlag_kroner(position: AfskrivningslovForskudsPosition) -> penge_positivt_beløb(afskrivningslov29_samlet_anskaffelsessum_kroner(position.aftale) - afskrivningslov_forskudsposition_grundbeløb_resultat(position).reguleret_grundbeløb_kroner)
@@ -3996,7 +4071,8 @@ forskudsafskrivningsgrundlaget. Forskudsafskrivningen kan dog i alt højst udgø
     højeste_samlede_sats_basispoint = 3000,
     resterende_satsrum_basispoint = afskrivningslov31_resterende_satsrum_basispoint(position)
 )
---@end:afskrivningsloven_par31--
+
+}
 
 = afskrivningsloven_par32_metadata = Metadata(
     attachments = (
@@ -4006,7 +4082,6 @@ forskudsafskrivningsgrundlaget. Forskudsafskrivningen kan dog i alt højst udgø
     )
 )
 
---@label:afskrivningsloven_par32::meta:afskrivningsloven_par32_metadata--
 ----
 § 32. Når driftsmidler eller skibe, hvorpå der er forskudsafskrevet, bliver
 afskrivningsberettigede efter § 5, fragår aktivernes faktiske anskaffelsessum i
@@ -4018,7 +4093,9 @@ indkomstår alene forskudsafskrives på den del af forskudsafskrivningsgrundlage
 der resterer ved indkomstårets udløb.
 ----
 
---@begin:afskrivningsloven_par32--
+@ meta(afskrivningsloven_par32_metadata)
+@ section afskrivningsloven_par32 {
+
 # Afskrivningslov32ÅrsInput(position: AfskrivningslovForskudsPosition, indkomstår: Heltal, nye_anskaffelser: List(AfskrivningslovForskudsAnskaffelse), valgt_forskudsafskrivningssats_basispoint: Heltal)
 # Afskrivningslov32ÅrsResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, position_gyldig_før: Boolsk, nye_anskaffelser_gyldige: Boolsk, kan_forskudsafskrive_i_indkomståret: Boolsk, resterende_grundbeløb_ved_årets_udløb_kroner: Heltal, resterende_forskudsafskrivningsgrundlag_ved_årets_udløb_kroner: Heltal, hidtil_anvendt_sats_basispoint: Heltal, valgt_sats_basispoint: Heltal, valg_gyldigt: Boolsk, forskudsafskrivning_kroner: Heltal, behandling_gyldig: Boolsk, position_efter: AfskrivningslovForskudsPosition)
 
@@ -4087,7 +4164,8 @@ der resterer ved indkomstårets udløb.
 }
 | afskrivningslov32_års_sag(input: Afskrivningslov32ÅrsInput) -> Afskrivningslov32ÅrsSag(input)
 | afskrivningslov32_årsresultat(input: Afskrivningslov32ÅrsInput) -> afskrivningslov32_års_sag(input).resultat()
---@end:afskrivningsloven_par32--
+
+}
 
 = afskrivningsloven_par33_metadata = Metadata(
     attachments = (
@@ -4096,7 +4174,6 @@ der resterer ved indkomstårets udløb.
     )
 )
 
---@label:afskrivningsloven_par33::meta:afskrivningsloven_par33_metadata--
 ----
 § 33. I det omfang et aktivs anskaffelsessum efter bestemmelsen i § 32 fragår i
 forskudsafskrivningsgrundlaget, opgøres de forskudsafskrivninger, der er
@@ -4112,7 +4189,9 @@ aktiv, fratrækkes i aktivets afskrivningsberettigede anskaffelsessum. Den
 resterende anskaffelsessum behandles efter reglerne i § 5, stk. 1-3.
 ----
 
---@begin:afskrivningsloven_par33--
+@ meta(afskrivningsloven_par33_metadata)
+@ section afskrivningsloven_par33 {
+
 # Afskrivningslov33Input(position_før_anskaffelser: AfskrivningslovForskudsPosition, anskaffelser_i_indkomståret: List(AfskrivningslovForskudsAnskaffelse))
 # Afskrivningslov33AktivResultat(identifikation: Tekst, faktisk_anskaffelsessum_kroner: Heltal, del_der_fragår_i_forskudsafskrivningsgrundlaget_kroner: Heltal, samlet_forskudsafskrivningsprocent_basispoint: Heltal, forskudsafskrivning_henført_til_aktivet_kroner: Heltal, forlods_afskrivning_efter_etableringskontoloven_kroner: Heltal, resterende_anskaffelsessum_til_par5_kroner: Heltal)
 # Afskrivningslov33Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, input_gyldigt: Boolsk, samlet_faktisk_anskaffelsessum_i_indkomståret_kroner: Heltal, samlet_del_der_fragår_i_forskudsafskrivningsgrundlaget_kroner: Heltal, samlet_forskudsafskrivningsprocent_basispoint: Heltal, samlede_forskudsafskrivninger_henført_til_aktiver_kroner: Heltal, samlet_resterende_anskaffelsessum_til_par5_kroner: Heltal, aktiv_resultater: List(Afskrivningslov33AktivResultat))
@@ -4182,7 +4261,8 @@ resterende anskaffelsessum behandles efter reglerne i § 5, stk. 1-3.
 }
 | afskrivningslov33_sag(input: Afskrivningslov33Input) -> Afskrivningslov33Sag(input)
 | afskrivningslov33_resultat(input: Afskrivningslov33Input) -> afskrivningslov33_sag(input).resultat()
---@end:afskrivningsloven_par33--
+
+}
 
 = afskrivningsloven_par34_metadata = Metadata(
     attachments = (
@@ -4192,7 +4272,6 @@ resterende anskaffelsessum behandles efter reglerne i § 5, stk. 1-3.
     )
 )
 
---@label:afskrivningsloven_par34::meta:afskrivningsloven_par34_metadata--
 ----
 § 34. Opfyldes forudsætningerne for forskudsafskrivning ikke, forhøjes den
 skattepligtige indkomst for det indkomstår, hvori dette viser sig, dog senest
@@ -4216,7 +4295,9 @@ indgået mellem Danmark og en fremmed stat, Færøerne eller Grønland bliver
 hjemmehørende uden for Danmark, sidestilles dette med ophør af skattepligt.
 ----
 
---@begin:afskrivningsloven_par34--
+@ meta(afskrivningsloven_par34_metadata)
+@ section afskrivningsloven_par34 {
+
 # Afskrivningslov34Hændelse = Al34ForudsætningerIkkeOpfyldt | Al34AftaleEllerPlanAnnulleret | Al34FristUdløbet | Al34SkattepligtOphørt(aktiver_forbliver_under_dansk_skattepligt: Boolsk) | Al34DobbeltbeskatningHjemmehørendeUdenForDanmark(aktiver_forbliver_under_dansk_skattepligt: Boolsk)
 # Afskrivningslov34Input(position: AfskrivningslovForskudsPosition, hændelse: Afskrivningslov34Hændelse, hændelsesår: Heltal, fristforlængelse_input: Afskrivningslov36Input)
 # Afskrivningslov34Årsforhøjelse(forskudsafskrivningsår: Heltal, resterende_forskudsafskrivningsgrundlag_kroner: Heltal, anvendt_sats_basispoint: Heltal, tilbageført_forskudsafskrivning_kroner: Heltal, antal_tillægsår: Heltal, fem_procent_tillæg_kroner: Heltal, forhøjelse_med_tillæg_kroner: Heltal)
@@ -4264,7 +4345,8 @@ hjemmehørende uden for Danmark, sidestilles dette med ophør af skattepligt.
 }
 | afskrivningslov34_sag(input: Afskrivningslov34Input) -> Afskrivningslov34Sag(input)
 | afskrivningslov34_resultat(input: Afskrivningslov34Input) -> afskrivningslov34_sag(input).resultat()
---@end:afskrivningsloven_par34--
+
+}
 
 = afskrivningsloven_par35_metadata = Metadata(
     attachments = (
@@ -4273,7 +4355,6 @@ hjemmehørende uden for Danmark, sidestilles dette med ophør af skattepligt.
     )
 )
 
---@label:afskrivningsloven_par35::meta:afskrivningsloven_par35_metadata--
 ----
 § 35. Såfremt den skattepligtige dør eller går konkurs og der resterer en del af
 eller hele forskudsafskrivningsgrundlaget efter § 32, jf. § 31, stk. 1, forhøjes
@@ -4293,7 +4374,9 @@ længstlevende ægtefælle indtræder i afdødes skattemæssige stilling efter
 dødsboskattelovens § 59, stk. 1, jf. dog § 59, stk. 2, nr. 1.
 ----
 
---@begin:afskrivningsloven_par35--
+@ meta(afskrivningsloven_par35_metadata)
+@ section afskrivningsloven_par35 {
+
 # Afskrivningslov35Hændelse = Al35SkattepligtigDør | Al35SkattepligtigGårKonkurs | Al35VirksomhedOphører | Al35VirksomhedSælges
 # Afskrivningslov35Input(position: AfskrivningslovForskudsPosition, hændelse: Afskrivningslov35Hændelse, hændelsesår: Heltal, forskudsafskrivningsgrundlag_overtaget_ved_dødsbosuccession_kroner: Heltal)
 # Afskrivningslov35Årsforhøjelse(forskudsafskrivningsår: Heltal, tilbageført_forskudsafskrivning_kroner: Heltal, antal_tillægsår: Heltal, fem_procent_tillæg_kroner: Heltal, forhøjelse_af_det_tidligere_indkomstår_kroner: Heltal)
@@ -4331,7 +4414,8 @@ dødsboskattelovens § 59, stk. 1, jf. dog § 59, stk. 2, nr. 1.
 }
 | afskrivningslov35_sag(input: Afskrivningslov35Input) -> Afskrivningslov35Sag(input)
 | afskrivningslov35_resultat(input: Afskrivningslov35Input) -> afskrivningslov35_sag(input).resultat()
---@end:afskrivningsloven_par35--
+
+}
 
 = afskrivningsloven_par36_metadata = Metadata(
     attachments = (
@@ -4340,7 +4424,6 @@ dødsboskattelovens § 59, stk. 1, jf. dog § 59, stk. 2, nr. 1.
     )
 )
 
---@label:afskrivningsloven_par36::meta:afskrivningsloven_par36_metadata--
 ----
 § 36. Fristen for forhøjelse af den skattepligtige indkomst efter § 34 kan efter
 tilladelse fra told- og skatteforvaltningen forlænges med indtil 3 år, hvis
@@ -4351,7 +4434,9 @@ kunnet forudse eller afværge forsinkelsen eller forsinkelsen skyldes told- og
 skatteforvaltningens eller andre myndigheders egne forhold.
 ----
 
---@begin:afskrivningsloven_par36--
+@ meta(afskrivningsloven_par36_metadata)
+@ section afskrivningsloven_par36 {
+
 # Afskrivningslov36Forsinkelsesgrund = Al36TekniskeForhold | Al36LeverandørensKonkurs | Al36SkatteforvaltningensEllerAndreMyndighedersEgneForhold | Al36AndenForsinkelse
 # Afskrivningslov36Input(tilladelse_givet: Boolsk, ansøgt_forlængelse_år: Heltal, forsinkelsesgrund: Afskrivningslov36Forsinkelsesgrund, forsinkelsen_kunne_ikke_forudses_eller_afværges: Boolsk)
 # Afskrivningslov36Resultat(bestillings_eller_planlægningsår: Heltal, ordinært_seneste_forhøjelsesår: Heltal, aktiver_ikke_afskrivningsberettigede_ved_ordinær_frist: Boolsk, forsinkelsesgrund_omfattet: Boolsk, tilladelse_givet: Boolsk, gyldig_fristforlængelse: Boolsk, forlængelse_år: Heltal, seneste_forhøjelsesår: Heltal)
@@ -4389,21 +4474,25 @@ skatteforvaltningens eller andre myndigheders egne forhold.
     forsinkelsesgrund = Al36AndenForsinkelse,
     forsinkelsen_kunne_ikke_forudses_eller_afværges = Falskt
 )
---@end:afskrivningsloven_par36--
+
+}
 
 = al_par37_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par37::meta:al_par37_kildemeta--
+
 ----
 § 37. (Ophævet)
 ----
 
---@begin:afskrivningsloven_par37--
+@ meta(al_par37_kildemeta)
+@ section afskrivningsloven_par37 {
+
 # Afskrivningslov37Status = Al37Ophævet
 
 | afskrivningslov37_status() -> Al37Ophævet
---@end:afskrivningsloven_par37--
+
+}
 
 = afskrivningsloven_par38_metadata = Metadata(
     attachments = (
@@ -4412,7 +4501,6 @@ skatteforvaltningens eller andre myndigheders egne forhold.
     )
 )
 
---@label:afskrivningsloven_par38::meta:afskrivningsloven_par38_metadata--
 ----
 § 38. På ejendomme med forekomster af grus, ler, kalk m.v. kan ejeren afskrive
 den værdiforringelse af ejendommen, der sker som følge af udnyttelsen af disse
@@ -4420,7 +4508,9 @@ forekomster. Værdiforringelsen udgør den del af anskaffelsessummen, der kan
 henføres til forekomsterne. Afskrivningen sker i takt med værdiforringelsen.
 ----
 
---@begin:afskrivningsloven_par38--
+@ meta(afskrivningsloven_par38_metadata)
+@ section afskrivningsloven_par38 {
+
 # Afskrivningslov38Forekomst = Al38Grus | Al38Ler | Al38Kalk | Al38Moler | Al38Tørv | Al38Brunkul | Al38AndenJordforekomst
 # Afskrivningslov38Position(skatteyder: AfskrivningslovSkatteyder, forekomst: Afskrivningslov38Forekomst, ejer_af_ejendommen: Boolsk, del_af_anskaffelsessummen_henført_til_forekomsten_kroner: Heltal, tidligere_foretagne_afskrivninger_kroner: Heltal)
 # Afskrivningslov38Input(indkomstår: Heltal, position: Afskrivningslov38Position, dokumenteret_værdiforringelse_som_følge_af_årets_udnyttelse_kroner: Heltal, valgt_afskrivning_kroner: Heltal)
@@ -4462,7 +4552,8 @@ henføres til forekomsterne. Afskrivningen sker i takt med værdiforringelsen.
 }
 | afskrivningslov38_sag(input: Afskrivningslov38Input) -> Afskrivningslov38Sag(input)
 | afskrivningslov38_resultat(input: Afskrivningslov38Input) -> afskrivningslov38_sag(input).resultat()
---@end:afskrivningsloven_par38--
+
+}
 
 = afskrivningsloven_par39_metadata = Metadata(
     attachments = (
@@ -4471,7 +4562,6 @@ henføres til forekomsterne. Afskrivningen sker i takt med værdiforringelsen.
     )
 )
 
---@label:afskrivningsloven_par39::meta:afskrivningsloven_par39_metadata--
 ----
 § 39. Udgifter til ombygning, forbedring eller indretning af lejede lokaler, der
 anvendes erhvervsmæssigt til andet formål end beboelse, afskrives med indtil 20
@@ -4521,7 +4611,9 @@ udgifter til anskaffelse, forbedring m.v. med fradrag af samtlige foretagne
 afskrivninger.
 ----
 
---@begin:afskrivningsloven_par39--
+@ meta(afskrivningsloven_par39_metadata)
+@ section afskrivningsloven_par39 {
+
 # Afskrivningslov39Lejevilkår = Al39LøbendeLejemål | Al39BestemtTidsrum(antal_år: Heltal) | Al39UdlejerUopsigeligFastPeriode(antal_år: Heltal) | Al39UdlejerUopsigeligUdenTidsbegrænsning
 # Afskrivningslov39NærtståendeRelation = Al39IkkeNærtstående | Al39Ægtefælle | Al39ForælderEllerBedsteforælder | Al39BarnEllerBarnebarn | Al39ÆgtefælleTilBarnEllerBarnebarn | Al39DødsboEfterNærtstående | Al39StedbarnsEllerAdoptivforhold
 # Afskrivningslov39Kontrol(part_kapitalandel_basispoint: Heltal, part_stemmerettigheder_basispoint: Heltal, part_ejerandel_basispoint: Heltal, part_anden_bestemmende_indflydelse: Boolsk, relation_mellem_udlejer_og_lejer: Afskrivningslov39NærtståendeRelation, lejemål_mellem_selskaber_eller_mellem_person_og_selskab: Boolsk, nærtstående_kapitalandel_basispoint: Heltal, nærtstående_stemmerettigheder_basispoint: Heltal, nærtstående_ejerandel_basispoint: Heltal, nærtstående_anden_bestemmende_indflydelse: Boolsk, reel_risiko_for_opsigelse: Boolsk, køberet_til_lokalerne_afviger_fra_markedsvilkår: Boolsk)
@@ -4630,7 +4722,8 @@ afskrivninger.
 }
 | afskrivningslov39_sag(input: Afskrivningslov39Input) -> Afskrivningslov39Sag(input)
 | afskrivningslov39_resultat(input: Afskrivningslov39Input) -> afskrivningslov39_sag(input).resultat()
---@end:afskrivningsloven_par39--
+
+}
 
 = afskrivningsloven_par40_metadata = Metadata(
     attachments = (
@@ -4639,7 +4732,6 @@ afskrivninger.
     )
 )
 
---@label:afskrivningsloven_par40::meta:afskrivningsloven_par40_metadata--
 ----
 § 40. Ved erhvervelse af goodwill kan erhververen fra og med det indkomstår,
 hvori der er indgået endelig aftale om overdragelsen, afskrive anskaffelsessummen
@@ -4735,7 +4827,9 @@ Stk. 8. Godtgørelser og vederlag omfattet af stk. 3 medregnes ved opgørelsen a
 den skattepligtige indkomst.
 ----
 
---@begin:afskrivningsloven_par40--
+@ meta(afskrivningsloven_par40_metadata)
+@ section afskrivningsloven_par40 {
+
 # Afskrivningslov40Aktivart = Al40Goodwill | Al40Knowhow | Al40Patentret | Al40ForfatterEllerKunstnerret | Al40MønsterEllerVaremærkeret | Al40Udbytteret | Al40Forpagtningsret | Al40Lejeret | Al40KulbrintebevillingTilladelseEllerRettighed | Al40AndenLovbeskyttetRettighed | Al40AgenturOpgivelsesgodtgørelse | Al40KonkurrenceklausulVederlag | Al40PensionstilsagnAfløsning
 # Afskrivningslov40Kontrol(overdragelse_mellem_person_og_selskab_eller_mellem_selskaber: Boolsk, kapitalandel_basispoint: Heltal, stemmerettigheder_basispoint: Heltal, ejerandel_basispoint: Heltal, bestemmende_indflydelse_ved_vedtægt_aftale_eller_fælles_ledelse: Boolsk, ikkeafskrivningsberettiget_del_af_overdragerens_anskaffelsessum_kroner: Heltal)
 # Afskrivningslov40Grundlag = Al40ErhvervetAktiv(erhverver: AfskrivningslovSkatteyder, aktivart: Afskrivningslov40Aktivart, endelig_aftaledato: AfskrivningslovDato, anskaffelsessum_kroner: Heltal, beskyttelses_eller_rettighedsperiode_år: Heltal, goodwill_erhvervet_fra_selskabsskattelov3_stk1_nr9_eller_nr18: Boolsk, udbytteret_omfattet_af_ligningslov12b_stk7: Boolsk, kontrol: Afskrivningslov40Kontrol) | Al40YdetGodtgørelseEllerVederlag(yder: AfskrivningslovSkatteyder, modtager: AfskrivningslovSkatteyder, aktivart: Afskrivningslov40Aktivart, endelig_aftaledato: AfskrivningslovDato, ydet_beløb_kroner: Heltal, samlede_ydelser_af_stk3_art_i_indkomståret_kroner: Heltal, samlet_lønudgift_i_indkomståret_kroner: Heltal)
@@ -4898,7 +4992,8 @@ den skattepligtige indkomst.
     aktivart = resultat.aktivart,
     godtgørelse_eller_vederlag_i_skattepligtig_indkomst_kroner = resultat.godtgørelse_eller_vederlag_skattepligtigt_hos_modtager_kroner
 )
---@end:afskrivningsloven_par40--
+
+}
 
 = afskrivningsloven_par40_2026_overgang_metadata = Metadata(
     attachments = (
@@ -4908,7 +5003,6 @@ den skattepligtige indkomst.
     )
 )
 
---@label:afskrivningsloven_par40_2026_overgang::meta:afskrivningsloven_par40_2026_overgang_metadata--
 ----
 LOV nr. 749 af 20. juni 2025:
 
@@ -4930,7 +5024,9 @@ gensidigt bebyrdende aftaler om overdragelse af et eller flere aktiver, der er
 indgået den 1. januar 2026 eller senere.
 ----
 
---@begin:afskrivningsloven_par40_2026_overgang--
+@ meta(afskrivningsloven_par40_2026_overgang_metadata)
+@ section afskrivningsloven_par40_2026_overgang {
+
 # Afskrivningslov40Henstandsregime = Al40TidligereStk7 | Al40Ligningslov12BHenstandFra2026 | Al40IngenHenstandsordning
 # Afskrivningslov40HenstandsovergangInput(aftaledato: AfskrivningslovDato, gensidigt_bebyrdende_aftale: Boolsk, aktiv_omfattet_af_par40_stk1_eller_stk2: Boolsk, vederlag_helt_eller_delvis_løbende_ydelse_efter_ligningslov12b_stk1_til_stk5: Boolsk)
 # Afskrivningslov40HenstandsovergangResultat(aftaledato_gyldig: Boolsk, aftale_indgået_før_1_januar_2026: Boolsk, tidligere_afskrivningslov40_stk7_fortsætter: Boolsk, henvises_til_ligningslov12b_fra_2026: Boolsk, regime: Afskrivningslov40Henstandsregime)
@@ -4943,7 +5039,8 @@ indgået den 1. januar 2026 eller senere.
     henvises_til_ligningslov12b_fra_2026 = afskrivningslov_dato_gyldig(input.aftaledato) && afskrivningslov_dato_yyyymmdd(input.aftaledato) >= 20260101 && input.gensidigt_bebyrdende_aftale && input.vederlag_helt_eller_delvis_løbende_ydelse_efter_ligningslov12b_stk1_til_stk5,
     regime = hvis afskrivningslov40_aftale_før_2026(input.aftaledato) && input.gensidigt_bebyrdende_aftale && input.aktiv_omfattet_af_par40_stk1_eller_stk2 && input.vederlag_helt_eller_delvis_løbende_ydelse_efter_ligningslov12b_stk1_til_stk5 { Al40TidligereStk7 } ellers { hvis afskrivningslov_dato_gyldig(input.aftaledato) && afskrivningslov_dato_yyyymmdd(input.aftaledato) >= 20260101 && input.gensidigt_bebyrdende_aftale && input.vederlag_helt_eller_delvis_løbende_ydelse_efter_ligningslov12b_stk1_til_stk5 { Al40Ligningslov12BHenstandFra2026 } ellers { Al40IngenHenstandsordning } }
 )
---@end:afskrivningsloven_par40_2026_overgang--
+
+}
 
 = afskrivningsloven_par40a_metadata = Metadata(
     attachments = (
@@ -4953,7 +5050,6 @@ indgået den 1. januar 2026 eller senere.
     )
 )
 
---@label:afskrivningsloven_par40a::meta:afskrivningsloven_par40a_metadata--
 ----
 § 40 A. Ved opgørelsen af den skattepligtige indkomst kan anskaffelsessummen
 til erhvervelse af en kvote, der giver ret til at producere, levere, anvende,
@@ -4989,7 +5085,9 @@ omfattet af selskabsskattelovens § 1, stk. 1, nr. 3 og 4, er ikke omfattet af
 stk. 1-5.
 ----
 
---@begin:afskrivningsloven_par40a--
+@ meta(afskrivningsloven_par40a_metadata)
+@ section afskrivningsloven_par40a {
+
 # AfskrivningslovKvoteAnskaffelse = AlKvoteKøbt(købssum_kroner: Heltal) | AlKvoteVederlagsfritTildelt
 # AfskrivningslovKvoteTilknytning = AlKvoteSelvstændigRettighed | AlKvoteKnyttetTilAndelsbevisSelPar1Stk1Nr3 | AlKvoteKnyttetTilAndelsbevisSelPar1Stk1Nr4
 # AfskrivningslovKvoteLot(lot_id: Tekst, rettighedsnøgle: Tekst, erhvervelsesdato: AfskrivningslovDato, erhvervelsesrækkefølge: Heltal, resterende_enheder: Heltal)
@@ -5076,7 +5174,8 @@ stk. 1-5.
 }
 | afskrivningslov40a_sag(input: Afskrivningslov40AInput) -> Afskrivningslov40ASag(input)
 | afskrivningslov40a_resultat(input: Afskrivningslov40AInput) -> afskrivningslov40a_sag(input).resultat()
---@end:afskrivningsloven_par40a--
+
+}
 
 = afskrivningsloven_par40b_metadata = Metadata(
     attachments = (
@@ -5085,7 +5184,6 @@ stk. 1-5.
     )
 )
 
---@label:afskrivningsloven_par40b::meta:afskrivningsloven_par40b_metadata--
 ----
 § 40 B. Ved opgørelsen af den skattepligtige indkomst kan anskaffelsessummen
 til erhvervelse af en kvote, der giver ret til løbende i nærmere afgrænsede
@@ -5126,7 +5224,9 @@ omfattet af selskabsskattelovens § 1, stk. 1, nr. 3 og 4, er heller ikke
 omfattet af stk. 1-6.
 ----
 
---@begin:afskrivningsloven_par40b--
+@ meta(afskrivningsloven_par40b_metadata)
+@ section afskrivningsloven_par40b {
+
 # Afskrivningslov40BKvoteart = Al40BAndenLøbendeKvote | Al40BMælkekvote | Al40BLeveringsrettighedForSukkerroer
 # Afskrivningslov40BPosition(skatteyder: AfskrivningslovSkatteyder, lot: AfskrivningslovKvoteLot, tilknytning: AfskrivningslovKvoteTilknytning, kvoteart: Afskrivningslov40BKvoteart, anskaffelse: AfskrivningslovKvoteAnskaffelse, resterende_anskaffelsessum_kroner: Heltal, aftaledato: AfskrivningslovDato, udnyttelsesperiode_år: Heltal, tidligere_afskrivninger_kroner: Heltal)
 # Afskrivningslov40BHændelse = Al40BFortsatRettighed(valgt_afskrivning_kroner: Heltal) | Al40BSolgt(solgte_enheder: Heltal, afståelsessum_kroner: Heltal) | Al40BUdløbet(udløbne_enheder: Heltal)
@@ -5222,7 +5322,8 @@ omfattet af stk. 1-6.
 }
 | afskrivningslov40b_sag(input: Afskrivningslov40BInput) -> Afskrivningslov40BSag(input)
 | afskrivningslov40b_resultat(input: Afskrivningslov40BInput) -> afskrivningslov40b_sag(input).resultat()
---@end:afskrivningsloven_par40b--
+
+}
 
 = afskrivningsloven_par40c_metadata = Metadata(
     attachments = (
@@ -5233,7 +5334,6 @@ omfattet af stk. 1-6.
     )
 )
 
---@label:afskrivningsloven_par40c::meta:afskrivningsloven_par40c_metadata--
 ----
 § 40 C. Anskaffelsessummen ved erhvervelse og afståelsessummen ved afståelse af
 en betalingsrettighed efter EU-landbrugsstøtteordningen skal indgå på en samlet
@@ -5327,7 +5427,9 @@ anskaffet den 1. januar 2005 eller senere, anses de først erhvervede kvoter
 eller andele af kvoter for de først afståede.
 ----
 
---@begin:afskrivningsloven_par40c--
+@ meta(afskrivningsloven_par40c_metadata)
+@ section afskrivningsloven_par40c {
+
 # Afskrivningslov40CKvoteart = Al40CBetalingsrettighed | Al40CMælkekvote | Al40CLeveringsrettighedForSukkerroer
 # Afskrivningslov40CSaldostatus = Al40CSaldoOmfattet | Al40CUdenForSaldo
 # Afskrivningslov40CSaldobevægelse = Al40CAnskaffelse(kvoteart: Afskrivningslov40CKvoteart, anskaffelsessum_kroner: Heltal) | Al40CAfståelse(kvoteart: Afskrivningslov40CKvoteart, afståelsessum_kroner: Heltal) | Al40CIngenSaldobevægelse
@@ -5997,7 +6099,8 @@ eller andele af kvoter for de først afståede.
     )
 }
 | afskrivningslov40c_acontoskat_årsresultat(input: Afskrivningslov40CAcontoskatÅrsinput) -> Afskrivningslov40CAcontoskatÅrsSag(input).resultat()
---@end:afskrivningsloven_par40c--
+
+}
 
 = afskrivningsloven_par40d_metadata = Metadata(
     attachments = (
@@ -6006,7 +6109,6 @@ eller andele af kvoter for de først afståede.
     )
 )
 
---@label:afskrivningsloven_par40d::meta:afskrivningsloven_par40d_metadata--
 ----
 § 40 D. En betalingsrettighed, mælkekvote eller leveringsrettighed for
 sukkerroer, der bliver omfattet af skattepligt her i landet, og som ikke i
@@ -6019,7 +6121,9 @@ Færøerne eller Grønland bliver hjemmehørende i Danmark, sidestilles dette ve
 anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
 ----
 
---@begin:afskrivningsloven_par40d--
+@ meta(afskrivningsloven_par40d_metadata)
+@ section afskrivningsloven_par40d {
+
 # Afskrivningslov40DSkattepligtsindtræden = Al40DSelskabsskattelovPar4A | Al40DKildeskattelovPar9 | Al40DHjemmehørendeEfterDobbeltbeskatningsoverenskomst
 # Afskrivningslov40DInput(skatteyder: AfskrivningslovSkatteyder, kvoteart: Afskrivningslov40CKvoteart, skattepligtsindtræden: Afskrivningslov40DSkattepligtsindtræden, tilflytningstidspunkt: AfskrivningslovDato, ikke_i_forvejen_omfattet_af_skattepligt_her_i_landet: Boolsk, handelsværdi_på_tilflytningstidspunktet_kroner: Heltal)
 # Afskrivningslov40DResultat(skatteyder: AfskrivningslovSkatteyder, kvoteart: Afskrivningslov40CKvoteart, skattepligtsindtræden: Afskrivningslov40DSkattepligtsindtræden, tilflytningstidspunkt: AfskrivningslovDato, input_gyldigt: Boolsk, dobbeltbeskatningsoverenskomst_sidestilles_med_skattepligtsindtræden: Boolsk, omfattet_af_par40d: Boolsk, anskaffelsessum_til_par40c_saldo_kroner: Heltal, par40c_saldobevægelse: Afskrivningslov40CSaldobevægelse)
@@ -6068,21 +6172,25 @@ anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
     bevægelser_i_året = concat([afskrivningslov40d_saldobevægelse_til_par40c(overførsel)], overførsel.øvrige_bevægelser_i_året)
 )
 | afskrivningslov40d_til_par40c_resultat(overførsel: Afskrivningslov40DPar40COverførsel) -> afskrivningslov40c_resultat(afskrivningslov40d_til_par40c_input(overførsel))
---@end:afskrivningsloven_par40d--
+
+}
 
 = al_par41_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par41::meta:al_par41_kildemeta--
+
 ----
 § 41. (Ophævet)
 ----
 
---@begin:afskrivningsloven_par41--
+@ meta(al_par41_kildemeta)
+@ section afskrivningsloven_par41 {
+
 # Afskrivningslov41Status = Al41Ophævet
 
 | afskrivningslov41_status() -> Al41Ophævet
---@end:afskrivningsloven_par41--
+
+}
 
 = afskrivningsloven_par42_metadata = Metadata(
     attachments = (
@@ -6093,7 +6201,6 @@ anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
     )
 )
 
---@label:afskrivningsloven_par42::meta:afskrivningsloven_par42_metadata--
 ----
 § 42. Udgifter afholdt til ombygning og forbedring i eksisterende bygninger i
 landbrugsejendomme af værelser, der anvendes til udlejning til turister, kan
@@ -6120,7 +6227,9 @@ samtlige foretagne afskrivninger. Som genvundne afskrivninger medregnes højst
 de foretagne afskrivninger, herunder forlods afskrivninger.
 ----
 
---@begin:afskrivningsloven_par42--
+@ meta(afskrivningsloven_par42_metadata)
+@ section afskrivningsloven_par42 {
+
 # AfskrivningslovÅrsafskrivning(indkomstår: Heltal, afskrivning_kroner: Heltal)
 # AfskrivningslovSærligtAfskrivningsvalg = AlSærligIngenAfskrivning | AlSærligOrdinærAfskrivning(valgt_beløb_kroner: Heltal) | AlSærligStraksafskrivning
 # Afskrivningslov42Rettighed = Al42Ejer | Al42Forpagter
@@ -6184,7 +6293,8 @@ de foretagne afskrivninger, herunder forlods afskrivninger.
 }
 | afskrivningslov42_afståelses_sag(input: Afskrivningslov42AfståelsesInput) -> Afskrivningslov42AfståelsesSag(input)
 | afskrivningslov42_afståelses_resultat(input: Afskrivningslov42AfståelsesInput) -> afskrivningslov42_afståelses_sag(input).resultat()
---@end:afskrivningsloven_par42--
+
+}
 
 = afskrivningsloven_par43_metadata = Metadata(
     attachments = (
@@ -6195,7 +6305,6 @@ de foretagne afskrivninger, herunder forlods afskrivninger.
     )
 )
 
---@label:afskrivningsloven_par43::meta:afskrivningsloven_par43_metadata--
 ----
 § 43. Afgifter, der afholdes i anledning af en virksomheds tilslutning til
 offentligt eller privat ejede anlæg, som har erhvervsmæssig betydning for
@@ -6224,7 +6333,9 @@ det aktiv, der er blevet tilsluttet anlægget, ved opgørelsen af den
 skattepligtige indkomst for det indkomstår, hvori salget finder sted.
 ----
 
---@begin:afskrivningsloven_par43--
+@ meta(afskrivningsloven_par43_metadata)
+@ section afskrivningsloven_par43 {
+
 # Afskrivningslov43Position(skatteyder: AfskrivningslovSkatteyder, forfaldsår: Heltal, tilslutningsafgift_kroner: Heltal, engangsudgift: Boolsk, fysisk_tilslutning: Boolsk, offentligt_anlæg_eller_privatanlæg_ejet_af_andre: Boolsk, erhvervsmæssig_anvendelsesandel_basispoint: Heltal, tidligere_afskrivninger: List(AfskrivningslovÅrsafskrivning))
 # Afskrivningslov43ÅrsInput(indkomstår: Heltal, position: Afskrivningslov43Position, valg: AfskrivningslovSærligtAfskrivningsvalg)
 # Afskrivningslov43ÅrsResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, position_gyldig: Boolsk, omfattet_af_par43: Boolsk, erhvervsmæssigt_afskrivningsgrundlag_kroner: Heltal, resterende_afskrivningsgrundlag_før_året_kroner: Heltal, reguleret_straksafskrivningsgrænse_kroner: Heltal, højeste_ordinære_afskrivning_kroner: Heltal, valg: AfskrivningslovSærligtAfskrivningsvalg, valg_gyldigt: Boolsk, afskrivning_i_skattepligtig_indkomst_kroner: Heltal, position_efter: Afskrivningslov43Position)
@@ -6272,7 +6383,8 @@ skattepligtige indkomst for det indkomstår, hvori salget finder sted.
 }
 | afskrivningslov43_salg_sag(input: Afskrivningslov43SalgInput) -> Afskrivningslov43SalgSag(input)
 | afskrivningslov43_salg_resultat(input: Afskrivningslov43SalgInput) -> afskrivningslov43_salg_sag(input).resultat()
---@end:afskrivningsloven_par43--
+
+}
 
 = afskrivningsloven_par44_metadata = Metadata(
     attachments = (
@@ -6281,7 +6393,6 @@ skattepligtige indkomst for det indkomstår, hvori salget finder sted.
     )
 )
 
---@label:afskrivningsloven_par44::meta:afskrivningsloven_par44_metadata--
 ----
 § 44. Reglerne i denne bestemmelse gælder for anskaffelse af
 afskrivningsberettigede aktiver, når udgiften helt eller delvis er betalt ved et
@@ -6327,7 +6438,9 @@ aktiv efter stk. 2, kan afskrivning på dette aktiv kun foretages på
 anskaffelsessummen med fradrag af det straksafskrevne beløb.
 ----
 
---@begin:afskrivningsloven_par44--
+@ meta(afskrivningsloven_par44_metadata)
+@ section afskrivningsloven_par44 {
+
 # Afskrivningslov44Tilskudskategori = Al44MedienævnetProjektEllerSanering | Al44HavOgFiskerifonden | Al44HavOgFiskerifondenEndeligtFartøjsophør | Al44Fiskeriudviklingsloven | Al44FiskeriudviklingslovenEndeligtFartøjsophør | Al44EuStrukturfondeOgNationalMedfinansiering | Al44Landdistriktsfonden | Al44Landdistriktsloven | Al44JordbrugsOgSkovbrugsStrukturprojekt | Al44Artikel33Landdistriktsordning | Al44AndetTilskud
 # Afskrivningslov44Tilskudsbetaling(kategori: Afskrivningslov44Tilskudskategori, betalt_til_anskaffelsesudgiften_kroner: Heltal)
 # Afskrivningslov44Input(indkomstår: Heltal, anskaffelsesår: Heltal, skatteyder: AfskrivningslovSkatteyder, afskrivningsberettiget_aktiv: Boolsk, anskaffelsesudgift_kroner: Heltal, tilskudsbetalinger: List(Afskrivningslov44Tilskudsbetaling), valgt_straksafskrivning_kroner: Heltal)
@@ -6362,7 +6475,8 @@ anskaffelsessummen med fradrag af det straksafskrevne beløb.
 }
 | afskrivningslov44_sag(input: Afskrivningslov44Input) -> Afskrivningslov44Sag(input)
 | afskrivningslov44_resultat(input: Afskrivningslov44Input) -> afskrivningslov44_sag(input).resultat()
---@end:afskrivningsloven_par44--
+
+}
 
 = afskrivningsloven_par44a_metadata = Metadata(
     attachments = (
@@ -6371,7 +6485,6 @@ anskaffelsessummen med fradrag af det straksafskrevne beløb.
     )
 )
 
---@label:afskrivningsloven_par44a::meta:afskrivningsloven_par44a_metadata--
 ----
 § 44 A. Udgifter afholdt til kunstnerisk udsmykning af erhvervsmæssigt
 benyttede bygninger, bortset fra en- eller tofamiliehuse og bortset fra den del
@@ -6433,7 +6546,9 @@ bygning, den kunstneriske udsmykning er indføjet i eller knytter sig til efter
 stk. 1, 3. pkt.
 ----
 
---@begin:afskrivningsloven_par44a--
+@ meta(afskrivningsloven_par44a_metadata)
+@ section afskrivningsloven_par44a {
+
 # Afskrivningslov44ABygningsdel = Al44AErhvervsbygning | Al44AEnEllerTofamiliehus | Al44ABeboelsesdel
 # Afskrivningslov44APlacering = Al44AIndføjetIBygningen | Al44AIndføjetINæreOmgivelser | Al44AIkkeIndføjet
 # Afskrivningslov44AAnskaffelsesmåde = Al44AFørstegangskøbAfOriginalBilledkunst | Al44AKøbtSammenMedBygningen | Al44AAndetKøb
@@ -6535,7 +6650,8 @@ stk. 1, 3. pkt.
 }
 | afskrivningslov44a_genopførelse_sag(input: Afskrivningslov44AGenopførelseInput) -> Afskrivningslov44AGenopførelseSag(input)
 | afskrivningslov44a_genopførelse_resultat(input: Afskrivningslov44AGenopførelseInput) -> afskrivningslov44a_genopførelse_sag(input).resultat()
---@end:afskrivningsloven_par44a--
+
+}
 
 = afskrivningsloven_par44b_metadata = Metadata(
     attachments = (
@@ -6546,7 +6662,6 @@ stk. 1, 3. pkt.
     )
 )
 
---@label:afskrivningsloven_par44b::meta:afskrivningsloven_par44b_metadata--
 ----
 § 44 B. Udgifter afholdt til kunstnerisk udsmykning, der ophænges eller
 opstilles i erhvervsmæssigt benyttede bygninger, bortset fra en- eller
@@ -6574,7 +6689,9 @@ opstillet, med at være anvendt erhvervsmæssigt, anses den kunstneriske
 udsmykning for at være solgt.
 ----
 
---@begin:afskrivningsloven_par44b--
+@ meta(afskrivningsloven_par44b_metadata)
+@ section afskrivningsloven_par44b {
+
 # Afskrivningslov44BHændelse = Al44BOrdinærtIndkomstår | Al44BOrdinærtSalg(salgssum_kroner: Heltal) | Al44BBygningOphørerMedErhvervsmæssigAnvendelse(handelsværdi_kroner: Heltal)
 # Afskrivningslov44BInput(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, bygningsdel: Afskrivningslov44ABygningsdel, kunststatus: Afskrivningslov44AKunststatus, førstegangskøb_af_original_billedkunst: Boolsk, ophængt_eller_opstillet_i_erhvervsmæssigt_benyttet_bygning: Boolsk, skatteyder_nærtstående_til_kunstneren: Boolsk, kunstner_eller_nærtstående_har_bestemmende_indflydelse: Boolsk, kan_afskrives_efter_anden_bestemmelse: Boolsk, særskilt_saldoværdi_primo_kroner: Heltal, anskaffelsessummer_i_året_kroner: Heltal, hændelse: Afskrivningslov44BHændelse, valg: Afskrivningslov5Valg, årsparametre: AfskrivningslovÅrsparametre, negativ_saldo_medregnes_i_indkomståret: Boolsk)
 # Afskrivningslov44BResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, omfattet_af_par44b: Boolsk, kapitel2_finder_anvendelse: Boolsk, par11_til_par13_finder_ikke_anvendelse: Boolsk, særskilt_saldo: Boolsk, bygningens_erhvervsophør_sidestilles_med_salg: Boolsk, salgssum_eller_handelsværdi_kroner: Heltal, saldoværdi_før_afskrivning_kroner: Heltal, afskrivningsberettiget_saldoværdi_kroner: Heltal, højeste_ordinære_afskrivning_kroner: Heltal, valg: Afskrivningslov5Valg, valg_gyldigt: Boolsk, afskrivning_i_skattepligtig_indkomst_kroner: Heltal, negativ_saldo_kroner: Heltal, skattepligtig_negativ_saldo_i_indkomståret_kroner: Heltal, negativ_saldo_til_udligning_eller_næste_indkomstår_kroner: Heltal, særskilt_saldoværdi_efter_kroner: Heltal)
@@ -6613,7 +6730,8 @@ udsmykning for at være solgt.
 }
 | afskrivningslov44b_sag(input: Afskrivningslov44BInput) -> Afskrivningslov44BSag(input)
 | afskrivningslov44b_resultat(input: Afskrivningslov44BInput) -> afskrivningslov44b_sag(input).resultat()
---@end:afskrivningsloven_par44b--
+
+}
 
 = afskrivningsloven_par44c_metadata = Metadata(
     attachments = (
@@ -6622,7 +6740,6 @@ udsmykning for at være solgt.
     )
 )
 
---@label:afskrivningsloven_par44c::meta:afskrivningsloven_par44c_metadata--
 ----
 § 44 C. Sælges eller opgives retten i henhold til en kontrakt om levering af
 et skib eller et andet driftsmiddel, der udelukkende eller delvis skal benyttes
@@ -6645,7 +6762,9 @@ tillagt udgifter til forbedringer. Fortjeneste eller tab opgøres uden hensyn
 til eventuel forskudsafskrivning på skibet eller driftsmidlet.
 ----
 
---@begin:afskrivningsloven_par44c--
+@ meta(afskrivningsloven_par44c_metadata)
+@ section afskrivningsloven_par44c {
+
 # Afskrivningslov44CGenstand = Al44CRetEfterLeveringskontrakt | Al44CLeveretMenIkkeDriftsklartAktiv
 # Afskrivningslov44CInput(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, genstand: Afskrivningslov44CGenstand, skib_eller_andet_driftsmiddel: Boolsk, helt_eller_delvist_erhvervsmæssigt_bestemt: Boolsk, kan_afskrives_efter_kapitel2_når_betingelserne_er_opfyldt: Boolsk, sælges_eller_opgives_i_indkomståret: Boolsk, leveret_til_igangværende_virksomhed: Boolsk, bestemt_til_at_indgå_i_virksomhedens_drift: Boolsk, færdiggjort_til_at_indgå_i_driften: Boolsk, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, forbedringsudgifter_kroner: Heltal, forskudsafskrivninger_kroner: Heltal)
 # Afskrivningslov44CResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, genstand: Afskrivningslov44CGenstand, input_gyldigt: Boolsk, omfattet_af_par44c: Boolsk, stk2_aktiv_leveret_og_bestemt_men_ikke_driftsklart: Boolsk, afståelsessum_kroner: Heltal, anskaffelsessum_inkl_forbedringer_kroner: Heltal, forskudsafskrivninger_uden_betydning_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
@@ -6670,7 +6789,8 @@ til eventuel forskudsafskrivning på skibet eller driftsmidlet.
     skattepligtig_fortjeneste_kroner = hvis afskrivningslov44c_omfattet(input) { penge_positivt_beløb(input.afståelsessum_kroner - afskrivningslov44c_anskaffelsessum_inkl_forbedringer_kroner(input)) } ellers { 0 },
     fradragsberettiget_tab_kroner = hvis afskrivningslov44c_omfattet(input) { penge_positivt_beløb(afskrivningslov44c_anskaffelsessum_inkl_forbedringer_kroner(input) - input.afståelsessum_kroner) } ellers { 0 }
 )
---@end:afskrivningsloven_par44c--
+
+}
 
 = afskrivningsloven_par45_metadata = Metadata(
     attachments = (
@@ -6680,7 +6800,6 @@ til eventuel forskudsafskrivning på skibet eller driftsmidlet.
     )
 )
 
---@label:afskrivningsloven_par45::meta:afskrivningsloven_par45_metadata--
 ----
 § 45. Anskaffelses- og salgssummer samt godtgørelser og vederlag for aktiver
 omfattet af denne lov omregnes til kontantværdi, der beregnes ved, at den
@@ -6711,7 +6830,9 @@ Stk. 4. Ved enhver ændring af sælgers salgssum for et aktiv som følge af en
 skal sælgers salgssum for det pågældende aktiv ændres tilsvarende.
 ----
 
---@begin:afskrivningsloven_par45--
+@ meta(afskrivningsloven_par45_metadata)
+@ section afskrivningsloven_par45 {
+
 # Afskrivningslov45Gældspost(identifikation: Tekst, nominelt_beløb_kroner: Heltal, kurs_på_opgørelsestidspunktet_basispoint: Heltal, inkonverterbart_lån_for_fiskerfartøj: Boolsk, stiftet_eller_overtaget_af_sælger_før_1993_05_19: Boolsk, kurs_ved_stiftelse_eller_overtagelse_basispoint: Heltal)
 # Afskrivningslov45OmregnetGældspost(identifikation: Tekst, nominelt_beløb_kroner: Heltal, oplyst_kurs_basispoint: Heltal, anvendt_kurs_basispoint: Heltal, særregel_kurs_100_anvendt: Boolsk, kursværdi_kroner: Heltal)
 # Afskrivningslov45KontantomregningInput(kontant_del_kroner: Heltal, gældsposter: List(Afskrivningslov45Gældspost), afståelsessituation: Boolsk)
@@ -6826,7 +6947,8 @@ skal sælgers salgssum for det pågældende aktiv ændres tilsvarende.
     købers_anskaffelsessum_efter_kroner = hvis input.identifikation != "" && input.tidligere_beløb_kroner >= 0 && input.ændret_beløb_kroner >= 0 && input.ændret_skatteansættelse { input.ændret_beløb_kroner } ellers { input.tidligere_beløb_kroner },
     korresponderende_ændring_bindende = input.identifikation != "" && input.tidligere_beløb_kroner >= 0 && input.ændret_beløb_kroner >= 0 && input.ændret_skatteansættelse
 )
---@end:afskrivningsloven_par45--
+
+}
 
 = afskrivningsloven_par46_metadata = Metadata(
     attachments = (
@@ -6836,14 +6958,15 @@ skal sælgers salgssum for det pågældende aktiv ændres tilsvarende.
     )
 )
 
---@label:afskrivningsloven_par46::meta:afskrivningsloven_par46_metadata--
 ----
 § 46. Grundbeløbene i § 5, stk. 3, § 6, stk. 1, nr. 2, § 10, § 11, stk. 3 og
 5, § 29, stk. 1, nr. 3, § 42, stk. 2, og § 43, stk. 2, reguleres efter
 personskattelovens § 20.
 ----
 
---@begin:afskrivningsloven_par46--
+@ meta(afskrivningsloven_par46_metadata)
+@ section afskrivningsloven_par46 {
+
 # Afskrivningslov46Grundbeløb = Al46Par5Stk3 | Al46Par6Stk1Nr2 | Al46Par10 | Al46Par11Stk3 | Al46Par11Stk5 | Al46Par29Stk1Nr3 | Al46Par42Stk2 | Al46Par43Stk2
 # Afskrivningslov46GrundbeløbResultat(indkomstår: Heltal, hjemmel: Afskrivningslov46Grundbeløb, grundbeløb_2010_niveau_kroner: Heltal, reguleringstal_tiendedele: Heltal, reguleret_og_oprundet_beløb_kroner: Heltal, reguleret_efter_personskattelovens_par20: Boolsk)
 
@@ -6865,7 +6988,8 @@ personskattelovens § 20.
     reguleret_og_oprundet_beløb_kroner = hvis indkomstår >= 2009 && indkomstår <= 2026 { par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(grundbeløb_2010_niveau_kroner = afskrivningslov46_grundbeløb_2010_niveau_kroner(hjemmel), reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår))) } ellers { 0 },
     reguleret_efter_personskattelovens_par20 = indkomstår >= 2009 && indkomstår <= 2026
 )
---@end:afskrivningsloven_par46--
+
+}
 
 = afskrivningsloven_par47_metadata = Metadata(
     attachments = (
@@ -6874,18 +6998,20 @@ personskattelovens § 20.
     )
 )
 
---@label:afskrivningsloven_par47::meta:afskrivningsloven_par47_metadata--
 ----
 § 47. Med salg sidestilles i denne lov andre former for afhændelse og
 afståelse.
 ----
 
---@begin:afskrivningsloven_par47--
+@ meta(afskrivningsloven_par47_metadata)
+@ section afskrivningsloven_par47 {
+
 # Afskrivningslov47Afståelsesform = Al47OrdinærtSalg | Al47AndenAfhændelse | Al47AndenAfståelse
 # Afskrivningslov47Resultat(afståelsesform: Afskrivningslov47Afståelsesform, salg_efter_afskrivningsloven: Boolsk)
 
 | afskrivningslov47_resultat(afståelsesform: Afskrivningslov47Afståelsesform) -> Afskrivningslov47Resultat(afståelsesform = afståelsesform, salg_efter_afskrivningsloven = Sandt)
---@end:afskrivningsloven_par47--
+
+}
 
 = afskrivningsloven_par48_metadata = Metadata(
     attachments = (
@@ -6894,13 +7020,14 @@ afståelse.
     )
 )
 
---@label:afskrivningsloven_par48::meta:afskrivningsloven_par48_metadata--
 ----
 § 48. Hvor andet ikke er særskilt fastsat, behandles forsikrings- og
 erstatningssummer, herunder ekspropriationserstatninger, som salgssummer.
 ----
 
---@begin:afskrivningsloven_par48--
+@ meta(afskrivningsloven_par48_metadata)
+@ section afskrivningsloven_par48 {
+
 # Afskrivningslov48Beløbsart = Al48Forsikringssum | Al48Erstatningssum | Al48Ekspropriationserstatning
 # Afskrivningslov48Særregel = Al48IngenSærregel | Al48ReparationEfterPar7 | Al48SkadeOgGenopførelseEfterPar24 | Al48AndenSærregel
 # Afskrivningslov48Input(beløbsart: Afskrivningslov48Beløbsart, beløb_kroner: Heltal, særregel: Afskrivningslov48Særregel)
@@ -6914,7 +7041,8 @@ erstatningssummer, herunder ekspropriationserstatninger, som salgssummer.
     salgssum_kroner = hvis input.beløb_kroner >= 0 && input.særregel == Al48IngenSærregel { input.beløb_kroner } ellers { 0 },
     beløb_til_særregel_kroner = hvis input.beløb_kroner >= 0 && input.særregel != Al48IngenSærregel { input.beløb_kroner } ellers { 0 }
 )
---@end:afskrivningsloven_par48--
+
+}
 
 = afskrivningsloven_par49_metadata = Metadata(
     attachments = (
@@ -6923,7 +7051,6 @@ erstatningssummer, herunder ekspropriationserstatninger, som salgssummer.
     )
 )
 
---@label:afskrivningsloven_par49::meta:afskrivningsloven_par49_metadata--
 ----
 § 49. Erhvervelse og afståelse af aktiver ved gave, arv eller arveforskud
 sidestilles i denne lov med køb henholdsvis salg. Som anskaffelsessum eller
@@ -6937,7 +7064,9 @@ erhververen efter skattelovgivningens regler herom indtræder i overdragerens
 skattemæssige stilling.
 ----
 
---@begin:afskrivningsloven_par49--
+@ meta(afskrivningsloven_par49_metadata)
+@ section afskrivningsloven_par49 {
+
 # Afskrivningslov49Overdragelsesform = Al49Gave | Al49Arv | Al49Arveforskud
 # Afskrivningslov49Retning = Al49Erhvervelse | Al49Afståelse
 # Afskrivningslov49Værdiansættelse = Al49AfgiftsEllerIndkomstskattegrundlag(beløb_kroner: Heltal) | Al49IkkeAfgiftsEllerIndkomstskattepligtig(handelsværdi_kroner: Heltal) | Al49VærdiansatEfterBoafgiftslovensPar12A(handelsværdi_kroner: Heltal) | Al49IngenVærdiansættelseVedSkattesuccession
@@ -6995,7 +7124,8 @@ skattemæssige stilling.
     videreført_anskaffelsessum_kroner = hvis afskrivningslov49_input_gyldigt(input) && afskrivningslov49_er_succession(input.succession) { afskrivningslov49_videreført_anskaffelsessum_kroner(input.succession) } ellers { 0 },
     videreførte_foretagne_afskrivninger_kroner = hvis afskrivningslov49_input_gyldigt(input) && afskrivningslov49_er_succession(input.succession) { afskrivningslov49_videreførte_afskrivninger_kroner(input.succession) } ellers { 0 }
 )
---@end:afskrivningsloven_par49--
+
+}
 
 = afskrivningsloven_par50_metadata = Metadata(
     attachments = (
@@ -7004,7 +7134,6 @@ skattemæssige stilling.
     )
 )
 
---@label:afskrivningsloven_par50::meta:afskrivningsloven_par50_metadata--
 ----
 § 50. Ved salg af aktiver omfattet af denne lov medregnes fortjeneste eller
 tab fuldt ud i den skattepligtige indkomst i salgsåret i tilfælde, hvor
@@ -7018,7 +7147,9 @@ del af saldoen beregnes ved, at anskaffelsessummen afskrives med de
 afskrivningsprocenter, der er anvendt i de enkelte indkomstår.
 ----
 
---@begin:afskrivningsloven_par50--
+@ meta(afskrivningsloven_par50_metadata)
+@ section afskrivningsloven_par50 {
+
 # Afskrivningslov50Aktivart = Al50UdelukkendeErhvervsmæssigtDriftsmiddelEllerSkib | Al50AndetAktivOmfattetAfLoven
 # Afskrivningslov50AnvendtAfskrivningssats(indkomstår: Heltal, sats_basispoint: Heltal)
 # Afskrivningslov50Position(skatteyder: AfskrivningslovSkatteyder, aktivart: Afskrivningslov50Aktivart, anskaffelsesår: Heltal, nominel_anskaffelsessum_kroner: Heltal, kontantomregnet_anskaffelsessum_til_saldo_kroner: Heltal, anvendte_afskrivningssatser: List(Afskrivningslov50AnvendtAfskrivningssats))
@@ -7064,7 +7195,8 @@ afskrivningsprocenter, der er anvendt i de enkelte indkomstår.
 }
 | afskrivningslov50_sag(input: Afskrivningslov50SalgInput) -> Afskrivningslov50Sag(input)
 | afskrivningslov50_resultat(input: Afskrivningslov50SalgInput) -> afskrivningslov50_sag(input).resultat()
---@end:afskrivningsloven_par50--
+
+}
 
 = afskrivningsloven_par51_metadata = Metadata(
     attachments = (
@@ -7073,7 +7205,6 @@ afskrivningsprocenter, der er anvendt i de enkelte indkomstår.
     )
 )
 
---@label:afskrivningsloven_par51::meta:afskrivningsloven_par51_metadata--
 ----
 § 51. Anskaffes aktiver, der er afskrivningsberettigede efter denne lov, til
 brug for forsøgs- eller forskningsvirksomhed, kan afskrivning påbegyndes før
@@ -7082,7 +7213,9 @@ tager sigte. Medmindre der er tale om et aktie- eller anpartsselskab kræves
 dog tilladelse fra told- og skatteforvaltningen.
 ----
 
---@begin:afskrivningsloven_par51--
+@ meta(afskrivningsloven_par51_metadata)
+@ section afskrivningsloven_par51 {
+
 # Afskrivningslov51Virksomhedsform = Al51Aktieselskab | Al51Anpartsselskab | Al51AndenVirksomhedsform
 # Afskrivningslov51Input(skatteyder: AfskrivningslovSkatteyder, virksomhedsform: Afskrivningslov51Virksomhedsform, aktiv_afskrivningsberettiget_efter_loven: Boolsk, aktiv_til_forsøgs_eller_forskningsvirksomhed: Boolsk, målrettet_erhvervsvirksomhed_igangsat: Boolsk, tilladelse_fra_told_og_skatteforvaltningen: Boolsk)
 # Afskrivningslov51Resultat(skatteyder: AfskrivningslovSkatteyder, virksomhedsform: Afskrivningslov51Virksomhedsform, input_gyldigt: Boolsk, omfattet_af_par51: Boolsk, målrettet_erhvervsvirksomhed_igangsat: Boolsk, tilladelse_påkrævet: Boolsk, tilladelse_foreligger: Boolsk, kan_påbegynde_afskrivning_før_igangsættelse: Boolsk)
@@ -7100,12 +7233,13 @@ dog tilladelse fra told- og skatteforvaltningen.
     tilladelse_foreligger = input.tilladelse_fra_told_og_skatteforvaltningen,
     kan_påbegynde_afskrivning_før_igangsættelse = afskrivningslov51_omfattet(input) && input.målrettet_erhvervsvirksomhed_igangsat == Falskt && (afskrivningslov51_selskab_uden_tilladelseskrav(input.virksomhedsform) || input.tilladelse_fra_told_og_skatteforvaltningen)
 )
---@end:afskrivningsloven_par51--
+
+}
 
 = al_par52_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par52::meta:al_par52_kildemeta--
+
 ----
 § 52. En skattepligtig, der har afskrevet efter denne lov, kan ændre den
 oplysning om afskrivningssatsen, der skal gives til told- og
@@ -7120,7 +7254,9 @@ Skatterådet kan fastsætte nærmere regler for told- og skatteforvaltningens
 udøvelse af kompetencen efter 1. pkt.
 ----
 
---@begin:afskrivningsloven_par52--
+@ meta(al_par52_kildemeta)
+@ section afskrivningsloven_par52 {
+
 # Afskrivningslov52Input(har_afskrevet_efter_loven: Boolsk, oprindelig_afskrivningssats_basispoint: Heltal, ændret_afskrivningssats_basispoint: Heltal, oplysningsfrist: AfskrivningslovDato, meddelelsesdato: AfskrivningslovDato, tilladelse_fra_told_og_skatteforvaltningen: Boolsk)
 # Afskrivningslov52Resultat(input_gyldigt: Boolsk, oplysningsfrist: AfskrivningslovDato, frist_tre_måneder_efter_oplysningsfristen: AfskrivningslovDato, meddelelsesdato: AfskrivningslovDato, rettidig_efter_stk1: Boolsk, tilladelse_påkrævet_efter_stk2: Boolsk, tilladelse_foreligger: Boolsk, ændring_tilladt: Boolsk, oprindelig_afskrivningssats_basispoint: Heltal, anvendt_afskrivningssats_basispoint: Heltal)
 
@@ -7145,26 +7281,30 @@ udøvelse af kompetencen efter 1. pkt.
 }
 | afskrivningslov52_sag(input: Afskrivningslov52Input) -> Afskrivningslov52Sag(input)
 | afskrivningslov52_resultat(input: Afskrivningslov52Input) -> afskrivningslov52_sag(input).resultat()
---@end:afskrivningsloven_par52--
+
+}
 
 = al_par53_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par53::meta:al_par53_kildemeta--
+
 ----
 § 53. (Ophævet)
 ----
 
---@begin:afskrivningsloven_par53--
+@ meta(al_par53_kildemeta)
+@ section afskrivningsloven_par53 {
+
 # Afskrivningslov53Status = Al53Ophævet
 
 | afskrivningslov53_status() -> Al53Ophævet
---@end:afskrivningsloven_par53--
+
+}
 
 = al_par54_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par54::meta:al_par54_kildemeta--
+
 ----
 § 54. Loven træder i kraft dagen efter bekendtgørelsen i Lovtidende og har
 virkning fra og med indkomståret 1999, jf. dog stk. 3-8.
@@ -7222,7 +7362,9 @@ bistand," til: "døgninstitutioner og bygninger, der er omfattet af lov om
 social service, og som udsættes for et tilsvarende slid,".
 ----
 
---@begin:afskrivningsloven_par54--
+@ meta(al_par54_kildemeta)
+@ section afskrivningsloven_par54 {
+
 # Afskrivningslov54Forskudsaktivart = Al54SkibMaskineInventarEllerLignendeDriftsmiddel | Al54NybygningAnlægEllerInstallation
 # Afskrivningslov54Tilblivelsesgrundlag = Al54BindendeAftale(dato: AfskrivningslovDato) | Al54PlanlægningIEgenVirksomhed(dato: AfskrivningslovDato)
 # Afskrivningslov54ForskudsInput(indkomstår: Heltal, aktivart: Afskrivningslov54Forskudsaktivart, tilblivelsesgrundlag: Afskrivningslov54Tilblivelsesgrundlag, leverings_eller_færdigfremstillingsår: Heltal, afskrivningsberettiget_anskaffelsessum_før_forskudsafskrivninger_kroner: Heltal, foretagne_forskudsafskrivninger_kroner: Heltal)
@@ -7283,12 +7425,13 @@ social service, og som udsættes for et tilsvarende slid,".
 )
 | afskrivningslov54_par52_overgang_resultat(indgivelsesdato: AfskrivningslovDato) -> Afskrivningslov54Par52OvergangResultat(indgivelsesdato = indgivelsesdato, input_gyldigt = afskrivningslov_dato_gyldig(indgivelsesdato), par52_finder_anvendelse = afskrivningslov_dato_gyldig(indgivelsesdato) && afskrivningslov_dato_yyyymmdd(indgivelsesdato) >= 19990101, tidligere_par30_stk3_ophævet = afskrivningslov_dato_gyldig(indgivelsesdato) && afskrivningslov_dato_yyyymmdd(indgivelsesdato) >= 19990101)
 | afskrivningslov54_historisk_par18b_ordlyd_gælder(dato: AfskrivningslovDato, indkomståret_1998_slutdato: AfskrivningslovDato) -> afskrivningslov_dato_gyldig(indkomståret_1998_slutdato) && afskrivningslov_dato_yyyymmdd(indkomståret_1998_slutdato) >= 19980701 && afskrivningslov_dato_mellem_inklusive(dato, AfskrivningslovDato(år = 1998, måned = 7, dag = 1), indkomståret_1998_slutdato)
---@end:afskrivningsloven_par54--
+
+}
 
 = al_par55_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par55::meta:al_par55_kildemeta--
+
 ----
 § 55. På bygninger, der i indkomståret 1998 er omfattet af lov om
 skattemæssige afskrivninger m.v. § 18, stk. 1, litra a, jf.
@@ -7305,7 +7448,9 @@ afskrivningsprocenter i indkomståret 1999 eller 2000 overskrider eller er
 over 40.
 ----
 
---@begin:afskrivningsloven_par55--
+@ meta(al_par55_kildemeta)
+@ section afskrivningsloven_par55 {
+
 # Afskrivningslov55Bygningskategori = Al55TidligerePar18Stk1LitraA | Al55TidligerePar18Stk1LitraB
 # Afskrivningslov55Input(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, bygningskategori: Afskrivningslov55Bygningskategori, anskaffelsessum_kroner: Heltal, sum_anvendte_afskrivningsprocenter_basispoint: Heltal, valgt_afskrivning_kroner: Heltal)
 # Afskrivningslov55Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, input_gyldigt: Boolsk, tærskel_basispoint: Heltal, overgangsbegrænsning_finder_anvendelse: Boolsk, højeste_afskrivning_efter_par55_kroner: Heltal, valgt_afskrivning_kroner: Heltal, overgangsbegrænsning_overholdt: Boolsk, afskrivning_i_skattepligtig_indkomst_kroner: Heltal)
@@ -7322,12 +7467,13 @@ over 40.
     overgangsbegrænsning_overholdt = (input.indkomstår == 1999 || input.indkomstår == 2000) && input.anskaffelsessum_kroner >= 0 && input.sum_anvendte_afskrivningsprocenter_basispoint > afskrivningslov55_tærskel_basispoint(input.bygningskategori) && input.valgt_afskrivning_kroner >= 0 && input.valgt_afskrivning_kroner <= penge_beløb_gange_basispoint_kroner(input.anskaffelsessum_kroner, 400),
     afskrivning_i_skattepligtig_indkomst_kroner = hvis (input.indkomstår == 1999 || input.indkomstår == 2000) && input.anskaffelsessum_kroner >= 0 && input.sum_anvendte_afskrivningsprocenter_basispoint > afskrivningslov55_tærskel_basispoint(input.bygningskategori) && input.valgt_afskrivning_kroner >= 0 && input.valgt_afskrivning_kroner <= penge_beløb_gange_basispoint_kroner(input.anskaffelsessum_kroner, 400) { input.valgt_afskrivning_kroner } ellers { 0 }
 )
---@end:afskrivningsloven_par55--
+
+}
 
 = al_par56_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par56::meta:al_par56_kildemeta--
+
 ----
 § 56. Samtlige afskrivninger, herunder forskudsafskrivninger og forlods
 afskrivninger, der efter de hidtil gældende regler er foretaget for
@@ -7351,7 +7497,9 @@ og med indkomståret 1990. Hertil lægges summen af afskrivninger foretaget med
 virkning for indkomståret 1991 og senere indkomstår.
 ----
 
---@begin:afskrivningsloven_par56--
+@ meta(al_par56_kildemeta)
+@ section afskrivningsloven_par56 {
+
 # Afskrivningslov56Aktivart = Al56Bygning | Al56Installation
 # Afskrivningslov56TidligereHjemmel = Al56TidligereAfskrivningslovAfsnitIV | Al56StatsskattelovPar6LitraA | Al56AndenTidligereHjemmel
 # Afskrivningslov56Afskrivningsart = Al56OrdinærAfskrivning | Al56Forskudsafskrivning | Al56ForlodsAfskrivning
@@ -7373,12 +7521,13 @@ virkning for indkomståret 1991 og senere indkomstår.
     | resultat() -> Afskrivningslov56Resultat(skatteyder = input.skatteyder, input_gyldigt = input_gyldigt(), pristalsregulering_efter_stk3 = input_gyldigt() && afskrivningslov56_stk3_periode(input), nominelle_afskrivninger_til_og_med_1990_kroner = nominelle_til_1990_kroner(), pristalsregulerede_afskrivninger_til_og_med_1990_kroner = regulerede_til_1990_kroner(), afskrivninger_fra_1991_til_1998_kroner = fra_1991_kroner(), samtlige_foretagne_afskrivninger_efter_overgangen_kroner = samlet_kroner(), medregnes_ved_fortjeneste_og_tab_kroner = samlet_kroner(), par21_og_par22_finder_anvendelse = par21_22())
 }
 | afskrivningslov56_resultat(input: Afskrivningslov56Input) -> Afskrivningslov56Sag(input).resultat()
---@end:afskrivningsloven_par56--
+
+}
 
 = al_par57_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par57::meta:al_par57_kildemeta--
+
 ----
 § 57. Den afskrivningsberettigede saldoværdi for skibe ved udgangen af
 indkomståret 1998 efter den hidtil gældende § 12 i lov om skattemæssige
@@ -7390,7 +7539,9 @@ efter den hidtil gældende § 29 D i lov om skattemæssige afskrivninger m.v.,
 jf. lovbekendtgørelse nr. 932 af 24. oktober 1996.
 ----
 
---@begin:afskrivningsloven_par57--
+@ meta(al_par57_kildemeta)
+@ section afskrivningsloven_par57 {
+
 # Afskrivningslov57Input(skatteyder: AfskrivningslovSkatteyder, eksisterende_par5_saldo_ved_begyndelsen_af_1999_kroner: Heltal, skibes_saldoværdi_ved_udgangen_af_1998_kroner: Heltal, dok_og_beddingssaldo_ved_udgangen_af_1998_kroner: Heltal)
 # Afskrivningslov57Resultat(skatteyder: AfskrivningslovSkatteyder, input_gyldigt: Boolsk, overført_skibssaldo_kroner: Heltal, overført_dok_og_beddingssaldo_kroner: Heltal, samlet_par5_saldo_ved_begyndelsen_af_1999_kroner: Heltal)
 
@@ -7401,12 +7552,13 @@ jf. lovbekendtgørelse nr. 932 af 24. oktober 1996.
     overført_dok_og_beddingssaldo_kroner = hvis input.eksisterende_par5_saldo_ved_begyndelsen_af_1999_kroner >= 0 && input.skibes_saldoværdi_ved_udgangen_af_1998_kroner >= 0 && input.dok_og_beddingssaldo_ved_udgangen_af_1998_kroner >= 0 { input.dok_og_beddingssaldo_ved_udgangen_af_1998_kroner } ellers { 0 },
     samlet_par5_saldo_ved_begyndelsen_af_1999_kroner = hvis input.eksisterende_par5_saldo_ved_begyndelsen_af_1999_kroner >= 0 && input.skibes_saldoværdi_ved_udgangen_af_1998_kroner >= 0 && input.dok_og_beddingssaldo_ved_udgangen_af_1998_kroner >= 0 { input.eksisterende_par5_saldo_ved_begyndelsen_af_1999_kroner + input.skibes_saldoværdi_ved_udgangen_af_1998_kroner + input.dok_og_beddingssaldo_ved_udgangen_af_1998_kroner } ellers { 0 }
 )
---@end:afskrivningsloven_par57--
+
+}
 
 = al_par58_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par58::meta:al_par58_kildemeta--
+
 ----
 § 58. Bestemmelserne i § 25, stk. 1-3, afskærer ikke adgangen til at afskrive
 på bygning eller fast ejendom anskaffet i indkomståret 1998 eller tidligere
@@ -7425,7 +7577,9 @@ afståelsesåret. Tabet opgøres som forskellen mellem salgssummen og det
 uafskrevne beløb.
 ----
 
---@begin:afskrivningsloven_par58--
+@ meta(al_par58_kildemeta)
+@ section afskrivningsloven_par58 {
+
 # Afskrivningslov58Aktivart = Al58BygningEllerFastEjendom | Al58SommerEllerFritidsboligForEjeren
 # Afskrivningslov58TidligereHjemmel = Al58TidligerePar29CStk1Til3 | Al58StatsskattelovPar6LitraA
 # Afskrivningslov58Position(skatteyder: AfskrivningslovSkatteyder, aktivart: Afskrivningslov58Aktivart, anskaffelsesår: Heltal, tidligere_hjemmel: Afskrivningslov58TidligereHjemmel, uafskrevet_beløb_kroner: Heltal)
@@ -7448,7 +7602,8 @@ uafskrevne beløb.
     uafskrevet_beløb_kroner = penge_positivt_beløb(input.position.uafskrevet_beløb_kroner),
     fradragsberettiget_tab_kroner = hvis afskrivningslov58_salg_input_gyldigt(input) && afskrivningslov58_ophør_efter_salg(input.anvendelse_efter_salg) { penge_positivt_beløb(input.position.uafskrevet_beløb_kroner - input.salgssum_kroner) } ellers { 0 }
 )
---@end:afskrivningsloven_par58--
+
+}
 
 = afskrivningsloven_par58a_metadata = Metadata(
     attachments = (
@@ -7457,7 +7612,14 @@ uafskrevne beløb.
     )
 )
 
---@label:afskrivningsloven_par58a::meta:afskrivningsloven_par58a_metadata--
+----
+2) § 58 A, stk. 2, 3. pkt., har i denne affattelse virkning fra og med året
+efter det rådighedsår henholdsvis indkomstår, hvor der første gang foreligger
+en ny vurdering foretaget efter ejendomsvurderingslovens §§ 5 og 6 for den
+pågældende ejendomstype, jf. § 13, stk. 5, i lov nr. 1729 af 17. december
+2018.
+----
+
 ----
 § 58 A. Udgifter til ombygning og forbedring af afskrivningsberettigede
 bygninger og installationer, som er afholdt, men ikke fradraget i den
@@ -7485,15 +7647,9 @@ i den skattepligtige indkomst for ombygnings- eller forbedringsåret, indgår
 ikke i afskrivningsgrundlaget.
 ----
 
-----
-2) § 58 A, stk. 2, 3. pkt., har i denne affattelse virkning fra og med året
-efter det rådighedsår henholdsvis indkomstår, hvor der første gang foreligger
-en ny vurdering foretaget efter ejendomsvurderingslovens §§ 5 og 6 for den
-pågældende ejendomstype, jf. § 13, stk. 5, i lov nr. 1729 af 17. december
-2018.
-----
+@ meta(afskrivningsloven_par58a_metadata)
+@ section afskrivningsloven_par58a {
 
---@begin:afskrivningsloven_par58a--
 # Afskrivningslov58ABeregningsgrundlag = Al58AForegåendeÅrsAfskrivningsgrundlag(indkomstår: Heltal, beløb_kroner: Heltal) | Al58AEjendomsværdiandel(vurderingsdato: AfskrivningslovDato, første_nye_vurdering_foreligger_år: Heltal, beløb_kroner: Heltal) | Al58AHandelsværdiFordiEjendomsværdiIkkeAnsat(vurderingsdato: AfskrivningslovDato, første_nye_vurdering_foreligger_år: Heltal, beløb_kroner: Heltal)
 # Afskrivningslov58ADisposition = Al58AFortsatEjeOgBrug | Al58ABygningAfhændet | Al58ABygningNedrevet | Al58AInstallationAfhændet | Al58AInstallationUdskiftet | Al58AInstallationEndeligtNedtaget
 # Afskrivningslov58APosition(skatteyder: AfskrivningslovSkatteyder, anskaffelsesår: Heltal, udgiftsår: Heltal, første_indkomstår_fuldført_og_taget_i_brug: Heltal, afskrivningsberettiget_bygning_eller_installation: Boolsk, oprindelig_ombygnings_eller_forbedringsudgift_kroner: Heltal, tidligere_fradraget_efter_par58a_kroner: Heltal, beregningsgrundlag: Afskrivningslov58ABeregningsgrundlag)
@@ -7530,12 +7686,13 @@ pågældende ejendomstype, jf. § 13, stk. 5, i lov nr. 1729 af 17. december
     | resultat() -> Afskrivningslov58AResultat(indkomstår = input.indkomstår, skatteyder = position().skatteyder, position_gyldig = position_gyldig(), første_indkomstår_fuldført_og_taget_i_brug = position().første_indkomstår_fuldført_og_taget_i_brug, fradrag_kan_foretages_i_indkomståret = fradrag_kan_foretages_i_året(), anvender_historisk_seneste_1_oktober = position_gyldig() && afskrivningslov58a_anvender_historisk_oktober(position().beregningsgrundlag, position().første_indkomstår_fuldført_og_taget_i_brug), anvender_seneste_1_januar_efter_ny_vurdering = position_gyldig() && afskrivningslov58a_anvender_nyt_januar(position().beregningsgrundlag, position().første_indkomstår_fuldført_og_taget_i_brug), beregningsgrundlag_kroner = hvis position_gyldig() { grundlag_kroner() } ellers { 0 }, fem_procent_af_beregningsgrundlag_kroner = hvis position_gyldig() { fem_procent_kroner() } ellers { 0 }, resterende_ufradraget_udgift_før_året_kroner = resterende_kroner(), fradrag_afskåret_i_dispositionsåret = fradrag_kan_foretages_i_året() && afskrivningslov58a_disposition(input.disposition), højeste_fradrag_kroner = højeste_fradrag_kroner(), valgt_fradrag_kroner = penge_positivt_beløb(input.valgt_fradrag_kroner), valg_gyldigt = valg_gyldigt(), fradrag_i_skattepligtig_indkomst_kroner = fradrag_kroner(), fuldt_fradraget_efter_året = fuldt_fradraget(), udgift_som_ikke_indgår_i_afskrivningsgrundlaget_kroner = samlet_fradraget_kroner(), rest_til_afskrivningsgrundlaget_kroner = rest_til_afskrivningsgrundlaget_kroner(), position_efter = position_efter())
 }
 | afskrivningslov58a_resultat(input: Afskrivningslov58AInput) -> Afskrivningslov58ASag(input).resultat()
---@end:afskrivningsloven_par58a--
+
+}
 
 = al_par59_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par59::meta:al_par59_kildemeta--
+
 ----
 § 59. Bestemmelsen i § 27 afskærer ikke adgangen til at afskrive på
 dræningsanlæg anskaffet i indkomståret 1998 eller tidligere, og hvorpå der
@@ -7547,7 +7704,9 @@ litra c, jf. lovbekendtgørelse nr. 932 af 24. oktober 1996, eller
 statsskattelovens § 6, litra a.
 ----
 
---@begin:afskrivningsloven_par59--
+@ meta(al_par59_kildemeta)
+@ section afskrivningsloven_par59 {
+
 # Afskrivningslov59Anlægsart = Al59Dræningsanlæg | Al59JordfastDelAfMarkvandingsanlæg
 # Afskrivningslov59TidligereHjemmel = Al59TidligerePar29S | Al59TidligerePar18Stk1LitraC | Al59StatsskattelovPar6LitraA
 # Afskrivningslov59Input(skatteyder: AfskrivningslovSkatteyder, anlægsart: Afskrivningslov59Anlægsart, anskaffelsesår: Heltal, tidligere_hjemmel: Afskrivningslov59TidligereHjemmel)
@@ -7555,7 +7714,8 @@ statsskattelovens § 6, litra a.
 
 | afskrivningslov59_hjemmel_matcher(input: Afskrivningslov59Input) -> hvis input.anlægsart == Al59Dræningsanlæg { input.tidligere_hjemmel == Al59TidligerePar29S } ellers { input.tidligere_hjemmel == Al59TidligerePar18Stk1LitraC || input.tidligere_hjemmel == Al59StatsskattelovPar6LitraA }
 | afskrivningslov59_resultat(input: Afskrivningslov59Input) -> Afskrivningslov59Resultat(skatteyder = input.skatteyder, input_gyldigt = input.anskaffelsesår > 0 && input.anskaffelsesår <= 1998 && afskrivningslov59_hjemmel_matcher(input), anskaffet_senest_i_1998 = input.anskaffelsesår > 0 && input.anskaffelsesår <= 1998, tidligere_hjemmel_matcher_anlægsart = afskrivningslov59_hjemmel_matcher(input), par27_afskærer_ikke_fortsat_afskrivning = input.anskaffelsesår > 0 && input.anskaffelsesår <= 1998 && afskrivningslov59_hjemmel_matcher(input))
---@end:afskrivningsloven_par59--
+
+}
 
 = afskrivningsloven_par60_metadata = Metadata(
     attachments = (
@@ -7564,7 +7724,6 @@ statsskattelovens § 6, litra a.
     )
 )
 
---@label:afskrivningsloven_par60::meta:afskrivningsloven_par60_metadata--
 ----
 § 60. Uanset § 40 kan aktiver, der er erhvervet før den 1. januar 1998, og
 godtgørelser og vederlag, hvor pligten til at udrede de omhandlede ydelser er
@@ -7580,7 +7739,9 @@ hidtil gældende bestemmelse i ligningslovens § 16 F som affattet ved
 lovbekendtgørelse nr. 819 af 3. november 1997.
 ----
 
---@begin:afskrivningsloven_par60--
+@ meta(afskrivningsloven_par60_metadata)
+@ section afskrivningsloven_par60 {
+
 # Afskrivningslov60HistoriskSkæringshændelse = Al60AktivErhvervet(dato: AfskrivningslovDato) | Al60PligtTilGodtgørelseEllerVederlagIndtrådt(dato: AfskrivningslovDato)
 # Afskrivningslov60Input(indkomstår: Heltal, position: Afskrivningslov40Position, historisk_skæringshændelse: Afskrivningslov60HistoriskSkæringshændelse, rettighed_beskyttet_efter_anden_lovgivning: Boolsk, resterende_beskyttelsesperiode_på_aftaletidspunktet_år: Heltal, goodwill_afskrivningsberettiget_efter_tidligere_ligningslov16f: Boolsk, valgt_afskrivning_kroner: Heltal)
 # Afskrivningslov60Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: Afskrivningslov40Aktivart, historisk_skæringsdato: AfskrivningslovDato, skæringshændelse_matcher_grundlaget: Boolsk, position_gyldig: Boolsk, omfattet_af_par60: Boolsk, beskyttet_rettighed_med_periode_under_ti_år: Boolsk, afskrivningsgrundlag_kroner: Heltal, resterende_afskrivningsgrundlag_før_året_kroner: Heltal, højeste_årlige_afskrivning_kroner: Heltal, valgt_afskrivning_kroner: Heltal, valg_gyldigt: Boolsk, afskrivning_i_skattepligtig_indkomst_kroner: Heltal, position_efter: Afskrivningslov40Position)
@@ -7614,12 +7775,13 @@ lovbekendtgørelse nr. 819 af 3. november 1997.
     | resultat() -> Afskrivningslov60Resultat(indkomstår = input.indkomstår, skatteyder = skatteyder(), aktivart = aktivart(), historisk_skæringsdato = historisk_skæringsdato(), skæringshændelse_matcher_grundlaget = skæringshændelse_matcher(), position_gyldig = position_gyldig(), omfattet_af_par60 = omfattet(), beskyttet_rettighed_med_periode_under_ti_år = omfattet() && beskyttet_kort_rettighed(), afskrivningsgrundlag_kroner = hvis position_gyldig() { oprindeligt_beløb_kroner() } ellers { 0 }, resterende_afskrivningsgrundlag_før_året_kroner = resterende_kroner(), højeste_årlige_afskrivning_kroner = højeste_kroner(), valgt_afskrivning_kroner = penge_positivt_beløb(input.valgt_afskrivning_kroner), valg_gyldigt = valg_gyldigt(), afskrivning_i_skattepligtig_indkomst_kroner = afskrivning_kroner(), position_efter = position_efter())
 }
 | afskrivningslov60_resultat(input: Afskrivningslov60Input) -> Afskrivningslov60Sag(input).resultat()
---@end:afskrivningsloven_par60--
+
+}
 
 = al_par61_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par61::meta:al_par61_kildemeta--
+
 ----
 § 61. Uanset § 45 skal der ikke ske kontantomregning af anskaffelsessummen
 m.v. for aktiver, der er anskaffet i indkomståret 1998 eller tidligere
@@ -7627,7 +7789,9 @@ indkomstår, når anskaffelsessummen efter de hidtil gældende regler ikke
 skulle kontantomregnes.
 ----
 
---@begin:afskrivningsloven_par61--
+@ meta(al_par61_kildemeta)
+@ section afskrivningsloven_par61 {
+
 # Afskrivningslov61Input(anskaffelsesår: Heltal, anskaffelsessummen_skulle_ikke_kontantomregnes_efter_tidligere_regler: Boolsk, kontantomregningsinput_efter_par45: Afskrivningslov45KontantomregningInput)
 # Afskrivningslov61Resultat(anskaffelsesår: Heltal, input_gyldigt: Boolsk, omfattet_af_par61: Boolsk, kontantomregning_undladt: Boolsk, nominel_anskaffelsessum_kroner: Heltal, kontantomregnet_anskaffelsessum_kroner: Heltal, anskaffelsessum_efter_overgangsreglen_kroner: Heltal)
 
@@ -7640,7 +7804,8 @@ skulle kontantomregnes.
     | resultat() -> Afskrivningslov61Resultat(anskaffelsesår = input.anskaffelsesår, input_gyldigt = input_gyldigt(), omfattet_af_par61 = omfattet(), kontantomregning_undladt = omfattet(), nominel_anskaffelsessum_kroner = hvis input_gyldigt() { nominel_sum_kroner() } ellers { 0 }, kontantomregnet_anskaffelsessum_kroner = kontantresultat().kontantomregnet_anskaffelses_eller_salgssum_kroner, anskaffelsessum_efter_overgangsreglen_kroner = hvis omfattet() { nominel_sum_kroner() } ellers { kontantresultat().afskrivningsgrundlag_kroner })
 }
 | afskrivningslov61_resultat(input: Afskrivningslov61Input) -> Afskrivningslov61Sag(input).resultat()
---@end:afskrivningsloven_par61--
+
+}
 
 = afskrivningsloven_par62_metadata = Metadata(
     attachments = (
@@ -7649,7 +7814,6 @@ skulle kontantomregnes.
     )
 )
 
---@label:afskrivningsloven_par62::meta:afskrivningsloven_par62_metadata--
 ----
 § 62. Salgssummer vedrørende miljøforbedrende driftsmidler i landbrug m.v.,
 hvorpå der er straksafskrevet efter den tidligere afskrivningslovs § 3 A,
@@ -7663,7 +7827,9 @@ afskrivninger, der i forbindelse med salg opgøres efter reglerne i denne lovs
 § 21. Udgifterne indgår ikke i afskrivningsgrundlaget.
 ----
 
---@begin:afskrivningsloven_par62--
+@ meta(afskrivningsloven_par62_metadata)
+@ section afskrivningsloven_par62 {
+
 # Afskrivningslov62DriftsmiddelSalgInput(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, straksafskrevet_efter_tidligere_par3a: Boolsk, salgssum_kroner: Heltal, leveret_i_indkomståret: Boolsk, virksomhed_sælges_eller_ophører_i_indkomståret: Boolsk)
 # Afskrivningslov62DriftsmiddelSalgResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, input_gyldigt: Boolsk, omfattet_af_par62_stk1: Boolsk, behandles_efter_par6_stk2: Boolsk, behandles_efter_par9: Boolsk, salgssum_kroner: Heltal, skattepligtig_indtægtsføring_kroner: Heltal, par6_salg_resultat: Afskrivningslov6SalgResultat)
 # Afskrivningslov62MiljøanlægSalgInput(straksafskrevet_efter_tidligere_par21a: Boolsk, historisk_straksafskrevet_udgift_kroner: Heltal, par21_input: Afskrivningslov21Input)
@@ -7721,82 +7887,98 @@ afskrivninger, der i forbindelse med salg opgøres efter reglerne i denne lovs
     | resultat() -> Afskrivningslov62MiljøanlægSalgResultat(indkomstår = input.par21_input.indkomstår, skatteyder = oprindelig_værdi().skatteyder, input_gyldigt = input_gyldigt(), behandles_efter_par21 = omfattet(), historisk_straksafskrevet_udgift_kroner = hvis input_gyldigt() { input.historisk_straksafskrevet_udgift_kroner } ellers { 0 }, historisk_udgift_i_afskrivningsgrundlaget_kroner = 0, samlet_sum_af_foretagne_afskrivninger_kroner = samlede_foretagne_afskrivninger_kroner(), afskrivningsgrundlag_kroner = justeret_værdi().afskrivningsberettiget_anskaffelsesgrundlag_kroner, nedskrevet_værdi_kroner = justeret_værdi().nedskrevet_værdi_kroner, salgssum_kroner = par21_resultat().salgssum_til_par21_kroner, skattepligtige_genvundne_afskrivninger_kroner = par21_resultat().skattepligtige_genvundne_afskrivninger_kroner, fradragsberettiget_tab_kroner = par21_resultat().fradragsberettiget_tab_kroner, par21_resultat = par21_resultat())
 }
 | afskrivningslov62_miljøanlæg_salg_resultat(input: Afskrivningslov62MiljøanlægSalgInput) -> Afskrivningslov62MiljøanlægSalgSag(input).resultat()
---@end:afskrivningsloven_par62--
+
+}
 
 = al_par63_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par63::meta:al_par63_kildemeta--
+
 ----
 § 63. (Ophævet)
 ----
 
---@begin:afskrivningsloven_par63--
+@ meta(al_par63_kildemeta)
+@ section afskrivningsloven_par63 {
+
 # Afskrivningslov63Status = Al63Ophævet
 
 | afskrivningslov63_status() -> Al63Ophævet
---@end:afskrivningsloven_par63--
+
+}
 
 = al_par64_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par64::meta:al_par64_kildemeta--
+
 ----
 § 64. (Ophævet)
 ----
 
---@begin:afskrivningsloven_par64--
+@ meta(al_par64_kildemeta)
+@ section afskrivningsloven_par64 {
+
 # Afskrivningslov64Status = Al64Ophævet
 
 | afskrivningslov64_status() -> Al64Ophævet
---@end:afskrivningsloven_par64--
+
+}
 
 = al_par65_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par65::meta:al_par65_kildemeta--
+
 ----
 § 65. (Ophævet)
 ----
 
---@begin:afskrivningsloven_par65--
+@ meta(al_par65_kildemeta)
+@ section afskrivningsloven_par65 {
+
 # Afskrivningslov65Status = Al65Ophævet
 
 | afskrivningslov65_status() -> Al65Ophævet
---@end:afskrivningsloven_par65--
+
+}
 
 = al_par66_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par66::meta:al_par66_kildemeta--
+
 ----
 § 66. (Ophævet)
 ----
 
---@begin:afskrivningsloven_par66--
+@ meta(al_par66_kildemeta)
+@ section afskrivningsloven_par66 {
+
 # Afskrivningslov66Status = Al66Ophævet
 
 | afskrivningslov66_status() -> Al66Ophævet
---@end:afskrivningsloven_par66--
+
+}
 
 = al_par67_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par67::meta:al_par67_kildemeta--
+
 ----
 § 67. (Ophævet)
 ----
 
---@begin:afskrivningsloven_par67--
+@ meta(al_par67_kildemeta)
+@ section afskrivningsloven_par67 {
+
 # Afskrivningslov67Status = Al67Ophævet
 
 | afskrivningslov67_status() -> Al67Ophævet
---@end:afskrivningsloven_par67--
+
+}
 
 = al_par68_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par68::meta:al_par68_kildemeta--
+
 ----
 § 68. For aktiver, der er anskaffet før den 12. maj 1989 til erhvervsmæssig
 udlejning, og som hidtil har været omfattet af reglerne i afsnit V A i lov om
@@ -7813,7 +7995,9 @@ Stk. 3. Som salgssum og købesum anvendes handelsværdien på
 overførselstidspunktet.
 ----
 
---@begin:afskrivningsloven_par68--
+@ meta(al_par68_kildemeta)
+@ section afskrivningsloven_par68 {
+
 # Afskrivningslov68Position(skatteyder: AfskrivningslovSkatteyder, anskaffelsesdato: AfskrivningslovDato, anskaffet_til_erhvervsmæssig_udlejning: Boolsk, hidtil_omfattet_af_tidligere_afsnit_va: Boolsk)
 # Afskrivningslov68Hændelse = Al68FortsatErhvervsmæssigUdlejning | Al68OverførtTilAfskrivningsberettigetBenyttelseEfterKapitel2 | Al68OverførtTilUdelukkendePrivatBenyttelse
 # Afskrivningslov68Input(indkomstår: Heltal, position: Afskrivningslov68Position, hændelse: Afskrivningslov68Hændelse, handelsværdi_på_overførselstidspunktet_kroner: Heltal)
@@ -7837,19 +8021,23 @@ overførselstidspunktet.
     )
 }
 | afskrivningslov68_resultat(input: Afskrivningslov68Input) -> Afskrivningslov68Sag(input).resultat()
---@end:afskrivningsloven_par68--
+
+}
 
 = al_par69_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
---@label:afskrivningsloven_par69::meta:al_par69_kildemeta--
+
 ----
 § 69. Loven gælder ikke for Færøerne og Grønland.
 ----
 
---@begin:afskrivningsloven_par69--
+@ meta(al_par69_kildemeta)
+@ section afskrivningsloven_par69 {
+
 # Afskrivningslov69Territorium = Al69Danmark | Al69Færøerne | Al69Grønland
 # Afskrivningslov69Resultat(territorium: Afskrivningslov69Territorium, loven_gælder: Boolsk)
 
 | afskrivningslov69_resultat(territorium: Afskrivningslov69Territorium) -> Afskrivningslov69Resultat(territorium = territorium, loven_gælder = territorium == Al69Danmark)
---@end:afskrivningsloven_par69--
+
+}

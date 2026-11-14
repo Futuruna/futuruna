@@ -30,9 +30,8 @@
     attachments = (Source(value = law),)
 )
 
---@label:household_tax::meta:household_meta--
-
 | rate(h: Household) -> if h.married { 5 } else { 4 }
 
+@ meta(household_meta)
 @ calculate
 | household_tax(h: Household) -> Result(tax = h.income / rate(h))

@@ -32,7 +32,6 @@
     )
 )
 
---@label:ebl_par11::meta:ebl_par11_metadata--
 ----
 § 11. Fortjeneste, der er indvundet ved modtagelse af en erstatningssum i
 anledning af ekspropriation, medregnes ikke. Det samme gælder fortjeneste ved
@@ -57,7 +56,9 @@ fortjenesten i en ny ejendom eller en ombygning, tilbygning eller nybygning
 efter reglerne i §§ 6 A eller 6 C.
 ----
 
---@begin:ebl_par11--
+@ meta(ebl_par11_metadata)
+@ section ebl_par11 {
+
 # EjendomsavancebeskatningslovAfståelse = EblAlmindeligAfståelse | EblEntreprisekontraktAfståelse | EblErstatningsEllerForsikringssum | EblGaveEllerArveforskud | EblEkspropriationserstatning | EblEkspropriationslignendeSalg | EblForurenetJordPar34Afhændelse
 # EblPar11Stk2NyGenanbringelsesfakta(afstået_ejendoms_erhvervsanvendelse: EblPar6AErhvervsanvendelse, investering: EblPar6AInvestering, begæring: EblPar6ABegæring, ejerskab: EblPar6AEjerskab)
 # EblPar11Stk2NyGenanbringelseshjemmel = EblPar11Stk2EfterPar6A | EblPar11Stk2EfterPar6C(arbejdsart: EblPar6CArbejdsart, arbejde_påbegyndt: Boolsk)
@@ -155,4 +156,5 @@ efter reglerne i §§ 6 A eller 6 C.
         skattepligtig_tidligere_genanbragt_fortjeneste_i_afståelsesåret_kroner = hvis input_gyldigt { ebl_par11_stk2_skattepligtig_tidligere_fortjeneste_kroner(stk2_anvendt, ny_genanbringelsesresultat, tidligere_reguleret_fortjeneste_kroner) } ellers { 0 }
     )
 }
---@end:ebl_par11--
+
+}

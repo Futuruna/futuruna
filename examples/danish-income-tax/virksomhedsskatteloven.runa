@@ -178,7 +178,6 @@ hele måneder, regnskabsperioden omfatter.
     attachments = Source(value = virksomhedsskatteloven_par8_kildebelæg)
 )
 
---@label:virksomhedsskatteloven_par8::meta:virksomhedsskatteloven_par8_metadata--
 ----
 § 8. Virksomhedens afkastgrundlag opgøres ved indkomstårets begyndelse som
 virksomhedens aktiver med fradrag af gæld, beløb, der er afsat efter §§ 4 og 10,
@@ -210,7 +209,9 @@ for ombygning, forbedringer m.v., jf. stk. 2, 2. pkt., skal den faste ejendom
 medregnes til denne værdi.
 ----
 
---@begin:virksomhedsskatteloven_par8--
+@ meta(virksomhedsskatteloven_par8_metadata)
+@ section virksomhedsskatteloven_par8 {
+
 # Virksomhedsskattelov8Opgørelsestidspunkt = Vsl8IndkomståretsBegyndelse | Vsl8NyVirksomhedsStart
 # Virksomhedsskattelov8Nærtståenderelation = Vsl8SkattepligtigesEllerÆgtefællesForælder | Vsl8SkattepligtigesEllerÆgtefællesBedsteforælder | Vsl8SkattepligtigesEllerÆgtefællesBarn | Vsl8SkattepligtigesEllerÆgtefællesBarnebarn | Vsl8BarnsEllerBarnebarnsÆgtefælle
 # Virksomhedsskattelov8Boliganvendelse = Vsl8IkkeStilletTilRådighedSomNærtståendeBolig | Vsl8StilletTilRådighedSomNærtståendeBolig(relation: Virksomhedsskattelov8Nærtståenderelation)
@@ -357,7 +358,8 @@ medregnes til denne værdi.
 }
 | virksomhedsskattelov8_sag(input: Virksomhedsskattelov8Input) -> Virksomhedsskattelov8Sag(input)
 | virksomhedsskattelov8_resultat(input: Virksomhedsskattelov8Input) -> virksomhedsskattelov8_sag(input).resultat()
---@end:virksomhedsskatteloven_par8--
+
+}
 
 = virksomhedsskatteloven_par9_par9a_metadata = Metadata(
     attachments = (
@@ -366,23 +368,6 @@ medregnes til denne værdi.
         RateSource(value = virksomhedsskatteloven_skatteministeriet_par9_par9a_kildebelæg),
     )
 )
-
---@label:virksomhedsskatteloven_par9_par9a::meta:virksomhedsskatteloven_par9_par9a_metadata--
-----
-§ 9. Den i § 7 nævnte afkastsats opgøres en gang årligt. Satsen beregnes på
-grundlag af et simpelt gennemsnit af den af Danmarks Nationalbank opgjorte
-kassekreditrente for ikkefinansielle selskaber i de første 6 måneder af det til
-indkomståret svarende kalenderår. Den af Nationalbanken opgjorte månedlige
-kassekreditrente for ikkefinansielle selskaber opgøres i henhold til Den
-Europæiske Centralbanks forordning (EF) nr. 63/2002 af 20. december 2001
-vedrørende statistik over de monetære finansielle institutioners rentesatser på
-indlån fra og udlån til husholdninger og ikkefinansielle selskaber (ECB/2001/18).
-Den af Nationalbanken opgjorte månedlige kassekreditrente for ikkefinansielle
-selskaber opgøres som et vægtet gennemsnit af den effektive rentesats for den
-udestående lånemasse opgjort med to decimaler. Det simple gennemsnit, jf. 2.
-pkt., opgøres med én decimal. Satsen nedsættes med 2 procentpoint og nedrundes
-derefter til nærmeste hele procentsats. Satsen kan ikke være mindre end 0 pct.
-----
 
 ----
 § 9 a. En gang årligt opgøres en rentekorrektionssats. Ved opgørelsen af satsen
@@ -423,7 +408,25 @@ senere" pr. 2026-07-30; de seks lovbestemte Nationalbank-observationer er
 tilgængelige og giver henholdsvis 2 pct. og 5 pct. efter §§ 9 og 9 a.
 ----
 
---@begin:virksomhedsskatteloven_par9_par9a--
+----
+§ 9. Den i § 7 nævnte afkastsats opgøres en gang årligt. Satsen beregnes på
+grundlag af et simpelt gennemsnit af den af Danmarks Nationalbank opgjorte
+kassekreditrente for ikkefinansielle selskaber i de første 6 måneder af det til
+indkomståret svarende kalenderår. Den af Nationalbanken opgjorte månedlige
+kassekreditrente for ikkefinansielle selskaber opgøres i henhold til Den
+Europæiske Centralbanks forordning (EF) nr. 63/2002 af 20. december 2001
+vedrørende statistik over de monetære finansielle institutioners rentesatser på
+indlån fra og udlån til husholdninger og ikkefinansielle selskaber (ECB/2001/18).
+Den af Nationalbanken opgjorte månedlige kassekreditrente for ikkefinansielle
+selskaber opgøres som et vægtet gennemsnit af den effektive rentesats for den
+udestående lånemasse opgjort med to decimaler. Det simple gennemsnit, jf. 2.
+pkt., opgøres med én decimal. Satsen nedsættes med 2 procentpoint og nedrundes
+derefter til nærmeste hele procentsats. Satsen kan ikke være mindre end 0 pct.
+----
+
+@ meta(virksomhedsskatteloven_par9_par9a_metadata)
+@ section virksomhedsskatteloven_par9_par9a {
+
 # Virksomhedsskattelov9Måned = Vsl9Januar | Vsl9Februar | Vsl9Marts | Vsl9April | Vsl9Maj | Vsl9Juni
 # Virksomhedsskattelov9Månedsrente(indkomstår: Heltal, statistikperiode: Tekst, måned: Virksomhedsskattelov9Måned, effektiv_rentesats_milliprocent: Heltal, effektiv_rentesats_basispoint: Heltal)
 # Virksomhedsskattelov9Offentliggørelsesstatus = Vsl9OffentliggjortAfSkatteministeriet(afkastsats_basispoint: Heltal, rentekorrektionssats_basispoint: Heltal, kilde_url: Tekst) | Vsl9AfventerSkatteministerietsOffentliggørelse(kilde_url: Tekst) | Vsl9IndkomstårIkkeKildebelagt
@@ -536,13 +539,13 @@ tilgængelige og giver henholdsvis 2 pct. og 5 pct. efter §§ 9 og 9 a.
 }
 | virksomhedsskattelov7_kilde_sag(input: Virksomhedsskattelov7KildeInput) -> Virksomhedsskattelov7KildeSag(input)
 | virksomhedsskattelov7_kilde_resultat(input: Virksomhedsskattelov7KildeInput) -> virksomhedsskattelov7_kilde_sag(input).resultat()
---@end:virksomhedsskatteloven_par9_par9a--
+
+}
 
 = virksomhedsskatteloven_par22a_metadata = Metadata(
     attachments = Source(value = virksomhedsskatteloven_par22a_kildebelæg)
 )
 
---@label:virksomhedsskatteloven_par22a::meta:virksomhedsskatteloven_par22a_metadata--
 ----
 § 22 a. Skattepligtige personer, der driver selvstændig erhvervsvirksomhed, kan i stedet for at anvende virksomhedsordningen efter afsnit I vælge at beregne et kapitalafkast af de erhvervsmæssige aktiver efter reglerne i dette afsnit. Kapitalafkastet fragår i den personlige indkomst og lægges til kapitalindkomsten. § 2, stk. 2, 1.-3. pkt., og stk. 6, finder tilsvarende anvendelse.
 
@@ -563,7 +566,9 @@ Stk. 7. I kapitalafkastgrundlaget efter stk. 5 indgår ikke aktiver fra en virks
 Stk. 8. I kapitalafkastgrundlaget efter stk. 5 indgår ikke fast ejendom, der stilles til rådighed som bolig for den skattepligtiges eller dennes ægtefælles forældre og bedsteforældre samt børn og børnebørn og disses ægtefæller.
 ----
 
---@begin:virksomhedsskatteloven_par22a--
+@ meta(virksomhedsskatteloven_par22a_metadata)
+@ section virksomhedsskatteloven_par22a {
+
 # Virksomhedsskattelov22AInput(indkomstår: Heltal, driver_selvstændig_erhvervsvirksomhed: Boolsk, vælger_kapitalafkastordning: Boolsk, afkastgrundlag_kroner: Heltal, kapitalafkastsats_basispoint: Heltal, periode_hele_måneder: Heltal, positiv_personlig_nettoindkomst_selvstændig_kroner: Heltal, negativ_nettokapitalindkomst_abs_kroner: Heltal)
 # Virksomhedsskattelov22AResultat(indkomstår: Heltal, omfattet_af_stk1: Boolsk, afkastgrundlag_kroner: Heltal, kapitalafkastsats_basispoint: Heltal, beregnet_kapitalafkast_før_loft_kroner: Heltal, loft_efter_stk3_kroner: Heltal, kapitalafkast_kroner: Heltal, personlig_indkomst_fradrag_kroner: Heltal, kapitalindkomst_tillæg_kroner: Heltal)
 
@@ -853,7 +858,8 @@ Stk. 8. I kapitalafkastgrundlaget efter stk. 5 indgår ikke fast ejendom, der st
 }
 | virksomhedsskattelov22a_kilde_sag(input: Virksomhedsskattelov22AKildeInput) -> Virksomhedsskattelov22AKildeSag(input)
 | virksomhedsskattelov22a_kilde_resultat(input: Virksomhedsskattelov22AKildeInput) -> virksomhedsskattelov22a_kilde_sag(input).resultat()
---@end:virksomhedsskatteloven_par22a--
+
+}
 
 = virksomhedsskatteloven_par22b_metadata = Metadata(
     attachments = (
@@ -863,7 +869,6 @@ Stk. 8. I kapitalafkastgrundlaget efter stk. 5 indgår ikke fast ejendom, der st
     )
 )
 
---@label:virksomhedsskatteloven_par22b::meta:virksomhedsskatteloven_par22b_metadata--
 ----
 § 22 b. Skattepligtige personer, der anvender § 22 a, kan foretage henlæggelse
 til konjunkturudligning. Henlæggelsen kan fradrages ved opgørelsen af den
@@ -963,7 +968,9 @@ i øvrigt fastsætte nærmere regler for gennemførelse af
 konjunkturudligningsordningen.
 ----
 
---@begin::virksomhedsskatteloven_par22b--
+@ meta(virksomhedsskatteloven_par22b_metadata)
+@ section virksomhedsskatteloven_par22b {
+
 # VirksomhedsskattelovUdligningskontoBetegnelse = VslKonjunkturudligningskonto | VslIndkomstudligningskonto | VslAndenUdligningskonto
 # VirksomhedsskattelovUdligningskontoInstitution = VslDanskTilladtPengeinstitut | VslEuEoesKreditinstitutMedDanskFilial | VslIkkeTilladtKreditinstitut
 # VirksomhedsskattelovUdligningskontoForm = VslKontantforrentetIndlånskonto | VslGevinstopsparingskonto | VslAndenKontoform
@@ -1222,7 +1229,8 @@ konjunkturudligningsordningen.
 | virksomhedsskattelov_udlignings_indtægtsføring_sag(input: VirksomhedsskattelovUdligningsIndtægtsføringInput) -> VirksomhedsskattelovUdligningsIndtægtsføringSag(input)
 | virksomhedsskattelov_udlignings_indtægtsføring_resultat(input: VirksomhedsskattelovUdligningsIndtægtsføringInput) -> virksomhedsskattelov_udlignings_indtægtsføring_sag(input).resultat()
 | virksomhedsskattelov22b_indtægtsføring_resultat(input: VirksomhedsskattelovUdligningsIndtægtsføringInput) -> virksomhedsskattelov_udlignings_indtægtsføring_resultat(input) under input.ordning == VslPar22BKonjunkturudligning
---@end::virksomhedsskatteloven_par22b--
+
+}
 
 = virksomhedsskatteloven_par22d_metadata = Metadata(
     attachments = (
@@ -1231,7 +1239,6 @@ konjunkturudligningsordningen.
     )
 )
 
---@label:virksomhedsskatteloven_par22d::meta:virksomhedsskatteloven_par22d_metadata--
 ----
 § 22 d. Skattepligtige personer, der har indkomst fra et af den skattepligtige
 udført arbejde af litterær eller skabende kunstnerisk karakter, og som ikke
@@ -1260,7 +1267,9 @@ konkursindkomsten.
 Stk. 4. Grundbeløbene i stk. 1 og 2 reguleres efter personskattelovens § 20.
 ----
 
---@begin::virksomhedsskatteloven_par22d--
+@ meta(virksomhedsskatteloven_par22d_metadata)
+@ section virksomhedsskatteloven_par22d {
+
 # Virksomhedsskattelov22DKunstnerindkomstInput(litterært_eller_skabende_kunstnerisk_arbejde: Boolsk, arbejdet_udført_af_skattepligtige: Boolsk, udført_i_ansættelsesforhold: Boolsk, indkomst_fra_legat_stipendium_eller_lignende: Boolsk, indkomst_før_ligningslov7o_lempelse_kroner: Heltal, ligningslov7o_stk1_nr4_lempelse_kroner: Heltal)
 # Virksomhedsskattelov22DHenlæggelseInput(indkomstår: Heltal, anvender_virksomhedsordningen_afsnit1: Boolsk, anvender_konjunkturudligningsordningen_par22b: Boolsk, kunstnerindkomst: Virksomhedsskattelov22DKunstnerindkomstInput, skattepligtig_indkomst_før_henlæggelse_kroner: Heltal, ønsket_henlæggelse_kroner: Heltal, samlede_tidligere_indskud_på_indkomstudligningskonto_kroner: Heltal, konto: VirksomhedsskattelovUdligningskontoInput)
 # Virksomhedsskattelov22DHenlæggelseResultat(indkomstår: Heltal, kunstnerisk_arbejde_berettiget: Boolsk, kunstnerindkomst_efter_ligningslov7o_kroner: Heltal, skattepligtig_indkomst_grundbeløb_2010_niveau_kroner: Heltal, skattepligtig_indkomst_grundbeløb_reguleret_kroner: Heltal, årligt_maksimum_2010_niveau_kroner: Heltal, årligt_maksimum_reguleret_kroner: Heltal, samlede_tidligere_indskud_kroner: Heltal, resterende_kontoindskudsramme_kroner: Heltal, maksimum_efter_kontoindskudsramme_kroner: Heltal, maksimum_efter_skattepligtig_indkomst_kroner: Heltal, ønsket_henlæggelse_kroner: Heltal, henlæggelse_før_kontobetingelse_kroner: Heltal, mindst_5000_kroner: Boolsk, indkomstudligningsskat_basispoint: Heltal, indkomstudligningsskat_før_kontobetingelse_kroner: Heltal, påkrævet_kontoindskud_kroner: Heltal, konto_resultat: VirksomhedsskattelovUdligningskontoResultat, kan_foretage_henlæggelse: Boolsk, henlæggelse_kroner: Heltal, indkomstudligningsskat_kroner: Heltal, kontoindskud_kroner: Heltal, samlede_indskud_efter_nyt_indskud_kroner: Heltal, skattepligtig_indkomst_efter_henlæggelse_kroner: Heltal, skattepligtig_indkomst_fradrag_kroner: Heltal, personlig_indkomst_fradrag_kroner: Heltal)
@@ -1341,7 +1350,8 @@ Stk. 4. Grundbeløbene i stk. 1 og 2 reguleres efter personskattelovens § 20.
 | exception par22d_stk2_skattepligtsophør virksomhedsskattelov_udlignings_skattepligtsophørsregel_gælder(ordning: VirksomhedsskattelovUdligningsordning) -> Sandt under ordning == VslPar22DIndkomstudligning
 | exception par22d_stk3_konkurs virksomhedsskattelov_udlignings_konkursregel_gælder(ordning: VirksomhedsskattelovUdligningsordning) -> Sandt under ordning == VslPar22DIndkomstudligning
 | virksomhedsskattelov22d_indtægtsføring_resultat(input: VirksomhedsskattelovUdligningsIndtægtsføringInput) -> virksomhedsskattelov_udlignings_indtægtsføring_resultat(input) under input.ordning == VslPar22DIndkomstudligning
---@end::virksomhedsskatteloven_par22d--
+
+}
 
 = virksomhedsskatteloven_par22c_metadata = Metadata(
     attachments = (
@@ -1351,7 +1361,6 @@ Stk. 4. Grundbeløbene i stk. 1 og 2 reguleres efter personskattelovens § 20.
     )
 )
 
---@label:virksomhedsskatteloven_par22c::meta:virksomhedsskatteloven_par22c_metadata--
 ----
 § 22 c. Skattepligtige personer, der erhverver aktier eller anparter i et
 selskab, kan vælge at beregne et kapitalafkast af de erhvervede aktier eller
@@ -1404,7 +1413,9 @@ skattemæssige stilling, opgøres kapitalafkastgrundlaget som det kontantomregne
 vederlag, den skattepligtige betaler for aktierne eller anparterne.
 ----
 
---@begin:virksomhedsskatteloven_par22c--
+@ meta(virksomhedsskatteloven_par22c_metadata)
+@ section virksomhedsskatteloven_par22c {
+
 # Virksomhedsskattelov22CInput(indkomstår: Heltal, fuld_skattepligt_og_hjemmehørende: Boolsk, kontantomregnet_vederlag_kroner: Heltal, reguleret_beløbsgrænse_kroner: Heltal, ejerandel_basispoint: Heltal, stemmeværdi_basispoint: Heltal, ansatte_samlet_ejerandel_basispoint: Heltal, ansatte_samlet_stemmeværdi_basispoint: Heltal, ingen_ansat_råder_over_mere_end_50_pct_stemmer: Boolsk, selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering: Boolsk, aktier_ikke_omfattet_af_abl19b_eller_19c: Boolsk, ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto: Boolsk, ejet_i_mindre_end_11_år: Boolsk, kapitalafkastsats_basispoint: Heltal, ejerperiode_hele_måneder: Heltal)
 # Virksomhedsskattelov22CResultat(indkomstår: Heltal, vederlag_over_beløbsgrænse: Boolsk, ejer_eller_stemmebetingelse_opfyldt: Boolsk, ansatte_ejer_eller_stemmebetingelse_opfyldt: Boolsk, betingelser_opfyldt: Boolsk, kapitalafkastgrundlag_kroner: Heltal, kapitalafkastsats_basispoint: Heltal, ejerperiode_hele_måneder: Heltal, kapitalafkast_kroner: Heltal, personlig_indkomst_fradrag_kroner: Heltal, kapitalindkomst_tillæg_kroner: Heltal)
 
@@ -1487,7 +1498,8 @@ vederlag, den skattepligtige betaler for aktierne eller anparterne.
 }
 | virksomhedsskattelov22c_kilde_sag(input: Virksomhedsskattelov22CKildeInput) -> Virksomhedsskattelov22CKildeSag(input)
 | virksomhedsskattelov22c_kilde_resultat(input: Virksomhedsskattelov22CKildeInput) -> virksomhedsskattelov22c_kilde_sag(input).resultat()
---@end:virksomhedsskatteloven_par22c--
+
+}
 
 = virksomhedsskatteloven_par23a_metadata = Metadata(
     attachments = (
@@ -1496,7 +1508,6 @@ vederlag, den skattepligtige betaler for aktierne eller anparterne.
     )
 )
 
---@label:virksomhedsskatteloven_par23a::meta:virksomhedsskatteloven_par23a_metadata--
 ----
 § 23 a. Den skattepligtige kan vælge at medregne højst et grundbeløb på
 46.000 kr. (2010-niveau) af kapitalafkast, som overføres efter § 5, stk. 1,
@@ -1508,7 +1519,9 @@ kildeskattelovens § 25 A, stk. 8, kan hver af ægtefællerne anvende reglerne i
 stk. 1.
 ----
 
---@begin:virksomhedsskatteloven_par23a--
+@ meta(virksomhedsskatteloven_par23a_metadata)
+@ section virksomhedsskatteloven_par23a {
+
 # Virksomhedsskattelov23AInput(indkomstår: Heltal, kapitalafkast_kroner: Heltal, reguleret_grundbeløb_kroner: Heltal, ønsket_medregnet_personlig_indkomst_kroner: Heltal)
 # Virksomhedsskattelov23AResultat(indkomstår: Heltal, kapitalafkast_kroner: Heltal, reguleret_grundbeløb_kroner: Heltal, ønsket_medregnet_personlig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, resterende_kapitalafkast_kroner: Heltal)
 
@@ -1582,7 +1595,8 @@ stk. 1.
 }
 | virksomhedsskattelov23a_bundet_sag(input: Virksomhedsskattelov23ABundetInput) -> Virksomhedsskattelov23ABundetSag(input)
 | virksomhedsskattelov23a_bundet_resultat(input: Virksomhedsskattelov23ABundetInput) -> virksomhedsskattelov23a_bundet_sag(input).resultat()
---@end:virksomhedsskatteloven_par23a--
+
+}
 
 = virksomhedsskatteloven_par11_metadata = Metadata(
     attachments = (
@@ -1591,7 +1605,6 @@ stk. 1.
     )
 )
 
---@label:virksomhedsskatteloven_par11::meta:virksomhedsskatteloven_par11_metadata--
 ----
 § 11. Er saldoen på indskudskontoen negativ på det tidspunkt, hvor anvendelsen
 af virksomhedsordningen påbegyndes, eller for efterfølgende indkomstår ved
@@ -1621,7 +1634,9 @@ personlige indkomst og fradrages i kapitalindkomsten for det pågældende
 indkomstår.
 ----
 
---@begin:virksomhedsskatteloven_par11--
+@ meta(virksomhedsskatteloven_par11_metadata)
+@ section virksomhedsskatteloven_par11 {
+
 # Virksomhedsskattelov11Input(indkomstår: Heltal, rentekorrektionssats_basispoint: Heltal, negativ_indskudskonto_start_eller_primo_abs_kroner: Heltal, negativ_indskudskonto_ultimo_abs_kroner: Heltal, negativt_afkastgrundlag_start_eller_primo_abs_kroner: Heltal, negativt_afkastgrundlag_ultimo_abs_kroner: Heltal, nettofinansieringsudgifter_efter_kursgevinstlov_kroner: Heltal, overført_efter_par5_stk1_nr5_og_stk2_kroner: Heltal, indskud_efter_par3_stk1_kroner: Heltal)
 # Virksomhedsskattelov11Resultat(indkomstår: Heltal, stk1_negativ_indskudskonto: Boolsk, stk1_negativt_afkastgrundlag: Boolsk, stk1_indskudskonto_grundlag_kroner: Heltal, stk1_afkastgrundlag_loftgrundlag_kroner: Heltal, stk1_rentekorrektion_før_loft_kroner: Heltal, stk1_afkastgrundlag_loft_kroner: Heltal, stk1_nettofinansieringsloft_kroner: Heltal, stk1_rentekorrektion_kroner: Heltal, stk2_hævning_og_indskud: Boolsk, stk2_hævningsgrundlag_kroner: Heltal, stk2_indskudsloftgrundlag_kroner: Heltal, stk2_rentekorrektion_før_loft_kroner: Heltal, stk2_indskudsloft_kroner: Heltal, stk2_rentekorrektion_kroner: Heltal, samlet_rentekorrektion_kroner: Heltal, personlig_indkomst_tillæg_kroner: Heltal, kapitalindkomst_fradrag_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 
@@ -1702,7 +1717,8 @@ indkomstår.
 }
 | virksomhedsskattelov11_kilde_sag(input: Virksomhedsskattelov11KildeInput) -> Virksomhedsskattelov11KildeSag(input)
 | virksomhedsskattelov11_kilde_resultat(input: Virksomhedsskattelov11KildeInput) -> virksomhedsskattelov11_kilde_sag(input).resultat()
---@end:virksomhedsskatteloven_par11--
+
+}
 
 = virksomhedsskatteloven_par11a_metadata = Metadata(
     attachments = (
@@ -1712,7 +1728,6 @@ indkomstår.
     )
 )
 
---@label:virksomhedsskatteloven_par11a::meta:virksomhedsskatteloven_par11a_metadata--
 ----
 § 11 a. Stiller den skattepligtige fast ejendom til rådighed som bolig for
 dennes eller ægtefællens forældre og bedsteforældre samt børn og børnebørn og
@@ -1758,7 +1773,9 @@ Stk. 3. Rentekorrektionsbeløbet efter stk. 1 medregnes i den personlige
 indkomst og fradrages i kapitalindkomsten for det pågældende indkomstår.
 ----
 
---@begin:virksomhedsskatteloven_par11a--
+@ meta(virksomhedsskatteloven_par11a_metadata)
+@ section virksomhedsskatteloven_par11a {
+
 # Virksomhedsskattelov11AOpgørelsestidspunkt = Vsl11AVirksomhedsordningensStart | Vsl11AIndkomståretsBegyndelse | Vsl11AIndkomståretsUdløb
 # Virksomhedsskattelov11AFormuefakta(tidspunkt: Virksomhedsskattelov11AOpgørelsestidspunkt, aktiver: List(Virksomhedsskattelov8Aktiv), gældsposter: List(Virksomhedsskattelov8Gældspost))
 # Virksomhedsskattelov11AFormueresultat(fakta: Virksomhedsskattelov11AFormuefakta, input_gyldigt: Boolsk, samlede_aktiver_kroner: Heltal, nærtstående_boligaktiver_kroner: Heltal, gæld_til_kursværdi_kroner: Heltal, gæld_efter_par11_stk1_grundlag_kroner: Heltal, nærtstående_gældsandel_kroner: Heltal, nærtstående_nettofinansieringsandel_kroner: Heltal)
@@ -1832,7 +1849,8 @@ indkomst og fradrages i kapitalindkomsten for det pågældende indkomstår.
 
 | virksomhedsskattelov11a_kilde_sag(input: Virksomhedsskattelov11AKildeInput) -> Virksomhedsskattelov11ASag(input)
 | virksomhedsskattelov11a_kilde_resultat(input: Virksomhedsskattelov11AKildeInput) -> virksomhedsskattelov11a_kilde_sag(input).resultat()
---@end:virksomhedsskatteloven_par11a--
+
+}
 
 = vsl7_overskudsloft_input = Virksomhedsskattelov7Input(
     indkomstår = 2026,

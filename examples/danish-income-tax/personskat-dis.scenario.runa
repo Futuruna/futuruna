@@ -13,14 +13,15 @@
     )
 )
 
---@label:personskat_dis_scenarier::meta:personskat_dis_scenarier_metadata--
 ----
 Scenarierne er ikke lovtekst. De fastholder den kanoniske sammensætning af
 sømandsbeskatningslovens §§ 5-8 med personlig indkomst, arbejdsmarkedsbidrag,
 ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
 ----
 
---@begin::personskat_dis_scenarier--
+@ meta(personskat_dis_scenarier_metadata)
+@ section personskat_dis_scenarier {
+
 | personskat_dis_personlig_indkomst(sømandsbeskatning: Søbl5Til8Årsinput) -> PersonskatPersonligIndkomstInput(
     etableringskonto = UdenEtableringskontoindskud,
     ordinære_forhold = personskat_ingen_ordinær_personlig_indkomst(),
@@ -289,4 +290,5 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
 ? personskat_das_føres_til_ordinær_am_løn
 
 @ print("Personskat: DIS-lempelse og ordinær DAS-løn er sammensat i den kanoniske slutskat")
---@end::personskat_dis_scenarier--
+
+}

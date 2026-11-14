@@ -24,11 +24,15 @@
 = secondary_shape = Triangle
 = shape_warning = AuditWarning(message = "Not selected")
 
---@label:geometry::source:primary_shape::source:secondary_shape::warning:shape_warning--
 ----
 Raw additions
 ----
 
---@begin::geometry--
+@ meta(primary_shape)
+@ meta(secondary_shape)
+@ meta(shape_warning)
+@ section geometry {
+
 = geometry_fixture = Circle
---@end::geometry--
+
+}

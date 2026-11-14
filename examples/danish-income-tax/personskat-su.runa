@@ -9,16 +9,19 @@
 = personskat_su_ll9c_kilde = PersonskatSuKilde(url = "https://info.skat.dk/data.aspx?oid=2061745", identifier = "DJV C.A.4.3.3.2.3 / LL § 9 C, stk. 4: SU er ikke i aftrapningsgrundlaget", hentet_dato = "2026-09-25")
 = personskat_su_metadata = Metadata(attachments = (Guidance(value = personskat_su_skat_kilde), Guidance(value = personskat_su_personlig_kilde), Source(value = personskat_su_lån_kilde), Guidance(value = personskat_su_ll9c_kilde)))
 
---@label:personskat_su::meta:personskat_su_metadata--
-----
-Du betaler ikke arbejdsmarkedsbidrag eller ATP af din SU.
-----
 -- Citat: su.dk, Skat / Arbejdsmarkedsbidrag og ATP. Kun dokumenterede
 -- danske SU-beløb uden udlandsforhold, tilbagebetaling eller omperiodisering.
 -- Stipendier omfatter dokumenterede skattepligtige tillæg efter SU-loven.
 -- Ingen beregning af SU-ret, fribeløb, lånegæld, renter eller tilbagebetaling.
---@begin:personskat_su--
+----
+Du betaler ikke arbejdsmarkedsbidrag eller ATP af din SU.
+----
+
+@ meta(personskat_su_metadata)
+@ section personskat_su {
+
 # PersonskatSuArt = SuUoplystEllerUdenForModellen | SuStipendiumEfterDanskSuLov | SuLånEfterDanskSuLov
+@ meta(personskat_su_felter)
 # PersonskatSuFakta(identifikation: Tekst, indkomstår: Heltal, kildereference: Tekst, art: PersonskatSuArt, beløb_før_skat_kroner: Heltal, uden_udlandsforhold_og_korrektioner: Boolsk)
 # PersonskatSuResultat(fakta: PersonskatSuFakta, input_gyldigt: Boolsk, personlig_indkomst_uden_am_kroner: Heltal, låneudbetaling_uden_for_indkomst_kroner: Heltal, ll9c_aftrapningsindkomst_kroner: Option(Heltal))
 | personskat_su_input_gyldigt(fakta: PersonskatSuFakta) -> trim(fakta.identifikation) != "" && trim(fakta.kildereference) != "" && fakta.indkomstår >= 2023 && fakta.indkomstår <= 2026 && fakta.beløb_før_skat_kroner >= 0 && fakta.uden_udlandsforhold_og_korrektioner && fakta.art != SuUoplystEllerUdenForModellen
@@ -29,7 +32,8 @@ Du betaler ikke arbejdsmarkedsbidrag eller ATP af din SU.
     låneudbetaling_uden_for_indkomst_kroner = hvis personskat_su_input_gyldigt(fakta) && fakta.art == SuLånEfterDanskSuLov { fakta.beløb_før_skat_kroner } ellers { 0 },
     ll9c_aftrapningsindkomst_kroner = hvis personskat_su_input_gyldigt(fakta) { Some(0) } ellers { None }
 )
---@end:personskat_su--
+
+}
 
 = personskat_su_felter = TypetBeregningsmeta(
     felter = [
@@ -44,4 +48,3 @@ Du betaler ikke arbejdsmarkedsbidrag eller ATP af din SU.
     beløbsfelter = [],
     attachments = (Guidance(value = personskat_su_skat_kilde), Guidance(value = personskat_su_personlig_kilde), Source(value = personskat_su_lån_kilde), Guidance(value = personskat_su_ll9c_kilde))
 )
---@label:PersonskatSuFakta::meta:personskat_su_felter--

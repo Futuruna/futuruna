@@ -72,8 +72,9 @@
     )
 }
 
---@label:audit_procedurer_taerskler::meta:procedurer_taerskler_fund--
---@begin:audit_procedurer_taerskler--
+@ meta(procedurer_taerskler_fund)
+@ section audit_procedurer_taerskler {
+
 | procedurer_par42_har_strengt_flertal_og_inklusiv_tredive_procent() -> {
     = forkastet = Folkeafstemningsresultat(
         mod_stemmer = 30,
@@ -151,7 +152,8 @@
         && umuligt_stemmetal.opfylder_godkendelseskravet_i_par88() == Falskt
     )
 }
---@end:audit_procedurer_taerskler--
+
+}
 
 | procedurer_par88_adskiller_udloeser_fuldt_forloeb_og_retsvirkning() -> {
     = udløsende_forslagsforløb = Grundlovsforslagsforløb(

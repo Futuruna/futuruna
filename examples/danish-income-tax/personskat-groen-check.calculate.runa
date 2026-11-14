@@ -114,7 +114,7 @@
     }
 }
 
---@label:beregn_personskat_med_grøn_check::meta:personskat_grøn_check_meta--
+@ meta(personskat_grøn_check_meta)
 @ calculate("Dansk personskat med kildeafledt grøn check")
 > beregn_personskat_med_grøn_check(input: PersonskatGrønCheckInput) -> PersonskatGrønCheckResultat {
     = skat = beregn_personskat(personskat_grøn_check_uden_afregning(input.personskat))

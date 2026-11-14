@@ -105,14 +105,15 @@
     )
 )
 
---@label:pensionsbeskatningsloven_par15::meta:pensionsbeskatningsloven_par15_metadata--
 ----
 § 15. En indeksordning skal være oprettet som en forsikring eller en
 opsparingskonto med tilknyttet indekskontrakt i henhold til lov om
 pristalsreguleret alderdomsforsikring og alderdomsopsparing.
 ----
 
---@begin:pensionsbeskatningsloven_par15--
+@ meta(pensionsbeskatningsloven_par15_metadata)
+@ section pensionsbeskatningsloven_par15 {
+
 # Pbl15Indeksordningsform = Pbl15Forsikring | Pbl15Opsparingskonto
 # Pbl15Indeksordningsfakta(form: Pbl15Indeksordningsform, indekskontrakt_efter_pristalsloven: Boolsk)
 # Pbl15Indeksordningsresultat(fakta: Pbl15Indeksordningsfakta, tilladt_form: Boolsk, indekskontrakt_tilknyttet: Boolsk, omfattet_af_par15: Boolsk)
@@ -125,9 +126,9 @@ pristalsreguleret alderdomsforsikring og alderdomsopsparing.
     indekskontrakt_tilknyttet = fakta.indekskontrakt_efter_pristalsloven,
     omfattet_af_par15 = pbl15_indeksordning_omfattet(fakta)
 )
---@end:pensionsbeskatningsloven_par15--
 
---@label:pensionsbeskatningsloven_par15a::meta:pensionsbeskatningsloven_par15a_metadata--
+}
+
 ----
 Pensionsordninger for tidligere selvstændigt erhvervsdrivende
 
@@ -232,15 +233,15 @@ en erklæring fra en advokat, en statsautoriseret eller registreret revisor, en
 konsulent i driftsøkonomi, jf. § 1 i lov om tilskud til jordbrugets
 konsulentvirksomhed, et medlem af Foreningen af Danske Revisorer eller en
 person, der kan ligestilles hermed.
-----
 
---@label:pensionsbeskatningsloven_par15a::meta:pensionsbeskatningsloven_par15a_holdingafvikling_metadata--
-----
 kan hovedaktionæren (personen) kun bruge ordningen, hvis holdingselskabet
 likvideres i umiddelbar tilknytning til virksomhedsoverdragelsen.
 ----
 
---@begin:pensionsbeskatningsloven_par15a--
+@ meta(pensionsbeskatningsloven_par15a_metadata)
+@ meta(pensionsbeskatningsloven_par15a_holdingafvikling_metadata)
+@ section pensionsbeskatningsloven_par15a {
+
 # Pbl15AAfståelsesgrund = Pbl15AEgenVirksomhedsfortjeneste | Pbl15AÆgtefællefortjenesteEfterKildeskattelov25A(henføringsgrundlag: Kildeskat25AFortjenestegrundlag) | Pbl15AHovedaktionæraktier
 # Pbl15AOrdningsart = Pbl15ALøbendeUdbetalinger | Pbl15ARateforsikring | Pbl15ARateopsparing
 # Pbl15AKvalifikationsårsgrund = Pbl15AEgenSelvstændigVirksomhed | Pbl15AEgetHovedaktionærforhold | Pbl15AAfdødesSelvstændigeVirksomhedVedSuccession | Pbl15AAfdødesHovedaktionærforholdVedSuccession | Pbl15ABoperiodeSomSelvstændigVedSuccession | Pbl15ABoperiodeSomHovedaktionærVedSuccession
@@ -552,4 +553,5 @@ likvideres i umiddelbar tilknytning til virksomhedsoverdragelsen.
 | pbl15a_historik_inden_for_samlet_loft(resultat: Pbl15AÅrsgrundlagsresultat) -> all(resultat.grundlag.tidligere_indbetalinger, |indbetaling: Pbl15ATidligereIndbetaling| pbl15a_tidligere_indbetalinger_til_og_med_år_kroner(resultat.grundlag, indbetaling.indbetalingsår) <= pbl15a_reguleret_samlet_maksimum_kroner(indbetaling.indbetalingsår))
 | pbl15a_historik_fortsætter_ikke_efter_fuldt_loft(resultat: Pbl15AÅrsgrundlagsresultat) -> all(resultat.grundlag.tidligere_indbetalinger, |indbetaling: Pbl15ATidligereIndbetaling| all(resultat.grundlag.tidligere_indbetalinger, |tidligere: Pbl15ATidligereIndbetaling| tidligere.indbetalingsår >= indbetaling.indbetalingsår || pbl15a_tidligere_maksimum_nået_i_år(resultat.grundlag, tidligere.indbetalingsår) == Falskt))
 | pbl15a_årsgrundlag_gyldigt_for_indkomstår(resultat: Pbl15AÅrsgrundlagsresultat, indkomstår: Heltal) -> pbl15a_understøttet_indkomstår(indkomstår) && resultat.grundfakta_gyldige && all(resultat.grundlag.tidligere_indbetalinger, |indbetaling: Pbl15ATidligereIndbetaling| pbl15a_tidligere_indbetaling_gyldig(resultat, indkomstår, indbetaling)) && pbl15a_historik_inden_for_afståelseslofter(resultat) && pbl15a_historik_inden_for_samlet_loft(resultat) && pbl15a_historik_fortsætter_ikke_efter_fuldt_loft(resultat)
---@end:pensionsbeskatningsloven_par15a--
+
+}

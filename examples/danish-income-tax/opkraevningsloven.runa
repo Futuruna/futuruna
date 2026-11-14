@@ -235,7 +235,6 @@ eller indberetning, anvendelse.
 = opkrævning_par7_stk1_stk2_kildemeta = Source(
     value = opkrævningsloven_lbk1040_par7
 )
---@label:opkraevningsloven_par7_stk1_stk2::meta:opkrævning_par7_stk1_stk2_kildemeta--
 ----
 § 7. Betales et beløb ikke rettidigt, eller er der ydet henstand med
 betalingen, skal der betales en månedlig rente som fastsat efter stk. 2 med
@@ -267,6 +266,8 @@ udestående lånemasse opgjort med to decimaler, og det simple gennemsnit, jf.
 3. pkt., nedrundes til nærmeste hele procentsats, og den beregnede rente
 divideres med 24 og afrundes nedad til én decimal.
 ----
+
+@ meta(opkrævning_par7_stk1_stk2_kildemeta) for opkraevningsloven_par7_stk1_stk2
 
 ----
 LOV nr. 1694 af 30/12/2024, § 1, nr. 5:
@@ -315,7 +316,7 @@ Kilde: https://info.skat.dk/data.aspx?oid=2168585&chk=220619
 = opkraevning_par7_nationalbank_statbank_kildemeta = Source(
     value = opkrævning_par7_nationalbank_statbank_dnruupi
 )
---@label:opkraevning_par7_nationalbank_statbank::meta:opkraevning_par7_nationalbank_statbank_kildemeta--
+
 ----
 Danmarks Nationalbank / Statistikbanken DNRUUPI, hentet via api.statbank.dk
 2026-07-06.
@@ -338,7 +339,9 @@ INDHOLD:
 2025M09 4,135
 ----
 
---@begin::opkraevning_par7_nationalbank_statbank--
+@ meta(opkraevning_par7_nationalbank_statbank_kildemeta)
+@ section opkraevning_par7_nationalbank_statbank {
+
 # OpkrævningPar7RenteInput(kalenderår: Heltal, juli_kassekreditrente_basispoint: Heltal, august_kassekreditrente_basispoint: Heltal, september_kassekreditrente_basispoint: Heltal)
 # OpkrævningPar7OffentliggjortSats(kalenderår: Heltal, stk2_rente_basispoint: Heltal, kilde_eli: Tekst)
 # OpkrævningPar7NationalbankMåned = OpkrævningPar7Juli | OpkrævningPar7August | OpkrævningPar7September
@@ -532,4 +535,5 @@ INDHOLD:
 ? opkrævning_par7_2026_tillæg_ikraftsat
 ? opkrævning_par7_2026_forsinkelsesrente_samlet
 ? opkrævning_par7_2026_dagligt_påløb_dækket
---@end::opkraevning_par7_nationalbank_statbank--
+
+}

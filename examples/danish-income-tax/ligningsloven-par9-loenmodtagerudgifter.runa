@@ -74,7 +74,6 @@
     )
 )
 
---@label:ligningsloven_par9_stk1_loenmodtagerudgifter::meta:ligningsloven_par9_stk1_metadata--
 ----
 Ligningsloven, LBK nr. 42 af 13/01/2023 og LBK nr. 1500 af 24/11/2025,
 enslydende § 9, stk. 1:
@@ -102,7 +101,9 @@ Bundgrænse for visse lønmodtagerfradrag
 (§ 9, stk. 1) | 5.500 kr. | 7.300 kr. | 7.600 kr.
 ----
 
---@begin:ligningsloven_par9_stk1_loenmodtagerudgifter--
+@ meta(ligningsloven_par9_stk1_metadata)
+@ section ligningsloven_par9_stk1_loenmodtagerudgifter {
+
 # Ligningslov9Stk1Lovversion = Ll9Stk1Lbk42Af2023 | Ll9Stk1Lbk1500Af2025 | Ll9Stk1LovUdenKildedækning
 # Ligningslov9Stk1Skatteyderstatus = Ll9Stk1Lønmodtager | Ll9Stk1IkkeLønmodtager
 # Ligningslov9Stk1Dokumentation = Ll9Stk1DokumenteretMedBilag | Ll9Stk1DokumenteretPåAndenKontrollerbarMåde | Ll9Stk1UdenTilstrækkeligDokumentation
@@ -214,7 +215,8 @@ Bundgrænse for visse lønmodtagerfradrag
         samlet_fradrag_kroner = hvis alle_input_gyldige { penge_positivt_beløb(samlet_fradragsgrundlag_før_bundgrænse_kroner - grundbeløb_kroner) } ellers { 0 }
     )
 }
---@end:ligningsloven_par9_stk1_loenmodtagerudgifter--
+
+}
 
 = ligningsloven_lbk42_par9_stk3 = Ligningslov9KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2023/42",
@@ -236,7 +238,6 @@ Bundgrænse for visse lønmodtagerfradrag
     )
 )
 
---@label:ligningsloven_par9_stk3_repraesentation::meta:ligningsloven_par9_stk3_metadata--
 ----
 Ligningsloven, LBK nr. 42 af 13/01/2023 og LBK nr. 1500 af 24/11/2025,
 enslydende § 9, stk. 3:
@@ -246,6 +247,9 @@ repræsentation dog kun med et beløb svarende til 25 pct. af de afholdte
 udgifter.
 ----
 
---@begin:ligningsloven_par9_stk3_repraesentation--
+@ meta(ligningsloven_par9_stk3_metadata)
+@ section ligningsloven_par9_stk3_repraesentation {
+
 | ligningslov9_stk3_repraesentationsandel_basispoint() -> 2500
---@end:ligningsloven_par9_stk3_repraesentation--
+
+}

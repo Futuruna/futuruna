@@ -198,8 +198,9 @@
     )
 }
 
---@label:audit_rettigheder_negativ_afgraensning::meta:rettigheder_negativ_afgraensning_fund--
---@begin:audit_rettigheder_negativ_afgraensning--
+@ meta(rettigheder_negativ_afgraensning_fund)
+@ section audit_rettigheder_negativ_afgraensning {
+
 | rettigheder_par85_skiller_udtrykkelig_udeladelse_fra_positiv_ret() -> {
     = personlig_frihed = MilitærIndskrænkning(
         bestemmelse = PersonligFrihedPar71,
@@ -224,7 +225,8 @@
         && ytringsfrihed.indskrænkning_har_hjemmel_i_par85() == Falskt
     )
 }
---@end:audit_rettigheder_negativ_afgraensning--
+
+}
 
 | rettigheder_audit_består() -> (
     rettigheder_par67_kraever_overbevisningssammenhaeng_og_begge_graenser()

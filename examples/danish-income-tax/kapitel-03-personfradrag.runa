@@ -55,7 +55,6 @@
     )
 )
 
---@label:personskatteloven_par10_lbk1284::meta:personskatteloven_par10_lbk1284_metadata--
 ----
 § 10. For her i landet fuldt skattepligtige personer udgør personfradragets
 grundbeløb 42.000 kr. (2010-niveau). For indkomståret 2019 udgør grundbeløbet
@@ -101,10 +100,7 @@ beskatning af søfolk. Bestemmelsen i 1. pkt. finder endvidere ikke anvendelse
 på personer, der ansøger om opholdstilladelse efter udlændingelovens § 7.
 
 Stk. 7. De nævnte grundbeløb reguleres efter § 20.
-----
 
---@label:personskatteloven_par10_lov1564::meta:personskatteloven_par10_lov1564_metadata--
-----
 Lov nr. 1564 af 12/12/2023, § 1:
 
 I personskatteloven, jf. lovbekendtgørelse nr. 1284 af 14. juni 2021, som
@@ -132,8 +128,10 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 Stk. 2. §§ 1 og 5 har virkning fra og med indkomståret 2023.
 ----
 
---@begin:personskatteloven_par10_lbk1284--
---@begin:personskatteloven_par10_lov1564--
+@ meta(personskatteloven_par10_lbk1284_metadata)
+@ meta(personskatteloven_par10_lov1564_metadata)
+@ section personskatteloven_par10_lov1564 {
+
 # PersonfradragAlderStatus = Fyldt18EllerGift | Under18Ugift
 # PersonfradragSkattepligt = FuldtSkattepligtigHerILandet | KildeskattelovPar2HelårRelevantIndtægt | KildeskattelovPar2DelårValgtRelevantIndtægt | KildeskattelovPar2DelårIkkeValgt | Kildeskattelov48Eller48FIndkomst | SømandsbeskatningPar9Indkomst | OpholdstilladelseUdl7Ansøger
 # ÆgtefællePersonfradragStatus = IkkeGiftEllerIkkeSamlevende | GiftSamlevendeVedÅretsUdløb
@@ -406,8 +404,7 @@ Stk. 2. §§ 1 og 5 har virkning fra og med indkomståret 2023.
 | par10_samlevende_ægtefælle_får_uudnyttet_statsværdi: par10_ægtefælle_statsskat -> par10_ægtefælle_statsskat.overført_par8_skatteværdi_kroner == 1000 && par10_ægtefælle_statsskat.overført_par6_skatteværdi_kroner == 500 && par10_ægtefælle_statsskat.par6_efter_kroner == 0 && par10_ægtefælle_statsskat.par7_efter_kroner == 0 && par10_ægtefælle_statsskat.par7a_efter_kroner == 0 && par10_ægtefælle_statsskat.par8_efter_kroner == 0 && par10_ægtefælle_statsskat.par8a_stk2_efter_kroner == 700 && par10_ægtefælle_statsskat.anvendt_skatteværdi_kroner == 1500
 | par10_ægtefælleoverførsel_kræver_samliv_ved_årets_udløb: par10_ægtefælle_ikke_samlevende -> par10_ægtefælle_ikke_samlevende.overført_par8_skatteværdi_kroner == 0 && par10_ægtefælle_ikke_samlevende.overført_par6_skatteværdi_kroner == 0 && par10_ægtefælle_ikke_samlevende.par6_efter_kroner == 200 && par10_ægtefælle_ikke_samlevende.par7_efter_kroner == 600 && par10_ægtefælle_ikke_samlevende.par8_efter_kroner == 300 && par10_ægtefælle_ikke_samlevende.afskåret_uden_samliv_kroner == 1500
 
---@end:personskatteloven_par10_lov1564--
---@end:personskatteloven_par10_lbk1284--
+}
 
 ----
 § 11. For den del af den skattepligtiges negative nettokapitalindkomst, der ikke
@@ -1403,7 +1400,6 @@ som nævnt i § 10, stk. 1.
     )
 )
 
---@label:personskatteloven_par13a::meta:personskatteloven_par13a_metadata--
 ----
 § 13 a. Opnår en person i et indkomstår en tvangsakkord i en rekonstruktion
 eller en gældssanering, nedsættes uudnyttede, fradragsberettigede underskud og
@@ -1447,7 +1443,9 @@ samlet ordning mellem en skyldner og dennes kreditorer om bortfald eller
 nedsættelse af skyldnerens gæld (frivillig akkord).
 ----
 
---@begin:personskatteloven_par13a--
+@ meta(personskatteloven_par13a_metadata)
+@ section personskatteloven_par13a {
+
 # Par13aAkkordstatus = IngenPar13aAkkord | TvangsakkordIRekonstruktion | Gældssanering | FrivilligAkkord
 # Par13aFremførbartTab = Par13aAktieavanceTab(resultat: AktieavanceOrdinærÅrsresultat) | Par13aKursgevinstTab(resultat: KursgevinstPar32PersonÅrsresultat) | Par13aEjendomsavanceTab(resultat: EjendomsavancePar6Tabsårsresultat)
 # Par13aFremførbareTabInput(indkomstår: Heltal, poster: List(Par13aFremførbartTab))
@@ -1553,4 +1551,5 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
 }
 | par13a_nedsættelse_sag(input: Par13aNedsættelseInput) -> Par13aNedsættelseSag(input)
 | par13a_nedsættelse_resultat(input: Par13aNedsættelseInput) -> par13a_nedsættelse_sag(input).resultat()
---@end:personskatteloven_par13a--
+
+}

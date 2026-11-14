@@ -188,7 +188,6 @@
     )
 )
 
---@label:ligningsloven_par9a_rejser::meta:ligningsloven_par9a_metadata--
 ----
 Ligningsloven, LBK nr. 42 af 13/01/2023 og LBK nr. 1500 af 24/11/2025,
 enslydende § 9 A:
@@ -328,7 +327,9 @@ Fradrag for rejseudgifter efter pkt. 3.1. og 3.2. er dog begrænset til 31.600
 kr. i indkomståret 2024.
 ----
 
---@begin:ligningsloven_par9a_rejser--
+@ meta(ligningsloven_par9a_metadata)
+@ section ligningsloven_par9a_rejser {
+
 # Ligningslov9ALovversion = Ll9ALbk42Af2023 | Ll9ALbk1500Af2025 | Ll9ALovUdenKildedækning
 # Ligningslov9ASatsversion = Ll9ASkm2022_613Sktst | Ll9ASkm2023_613Sktst | Ll9ASkm2024_643Sktst | Ll9ASkm2025_725Sktst | Ll9ASatsUdenKildedækning
 # Ligningslov9APersonrolle = Ll9AAlmindeligLønmodtager | Ll9ABestyrelseshvervMedAIndkomst | Ll9ABestyrelseshvervUdenAIndkomst | Ll9AForskningstilskudMedAIndkomst | Ll9ASelvstændigtErhvervsdrivende | Ll9AHonorarmodtagerMedBIndkomst | Ll9AHobbyvirksomhed | Ll9AModtagerYdelseEfterPar7Nr15 | Ll9AModtagerYdelseEfterPar31Stk4 | Ll9AVærnepligtigEllerFrivilligtPersonelIUddannelsestiden
@@ -1033,7 +1034,8 @@ kr. i indkomståret 2024.
     input = input,
     udelukkelseskontekst = ligningslov9a_udelukkelseskontekst_for_generel_udelukkelse(ekstern_udelukkelse)
 )
---@end:ligningsloven_par9a_rejser--
+
+}
 
 = ligningsloven_par9_stk2_og_stk4_metadata = Metadata(
     attachments = (
@@ -1043,7 +1045,6 @@ kr. i indkomståret 2024.
     )
 )
 
---@label:ligningsloven_par9_stk2_og_stk4_rejser::meta:ligningsloven_par9_stk2_og_stk4_metadata--
 ----
 § 9, stk. 2. Begrænsningen af fradraget efter stk. 1 omfatter ikke udgifter,
 som lønmodtagere kan fradrage efter § 9 A, § 9 B, stk. 4, § 9 C, § 9 D og § 13
@@ -1070,7 +1071,10 @@ godtgørelser, jf. 2. pkt., der udbetales til medlemmer af eller medhjælpere fo
 bestyrelser, udvalg, kommissioner, råd og lignende.
 ----
 
---@begin:ligningsloven_par9_stk2_og_stk4_rejser--
+@ meta(ligningsloven_par9_stk2_og_stk4_metadata)
+@ section ligningsloven_par9_stk2_og_stk4_rejser {
+
 | ligningslov9a_godtgørelse_uden_for_satser_eller_kontrol_skattepligtig(resultat: Ligningslov9ARejseresultat) -> resultat.udbetalt_godtgørelse_kroner - resultat.skattefri_godtgørelse_kroner
 | ligningslov9a_udlandsfradrag_efter_indkomstloft_kroner(resultat: Ligningslov9ARejseresultat) -> penge_mindste_beløb(resultat.fradrag_før_indkomstloft_kroner, resultat.indkomstloft_kroner)
---@end:ligningsloven_par9_stk2_og_stk4_rejser--
+
+}

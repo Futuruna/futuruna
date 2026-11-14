@@ -21,13 +21,17 @@
     message = "Review this shape"
 )
 
---@label:geometry::source:comment_shape::source:alternate_shape::warning:audit_warning--
+@ meta(comment_shape) for geometry_assumption
+
 ----
 Raw additions
 ----
 
---@meta::geometry_assumption::assumption:comment_shape--
+@ meta(comment_shape)
+@ meta(alternate_shape)
+@ meta(audit_warning)
+@ section geometry {
 
---@begin::geometry--
 = geometry_fixture = Circle
---@end::geometry--
+
+}

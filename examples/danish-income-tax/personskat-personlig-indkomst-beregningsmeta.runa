@@ -191,7 +191,7 @@
     ], spørgsmål = [], beløbsfelter = [],
     attachments = (Guidance(value = honorarudgifter_djv), Guidance(value = honorarudgifter_skat), Source(value = honorarudgifter_dom), PreparatorySource(value = honorarudgifter_udkast), CurrentnessSource(value = honorarudgifter_udkaststatus), Warning(value = honorarudgifter_dækningsgrænse))
 )
---@label:PersonskatPersonligtArbejdsvederlagFakta::meta:personskat_honorarudgifter_inputmeta--
+@ meta(personskat_honorarudgifter_inputmeta) for PersonskatPersonligtArbejdsvederlagFakta
 
 = personskat_honorarudgift_inputmeta = TypetBeregningsmeta(
     felter = [
@@ -205,7 +205,7 @@
     ], spørgsmål = [], beløbsfelter = [],
     attachments = (Guidance(value = honorarudgifter_djv), Guidance(value = honorarudgifter_skat), Source(value = honorarudgifter_dom), PreparatorySource(value = honorarudgifter_udkast), CurrentnessSource(value = honorarudgifter_udkaststatus), Warning(value = honorarudgifter_dækningsgrænse))
 )
---@label:PersonskatHonorarudgiftFakta::meta:personskat_honorarudgift_inputmeta--
+@ meta(personskat_honorarudgift_inputmeta) for PersonskatHonorarudgiftFakta
 
 = personskat_honorarafskrivning_inputmeta = TypetBeregningsmeta(
     felter = [
@@ -243,7 +243,7 @@
     ], spørgsmål = [], beløbsfelter = [],
     attachments = (Source(value = afskrivningsloven_lbk1222), Guidance(value = honorarudgifter_djv), Guidance(value = afskrivningsloven_par11_par13_juridisk_vejledning), ParameterSource(value = afskrivningsloven_2023_2024_satser), ParameterSource(value = afskrivningsloven_2025_2026_satser), Warning(value = honorarudgifter_dækningsgrænse))
 )
---@label:PersonskatHonorarAfskrivningFakta::meta:personskat_honorarafskrivning_inputmeta--
+@ meta(personskat_honorarafskrivning_inputmeta) for PersonskatHonorarAfskrivningFakta
 
 = personskat_personlig_indkomst_felt_virksomhed_id = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::identifikation),
@@ -780,7 +780,7 @@
     )
 )
 
---@label:PersonskatPersonligIndkomstInput::meta:personskat_personlig_indkomst_beregningsmeta--
+@ meta(personskat_personlig_indkomst_beregningsmeta) for PersonskatPersonligIndkomstInput
 
 = personskat_ydelsesudbetaling_felt_samling = TypetBeregningsfelt(
     path = refof(PersonskatOrdinærPersonligIndkomstInput::forenings_og_arbejdsløshedsydelser),
@@ -1135,7 +1135,7 @@
     )
 )
 
---@label:PersonskatOrdinærPersonligIndkomstInput::meta:personskat_ydelsesudbetaling_samlingsmeta--
+@ meta(personskat_ydelsesudbetaling_samlingsmeta) for PersonskatOrdinærPersonligIndkomstInput
 
 = personskat_ydelsesudbetaling_hjemmelsmeta = TypetBeregningsmeta(
     felter = [
@@ -1149,7 +1149,7 @@
     )
 )
 
---@label:PersonskatForeningsOgArbejdsløshedsydelseFakta::meta:personskat_ydelsesudbetaling_hjemmelsmeta--
+@ meta(personskat_ydelsesudbetaling_hjemmelsmeta) for PersonskatForeningsOgArbejdsløshedsydelseFakta
 
 = personskat_foreningsydelse_beregningsmeta = TypetBeregningsmeta(
     felter = [
@@ -1171,7 +1171,7 @@
     )
 )
 
---@label:Ligningslov13ForeningsydelseFakta::meta:personskat_foreningsydelse_beregningsmeta--
+@ meta(personskat_foreningsydelse_beregningsmeta) for Ligningslov13ForeningsydelseFakta
 
 = personskat_arbejdsløshedsudbetaling_beregningsmeta = TypetBeregningsmeta(
     felter = [
@@ -1190,7 +1190,7 @@
     )
 )
 
---@label:Pbl49ArbejdsløshedsforsikringsudbetalingFakta::meta:personskat_arbejdsløshedsudbetaling_beregningsmeta--
+@ meta(personskat_arbejdsløshedsudbetaling_beregningsmeta) for Pbl49ArbejdsløshedsforsikringsudbetalingFakta
 
 = personskat_ydelsesundtagelse_beregningsmeta = TypetBeregningsmeta(
     felter = [
@@ -1205,7 +1205,7 @@
     )
 )
 
---@label:Ligningslov30Og31Undtagelse::meta:personskat_ydelsesundtagelse_beregningsmeta--
+@ meta(personskat_ydelsesundtagelse_beregningsmeta) for Ligningslov30Og31Undtagelse
 
 = personskat_ll30_behandlingsfakta_beregningsmeta = TypetBeregningsmeta(
     felter = [
@@ -1224,7 +1224,7 @@
     )
 )
 
---@label:Ligningslov30Behandlingsfakta::meta:personskat_ll30_behandlingsfakta_beregningsmeta--
+@ meta(personskat_ll30_behandlingsfakta_beregningsmeta) for Ligningslov30Behandlingsfakta
 
 = personskat_ll30_ydelsesart_beregningsmeta = TypetBeregningsmeta(
     felter = [
@@ -1239,7 +1239,7 @@
     )
 )
 
---@label:Ligningslov30Ydelsesart::meta:personskat_ll30_ydelsesart_beregningsmeta--
+@ meta(personskat_ll30_ydelsesart_beregningsmeta) for Ligningslov30Ydelsesart
 
 = personskat_ll31_uddannelsesfakta_beregningsmeta = TypetBeregningsmeta(
     felter = [
@@ -1255,7 +1255,7 @@
     )
 )
 
---@label:Ligningslov31Uddannelsesfakta::meta:personskat_ll31_uddannelsesfakta_beregningsmeta--
+@ meta(personskat_ll31_uddannelsesfakta_beregningsmeta) for Ligningslov31Uddannelsesfakta
 
 = personskat_ll31_ydelsesart_beregningsmeta = TypetBeregningsmeta(
     felter = [
@@ -1297,4 +1297,4 @@
     )
 )
 
---@label:Ligningslov31Uddannelsesydelsesart::meta:personskat_ll31_ydelsesart_beregningsmeta--
+@ meta(personskat_ll31_ydelsesart_beregningsmeta) for Ligningslov31Uddannelsesydelsesart

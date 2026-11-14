@@ -6,37 +6,39 @@
 -- Kapitel II — Kongen (§ 5–11)
 -- ═══════════════════════════════════════════════════════════════
 
---@label:grundlov_par5::meta:grundlov_kildemetadata--
 ----
 § 5. Kongen kan ikke uden folketingets samtykke være regent i andre lande.
 ----
 
---@begin:grundlov_par5--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par5 {
 
 -- Samtykke er en binær mekanisme: givet → tilladt, ikke givet → forbudt
 | regent_i_udlandet_kræver_folketingets_samtykke()
 | regent_i_udlandet(s: Samtykke) -> s == Givet
---@end:grundlov_par5--
 
---@label:grundlov_par6::meta:grundlov_kildemetadata--
+}
+
 ----
 § 6. Kongen skal høre til den evangelisk-lutherske kirke.
 ----
 
---@begin:grundlov_par6--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par6 {
 
 | kongens_påkrævede_trossamfund() -> EvangeliskLuthersk
 | monark_opfylder_troskrav(monark: Monark) -> monark.trossamfund == kongens_påkrævede_trossamfund()
 | troskravet_er_formuleret_for_kongen()
---@end:grundlov_par6--
 
---@label:grundlov_par7::meta:grundlov_kildemetadata--
+}
+
 ----
 § 7. Kongen er myndig, når han har fyldt sit 18. år.
 Det samme gælder tronfølgeren.
 ----
 
---@begin:grundlov_par7--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par7 {
 
 # Myndighedssubjekt = KongenSomMyndighedssubjekt | TronfølgerenSomMyndighedssubjekt
 
@@ -45,9 +47,9 @@ Det samme gælder tronfølgeren.
 | myndighedsregel_gælder_for(subjekt: Myndighedssubjekt) -> Sandt
 | monark_er_myndig(monark: Monark) -> monark.alder >= myndighedsalder
 | tronfølger_er_myndig(tronfølger: Tronfølger) -> tronfølger.alder >= myndighedsalder
---@end:grundlov_par7--
 
---@label:grundlov_par8::meta:grundlov_kildemetadata--
+}
+
 ----
 § 8. Forinden kongen tiltræder regeringen, afgiver han skriftligt i statsrådet
 en højtidelig forsikring om ubrødeligt at ville holde grundloven.
@@ -61,7 +63,8 @@ Har kongen allerede som tronfølger afgivet denne forsikring, tiltræder han
 umiddelbart ved tronskiftet regeringen.
 ----
 
---@begin:grundlov_par8--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par8 {
 
 # Regeringsfører = MonarkenSelv | Statsrådet | LovbestemtRegeringsfører
 # Arkiv = FolketingetsArkiv | Rigsarkivet
@@ -76,9 +79,9 @@ umiddelbart ved tronskiftet regeringen.
 | exception lovbestemt_ordning regering_ved_tronskifte(situation: Tronskiftesituation) -> LovbestemtRegeringsfører under situation.monark.forsikring == IkkeAfgivet && situation.kan_afgive_forsikring_umiddelbart == Falskt && situation.anden_ordning_ved_lov
 
 | direkte_tiltræden_ved_forudgående_forsikring(monark: Monark) -> monark.forsikring == AfgivetSomTronfølger
---@end:grundlov_par8--
 
---@label:grundlov_par9::meta:grundlov_kildemetadata--
+}
+
 ----
 § 9. Bestemmelser angående regeringens førelse i tilfælde af kongens
 umyndighed, sygdom eller fraværelse fastsættes ved lov.
@@ -86,7 +89,8 @@ Er der ved tronledighed ingen tronfølger, vælger
 folketinget en konge og fastsætter den fremtidige arvefølge.
 ----
 
---@begin:grundlov_par9--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par9 {
 
 # Regentskabsgrund = Umyndighed | Sygdom | Fraværelse
 # Tronledighed = MedTronfølger | UdenTronfølger
@@ -95,9 +99,9 @@ folketinget en konge og fastsætter den fremtidige arvefølge.
 
 | folketinget_vælger_konge_ved_tronledighed(status: Tronledighed) -> status == UdenTronfølger
 | folketinget_fastsætter_arvefølge_ved_tronledighed(status: Tronledighed) -> status == UdenTronfølger
---@end:grundlov_par9--
 
---@label:grundlov_par10::meta:grundlov_kildemetadata--
+}
+
 ----
 § 10. Stk. 1. Statens ydelse til kongen bestemmes for hans regeringstid
 ved lov. Ved denne fastsættes tillige, hvilke slotte og andre statsejendele
@@ -106,22 +110,25 @@ der skal overlades kongen til brug.
 Stk. 2. Statsydelsen kan ikke behæftes med gæld.
 ----
 
---@begin:grundlov_par10--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par10 {
 
 | statsydelse_fastsættes_ved_lov()
 | slotte_og_andre_statsejendele_til_kongens_brug_fastsættes_ved_lov()
 | statsydelse_gæld_forbudt()
---@end:grundlov_par10--
 
---@label:grundlov_par11::meta:grundlov_kildemetadata--
+}
+
 ----
 § 11. For medlemmer af det kongelige hus kan der bestemmes årpenge ved lov.
 Årpengene kan ikke uden folketingets samtykke nydes uden for riget.
 ----
 
---@begin:grundlov_par11--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par11 {
 
 | årpenge_kan_bestemmes_ved_lov()
 | årpenge_i_udlandet_kræver_folketingets_samtykke()
 | årpenge_i_udlandet(s: Samtykke) -> s == Givet
---@end:grundlov_par11--
+
+}

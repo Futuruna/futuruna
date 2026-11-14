@@ -59,7 +59,6 @@
     )
 )
 
---@label:dødsboskattelov_par44_dødsårsfordeling::meta:dødsboskattelov_par44_dødsårsfordeling_metadata--
 ----
 Den juridiske vejledning C.A.8.4.5, "Samlivsstatus ændret ved dødsfald":
 
@@ -85,7 +84,9 @@ derfor ikke beskattes hos ejeren af virksomheden, men kan fordeles mellem
 ægtefællerne efter en fordelingsnorm begrundet i virksomhedens drift.
 ----
 
---@begin:dødsboskattelov_par44_dødsårsfordeling--
+@ meta(dødsboskattelov_par44_dødsårsfordeling_metadata)
+@ section dødsboskattelov_par44_dødsårsfordeling {
+
 # Dødsboskattelov44Bostatus = Dbl44SkattefritagetSelvstændigtSkiftetDødsbo | Dbl44IkkeSkattefritagetSelvstændigtSkiftetDødsbo | Dbl44InsolventDødsbo | Dbl44IkkeSelvstændigtSkattesubjekt
 # Dødsboskattelov44Virksomhedsejer = Dbl44AfdødeEjerVirksomheden | Dbl44LængstlevendeEjerVirksomheden
 # Dødsboskattelov44Arbejdsrelation = Dbl44IkkeEjerDrevVirksomheden | Dbl44IkkeEjerDeltogVæsentligtOgEjerDrevIOvervejendeGrad | Dbl44BeggeDeltogVæsentligtOgLigeligt | Dbl44IngenKvalificerendeArbejdsindsats
@@ -179,7 +180,8 @@ derfor ikke beskattes hos ejeren af virksomheden, men kan fordeles mellem
     | Dbl44RimeligtArbejdsvederlagValgt(_, _) -> kildeskat25a_virksomhedsbeløb_fra_overførsel(dødsboskattelov44_sammenligneligt_arbejdsvederlag_kroner(input))
     | Dbl44FriereFordelingValgt(_, _, _, _, andel_basispoint, _) -> kildeskat25a_virksomhedsbeløb_andel(virksomhedsresultat, andel_basispoint)
 }
---@end:dødsboskattelov_par44_dødsårsfordeling--
+
+}
 
 = dødsboskattelov_par9_stk1_nr6_nr7_metadata = Metadata(
     attachments = (
@@ -189,7 +191,6 @@ derfor ikke beskattes hos ejeren af virksomheden, men kan fordeles mellem
     )
 )
 
---@label:dødsboskattelov_par9_stk1_nr6_nr7::meta:dødsboskattelov_par9_stk1_nr6_nr7_metadata--
 ----
 § 9. Ved opgørelsen af den skattepligtige indkomst gælder følgende:
 
@@ -211,7 +212,9 @@ erhvervsvirksomhed, der tilhørte og i overvejende grad blev drevet af den
 længstlevende ægtefælle.
 ----
 
---@begin:dødsboskattelov_par9_stk1_nr6_nr7--
+@ meta(dødsboskattelov_par9_stk1_nr6_nr7_metadata)
+@ section dødsboskattelov_par9_stk1_nr6_nr7 {
+
 | dødsboskattelov9_stk1_nr6_regulering_kroner(input: Dødsboskattelov44Input, hjemmel_opfyldt: Boolsk, vederlag: Kildeskat25AVirksomhedsbeløb) -> hvis hjemmel_opfyldt && input.bostatus == Dbl44SkattefritagetSelvstændigtSkiftetDødsbo && input.virksomhedsejer == Dbl44AfdødeEjerVirksomheden { 0 - vederlag.skattepligtig_indkomst_kroner } ellers { 0 }
 | dødsboskattelov9_stk1_nr7_regulering_kroner(input: Dødsboskattelov44Input, hjemmel_opfyldt: Boolsk, vederlag: Kildeskat25AVirksomhedsbeløb) -> hvis hjemmel_opfyldt && input.bostatus == Dbl44SkattefritagetSelvstændigtSkiftetDødsbo && input.virksomhedsejer == Dbl44LængstlevendeEjerVirksomheden { vederlag.skattepligtig_indkomst_kroner } ellers { 0 }
 | dødsboskattelov9_mellemperioderesultat(input: Dødsboskattelov9Mellemperiodeinput, vederlagsresultat: Dødsboskattelov44Resultat) -> {
@@ -226,7 +229,8 @@ længstlevende ægtefælle.
         afsluttende_skatteansættelse_obligatorisk = input_gyldigt && vederlagsresultat.afsluttende_skatteansættelse_obligatorisk
     )
 }
---@end:dødsboskattelov_par9_stk1_nr6_nr7--
+
+}
 
 = dødsboskattelov_par22_stk1_nr6_nr7_metadata = Metadata(
     attachments = (
@@ -235,7 +239,6 @@ længstlevende ægtefælle.
     )
 )
 
---@label:dødsboskattelov_par22_stk1_nr6_nr7::meta:dødsboskattelov_par22_stk1_nr6_nr7_metadata--
 ----
 § 22. Ved opgørelsen af bobeskatningsindkomsten gælder følgende:
 
@@ -257,7 +260,9 @@ erhvervsvirksomhed, der tilhørte og i overvejende grad blev drevet af den
 længstlevende ægtefælle.
 ----
 
---@begin:dødsboskattelov_par22_stk1_nr6_nr7--
+@ meta(dødsboskattelov_par22_stk1_nr6_nr7_metadata)
+@ section dødsboskattelov_par22_stk1_nr6_nr7 {
+
 | dødsboskattelov22_stk1_nr6_regulering_kroner(input: Dødsboskattelov44Input, hjemmel_opfyldt: Boolsk, vederlag: Kildeskat25AVirksomhedsbeløb) -> hvis hjemmel_opfyldt && input.bostatus == Dbl44IkkeSkattefritagetSelvstændigtSkiftetDødsbo && input.virksomhedsejer == Dbl44AfdødeEjerVirksomheden { 0 - vederlag.skattepligtig_indkomst_kroner } ellers { 0 }
 | dødsboskattelov22_stk1_nr7_regulering_kroner(input: Dødsboskattelov44Input, hjemmel_opfyldt: Boolsk, vederlag: Kildeskat25AVirksomhedsbeløb) -> hvis hjemmel_opfyldt && input.bostatus == Dbl44IkkeSkattefritagetSelvstændigtSkiftetDødsbo && input.virksomhedsejer == Dbl44LængstlevendeEjerVirksomheden { vederlag.skattepligtig_indkomst_kroner } ellers { 0 }
 | dødsboskattelov44_bobeskatningsinput_efter_par22(input: Dødsboskattelov30Input, regulering_kroner: Heltal) -> Dødsboskattelov30Input(
@@ -284,7 +289,8 @@ længstlevende ægtefælle.
         resultat_efter_par22 = hvis input_gyldigt { Some(dødsboskattelov30_resultat(reguleret_input)) } ellers { None }
     )
 }
---@end:dødsboskattelov_par22_stk1_nr6_nr7--
+
+}
 
 = dødsboskattelov_par44_metadata = Metadata(
     attachments = (
@@ -295,7 +301,6 @@ længstlevende ægtefælle.
     )
 )
 
---@label:dødsboskattelov_par44::meta:dødsboskattelov_par44_metadata--
 ----
 § 44. Hvis den længstlevende ægtefælle i mellemperioden har drevet en
 erhvervsvirksomhed, der tilhørte afdøde, kan boet bestemme, at den
@@ -319,7 +324,9 @@ jf. § 9, stk. 1, nr. 7, eller medregnes til bobeskatningsindkomsten efter § 22
 stk. 1, nr. 7.
 ----
 
---@begin:dødsboskattelov_par44--
+@ meta(dødsboskattelov_par44_metadata)
+@ section dødsboskattelov_par44 {
+
 # Dødsboskattelov44Sag(input: Dødsboskattelov44Input) {
     | input_gyldigt() -> dødsboskattelov44_input_gyldigt(input)
     | personkreds_omfattet() -> dødsboskattelov44_personkreds_omfattet(input)
@@ -368,4 +375,5 @@ stk. 1, nr. 7.
 }
 
 | dødsboskattelov44_resultat(input: Dødsboskattelov44Input) -> Dødsboskattelov44Sag(input).resultat()
---@end:dødsboskattelov_par44--
+
+}

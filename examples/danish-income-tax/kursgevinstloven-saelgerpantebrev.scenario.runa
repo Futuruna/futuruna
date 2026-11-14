@@ -10,8 +10,9 @@
     )
 )
 
---@label:kgl_sælgerpantebrev_scenarier::meta:kgl_sælgerpantebrev_scenarier_metadata--
---@begin:kgl_sælgerpantebrev_scenarier--
+@ meta(kgl_sælgerpantebrev_scenarier_metadata)
+@ section kgl_sælgerpantebrev_scenarier {
+
 | kgl_sælgerpantebrev_scenarie_person(identifikation: Tekst) -> KglSælgerpantebrevSkatteyder(
     identifikation = identifikation,
     rolle = KglPersonEfterKildeskatteloven
@@ -429,4 +430,5 @@
 ? kgl_sælgerpantebrev_scenarie_dubleret_tranche_fejler_lukket
 
 @ print("KGL seller-note scenarios passed")
---@end:kgl_sælgerpantebrev_scenarier--
+
+}

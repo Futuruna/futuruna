@@ -9,7 +9,6 @@
 = pbl22e_bruttovejledning = Pbl22EKilde(url = "https://info.skat.dk/data.aspx?oid=2288101", identifier = "Pensiondiverse, 4.1: tilbagebetaling til arbejdsgiver efter § 22 E inklusive AM-bidrag", læst = "2026-09-26")
 = pbl22e_meta = Metadata(attachments = (Source(value = pbl22e_lovkilde), Guidance(value = pbl22e_vejledning), Guidance(value = pbl22e_bruttovejledning)))
 
---@label:pbl22e::meta:pbl22e_meta--
 ----
 § 22 E. Beløb, der er indbetalt til en pensionsordning med
 løbende udbetalinger, rateforsikring, rateopsparing, alders-
@@ -22,7 +21,9 @@ ling. Der kan ikke afgiftsfrit tilbagebetales et større beløb,
 end der er indbetalt.
 ----
 
---@begin:pbl22e--
+@ meta(pbl22e_meta)
+@ section pbl22e {
+
 # Pbl22EOrdningsart = Pbl22EUoplystOrdning | Pbl22ELøbendeUdbetalinger | Pbl22ERateforsikring | Pbl22ERateopsparing | Pbl22EAldersforsikring | Pbl22EAldersopsparing | Pbl22ESupplerendeEngangssum
 # Pbl22ETilbagebetalingsfakta(identifikation: Tekst, kildereference: Tekst, oprindelig_indbetaling_identifikation: Tekst, oprindelig_ordning: Pbl22EOrdningsart, oprindelig_indbetalingsdato: Dato, oprindeligt_indbetalt_brutto_kroner: Heltal, tilbagebetalingsdato: Dato, tilbagebetalt_brutto_kroner: Heltal, tilbagebetalt_til_indbetaleren: Boolsk)
 # Pbl22EGenindbetalingsfakta(tilbagebetaling: Pbl22ETilbagebetalingsfakta, genindbetalingsdato: Dato)
@@ -48,4 +49,5 @@ end der er indbetalt.
     | None -> betalingsår
 }
 | pbl22e_samme_oprindelige_indbetaling(a: Pbl22ETilbagebetalingsfakta, b: Pbl22ETilbagebetalingsfakta) -> a.oprindelig_indbetaling_identifikation == b.oprindelig_indbetaling_identifikation && a.oprindelig_ordning == b.oprindelig_ordning && a.oprindelig_indbetalingsdato == b.oprindelig_indbetalingsdato && a.oprindeligt_indbetalt_brutto_kroner == b.oprindeligt_indbetalt_brutto_kroner
---@end:pbl22e--
+
+}

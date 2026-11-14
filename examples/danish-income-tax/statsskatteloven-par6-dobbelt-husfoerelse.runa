@@ -46,7 +46,6 @@
     )
 )
 
---@label:statsskatteloven_par6_dobbelt_husførelse::meta:statsskatteloven_par6_dobbelt_husførelse_metadata--
 ----
 § 6
 
@@ -57,7 +56,9 @@ til at erhverve, sikre og vedligeholde Indkomsten, derunder ordinære
 Afskrivninger;
 ----
 
---@begin:statsskatteloven_par6_dobbelt_husførelse--
+@ meta(statsskatteloven_par6_dobbelt_husførelse_metadata)
+@ section statsskatteloven_par6_dobbelt_husførelse {
+
 # Statsskattelov6DobbeltHusførelseErhvervsstatus = Sl6DhLønmodtager | Sl6DhIkkeLønmodtager
 # Statsskattelov6DobbeltHusførelseBarn(identifikation: Tekst, fødselsdato: Dato)
 # Statsskattelov6DobbeltHusførelseKortSamlivsvurdering = Sl6DhIntetKortSamliv | Sl6DhKortSamlivGodkendtEfterKonkretVurdering(kildeidentifikation: Tekst)
@@ -304,4 +305,5 @@ Afskrivninger;
         samlet_fradrag_før_fælles_årsloft_kroner = hvis alle_input_gyldige { foldl(opholdsresultater, 0, |sum_kroner: Heltal, resultat: Statsskattelov6DobbeltHusførelseOpholdsresultat| sum_kroner + resultat.fradrag_før_fælles_årsloft_kroner) } ellers { 0 }
     )
 }
---@end:statsskatteloven_par6_dobbelt_husførelse--
+
+}

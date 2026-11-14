@@ -23,7 +23,6 @@
     )
 )
 
---@label:kildeskatteloven_par10::meta:kildeskatteloven_par10_metadata--
 ----
 § 10. Ophører en person med at være skattepligtig efter § 1, uden at der er
 tale om dødsfald, eller bliver en person efter bestemmelserne i en
@@ -43,7 +42,8 @@ aktieavancebeskatningslovens § 38, kursgevinstlovens § 37 eller ligningslovens
 § 28.
 ----
 
---@begin:kildeskatteloven_par10--
+@ meta(kildeskatteloven_par10_metadata)
+@ section kildeskatteloven_par10 {
 
 # Kildeskat10Grænsehændelse = Ksl10FuldSkattepligtEfterPar1Ophører(dato: Dato) | Ksl10DobbeltbeskatningshjemstedBliverUdland(dato: Dato) | Ksl10BegrænsetSkattepligtigtAktivOverføresUd(dato: Dato) | Ksl10Dødsfald(dato: Dato) | Ksl10IngenGrænsehændelse
 # Kildeskat10DanskBeskatningsstatus = Ksl10AktivIkkeLængereOmfattetAfDanskBeskatning | Ksl10AktivFortsatOmfattetAfDanskBeskatning
@@ -94,4 +94,4 @@ aktieavancebeskatningslovens § 38, kursgevinstlovens § 37 eller ligningslovens
     afståelsessum_kroner = kildeskat10_afståelsessum_kroner(fakta)
 )
 
---@end:kildeskatteloven_par10--
+}

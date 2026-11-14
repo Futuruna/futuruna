@@ -10,6 +10,7 @@
 -- expect-stdout-file: explain_because.stdout
 
 # SourceInfo(file: String)
+# impl Document for SourceInfo {}
 # AssumptionInfo(id: String, statement: String)
 # LawRole(a) = Assumption(value: a)
 # Metadata(a) = Metadata(attachments: a)
@@ -18,41 +19,40 @@
 
 = closing_day = AssumptionInfo(id = "CLOSING-DAY", statement = "The value on the closing day is the custodian's.")
 = transfer_statement = AssumptionInfo(id = "TRANSFER", statement = "The giving institute's statement is complete.")
-= closing_meta = Metadata(attachments = (Assumption(value = closing_day),))
 = law = SourceInfo(file = "sources/law.txt")
-= transfer_meta = Metadata(attachments = (Assumption(value = transfer_statement),))
-
 # Ending(day: Int)
 # Account(value: Int, ending: Ending?, transferred: Bool)
 # Result(room: Int, received: Int)
 
---@label:closing::meta:closing_meta--
-----
-[sources/law.txt]
+@ meta(Assumption(value = closing_day))
+@ section closing {
 
+@ quote(law)
+----
 § 1. Der kan indskydes op til 1000.
 
 § 2. Lukkes kontoen, kan der ikke indskydes.
 ----
 
---@begin:closing--
---@cite:§ 1--
+@ cite(§ 1)
 | room(closed: Bool, value: Int) -> 1000 - value
---@cite:§ 2--
+@ cite(§ 2)
 | exception closed room(closed: Bool, value: Int) -> 0 under closed
---@end:closing--
 
---@label:transfer::meta:transfer_meta--
+}
+
+@ meta(Assumption(value = transfer_statement))
+@ section transfer {
+
+@ quote(law)
 ----
-[sources/law.txt]
-
 § 3. Ved overførsel modtages kontoens værdi.
 ----
 
---@begin:transfer--
---@cite:§ 3--
+@ cite(§ 3)
 | received(value: Int) -> value
---@end:transfer--
+
+}
 
 @ calculate
 | explain_because(a: Account) -> Result(room = room(is_some(a.ending), a.value), received = if a.transferred { received(a.value) } else { 0 })

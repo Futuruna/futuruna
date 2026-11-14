@@ -37,7 +37,6 @@
     )
 )
 
---@label:aktieavancebeskatningsloven_par19_til_par20a::meta:aktieavancebeskatningsloven_par19_til_par20a_metadata--
 ----
 § 19. Ved et investeringsselskab forstås:
 1) Et investeringsinstitut i henhold til Europa-Parlamentets og Rådets direktiv 2009/65/EF, jf. bilag 1.
@@ -62,7 +61,9 @@ Stk. 2. For skattepligtige omfattet af § 7 medregnes gevinst og tab ved afståe
 Stk. 2. For de investeringsinstitutter, der har mindre end otte deltagere, er det en betingelse for at kunne fradrage tab, at investeringsinstituttet ikke investerer i fordringer på selskaber, som en deltager i investeringsinstituttet er koncernforbundet med efter kursgevinstlovens § 4, stk. 2.
 ----
 
---@begin:aktieavancebeskatningsloven_par19_til_par20a--
+@ meta(aktieavancebeskatningsloven_par19_til_par20a_metadata)
+@ section aktieavancebeskatningsloven_par19_til_par20a {
+
 # AktieavancePar19Tilbagekøbskurs = AblPar19KursIkkeVæsentligtUnderIndreVærdi | AblPar19KursVæsentligtUnderIndreVærdi
 # AktieavancePar19Tilbagekøbsordning = AblPar19IngenTilbagekøbsordning | AblPar19SelskabstilbagekøbPåForlangende(kurs: AktieavancePar19Tilbagekøbskurs, frist_dage: Heltal) | AblPar19TredjemandskøbPåForlangende(kurs: AktieavancePar19Tilbagekøbskurs, frist_dage: Heltal)
 # AktieavancePar19Deltager = AblPar19SelvstændigDeltager(identifikation: Tekst) | AblPar19SammenlagtDeltager(identifikation: Tekst, sammenlægningsgruppe: Tekst)
@@ -242,4 +243,5 @@ Stk. 2. For de investeringsinstitutter, der har mindre end otte deltagere, er de
 
 | aktieavance_par19a_til20a_resultat(input: AktieavancePar19ATil20AInput) -> AktieavancePar19ATil20ASag(input).resultat()
 | aktieavance_par19a_til20a_resultat_gyldigt(resultat: AktieavancePar19ATil20AResultat) -> resultat == aktieavance_par19a_til20a_resultat(resultat.input)
---@end:aktieavancebeskatningsloven_par19_til_par20a--
+
+}

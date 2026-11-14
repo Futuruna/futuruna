@@ -24,7 +24,6 @@
     attachments = ()
 )
 
---@label:household_tax::meta:household_meta--
-
+@ meta(household_meta)
 @ calculate
 | household_tax(h: Household) -> TaxResult(tax = h.income)

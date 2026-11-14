@@ -11,8 +11,9 @@
     )
 )
 
---@label:personskat_par6d_scenariefixtures::meta:personskat_par6d_scenariefixtures_metadata--
---@begin:personskat_par6d_scenariefixtures--
+@ meta(personskat_par6d_scenariefixtures_metadata)
+@ section personskat_par6d_scenariefixtures {
+
 | personskat_par6d_scenarie_afdragsplan() -> [
     EblPar6DAfdragsplanpost(år_efter_afståelsen = 1, hovedstol_forfalder_kroner = 375000),
     EblPar6DAfdragsplanpost(år_efter_afståelsen = 2, hovedstol_forfalder_kroner = 375000),
@@ -162,4 +163,5 @@
 | personskat_par6d_scenarie_input(skatteår: Heltal, skatteyder_identifikation: Tekst, ejendommens_afståelsesår: Heltal, årsforhold: List(EblPar6DÅrsforhold)) -> personskat_par6d_scenarie_input_med_ægtefælleidentifikation(skatteår, skatteyder_identifikation, Some(hvis skatteyder_identifikation == "Sælger" { "Ægtefælle" } ellers { "Sælger" }), ejendommens_afståelsesår, årsforhold)
 
 | personskat_par6d_scenarie_betaling(fordringsdel_identifikation: Tekst, betalt_kroner: Heltal) -> EblPar6DOrdinærtHovedstolsafdrag(fordringsdel_identifikation = fordringsdel_identifikation, betalt_kroner = betalt_kroner)
---@end:personskat_par6d_scenariefixtures--
+
+}

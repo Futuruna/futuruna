@@ -4,7 +4,6 @@
 
 -- Kapitel IX -- Forskellige bestemmelser
 
---@label:grundlov_par86::meta:grundlov_kildemetadata--
 ----
 § 86. Valgretsalderen til de kommunale råd og menighedsrådene er den for valg
 til folketinget til enhver tid gældende. For Færøernes og Grønlands vedkommende
@@ -12,7 +11,8 @@ fastsættes valgretsalderen til de kommunale råd og menighedsrådene ved lov
 eller i henhold til lov.
 ----
 
---@begin:grundlov_par86--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par86 {
 
 # Rådstype = KommunaltRåd | Menighedsråd
 # ValgretsalderensRetsgrundlag = FølgerFolketingsvalgretsalderenTilEnhverTid | FastsættesVedLovEllerIHEnholdTilLov
@@ -20,9 +20,9 @@ eller i henhold til lov.
     | retsgrundlag_efter_par86() -> FølgerFolketingsvalgretsalderenTilEnhverTid
     | exception færøerne_og_grønland retsgrundlag_efter_par86() -> FastsættesVedLovEllerIHEnholdTilLov under rigsdel == Færøerne || rigsdel == Grønland
 }
---@end:grundlov_par86--
 
---@label:grundlov_par87::meta:grundlov_kildemetadata--
+}
+
 ----
 § 87. Islandske statsborgere, der i medfør af loven om ophævelse af
 dansk-islandsk forbundslov m.m. nyder lige ret med danske statsborgere,
@@ -30,9 +30,11 @@ bevarer de i grundloven hjemlede rettigheder, der er knyttede til dansk
 indfødsret.
 ----
 
---@begin:grundlov_par87--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par87 {
 
 # IslandskRettighedssag(nyder_lige_ret_efter_forbundslovens_ophævelseslov: Boolsk, rettigheden_er_hjemlet_i_grundloven: Boolsk, rettigheden_er_knyttet_til_dansk_indfødsret: Boolsk) {
     | bevarer_rettigheden_efter_par87() -> nyder_lige_ret_efter_forbundslovens_ophævelseslov && rettigheden_er_hjemlet_i_grundloven && rettigheden_er_knyttet_til_dansk_indfødsret
 }
---@end:grundlov_par87--
+
+}

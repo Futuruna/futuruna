@@ -21,8 +21,9 @@
     )
 )
 
---@label:personskat_ejendomsskat_alder::meta:personskat_ejendomsskat_alder_metadata--
---@begin:personskat_ejendomsskat_alder--
+@ meta(personskat_ejendomsskat_alder_metadata)
+@ section personskat_ejendomsskat_alder {
+
 -- Genbrug § 1 a's daterede regler; hardkod ikke en pensionsalder på 67 år.
 -- Årets status afstemmes ved 31/12 som i § 25, ikke ved første udbetaling.
 > personskat_ejendomsskat_alder_stemmer(status: EjendomsskattelovFolkepensionsalder, fødselsdato: Dato, indkomstår: Heltal) -> Boolsk {
@@ -111,4 +112,5 @@
     }
     concat(aktuelle, flat_map(fakta.ejendomme, |ejendom: EjendomsskattelovPersonEjendomFakta| personskat_ejendomsskat_eget_rabatgrundlag_alderkontroller(ejendom, fødselsdato, præfiks)))
 }
---@end:personskat_ejendomsskat_alder--
+
+}

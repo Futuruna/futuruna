@@ -17,7 +17,6 @@
     )
 )
 
---@label:pensionsbeskatningsloven_par11a_stk2_og_3::meta:pensionsbeskatningsloven_par11a_stk2_og_3_metadata--
 ----
 Stk. 2. Før rateudbetalingen påbegyndes, vælger kontohaveren
 udbetalingsforløbet efter reglerne i dette stykke. Renter m.v., der tilskrives i
@@ -43,7 +42,9 @@ nævnte afkast inklusive procenttillægget og skattesatsen ifølge
 pensionsafkastbeskatningslovens § 2.
 ----
 
---@begin:pensionsbeskatningsloven_par11a_stk2_og_3--
+@ meta(pensionsbeskatningsloven_par11a_stk2_og_3_metadata)
+@ section pensionsbeskatningsloven_par11a_stk2_og_3 {
+
 # Pbl11AUdbetalingsmetode = Pbl11APrimoVærdiDivideretMedResterendeÅr | Pbl11AAnnuitetMedAmortisationsrente
 # Pbl11ARateberegningsfakta = Pbl11ARateEfterPrimoVærdi(ordningsværdi_ved_årets_begyndelse_kroner: Heltal) | Pbl11AAnnuitetsrate(ordningsværdi_ved_årets_begyndelse_kroner: Heltal, amortisationsrente_basispoint: Heltal, langsigtet_obligationsafkast_basispoint: Heltal, pensionsafkastskattesats_basispoint: Heltal)
 
@@ -70,4 +71,5 @@ pensionsafkastbeskatningslovens § 2.
     | Pbl11ARateEfterPrimoVærdi(ordningsværdi_ved_årets_begyndelse_kroner) -> hvis resterende_år > 0 { ordningsværdi_ved_årets_begyndelse_kroner / resterende_år } ellers { 0 }
     | Pbl11AAnnuitetsrate(ordningsværdi_ved_årets_begyndelse_kroner, amortisationsrente_basispoint, _, _) -> pbl11a_annuitetsrate_kroner(ordningsværdi_ved_årets_begyndelse_kroner, amortisationsrente_basispoint, resterende_år)
 }
---@end:pensionsbeskatningsloven_par11a_stk2_og_3--
+
+}

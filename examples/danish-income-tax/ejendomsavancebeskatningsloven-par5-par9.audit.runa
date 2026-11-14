@@ -14,8 +14,9 @@
     )
 )
 
---@label:ebl_par5_par9_konsistensaudit::meta:ebl_par5_par9_konsistensaudit_metadata--
---@begin:ebl_par5_par9_konsistensaudit--
+@ meta(ebl_par5_par9_konsistensaudit_metadata)
+@ section ebl_par5_par9_konsistensaudit {
+
 | ebl_audit_par5_fakta(mælkekvoter: List(EblPar5MælkekvoteFakta), stk6_overførsel: EblPar5Stk6Overførsel, reguleringsvalg: EblPar5Reguleringsvalg) -> EblPar5Fakta(
     anskaffelsesdato = EblDato(år = 1999, måned = 1, dag = 1),
     anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
@@ -365,4 +366,5 @@
 ? ebl_audit_plejehjemsregel_afledes_af_ejendomstypen
 
 @ print("EBL §§ 5-9 consistency audit passed")
---@end:ebl_par5_par9_konsistensaudit--
+
+}

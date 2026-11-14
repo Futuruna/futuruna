@@ -4,6 +4,7 @@
 @ importer ./ligningsloven-par9a-rejser
 @ importer ./personskat-rejsefradrag-beregningsmeta
 
+@ meta(ligningslov9a_beregningsmeta)
 # Ligningslov9ABeregningsinput(indkomstår: Heltal, årsinput: Ligningslov9AÅrsinput, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse)
 
 = ligningslov9a_beregning_felt_indkomstår = TypetBeregningsfelt(
@@ -39,8 +40,6 @@
         Guidance(value = juridisk_vejledning_dobbelt_husførelse_2026),
     )
 )
-
---@label:Ligningslov9ABeregningsinput::meta:ligningslov9a_beregningsmeta--
 
 @ calculate("Rejse-, logi- og dobbelt-husførelsesopgørelse")
 | beregn_ligningslov9a_rejser(input: Ligningslov9ABeregningsinput) -> ligningslov9a_årsresultat(

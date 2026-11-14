@@ -38,7 +38,6 @@
     )
 )
 
---@label:ligningsloven_par9a_standardperioder::meta:ligningslov9a_standardperiodemetadata--
 ----
 Stk. 5. Stk. 1-4 finder kun anvendelse, når rejsen varer mindst 24 timer. Det
 enkelte arbejdssted, jf. stk. 1, kan ved anvendelsen af standardsatserne i stk.
@@ -56,7 +55,8 @@ sammenhængende periode på mindst 40 arbejdsdage på et andet arbejdssted før
 tilbagevenden til det tidligere midlertidige arbejdssted.
 ----
 
---@begin:ligningsloven_par9a_standardperioder--
+@ meta(ligningslov9a_standardperiodemetadata)
+@ section ligningsloven_par9a_standardperioder {
 
 # Ligningslov9AArbejdsdagssted = Ll9AArbejdePåReeltArbejdssted(arbejdssted_identifikation: Tekst) | Ll9AArbejdePåPrivatBopæl
 # Ligningslov9AArbejdsdag(dato: Dato, sted: Ligningslov9AArbejdsdagssted)
@@ -249,4 +249,4 @@ tilbagevenden til det tidligere midlertidige arbejdssted.
 }
 | ligningslov9a_standardperioderesultater_for_rejse(forløb: Ligningslov9AStandardperiodeforløb, rejseidentifikation: Tekst) -> filter(forløb.resultater, |resultat: Ligningslov9AStandardperioderesultat| resultat.rejse.identifikation == rejseidentifikation)
 
---@end:ligningsloven_par9a_standardperioder--
+}

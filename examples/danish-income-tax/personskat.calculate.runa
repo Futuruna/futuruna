@@ -155,6 +155,7 @@
 # PersonskatErhvervsbefordringResultat(input: PersonskatErhvervsbefordringInput, sagsresultater: List(PersonskatErhvervsbefordringSagResultat), identifikationer_entydige: Boolsk, rækkefølge_gyldig: Boolsk, historik_ultimo: PersonskatErhvervsbefordringÅrshistorik, alle_input_gyldige: Boolsk, samlet_skattefri_godtgørelse_kroner: Heltal, samlet_skattepligtig_godtgørelse_kroner: Heltal, samlet_fradrag_i_personlig_indkomst_kroner: Heltal)
 # PersonskatLigningslov9DInput = UdenLigningslov9D | MedLigningslov9D(input: Ligningslov9DInput, skattefrit_tilskud: Ligningslov9DSkattefritTilskud)
 # PersonskatArbejdsgiverbetaltBefordring = UdenArbejdsgiverbetaltBefordring | ArbejdsgiverbetaltOffentligTransportForHeleStrækningen | ArbejdsgiverbetaltBilTilRådighedForHeleStrækningen | AndenArbejdsgiverbetaltBefordringForHeleStrækningen
+@ meta(personskat_befordring_rejsedage_meta)
 # PersonskatBefordringsfradragFakta(identifikation: Tekst, befordringsmål_identifikation: Tekst, arbejdsdage: Heltal, daglige_befordringskilometer: Heltal, bopæl_i_yderkommune_eller_lille_ø: Boolsk, befordringsformål: Ligningslov9CBefordringsformål, modtaget_skattefri_befordringsgodtgørelse_for_strækning: Boolsk, modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning: Boolsk, ligningslov9d: PersonskatLigningslov9DInput, fradrag_udelukket_folketingshverv_m_v: Boolsk, arbejdsgiverbetalt_befordring: PersonskatArbejdsgiverbetaltBefordring, broer: Ligningslov9CBroPassager, særlig_transport: Ligningslov9CSærligTransport)
 # PersonskatBefordringsfradragInput(forhold: List(PersonskatBefordringsfradragFakta))
 # PersonskatLigningsfradragInput(boligjob: Ll8VÅrsinput, enlig_forsørger: Ligningslov9JEnligInput, arbejdsfradrag_udland: PersonskatArbejdsfradragUdland, sømandsfradrag: Sømandsbeskatningslov3Årsinput, sømandsbeskatningslov4: Sømandsbeskatningslov4Årsinput, fiskerfradrag: Ligningslov9GÅrsinput, øvrige_lønmodtagerudgifter: Ligningslov9Stk1Årsinput, befordring: PersonskatBefordringsfradragInput, rejser: Ligningslov9AÅrsinput, faglige_kontingenter: Ligningslov13Årsinput, arbejdsløshed_efterløn_og_fleksydelse: Pbl49Til49BÅrsinput, gaver: LigningslovGaveÅrsinput)
@@ -168,6 +169,8 @@
 # PersonskatPensionsInput(fødselsdato: Dato, udbetalingsoplysninger: PersonskatPensionsudbetalingsoplysninger, atp: PersonskatAtpInput, pbl18_indbetalinger: List(Pbl18Årsindbetaling), pbl18_selvstændig_overskud: Pbl18SelvstændigOverskudInput, pbl18_livrentevalg: Pbl18Fradragsvalg, pbl14b_årsgrundlag: Pbl14BÅrsgrundlag, ambl_par2_stk1_nr5_årsgrundlag: AmblPar2Nr5Årsgrundlag, pbl15a_årsgrundlag: Pbl15AÅrsgrundlag, pbl15b_årsgrundlag: Pbl15BÅrsgrundlag, øvrige_pbl20_årsgrundlag: Pbl20Årsgrundlag, aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg)
 # PersonskatPensionsudbetalingsresultat(aktuelle_pbl14b_resultat: Pbl14BÅrsresultat, aktuelle_pbl20_resultat: Pbl20Årsresultat, foregående_pbl20_resultat: Pbl20Årsresultat, aktuelle_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, foregående_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, aktuelle_input_gyldige: Boolsk, foregående_input_gyldige: Boolsk, samlet_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_i_året_kroner: Heltal, samlet_arbejdsmarkedsbidragspligtig_personlig_indkomst_i_året_kroner: Heltal, samlet_skattepligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_modregningspligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_modregningspligtig_pbl20_i_året_kroner: Heltal, modregnet_efter_ligningslov9l_i_året_kroner: Heltal, samlet_pbl29_afgift_i_året_kroner: Heltal)
 # PersonskatPensionsResultat(pensionsalder_resultat: Ligningslov9LPensionsalderResultat, oplysningsstatus: PersonskatPensionsOplysningsstatus, pbl18_årsinput: Pbl18Årsinput, pbl18_årsresultat: Pbl18Årsresultat, atp_resultat: PersonskatAtpResultat, arbejdsgiverydelser_resultat: PersonskatPensionsArbejdsgiverydelserResultat, arbejdsgiver_rate_resultat: Pbl19RateÅrsresultat, ambl_par2_stk1_nr5_resultat: AmblPar2Nr5Årsresultat, udbetalingsresultat: PersonskatPensionsudbetalingsresultat, aktiepensionsfradrag_resultat: AktiePensionsFradragResultat, par3_stk2_nr3_resultat: Par3Stk2Nr3Resultat, lønmodtager_pensionsfradrag: LønmodtagerPensionsfradrag)
+@ meta(personskat_metadata_bruttoløn)
+@ meta(personskat_metadata_kirkeskat)
 # PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstInput, erhvervsbefordring: PersonskatErhvervsbefordringInput, ligningsfradrag: PersonskatLigningsfradragInput, pension: PersonskatPensionsInput, personfradrag_alder_status: PersonfradragAlderStatus, kirkeskat: PersonskatKirkeskatStatus)
 # PersonskatSupplerendeSkatteforhold(par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
 # PersonskatSkatteforholdInput = StandardSkatteforhold | SærligeSkatteforhold(forhold: PersonskatSupplerendeSkatteforhold)
@@ -182,8 +185,10 @@
 # PersonskatÅrsopgørelseInput = UdenÅrsopgørelse | MedÅrsopgørelse(overført_restskat_mv_kroner: Heltal, øvrig_pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter, afskrivningslov40c_acontoskat: PersonskatAfskrivningslov40CAcontoskatKilde) | MedEksaktÅrsopgørelse(overført_restskat_mv_øre: Heltal, øvrig_pensionsbeskatningsafgift_øre: Heltal, kreditter: KildeskatPar60KreditterØre, afskrivningslov40c_acontoskat: PersonskatAfskrivningslov40CAcontoskatKilde, afregningsfakta: KildeskatSlutopgørelseAfregningsfakta)
 # PersonskatLigningslov6Input = UdenLigningslov6Kurstab | MedLigningslov6Kurstab(input: Ligningslov6KurstabInput)
 # PersonskatLigningslov6AInput = UdenLigningslov6AFradrag | MedLigningslov6AFradrag(input: Ligningslov6AInput)
+@ meta(personskat_metadata_renteindtægter)
 # PersonskatRenteInput(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, næringsstatus: Næringsstatus, ligningslov6: PersonskatLigningslov6Input, ligningslov6a: PersonskatLigningslov6AInput)
 # PersonskatEjendomsdriftFakta(kategori: EjendomsskattelovPar3Kategori, beliggenhed: EjendomsskattelovPar3Beliggenhed, erhvervsmæssigt_udlejet: Boolsk, særlige_betingelser_for_nr6_til_nr8_opfyldt: Boolsk, overskud_eller_underskud_kroner: Heltal)
+@ meta(personskat_meta_ejendomsdrift)
 # PersonskatEjendomsdriftInput = UdenEjendomsdriftEfterPar4Nr6 | MedEjendomsdriftEfterPar4Nr6(fakta: PersonskatEjendomsdriftFakta)
 # PersonskatEjendomsdriftResultat = IngenEjendomsdriftEfterPar4Nr6 | BeregnetEjendomsdriftEfterPar4Nr6(fakta: PersonskatEjendomsdriftFakta, ejendomsskattelov_input: EjendomsskattelovPar3Input, par4_input: Par4Stk1Nr6Input, par4_resultat: Par4Stk1Nr6Resultat)
 # PersonskatEjendomsavanceFremførsel = UdenFremførtEjendomstab | MedFremførtEjendomstab(fra_indkomstår: Heltal, tab_kroner: Heltal)
@@ -267,6 +272,7 @@
 # PersonskatPar13aParÅrsresultat(indkomstår: Heltal, hovedperson: PersonskatPar13aPersonÅrsresultat, ægtefælle: Option(PersonskatPar13aPersonÅrsresultat), hovedpersons_underskud_nedsat_efter_stk2_kroner: Heltal, ægtefælles_underskud_nedsat_efter_stk2_kroner: Heltal, stk2_nedsættelser_stabile: Boolsk, alle_kildegrundlag_gyldige: Boolsk)
 # PersonskatPersonFakta(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ejendomsskatter: EjendomsskattelovPersonÅrsfakta)
 -- Uoplyst er en inputstatus, ikke en civilstand eller en antagelse om nulindkomst.
+@ meta(personskat_metadata_ægtefællevalg)
 # PersonskatÆgtefælleInput = ÆgtefællegrundlagUoplyst | UdenÆgtefælle | MedÆgtefælle(fakta: PersonskatPersonFakta, samlevende_ved_indkomstårets_udløb: Boolsk, kildeskat25a_fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta))
 # PersonskatPersonGrundlagResultat(arbejdsfradrag_udland: PersonskatArbejdsfradragUdlandsresultat, enligforsørgerfradrag: Ligningslov9JEnligResultat, fakta: PersonskatPersonFakta, personlig_indkomst: PersonskatPersonligIndkomstResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, selvstændig_arbejdsmarkedsbidrag: ArbejdsmarkedsbidragSelvstændigÅrsresultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, lønmodtager_input: LønmodtagerInput, individuelle_skatteforhold: LønmodtagerSkatteforhold)
 # PersonskatÆgtefælleBeregningResultat = IngenÆgtefælleberegning | BeregnetÆgtefælle(fakta: PersonskatPersonFakta, grundlag: PersonskatPersonGrundlagResultat, skat: LønmodtagerBeregning, samlevende_ved_indkomstårets_udløb: Boolsk)
@@ -1699,7 +1705,6 @@
         Guidance(value = personskat_befordring_rejsedage_kilde),
     )
 )
---@label:PersonskatBefordringsfradragFakta::meta:personskat_befordring_rejsedage_meta--
 
 = personskat_felt_befordring_identifikation = Beregningsfelt(
     path = "lønmodtager.ligningsfradrag.befordring.forhold.identifikation",
@@ -11743,7 +11748,7 @@
         Guidance(value = pbl22e_bruttovejledning),
     )
 )
---@label:Pbl18Årsbetaling::meta:personskat_meta_pbl18_betalingstid--
+@ meta(personskat_meta_pbl18_betalingstid) for Pbl18Årsbetaling
 = personskat_meta_pbl18_fordelingsforløb = Beregningsmeta(
     felter = [
         personskat_felt_pbl18_fordelingsforløb,
@@ -12227,7 +12232,6 @@
         Guidance(value = personskat_lønrettelser_efter_året_vejledning),
     )
 )
---@label:PersonskatLønmodtagerInput::meta:personskat_metadata_bruttoløn--
 = personskat_meta_dis_indkomster = TypetBeregningsmeta(
     felter = [
         personskat_felt_dis_indkomster,
@@ -12444,7 +12448,6 @@
         Warning(value = personskat_ægtefællegrundlag_forbehold),
     )
 )
---@label:PersonskatÆgtefælleInput::meta:personskat_metadata_ægtefællevalg--
 = personskat_metadata_ægtefællegrundlag = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_ægtefælle_samliv),
@@ -12545,7 +12548,6 @@
         Warning(value = personskat_kirkeskat_forbehold),
     )
 )
---@label:PersonskatLønmodtagerInput::meta:personskat_metadata_kirkeskat--
 = personskat_rentefakta_vejledning = PersonskattelovIndkomstKildeInfo(
     url = "https://skat.dk/borger/fradrag/fradrag-for-renter",
     identifier = "Skattestyrelsen: renteudgifter, indberetning, egen andel og særskilt klassifikation",
@@ -12571,7 +12573,6 @@
         Guidance(value = personskat_negative_renter_rubrikvejledning),
     )
 )
---@label:PersonskatRenteInput::meta:personskat_metadata_renteindtægter--
 = personskat_metadata_finansielle_poster = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_finansielle_poster),
@@ -12621,7 +12622,6 @@
         Warning(value = personskat_ejendomsdrift_ruteforbehold),
     )
 )
---@label:PersonskatEjendomsdriftInput::meta:personskat_meta_ejendomsdrift--
 = personskat_meta_ejendomsskatter = TypetBeregningsmeta(
     felter = [
         personskat_felt_ejendomsskatter,
@@ -14431,8 +14431,6 @@
     negativ_aktieskat = personskat_metadata_negativ_aktieskat,
     årsopgørelse = personskat_metadata_årsopgørelse
 )
-
---@label:beregn_personskat::meta:personskat_beregningsmetadata--
 
 | personskat_supplerende_skatteforhold(forhold: PersonskatSupplerendeSkatteforhold) -> LønmodtagerSkatteforhold(
     aktieindkomst_kroner = 0,
@@ -16294,7 +16292,6 @@
     )
 )
 
---@label:personskat_par37_til40_ægtefællemodregning::meta:personskat_par37_til40_ægtefællemodregning_metadata--
 ----
 Kildeskatteloven § 4, stk. 6:
 "Bortfalder skattepligten efter § 1 for en af ægtefællerne eller for begge,
@@ -16312,7 +16309,9 @@ hvis begge ægtefæller bliver skattepligtige af gevinst/tab på aktier ved
 fraflytningen."
 ----
 
---@begin:personskat_par37_til40_ægtefællemodregning--
+@ meta(personskat_par37_til40_ægtefællemodregning_metadata)
+@ section personskat_par37_til40_ægtefællemodregning {
+
 # PersonskatPar37Til40Kildereduktionstilstand(resterende_modregning_kroner: Heltal, kilderesultater: List(AktieavancebeskatningslovKilderesultat))
 # PersonskatPar37Til40Resultatreduktionstilstand(resterende_modregning_kroner: Heltal, resultater: List(PersonskatSærligtAktieaktivResultat))
 
@@ -16440,7 +16439,8 @@ fraflytningen."
     resultat,
     personskat_par37_til40_kilderesultater_efter_ægtefællemodregning(resultat, skatteår, ægtefællemodregning_tilladt, parrets_nettogevinst_før_gulv_kroner)
 )
---@end:personskat_par37_til40_ægtefællemodregning--
+
+}
 
 | personskat_par37_til40_resultatnøgle(person: PersonskatPar37Til40Skatteperson, resultat: PersonskatSærligtAktieaktivResultat) -> PersonskatPar37Til40Resultatnøgle(person = person, aktieaktiv_identifikation = resultat.fakta.identifikation)
 | personskat_par37_til40_resultat_inkluderet(resultat: PersonskatSærligtAktieaktivResultat, person: PersonskatPar37Til40Skatteperson, skatteår: Heltal, inkluderede_resultater: List(PersonskatPar37Til40Resultatnøgle), aktuel_nøgle: PersonskatPar37Til40Resultatnøgle, projektion: PersonskatPar37Til40Skatteprojektion) -> hvis personskat_par37_til40_resultat_har_aktuel_afledning(resultat, skatteår) == Falskt {
@@ -19902,6 +19902,7 @@ fraflytningen."
 | personskat_beregning_resultat(input: PersonskatInput) -> personskat_beregning_resultat_med_hovedpersonsregulering(input, personskat_ksl25a_tom_personregulering(), Sandt)
 | beregn_personskat_lønmodtager(input: LønmodtagerInput) -> beregn_lønmodtager(input)
 
+@ meta(personskat_beregningsmetadata)
 @ calculate("Dansk personskat")
 | beregn_personskat(input: PersonskatInput) -> {
     personskat_kontrollér_beregningsår(input.lønmodtager.skatteår, "lønmodtager.skatteår")

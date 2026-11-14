@@ -11,8 +11,9 @@
     )
 )
 
---@label:personskat_par6d_scenarier::meta:personskat_par6d_scenarier_metadata--
---@begin:personskat_par6d_scenarier--
+@ meta(personskat_par6d_scenarier_metadata)
+@ section personskat_par6d_scenarier {
+
 = personskat_par6d_scenarie_2026_årsforhold = EblPar6DÅrsforhold(
     indkomstår = 2026,
     forløbsposter = [personskat_par6d_scenarie_betaling("Sælgerpantebrev 2025", 375000)]
@@ -64,4 +65,5 @@
 ? personskat_par6d_scenarie_succederende_ægtefælle_får_kun_egne_kgl_beløb
 
 @ print("Personskat EBL § 6 D scenarios passed")
---@end:personskat_par6d_scenarier--
+
+}

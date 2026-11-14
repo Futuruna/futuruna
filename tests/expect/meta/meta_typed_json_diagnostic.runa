@@ -9,4 +9,4 @@
 -- expect-stdout: meta role `warning` references unresolved binding `missing_warning`
 -- expect-stderr-not: unresolved binding
 
---@label:audit_gap::warning:missing_warning--
+@ meta(missing_warning) for audit_gap

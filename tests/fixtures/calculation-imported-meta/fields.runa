@@ -21,7 +21,7 @@
     )
 )
 
---@label:calculate_imported_fields::meta:imported_calculation_meta--
+@ meta(imported_calculation_meta) for calculate_imported_fields
 
 = unrelated_invalid_field = CalculationField(
     path = "not_an_input_path",
@@ -30,4 +30,4 @@
     help = None,
     unit = None
 )
---@label:another_calculation::meta:unrelated_invalid_field--
+@ meta(unrelated_invalid_field) for another_calculation

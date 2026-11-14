@@ -312,4 +312,4 @@
     )
 )
 
---@label:PersonskatPersonligIndkomstInput::meta:personskat_arbejdsudleje_beregningsmeta--
+@ meta(personskat_arbejdsudleje_beregningsmeta) for PersonskatPersonligIndkomstInput

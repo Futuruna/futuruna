@@ -53,7 +53,6 @@
     )
 )
 
---@label:aktieavancebeskatningsloven_par37::meta:aktieavancebeskatningsloven_par37_metadata--
 ----
 § 37. Aktier, som ikke i forvejen er omfattet af dansk beskatning, anses for
 anskaffet på det faktiske anskaffelsestidspunkt til handelsværdien på
@@ -64,7 +63,9 @@ Færøerne eller Grønland bliver hjemmehørende i Danmark, sidestilles dette ve
 anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
 ----
 
---@begin:aktieavancebeskatningsloven_par37--
+@ meta(aktieavancebeskatningsloven_par37_metadata)
+@ section aktieavancebeskatningsloven_par37 {
+
 # AktieavancePar37Indtrædelsesgrund = AblPar37SkattepligtIndtræder | AblPar37TraktathjemstedBliverDanmark | AblPar37IngenIndtrædenAfDanskBeskatning
 # AktieavancePar37Input(faktisk_anskaffelsestidspunkt: AktieavancePar23Dato, hidtidig_anskaffelsessum_kroner: Heltal, handelsværdi_på_tilflytningstidspunktet_kroner: Heltal, i_forvejen_omfattet_af_dansk_beskatning: Boolsk, indtrædelsesgrund: AktieavancePar37Indtrædelsesgrund)
 # AktieavancePar37Resultat(input: AktieavancePar37Input, input_gyldigt: Boolsk, reglen_finder_anvendelse: Boolsk, skattemæssigt_anskaffelsestidspunkt: AktieavancePar23Dato, skattemæssig_anskaffelsessum_kroner: Heltal)
@@ -87,7 +88,8 @@ anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
 }
 
 | aktieavance_par37_resultat(input: AktieavancePar37Input) -> AktieavancePar37Sag(input).resultat()
---@end:aktieavancebeskatningsloven_par37--
+
+}
 
 = aktieavancebeskatningsloven_par38_metadata = Metadata(
     attachments = (
@@ -101,7 +103,6 @@ anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
     )
 )
 
---@label:aktieavancebeskatningsloven_par38::meta:aktieavancebeskatningsloven_par38_metadata--
 ----
 § 38. Gevinst og tab på aktier omfattet af reglerne i denne lov betragtes som
 realiseret, hvis gevinsten eller tabet vedrører en aktie, der er omfattet af
@@ -157,7 +158,9 @@ beregnede skat efter reglerne i § 39 og § 39 A, i det omfang gevinst eller tab
 ved skattepligtsophøret skal opgøres efter realisationsprincippet.
 ----
 
---@begin:aktieavancebeskatningsloven_par38--
+@ meta(aktieavancebeskatningsloven_par38_metadata)
+@ section aktieavancebeskatningsloven_par38 {
+
 # AktieavancePar38Ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1 | AblPar38TraktathjemstedBliverUdland | AblPar38AndetOphørAfDanskBeskatningsret | AblPar38OphørVedDød | AblPar38DanskBeskatningsretFortsætter
 # AktieavancePar38Tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr | AblPar38UnderSyvÅrIndenForSenesteTiÅr | AblPar38Par39BNedsatHandelsværdiVedTilflytning
 # AktieavancePar38Beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning | AblPar38AktieIkkeOmfattetAfDanskBeskatning
@@ -298,7 +301,8 @@ ved skattepligtsophøret skal opgøres efter realisationsprincippet.
 
 | aktieavance_par38_resultat(input: AktieavancePar38Input) -> AktieavancePar38Sag(input).resultat()
 | aktieavance_par38_kilderesultater_før_nettogulv(input: AktieavancePar38Input) -> AktieavancePar38Sag(input).aktieavancebeskatningslov_kilderesultater_før_nettogulv()
---@end:aktieavancebeskatningsloven_par38--
+
+}
 
 = aktieavancebeskatningsloven_par39_metadata = Metadata(
     attachments = (
@@ -309,7 +313,6 @@ ved skattepligtsophøret skal opgøres efter realisationsprincippet.
     )
 )
 
---@label:aktieavancebeskatningsloven_par39::meta:aktieavancebeskatningsloven_par39_metadata--
 ----
 § 39. Personer kan få henstand med betaling af den beregnede skat, jf. § 38,
 stk. 5, når betalingen skyldes ophør af skattepligt efter kildeskattelovens § 1,
@@ -350,7 +353,9 @@ oplysningsfristen efter skattekontrollovens § 10, stk. 2, og § 11, jf. § 13, 
 fristen for afgivelse af beholdningsoversigt som nævnt i stk. 2, jf. stk. 4.
 ----
 
---@begin:aktieavancebeskatningsloven_par39--
+@ meta(aktieavancebeskatningsloven_par39_metadata)
+@ section aktieavancebeskatningsloven_par39 {
+
 # AktieavancePar39Friststatus = AblPar39RettidigOrdinærFrist | AblPar39RettidigForlængetFrist | AblPar39FristOverskredet | AblPar39FristoverskridelseTilsidesatEfterStk5
 # AktieavancePar39Indberetning(oplysninger_efter_skattekontrollov_par2: AktieavancePar39Friststatus, beholdningsoversigt_efter_par39a: AktieavancePar39Friststatus)
 # AktieavancePar39Bistandsstatus = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv | AblPar39LandIkkeOmfattetAfNordiskOverenskomstEllerEuDirektiv
@@ -397,4 +402,5 @@ fristen for afgivelse af beholdningsoversigt som nævnt i stk. 2, jf. stk. 4.
 }
 
 | aktieavance_par39_resultat(input: AktieavancePar39Input) -> AktieavancePar39Sag(input).resultat()
---@end:aktieavancebeskatningsloven_par39--
+
+}

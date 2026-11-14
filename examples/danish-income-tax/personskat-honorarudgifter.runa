@@ -13,12 +13,14 @@
 = honorarudgifter_dækningsgrænse = "Modellen behandler afklarede løbende egne udgifter og almindelige driftsmiddelafskrivninger i årets honoraraktivitet efter nettoindkomstpraksis i C.C.1.2.3. Driftsmidler kræver PsHonorarudgifterMedDriftsmidler: én samlet AL § 5-saldo og særskilte blandede AL § 11-aktiver med afklaret ejerskab, anskaffelser, samlesæt og årets brug. Der må ikke være salg, ophør eller AL § 4-overførsel i denne rute; køb og afskrivning må ikke fratrækkes dobbelt. Andre afskrivninger, satsberegnet kørsel, erstatninger, periodisering og negativ nettoindkomst kræver særskilt behandling. SKM2025.490.ØLR giver fradrag uden kildeartsbegrænsning for de omhandlede erstatninger i skattepligtig indkomst, ikke automatisk i personlig indkomst. Dækningsgrænsen er ikke et lovbestemt fradragsloft eller en afvisning af fradragsret. Skattestyrelsens udkast til styresignal er ikke sat i kraft som beregningsregel; afklar gældende praksis og indkomstår ved krav ud over denne gren. Ukendt er ikke nul."
 = honorarudgifter_meta = Metadata(attachments = (Guidance(value = honorarudgifter_djv), Guidance(value = honorarudgifter_skat), Source(value = honorarudgifter_dom), PreparatorySource(value = honorarudgifter_udkast), CurrentnessSource(value = honorarudgifter_udkaststatus), Warning(value = honorarudgifter_dækningsgrænse)))
 
---@label:personskat_honorarudgifter::meta:honorarudgifter_meta--
+-- C.C.1.2.3, uddrag. Udgifter reducerer derfor ikke AM-grundlaget.
 ----
 Der skal betales arbejdsmarkedsbidrag af bruttovederlaget
 ----
--- C.C.1.2.3, uddrag. Udgifter reducerer derfor ikke AM-grundlaget.
---@begin:personskat_honorarudgifter--
+
+@ meta(honorarudgifter_meta)
+@ section personskat_honorarudgifter {
+
 # PersonskatHonorarudgiftsart = PsHonorarLøbendeUdgift | PsHonorarPrivatUdgift | PsHonorarAndenUdgift | PsHonorarUdgiftUoplyst
 # PersonskatHonorarudgiftFakta(identifikation: Tekst, indkomstår: Heltal, art: PersonskatHonorarudgiftsart, egen_udgift_kroner: Heltal, dokumenteret: Boolsk, vedrører_vederlaget: Boolsk, ikke_fratrukket_andetsteds: Boolsk)
 # PersonskatHonorarAfskrivningsgrundlag = PsHonorarAl5Saldo(input: Afskrivningslov5Input) | PsHonorarAl11Aktiv(input: Afskrivningslov11Input)
@@ -94,4 +96,5 @@ Der skal betales arbejdsmarkedsbidrag af bruttovederlaget
     = am = penge_beløb_gange_basispoint_kroner(brutto_kroner, sats)
     resultat.alle_input_gyldige && brutto_kroner >= 0 && alder_ved_årets_udløb >= 0 && resultat.fradrag_i_personlig_indkomst_kroner <= brutto_kroner - am
 }
---@end:personskat_honorarudgifter--
+
+}

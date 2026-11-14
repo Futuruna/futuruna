@@ -11,8 +11,9 @@
     )
 )
 
---@label:ebl_ordinær_genanbringelse_audit::meta:ebl_ordinær_genanbringelse_audit_metadata--
---@begin:ebl_ordinær_genanbringelse_audit--
+@ meta(ebl_ordinær_genanbringelse_audit_metadata)
+@ section ebl_ordinær_genanbringelse_audit {
+
 | ebl_ordinær_audit_par6a_fakta(erhvervsfortjeneste_kroner: Heltal, erhvervsanvendelse: EblPar6AErhvervsanvendelse) -> EblPar6AFakta(
     oprindelig_fortjeneste = EblOprindeligErhvervsfortjeneste(
         afståelsesindkomstår = 2025,
@@ -227,4 +228,5 @@
 ? ebl_ordinær_audit_par6c_historik_bevares_uden_dobbelt_beskatning
 
 @ print("EBL ordinary reinvestment audit passed")
---@end:ebl_ordinær_genanbringelse_audit--
+
+}

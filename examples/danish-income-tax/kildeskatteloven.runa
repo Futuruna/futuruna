@@ -65,7 +65,7 @@ lovtekst kontrolleres særskilt i source-status.runa.
         Guidance(value = kildeskatteloven_vejledning_par25a_dødsfald),
     )
 )
---@label:kildeskatteloven_par25a::meta:ksl_par25a_kildemeta--
+
 ----
 § 25 A.
 
@@ -146,7 +146,9 @@ fordeles virksomhedens aktiver og passiver mellem ægtefællerne efter samme
 forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
 ----
 
---@begin::kildeskatteloven_par25a--
+@ meta(ksl_par25a_kildemeta)
+@ section kildeskatteloven_par25a {
+
 # Kildeskat25AFaktiskSamlivsophørsfakta(varigt_adskilt_uden_fælles_husførelse: Boolsk, samlivet_genoptaget_i_samme_indkomstår: Boolsk)
 # Kildeskat25ASamlivsophørsårsag = Ksl25ASeparation | Ksl25ASkilsmisse | Ksl25AFaktiskSamlivsophør(fakta: Kildeskat25AFaktiskSamlivsophørsfakta) | Ksl25ADødsfald
 # Kildeskat25ASamlivsforløb = Ksl25AIntetSamlivsophør | Ksl25ASamlivsophør(dato: Dato, årsag: Kildeskat25ASamlivsophørsårsag)
@@ -453,7 +455,8 @@ forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
         samlet_efter_fordeling = kildeskat25a_virksomhedsbeløb_plus(virksomhedsdriver, anden_ægtefælle)
     )
 }
---@end::kildeskatteloven_par25a--
+
+}
 
 ----
 § 41. Indkomstskat til staten, virksomhedsskat, konjunkturudligningsskat,

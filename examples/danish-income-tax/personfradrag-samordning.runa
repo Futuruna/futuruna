@@ -17,14 +17,15 @@
     )),
 ))
 
---@label:personfradrag_samordning::meta:personfradrag_samordning_metadata--
 ----
 Hvis skatteværdien af personfradraget ikke kan udnyttes ved beregningen af en
 eller flere af de i § 9 nævnte skatter, anvendes den ikke udnyttede del til
 nedsættelse af de øvrige skatter.
 ----
 
---@begin:personfradrag_samordning--
+@ meta(personfradrag_samordning_metadata)
+@ section personfradrag_samordning {
+
 -- § 9-resultaterne er deltrin. § 12 samordner dem før § 10-overførsel.
 -- Beløbene skal have samme enhed: de ældre *_kroner-felter kan også bære
 -- øre i den eksakte beregning. AM-bidrag, CFC og lav aktieskat indgår ikke.
@@ -120,4 +121,5 @@ nedsættelse af de øvrige skatter.
     = kirke = penge_beløb_gange_basispoint_kroner(grundlag.lokalt_kroner, satser.kirkelig_basispoint)
     Par9IkkeStatPersonfradragResultat(0, 0, 0, par8c, samlet - par8c - kirke, kirke, 0)
 }
---@end:personfradrag_samordning--
+
+}

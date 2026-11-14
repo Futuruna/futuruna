@@ -65,7 +65,7 @@
     Warning(value = personskat_skattekredit_kildegrænse),
     Warning(value = personskat_skattekredit_fortegnsforklaring),
 ))
---@label:KildeskatPar60KreditterØre::meta:personskat_skattekreditter_øre_metadata--
+@ meta(personskat_skattekreditter_øre_metadata) for KildeskatPar60KreditterØre
 
 = personskat_felt_årsopgørelse_a_skat_og_am = TypetBeregningsfelt(
     path = refof(KildeskatPar60Kreditter::a_skat_og_am_indeholdt_kroner),
@@ -112,4 +112,4 @@
     Warning(value = personskat_skattekredit_kildegrænse),
     Warning(value = personskat_skattekredit_fortegnsforklaring),
 ))
---@label:KildeskatPar60Kreditter::meta:personskat_skattekreditter_kroner_metadata--
+@ meta(personskat_skattekreditter_kroner_metadata) for KildeskatPar60Kreditter

@@ -97,18 +97,20 @@
     )
 )
 
---@label:dødsboskattelov_par1_stk2::meta:dødsboskattelov_par1_metadata--
 ----
 § 1. Denne lov finder anvendelse på indkomstbeskatning i forbindelse med dødsfald.
 
 Stk. 2. Pligt til at betale indkomstskat efter denne lovs bestemmelser om beskatning af dødsboer påhviler dødsboer, der efter § 2, stk. 1 eller 2, i lov om skifte af dødsboer helt eller delvis behandles her i landet. Dødsboer, der overtages af en længstlevende ægtefælle efter denne lovs § 58, stk. 1, eller stk. 2, 1. pkt., eller som afsluttes ved boudlæg uden skiftebehandling efter kapitel 12 i lov om skifte af dødsboer, er dog ikke skattepligtige.
 ----
 
---@begin::dødsboskattelov_par1_stk2--
+@ meta(dødsboskattelov_par1_metadata)
+@ section dødsboskattelov_par1_stk2 {
+
 # Dødsboskattelov1Stk2Boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark | Dbl1Stk2BoOvertagetAfLængstlevendeEfterPar58 | Dbl1Stk2BoAfsluttetVedBoudlægUdenSkiftebehandling | Dbl1Stk2AndenBoform
 
 | dødsboskattelov1_stk2_skattepligtigt_dødsbo(boform: Dødsboskattelov1Stk2Boform) -> boform == Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark
---@end::dødsboskattelov_par1_stk2--
+
+}
 
 = dødsboskattelov_par30_metadata = Metadata(
     attachments = (
@@ -122,7 +124,6 @@ Stk. 2. Pligt til at betale indkomstskat efter denne lovs bestemmelser om beskat
     )
 )
 
---@label:dødsboskattelov_par30::meta:dødsboskattelov_par30_metadata--
 ----
 § 30. Af bobeskatningsindkomsten betales dødsboskat med 50 pct. Endvidere betales skat af aktieindkomst efter § 32, stk. 1. Negativ skat af aktieindkomst efter § 32, stk. 3, modregnes i skatten opgjort efter 1. pkt., i det omfang beløbet kan rummes heri. Et eventuelt overskydende beløb tilbagebetales til boet efter § 31.
 
@@ -141,7 +142,9 @@ Kildeskatteloven § 22. Den skattepligtige indkomst opgøres på grundlag af ind
 Stk. 2. En selvstændigt erhvervsdrivende kan anvende et andet indkomstår end kalenderåret, hvis det er begrundet i de forhold, der gør sig gældende for den skattepligtige, såsom hensyn til sæson, brancheændring, personaleferie eller nye forretningsforbindelser. Omlægning af et indkomstår kan kun ske, såfremt alle indkomstperioder kommer til beskatning, og såfremt intet indkomstår overspringes eller dubleres. Et indkomstår, der afviger fra kalenderåret, skal begynde den første i en måned. Den selvstændigt erhvervsdrivende skal inden udløbet af det indkomstår, der ønskes omlagt, give meddelelse herom til told- og skatteforvaltningen. Ved valg af et andet indkomstår end kalenderåret skal en samlevende ægtefælle anvende samme indkomstår, jf. dog § 100, 1. pkt.
 ----
 
---@begin::dødsboskattelov_par30--
+@ meta(dødsboskattelov_par30_metadata)
+@ section dødsboskattelov_par30 {
+
 # Dødsboskattelov30Boopgørelsestype = Dbl30OrdinærBoopgørelse | Dbl30Tillægsopgørelse
 # Dødsboskattelov30Indkomstårsforhold = Dbl30Kalenderindkomstår | Dbl30BagudforskudtIndkomstår(dødsårets_startdato: Dato) | Dbl30FremadforskudtIndkomstår(dødsårets_startdato: Dato)
 # Dødsboskattelov30Ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62 | Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato: Dato, par67_stk7_progressionsforhold: Dødsboskattelov67Stk7Progressionsforhold)
@@ -314,7 +317,8 @@ Stk. 2. En selvstændigt erhvervsdrivende kan anvende et andet indkomstår end k
         carryback_efter_par31 = carryback_efter_par31
     )
 }
---@end::dødsboskattelov_par30--
+
+}
 
 = dødsboskattelov_par31_metadata = Metadata(
     attachments = (
@@ -326,7 +330,6 @@ Stk. 2. En selvstændigt erhvervsdrivende kan anvende et andet indkomstår end k
     )
 )
 
---@label:dødsboskattelov_par31::meta:dødsboskattelov_par31_metadata--
 ----
 § 31. Hvis bobeskatningsindkomsten efter modregning af eventuel positiv aktieindkomst i bobeskatningsperioden udviser et underskud, udbetales et beløb svarende til 30 pct. af det resterende beløb til boet. Endvidere udbetales resterende negativ aktieskat efter § 30, stk. 1, 4. pkt.
 
@@ -337,7 +340,9 @@ Stk. 3. Skat af indkomst, som er valgt beskattet efter bestemmelsen i kildeskatt
 Stk. 4. Var afdøde gift ved dødsfaldet, og skiftes afdødes andel af fællesboet og afdødes særbo hver for sig, fordeles udbetaling efter stk. 1 mellem de to boer efter forholdet mellem summen af bobeskatningsindkomst og aktieindkomst i bobeskatningsperioden i de to boer. Har det ene bo positiv sum af bobeskatningsindkomst og aktieindkomst i bobeskatningsperioden og det andet negativ sum, udbetales hele beløbet til det bo, der har negativ sum.
 ----
 
---@begin::dødsboskattelov_par31--
+@ meta(dødsboskattelov_par31_metadata)
+@ section dødsboskattelov_par31 {
+
 # Dødsboskattelov31LængstlevendeÆgtefælleforhold = Dbl31IngenLængstlevendeÆgtefælle | Dbl31LængstlevendeÆgtefælle(identifikation: Tekst)
 # Dødsboskattelov31Skatteperson = Dbl31Afdøde | Dbl31LængstlevendeÆgtefælleSomSkatteperson
 # Dødsboskattelov31BetaltÅrsskat(person: Dødsboskattelov31Skatteperson, indkomstår: Heltal, skat_af_skattepligtig_indkomst_kroner: Heltal, skat_af_aktieindkomst_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, heraf_skat_efter_kildeskattelov48e_48f_kroner: Heltal, dokumentreference: Tekst)
@@ -499,7 +504,8 @@ Stk. 4. Var afdøde gift ved dødsfaldet, og skiftes afdødes andel af fællesbo
         )
     }
 }
---@end::dødsboskattelov_par31--
+
+}
 
 = dødsboskattelov_par32_metadata = Metadata(
     attachments = (
@@ -510,7 +516,6 @@ Stk. 4. Var afdøde gift ved dødsfaldet, og skiftes afdødes andel af fællesbo
     )
 )
 
---@label:dødsboskattelov_par32::meta:dødsboskattelov_par32_metadata--
 ----
 § 32. Skat af afdødes aktieindkomst i bobeskatningsperioden nedsat med eventuelt underskud i bobeskatningsindkomsten, jf. § 30, stk. 5, beregnes således:
 
@@ -529,7 +534,9 @@ Stk. 3. Er aktieindkomsten negativ, beregnes negativ skat med
 Stk. 4. Skulle afdøde tillige have været beskattet af en tidligere afdød ægtefælles indkomst efter § 62, fordobles beløbsgrænsen efter personskattelovens § 8 a, stk. 1 og 2, ved anvendelsen af stk. 1-3.
 ----
 
---@begin::dødsboskattelov_par32--
+@ meta(dødsboskattelov_par32_metadata)
+@ section dødsboskattelov_par32 {
+
 # Dødsboskattelov32Aktieindkomstgrundlag = Dbl32IngenAktieindkomst | Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner: Heltal, dokumentreference: Tekst)
 # Dødsboskattelov32Resultat(grundlag: Dødsboskattelov32Aktieindkomstgrundlag, grundlag_gyldigt: Boolsk, progressionsgrundlag_gyldigt: Boolsk, aktieindkomst_før_par30_stk5_kroner: Heltal, bobeskatningsunderskud_modregnet_efter_par30_stk5_kroner: Heltal, aktieindkomst_efter_par30_stk5_kroner: Heltal, progressionsgrænse_før_par67_stk7_kroner: Heltal, anvendt_ekstra_progressionsgrænse_i_førstafdødes_særbo_kroner: Heltal, effektiv_progressionsgrænse_kroner: Heltal, lavt_skattegrundlag_kroner: Heltal, højt_skattegrundlag_kroner: Heltal, lav_sats_basispoint: Heltal, høj_sats_basispoint: Heltal, positiv_aktieskat_kroner: Heltal, negativ_aktieskat_kroner: Heltal)
 
@@ -587,7 +594,8 @@ Stk. 4. Skulle afdøde tillige have været beskattet af en tidligere afdød ægt
         negativ_aktieskat_kroner = hvis aktieindkomst_efter_modregning_kroner < 0 { beregnet_aktieskat_kroner } ellers { 0 }
     )
 }
---@end::dødsboskattelov_par32--
+
+}
 
 = dødsboskattelov_par67_stk7_metadata = Metadata(
     attachments = (
@@ -598,12 +606,13 @@ Stk. 4. Skulle afdøde tillige have været beskattet af en tidligere afdød ægt
     )
 )
 
---@label:dødsboskattelov_par67_stk7::meta:dødsboskattelov_par67_stk7_metadata--
 ----
 Stk. 7. Afgår den længstlevende ægtefælle ved døden i samme indkomstår som førstafdøde, finder § 7, 2. pkt., § 8, 3. pkt., § 16, stk. 4, § 19, stk. 2, 2. pkt., og stk. 3, 2. pkt., samt § 32, stk. 4, ikke anvendelse, i det omfang beløbene er indgået i skifte af førstafdødes særbo efter dette kapitel.
 ----
 
---@begin::dødsboskattelov_par67_stk7--
+@ meta(dødsboskattelov_par67_stk7_metadata)
+@ section dødsboskattelov_par67_stk7 {
+
 # Dødsboskattelov67Stk7Progressionsforhold = Dbl67Stk7IntetSkifteAfFørstafdødesSærbo | Dbl67Stk7FørstafdødesSærboIkkeEndeligtSkatteberegnet | Dbl67Stk7FørstafdødesSærboEndeligtSkatteberegnet(anvendt_ekstra_progressionsgrænse_kroner: Heltal, dokumentreference: Tekst)
 
 | dødsboskattelov67_stk7_progressionsforhold_gyldigt(forhold: Dødsboskattelov67Stk7Progressionsforhold, ordinær_progressionsgrænse_kroner: Heltal) -> match forhold {
@@ -616,4 +625,5 @@ Stk. 7. Afgår den længstlevende ægtefælle ved døden i samme indkomstår som
     | Dbl67Stk7FørstafdødesSærboIkkeEndeligtSkatteberegnet -> 0
     | Dbl67Stk7FørstafdødesSærboEndeligtSkatteberegnet(anvendt_ekstra_progressionsgrænse_kroner, _) -> anvendt_ekstra_progressionsgrænse_kroner
 }
---@end::dødsboskattelov_par67_stk7--
+
+}

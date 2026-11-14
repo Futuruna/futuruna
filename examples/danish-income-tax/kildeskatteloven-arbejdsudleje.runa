@@ -66,7 +66,6 @@
     )
 )
 
---@label:kildeskattelov_arbejdsudleje_par2_stk1_nr3::meta:kildeskattelov_arbejdsudleje_par2_metadata--
 ----
 § 2. Pligt til at svare indkomstskat til staten påhviler endvidere personer,
 der ikke er omfattet af § 1, og dødsboer, der behandles i udlandet, jf.
@@ -87,7 +86,9 @@ kontinentalsokkel. Det er uden betydning for skattepligten, hvilken form
 vederlaget udbetales i.
 ----
 
---@begin::kildeskattelov_arbejdsudleje_par2_stk1_nr3--
+@ meta(kildeskattelov_arbejdsudleje_par2_metadata)
+@ section kildeskattelov_arbejdsudleje_par2_stk1_nr3 {
+
 # KildeskattelovArbejdsudlejePersonstatus = ArbejdsudlejetIkkeOmfattetAfKsl1EllerKsl2Stk1Nr1 | ArbejdsudlejetOmfattetAfKsl1 | ArbejdsudlejetOmfattetAfKsl2Stk1Nr1 | ArbejdsudlejetPersonstatusUafklaret
 # KildeskattelovArbejdsudlejeAnsættelsesforhold = AnsatHosUdenlandskUdlejer | DirekteAnsatHosDanskHvervgiver | SelvstændigtErhvervsdrivende | ArbejdsudlejeAnsættelsesforholdUafklaret
 # KildeskattelovArbejdsudlejeUdlejerstatus = UdenlandskUdlejerUdenDanskFastDriftssted | UdenlandskUdlejerMedDanskFastDriftssted | DanskUdlejer | ArbejdsudlejeUdlejerstatusUafklaret
@@ -131,9 +132,9 @@ vederlaget udbetales i.
 | kildeskat_arbejdsudleje_integreret_del(arbejde: KildeskattelovArbejdsudlejeArbejde) -> (arbejde.tilknytning == ArbejdeErKerneydelse || arbejde.tilknytning == ArbejdeErNaturligDelAfDrift) && kildeskat_arbejdsudleje_permanent_udskilt(arbejde.udskillelse) == Falskt
 | kildeskat_arbejdsudleje_afgrænsning_afklaret(parter: KildeskattelovArbejdsudlejeParter, arbejde: KildeskattelovArbejdsudlejeArbejde) -> kildeskat_arbejdsudleje_personstatus_afklaret(parter.personstatus) && kildeskat_arbejdsudleje_ansættelsesforhold_afklaret(parter.ansættelsesforhold) && kildeskat_arbejdsudleje_udlejerstatus_afklaret(parter.udlejerstatus) && kildeskat_arbejdsudleje_hvervgiverstatus_afklaret(parter.hvervgiverstatus) && kildeskat_arbejdsudleje_arbejdssted_afklaret(arbejde.arbejdssted) && kildeskat_arbejdsudleje_tilknytning_afklaret(arbejde.tilknytning) && kildeskat_arbejdsudleje_udskillelse_afklaret(arbejde.udskillelse)
 | kildeskat_arbejdsudleje_grundbetingelser_opfyldt(parter: KildeskattelovArbejdsudlejeParter, arbejde: KildeskattelovArbejdsudlejeArbejde, indkomstår: Heltal) -> parter.personstatus == ArbejdsudlejetIkkeOmfattetAfKsl1EllerKsl2Stk1Nr1 && parter.ansættelsesforhold == AnsatHosUdenlandskUdlejer && parter.udlejerstatus == UdenlandskUdlejerUdenDanskFastDriftssted && parter.hvervgiverstatus == DanskHvervgiverMedHjemtingEllerFastDriftssted && kildeskat_arbejdsudleje_arbejdssted_omfattet(arbejde.arbejdssted, indkomstår) && kildeskat_arbejdsudleje_integreret_del(arbejde)
---@end::kildeskattelov_arbejdsudleje_par2_stk1_nr3--
 
---@label:kildeskattelov_arbejdsudleje_par2_stk10::meta:kildeskattelov_arbejdsudleje_par2_metadata--
+}
+
 ----
 Stk. 10. Skattepligten i medfør af stk. 1, nr. 3, er endeligt opfyldt ved
 indeholdelse af skat efter § 48 B og erlæggelse af arbejdsmarkedsbidrag.
@@ -145,7 +146,9 @@ den 1. maj i året efter det pågældende indkomstår. Valget kan omgøres til o
 med den 30. juni i det andet kalenderår efter indkomstårets udløb.
 ----
 
---@begin::kildeskattelov_arbejdsudleje_par2_stk10--
+@ meta(kildeskattelov_arbejdsudleje_par2_metadata)
+@ section kildeskattelov_arbejdsudleje_par2_stk10 {
+
 # KildeskattelovArbejdsudlejeBeskatningsvalg = EndeligArbejdsudlejeskatEfterPar48B | ValgtOrdinærBeskatningEfterPar2Stk1Nr1(valgdato: Dato, omgørelsesdato: Option(Dato)) | ArbejdsudlejebeskatningsvalgUafklaret
 
 | kildeskat_arbejdsudleje_valgfrist(indkomstår: Heltal) -> Dato(år = indkomstår + 1, måned = 5, dag = 1)
@@ -170,7 +173,8 @@ med den 30. juni i det andet kalenderår efter indkomstårets udløb.
     | _ -> Falskt
 }
 | kildeskat_arbejdsudleje_endelig_beskatning_valgt(valg: KildeskattelovArbejdsudlejeBeskatningsvalg, indkomstår: Heltal) -> valg == EndeligArbejdsudlejeskatEfterPar48B || kildeskat_arbejdsudleje_valg_omgjort_rettidigt(valg, indkomstår)
---@end::kildeskattelov_arbejdsudleje_par2_stk10--
+
+}
 
 = kildeskattelov_arbejdsudleje_am_metadata = Metadata(
     attachments = (
@@ -182,7 +186,6 @@ med den 30. juni i det andet kalenderår efter indkomstårets udløb.
     )
 )
 
---@label:kildeskattelov_arbejdsudleje_ambl_par2_stk1_nr3::meta:kildeskattelov_arbejdsudleje_am_metadata--
 ----
 Arbejdsmarkedsbidragsloven § 2, stk. 1, nr. 3:
 
@@ -191,7 +194,9 @@ for at udføre arbejde her i landet af en virksomhed, der ikke har hjemting her
 i landet.
 ----
 
---@begin::kildeskattelov_arbejdsudleje_ambl_par2_stk1_nr3--
+@ meta(kildeskattelov_arbejdsudleje_am_metadata)
+@ section kildeskattelov_arbejdsudleje_ambl_par2_stk1_nr3 {
+
 # KildeskattelovArbejdsudlejeFriKostLogi = IngenFriKostEllerLogi | SkattepligtigFriKostOgLogi(skattepligtig_værdi_kroner: Heltal) | FriKostOgLogiDækketEfterRegningPåSkattemæssigRejse(dækket_beløb_kroner: Heltal)
 # KildeskattelovArbejdsudlejeVederlag = DokumenteretArbejdsudlejevederlag(løn_bonus_provision_tillæg_kroner: Heltal, ferie_og_afspadsering_kroner: Heltal, rejse_og_befordringsgodtgørelse_kroner: Heltal, fri_kost_og_logi: KildeskattelovArbejdsudlejeFriKostLogi, andre_skattepligtige_personalegoder_kroner: Heltal) | ArbejdsudlejevederlagEfterFakturasum(fakturasum_kroner: Heltal)
 
@@ -216,7 +221,8 @@ i landet.
     | DokumenteretArbejdsudlejevederlag(løn, ferie, rejse, fri_kost_logi, andre_goder) -> penge_positivt_beløb(løn) + penge_positivt_beløb(ferie) + penge_positivt_beløb(rejse) + kildeskat_arbejdsudleje_skattepligtig_fri_kost_logi_kroner(fri_kost_logi) + penge_positivt_beløb(andre_goder)
     | ArbejdsudlejevederlagEfterFakturasum(fakturasum) -> penge_positivt_beløb(fakturasum)
 }
---@end::kildeskattelov_arbejdsudleje_ambl_par2_stk1_nr3--
+
+}
 
 = kildeskattelov_arbejdsudleje_par48b_metadata = Metadata(
     attachments = (
@@ -229,7 +235,6 @@ i landet.
     )
 )
 
---@label:kildeskattelov_arbejdsudleje_par48b::meta:kildeskattelov_arbejdsudleje_par48b_metadata--
 ----
 § 48 B. For personer, der efter § 2, stk. 1, nr. 3, er skattepligtige af
 vederlag for personligt arbejde i forbindelse med at være stillet til rådighed
@@ -245,7 +250,9 @@ beregnet efter stk. 1 med fradrag af de udenlandske obligatoriske sociale
 arbejdsgiverbidrag, som påhviler lønmodtageren.
 ----
 
---@begin::kildeskattelov_arbejdsudleje_par48b--
+@ meta(kildeskattelov_arbejdsudleje_par48b_metadata)
+@ section kildeskattelov_arbejdsudleje_par48b {
+
 # KildeskattelovArbejdsudlejeDanskBeskatningsret = ArbejdsudlejeDanskBeskatningsretBekræftet | DobbeltbeskatningsaftaleAfskærerDanskBeskatningsretTilVederlaget | ArbejdsudlejeDanskBeskatningsretUafklaret
 # KildeskattelovArbejdsudlejeLovversion = ArbejdsudlejeLbk1330Af2023 | ArbejdsudlejeLbk460Af2024MedSenereÆndringer | ArbejdsudlejeLovversionUdenKildedækning
 # KildeskattelovArbejdsudlejeInput(identifikation: Tekst, indkomstår: Heltal, alder_ved_indkomstårets_udløb: Heltal, parter: KildeskattelovArbejdsudlejeParter, arbejde: KildeskattelovArbejdsudlejeArbejde, dansk_beskatningsret: KildeskattelovArbejdsudlejeDanskBeskatningsret, beskatningsvalg: KildeskattelovArbejdsudlejeBeskatningsvalg, vederlag: KildeskattelovArbejdsudlejeVederlag, udenlandsk_arbejdsgiverbidrag: Ligningslov8MUdenlandskArbejdsgiverbidragInput)
@@ -319,11 +326,12 @@ arbejdsgiverbidrag, som påhviler lønmodtageren.
 }
 
 | kildeskat_arbejdsudleje_resultat(input: KildeskattelovArbejdsudlejeInput) -> KildeskattelovArbejdsudlejeSag(input).resultat()
---@end::kildeskattelov_arbejdsudleje_par48b--
+
+}
 
 -- Samordningskontrol, ikke en selvstændig skatteregel eller identitetskontrol.
 -- En persons indtægt må ikke få en anden AM-alder end personens øvrige indkomst.
---@label:kildeskat_arbejdsudleje_alder_svarer_til_fødselsdato::meta:kildeskattelov_arbejdsudleje_am_metadata--
+@ meta(kildeskattelov_arbejdsudleje_am_metadata)
 > kildeskat_arbejdsudleje_alder_svarer_til_fødselsdato(indkomstår: Heltal, alder: Heltal, fødselsdato: Dato) -> Boolsk {
     dato_gyldig(fødselsdato) && fødselsdato.år <= indkomstår && alder == indkomstår - fødselsdato.år
 }

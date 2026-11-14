@@ -41,7 +41,6 @@
     )
 )
 
---@label:aktieavancebeskatningsloven_par9::meta:aktieavancebeskatningsloven_par9_metadata--
 ----
 § 9. Gevinst på aktier, der ikke er omfattet af § 8, medregnes ved opgørelsen
 af den skattepligtige indkomst, jf. dog § 10.
@@ -79,7 +78,9 @@ koncerninterne konvertible obligationer forstås obligationer i koncernforbundne
 selskaber, jf. selskabsskattelovens § 31 C.
 ----
 
---@begin:aktieavancebeskatningsloven_par9--
+@ meta(aktieavancebeskatningsloven_par9_metadata)
+@ section aktieavancebeskatningsloven_par9 {
+
 # AktieavancePar9Aktivstatus = AblPar9SkattepligtigPorteføljeaktie | AblPar9AndenTegningsret | AblPar9AndenKonvertibelObligation | AblPar9AndenTegningsretTilKonvertibelObligation | AblPar9KoncerninternKonvertibelObligation | AblPar9TegningsretTilKoncerninternKonvertibelObligation | AblPar9DatterselskabsaktieEfterPar8 | AblPar9KoncernselskabsaktieEfterPar8 | AblPar9SkattefriPorteføljeaktieEfterPar8 | AblPar9EgenAktieEfterPar10
 # AktieavancePar9Opgørelsesgrundlag = AblPar9Lagerårsopgørelse(resultat: AktieavancePar23LagerÅrsresultat) | AblPar9Par23AOpgørelse(princip_resultat: AktieavancePar23PrincipResultat, resultat: AktieavancePar23AResultat) | AblPar9RealiseretAfståelse(princip_resultat: AktieavancePar23PrincipResultat, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal)
 # AktieavancePar9PostInput(aktivstatus: AktieavancePar9Aktivstatus, opgørelsesgrundlag: AktieavancePar9Opgørelsesgrundlag, par5a_behandling: AktieavancePar5ABehandling)
@@ -258,4 +259,5 @@ selskaber, jf. selskabsskattelovens § 31 C.
 }
 
 | aktieavance_par9_årsresultat(input: AktieavancePar9Årsinput) -> AktieavancePar9Årssag(input).resultat()
---@end:aktieavancebeskatningsloven_par9--
+
+}

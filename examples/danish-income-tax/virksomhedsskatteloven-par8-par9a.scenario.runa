@@ -12,8 +12,9 @@
     )
 )
 
---@label:virksomhedsskatteloven_par8_par9a_scenarier::meta:virksomhedsskatteloven_par8_par9a_scenarier_metadata--
---@begin:virksomhedsskatteloven_par8_par9a_scenarier--
+@ meta(virksomhedsskatteloven_par8_par9a_scenarier_metadata)
+@ section virksomhedsskatteloven_par8_par9a_scenarier {
+
 | virksomhedsskattelov8_scenarie_almindelig_ejendom() -> Virksomhedsskattelov8Aktiv(
     identifikation = "Erhvervsejendom",
     værdiansættelse = Vsl8FastEjendom(fakta = Virksomhedsskattelov8FastEjendomFakta(
@@ -179,4 +180,5 @@
 ? virksomhedsskattelov8_scenarie_1987_valg_fejler_lukket
 
 @ print("Virksomhedsskatteloven §§ 8-9 a source-derived scenarios passed")
---@end:virksomhedsskatteloven_par8_par9a_scenarier--
+
+}

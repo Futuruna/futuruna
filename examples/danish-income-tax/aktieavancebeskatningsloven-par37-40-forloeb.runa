@@ -26,7 +26,6 @@
     )
 )
 
---@label:aktieavancebeskatningsloven_par37_til_40_forloeb::meta:aktieavancebeskatningsloven_par37_til_40_forloeb_metadata--
 ----
 § 37. Aktier, som ikke i forvejen er omfattet af dansk beskatning, anses for
 anskaffet på det faktiske anskaffelsestidspunkt til handelsværdien på
@@ -76,7 +75,9 @@ litra c. Saldoen nedskrives, når skatten er betalt. Saldoen kan ikke nedskrives
 til mindre end 0 kr.
 ----
 
---@begin:aktieavancebeskatningsloven_par37_til_40_forloeb--
+@ meta(aktieavancebeskatningsloven_par37_til_40_forloeb_metadata)
+@ section aktieavancebeskatningsloven_par37_til_40_forloeb {
+
 # AktieavancePar37Til40Opgørelseskilde = AblPar37Til40OpgørelseEfterPar23Til29Og46 | AblPar37Til40Tegningsretsvalg(udnyttelseskurs_pr_aktie_kroner: Heltal, markedskurs_pr_aktie_ved_ophør_kroner: Heltal)
 # AktieavancePar37Til40Henstandsvalg = AblPar37Til40HenstandSøges | AblPar37Til40SkatBetalesStraks
 # AktieavancePar37Til40AktiepostFakta(identifikation: Tekst, selskabsidentifikation: Tekst, aktieserie: Tekst, erhvervelsesdato: AktieavancePar23Dato, erhvervelsesrækkefølge: Heltal, antal: Heltal, handelsværdi_ved_ophør_kroner: Heltal, skattemæssig_anskaffelsessum_kroner: Heltal, beskatningsstatus: AktieavancePar38Beskatningsstatus, par44_status: AktieavancePar38Par44Status, egenskaber: List(AktieavancePar38Aktieegenskab), opgørelseskilde: AktieavancePar37Til40Opgørelseskilde, aktivgrundlag: AktieavancePar38Aktivgrundlag, princip: AktieavancePar23Princip, henstandsvalg: AktieavancePar37Til40Henstandsvalg)
@@ -371,4 +372,5 @@ til mindre end 0 kr.
 
 | aktieavance_par37_til40_forløbsresultat_med_skattekontekst(input: AktieavancePar37Til40Forløbsinput, skattekontekst: AktieavancePar37Til40Skattekontekst) -> AktieavancePar37Til40ForløbsSag(input, skattekontekst).resultat()
 | aktieavance_par37_til40_forløbsresultat(input: AktieavancePar37Til40Forløbsinput) -> aktieavance_par37_til40_forløbsresultat_med_skattekontekst(input, aktieavance_par37_til40_lokal_skattekontekst())
---@end:aktieavancebeskatningsloven_par37_til_40_forloeb--
+
+}

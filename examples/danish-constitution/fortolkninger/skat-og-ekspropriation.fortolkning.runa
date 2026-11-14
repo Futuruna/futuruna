@@ -49,7 +49,9 @@
     afgrænsning = "Prøvningen opstiller ingen gældende grænse mellem skat og ekspropriation og afgør ikke virkningen af en bestemt skattesats."
 )
 
---@label:fortolkning_skat_og_ekspropriation::meta:skat_og_ekspropriation_fund--
---@begin:fortolkning_skat_og_ekspropriation--
+@ meta(skat_og_ekspropriation_fund)
+@ section fortolkning_skat_og_ekspropriation {
+
 | byrdekvalifikationsfortolkningerne_er_eksplicit_adskilte() -> FormelBetegnelseFørMaterielleKendetegn != MaterielleKendetegnFørFormelBetegnelse
---@end:fortolkning_skat_og_ekspropriation--
+
+}

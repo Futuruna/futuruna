@@ -22,7 +22,7 @@
     )
 )
 
---@label:vurder_grøn_check::meta:grøn_check_beregningsmeta--
+@ meta(grøn_check_beregningsmeta)
 @ calculate("Grøn check — kildefakta, aftrapning og rapportkontrol")
 > vurder_grøn_check(input: GrønCheckInput) -> GrønCheckResultat {
     vurder_grøn_check_input(input)

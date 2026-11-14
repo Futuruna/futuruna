@@ -28,7 +28,6 @@
     )
 )
 
---@label:pbl15a_fortjeneste_fra_kildelove::meta:pbl15a_fortjeneste_fra_kildelove_metadata--
 ----
 § 15 A. Personer, der i forbindelse med afståelse af deres erhvervsmæssige
 virksomhed eller en andel af denne opnår en skattepligtig fortjeneste, eller som
@@ -48,7 +47,9 @@ den fortjeneste opnået ved afståelsen af virksomheden eller en andel af denne,
 som medregnes ved personens indkomstopgørelse.
 ----
 
---@begin:pbl15a_fortjeneste_fra_kildelove--
+@ meta(pbl15a_fortjeneste_fra_kildelove_metadata)
+@ section pbl15a_fortjeneste_fra_kildelove {
+
 # Pbl15AAfskrivningslovKilde = Pbl15AAl6Salg(input: Afskrivningslov6SalgInput) | Pbl15AAl9Virksomhedsophør(input: Afskrivningslov9Input) | Pbl15AAl9EfterfølgendeSalg(input: Afskrivningslov9EfterfølgendeSalgInput) | Pbl15AAl12BlandetAktiv(input: Afskrivningslov12Input) | Pbl15AAl21BygningEllerInstallation(input: Afskrivningslov21Input) | Pbl15AAl26LejetGrundEllerHjemfald(input: Afskrivningslov26Input) | Pbl15AAl39LejedeLokaler(input: Afskrivningslov39Input) | Pbl15AAl40GoodwillEllerImmaterieltAktiv(input: Afskrivningslov40Input) | Pbl15AAl40AKvote(input: Afskrivningslov40AInput) | Pbl15AAl40BLøbendeKvote(input: Afskrivningslov40BInput) | Pbl15AAl40CBetalingsrettighedEllerMælkekvote(input: Afskrivningslov40CInput) | Pbl15AAl42TelefonEllerDatakommunikation(input: Afskrivningslov42AfståelsesInput) | Pbl15AAl44AKunstneriskUdsmykning(input: Afskrivningslov44AAfståelsesInput) | Pbl15AAl44CForskudsafskrevetAktiv(input: Afskrivningslov44CInput) | Pbl15AAl50HistoriskBlandetAktiv(input: Afskrivningslov50SalgInput) | Pbl15AAl58HistoriskBygning(input: Afskrivningslov58SalgInput) | Pbl15AAl62HistoriskDriftsmiddel(input: Afskrivningslov62DriftsmiddelSalgInput) | Pbl15AAl62HistoriskMiljøanlæg(input: Afskrivningslov62MiljøanlægSalgInput)
 # Pbl15AAfskrivningslovKilderesultat = Pbl15AAl6SalgBeregnet(resultat: Afskrivningslov6SalgResultat) | Pbl15AAl9VirksomhedsophørBeregnet(resultat: Afskrivningslov9Resultat) | Pbl15AAl9EfterfølgendeSalgBeregnet(resultat: Afskrivningslov9EfterfølgendeSalgResultat) | Pbl15AAl12BlandetAktivBeregnet(resultat: Afskrivningslov12Resultat) | Pbl15AAl21BygningEllerInstallationBeregnet(resultat: Afskrivningslov21Resultat) | Pbl15AAl26LejetGrundEllerHjemfaldBeregnet(resultat: Afskrivningslov26Resultat) | Pbl15AAl39LejedeLokalerBeregnet(resultat: Afskrivningslov39Resultat) | Pbl15AAl40GoodwillEllerImmaterieltAktivBeregnet(resultat: Afskrivningslov40Resultat) | Pbl15AAl40AKvoteBeregnet(resultat: Afskrivningslov40AResultat) | Pbl15AAl40BLøbendeKvoteBeregnet(resultat: Afskrivningslov40BResultat) | Pbl15AAl40CBetalingsrettighedEllerMælkekvoteBeregnet(resultat: Afskrivningslov40CResultat) | Pbl15AAl42TelefonEllerDatakommunikationBeregnet(resultat: Afskrivningslov42AfståelsesResultat) | Pbl15AAl44AKunstneriskUdsmykningBeregnet(resultat: Afskrivningslov44AAfståelsesResultat) | Pbl15AAl44CForskudsafskrevetAktivBeregnet(resultat: Afskrivningslov44CResultat) | Pbl15AAl50HistoriskBlandetAktivBeregnet(resultat: Afskrivningslov50Resultat) | Pbl15AAl58HistoriskBygningBeregnet(resultat: Afskrivningslov58Resultat) | Pbl15AAl62HistoriskDriftsmiddelBeregnet(resultat: Afskrivningslov62DriftsmiddelSalgResultat) | Pbl15AAl62HistoriskMiljøanlægBeregnet(resultat: Afskrivningslov62MiljøanlægSalgResultat)
 # Pbl15AAfskrivningslovspost(identifikation: Tekst, kilde: Pbl15AAfskrivningslovKilde)
@@ -287,4 +288,5 @@ som medregnes ved personens indkomstopgørelse.
         - foldl(map(grundlag.afskrivningslovsposter, |post: Pbl15AAfskrivningslovspost| pbl15a_afskrivningslovspost_resultat(indkomstår, post)), pbl15a_ejendomsavance_kilderesultat(indkomstår, grundlag.ejendomsavance).fradragsberettiget_tab_kroner + pbl15a_aktieavance_kilderesultat(indkomstår, grundlag.aktieavance).fradragsberettiget_tab_kroner + foldl(map(grundlag.kursgevinstposter, |post: Pbl15AKursgevinstpost| pbl15a_kursgevinstpost_resultat(indkomstår, post)), 0, |sum: Heltal, resultat: Pbl15AKursgevinstpostresultat| sum + resultat.fradragsberettiget_tab_kroner), |sum: Heltal, resultat: Pbl15AAfskrivningslovspostresultat| sum + resultat.fradragsberettiget_tab_kroner)
     )
 )
---@end:pbl15a_fortjeneste_fra_kildelove--
+
+}

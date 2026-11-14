@@ -74,8 +74,6 @@
     )
 )
 
---@label:afstem_årsopgørelse::meta:rapport_afstemningsmetadata--
-
 = rapport_slutbetalingsmetadata = Beregningsmeta(
     felter = [], spørgsmål = [], beløbsfelter = [],
     attachments = (
@@ -83,7 +81,6 @@
         Warning(value = "Rapportaritmetik med oplyste korrektioner. Lovhenvisningerne begrunder adskillelsen mellem årsbeløb og betaling, ikke retmæssigheden af en konkret post, renter, opkrævningsgrænser eller en afregningsplan."),
     )
 )
---@label:rapport_korrigeret_betaling::meta:rapport_slutbetalingsmetadata--
 
 | rapport_beløb_afgrænset(beløb: Heltal) -> beløb >= -1000000000000 && beløb <= 1000000000000
 | rapport_option_afgrænset(beløb: Heltal?) -> match beløb { | None -> Sandt | Some(værdi) -> rapport_beløb_afgrænset(værdi) }
@@ -235,7 +232,9 @@ Beløbet benævnes »restskat«.
 -- Her afstemmes kun de oplyste beløb: ingen ny beregning af renter,
 -- godtgørelse, opkrævningsgrænser, rater eller ret til tidligere betalinger.
 -- Bevar fortegnet indtil retningen er kontrolleret, også ved mindre end 1 kr.
---@begin:rapport_korrigeret_betaling--
+@ meta(rapport_slutbetalingsmetadata)
+@ section rapport_korrigeret_betaling {
+
 | rapport_korrigeret_betalingssaldo_øre(b: RapportBetaling) -> hvis b.korrektioner_komplette {
     rapport_option_plus(rapport_overskydende(b), Some(rapport_sum(b.korrektioner_til_udbetaling)))
 } ellers { None }
@@ -278,7 +277,8 @@ Beløbet benævnes »restskat«.
             | None -> [rapport_kontrol("Udbetaling efter oplyste korrektioner og hele kroner", "DKK", rapport_udbetaling(b), b.oplyst_udbetaling_kroner)]
         }
     })
---@end:rapport_korrigeret_betaling--
+
+}
 
 | rapport_ægtefællekommune_understøttet(skatteår: Heltal, kommune: Kommune?) -> match kommune {
     | None -> Sandt
@@ -354,6 +354,7 @@ Her beregnes skatteværdierne med ægtefællens egne skatteprocenter
     )
 }
 
+@ meta(rapport_afstemningsmetadata)
 @ calculate("Afstem årsopgørelse uden ægtefællens rapport")
 | afstem_årsopgørelse(input: ÅrsopgørelseAfstemningsinput) -> hvis skatteår_understøttet(input.skatteår) && kommune_indkomstskat_understøttet_i_år(input.skatteår, input.kommune) && rapport_ægtefællekommune_understøttet(input.skatteår, input.ægtefællens_kommune) {
     hvis rapport_input_gyldigt(input) { rapport_afstem_med_parametre(input) } ellers {

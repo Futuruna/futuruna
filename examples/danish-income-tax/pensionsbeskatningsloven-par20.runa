@@ -18,7 +18,6 @@
     )
 )
 
---@label:pensionsbeskatningsloven_par20::meta:pensionsbeskatningsloven_par20_metadata--
 ----
 § 20. Til den skattepligtige indkomst medregnes:
 
@@ -77,7 +76,9 @@ C, stk. 1, nr. 3, litra a, finder ved beskatning efter stk. 1 ligningslovens §
 medfør af erklæringen.
 ----
 
---@begin:pensionsbeskatningsloven_par20--
+@ meta(pensionsbeskatningsloven_par20_metadata)
+@ section pensionsbeskatningsloven_par20 {
+
 # Pbl20Ordning = Pbl20PensionsordningMedLøbendeUdbetalinger | Pbl20ForsikringEfterPar5 | Pbl20ForsikringEfterPar7 | Pbl20Rateforsikring | Pbl20ForsikringEfterPar9 | Pbl20Rateopsparing | Pbl20Indeksordning
 # Pbl20Modtager = Pbl20Ægtefælle | Pbl20FraskiltÆgtefælle | Pbl20Samlever | Pbl20SamleversLivsarving(alder_hele_år: Heltal) | Pbl20EjerensLivsarving(alder_hele_år: Heltal) | Pbl20Stedbarn(alder_hele_år: Heltal) | Pbl20StedbarnsLivsarving(alder_hele_år: Heltal) | Pbl20AndenModtager
 # Pbl20Udbetalingsret = Pbl20TilEjerEfterVilkår | Pbl20TilBegunstigetEfterEjerensDød(modtager: Pbl20Modtager) | Pbl20TilAndenEfterVilkår(modtager: Pbl20Modtager) | Pbl20UdloddetVedSkifteTilFraskiltEllerFrasepareretÆgtefælle | Pbl20TilBegunstigetEfterUdlodningsmodtagersDød(modtager: Pbl20Modtager) | Pbl20AndenUdbetalingsret(modtager: Pbl20Modtager)
@@ -225,4 +226,5 @@ medfør af erklæringen.
     )
 }
 | pbl20_årsresultat(indkomstår: Heltal, grundlag: Pbl20Årsgrundlag) -> Pbl20Årssag(indkomstår, grundlag).resultat()
---@end:pensionsbeskatningsloven_par20--
+
+}

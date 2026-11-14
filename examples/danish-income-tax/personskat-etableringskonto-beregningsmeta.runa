@@ -247,4 +247,4 @@
     )
 )
 
---@label:PersonskatPersonligIndkomstInput::meta:personskat_etableringskonto_beregningsmeta--
+@ meta(personskat_etableringskonto_beregningsmeta) for PersonskatPersonligIndkomstInput

@@ -19,14 +19,14 @@
     )
 )
 
---@label:lønmodtager_eksakt_skat::meta:lønmodtager_eksakt_skat_metadata--
 ----
 Skatteberegningen sker herefter for alle skatters vedkommende på grundlag af
 uafrundede beregningsgrundlag i hele kroner. Ørebeløb medregnes ved
 skatteberegningen.
 ----
 
---@begin:lønmodtager_eksakt_skat--
+@ meta(lønmodtager_eksakt_skat_metadata)
+@ section lønmodtager_eksakt_skat {
 
 # LønmodtagerEksakteSkattekomponenter(par6_skat_øre: Heltal, par7_skat_øre: Heltal, par7a_skat_øre: Heltal, par8_skat_øre: Heltal, par8a_stk2_skat_øre: Heltal, cfc_indkomstskat_øre: Heltal, par8c_skat_øre: Heltal, kommuneskat_øre: Heltal, kirkeskat_øre: Heltal)
 # LønmodtagerEksakteUdgåendeOverførsler(par13_indkomstfradrag_kroner: Heltal, par13_skatteværdi_øre: Heltal, ubrugt_par8_personfradrag_øre: Heltal, ubrugt_par6_personfradrag_øre: Heltal, ubrugt_par8c_personfradrag_øre: Heltal, ubrugt_kommunalt_personfradrag_øre: Heltal, ubrugt_kirkeligt_personfradrag_øre: Heltal, ubrugt_par11_nedslag_øre: Heltal, personfradragsgrundlag: Par12Personfradragsgrundlag)
@@ -334,4 +334,4 @@ skatteberegningen.
 | beregn_lønmodtager_eksakt_med_overførsler(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold, par13_forhold: LønmodtagerPar13Forhold, indgående_overførsler: LønmodtagerEksakteIndgåendeOverførsler) -> lønmodtager_eksakt_beregningssag(input, skatteforhold, par13_forhold, indgående_overførsler).resultat()
 | beregn_lønmodtager_eksakt(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold, par13_forhold: LønmodtagerPar13Forhold) -> beregn_lønmodtager_eksakt_med_overførsler(input, skatteforhold, par13_forhold, lønmodtager_uden_eksakte_indgående_overførsler())
 
---@end:lønmodtager_eksakt_skat--
+}

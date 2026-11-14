@@ -52,7 +52,6 @@
     )
 )
 
---@label:aktieavancebeskatningsloven_par5a::meta:aktieavancebeskatningsloven_par5a_metadata--
 ----
 § 5 A. Tab ved afståelse af aktier kan kun fradrages, i det omfang tabet
 overstiger summen af følgende modtagne udbytter:
@@ -97,7 +96,9 @@ finder tilsvarende anvendelse ved opgørelse af tab, hvor det skattemæssige
 statusskifte sker inden den 24. november 2010.
 ----
 
---@begin:aktieavancebeskatningsloven_par5a--
+@ meta(aktieavancebeskatningsloven_par5a_metadata)
+@ section aktieavancebeskatningsloven_par5a {
+
 # AktieavancePar5AAnvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere | AblPar5AAfståelseFørDen24November2010 | AblPar5AStatusskifteFørDen24November2010EfterLov254Par14Stk11 | AblPar5AUndtagetEfterPar22Stk6
 # AktieavancePar5ASkatteydergrundlag = AblPar5ASelskabSkattepligtigtEfterPar17 | AblPar5ASelskabOmfattetAfPar43Stk4 | AblPar5APersonSkattepligtigEfterPar7 | AblPar5AAndenSkattepligtig
 # AktieavancePar5AEjertidsudbytte = AblPar5ASkattefritUdbytteAfPågældendeAktier(beløb_kroner: Heltal) | AblPar5AUdbytteMedDobbeltbeskatningslempelse(beløb_kroner: Heltal, lempelse_kroner: Heltal, betalt_skat_i_fremmed_stat_kroner: Heltal) | AblPar5AAndetUdbytteAfPågældendeAktier(beløb_kroner: Heltal)
@@ -170,4 +171,5 @@ statusskifte sker inden den 24. november 2010.
 | aktieavance_par5a_behandling_gyldig(behandling: AktieavancePar5ABehandling) -> match behandling { | AblPar5AUdenAfståelsestab -> Sandt | AblPar5AEnkeltAfståelse(resultat) -> aktieavance_par5a_resultat_gyldigt(resultat) | AblPar5ALagerafståelser(resultater) -> aktieavance_par5a_lagerresultater_gyldige(resultater) }
 | aktieavance_par5a_behandling_bruttotab_kroner(behandling: AktieavancePar5ABehandling) -> match behandling { | AblPar5AUdenAfståelsestab -> 0 | AblPar5AEnkeltAfståelse(resultat) -> resultat.input.bruttotab_ved_afståelse_kroner | AblPar5ALagerafståelser(resultater) -> aktieavance_par5a_lagerresultater_bruttotab_kroner(resultater) }
 | aktieavance_par5a_behandling_tabsreduktion_kroner(behandling: AktieavancePar5ABehandling) -> match behandling { | AblPar5AUdenAfståelsestab -> 0 | AblPar5AEnkeltAfståelse(resultat) -> resultat.tabsreduktion_efter_par5a_kroner | AblPar5ALagerafståelser(resultater) -> aktieavance_par5a_lagerresultater_tabsreduktion_kroner(resultater) }
---@end:aktieavancebeskatningsloven_par5a--
+
+}

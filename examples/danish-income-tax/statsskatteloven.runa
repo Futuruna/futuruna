@@ -29,7 +29,6 @@
     )
 )
 
---@label:statsskatteloven_par6_litra_a::meta:statsskatteloven_par6_litra_a_metadata--
 ----
 § 6
 
@@ -40,7 +39,9 @@ til at erhverve, sikre og vedligeholde Indkomsten, derunder ordinære
 Afskrivninger;
 ----
 
---@begin:statsskatteloven_par6_litra_a--
+@ meta(statsskatteloven_par6_litra_a_metadata)
+@ section statsskatteloven_par6_litra_a {
+
 # Statsskattelov6Skatteyder = Sl6SelvstændigErhvervsdrivendePerson | Sl6AndenSkatteyder
 # Statsskattelov6OrdinærAfskrivningInput(skatteyder: Statsskattelov6Skatteyder, udgift_eller_aktiv_anvendt_til_at_erhverve_sikre_og_vedligeholde_indkomsten: Boolsk, ikke_omfattet_af_særlig_afskrivningslovgivning: Boolsk, afskrivningsgrundlag_primo_kroner: Heltal, dokumenteret_ordinær_værdiforringelse_i_året_kroner: Heltal, ønsket_ordinær_afskrivning_kroner: Heltal)
 # Statsskattelov6OrdinærAfskrivningResultat(skatteyder: Statsskattelov6Skatteyder, driftsomkostning_omfattet: Boolsk, afskrivningsgrundlag_primo_kroner: Heltal, dokumenteret_ordinær_værdiforringelse_i_året_kroner: Heltal, ordinær_afskrivning_kroner: Heltal, afskrivningsgrundlag_ultimo_kroner: Heltal)
@@ -69,4 +70,5 @@ Afskrivninger;
 }
 | statsskattelov6_ordinær_afskrivning_sag(input: Statsskattelov6OrdinærAfskrivningInput) -> Statsskattelov6OrdinærAfskrivningSag(input)
 | statsskattelov6_ordinær_afskrivning_resultat(input: Statsskattelov6OrdinærAfskrivningInput) -> statsskattelov6_ordinær_afskrivning_sag(input).resultat()
---@end:statsskatteloven_par6_litra_a--
+
+}

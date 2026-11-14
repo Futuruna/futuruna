@@ -2,11 +2,9 @@
 
 = circle_source = Circle
 
---@label:circle_rule::source:circle_source--
 ----
 Circle source
 ----
 
---@begin::circle_rule--
+@ meta(circle_source)
 | circle_rule(shape: Shape) -> shape == Circle
---@end::circle_rule--

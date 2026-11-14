@@ -42,13 +42,14 @@ omfang som nævnt i ligningslovens § 8 M,
         hentet_dato = "2026-09-25"
     )),
 ))
---@label:LønmodtagerPar13Forhold::meta:lønmodtager_underskud_modtagersats_metadata--
 ----
 Skal skatteværdien af underskud modregnes hos den anden ægtefælle, beregnes
 skatteværdien med denne ægtefælles skatteprocenter.
 ----
+
 -- Satsen er modtagers: den bruges også ved tilbageomregning til restunderskud.
 -- Personskat afleder den fra ægtefællens beregning, ikke fra en oplyst skat.
+@ meta(lønmodtager_underskud_modtagersats_metadata)
 # LønmodtagerPar13Forhold(egne_tidligere_underskud_kroner: Heltal, par13a_nedsættelsesbeløb_kroner: Heltal, ægtefælle_skattepligtig_indkomst_kroner: Heltal, ægtefælles_egne_tidligere_underskud_kroner: Heltal, ægtefælle_skatteværdi_sats_basispoint: Heltal, ægtefælle_modregningsskatter: Par13ModregningsSkatter, gift_samlevende_ved_årets_udløb: Boolsk, ikke_rummet_i_tidligere_indkomst_eller_skat: Boolsk)
 # LønmodtagerPar13UnderskudResult(kræver_behandling: Boolsk, skattepligtigt_underskud_kroner: Heltal, skatteværdi_sats_basispoint: Heltal, skatteværdi_kroner: Heltal, modregning: Par13ModregningResult, statsskat_efter_par13_kroner: Heltal, ubenyttet_skatteværdi_kroner: Heltal, udnyttet_skatteværdi_kroner: Heltal, stk1_fremførsel: Par13Stk1FremførselResult, par13a_underskud_før_nedsættelse_kroner: Heltal, par13a_underskud_nedsat_kroner: Heltal, par13a_underskud_efter_nedsættelse_kroner: Heltal, par13a_nedsættelsesbeløb_efter_underskud_kroner: Heltal, ægtefælle_egne_underskud_prioritet: Par13ÆgtefælleEgneUnderskudPrioritetResult, ægtefælleoverførsel: Par13ÆgtefælleOverførselResult, ægtefælle_skattemodregning: Par13ÆgtefælleSkatModregningResult, fremført_efter_ægtefælle_kroner: Heltal)
 # LønmodtagerPar11NedslagResultat(nedslag: Par11NegativKapitalNedslagResultat, modregning: Par11NedslagModregningResultat)

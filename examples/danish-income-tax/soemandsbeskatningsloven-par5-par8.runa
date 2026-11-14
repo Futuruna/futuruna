@@ -73,14 +73,15 @@
     )
 )
 
---@label:søbl5_til8_par1_stk3_stk4::meta:søbl5_til8_par1_metadata--
 ----
 § 1, stk. 3. Personer, som erhverver indkomst ved arbejde om bord på skib, som de ejer, eller i hvilket de som partredere eller interessenter ejer en andel, er omfattet af denne lov. Det er en betingelse for anvendelsen af §§ 5, 6 og 8, at ejerens, partrederens eller interessentens aflønning svarer til den, der ydes til ansatte med samme anciennitet m.v.
 
 Stk. 4. Stk. 3 finder tilsvarende anvendelse for personer, som udøver bestemmende indflydelse over det rederi, som ejer det skib, hvor den pågældende udfører arbejde, og dermed nærtstående personer. Ved bestemmende indflydelse forstås ejerskab eller rådighed over stemmerettigheder som nævnt i ligningslovens § 2, stk. 2. Ved nærtstående personer forstås personer som nævnt i ligningslovens § 16 H, stk. 2, 3. og 4. pkt.
 ----
 
---@begin::søbl5_til8_par1_stk3_stk4--
+@ meta(søbl5_til8_par1_metadata)
+@ section søbl5_til8_par1_stk3_stk4 {
+
 # Søbl5Til8Aflønningssammenligning = SøblAflønningSvarerTilSammenligneligeAnsatte | SøblAflønningAfvigerFraSammenligneligeAnsatte
 # Søbl5Til8Personrelation = SøblAlmindeligLønmodtager | SøblEjerPartrederEllerInteressent(sammenligning: Søbl5Til8Aflønningssammenligning) | SøblBestemmendeIndflydelseEllerNærtstående(sammenligning: Søbl5Til8Aflønningssammenligning)
 
@@ -89,7 +90,8 @@ Stk. 4. Stk. 3 finder tilsvarende anvendelse for personer, som udøver bestemmen
     | SøblEjerPartrederEllerInteressent(sammenligning) -> sammenligning == SøblAflønningSvarerTilSammenligneligeAnsatte
     | SøblBestemmendeIndflydelseEllerNærtstående(sammenligning) -> sammenligning == SøblAflønningSvarerTilSammenligneligeAnsatte
 }
---@end::søbl5_til8_par1_stk3_stk4--
+
+}
 
 = søbl5_til8_bek940_par1_metadata = Metadata(
     attachments = (
@@ -98,7 +100,6 @@ Stk. 4. Stk. 3 finder tilsvarende anvendelse for personer, som udøver bestemmen
     )
 )
 
---@label:søbl5_til8_bek940_par1::meta:søbl5_til8_bek940_par1_metadata--
 ----
 § 1. Sømandsfradrag kan vælges i følgende tilfælde, når betingelserne i sømandsbeskatningslovens § 3 er opfyldt:
 1) Ved ansættelse til arbejde om bord, når den pågældende indgår i skibets normale driftsbesætning og udelukkende udfører opgaver, der vedrører skibets almindelige drift i bred forstand.
@@ -113,7 +114,9 @@ Stk. 2. Stk. 1 finder tilsvarende anvendelse i følgende tilfælde:
 Stk. 3. Nødvendige rejsedage i forbindelse med påmønstring og afmønstring anses for arbejde udført om bord på skib. Omfanget kan højst udgøre 14 dage inden for en 12-månedersperiode.
 ----
 
---@begin::søbl5_til8_bek940_par1--
+@ meta(søbl5_til8_bek940_par1_metadata)
+@ section søbl5_til8_bek940_par1 {
+
 # Søbl5Til8Datoperiode(startdato: Dato, slutdato: Dato)
 # SøblKursus12Månedersopgørelse(opgørelsesperiode: Søbl5Til8Datoperiode, kursusperioder: List(Søbl5Til8Datoperiode))
 # SøblKursus12Månedersresultat(opgørelse: SøblKursus12Månedersopgørelse, input_gyldigt: Boolsk, første_kursusdag: Dato, samlede_kursusdage: Heltal, tremånedersudløb_dato: Dato, tremånedersmaksimum_dage: Heltal, tremånedersgrænse_opfyldt: Boolsk)
@@ -178,7 +181,8 @@ Stk. 3. Nødvendige rejsedage i forbindelse med påmønstring og afmønstring an
     | SøblNødvendigeRejsedage(opgørelse) -> søbl5_til8_rejsedage12_månedersresultat(opgørelse).fjortendagesgrænse_opfyldt
     | SøblAndetArbejde -> Falskt
 }
---@end::søbl5_til8_bek940_par1--
+
+}
 
 = søbl5_til8_par5_metadata = Metadata(
     attachments = (
@@ -197,7 +201,6 @@ Stk. 3. Nødvendige rejsedage i forbindelse med påmønstring og afmønstring an
     )
 )
 
---@label:søbl5_til8_par5::meta:søbl5_til8_par5_metadata--
 ----
 § 5. Har en person, der er skattepligtig efter kildeskattelovens § 1, erhvervet lønindkomst ved arbejde om bord på et dansk skib, som er registreret i Dansk Internationalt Skibsregister, og som udelukkende anvendes til formål, som vil kunne omfattes af tonnageskatteloven, nedsættes den samlede indkomstskat med det beløb, der forholdsmæssigt falder på denne indkomst. 1. pkt. finder tilsvarende anvendelse på dødsboer omfattet af dødsboskattelovens § 1, stk. 2. Gratialer og fratrædelsesgodtgørelser m.v., jf. ligningslovens § 7 U, er omfattet af 1. pkt., når den pågældende ydelse har direkte tilknytning til arbejde udført om bord på skib som nævnt i 1. pkt.
 
@@ -212,7 +215,9 @@ Stk. 5. Personer, som kan anvende stk. 1-3, er ikke omfattet af ligningslovens �
 § 5 a. (Ophævet)
 ----
 
---@begin::søbl5_til8_par5--
+@ meta(søbl5_til8_par5_metadata)
+@ section søbl5_til8_par5 {
+
 # Søbl5Til8Skattepligt = SøblFuldtSkattepligtigEfterKsl1 | SøblBegrænsetSkattepligtigEfterKsl2Stk2 | SøblDødsboEfterDødsboskattelov1Stk2 | SøblKulbrinteskattepligtigEfterPar21Stk2 | SøblAndenSkattepligtsposition
 # Søbl5Til8Skattepligtskategori = SøblIngenSkattepligtskategori | SøblFuldSkattepligtKategori | SøblBegrænsetSkattepligtKategori | SøblDødsboSkattepligtKategori | SøblKulbrinteSkattepligtKategori | SøblAndenSkattepligtKategori
 # Søbl5Til8Statsborgerskab = SøblStatsborgerIEUEØS | SøblStatsborgerISchweiz | SøblBritiskStatsborgerOmfattetAfUdtrædelsesaftalen | SøblAndetStatsborgerskab
@@ -321,16 +326,18 @@ Stk. 5. Personer, som kan anvende stk. 1-3, er ikke omfattet af ligningslovens �
     = kategori = søbl5_til8_skattepligtskategori(skattepligt)
     kategori == SøblFuldSkattepligtKategori || kategori == SøblBegrænsetSkattepligtKategori
 }
---@end::søbl5_til8_par5--
 
---@label:søbl5_til8_par5b::meta:søbl5_til8_par5_metadata--
+}
+
 ----
 § 5 b. § 5 finder tilsvarende anvendelse for personer, der er skattepligtige efter kildeskattelovens § 1 eller § 2, stk. 2, eller kulbrinteskattelovens § 21, stk. 2, og som erhverver lønindkomst ved arbejde om bord på et udenlandsk skib, der er registreret med hjemsted i en EU- eller EØS-medlemsstat og sejler under et flag fra en EU- eller EØS-medlemsstat, såfremt skibet udelukkende anvendes til formål, der vil kunne omfattes af tonnageskattelovens § 6 eller § 8 a, nr. 1 eller 2 eller nr. 3, 1. pkt., hvor betingelsen i 2. pkt. ikke finder tilsvarende anvendelse, eller nr. 4-6.
 
 Stk. 2. Skattefritagelse efter stk. 1 er betinget af, at arbejdsgiveren er godkendt af told- og skatteforvaltningen efter § 11 a. Det er endvidere en betingelse, at skibet ikke anvendes til sejlads med passagerer mellem danske havne. 2. pkt. gælder dog ikke ved fart til og fra havanlæg.
 ----
 
---@begin::søbl5_til8_par5b--
+@ meta(søbl5_til8_par5_metadata)
+@ section søbl5_til8_par5b {
+
 | søbl5b_skattepligt_opfyldt(skattepligt: Søbl5Til8Skattepligt) -> match skattepligt {
     | SøblFuldtSkattepligtigEfterKsl1 -> Sandt
     | SøblBegrænsetSkattepligtigEfterKsl2Stk2 -> Sandt
@@ -339,7 +346,8 @@ Stk. 2. Skattefritagelse efter stk. 1 er betinget af, at arbejdsgiveren er godke
 }
 | søbl5b_passagerbetingelse_opfyldt(passagerrute: Søbl5Til8Passagerrute) -> passagerrute != SøblRegelmæssigPassagersejladsMellemDanskeHavne && passagerrute != SøblAndenPassagersejladsMellemDanskeHavne
 | søbl5b_skibs_og_arbejdsgiverbetingelser_opfyldt(skib: Søbl5Til8Skibsfakta, passagerrute: Søbl5Til8Passagerrute) -> søbl5_til8_udenlandsk_eu_eøs_skib(skib) && skib.arbejdsgiverstatus == SøblUdenlandskArbejdsgiverGodkendtEfterPar11A && søbl5b_passagerbetingelse_opfyldt(passagerrute)
---@end::søbl5_til8_par5b--
+
+}
 
 = søbl5_til8_par6_metadata = Metadata(
     attachments = (
@@ -350,14 +358,15 @@ Stk. 2. Skattefritagelse efter stk. 1 er betinget af, at arbejdsgiveren er godke
     )
 )
 
---@label:søbl5_til8_par6::meta:søbl5_til8_par6_metadata--
 ----
 § 6. Ved arbejde om bord på skib, som anvendes som bugser- og bjærgningsfartøj inden for EU/EØS, finder § 5 udelukkende anvendelse i tilfælde, hvor skibet udfører virksomhed med karakter af søtransport i mindst 50 pct. af den tid, skibet i løbet af et indkomstår er i drift. Det er en betingelse, at fartøjet har hjemsted i en EU- eller EØS-medlemsstat.
 
 Stk. 2. Ved anvendelsen af stk. 1 fordeles ventetid forholdsmæssigt mellem den tid, der er medgået til bugser- og bjærgningsaktiviteter til søs, og den tid, der er anvendt til andre aktiviteter.
 ----
 
---@begin::søbl5_til8_par6--
+@ meta(søbl5_til8_par6_metadata)
+@ section søbl5_til8_par6 {
+
 | søbl6_søtransportminutter_før_ventetid(driftstid: Søbl6Driftstid) -> driftstid.søtransport_minutter + driftstid.mobilisering_til_søs_minutter
 | søbl6_aktive_minutter_før_ventetid(driftstid: Søbl6Driftstid) -> søbl6_søtransportminutter_før_ventetid(driftstid) + driftstid.andre_aktiviteter_minutter
 | søbl6_ventetid_til_søtransport_tæller(driftstid: Søbl6Driftstid) -> driftstid.ventetid_minutter * søbl6_søtransportminutter_før_ventetid(driftstid)
@@ -437,7 +446,8 @@ Stk. 2. Ved anvendelsen af stk. 1 fordeles ventetid forholdsmæssigt mellem den 
     | _ -> Falskt
 }
 | søbl6_betingelser_opfyldt(skib: Søbl5Til8Skibsfakta, arbejde: Søbl5Til8Arbejdsfakta, årsdriftsrelation: Søbl6IndkomstÅrsdriftsrelation) -> hvis søbl6_finder_anvendelse(arbejde) { søbl5_til8_registrering_har_eu_eøs_hjemsted(skib.registrering) && søbl6_årsdriftsrelation_opfylder_halvdelskravet(årsdriftsrelation) } ellers { Sandt }
---@end::søbl5_til8_par6--
+
+}
 
 = søbl5_til8_par7_metadata = Metadata(
     attachments = (
@@ -447,18 +457,20 @@ Stk. 2. Ved anvendelsen af stk. 1 fordeles ventetid forholdsmæssigt mellem den 
     )
 )
 
---@label:søbl5_til8_par7::meta:søbl5_til8_par7_metadata--
 ----
 § 7. Ved arbejde om bord på et skib, som sejler i regelmæssig passagersejlads mellem havne i EU- eller EØS-medlemsstater, finder § 5 kun anvendelse på personer, der er skattepligtige efter kildeskattelovens § 1 eller § 2, stk. 2, og som er statsborgere i en EU- eller EØS-medlemsstat eller i Schweiz. Med personer, som er statsborgere i en EU-medlemsstat, sidestilles personer, der er statsborgere i Det Forenede Kongerige, og som er omfattet af anden del, afsnit II, kapitel 2, i Aftale om Det Forenede Kongerige Storbritannien og Nordirlands udtræden af Den Europæiske Union og Det Europæiske Atomenergifællesskab (2019/C 384 I/01).
 
 Stk. 2. Ved anvendelsen af stk. 1 er det en betingelse, at skibet er registreret med hjemsted i en EU- eller EØS-medlemsstat og sejler under et flag fra en EU- eller EØS-medlemsstat.
 ----
 
---@begin::søbl5_til8_par7--
+@ meta(søbl5_til8_par7_metadata)
+@ section søbl5_til8_par7 {
+
 | søbl7_regelmæssig_passagersejlads(passagerrute: Søbl5Til8Passagerrute) -> passagerrute == SøblRegelmæssigPassagersejladsMellemEUEØSHavne || passagerrute == SøblRegelmæssigPassagersejladsMellemDanskeHavne || passagerrute == SøblPassagersejladsMellemDanskeHavneTilFraHavanlæg
 | søbl7_statsborgerskab_opfyldt(statsborgerskab: Søbl5Til8Statsborgerskab) -> statsborgerskab == SøblStatsborgerIEUEØS || statsborgerskab == SøblStatsborgerISchweiz || statsborgerskab == SøblBritiskStatsborgerOmfattetAfUdtrædelsesaftalen
 | søbl7_betingelser_opfyldt(person: Søbl5Til8Personfakta, skib: Søbl5Til8Skibsfakta, passagerrute: Søbl5Til8Passagerrute) -> hvis søbl7_regelmæssig_passagersejlads(passagerrute) { søbl5_til8_fuldt_eller_begrænset_skattepligtig(person.skattepligt) && søbl7_statsborgerskab_opfyldt(person.statsborgerskab) && søbl5_til8_registrering_har_eu_eøs_hjemsted(skib.registrering) && søbl5_til8_registrering_har_eu_eøs_flag(skib.registrering) } ellers { Sandt }
---@end::søbl5_til8_par7--
+
+}
 
 = søbl5_til8_par8_metadata = Metadata(
     attachments = (
@@ -469,12 +481,13 @@ Stk. 2. Ved anvendelsen af stk. 1 er det en betingelse, at skibet er registreret
     )
 )
 
---@label:søbl5_til8_par8::meta:søbl5_til8_par8_metadata--
 ----
 § 8. § 5 finder uanset tonnageskattelovens bestemmelser tilsvarende anvendelse ved arbejde uden for EU/EØS om bord på stenfiskerfartøjer, herunder sandsugere, som nævnt i § 10, stk. 1.
 ----
 
---@begin::søbl5_til8_par8--
+@ meta(søbl5_til8_par8_metadata)
+@ section søbl5_til8_par8 {
+
 | søbl8_skib_omfattet_af_par10_stk1(skib: Søbl5Til8Skibsfakta) -> skib.bruttotonnage >= 20 && match skib.registrering {
     | SøblDanskSkibRegistreretIDIS -> Sandt
     | SøblDanskSkibRegistreretIDAS -> Sandt
@@ -485,7 +498,8 @@ Stk. 2. Ved anvendelsen af stk. 1 er det en betingelse, at skibet er registreret
     | SøblUdelukkendeAnvendtTil(SøblStenfiskeriEllerSandsugning) -> Sandt
     | _ -> Falskt
 }
---@end::søbl5_til8_par8--
+
+}
 
 = søbl5_til8_bek940_metadata = Metadata(
     attachments = (
@@ -496,7 +510,6 @@ Stk. 2. Ved anvendelsen af stk. 1 er det en betingelse, at skibet er registreret
     )
 )
 
---@label:søbl5_til8_bek940_par4_til7::meta:søbl5_til8_bek940_metadata--
 ----
 § 4. Lønindkomst kan beskattes efter sømandsbeskatningslovens §§ 5-8 i samme omfang som nævnt i § 1, når skibet er et dansk skib registreret i Dansk Internationalt Skibsregister eller et udenlandsk skib registreret i et skibsregister i en anden EU- eller EØS-medlemsstat, når skibet udelukkende anvendes til formål, der ville kunne omfattes af tonnageskattelovens § 6 eller § 8 a, nr. 1 eller 2 eller nr. 3, 1. pkt., hvor betingelsen i 2. pkt. ikke finder tilsvarende anvendelse, eller nr. 4-6. Ved tilsynsopgaver som omhandlet i § 1, stk. 2, nr. 1, er det en betingelse, at skibet efter færdiggørelsen opfylder betingelserne for anvendelse af sømandsbeskatningslovens §§ 5-8.
 
@@ -519,7 +532,9 @@ Stk. 4. § 4, stk. 2 og 3, finder tilsvarende anvendelse.
 Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusionsordningen for sandsugere i sømandsbeskatningslovens § 10 i stedet for DIS-ordningen i sømandsbeskatningslovens § 5, jf. § 8.
 ----
 
---@begin::søbl5_til8_bek940_par4_til7--
+@ meta(søbl5_til8_bek940_metadata)
+@ section søbl5_til8_bek940_par4_til7 {
+
 | søbl5_til8_ligningslov7u_bundfradrag_kroner(indkomstår: Heltal) -> 0
 | exception søbl5_til8_ligningslov7u_bundfradrag_med_kildedækning søbl5_til8_ligningslov7u_bundfradrag_kroner(indkomstår: Heltal) -> 8000 under søbl5_til8_ligningslov7u_lovversion_for(indkomstår = indkomstår) != Søbl5Til8Ll7ULovversionUdenKildedækning
 | søbl5_til8_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> hvis a_kroner < b_kroner { a_kroner } ellers { b_kroner }
@@ -790,4 +805,5 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
         par13_stk5_lempelsesgrundlag = søbl5_til8_par13_lempelsesgrundlag(indkomstresultater)
     )
 }
---@end::søbl5_til8_bek940_par4_til7--
+
+}

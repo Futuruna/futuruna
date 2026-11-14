@@ -15,7 +15,7 @@
 = abl_par17_klassifikation_kildemeta = Source(
     value = aktieavancebeskatningsloven_lbk1098_par17_klassifikation
 )
---@label:aktieavancebeskatningsloven_par17_klassifikation::meta:abl_par17_klassifikation_kildemeta--
+
 ----
 § 17. Hvis den skattepligtige udøver næring ved køb og salg af aktier,
 medregnes gevinst og tab ved afståelse af aktier, som er erhvervet som led i
@@ -37,7 +37,9 @@ Stk. 4. I tilfælde, der er omfattet af stk. 1 eller 3, finder reglerne i §§ 8
 §§ 10 og 15, § 16, stk. 1, og §§ 18 og 19 A-19 C nævnte tilfælde.
 ----
 
---@begin:aktieavancebeskatningsloven_par17_klassifikation--
+@ meta(abl_par17_klassifikation_kildemeta)
+@ section aktieavancebeskatningsloven_par17_klassifikation {
+
 # AktieavancePar17Instrument = AblPar17AlmindeligAktie | AblPar17KoncerninternKonvertibelObligation | AblPar17TegningsretTilKoncerninternKonvertibelObligation | AblPar17InvesteringsbevisIMinimumsinstitut | AblPar17UndtagetEfterPar10 | AblPar17UndtagetEfterPar15 | AblPar17UndtagetEfterPar16Stk1 | AblPar17UndtagetEfterPar18 | AblPar17UndtagetEfterPar19A | AblPar17UndtagetEfterPar19B | AblPar17UndtagetEfterPar19C
 # AktieavancePar17FortrængtRegel = AblPar17FortrængerPar8 | AblPar17FortrængerPar9 | AblPar17FortrængerPar12 | AblPar17FortrængerPar13 | AblPar17FortrængerPar14 | AblPar17FortrængerPar22 | AblPar17FortrængerPar44
 # AktieavancePar17Skatteyder(skattepligtsresultat: AktieavancePar6Par7Resultat, næringsstatus: AktieavancePar17Næringsstatus)
@@ -129,4 +131,5 @@ Stk. 4. I tilfælde, der er omfattet af stk. 1 eller 3, finder reglerne i §§ 8
 }
 
 | aktieavance_par17_resultat(input: AktieavancePar17Input) -> AktieavancePar17Sag(input).resultat()
---@end:aktieavancebeskatningsloven_par17_klassifikation--
+
+}

@@ -4,7 +4,6 @@
 
 -- Kapitel VI -- Domstolene
 
---@label:grundlov_par59::meta:grundlov_kildemetadata--
 ----
 § 59. Stk. 1. Rigsretten består af indtil 15 af de efter embedsalder ældste
 ordentlige medlemmer af rigets øverste domstol og et tilsvarende antal af
@@ -24,7 +23,8 @@ for hvilket de er valgt, udløber.
 Stk. 4. Nærmere regler om rigsretten fastsættes ved lov.
 ----
 
---@begin:grundlov_par59--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par59 {
 
 = rigsret_max_dommermedlemmer = 15
 = rigsret_valgperiode_år = 6
@@ -47,9 +47,9 @@ Stk. 4. Nærmere regler om rigsretten fastsættes ved lov.
 | formandsvalg_opfylder_par59_stk2(valg: Rigsretsformandsvalg) -> valg.valgt_af_retten && valg.valgt_blandt_rettens_medlemmer
 | folketingsvalgt_medlem_beholder_sæde_efter_valgperiodens_udløb(mandat: Rigsretsmandat) -> mandat.sag_rejst && mandat.valgperiode_udløbet
 | nærmere_regler_om_rigsretten_fastsættes_ved_lov()
---@end:grundlov_par59--
 
---@label:grundlov_par60::meta:grundlov_kildemetadata--
+}
+
 ----
 § 60. Stk. 1. Rigsretten påkender de af kongen eller folketinget mod ministrene
 anlagte sager.
@@ -58,7 +58,8 @@ Stk. 2. For rigsretten kan kongen med folketingets samtykke lade også andre
 tiltale for forbrydelser, som han finder særdeles farlige for staten.
 ----
 
---@begin:grundlov_par60--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par60 {
 
 # Rigsretstiltaler = KongenSomRigsretstiltaler | FolketingetSomRigsretstiltaler
 # Rigsretstiltalt = Minister | AndenRigsretstiltalt(kongen_finder_forbrydelsen_særdeles_farlig_for_staten: Boolsk)
@@ -68,34 +69,36 @@ tiltale for forbrydelser, som han finder særdeles farlige for staten.
         | AndenRigsretstiltalt(kongen_finder_forbrydelsen_særdeles_farlig_for_staten) -> tiltaler == KongenSomRigsretstiltaler && kongen_finder_forbrydelsen_særdeles_farlig_for_staten && folketingets_samtykke == Givet
     }
 }
---@end:grundlov_par60--
 
---@label:grundlov_par61::meta:grundlov_kildemetadata--
+}
+
 ----
 § 61. Den dømmende magts udøvelse kan kun ordnes ved lov. Særdomstole med
 dømmende myndighed kan ikke nedsættes.
 ----
 
---@begin:grundlov_par61--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par61 {
 
 | dømmende_magts_ordning_opfylder_par61(ordning_fastlagt_ved_lov: Boolsk) -> ordning_fastlagt_ved_lov
 | særdomstol_med_dømmende_myndighed_kan_nedsættes_efter_par61() -> Falskt
---@end:grundlov_par61--
 
---@label:grundlov_par62::meta:grundlov_kildemetadata--
+}
+
 ----
 § 62. Retsplejen skal stedse holdes adskilt fra forvaltningen. Regler herom
 fastsættes ved lov.
 ----
 
---@begin:grundlov_par62--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par62 {
 
 # Retsplejeordning(retsplejen_adskilt_fra_forvaltningen: Boolsk, regler_fastsat_ved_lov: Boolsk) {
     | opfylder_par62() -> retsplejen_adskilt_fra_forvaltningen && regler_fastsat_ved_lov
 }
---@end:grundlov_par62--
 
---@label:grundlov_par63::meta:grundlov_kildemetadata--
+}
+
 ----
 § 63. Stk. 1. Domstolene er berettigede til at påkende ethvert spørgsmål om
 øvrighedsmyndighedens grænser. Den, der vil rejse sådant spørgsmål, kan dog
@@ -108,7 +111,8 @@ kunne prøves ved rigets øverste domstol. De nærmere regler herom fastsættes
 ved lov.
 ----
 
---@begin:grundlov_par63--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par63 {
 
 # Øvrighedsgrænsesag(øvrighedens_befaling_foreløbigt_efterkommet: Boolsk) {
     | kan_påkendes_af_domstolene_efter_par63_stk1() -> Sandt
@@ -119,9 +123,9 @@ ved lov.
 # Forvaltningsdomstolsordning(henlagt_ved_lov: Boolsk, afgørelser_kan_prøves_ved_rigets_øverste_domstol: Boolsk, nærmere_regler_fastsat_ved_lov: Boolsk) {
     | opfylder_par63_stk2() -> henlagt_ved_lov && afgørelser_kan_prøves_ved_rigets_øverste_domstol && nærmere_regler_fastsat_ved_lov
 }
---@end:grundlov_par63--
 
---@label:grundlov_par64::meta:grundlov_kildemetadata--
+}
+
 ----
 § 64. Dommerne har i deres kald alene at rette sig efter loven. De kan ikke
 afsættes uden ved dom, ejheller forflyttes mod deres ønske, uden for de
@@ -130,7 +134,8 @@ har fyldt sit 65. år, afskediges, men uden tab af indtægter indtil det
 tidspunkt, til hvilket han skulle være afskediget på grund af alder.
 ----
 
---@begin:grundlov_par64--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par64 {
 
 # Dommerindgreb = Afsættelse(ved_dom: Boolsk) | ForflyttelseModØnske(omordning_af_domstolene_finder_sted: Boolsk) | Aldersafskedigelse(alder: Heltal, indtægter_bevaret_til_pligtig_afgangsalder: Boolsk)
 
@@ -142,9 +147,9 @@ tidspunkt, til hvilket han skulle være afskediget på grund af alder.
     | ForflyttelseModØnske(omordning_finder_sted) -> omordning_finder_sted
     | Aldersafskedigelse(alder, indtægter_bevaret) -> alder >= dommer_afskedigelsesalder && indtægter_bevaret
 }
---@end:grundlov_par64--
 
---@label:grundlov_par65::meta:grundlov_kildemetadata--
+}
+
 ----
 § 65. Stk. 1. I retsplejen gennemføres offentlighed og mundtlighed i videst
 muligt omfang.
@@ -154,7 +159,8 @@ hvilke sager og under hvilke former denne medvirken skal finde sted, herunder i
 hvilke sager nævninger skal medvirke.
 ----
 
---@begin:grundlov_par65--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par65 {
 
 # Retsplejeprincip = Offentlighed | Mundtlighed
 # Retsplejeprincipforløb(princip: Retsplejeprincip, gennemført_i_videst_muligt_omfang: Boolsk) {
@@ -167,4 +173,5 @@ hvilke sager nævninger skal medvirke.
 # Strafferetsplejeordning(lægmænd_medvirker: Boolsk, medvirkningens_sager_og_former_fastsat_ved_lov: Boolsk, nævningesager_fastsat_ved_lov: Boolsk) {
     | opfylder_par65_stk2() -> lægmænd_medvirker && medvirkningens_sager_og_former_fastsat_ved_lov && nævningesager_fastsat_ved_lov
 }
---@end:grundlov_par65--
+
+}

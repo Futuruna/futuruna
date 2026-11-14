@@ -22,8 +22,9 @@
     )
 )
 
---@label:personskat_virksomhedskapital_kildefakta::meta:personskat_virksomhedskapital_kildefakta_metadata--
---@begin:personskat_virksomhedskapital_kildefakta--
+@ meta(personskat_virksomhedskapital_kildefakta_metadata)
+@ section personskat_virksomhedskapital_kildefakta {
+
 # PersonskatVirksomhedsordningskapitalInput = UdenKapitalafkastEfterVirksomhedsskattelov7 | MedKapitalafkastEfterVirksomhedsskattelov7(par7_input: Virksomhedsskattelov7KildeInput, oplysningsfrist_input: SkattekontrollovOplysningsfristInput, ønsket_medregnet_efter_par23a_kroner: Heltal)
 # PersonskatKapitalafkastordningPersongrundlag(person_identifikation: Tekst, opgørelsestidspunkt: Virksomhedsskattelov8Opgørelsestidspunkt, aktiver: List(Virksomhedsskattelov22AAktiv), varekreditorer: List(Virksomhedsskattelov22AVarekreditor), nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner: Heltal)
 # PersonskatKapitalafkastordningÆgtefællegrundlag = UdenÆgtefællegrundlagEfterVirksomhedsskattelov22A | MedÆgtefællegrundlagEfterVirksomhedsskattelov22A(grundlag: PersonskatKapitalafkastordningPersongrundlag)
@@ -319,4 +320,5 @@
     )
 }
 | personskat_virksomhedskapital_resultat(input: PersonskatVirksomhedskapitalInput, skatteår: Heltal) -> personskat_virksomhedskapital_resultat_med_kontekst(input, skatteår, UdenAfledtKapitalafkastordningskontekst)
---@end:personskat_virksomhedskapital_kildefakta--
+
+}

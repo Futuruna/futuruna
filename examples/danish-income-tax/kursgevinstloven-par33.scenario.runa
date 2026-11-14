@@ -10,7 +10,6 @@
     )
 )
 
---@label:kursgevinstloven_par33_scenarier::meta:kursgevinstloven_par33_scenarier_metadata--
 ----
 § 33. Gevinst eller tab på en kontrakt opgøres som forskellen mellem værdien af
 kontrakten ved indkomstårets udløb og værdien ved indkomstårets begyndelse
@@ -25,7 +24,9 @@ eller passiv for erhvervet henholdsvis afstået på afviklingsdagen og til
 markedsværdien på afviklingsdagen.
 ----
 
---@begin:kursgevinstloven_par33_scenarier--
+@ meta(kursgevinstloven_par33_scenarier_metadata)
+@ section kursgevinstloven_par33_scenarier {
+
 | kgl_par33_scenarie_resultat(fakta: KursgevinstlovKontraktKildeFakta) -> kursgevinstlov_resultat(kursgevinstlov_personinput_fra_kontrakt_kildefakta(
     indkomstår = 2026,
     fakta = fakta
@@ -175,6 +176,7 @@ markedsværdien på afviklingsdagen.
 ? kgl_par33_scenarie_uændret_negativ_værdi_giver_nul
 ? kgl_par33_scenarie_inaktiv_primo_skal_fortsat_være_nul
 ? kgl_par33_scenarie_par32_modregner_signerede_beløb_præcis_en_gang
---@end:kursgevinstloven_par33_scenarier--
+
+}
 
 @ print("Kursgevinstlovens § 33: 7 signerede værdi- og årsopgørelsesforløb kontrolleret")

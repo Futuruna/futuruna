@@ -108,4 +108,4 @@
     )
 )
 
---@label:PersonskatPar4FinansielPostfakta::meta:personskat_par4_finansielle_poster_beregningsmeta--
+@ meta(personskat_par4_finansielle_poster_beregningsmeta) for PersonskatPar4FinansielPostfakta

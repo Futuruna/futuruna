@@ -4,7 +4,6 @@
 
 -- Kapitel VIII -- Borgernes rettigheder
 
---@label:grundlov_par71::meta:grundlov_kildemetadata--
 ----
 § 71. Stk. 1. Den personlige frihed er ukrænkelig. Ingen dansk borger kan på
 grund af sin politiske eller religiøse overbevisning eller sin afstamning
@@ -36,7 +35,8 @@ folketinget valgt tilsyn, hvortil de pågældende skal have adgang til at rette
 henvendelse.
 ----
 
---@begin:grundlov_par71--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par71 {
 
 # PersonkredsPar71 = DanskBorger | IkkeDanskBorger
 # Frihedsberøvelsesgrund = PolitiskOverbevisning | ReligiøsOverbevisning | AfstamningSomFrihedsberøvelsesgrund | AndenFrihedsberøvelsesgrund
@@ -100,9 +100,9 @@ henvendelse.
         Sandt
     }
 }
---@end:grundlov_par71--
 
---@label:grundlov_par72::meta:grundlov_kildemetadata--
+}
+
 ----
 § 72. Boligen er ukrænkelig. Husundersøgelse, beslaglæggelse og undersøgelse
 af breve og andre papirer samt brud på post-, telegraf- og telefonhemmeligheden
@@ -110,7 +110,8 @@ må, hvor ingen lov hjemler en særegen undtagelse, alene ske efter en
 retskendelse.
 ----
 
---@begin:grundlov_par72--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par72 {
 
 # Privatlivsindgreb = Husundersøgelse | Beslaglæggelse | UndersøgelseAfBreveOgAndrePapirer | BrudPåPostTelegrafEllerTelefonhemmeligheden
 # Privatlivsindgrebssag(indgreb: Privatlivsindgreb, retskendelse_foreligger: Boolsk, særegen_undtagelse_hjemlet_ved_lov: Boolsk) {
@@ -126,9 +127,9 @@ retskendelse.
 }
 
 | boligen_er_ukrænkelig()
---@end:grundlov_par72--
 
---@label:grundlov_par73::meta:grundlov_kildemetadata--
+}
+
 ----
 § 73. Stk. 1. Ejendomsretten er ukrænkelig. Ingen kan tilpligtes at afstå sin
 ejendom, uden hvor almenvellet kræver det. Det kan kun ske ifølge lov og mod
@@ -145,7 +146,8 @@ størrelse kan indbringes for domstolene. Prøvelsen af erstatningens størrelse
 kan ved lov henlægges til domstole oprettet i dette øjemed.
 ----
 
---@begin:grundlov_par73--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par73 {
 
 # Ekspropriationssag(almenvellet_kræver_afståelsen: Boolsk, afståelsen_sker_ifølge_lov: Boolsk, fuldstændig_erstatning_ydes: Boolsk) {
     | opfylder_par73_stk1() -> almenvellet_kræver_afståelsen && afståelsen_sker_ifølge_lov && fuldstændig_erstatning_ydes
@@ -179,15 +181,16 @@ kan ved lov henlægges til domstole oprettet i dette øjemed.
         }
     }
 }
---@end:grundlov_par73--
 
---@label:grundlov_par74::meta:grundlov_kildemetadata--
+}
+
 ----
 § 74. Alle indskrænkninger i den fri og lige adgang til erhverv, som ikke er
 begrundede i det almene vel, skal hæves ved lov.
 ----
 
---@begin:grundlov_par74--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par74 {
 
 # Erhvervsindskrænkning(begrundet_i_det_almene_vel: Boolsk, hævet_ved_lov: Boolsk) {
     | opfylder_par74() -> hvis begrundet_i_det_almene_vel {
@@ -196,9 +199,9 @@ begrundede i det almene vel, skal hæves ved lov.
         hævet_ved_lov
     }
 }
---@end:grundlov_par74--
 
---@label:grundlov_par75::meta:grundlov_kildemetadata--
+}
+
 ----
 § 75. Stk. 1. Til fremme af almenvellet bør det tilstræbes, at enhver
 arbejdsduelig borger har mulighed for arbejde på vilkår, der betrygger hans
@@ -209,7 +212,8 @@ påhviler nogen anden, er berettiget til hjælp af det offentlige, dog mod at
 underkaste sig de forpligtelser, som loven herom påbyder.
 ----
 
---@begin:grundlov_par75--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par75 {
 
 # Arbejdsmulighedsmålsætning(tilstræbt_til_fremme_af_almenvellet: Boolsk, arbejdsduelig_borger_har_mulighed_for_arbejde: Boolsk, arbejdsvilkår_betrygger_tilværelsen: Boolsk) {
     | tilstræbelsen_opfylder_ordlydens_modalitet_i_par75_stk1() -> tilstræbt_til_fremme_af_almenvellet
@@ -219,9 +223,9 @@ underkaste sig de forpligtelser, som loven herom påbyder.
 # OffentligHjælpssag(kan_selv_ernære_sig_eller_sine: Boolsk, forsørgelsen_påhviler_en_anden: Boolsk, underkaster_sig_lovpåbudte_forpligtelser: Boolsk) {
     | har_ret_til_offentlig_hjælp_efter_par75_stk2() -> kan_selv_ernære_sig_eller_sine == Falskt && forsørgelsen_påhviler_en_anden == Falskt && underkaster_sig_lovpåbudte_forpligtelser
 }
---@end:grundlov_par75--
 
---@label:grundlov_par76::meta:grundlov_kildemetadata--
+}
+
 ----
 § 76. Alle børn i den undervisningspligtige alder har ret til fri undervisning i
 folkeskolen. Forældre eller værger, der selv sørger for, at børnene får en
@@ -229,22 +233,24 @@ undervisning, der kan stå mål med, hvad der almindeligvis kræves i folkeskole
 er ikke pligtige at lade børnene undervise i folkeskolen.
 ----
 
---@begin:grundlov_par76--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par76 {
 
 # Undervisningssag(barn_i_undervisningspligtig_alder: Boolsk, forældre_eller_værger_sørger_selv_for_undervisning: Boolsk, undervisningen_står_mål_med_folkeskolen: Boolsk) {
     | barn_har_ret_til_fri_undervisning_i_folkeskolen() -> barn_i_undervisningspligtig_alder
     | fritaget_fra_pligt_til_undervisning_i_folkeskolen() -> barn_i_undervisningspligtig_alder && forældre_eller_værger_sørger_selv_for_undervisning && undervisningen_står_mål_med_folkeskolen
 }
---@end:grundlov_par76--
 
---@label:grundlov_par77::meta:grundlov_kildemetadata--
+}
+
 ----
 § 77. Enhver er berettiget til på tryk, i skrift og tale at offentliggøre sine
 tanker, dog under ansvar for domstolene. Censur og andre forebyggende
 forholdsregler kan ingensinde påny indføres.
 ----
 
---@begin:grundlov_par77--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par77 {
 
 # Offentliggørelsesform = Tryk | Skrift | Tale
 # Ytringssag(form: Offentliggørelsesform) {
@@ -258,9 +264,9 @@ forholdsregler kan ingensinde påny indføres.
 
 # ForebyggendeYtringsforholdsregel = Censur | AndenForebyggendeForholdsregel
 | forebyggende_ytringsforholdsregel_kan_indføres_efter_par77(forholdsregel: ForebyggendeYtringsforholdsregel) -> Falskt
---@end:grundlov_par77--
 
---@label:grundlov_par78::meta:grundlov_kildemetadata--
+}
+
 ----
 § 78. Stk. 1. Borgerne har ret til uden forudgående tilladelse at danne
 foreninger i ethvert lovligt øjemed.
@@ -279,7 +285,8 @@ kunne indbringes for rigets øverste domstol.
 Stk. 5. Opløsningens retsvirkninger fastsættes nærmere ved lov.
 ----
 
---@begin:grundlov_par78--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par78 {
 
 # Foreningsformål = LovligtFormål | UlovligtFormål
 | forening_kan_dannes_uden_forudgående_tilladelse(formål: Foreningsformål) -> formål == LovligtFormål
@@ -300,9 +307,9 @@ Stk. 5. Opløsningens retsvirkninger fastsættes nærmere ved lov.
 
 | politisk_forenings_opløsningssag_kan_indbringes_for_rigets_øverste_domstol(særlig_tilladelse_kræves: Boolsk) -> særlig_tilladelse_kræves == Falskt
 | opløsningens_retsvirkninger_fastsættes_ved_lov()
---@end:grundlov_par78--
 
---@label:grundlov_par79::meta:grundlov_kildemetadata--
+}
+
 ----
 § 79. Borgerne har ret til uden forudgående tilladelse at samle sig ubevæbnede.
 Offentlige forsamlinger har politiet ret til at overvære. Forsamlinger under
@@ -310,23 +317,25 @@ Offentlige forsamlinger har politiet ret til at overvære. Forsamlinger under
 fred.
 ----
 
---@begin:grundlov_par79--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par79 {
 
 # Forsamlingssag(ubevæbnet: Boolsk, offentlig: Boolsk, under_åben_himmel: Boolsk, fare_for_den_offentlige_fred: Boolsk) {
     | kan_samles_uden_forudgående_tilladelse() -> ubevæbnet
     | politiet_har_ret_til_at_overvære() -> offentlig
     | kan_forbydes_efter_par79() -> under_åben_himmel && fare_for_den_offentlige_fred
 }
---@end:grundlov_par79--
 
---@label:grundlov_par80::meta:grundlov_kildemetadata--
+}
+
 ----
 § 80. Ved opløb må den væbnede magt, når den ikke angribes, kun skride ind,
 efter at mængden tre gange i kongens og lovens navn forgæves er opfordret til at
 skilles.
 ----
 
---@begin:grundlov_par80--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par80 {
 
 = opfordringer_før_magtanvendelse = 3
 
@@ -335,15 +344,16 @@ skilles.
     | den_væbnede_magt_kan_skride_ind_efter_par80() -> opfordringsantal_er_konsistent() && forgæves_opfordringer_til_at_skilles >= opfordringer_før_magtanvendelse && opfordret_i_kongens_og_lovens_navn
     | exception angrebet den_væbnede_magt_kan_skride_ind_efter_par80() -> opfordringsantal_er_konsistent() under den_væbnede_magt_angribes
 }
---@end:grundlov_par80--
 
---@label:grundlov_par81::meta:grundlov_kildemetadata--
+}
+
 ----
 § 81. Enhver våbenfør mand er forpligtet til med sin person at bidrage til
 fædrelandets forsvar efter de nærmere bestemmelser, som loven foreskriver.
 ----
 
---@begin:grundlov_par81--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par81 {
 
 # Våbenførhed = Våbenfør | IkkeVåbenfør
 # Værnepligtslovgrundlag = NærmereBestemmelserFastsatVedLov | NærmereBestemmelserIkkeFastsatVedLov
@@ -355,27 +365,29 @@ fædrelandets forsvar efter de nærmere bestemmelser, som loven foreskriver.
         Sandt
     }
 }
---@end:grundlov_par81--
 
---@label:grundlov_par82::meta:grundlov_kildemetadata--
+}
+
 ----
 § 82. Kommunernes ret til under statens tilsyn selvstændigt at styre deres
 anliggender ordnes ved lov.
 ----
 
---@begin:grundlov_par82--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par82 {
 
 # KommunalStyrelsesordning(selvstændig_styring_af_egne_anliggender: Boolsk, under_statens_tilsyn: Boolsk, ordnet_ved_lov: Boolsk) {
     | opfylder_par82() -> selvstændig_styring_af_egne_anliggender && under_statens_tilsyn && ordnet_ved_lov
 }
---@end:grundlov_par82--
 
---@label:grundlov_par83::meta:grundlov_kildemetadata--
+}
+
 ----
 § 83. Enhver i lovgivningen til adel, titel og rang knyttet forret er afskaffet.
 ----
 
---@begin:grundlov_par83--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par83 {
 
 # Forretsgrundlag = Adel | Titel | Rang
 | forret_knyttet_i_lovgivningen_er_afskaffet(grundlag: Forretsgrundlag) -> match grundlag {
@@ -383,27 +395,29 @@ anliggender ordnes ved lov.
     | Titel -> Sandt
     | Rang -> Sandt
 }
---@end:grundlov_par83--
 
---@label:grundlov_par84::meta:grundlov_kildemetadata--
+}
+
 ----
 § 84. Intet len, stamhus, fideikommisgods eller andet familiefideikommis kan for
 fremtiden oprettes.
 ----
 
---@begin:grundlov_par84--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par84 {
 
 # Familiefideikommisform = Len | Stamhus | Fideikommisgods | AndetFamiliefideikommis
 | familiefideikommis_kan_oprettes_for_fremtiden(form: Familiefideikommisform) -> Falskt
---@end:grundlov_par84--
 
---@label:grundlov_par85::meta:grundlov_kildemetadata--
+}
+
 ----
 § 85. For forsvarsmagten er de i §§ 71, 78 og 79 givne bestemmelser kun
 anvendelige med de indskrænkninger, der følger af de militære loves forskrifter.
 ----
 
---@begin:grundlov_par85--
+@ meta(grundlov_kildemetadata)
+@ section grundlov_par85 {
 
 # Frihedsbestemmelse = PersonligFrihedPar71 | YtringsfrihedPar77 | ForeningsfrihedPar78 | ForsamlingsfrihedPar79
 # MilitærIndskrænkning(bestemmelse: Frihedsbestemmelse, følger_af_militære_loves_forskrifter: Boolsk) {
@@ -416,4 +430,5 @@ anvendelige med de indskrænkninger, der følger af de militære loves forskrift
 
     | indskrænkning_har_hjemmel_i_par85() -> bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() && følger_af_militære_loves_forskrifter
 }
---@end:grundlov_par85--
+
+}

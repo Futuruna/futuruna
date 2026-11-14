@@ -14,8 +14,9 @@
     )
 )
 
---@label:personskat_cfc_kildefakta::meta:personskat_cfc_kildefakta_metadata--
---@begin:personskat_cfc_kildefakta--
+@ meta(personskat_cfc_kildefakta_metadata)
+@ section personskat_cfc_kildefakta {
+
 # PersonskatCfcEfterLigningslov16HFakta(fuldt_skattepligtig_eller_dødsbo: Boolsk, udenlandsk_selskab: Boolsk, direkte_indirekte_ejerandel_basispoint: Heltal, stemmerettigheder_basispoint: Heltal, fælleskontrol_med_nærtstående_fond_eller_trust: Boolsk, aftale_om_skattesats_eller_beskatningsgrundlag: Boolsk, hjemstat_regler_indrettet_efter_kontrollerende_aktionær: Boolsk, udenlandsk_indkomstskat_kroner: Heltal, selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner: Heltal, selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner: Heltal, aktier_ikke_investeringsselskab: Boolsk, eu_eøs_selskab: Boolsk, reel_etablering_og_økonomisk_virksomhed: Boolsk, dokumentation_kan_verificeres: Boolsk, medregnet_efter_selskabsskat31a_32_eller_fondsbeskatning12: Boolsk, gennemsnitlig_ejerandel_basispoint: Heltal, kontrolperiode_basispoint: Heltal, fremført_underskud_danske_regler_kroner: Heltal)
 # PersonskatCfcEfterLigningslov16IStk6Og7Fakta(fuldt_skattepligtig_eller_dødsbo: Boolsk, kontrollerer_efter_par16h_stk6: Boolsk, medstifter_eller_ledelse_i_fond: Boolsk, selskab_har_fortrinsstilling_i_fond: Boolsk, selskabets_afkast_via_fond_kroner: Heltal, standardafkast_kroner: Heltal, fremført_negativt_merafkast_kroner: Heltal, ret_til_merafkast_basispoint: Heltal)
 # PersonskatCfcPostInput = PersonskatCfcEfterLigningslov16H(fakta: PersonskatCfcEfterLigningslov16HFakta) | PersonskatCfcEfterLigningslov16IStk6Og7(fakta: PersonskatCfcEfterLigningslov16IStk6Og7Fakta)
@@ -117,4 +118,5 @@
         par4b_resultat = par4b_cfc_indkomst_resultat(Par4bCfcIndkomstInput(poster = par4b_poster))
     )
 }
---@end:personskat_cfc_kildefakta--
+
+}

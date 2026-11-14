@@ -18,7 +18,6 @@
     )
 )
 
---@label:pensionsbeskatningsloven_par29_stk1_og_par36::meta:pensionsbeskatningsloven_par29_stk1_og_par36_metadata--
 ----
 § 29. Ved udbetalinger, der ikke omfattes af § 20 eller §§ 29 A-C, fra en
 pensionsordning med løbende udbetalinger eller fra en rateforsikring eller
@@ -33,7 +32,9 @@ Stk. 2. Ved betaling og opkrævning af afgift efter denne lov betales og
 opkræves kun hele kronebeløb.
 ----
 
---@begin:pensionsbeskatningsloven_par29_stk1_og_par36--
+@ meta(pensionsbeskatningsloven_par29_stk1_og_par36_metadata)
+@ section pensionsbeskatningsloven_par29_stk1_og_par36 {
+
 # Pbl29Stk1Afgiftsresultat(udbetalt_beløb_kroner: Heltal, afgiftsgrundlag_efter_par36_kroner: Heltal, afgiftssats_basispoint: Heltal, afgift_kroner: Heltal)
 
 | pbl36_afgiftsgrundlag_kroner(udbetalt_beløb_kroner: Heltal) -> penge_positivt_beløb(udbetalt_beløb_kroner) / 100 * 100
@@ -44,4 +45,5 @@ opkræves kun hele kronebeløb.
     afgiftssats_basispoint = pbl29_stk1_ordinær_afgiftssats_basispoint(),
     afgift_kroner = penge_beløb_gange_basispoint_kroner(pbl36_afgiftsgrundlag_kroner(udbetalt_beløb_kroner), pbl29_stk1_ordinær_afgiftssats_basispoint())
 )
---@end:pensionsbeskatningsloven_par29_stk1_og_par36--
+
+}

@@ -10,7 +10,6 @@
     )
 )
 
---@label:personskatteloven_par4_kursgevinst_scenarier::meta:personskatteloven_par4_kursgevinst_scenarier_metadata--
 ----
 § 4. Kapitalindkomst omfatter det samlede nettobeløb af
 2) skattepligtige gevinster og fradragsberettigede tab efter kursgevinstloven,
@@ -30,7 +29,9 @@ kan kun fremføres til et senere indkomstår, hvis det ikke kan rummes i
 skattepligtig nettogevinst på finansielle kontrakter i et tidligere indkomstår.
 ----
 
---@begin:personskatteloven_par4_kursgevinst_scenarier--
+@ meta(personskatteloven_par4_kursgevinst_scenarier_metadata)
+@ section personskatteloven_par4_kursgevinst_scenarier {
+
 | par4_nr2_scenarie_kontraktinput(indkomstår: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal, udøver_kontraktnæring: Boolsk) -> KursgevinstlovInput(
     indkomstår = indkomstår,
     rolle = KglPersonEfterKildeskatteloven,
@@ -337,4 +338,5 @@ skattepligtig nettogevinst på finansielle kontrakter i et tidligere indkomstår
 ? par4_nr2_blandet_årsfordeling_kollapser_ikke
 ? par4_nr2_fast_ejendom_basisjustering_er_sporbar
 ? par4_nr2_råt_kontrakttab_er_udtrykkeligt_før_årsopgørelse
---@end:personskatteloven_par4_kursgevinst_scenarier--
+
+}

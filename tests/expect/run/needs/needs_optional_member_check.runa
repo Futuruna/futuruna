@@ -4,6 +4,7 @@
 -- expect-args: --entry household_tax --partial=check
 -- expect-stdout: "schema": "futuruna.calculate.partial-output.v1"
 
+@ meta(spouse_meta)
 # Spouse(income: Int, age: Int, cohabiting: Bool)
 # Household(income: Int, spouse: Spouse?)
 # TaxResult(tax: Int)
@@ -40,9 +41,7 @@
     RelativeField(path = refof(Spouse::age), label = "Spouse age", question = Some("How old is your spouse?"))
 ])
 
---@label:household_tax::meta:household_meta--
---@label:Spouse::meta:spouse_meta--
-
+@ meta(household_meta)
 @ calculate
 | household_tax(h: Household) -> TaxResult(tax = match h.spouse {
         | None -> 0

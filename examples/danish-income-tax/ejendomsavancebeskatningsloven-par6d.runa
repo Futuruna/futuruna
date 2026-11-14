@@ -28,7 +28,7 @@
 = ebl_par6d_ikrafttræden_kildemeta = Source(
     value = ebl_par6d_lov1578
 )
---@label:ebl_par6d_ikrafttræden::meta:ebl_par6d_ikrafttræden_kildemeta--
+
 ----
 § 3
 
@@ -37,9 +37,12 @@ Stk. 1. Loven træder i kraft den 1. januar 2020.
 Stk. 2. § 1, nr. 1, har virkning for afståelse af fast ejendom, der sker den 1. januar 2020 eller senere.
 ----
 
---@begin:ebl_par6d_ikrafttræden--
+@ meta(ebl_par6d_ikrafttræden_kildemeta)
+@ section ebl_par6d_ikrafttræden {
+
 | ebl_par6d_har_virkning(afståelsesdato: EblDato) -> ebl_dato_gyldig(afståelsesdato) && ebl_dato_før_eller_lig_med(EblDato(år = 2020, måned = 1, dag = 1), afståelsesdato)
---@end:ebl_par6d_ikrafttræden--
+
+}
 
 = ebl_par6d_metadata = Metadata(
     attachments = (
@@ -49,7 +52,6 @@ Stk. 2. § 1, nr. 1, har virkning for afståelse af fast ejendom, der sker den 1
     )
 )
 
---@label:ebl_par6d::meta:ebl_par6d_metadata--
 ----
 § 6 D. Afstår den skattepligtige en ejendom, der er omfattet af lovens regler, bortset fra ejendomme, der er omfattet af § 8, og indgår der i afståelsesvederlaget en fordring mod erhververen med pant i den overdragne ejendom (sælgerpantebrev), kan den skattepligtige vælge at medregne fortjeneste efter § 6 med lige store beløb ved opgørelsen af den skattepligtige indkomst i de indtil 10 nærmest efterfølgende indkomstår.
 1. pkt. gælder dog ikke, hvor der er en forbindelse som omhandlet i ligningslovens § 2 mellem parterne i overdragelsen.
@@ -116,7 +118,9 @@ I de anførte tilfælde sker der skattemæssig succession vedrørende ejendommen
 Tilsvarende sker der ikke fremrykket beskatning, når ejendommen i de anførte tilfælde overtages med succession af en ægtefælle.
 ----
 
---@begin:ebl_par6d--
+@ meta(ebl_par6d_metadata)
+@ section ebl_par6d {
+
 # EblPar6DPartrelationFakta(overdragerens_kapitalandel_i_erhververen_promille: Heltal, overdragerens_stemmeandel_i_erhververen_promille: Heltal, erhververens_kapitalandel_i_overdrageren_promille: Heltal, erhververens_stemmeandel_i_overdrageren_promille: Heltal, parterne_er_nærtstående_efter_ligningslovens_par2_stk2: Boolsk, parterne_har_aftale_om_fælles_bestemmende_indflydelse: Boolsk, parterne_er_under_fælles_bestemmende_indflydelse: Boolsk)
 # EblPar6DKontrolleretSelskabsudlejning(ejeren_er_fysisk_person: Boolsk, kapitalandel_promille: Heltal, stemmeandel_promille: Heltal, selskabet_anvender_ejendommen_erhvervsmæssigt: Boolsk, bestemmende_indflydelse_samtidig_overdraget_til_erhververen: Boolsk)
 # EblPar6DErhvervsanvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed | EblPar6DUdlejetTilKontrolleretSelskab(fakta: EblPar6DKontrolleretSelskabsudlejning) | EblPar6DAlmindeligtUdlejet | EblPar6DBoligdel | EblPar6DIkkeErhvervsmæssigtAnvendt
@@ -566,4 +570,5 @@ Tilsvarende sker der ikke fremrykket beskatning, når ejendommen i de anførte t
     | EblUdenPar6DValg -> Sandt
     | EblMedPar6DValg(_) -> resultat.input_gyldigt && hvis indkomstår <= ebl_par6d_sidst_behandlede_indkomstår(resultat) { Sandt } ellers { resultat.tilstand_ultimo.ordning_aktiv == Falskt }
 }
---@end:ebl_par6d--
+
+}

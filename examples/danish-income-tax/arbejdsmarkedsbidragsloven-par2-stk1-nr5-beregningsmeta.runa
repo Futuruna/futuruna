@@ -537,16 +537,16 @@
     attachments = ambl_par2_nr5_beregningskilder
 )
 
---@label:AmblPar2Nr5Årsgrundlag::meta:ambl_par2_nr5_årsgrundlag_beregningsmetadata--
---@label:AmblPar2Nr5Indbetalingsfakta::meta:ambl_par2_nr5_indbetaling_beregningsmetadata--
---@label:AmblPar2Nr5Betingelse::meta:ambl_par2_nr5_betingelse_beregningsmetadata--
---@label:AmblPar2Nr5Arbejdsgiverrelation::meta:ambl_par2_nr5_arbejdsgiverrelation_beregningsmetadata--
---@label:AmblPar2Nr5Beløbsrammer::meta:ambl_par2_nr5_beløbsrammer_beregningsmetadata--
---@label:AmblPar2Nr5Beløbsgrænse::meta:ambl_par2_nr5_beløbsgrænse_beregningsmetadata--
---@label:AmblPar2Nr5Sverigefakta::meta:ambl_par2_nr5_sverigefakta_beregningsmetadata--
---@label:AmblPar2Nr5SvenskOrdning::meta:ambl_par2_nr5_svensk_ordning_beregningsmetadata--
---@label:AmblPar2Nr5SvenskPersonstatus::meta:ambl_par2_nr5_svensk_personstatus_beregningsmetadata--
---@label:AmblPar2Nr5Nederlandefakta::meta:ambl_par2_nr5_nederlandefakta_beregningsmetadata--
---@label:AmblPar2Nr5Schweizfakta::meta:ambl_par2_nr5_schweizfakta_beregningsmetadata--
---@label:AmblPar2Nr5SchweiziskOrdning::meta:ambl_par2_nr5_schweizisk_ordning_beregningsmetadata--
---@label:AmblPar2Nr5Storbritannienfakta::meta:ambl_par2_nr5_storbritannienfakta_beregningsmetadata--
+@ meta(ambl_par2_nr5_årsgrundlag_beregningsmetadata) for AmblPar2Nr5Årsgrundlag
+@ meta(ambl_par2_nr5_indbetaling_beregningsmetadata) for AmblPar2Nr5Indbetalingsfakta
+@ meta(ambl_par2_nr5_betingelse_beregningsmetadata) for AmblPar2Nr5Betingelse
+@ meta(ambl_par2_nr5_arbejdsgiverrelation_beregningsmetadata) for AmblPar2Nr5Arbejdsgiverrelation
+@ meta(ambl_par2_nr5_beløbsrammer_beregningsmetadata) for AmblPar2Nr5Beløbsrammer
+@ meta(ambl_par2_nr5_beløbsgrænse_beregningsmetadata) for AmblPar2Nr5Beløbsgrænse
+@ meta(ambl_par2_nr5_sverigefakta_beregningsmetadata) for AmblPar2Nr5Sverigefakta
+@ meta(ambl_par2_nr5_svensk_ordning_beregningsmetadata) for AmblPar2Nr5SvenskOrdning
+@ meta(ambl_par2_nr5_svensk_personstatus_beregningsmetadata) for AmblPar2Nr5SvenskPersonstatus
+@ meta(ambl_par2_nr5_nederlandefakta_beregningsmetadata) for AmblPar2Nr5Nederlandefakta
+@ meta(ambl_par2_nr5_schweizfakta_beregningsmetadata) for AmblPar2Nr5Schweizfakta
+@ meta(ambl_par2_nr5_schweizisk_ordning_beregningsmetadata) for AmblPar2Nr5SchweiziskOrdning
+@ meta(ambl_par2_nr5_storbritannienfakta_beregningsmetadata) for AmblPar2Nr5Storbritannienfakta

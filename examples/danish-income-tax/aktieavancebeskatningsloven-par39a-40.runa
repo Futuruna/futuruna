@@ -66,7 +66,6 @@
     )
 )
 
---@label:aktieavancebeskatningsloven_par39a::meta:aktieavancebeskatningsloven_par39a_metadata--
 ----
 § 39 A. Ved henstand skal der udarbejdes en beholdningsoversigt over de aktier,
 som personen er ejer af på fraflytningstidspunktet. Aktier, hvor den beregnede
@@ -199,7 +198,9 @@ sidste rettidige betalingsdag den 20. i forfaldsmåneden. Stk. 12, 2. og 3. pkt.
 finder tilsvarende anvendelse.
 ----
 
---@begin:aktieavancebeskatningsloven_par39a--
+@ meta(aktieavancebeskatningsloven_par39a_metadata)
+@ section aktieavancebeskatningsloven_par39a {
+
 # AktieavancePar39APar44Status = AblPar39AIkkeOmfattetAfPar44 | AblPar39AOmfattetAfPar44VedFraflytning
 # AktieavancePar39ABeholdningsparti(identifikation: Tekst, selskabsidentifikation: Tekst, aktieserie: Tekst, erhvervelsesdato: AktieavancePar23Dato, erhvervelsesrækkefølge: Heltal, resterende_antal: Heltal, resterende_anskaffelsessum_efter_par38_kroner: Heltal, resterende_værdi_ved_fraflytning_kroner: Heltal, par44_status: AktieavancePar39APar44Status, indgik_i_nettotab_ved_fraflytning: Boolsk)
 # AktieavancePar39ATabsfradrag(fradrag_i_udlandet: Boolsk, negativ_skatteværdi_i_udlandet_kroner: Heltal)
@@ -620,7 +621,8 @@ finder tilsvarende anvendelse.
 }
 
 | aktieavance_par39a_forløbsresultat(tilstand_primo: AktieavancePar39ATilstand, hændelser: List(AktieavancePar39AHændelse)) -> AktieavancePar39AForløbsSag(tilstand_primo, hændelser).resultat()
---@end:aktieavancebeskatningsloven_par39a--
+
+}
 
 = aktieavancebeskatningsloven_par39b_metadata = Metadata(
     attachments = (
@@ -631,7 +633,6 @@ finder tilsvarende anvendelse.
     )
 )
 
---@label:aktieavancebeskatningsloven_par39b::meta:aktieavancebeskatningsloven_par39b_metadata--
 ----
 § 39 B. Får personen på ny skattemæssigt hjemsted i Danmark, finder reglen i
 § 37 anvendelse for aktier, der indgik på beholdningsoversigten, og som personen
@@ -669,7 +670,9 @@ af nettotabet, og som fortsat er i personens besiddelse ved tilbageflytningen ti
 Danmark.
 ----
 
---@begin:aktieavancebeskatningsloven_par39b--
+@ meta(aktieavancebeskatningsloven_par39b_metadata)
+@ section aktieavancebeskatningsloven_par39b {
+
 # AktieavancePar39BTilflytningsværdi(partiidentifikation: Tekst, handelsværdi_kroner: Heltal)
 # AktieavancePar39BInput(tilstand_før_tilflytning: AktieavancePar39ATilstand, tilflytningsværdier: List(AktieavancePar39BTilflytningsværdi), skatteår: Heltal, får_på_ny_skattemæssigt_hjemsted_i_danmark: Boolsk, samlevende_med_ægtefælle_ved_indkomstårets_udløb: Boolsk, oprindeligt_nettotab_ved_fraflytning_kroner: Heltal)
 # AktieavancePar39BIndgangsværdi(partiidentifikation: Tekst, handelsværdi_efter_par37_kroner: Heltal, nedsættelse_efter_stk1_til_3_kroner: Heltal, forhøjelse_efter_stk5_kroner: Heltal, reguleret_indgangsværdi_kroner: Heltal)
@@ -734,7 +737,8 @@ Danmark.
 }
 
 | aktieavance_par39b_resultat(input: AktieavancePar39BInput) -> AktieavancePar39BSag(input).resultat()
---@end:aktieavancebeskatningsloven_par39b--
+
+}
 
 = aktieavancebeskatningsloven_par40_metadata = Metadata(
     attachments = (
@@ -745,7 +749,6 @@ Danmark.
     )
 )
 
---@label:aktieavancebeskatningsloven_par40::meta:aktieavancebeskatningsloven_par40_metadata--
 ----
 § 40. Henstandsbeløbet efter § 39 A nedskrives med den skat, som personen har
 betalt på aktier medtaget i beholdningsoversigten som følge af
@@ -754,7 +757,9 @@ litra c. Saldoen nedskrives, når skatten er betalt. Saldoen kan ikke nedskrives
 til mindre end 0 kr.
 ----
 
---@begin:aktieavancebeskatningsloven_par40--
+@ meta(aktieavancebeskatningsloven_par40_metadata)
+@ section aktieavancebeskatningsloven_par40 {
+
 # AktieavancePar40Resultat(tilstand_før: AktieavancePar39ATilstand, betalt_skat_kroner: Heltal, input_gyldigt: Boolsk, saldonedskrivning_kroner: Heltal, tilstand_efter: AktieavancePar39ATilstand)
 
 # AktieavancePar40Sag(tilstand: AktieavancePar39ATilstand, betalt_skat_kroner: Heltal) {
@@ -767,4 +772,5 @@ til mindre end 0 kr.
 
 | aktieavance_par40_resultat(tilstand: AktieavancePar39ATilstand, betalt_skat_kroner: Heltal) -> AktieavancePar40Sag(tilstand, betalt_skat_kroner).resultat()
 | aktieavance_par40_betalt_skat_resultat(tilstand: AktieavancePar39ATilstand, betalt_skat_kroner: Heltal) -> AktieavancePar40Sag(tilstand, betalt_skat_kroner).hændelsesresultat()
---@end:aktieavancebeskatningsloven_par40--
+
+}

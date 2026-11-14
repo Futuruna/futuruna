@@ -162,7 +162,7 @@
     )
 )
 
---@label:Sømandsbeskatningslov3Årsinput::meta:personskat_sømandsfradrag_beregningsmeta--
+@ meta(personskat_sømandsfradrag_beregningsmeta) for Sømandsbeskatningslov3Årsinput
 
 = personskat_søbl4_felt_kildetilknytninger = TypetBeregningsfelt(
     path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger),
@@ -250,4 +250,4 @@
     )
 )
 
---@label:Sømandsbeskatningslov4Årsinput::meta:personskat_søbl4_beregningsmeta--
+@ meta(personskat_søbl4_beregningsmeta) for Sømandsbeskatningslov4Årsinput

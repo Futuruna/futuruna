@@ -34,8 +34,9 @@
     )
 )
 
---@label:personskat_pbl53a_kildefakta::meta:personskat_pbl53a_kildefakta_metadata--
---@begin:personskat_pbl53a_kildefakta--
+@ meta(personskat_pbl53a_kildefakta_metadata)
+@ section personskat_pbl53a_kildefakta {
+
 # PersonskatPbl53AOrdningFakta(identifikation: Tekst, skatteyder_identifikation: Tekst, omfangsfakta: Pbl53AOmfangsfakta, afkastforløbsåbning: Pbl53AAfkastforløbsåbning, afkastår: List(Pbl53AAfkastårFakta), hændelser: List(Pbl53AHændelse))
 # PersonskatPbl53AInput(ordninger: List(PersonskatPbl53AOrdningFakta))
 # PersonskatPbl53AOrdningsresultat = UgyldigtPbl53AGrundlag(fakta: PersonskatPbl53AOrdningFakta, skatteår_understøttet: Boolsk, identifikation_unik: Boolsk, grundfakta_gyldige: Boolsk, omfangsresultat: Pbl53AOmfangsresultat, aktuelt_afkastår_findes_entydigt: Boolsk, afkastmetode_tilladt_efter_udbyderopgørelse: Boolsk, metodevalg_bindende_opfyldt: Boolsk, forløbsresultat: Pbl53AForløbsresultat, afkastforløbsresultat: Pbl53AAfkastforløbsresultat) | BeregnetPbl53AOrdning(fakta: PersonskatPbl53AOrdningFakta, omfangsresultat: Pbl53AOmfangsresultat, pensionsbeskatningslov_input: Pensionsbeskatningslov53AInput, pensionsbeskatningslov_resultat: Pensionsbeskatningslov53AResultat, par4_input: Par4Stk1Nr13Input, par4_resultat: Par4Stk1Nr13Resultat, forløbsinput: Pbl53AForløbsinput, forløbsresultat: Pbl53AForløbsresultat, par3_input: Par3Pbl53AStk2Og5Input, par3_resultat: Par3Pbl53AStk2Og5Resultat, afkastforløbsinput: Pbl53AAfkastforløbsinput, afkastforløbsresultat: Pbl53AAfkastforløbsresultat)
@@ -148,4 +149,5 @@
         udenlandsk_indkomstskat_til_ligningslov33_kroner = hvis alle_input_gyldige { personskat_pbl53a_resultatsum_kroner(ordningsresultater, personskat_pbl53a_udenlandsk_skat_for_ordning_kroner) } ellers { 0 }
     )
 }
---@end:personskat_pbl53a_kildefakta--
+
+}

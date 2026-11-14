@@ -439,28 +439,12 @@ Tilsvarende gælder ved opkrævning af rater efter stk. 1.
 )
 = kildeskat_skm2023_605_metadata = Source(value = kildeskat_skm2023_605)
 
---@label:kildeskat_skm2023_605_satser::meta:kildeskat_skm2023_605_metadata--
-----
-SKM2023.605.SKTST, indkomståret 2023:
-Dag-til-dag-rente: 5,5 pct.
-Procenttillæg på restskat: 7,5 pct.
-Procentgodtgørelse på overskydende skat: 0,8 pct.
-----
-
 = kildeskat_skm2024_623 = KildeskatKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2436830",
     identifier = "SKM2024.623.SKTST",
     hentet_dato = "2026-08-09"
 )
 = kildeskat_skm2024_623_metadata = Source(value = kildeskat_skm2024_623)
-
---@label:kildeskat_skm2024_623_satser::meta:kildeskat_skm2024_623_metadata--
-----
-SKM2024.623.SKTST, indkomståret 2024:
-Dag-til-dag-rente: 5,3 pct.
-Procenttillæg på restskat: 7,3 pct.
-Procentgodtgørelse på overskydende skat: 0,6 pct.
-----
 
 = kildeskat_skm2025_716 = KildeskatKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2460000",
@@ -469,7 +453,6 @@ Procentgodtgørelse på overskydende skat: 0,6 pct.
 )
 = kildeskat_skm2025_716_metadata = Source(value = kildeskat_skm2025_716)
 
---@label:kildeskat_skm2025_716_satser::meta:kildeskat_skm2025_716_metadata--
 ----
 SKM2025.716.SKTST, indkomståret 2025:
 Dag-til-dag-rente: 3,7 pct.
@@ -477,7 +460,9 @@ Procenttillæg på restskat: 5,7 pct.
 Procentgodtgørelse på overskydende skat: 0 pct.
 ----
 
---@begin:kildeskat_skm2025_716_satser--
+@ meta(kildeskat_skm2025_716_metadata)
+@ section kildeskat_skm2025_716_satser {
+
 = kildeskat_ukendt_årsopgørelsessatskilde = KildeskatKildeInfo(
     url = "",
     identifier = "",
@@ -499,9 +484,19 @@ Procentgodtgørelse på overskydende skat: 0 pct.
 ) under indkomstår == 2025
 | kildeskat_årsopgørelsessatser_dækket(indkomstår: Heltal) -> kildeskat_årsopgørelsessatser(indkomstår).kilde.identifier != ""
 | kildeskat_afregningsrenteår(indkomstår: Heltal) -> indkomstår + 1
---@end:kildeskat_skm2025_716_satser--
 
---@begin:kildeskat_skm2023_605_satser--
+}
+
+----
+SKM2023.605.SKTST, indkomståret 2023:
+Dag-til-dag-rente: 5,5 pct.
+Procenttillæg på restskat: 7,5 pct.
+Procentgodtgørelse på overskydende skat: 0,8 pct.
+----
+
+@ meta(kildeskat_skm2023_605_metadata)
+@ section kildeskat_skm2023_605_satser {
+
 | exception kildeskat_årsopgørelsessatser_2023 kildeskat_årsopgørelsessatser(indkomstår: Heltal) -> KildeskatÅrsopgørelsessatser(
     indkomstår = 2023,
     dag_til_dag_rente_basispoint = 550,
@@ -509,9 +504,19 @@ Procentgodtgørelse på overskydende skat: 0 pct.
     overskydende_skat_godtgørelse_basispoint = 80,
     kilde = kildeskat_skm2023_605
 ) under indkomstår == 2023
---@end:kildeskat_skm2023_605_satser--
 
---@begin:kildeskat_skm2024_623_satser--
+}
+
+----
+SKM2024.623.SKTST, indkomståret 2024:
+Dag-til-dag-rente: 5,3 pct.
+Procenttillæg på restskat: 7,3 pct.
+Procentgodtgørelse på overskydende skat: 0,6 pct.
+----
+
+@ meta(kildeskat_skm2024_623_metadata)
+@ section kildeskat_skm2024_623_satser {
+
 | exception kildeskat_årsopgørelsessatser_2024 kildeskat_årsopgørelsessatser(indkomstår: Heltal) -> KildeskatÅrsopgørelsessatser(
     indkomstår = 2024,
     dag_til_dag_rente_basispoint = 530,
@@ -519,7 +524,8 @@ Procentgodtgørelse på overskydende skat: 0 pct.
     overskydende_skat_godtgørelse_basispoint = 60,
     kilde = kildeskat_skm2024_623
 ) under indkomstår == 2024
---@end:kildeskat_skm2024_623_satser--
+
+}
 
 # KildeskatRestskatTillægInput(restskat_kroner: Heltal, opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint: Heltal)
 # KildeskatForsinkelsesrenteInput(beløb_kroner: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal, påbegyndte_måneder: Heltal, rente_udløses: Boolsk)

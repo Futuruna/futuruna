@@ -29,8 +29,9 @@
     afgrænsning = "Kontrollen beskriver Grundlovens ordlyd og ikke den nutidige praktiske magtudøvelse."
 )
 
---@label:audit_bestemmelser_magtfordeling::meta:bestemmelser_magtfordeling_fund--
---@begin:audit_bestemmelser_magtfordeling--
+@ meta(bestemmelser_magtfordeling_fund)
+@ section audit_bestemmelser_magtfordeling {
+
 | bestemmelser_magtfordelingen_er_udtømmende_og_konsistent() -> {
     = lovgivende_placering = Magtplacering(
         magt = Lovgivende,
@@ -59,7 +60,8 @@
         && statsmagt_udøves_i_forening(Dømmende) == Falskt
     )
 }
---@end:audit_bestemmelser_magtfordeling--
+
+}
 
 | bestemmelser_par1_omfatter_hele_det_lukkede_rigsdomæne() -> grundloven_gælder_for(Danmark) && grundloven_gælder_for(Færøerne) && grundloven_gælder_for(Grønland)
 

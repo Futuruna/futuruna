@@ -20,17 +20,19 @@
     target = refof(TaxCase::tax_due)
 )
 
---@label:family_tax_rule::meta:family_tax_rule_metadata--
 ----
 Synthetic tutorial policy: income is taxed at 25%, except that a person with
 at least two children pays 20%.
 ----
 
---@begin:family_tax_rule--
+@ meta(family_tax_rule_metadata)
+@ section family_tax_rule {
+
 @ export
 # TaxCase(person: Person) {
     | rate_percent() -> 25
     | exception two_children rate_percent() -> 20 under length(person.children) >= 2
     | tax_due() -> person.annual_income * rate_percent() / 100
 }
---@end:family_tax_rule--
+
+}

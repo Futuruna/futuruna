@@ -17,7 +17,6 @@
     Warning(value = "Indkomsttal og ydelsesfakta kræver kildegrundlag; kildehenvisninger er ikke dokumentautentifikation. Den kompakte indgang indsætter ikke automatisk kreditter. Brug personskat-groen-check.calculate.runa til den særskilte kildeafledte helårsberegning.")
 ))
 
---@label:grøn_check_regler::meta:grøn_check_kilder--
 -- Uddrag af LBK 1306/2022: § 1, stk. 1, 2. pkt.
 ----
 Til personer, der ved indkomstårets udløb har nået folkepensionsalderen, jf. § 1 a i lov om social pension, eller modtager førtidspension, seniorpension eller tidlig pension efter lov om social pension eller lov om højeste, mellemste, forhøjet almindelig og almindelig førtidspension m.v., og som den første dag i indkomståret er skattepligtige efter kildeskattelovens § 1 eller omfattet af kildeskattelovens afsnit I A, ydes en skattefri kompensation med et beløb, der udgør 875 kr.
@@ -49,7 +48,9 @@ Stk. 4. For ægtefæller finder personskattelovens § 7, stk. 6, anvendelse ved 
 I tilfælde, hvor børne- og ungeydelsen for et barn udbetales delvis til barnet selv, jf. § 4, stk. 6, i lov om en børne- og ungeydelse, ydes kompensationen med det dobbelte af beløbene pr. barn i § 1, stk. 2, til den forældremyndighedsindehaver, som modtager den resterende del af børne- og ungeydelsen for barnet.
 ----
 
---@begin:grøn_check_regler--
+@ meta(grøn_check_kilder)
+@ section grøn_check_regler {
+
 # GrønCheckSatser(pensionist_kroner: Heltal, aftrapningsgrænse_kroner: Heltal, tillægsgrænse_kroner: Heltal)
 > grøn_check_satser(år: Heltal) -> GrønCheckSatser? {
     match år {
@@ -205,4 +206,5 @@ I tilfælde, hvor børne- og ungeydelsen for et barn udbetales delvis til barnet
         }
     }
 }
---@end:grøn_check_regler--
+
+}

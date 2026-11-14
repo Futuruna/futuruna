@@ -11,8 +11,9 @@
     )
 )
 
---@label:ebl_ordinær_genanbringelse_scenarier::meta:ebl_ordinær_genanbringelse_scenarier_metadata--
---@begin:ebl_ordinær_genanbringelse_scenarier--
+@ meta(ebl_ordinær_genanbringelse_scenarier_metadata)
+@ section ebl_ordinær_genanbringelse_scenarier {
+
 | ebl_ordinær_scenarie_par6a_fakta(erhvervsfortjeneste_kroner: Heltal, erhvervsanvendelse: EblPar6AErhvervsanvendelse) -> EblPar6AFakta(
     oprindelig_fortjeneste = EblOprindeligErhvervsfortjeneste(
         afståelsesindkomstår = 2025,
@@ -212,4 +213,5 @@
 ? ebl_ordinær_scenarie_delafståelse_fordeler_det_aktive_nedslag
 
 @ print("EBL ordinary reinvestment scenarios passed")
---@end:ebl_ordinær_genanbringelse_scenarier--
+
+}

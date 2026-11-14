@@ -13,7 +13,6 @@
     )
 )
 
---@label:personskatteloven_par4b::meta:personskatteloven_par4b_metadata--
 ----
 § 4 b. CFC-indkomst (Controlled Foreign Company) omfatter det samlede beløb af
 indkomst som omhandlet i ligningslovens § 16 H og § 16 I, stk. 6 og 7.
@@ -22,7 +21,9 @@ Stk. 2. CFC-indkomst indgår ikke i den skattepligtige indkomst ved beregning af
 skat efter §§ 6-8 a.
 ----
 
---@begin:personskatteloven_par4b--
+@ meta(personskatteloven_par4b_metadata)
+@ section personskatteloven_par4b {
+
 # CfcPost = Ligningslov16H | Ligningslov16IStk6Og7 | Ligningslov16IStk7
 # Par4bCfcIndkomstPost(kilde: CfcPost, beløb_kroner: Heltal)
 # Par4bLigningslov16HResultat(omfattet_af_ligningslov16h: Boolsk, cfc_indkomst_kroner: Heltal)
@@ -101,4 +102,5 @@ skat efter §§ 6-8 a.
 | par4b_cfc_indkomst_beregnes_beløb: par4b_cfc_indkomst_resultat_fixture -> par4b_cfc_indkomst_resultat_fixture.cfc_indkomst_kroner == 500000 && par4b_cfc_indkomst_resultat_fixture.positiv_cfc_indkomst_til_par8b_kroner == 500000 && par4b_cfc_indkomst_resultat_fixture.indgår_i_skattepligtig_indkomst_ved_par6_til_8a == Falskt
 | par4b_negativ_cfc_indkomst_giver_intet_positivt_par8b_grundlag: par4b_negativ_cfc_indkomst_fixture -> par4b_negativ_cfc_indkomst_fixture.cfc_indkomst_kroner == -25000 && par4b_negativ_cfc_indkomst_fixture.positiv_cfc_indkomst_til_par8b_kroner == 0 && par4b_negativ_cfc_indkomst_fixture.indgår_i_skattepligtig_indkomst_ved_par6_til_8a == Falskt
 | par4b_ligningslov16h_og_16i_føder_cfc_indkomst: par4b_ligningslov_cfc_fixture -> par4b_ligningslov_cfc_fixture.cfc_indkomst_kroner == 150000 && par4b_ligningslov_cfc_fixture.positiv_cfc_indkomst_til_par8b_kroner == 150000 && par4b_ligningslov_cfc_fixture.indgår_i_skattepligtig_indkomst_ved_par6_til_8a == Falskt
---@end:personskatteloven_par4b--
+
+}

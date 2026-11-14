@@ -11,4 +11,4 @@
     )
 )
 
---@label:imported_aggregate::meta:imported_metadata--
+@ meta(imported_metadata) for imported_aggregate

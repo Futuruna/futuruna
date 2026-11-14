@@ -831,4 +831,4 @@
     )
 )
 
---@label:beregn_personskat::meta:personskat_pbl53a_beregningsmeta--
+@ meta(personskat_pbl53a_beregningsmeta) for beregn_personskat

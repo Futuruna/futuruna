@@ -29,9 +29,8 @@
     attachments = ()
 )
 
---@label:household_tax::meta:household_meta--
-
 | account_tax(a: Account) -> a.closing_ore / 10
 
+@ meta(household_meta)
 @ calculate
 | household_tax(h: Household) -> Result(tax = foldl(map(h.accounts, |a| account_tax(a)), 0, |total, tax| total + tax))

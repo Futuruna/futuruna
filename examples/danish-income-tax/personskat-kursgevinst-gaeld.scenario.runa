@@ -10,7 +10,6 @@
     )
 )
 
---@label:personskat_kursgevinst_gæld_scenarier::meta:personskat_kursgevinst_gæld_scenarier_metadata--
 ----
 Fokuserede regressionsscenarier for den kanoniske beregningsgrænse.
 
@@ -20,7 +19,9 @@ Futuruna afleder indkomståret, anvendelig hjemmel, bagatelgrænse,
 indkomstklassifikation og skatteberegning deterministisk.
 ----
 
---@begin:personskat_kursgevinst_gæld_scenarier--
+@ meta(personskat_kursgevinst_gæld_scenarier_metadata)
+@ section personskat_kursgevinst_gæld_scenarier {
+
 | personskat_kursgevinst_gæld_scenarie_fakta(
     identifikation: Tekst,
     værdi_ved_påtagelse_kroner: Heltal,
@@ -202,4 +203,5 @@ indkomstklassifikation og skatteberegning deterministisk.
 ? personskat_kursgevinst_gæld_samlet_valutaakkord_følger_par24
 
 @ print("Kanoniske Personskat-gældsscenarier: 6")
---@end:personskat_kursgevinst_gæld_scenarier--
+
+}

@@ -14,12 +14,13 @@
     )
 )
 
---@label:søbl5_dis_lempelse::meta:søbl5_dis_lempelse_metadata--
 ----
 § 5. Har en person, der er skattepligtig efter kildeskattelovens § 1, erhvervet lønindkomst ved arbejde om bord på et dansk skib, som er registreret i Dansk Internationalt Skibsregister, og som udelukkende anvendes til formål, som vil kunne omfattes af tonnageskatteloven, nedsættes den samlede indkomstskat med det beløb, der forholdsmæssigt falder på denne indkomst. 1. pkt. finder tilsvarende anvendelse på dødsboer omfattet af dødsboskattelovens § 1, stk. 2. Gratialer og fratrædelsesgodtgørelser m.v., jf. ligningslovens § 7 U, er omfattet af 1. pkt., når den pågældende ydelse har direkte tilknytning til arbejde udført om bord på skib som nævnt i 1. pkt.
 ----
 
---@begin::søbl5_dis_lempelse--
+@ meta(søbl5_dis_lempelse_metadata)
+@ section søbl5_dis_lempelse {
+
 # Søbl5Lempelseskomponentart = Søbl5Bundskat | Søbl5Mellemskat | Søbl5Topskat | Søbl5Toptopskat | Søbl5Udligningsskat | Søbl5Sundhedsbidrag | Søbl5KommunalLignendeStatsskat | Søbl5Kommuneskat | Søbl5Kirkeskat
 # Søbl5Lempelseskomponent(art: Søbl5Lempelseskomponentart, dansk_skat_før_personfradrag_kroner: Heltal, dis_nettoindkomst_i_skattegrundlaget_kroner: Heltal, samlet_skattegrundlag_kroner: Heltal, forholdsmæssig_lempelse_kroner: Heltal)
 # Søbl5Lempelsesresultat(årsresultat: Søbl5Til8Årsresultat, komponenter: List(Søbl5Lempelseskomponent), input_gyldigt: Boolsk, dis_personlig_indkomst_kroner: Heltal, personlig_indkomstgrundlag_kroner: Heltal, personlig_og_positiv_kapitalindkomstgrundlag_kroner: Heltal, skattepligtig_indkomstgrundlag_kroner: Heltal, lempelse_før_skatteloft_kroner: Heltal, henført_personligt_skatteloftsnedslag_kroner: Heltal, højeste_lempelse_efter_par13_og_skatteloft_kroner: Heltal, samlet_lempelse_kroner: Heltal, indkomstskat_før_dis_lempelse_kroner: Heltal, indkomstskat_efter_dis_lempelse_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, samlet_skat_inkl_am_efter_dis_lempelse_kroner: Heltal, par13_stk5_lempelsesgrundlag: Par13Stk5Lempelsesgrundlag)
@@ -176,4 +177,5 @@
         par13_stk5_lempelsesgrundlag = årsresultat.par13_stk5_lempelsesgrundlag
     )
 }
---@end::søbl5_dis_lempelse--
+
+}

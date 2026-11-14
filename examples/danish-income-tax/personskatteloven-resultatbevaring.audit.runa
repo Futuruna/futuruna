@@ -46,7 +46,6 @@
     )
 )
 
---@label:personskat_resultatbevaring_psl::meta:personskat_resultatbevaring_psl_metadata--
 ----
 § 5. Indkomstskatten til staten opgøres som summen af
 1) bundskat efter § 6,
@@ -82,7 +81,9 @@ resterende beløb fremføres til modregning i slutskatten for de følgende
 indkomstår.
 ----
 
---@begin:personskat_resultatbevaring_psl--
+@ meta(personskat_resultatbevaring_psl_metadata)
+@ section personskat_resultatbevaring_psl {
+
 = personskat_resultatbevaring_loenmodtager_komponentkontrakt = PersonskatResultatKontrakt(
     navn = "LønmodtagerSkattekomponenter",
     enhed = ResultatIKroner,
@@ -127,7 +128,8 @@ indkomstår.
 | personskat_resultatbevaring_positiv_aktieskat(resultat: AktieindkomstSkatResultat) -> resultat.lavt_grundlag_kroner >= 0 && resultat.højt_grundlag_kroner >= 0 && resultat.endelig_skat_kroner >= 0 && resultat.slutskat_indgående_skat_kroner >= 0 && resultat.samlet_skat_kroner == resultat.endelig_skat_kroner + resultat.slutskat_indgående_skat_kroner
 | personskat_resultatbevaring_negativ_aktieskat_person(resultat: AktieindkomstNegativSkatPersonResultat) -> resultat.negativ_skat_kroner >= 0 && resultat.modregnet_i_egen_slutskat_kroner >= 0 && resultat.modregnet_i_ægtefælles_slutskat_kroner >= 0 && resultat.fremført_kroner >= 0 && resultat.negativ_skat_kroner == resultat.modregnet_i_egen_slutskat_kroner + resultat.modregnet_i_ægtefælles_slutskat_kroner + resultat.fremført_kroner
 | personskat_resultatbevaring_negativ_aktieskat_par(resultat: AktieindkomstNegativSkatParResultat) -> resultat.input_gyldigt && personskat_resultatbevaring_negativ_aktieskat_person(resultat.egen) && personskat_resultatbevaring_negativ_aktieskat_person(resultat.ægtefælle) && resultat.samlet_negativ_skat_kroner == resultat.egen.negativ_skat_kroner + resultat.ægtefælle.negativ_skat_kroner && resultat.samlet_negativ_skat_kroner == resultat.samlet_negativ_skat_modregnet_kroner + resultat.samlet_negativ_skat_fremført_kroner && resultat.samlet_slutskat_før_negativ_skat_kroner == resultat.input.egen_slutskat_før_negativ_skat_kroner + resultat.input.ægtefælles_slutskat_før_negativ_skat_kroner && resultat.samlet_slutskat_efter_negativ_skat_kroner == resultat.egen_slutskat_efter_negativ_skat_kroner + resultat.ægtefælles_slutskat_efter_negativ_skat_kroner && resultat.samlet_slutskat_før_negativ_skat_kroner == resultat.samlet_slutskat_efter_negativ_skat_kroner + resultat.samlet_negativ_skat_modregnet_kroner
---@end:personskat_resultatbevaring_psl--
+
+}
 
 = personskat_resultatbevaring_soebl_metadata = Metadata(
     attachments = (
@@ -135,7 +137,6 @@ indkomstår.
     )
 )
 
---@label:personskat_resultatbevaring_soebl::meta:personskat_resultatbevaring_soebl_metadata--
 ----
 § 5. Har en person, der er skattepligtig efter kildeskattelovens § 1,
 erhvervet lønindkomst ved arbejde om bord på et dansk skib, som er registreret
@@ -144,7 +145,9 @@ som vil kunne omfattes af tonnageskatteloven, nedsættes den samlede
 indkomstskat med det beløb, der forholdsmæssigt falder på denne indkomst.
 ----
 
---@begin:personskat_resultatbevaring_soebl--
+@ meta(personskat_resultatbevaring_soebl_metadata)
+@ section personskat_resultatbevaring_soebl {
+
 = personskat_resultatbevaring_soebl_kontrakt = PersonskatResultatKontrakt(
     navn = "Søbl5EksaktLempelsesresultat",
     enhed = ResultatIØre,
@@ -156,7 +159,8 @@ indkomstskat med det beløb, der forholdsmæssigt falder på denne indkomst.
 
 | personskat_resultatbevaring_soebl_komponentsum_øre(resultat: Søbl5EksaktLempelsesresultat) -> resultat.lempelse_før_skatteloft_øre == foldl(resultat.komponenter, 0, |sum_øre: Heltal, komponent: Søbl5EksaktLempelseskomponent| sum_øre + komponent.forholdsmæssig_lempelse_øre)
 | personskat_resultatbevaring_soebl_eksakt(resultat: Søbl5EksaktLempelsesresultat) -> resultat.input_gyldigt && personskat_resultatbevaring_soebl_komponentsum_øre(resultat) && resultat.samlet_lempelse_øre >= 0 && resultat.samlet_lempelse_øre <= resultat.højeste_lempelse_efter_par13_og_skatteloft_øre && resultat.indkomstskat_efter_dis_lempelse_øre == resultat.indkomstskat_før_dis_lempelse_øre - resultat.samlet_lempelse_øre && resultat.samlet_skat_inkl_am_efter_dis_lempelse_øre == resultat.arbejdsmarkedsbidrag_øre + resultat.indkomstskat_efter_dis_lempelse_øre && resultat.samlet_lempelse_kroner_kompatibilitetsprojektion == resultat.samlet_lempelse_øre / 100
---@end:personskat_resultatbevaring_soebl--
+
+}
 
 = personskat_resultatbevaring_ejendom_metadata = Metadata(
     attachments = (
@@ -164,7 +168,6 @@ indkomstskat med det beløb, der forholdsmæssigt falder på denne indkomst.
     )
 )
 
---@label:personskat_resultatbevaring_ejendom::meta:personskat_resultatbevaring_ejendom_metadata--
 ----
 § 31. Ejendomsværdiskat af ejendomme nævnt i § 3 og grundskyld af ejendomme
 nævnt i § 3, stk. 1, nr. 3 og 4, og ejendomsvurderingslovens § 3, stk. 1,
@@ -173,7 +176,9 @@ skatteforvaltningen via forskuds- og årsopgørelsen hos den eller de fysiske
 personer, der ejer ejendommen i henhold til et autoritativt register.
 ----
 
---@begin:personskat_resultatbevaring_ejendom--
+@ meta(personskat_resultatbevaring_ejendom_metadata)
+@ section personskat_resultatbevaring_ejendom {
+
 = personskat_resultatbevaring_ejendom_kontrakt = PersonskatResultatKontrakt(
     navn = "EjendomsskattelovPersonÅrsresultat",
     enhed = ResultatIØre,
@@ -184,7 +189,8 @@ personer, der ejer ejendommen i henhold til et autoritativt register.
 )
 
 | personskat_resultatbevaring_ejendom(resultat: EjendomsskattelovPersonÅrsresultat) -> resultat.identifikationer_entydige && resultat.alle_input_gyldige && resultat.regelgrundlag_understøttet && resultat.samlet_ejendomsværdiskat_øre == foldl(resultat.ejendomsresultater, 0, |sum_øre: Heltal, ejendom: EjendomsskattelovPersonEjendomResultat| sum_øre + ejendom.ejendomsværdiskat_øre) && resultat.samlet_grundskyld_øre == foldl(resultat.ejendomsresultater, 0, |sum_øre: Heltal, ejendom: EjendomsskattelovPersonEjendomResultat| sum_øre + ejendom.grundskyld_øre) && resultat.samlet_ejendomsskat_øre == resultat.samlet_ejendomsværdiskat_øre + resultat.samlet_grundskyld_øre && resultat.samlet_ejendomsskat_kroner == resultat.samlet_ejendomsskat_øre / 100
---@end:personskat_resultatbevaring_ejendom--
+
+}
 
 = personskat_resultatbevaring_ksl_metadata = Metadata(
     attachments = (
@@ -193,7 +199,6 @@ personer, der ejer ejendommen i henhold til et autoritativt register.
     )
 )
 
---@label:personskat_resultatbevaring_ksl::meta:personskat_resultatbevaring_ksl_metadata--
 ----
 § 60. I den slutskat, der for et år udskrives for den skattepligtige, med
 tillæg af eventuel overført restskat m.v. efter § 61, stk. 3, og afgiften
@@ -215,7 +220,9 @@ pensionsbeskatningslovens § 25 A, stk. 5-9, måtte være mindre end de
 foreløbige skatter, der modregnes efter § 60, benævnes »overskydende skat«.
 ----
 
---@begin:personskat_resultatbevaring_ksl--
+@ meta(personskat_resultatbevaring_ksl_metadata)
+@ section personskat_resultatbevaring_ksl {
+
 = personskat_resultatbevaring_ligningslov33_kontrakt = PersonskatResultatKontrakt(
     navn = "PersonskatLigningslov33ParResultat",
     enhed = ResultatIØre,
@@ -267,7 +274,8 @@ foreløbige skatter, der modregnes efter § 60, benævnes »overskydende skat«.
 | personskat_resultatbevaring_personskat_kroner(resultat: PersonskatBeregningResultat) -> resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner == resultat.sømandsbeskatning.samlet_skat_inkl_am_efter_dis_lempelse_kroner + resultat.endelig_aktieindkomstskat_kroner && resultat.samlet_skat_inkl_ejendomsskatter_kroner == resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner + resultat.ejendomsskatter.samlet_ejendomsskat_kroner && resultat.samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_kroner == penge_positivt_beløb(resultat.samlet_skat_inkl_ejendomsskatter_kroner - resultat.ligningslov33.hovedpersons_nedslag_øre / 100) && resultat.samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_og_33a_kroner == penge_positivt_beløb(resultat.samlet_skat_inkl_ejendomsskatter_kroner - resultat.hovedpersons_ligningslov33_og_33a_nedslag_øre / 100) && resultat.samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner == resultat.negativ_aktieindkomstskat.egen_slutskat_efter_negativ_skat_kroner && resultat.samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner == resultat.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.egen_slutskat_efter_fremført_negativ_skat_kroner
 | personskat_resultatbevaring_personskat_eksakt(resultat: PersonskatBeregningResultat) -> resultat.samlet_skat_inkl_endelig_aktieindkomstskat_øre == resultat.eksakt_ordinær_skat_efter_dis_øre + resultat.endelig_aktieindkomstskat_øre && resultat.samlet_skat_inkl_ejendomsskatter_øre == resultat.samlet_skat_inkl_endelig_aktieindkomstskat_øre + resultat.ejendomsskatter.samlet_ejendomsskat_øre && resultat.samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_øre == penge_positivt_beløb(resultat.samlet_skat_inkl_ejendomsskatter_øre - resultat.ligningslov33.hovedpersons_nedslag_øre) && resultat.samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_og_33a_øre == penge_positivt_beløb(resultat.samlet_skat_inkl_ejendomsskatter_øre - resultat.hovedpersons_ligningslov33_og_33a_nedslag_øre) && resultat.slutskat_øre == resultat.samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_og_33a_øre && resultat.samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_øre == penge_positivt_beløb(resultat.slutskat_øre - resultat.personskattelov_par8a_stk5_kredit_øre) && resultat.samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_øre >= resultat.samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_øre && resultat.slutskat_kroner_kompatibilitetsprojektion == resultat.slutskat_øre / 100
 | personskat_resultatbevaring_personskat(resultat: PersonskatBeregningResultat) -> personskat_resultatbevaring_loenmodtager(resultat.skat) && personskat_resultatbevaring_soebl_eksakt(resultat.sømandsbeskatning_eksakt) && personskat_resultatbevaring_positiv_aktieskat(resultat.positiv_aktieindkomstskat) && personskat_resultatbevaring_negativ_aktieskat_par(resultat.negativ_aktieindkomstskat) && personskat_resultatbevaring_ejendom(resultat.ejendomsskatter) && personskat_resultatbevaring_ligningslov33(resultat.ligningslov33) && personskat_resultatbevaring_personskat_kroner(resultat) && personskat_resultatbevaring_personskat_eksakt(resultat) && personskat_resultatbevaring_aarsopgoerelse(resultat)
---@end:personskat_resultatbevaring_ksl--
+
+}
 
 = personskat_resultatbevaring_kontrakter = [
     personskat_resultatbevaring_loenmodtager_komponentkontrakt,

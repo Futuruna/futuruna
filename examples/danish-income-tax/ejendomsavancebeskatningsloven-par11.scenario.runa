@@ -10,8 +10,9 @@
     )
 )
 
---@label:ebl_par11_scenarier::meta:ebl_par11_scenarier_metadata--
---@begin:ebl_par11_scenarier--
+@ meta(ebl_par11_scenarier_metadata)
+@ section ebl_par11_scenarier {
+
 | ebl_par11_scenarie_tidligere_genanbringelse(tillæg_kroner: Heltal, nedslag_kroner: Heltal) -> EblMedGenanbringelseEfterPar6A(fakta = EblPar6AFakta(
     oprindelig_fortjeneste = EblOprindeligErhvervsfortjeneste(
         afståelsesindkomstår = 2020,
@@ -158,4 +159,5 @@
 ? ebl_par11_scenarie_bevarer_fradragsberettiget_tab
 
 @ print("EBL § 11 scenarios passed")
---@end:ebl_par11_scenarier--
+
+}

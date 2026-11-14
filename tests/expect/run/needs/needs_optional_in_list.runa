@@ -25,12 +25,11 @@
     attachments = ()
 )
 
---@label:household_tax::meta:household_meta--
-
 | account_tax(a: Account) -> match a.joint {
     | None -> a.closing_ore / 10
     | Some(j) -> a.closing_ore * (100 - j.share_pct) / 1000
 }
 
+@ meta(household_meta)
 @ calculate
 | household_tax(h: Household) -> TaxResult(tax = foldl(map(h.accounts, |a| account_tax(a)), 0, |total, tax| total + tax))

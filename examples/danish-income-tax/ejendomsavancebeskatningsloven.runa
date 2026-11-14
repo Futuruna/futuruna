@@ -48,7 +48,6 @@ EndDate: 2026-07-01
     )
 )
 
---@label:ejendomsavancebeskatningsloven_par1_par1a_par2_par4::meta:ejendomsavancebeskatningsloven_par1_par1a_par2_par4_metadata--
 ----
 § 1. Fortjeneste ved afståelse af fast ejendom medregnes til den
 skattepligtige indkomst efter reglerne i denne lov.
@@ -139,7 +138,9 @@ opgørelsen af afståelsessummen for bygningen ved anvendelse af reglerne i denn
 lov.
 ----
 
---@begin:ejendomsavancebeskatningsloven_par1_par1a_par2_par4--
+@ meta(ejendomsavancebeskatningsloven_par1_par1a_par2_par4_metadata)
+@ section ejendomsavancebeskatningsloven_par1_par1a_par2_par4 {
+
 # EblPar8Par9Behandling = EblIngenPar8EllerPar9 | EblPar8Behandling(resultat: EblPar8Resultat) | EblPar9Behandling(resultat: EblPar9Resultat)
 # EjendomsavancebeskatningslovInput(indkomstår: Heltal, afståelsesdato: EblDato, afståelse: EjendomsavancebeskatningslovAfståelse, erhvervet_som_led_i_næring: Boolsk, kontant_anskaffelsessum_kroner: Heltal, gæld_kursværdi_ved_anskaffelse_kroner: Heltal, par5_fakta: EblPar5Fakta, par4_stk8_anskaffelse_udeladt_kroner: Heltal, kontant_afståelsessum_kroner: Heltal, overdragne_gældsposter_kursværdi_kroner: Heltal, par4_stk8_afståelsesværdi_udeladt_kroner: Heltal, ejendomstype: EjendomsavanceEjendomstype, par11_stk2_valg: EblPar11Stk2Valg, par6d_valg: EblPar6DValg)
 # EjendomsavancebeskatningslovResultat(indkomstår: Heltal, afståelsesdato: EblDato, afståelse: EjendomsavancebeskatningslovAfståelse, ejendomstype: EjendomsavanceEjendomstype, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, omfattet_af_loven: Boolsk, undtaget_efter_par11: Boolsk, par11_stk2_resultat: EblPar11Stk2Resultat, anskaffelsessum_kontantværdi_kroner: Heltal, anskaffelsessum_efter_par4_stk8_kroner: Heltal, genanbringelsesresultat: EblGenanbringelsesResultat, aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner: Heltal, par6c_nedslag_modregnet_i_par5_udgifter_kroner: Heltal, anskaffelsessum_før_par5_efter_aktivt_genanbringelsesnedslag_kroner: Heltal, par5_resultat: EblPar5Resultat, reguleret_anskaffelsessum_kroner: Heltal, afståelsessum_kontantværdi_kroner: Heltal, par8_par9_behandling: EblPar8Par9Behandling, ejendomsafgrænsning: EjendomsavancePar6Ejendomsafgrænsning, skattefri_fortjeneste_efter_par8_eller_par9_kroner: Heltal, afskåret_boligtab_efter_par6_stk4_kroner: Heltal, fortjeneste_eller_tab_kroner: Heltal, skattepligtig_efter_par1: Boolsk, skattepligtig_fortjeneste_før_par6d_kroner: Heltal, par6d_resultat: EblPar6DResultat, skattepligtig_fortjeneste_kroner: Heltal, tab_kroner: Heltal)
@@ -409,7 +410,8 @@ lov.
 }
 | ejendomsavancebeskatningslov_sag(input: EjendomsavancebeskatningslovInput) -> EjendomsavancebeskatningslovSag(input)
 | ejendomsavancebeskatningslov_resultat(input: EjendomsavancebeskatningslovInput) -> ejendomsavancebeskatningslov_sag(input).resultat()
---@end:ejendomsavancebeskatningsloven_par1_par1a_par2_par4--
+
+}
 
 = ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5 = EjendomsavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2019/132",
@@ -420,7 +422,7 @@ lov.
 = ebl_par6_stk3_til_5_kildemeta = Source(
     value = ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5
 )
---@label:ejendomsavancebeskatningsloven_par6_stk3_til_5::meta:ebl_par6_stk3_til_5_kildemeta--
+
 ----
 Stk. 3. I fortjeneste, der i et givet indkomstår er skattepligtig efter stk. 1,
 kan den skattepligtige fradrage indkomstårets tab ved afståelse af fast ejendom,
@@ -449,7 +451,9 @@ i det pågældende indkomstår, og hvis ægtefællerne er samlevende ved
 indkomstårets udgang.
 ----
 
---@begin:ejendomsavancebeskatningsloven_par6_stk3_til_5--
+@ meta(ebl_par6_stk3_til_5_kildemeta)
+@ section ejendomsavancebeskatningsloven_par6_stk3_til_5 {
+
 # EjendomsavancePar6Tabspost(resultat: EjendomsavancebeskatningslovResultat)
 # EjendomsavancePar6TabspostResultat(indkomstår: Heltal, brutto_tab_kroner: Heltal, afskåret_efter_par8_kroner: Heltal, afskåret_boligdel_efter_par9_kroner: Heltal, afskåret_efter_par4_stk3_tredje_pkt_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
 # EjendomsavancePar6Tabsårsresultat(indkomstår: Heltal, tabspost_resultater: List(EjendomsavancePar6TabspostResultat), årets_fradragsberettigede_tab_kroner: Heltal, gyldigt_fremført_tab_fra_tidligere_år_kroner: Heltal, afvist_fremførsel_kroner: Heltal, årets_og_fremførte_tab_kroner: Heltal, egne_skattepligtige_fortjenester_kroner: Heltal, tab_modregnet_i_egne_fortjenester_kroner: Heltal, ægtefælles_nettofortjeneste_efter_egne_tab_kroner: Heltal, tab_overført_til_ægtefælle_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal)
@@ -561,4 +565,5 @@ indkomstårets udgang.
     )
 }
 | ejendomsavance_par6_ægtefællepar_resultat(input: EjendomsavancePar6ÆgtefælleparInput) -> EjendomsavancePar6ÆgtefælleparSag(input).resultat()
---@end:ejendomsavancebeskatningsloven_par6_stk3_til_5--
+
+}

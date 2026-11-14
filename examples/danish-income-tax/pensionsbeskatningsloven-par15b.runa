@@ -69,14 +69,13 @@
     )
 )
 
---@label:pbl15b_årsparametre_2010_til_2017::meta:pbl15b_årsparametre_2010_til_2017_metadata--
 ----
 Pensionsbeskatningsloven:
 Maks. hævning for professionelle sportsudøvere før 40. år 1.708.500 1.708.500 1.708.500 1.708.500 1.739.300 1.764.900 1.788.800 1.828.100
 Maks. årlig hævning for professionelle sportsudøvere 341.700 341.700 341.700 341.700 347.900 353.000 357.800 365.700
 ----
 
---@begin::pbl15b_årsparametre_2010_til_2017--
+@ meta(pbl15b_årsparametre_2010_til_2017_metadata)
 | pbl15b_årsparametre_2010_til_2017(indkomstår: Heltal) -> match indkomstår {
     | 2010 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2010, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1708500, årligt_rateudbetalingsloft_kroner = 341700)
     | 2011 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2011, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1708500, årligt_rateudbetalingsloft_kroner = 341700)
@@ -88,7 +87,6 @@ Maks. årlig hævning for professionelle sportsudøvere 341.700 341.700 341.700 
     | 2017 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2017, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1828100, årligt_rateudbetalingsloft_kroner = 365700)
     | _ -> pbl15b_årsparametre_uden_kildedækning(indkomstår)
 }
---@end::pbl15b_årsparametre_2010_til_2017--
 
 = pbl15b_årsparametre_2018_til_2024_metadata = Metadata(
     attachments = (
@@ -96,14 +94,13 @@ Maks. årlig hævning for professionelle sportsudøvere 341.700 341.700 341.700 
     )
 )
 
---@label:pbl15b_årsparametre_2018_til_2024::meta:pbl15b_årsparametre_2018_til_2024_metadata--
 ----
 Pensionsbeskatningsloven kr. 2018 2019 2020 2021 2022 2023 2024
 Maks. hævning for professionelle sportsudøvere før 40. år 1.869.100 1.910.200 1.952.900 1.997.300 2.021.200 2.081.000 2.154.500
 Maks. årlig hævning for professionelle sportsudøvere 373.900 382.100 390.600 399.500 404.300 416.200 430.900
 ----
 
---@begin::pbl15b_årsparametre_2018_til_2024--
+@ meta(pbl15b_årsparametre_2018_til_2024_metadata)
 | pbl15b_årsparametre_2018_til_2024(indkomstår: Heltal) -> match indkomstår {
     | 2018 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2018, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 1869100, årligt_rateudbetalingsloft_kroner = 373900)
     | 2019 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2019, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 1910200, årligt_rateudbetalingsloft_kroner = 382100)
@@ -114,7 +111,6 @@ Maks. årlig hævning for professionelle sportsudøvere 373.900 382.100 390.600 
     | 2024 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2024, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 2154500, årligt_rateudbetalingsloft_kroner = 430900)
     | _ -> pbl15b_årsparametre_uden_kildedækning(indkomstår)
 }
---@end::pbl15b_årsparametre_2018_til_2024--
 
 = pbl15b_årsparametre_2025_til_2026_metadata = Metadata(
     attachments = (
@@ -122,7 +118,6 @@ Maks. årlig hævning for professionelle sportsudøvere 373.900 382.100 390.600 
     )
 )
 
---@label:pbl15b_årsparametre_2025_til_2026::meta:pbl15b_årsparametre_2025_til_2026_metadata--
 ----
 Maks. indbetaling til opsparingsordning for sportsudøvere
 (§ 15 B, stk. 3) 1.708.500 kr. 2.238.200 kr. 2.345.800 kr.
@@ -130,13 +125,12 @@ Maks. årlig hævning for sportsudøvere
 (§ 15 B, stk. 5 og stk. 6) 341.700 kr. 447.700 kr. 469.200 kr.
 ----
 
---@begin::pbl15b_årsparametre_2025_til_2026--
+@ meta(pbl15b_årsparametre_2025_til_2026_metadata)
 | pbl15b_årsparametre_2025_til_2026(indkomstår: Heltal) -> match indkomstår {
     | 2025 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2025, kilde = Pbl15BSatser2025Til2026, samlet_indbetalingsloft_kroner = 2238200, årligt_rateudbetalingsloft_kroner = 447700)
     | 2026 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2026, kilde = Pbl15BSatser2025Til2026, samlet_indbetalingsloft_kroner = 2345800, årligt_rateudbetalingsloft_kroner = 469200)
     | _ -> pbl15b_årsparametre_uden_kildedækning(indkomstår)
 }
---@end::pbl15b_årsparametre_2025_til_2026--
 
 | pbl15b_årsparametre(indkomstår: Heltal) -> pbl15b_årsparametre_uden_kildedækning(indkomstår)
 | exception pbl15b_satser_2010_til_2017 pbl15b_årsparametre(indkomstår: Heltal) -> pbl15b_årsparametre_2010_til_2017(indkomstår) under indkomstår >= 2010 && indkomstår <= 2017
@@ -156,7 +150,6 @@ Maks. årlig hævning for sportsudøvere
     )
 )
 
---@label:pensionsbeskatningsloven_par15b::meta:pensionsbeskatningsloven_par15b_metadata--
 ----
 Pensionsordninger for sportsudøvere
 
@@ -173,7 +166,9 @@ Stk. 5. En rateopsparing i pensionsøjemed som nævnt i stk. 1 skal indeholde be
 Stk. 6. Fradrag for præmier og bidrag til pensionsordninger omfattet af stk. 1-5 kan højst omfatte én police eller én konto pr. person. Fradrag for præmier, der forfalder i indkomståret, til rateforsikring i pensionsøjemed omfattet af stk. 1-5 og fradrag for indkomstårets bidrag til rateopsparing i pensionsøjemed omfattet af stk. 1-5 kan ikke overstige den indkomst hidrørende fra den skattepligtiges sportsudøvelse, som den skattepligtige har erhvervet ret til i samme indkomstår. Det samlede fradrag for præmier og bidrag til rateforsikring eller rateopsparing i pensionsøjemed omfattet af stk. 1-5 kan ikke overstige det beløb, som efter stk. 3 må indbetales. 2. og 3. pkt. gælder ikke for ordninger som nævnt i stk. 4, 3. og 4. pkt., og stk. 5, 5.-7. pkt.
 ----
 
---@begin::pensionsbeskatningsloven_par15b--
+@ meta(pensionsbeskatningsloven_par15b_metadata)
+@ section pensionsbeskatningsloven_par15b {
+
 # Pbl15BIndkomstkilde = Pbl15BIndkomstFraEgenSportsudøvelse | Pbl15BAndenIndkomst
 # Pbl15BIndkomstpost(identifikation: Tekst, erhvervelsesår: Heltal, beløb_kroner: Heltal, kilde: Pbl15BIndkomstkilde)
 # Pbl15BOrdningsart = Pbl15BRateforsikring | Pbl15BRateopsparing
@@ -518,4 +513,5 @@ Stk. 6. Fradrag for præmier og bidrag til pensionsordninger omfattet af stk. 1-
     )
 }
 | pbl15b_årsresultat(input: Pbl15BÅrsberegningsinput) -> Pbl15BÅrssag(input).resultat()
---@end::pensionsbeskatningsloven_par15b--
+
+}

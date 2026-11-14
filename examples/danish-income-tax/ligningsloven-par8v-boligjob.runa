@@ -6,16 +6,6 @@
 = ll8v_kilde = Ll8VKilde(url = "https://www.retsinformation.dk/eli/lta/2025/1500", identifier = "LL § 8 V og bilag 1; lov 109/2024 og lov 95/2025", kontrolleret = "2026-09-21")
 = ll8v_privatleverandør_kilde = Ll8VKilde(url = "https://skat.dk/borger/fradrag/servicefradrag/salg-af-serviceydelser-med-servicefradrag-privatperson", identifier = "Skattestyrelsen: private udføreres alderskrav ved arbejdsårets afslutning", kontrolleret = "2026-09-25")
 = ll8v_kildemeta = Metadata(attachments = (Source(value = ll8v_kilde), Guidance(value = ll8v_privatleverandør_kilde)))
---@label:ll8v::meta:ll8v_kildemeta--
-----
-Ved opgørelsen af den skattepligtige indkomst kan fradrages udgifter, der er
-betalt og dokumenteret, til arbejdsløn for serviceydelser og grøn istandsættelse
-i hjemmet eller i en fritidsbolig, jf. stk. 2-9 og bilag 1.
-
-Stk. 4. Fradraget henføres til det indkomstår, hvor betalingen for arbejdet er
-sket. Fradraget henføres dog til det indkomstår, hvor arbejdet er udført, hvis
-betaling for arbejdet er sket inden for 2 måneder efter indkomstårets udløb.
-----
 -- Dokumentation/elektronisk betaling: BEK 391/2022 §§ 3-13.
 -- https://www.retsinformation.dk/eli/lta/2022/391
 -- 2023-loft: https://skat.dk/media/ntnj5lsw/02048_januar_2023-t.pdf
@@ -27,37 +17,55 @@ betaling for arbejdet er sket inden for 2 måneder efter indkomstårets udløb.
 
 = ll8v_bek391_kilde = Ll8VKilde(url = "https://www.retsinformation.dk/eli/lta/2022/391", identifier = "BEK nr 391 af 28/03/2022 § 14, stk. 2", kontrolleret = "2026-09-22")
 = ll8v_bek391_kildemeta = Source(value = ll8v_bek391_kilde)
---@label:ll8v_arbejdsdato_dækket::meta:ll8v_bek391_kildemeta--
 ----
 Stk. 2. Bekendtgørelsen har virkning for arbejde, der udføres fra og med den 1. april 2022. Bekendtgørelsen har ikke virkning for arbejde, der er udført til og med den 31. marts 2022. For sådant arbejde finder de hidtil gældende regler anvendelse.
 ----
+
 -- Nedre grænse følger bekendtgørelsens virkningstid; øvre grænse er modellens
 -- dækning, ikke en lovbestemt ophørsdato. Dækning giver ikke i sig selv fradrag.
+@ meta(ll8v_bek391_kildemeta)
 > ll8v_arbejdsdato_dækket(dato: Dato) -> Boolsk {
     dato_gyldig(dato) && dato.år >= 2022 && dato.år <= 2026 && (dato.år > 2022 || dato.måned >= 4)
 }
 
 # Ll8VSvar = Ll8VUoplyst | Ll8VJa | Ll8VNej
+@ meta(ll8vårsinput_meta)
 # Ll8VÅrsinput = BoligjobUoplyst | IngenBoligjobudgifter | OplysteBoligjobudgifter(poster: List(Ll8VPost), oplysninger_for_året_komplette: Boolsk, skattepligt: Ll8VSkattepligt, personreference: Tekst)
 # Ll8VSkattepligt = Ll8VUoplystSkattepligt | Ll8VFuldtSkattepligtig | Ll8VGrænsegænger | Ll8VBegrænsetSkattepligtig | Ll8VIkkeSkattepligtig
 # Ll8VYdelse = Ll8VUafklaretYdelse | Ll8VRengøring | Ll8VVinduespudsning | Ll8VBørnepasning | Ll8VAfhentningAfBørn | Ll8VGræsslåning | Ll8VHækklipning | Ll8VLugning | Ll8VBeskæring | Ll8VSnerydning | Ll8VFliserensning | Ll8VTræfældning | Ll8VTagrender | Ll8VBelægning | Ll8VNyGræsplæne | Ll8VTyverialarm | Ll8VHvidevarereparation | Ll8VTagisolering | Ll8VSkorsten | Ll8VVinduerOgYderdøre | Ll8VYdervægsisolering | Ll8VGulvisolering | Ll8VAfmonteringBrændeovn | Ll8VVarmeStyring | Ll8VVandbårenVarme | Ll8VSolcellerOgHusstandsmøller | Ll8VSolfanger | Ll8VFjernvarmeunit | Ll8VVarmepumpe | Ll8VElvandvarmer | Ll8VVentilationInstallationReparationForbedring | Ll8VAfløbOgDræn | Ll8VRadonsikring | Ll8VYdelseUdenForBilag1
 # Ll8VKategori = Ll8VIngenKategori | Ll8VService | Ll8VGrønIstandsættelse
 # Ll8VLand = Ll8VUoplystLand | Ll8VDanmark | Ll8VEU_EØS(oplysningsudveksling: Ll8VSvar) | Ll8VUdenforEU_EØS(oplysningsudveksling: Ll8VSvar)
 # Ll8VRegistrering = Ll8VUoplystRegistrering | Ll8VDanskRegistrering | Ll8VEU_EØSRegistrering | Ll8VRegistreringIBoligensTredjeland | Ll8VIngenRegistrering
+@ meta(ll8vleverandør_meta)
 # Ll8VLeverandør = Ll8VUoplystLeverandør | Ll8VVirksomhed(moms_eller_tredjelandsregistrering: Ll8VRegistrering, udenlandsk_virksomhed_i_danmark: Ll8VSvar, rut_registreret: Ll8VSvar) | Ll8VPrivatperson(fødselsdato: Dato, fuld_skattepligt_i: Ll8VRegistrering)
 # Ll8VBetalingsform = Ll8VUoplystBetaling | Ll8VKontooverførsel | Ll8VKortEllerMobilbetaling | Ll8VKontanter | Ll8VCheck
 # Ll8VBoligforhold = Ll8VUoplystBoligforhold | Ll8VHelårsbolig(fast_bopæl_ved_arbejdet: Ll8VSvar, individuel_råderet_og_vedligeholdelsesret: Ll8VSvar) | Ll8VFritidsbolig(ejer_og_ejendomsværdiskattepligtig_ved_arbejdet: Ll8VSvar, gift_og_samlevende_med_sådan_ejer_ved_arbejdet: Ll8VSvar, udlejet_i_fradragsåret: Ll8VSvar)
 # Ll8VSærligtForhold = Ll8VUoplystSærligtForhold | Ll8VAlmindeligUdgift | Ll8VForsikringEllerAndenUafklaretFordeling
+@ meta(ll8vandel_meta)
 # Ll8VAndel(personreference: Tekst, arbejdsløn_øre: Heltal)
 -- Én fælles post pr. dokumenteret betalings-/ydelseslinje; samme nøgle og
 -- samme betalingsfakta genbruges, hvis begge ægtefæller tager en andel.
+@ meta(ll8vbetalingsfakta_meta)
 # Ll8VBetalingsfakta(identifikation: Tekst, kildereference: Tekst, betalingsreference: Tekst, boligreference: Tekst, ydelse: Ll8VYdelse, arbejdsdato: Dato, betalingsdato: Dato, land: Ll8VLand, eksisterende_bolig: Ll8VSvar, leverandør: Ll8VLeverandør, betalt_arbejdsløn_øre: Heltal, betalte_materialer_kørsel_m_v_øre: Heltal, betalingsform: Ll8VBetalingsform, arbejdsbilag_med_påkrævede_oplysninger: Ll8VSvar, betalingsbilag: Ll8VSvar, offentligt_tilskud: Ll8VSvar, samme_udgift_fradraget_efter_andre_regler: Ll8VSvar, børnepasning_skattefri_efter_par7æ: Ll8VSvar, udfører_bor_i_helårsboligen_eller_ejer_fritidsboligen_eller_bor_med_ejer: Ll8VSvar, betalerreference: Tekst, andele: List(Ll8VAndel), særligt_forhold: Ll8VSærligtForhold)
+@ meta(ll8vpost_meta)
 # Ll8VPost(betaling: Ll8VBetalingsfakta, boligforhold: Ll8VBoligforhold, fællesøkonomi_med_betalende_ægtefælle_eller_samlever: Ll8VSvar, indberettet_med_leverandøroplysninger: Ll8VSvar)
 # Ll8VBetingelse(navn: Tekst, opfyldt: Boolsk)
 # Ll8VPostresultat(betingelser: List(Ll8VBetingelse), identifikation: Tekst, kategori: Ll8VKategori, fradragsår: Heltal, fakta_afklarede: Boolsk, input_gyldigt: Boolsk, betingelser_opfyldt: Boolsk, egen_andel_øre: Heltal, medregnet_før_årsloft_øre: Heltal, kontrolpunkter: List(Tekst))
 # Ll8VÅrsresultat(indkomstår: Heltal, personreference: Tekst, input_gyldigt: Boolsk, oplysninger_afklarede: Boolsk, poster: List(Ll8VPostresultat), fejl: List(Tekst), service_loft_kroner: Heltal, håndværker_loft_kroner: Heltal, servicefradrag_øre: Heltal, håndværkerfradrag_øre: Heltal, samlet_fradrag_kroner: Heltal)
 
---@begin:ll8v--
+----
+Ved opgørelsen af den skattepligtige indkomst kan fradrages udgifter, der er
+betalt og dokumenteret, til arbejdsløn for serviceydelser og grøn istandsættelse
+i hjemmet eller i en fritidsbolig, jf. stk. 2-9 og bilag 1.
+
+Stk. 4. Fradraget henføres til det indkomstår, hvor betalingen for arbejdet er
+sket. Fradraget henføres dog til det indkomstår, hvor arbejdet er udført, hvis
+betaling for arbejdet er sket inden for 2 måneder efter indkomstårets udløb.
+----
+
+@ meta(ll8v_kildemeta)
+@ section ll8v {
+
 > ll8v_kategori(ydelse: Ll8VYdelse) -> Ll8VKategori {
     match ydelse {
         | Ll8VUafklaretYdelse -> Ll8VIngenKategori
@@ -235,7 +243,8 @@ Stk. 2. Bekendtgørelsen har virkning for arbejde, der udføres fra og med den 1
 > ll8v_samme_betalingslinje(a: Ll8VBetalingsfakta, b: Ll8VBetalingsfakta) -> Boolsk {
     a.identifikation == b.identifikation || trim(a.kildereference) == trim(b.kildereference) && trim(a.betalingsreference) == trim(b.betalingsreference)
 }
---@end:ll8v--
+
+}
 
 = ll8vårsinput_meta = TypetBeregningsmeta(
     felter = [
@@ -246,7 +255,6 @@ Stk. 2. Bekendtgørelsen har virkning for arbejde, der udføres fra og med den 1
         TypetBeregningsfelt(path = refof(Ll8VÅrsinput::OplysteBoligjobudgifter::poster), label = "Betalte ydelseslinjer", question = Some("Hvilke dokumenterede betalings-/ydelseslinjer vedrører året?"), help = Some("Én post pr. fakturalinje og faktisk betaling. Genbrug de samme fælles fakta ved deling."), unit = None)
     ], spørgsmål = [], beløbsfelter = [], attachments = Source(value = ll8v_kilde)
 )
---@label:Ll8VÅrsinput::meta:ll8vårsinput_meta--
 = ll8vbetalingsfakta_meta = TypetBeregningsmeta(
     felter = [
         TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::identifikation), label = "Fælles betalingslinjenøgle", question = Some("Hvilken stabil nøgle identificerer betalings-/ydelseslinjen?"), help = Some("Samme nøgle hos begge ægtefæller. En ny nøgle må ikke bruges til at gentage samme udgift."), unit = None),
@@ -273,7 +281,6 @@ Stk. 2. Bekendtgørelsen har virkning for arbejde, der udføres fra og med den 1
         TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::særligt_forhold), label = "Særlige betalingsforhold", question = Some("Er betalingen almindelig selvbetalt eller forsikringsdækket/anderledes fordelt?"), help = Some("Forsikringssager er endnu ikke beregnet. Vælg ikke almindelig for at få et beløb."), unit = None)
     ], spørgsmål = [], beløbsfelter = [], attachments = Source(value = ll8v_kilde)
 )
---@label:Ll8VBetalingsfakta::meta:ll8vbetalingsfakta_meta--
 = ll8vleverandør_meta = TypetBeregningsmeta(
     felter = [
         TypetBeregningsfelt(path = refof(Ll8VLeverandør::$variant), label = "Udføreren af arbejdet", question = Some("Blev arbejdet udført af en virksomhed eller en privatperson, eller er udføreren uafklaret?"), help = Some("En privatperson kan kun udføre omfattede serviceydelser, ikke grønne håndværksydelser. Vælg uoplyst frem for at gætte, hvis kilden ikke afklarer leverandøren."), unit = None),
@@ -282,14 +289,12 @@ Stk. 2. Bekendtgørelsen har virkning for arbejde, der udføres fra og med den 1
         TypetBeregningsfelt(path = refof(Ll8VLeverandør::Ll8VPrivatperson::fødselsdato::dag), label = "Den private udførers fødselsdag", question = Some("Hvilken dag i måneden er den private udfører født?"), help = Some("Oplys udførerens dokumenterede fødselsdag; en umulig eller uoplyst dato er ikke bevis for alderskravet."), unit = Some("dag"))
     ], spørgsmål = [], beløbsfelter = [], attachments = (Source(value = ll8v_kilde), Guidance(value = ll8v_privatleverandør_kilde))
 )
---@label:Ll8VLeverandør::meta:ll8vleverandør_meta--
 = ll8vandel_meta = TypetBeregningsmeta(
     felter = [
         TypetBeregningsfelt(path = refof(Ll8VAndel::personreference), label = "Modtagerens lokale nøgle", question = Some("Hvem vedrører denne andel?"), help = Some("Skal svare præcist til personens lokale nøgle, ikke CPR."), unit = None),
         TypetBeregningsfelt(path = refof(Ll8VAndel::arbejdsløn_øre), label = "Personens andel af betalt løn", question = Some("Hvor stor en andel af arbejdslønnen tilordnes personen?"), help = Some("En udgiftsfordeling, ikke det fradrag der ønskes. Loftet beregnes af modellen."), unit = Some("øre"))
     ], spørgsmål = [], beløbsfelter = [], attachments = Source(value = ll8v_kilde)
 )
---@label:Ll8VAndel::meta:ll8vandel_meta--
 = ll8vpost_meta = TypetBeregningsmeta(
     felter = [
         TypetBeregningsfelt(path = refof(Ll8VPost::boligforhold::$variant), label = "Personens forhold til boligen", question = Some("Hvilken bopæl/ejendomsret havde personen, da arbejdet blev udført?"), help = Some("Fritidsbolig kræver ejerskab og ejendomsværdiskattepligt eller gift/samlevende med sådan ejer."), unit = None),
@@ -297,4 +302,3 @@ Stk. 2. Bekendtgørelsen har virkning for arbejde, der udføres fra og med den 1
         TypetBeregningsfelt(path = refof(Ll8VPost::indberettet_med_leverandøroplysninger), label = "Indberetning til Skatteforvaltningen", question = Some("Er beløbet og leverandøroplysninger indberettet som krævet?"), help = Some("Et manglende krav kan være en mulig rettelse, ikke bevis for at det allerede er opfyldt."), unit = None)
     ], spørgsmål = [], beløbsfelter = [], attachments = Source(value = ll8v_kilde)
 )
---@label:Ll8VPost::meta:ll8vpost_meta--

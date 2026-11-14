@@ -26,7 +26,6 @@
     )
 )
 
---@label:personskat_kildeskat25a_virksomhedsfordeling::meta:personskat_kildeskat25a_kildefakta_metadata--
 ----
 Kildeskatteloven § 25 A, stk. 1, 3, 5, 7 og 8:
 
@@ -90,7 +89,9 @@ Hvis ægtefællerne driver flere erhvervsvirksomheder i fællesskab, skal de bru
 den samme fordelingsregel for alle virksomheder i indkomståret.
 ----
 
---@begin:personskat_kildeskat25a_virksomhedsfordeling--
+@ meta(personskat_kildeskat25a_kildefakta_metadata)
+@ section personskat_kildeskat25a_virksomhedsfordeling {
+
 # PersonskatKsl25APart = Ksl25AHovedperson | Ksl25AÆgtefælle
 # PersonskatKsl25AKildeplacering = Ksl25AKildeHosHovedperson | Ksl25AKildeHosÆgtefælle
 # PersonskatKsl25AÅrsregel = Ksl25AÅrsregelStk1 | Ksl25AÅrsregelStk3 | Ksl25AÅrsregelStk7 | Ksl25AÅrsregelStk8
@@ -128,4 +129,5 @@ den samme fordelingsregel for alle virksomheder i indkomståret.
     hovedperson = personskat_ksl25a_tom_personregulering(),
     ægtefælle = personskat_ksl25a_tom_personregulering()
 )
---@end:personskat_kildeskat25a_virksomhedsfordeling--
+
+}

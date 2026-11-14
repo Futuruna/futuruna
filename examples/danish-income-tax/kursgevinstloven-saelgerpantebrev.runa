@@ -37,7 +37,6 @@
     )
 )
 
---@label:kgl_sælgerpantebrev_lovgrundlag::meta:kgl_sælgerpantebrev_lovgrundlag_metadata--
 ----
 § 1. Denne lov omfatter
 1) gevinst og tab ved afståelse eller indfrielse af pengefordringer herunder
@@ -196,7 +195,9 @@ eller passivs status hos ejeren, overtages aktivet eller passivet af den
 længstlevende ægtefælle med hensyntagen til sådanne ændringer.
 ----
 
---@begin:kgl_sælgerpantebrev_lovgrundlag--
+@ meta(kgl_sælgerpantebrev_lovgrundlag_metadata)
+@ section kgl_sælgerpantebrev_lovgrundlag {
+
 # KglSælgerpantebrevSkatteyder(identifikation: Tekst, rolle: KursgevinstlovPersonrolle)
 # KglSælgerpantebrevEjerskiftegrundlag = KglSælgerpantebrevÆgtefælleEfterKildeskattelovensPar26B(modtagers_skatteyder_identifikation: Tekst, overdrager_hjemmehørende_i_danmark: Boolsk, modtager_hjemmehørende_i_danmark: Boolsk) | KglSælgerpantebrevÆgtefælleVedBodelingEfterSeparationEllerSkilsmisse(modtagers_skatteyder_identifikation: Tekst, overdrager_hjemmehørende_i_danmark: Boolsk, modtager_hjemmehørende_i_danmark: Boolsk) | KglSælgerpantebrevDødsboEfterDødsboskattelovensPar20(boets_skatteyder_identifikation: Tekst) | KglSælgerpantebrevEfterlevendeÆgtefælleEfterDødsboskattelovensPar59(modtagers_skatteyder_identifikation: Tekst) | KglSælgerpantebrevUdlodningTilEfterlevendeÆgtefælleEfterDødsboskattelovensPar35Til38(modtagers_skatteyder_identifikation: Tekst, bo_ikke_fritaget_for_beskatning_efter_par6: Boolsk, bo_har_valgt_salgsbeskatning_efter_par28_stk3: Boolsk, modtager_hjemmehørende_i_danmark: Boolsk, fordringen_kan_fortsat_beskattes_i_danmark: Boolsk, værdi_i_boopgørelsen_kroner: Heltal) | KglSælgerpantebrevIkkeUnderstøttetEjerskifte(beskrivelse: Tekst)
 # KglSælgerpantebrevDispositionstype = KglSælgerpantebrevAfdrag | KglSælgerpantebrevAfståelse | KglSælgerpantebrevIndfrielse | KglSælgerpantebrevNedskrivning | KglSælgerpantebrevEjerskifte(grundlag: KglSælgerpantebrevEjerskiftegrundlag, modtagers_tranche_identifikation: Tekst) | KglSælgerpantebrevIkkeUnderstøttet(beskrivelse: Tekst)
@@ -349,12 +350,13 @@ længstlevende ægtefælle med hensyntagen til sådanne ændringer.
         regelgrundlag_understøttet = forløb.regelgrundlag_understøttet && resultat.regelgrundlag_understøttet
     )
 }
---@end:kgl_sælgerpantebrev_lovgrundlag--
+
+}
 
 = kgl_sælgerpantebrev_ebl_par6d_samspil_vejledningsmeta = Guidance(
     value = kgl_sælgerpantebrev_vejledning_2026
 )
---@label:kgl_sælgerpantebrev_ebl_par6d_samspil::meta:kgl_sælgerpantebrev_ebl_par6d_samspil_vejledningsmeta--
+
 ----
 Udskydelse af beskatningen ved udstedelse af et sælgerpantebrev, der opfylder
 betingelserne i EBL § 6 D, berøres ikke af beskatningen efter kursgevinstloven.
@@ -372,7 +374,9 @@ skal desuden medregne 300.000 kr. årligt som udskudt fortjeneste ved afståelse
 af ejendommen.
 ----
 
---@begin:kgl_sælgerpantebrev_ebl_par6d_samspil--
+@ meta(kgl_sælgerpantebrev_ebl_par6d_samspil_vejledningsmeta)
+@ section kgl_sælgerpantebrev_ebl_par6d_samspil {
+
 # KglSælgerpantebrevSag(input: KglSælgerpantebrevInput) {
     | grundfakta_gyldige() -> input.identifikation != "" && kgl_sælgerpantebrev_skatteyder_gyldig(input.oprindelig_skatteyder) && input.erhvervelsesår > 0 && input.hovedstol_kroner > 0 && input.kursværdi_ved_erhvervelsen_kroner >= 0
     | initial_tilstand() -> KglSælgerpantebrevTilstand(
@@ -443,4 +447,5 @@ af ejendommen.
     anvender_lagerprincip_efter_par25 = Falskt
 )
 | kgl_sælgerpantebrev_kursgevinstlov_resultat(disposition: KglSælgerpantebrevDispositionsresultat, årets_samlede_netto_efter_par14_kroner: Heltal, skatteforhold: KglSælgerpantebrevSkatteforhold) -> kursgevinstlov_resultat(kgl_sælgerpantebrev_kursgevinstlov_input(disposition, årets_samlede_netto_efter_par14_kroner, skatteforhold))
---@end:kgl_sælgerpantebrev_ebl_par6d_samspil--
+
+}

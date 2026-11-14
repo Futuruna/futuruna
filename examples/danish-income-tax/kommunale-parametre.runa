@@ -24,7 +24,6 @@
 )
 = kommunale_indkomstskatteparametre_2023_metadata = Metadata(attachments = (RateSource(value = skatteministeriet_kommunale_indkomstskatteparametre_2023),))
 
---@label:kommunale_indkomstskatteparametre_2023::meta:kommunale_indkomstskatteparametre_2023_metadata--
 ----
 Skatteministeriet, "Kommuneskattesatser 2023"
 Officiel fil: https://skm.dk/media/Skatteministeriet/Dokumenter/Excelfiler/Kommuneskatter/km2023.xls
@@ -38,7 +37,9 @@ Bundskatten på 12,06 pct. følger den vedtagne sats for 2023 og
 Skatteministeriets officielle tidsserie for centrale skattesatser.
 ----
 
---@begin:kommunale_indkomstskatteparametre_2023--
+@ meta(kommunale_indkomstskatteparametre_2023_metadata)
+@ section kommunale_indkomstskatteparametre_2023 {
+
 = kommunale_indkomstskatteparametre_2023 = [
     KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = København, kommunekode = 101, kommuneskat_basispoint = 2370, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
     KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Frederiksberg, kommunekode = 147, kommuneskat_basispoint = 2347, kirkeskat_basispoint = 50, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
@@ -140,7 +141,8 @@ Skatteministeriets officielle tidsserie for centrale skattesatser.
     KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Hjørring, kommunekode = 860, kommuneskat_basispoint = 2621, kirkeskat_basispoint = 119, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 120)
 ]
 | kommunale_parametre_kilde_for_år_opslag(skatteår: Heltal) -> Some(SkatteministerietKommuneskatter2023) under skatteår == 2023
---@end:kommunale_indkomstskatteparametre_2023--
+
+}
 
 = skatteministeriet_kommunale_parametre_2024 = KommunaleParametreKildeInfo(
     år = 2024,
@@ -152,7 +154,6 @@ Skatteministeriets officielle tidsserie for centrale skattesatser.
 )
 = kommunale_parametre_2024_metadata = Metadata(attachments = (RateSource(value = skatteministeriet_kommunale_parametre_2024),))
 
---@label:kommunale_parametre_2024::meta:kommunale_parametre_2024_metadata--
 ----
 Skatteministeriet, "Kommuneskattesatser 2024"
 Officiel fil: https://skm.dk/media/t2olqyet/kommuneskattesatser_2024.xls
@@ -258,7 +259,7 @@ Aalborg | Nordjylland | 851 | 1081 | 99 | 25,60 | 0,98 | 0,54 | 7,4
 Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
 ----
 
---@begin::kommunale_parametre_2024--
+@ meta(kommunale_parametre_2024_metadata)
 = kommunale_parametre_2024 = [
     KommunaleParametre(skatteår = 2024, kommune = København, kommunekode = 101, kommuneskat_basispoint = 2360, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 51),
     KommunaleParametre(skatteår = 2024, kommune = Frederiksberg, kommunekode = 147, kommuneskat_basispoint = 2457, kirkeskat_basispoint = 50, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 31),
@@ -359,7 +360,6 @@ Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
     KommunaleParametre(skatteår = 2024, kommune = Aalborg, kommunekode = 851, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 74),
     KommunaleParametre(skatteår = 2024, kommune = Hjørring, kommunekode = 860, kommuneskat_basispoint = 2621, kirkeskat_basispoint = 119, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 115, grundskyld_promille_tiendedele = 165)
 ]
---@end::kommunale_parametre_2024--
 
 | kommunale_parametre_kilde_for_år_opslag(skatteår: Heltal) -> Some(SkatteministerietKommuneskatter2024) under skatteår == 2024
 
@@ -373,7 +373,6 @@ Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
 )
 = kommunale_parametre_2025_metadata = Metadata(attachments = (RateSource(value = skatteministeriet_kommunale_parametre_2025),))
 
---@label:kommunale_parametre_2025::meta:kommunale_parametre_2025_metadata--
 ----
 Skatteministeriet, "Kommuneskattesatser 2025"
 Officiel fil: https://skm.dk/media/sead4y04/kommuneskattesatser_2025.xlsx
@@ -479,7 +478,7 @@ Aalborg | Nordjylland | 851 | 1081 | 99 | 25,60 | 0,98 | 0,54 | 7,4
 Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
 ----
 
---@begin::kommunale_parametre_2025--
+@ meta(kommunale_parametre_2025_metadata)
 = kommunale_parametre_2025 = [
     KommunaleParametre(skatteår = 2025, kommune = København, kommunekode = 101, kommuneskat_basispoint = 2350, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 51),
     KommunaleParametre(skatteår = 2025, kommune = Frederiksberg, kommunekode = 147, kommuneskat_basispoint = 2457, kirkeskat_basispoint = 50, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 31),
@@ -580,7 +579,6 @@ Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
     KommunaleParametre(skatteår = 2025, kommune = Aalborg, kommunekode = 851, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 74),
     KommunaleParametre(skatteår = 2025, kommune = Hjørring, kommunekode = 860, kommuneskat_basispoint = 2621, kirkeskat_basispoint = 119, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 115, grundskyld_promille_tiendedele = 165)
 ]
---@end::kommunale_parametre_2025--
 
 | kommunale_parametre_kilde_for_år_opslag(skatteår: Heltal) -> Some(SkatteministerietKommuneskatter2025) under skatteår == 2025
 
@@ -594,7 +592,6 @@ Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
 )
 = kommunale_parametre_2026_metadata = Metadata(attachments = (RateSource(value = skatteministeriet_kommunale_parametre_2026),))
 
---@label:kommunale_parametre_2026::meta:kommunale_parametre_2026_metadata--
 ----
 Skatteministeriet, "Kommuneskattesatser 2026"
 Officiel fil: https://skm.dk/media/0oia30i5/kommuneskattesatser_2026.xlsx
@@ -700,7 +697,7 @@ Aalborg | Nordjylland | 851 | 1081 | 99 | 25,60 | 0,98 | 0,54 | 7,4
 Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
 ----
 
---@begin::kommunale_parametre_2026--
+@ meta(kommunale_parametre_2026_metadata)
 = kommunale_parametre_2026 = [
     KommunaleParametre(skatteår = 2026, kommune = København, kommunekode = 101, kommuneskat_basispoint = 2339, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 51),
     KommunaleParametre(skatteår = 2026, kommune = Frederiksberg, kommunekode = 147, kommuneskat_basispoint = 2450, kirkeskat_basispoint = 50, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 31),
@@ -801,7 +798,6 @@ Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
     KommunaleParametre(skatteår = 2026, kommune = Aalborg, kommunekode = 851, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 74),
     KommunaleParametre(skatteår = 2026, kommune = Hjørring, kommunekode = 860, kommuneskat_basispoint = 2621, kirkeskat_basispoint = 119, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 115, grundskyld_promille_tiendedele = 165)
 ]
---@end::kommunale_parametre_2026--
 
 | kommunale_parametre_kilde_for_år_opslag(skatteår: Heltal) -> Some(SkatteministerietKommuneskattesatser2026Xlsx) under skatteår == 2026
 

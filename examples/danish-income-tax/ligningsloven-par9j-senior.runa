@@ -20,7 +20,15 @@
     Assumption(value = "Procentproduktet afkortes til hele øre og oprundes derefter til kroner med årets loft. Modelkonvention fra udvalgte 2026-beregnercases, ikke en udtrykkelig afrundingsbestemmelse i loven; se skatdk-fradrag-oere-ekstern.md."),
     Warning(value = "En kendt seniorafvigelse på én krone ved et nøjagtigt én-øre-mellemtrin er uafklaret. Beregnerobservationer beviser ikke fuld overensstemmelse med årsopgørelser. Forslag om andre satser eller perioder er ikke gældende input til denne model."),
 ))
---@label:ll9j_senior::meta:ll9j_senior_metadata--
+-- Reguleret loft for 2026: 6.100 kr.; kontrolleret 2026-09-21:
+-- https://svmn.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven
+-- https://skat.dk/borger/fradrag/arbejdsrelaterede-fradrag/beskaeftigelses-og-jobfradrag
+-- Kun 2026-satsen er optaget her. Senere års satser/lofter må ikke arves.
+-- Heløreprojektion før oprunding understøttes af særskilte seniorcases i
+-- SKATs 2026-beregner. Det er en administrativ modelkonvention, ikke en ny
+-- lovbestemmelse. Én observeret afvigelse ved nøjagtigt én øre står åben;
+-- se skatdk-fradrag-oere-ekstern.md. Alder, periode og loft ændres ikke.
+
 ----
 Stk. 5. Personer, der er omfattet af stk. 1, kan i hvert af de 2 seneste
 indkomstår før det indkomstår, hvor folkepensionsalderen nås, jf. § 1 a i lov
@@ -32,16 +40,10 @@ i samme grundlag og under samme betingelser som nævnt i stk. 1, 1.-4., 6. og
 Stk. 6. For indkomstårene 2026-2028 udgør procenten 1,4, og grundbeløbet
 4.400 kr. (2010-niveau).
 ----
--- Reguleret loft for 2026: 6.100 kr.; kontrolleret 2026-09-21:
--- https://svmn.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven
--- https://skat.dk/borger/fradrag/arbejdsrelaterede-fradrag/beskaeftigelses-og-jobfradrag
--- Kun 2026-satsen er optaget her. Senere års satser/lofter må ikke arves.
--- Heløreprojektion før oprunding understøttes af særskilte seniorcases i
--- SKATs 2026-beregner. Det er en administrativ modelkonvention, ikke en ny
--- lovbestemmelse. Én observeret afvigelse ved nøjagtigt én øre står åben;
--- se skatdk-fradrag-oere-ekstern.md. Alder, periode og loft ændres ikke.
 
---@begin:ll9j_senior--
+@ meta(ll9j_senior_metadata)
+@ section ll9j_senior {
+
 # Ligningslov9JSeniorResultat(skatteår: Heltal, folkepensionsalder: Socialpensionslov1AResultat, regelgrundlag_understøttet: Boolsk, input_gyldigt: Boolsk, i_seniorperioden: Boolsk, omfattet_af_stk1: Boolsk, berettiget: Boolsk, grundlag_kroner: Heltal, sats_basispoint: Heltal, maks_fradrag_kroner: Heltal, fradrag_kroner: Heltal)
 
 > ll9j_senior_resultat(skatteår: Heltal, fødselsdato: Dato, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, omfattet_af_stk1: Boolsk) -> Ligningslov9JSeniorResultat {
@@ -75,4 +77,5 @@ Stk. 6. For indkomstårene 2026-2028 udgør procenten 1,4, og grundbeløbet
         fradrag_kroner = fradrag
     )
 }
---@end:ll9j_senior--
+
+}

@@ -66,7 +66,6 @@
     )
 )
 
---@label:ligningsloven_par10_par11_underholdsbidrag::meta:ligningsloven_par10_par11_metadata--
 ----
 § 10. Bidrag, som i anledning af skilsmisse eller separation udredes af den ene
 af ægtefællerne til underhold af den anden ægtefælle, kan fradrages i
@@ -141,7 +140,9 @@ skattepligtiges indkomstår 2000 og senere indkomstår, finder 3. pkt.
 tilsvarende anvendelse.
 ----
 
---@begin:ligningsloven_par10_par11_underholdsbidrag--
+@ meta(ligningsloven_par10_par11_metadata)
+@ section ligningsloven_par10_par11_underholdsbidrag {
+
 # Ligningslov10Og11Bidragsrolle = Bidragsyder(modtageridentitet_oplyst: Boolsk) | Bidragsmodtager
 # Ligningslov10Og11Retsgrundlag = Skilsmisse(fastsat_eller_ændret_efter_lovens_ikrafttrædelse: Boolsk) | Separation(fastsat_eller_ændret_efter_lovens_ikrafttrædelse: Boolsk) | FaktiskAdskillelse(faktisk_adskillelse_dokumenteret: Boolsk, ægtefællerne_ansat_selvstændigt_til_statsskat: Boolsk) | BarnUdenForÆgteskab
 # Ligningslov10Og11PrivatFradragsvurdering = IkkeRelevantForFradraget | IndenForNormalbidragUdenYderligereVurdering | DokumenteretVejledendeMånedsbeløb(vejledende_månedsbeløb_kroner: Heltal, dokumentreference: Tekst) | KonkretSkattemæssigtAnerkendtBeløb(anerkendt_betalt_beløb_kroner: Heltal, dokumentreference: Tekst)
@@ -380,7 +381,8 @@ tilsvarende anvendelse.
         kan_sammensættes = alle_input_gyldige
     )
 }
---@end:ligningsloven_par10_par11_underholdsbidrag--
+
+}
 
 = skat_børnebidrag_modtagerskat_20260925 = Ligningslov10Og11KildeInfo(
     url = "https://skat.dk/borger/fradrag/boernebidrag-og-aegtefaellebidrag/fradrag-for-boernebidrag",
@@ -399,7 +401,7 @@ tilsvarende anvendelse.
 -- ikke en forælder, som modtager pengene på barnets vegne. Datoen er kun en
 -- nødvendig sammenhængskontrol; ens fødselsdatoer beviser ikke identitet.
 -- Yderens fødselsdato skal derimod ikke være barnets fødselsdato.
---@label:ligningslov10_11_modtager_svarer_til_fødselsdato::meta:ligningsloven_underhold_modtagersammenhæng_metadata--
+@ meta(ligningsloven_underhold_modtagersammenhæng_metadata)
 | ligningslov10_11_modtager_svarer_til_fødselsdato(fakta: Ligningslov10Og11BidragFakta, skatteyders_fødselsdato: Dato) -> hvis ligningslov10_11_bidragsyder(fakta.rolle) {
     Sandt
 } ellers {
@@ -418,7 +420,6 @@ tilsvarende anvendelse.
     )
 )
 
---@label:ligningsloven_par10_par11_underholdsbidrag_praksis::meta:ligningsloven_underholdsbidrag_praksis_metadata--
 ----
 Den juridiske vejledning fordeler fradraget i den måned, hvor barnet fylder 18
 år, efter dagene til og med fødselsdagen. Betales hele månedsbidraget, anvendes
@@ -441,7 +442,9 @@ domæne; deres rets- og skattevirkninger behandles i det særskilte
 Børnebidragslov § 19-domæne.
 ----
 
---@begin:ligningsloven_par10_par11_underholdsbidrag_praksis--
+@ meta(ligningsloven_underholdsbidrag_praksis_metadata)
+@ section ligningsloven_par10_par11_underholdsbidrag_praksis {
+
 | ligningslov10_11_løbende_beløbsgrundlag_gyldigt(fakta: Ligningslov10Og11BidragFakta) -> match fakta.bidragsart {
     | LøbendeUnderholdsbidrag(HeleForfaldsmånedensBidrag) -> Sandt
     | LøbendeUnderholdsbidrag(AlleredeForholdsmæssigtTil18Årsdagen) -> match fakta.modtager {
@@ -510,7 +513,8 @@ Børnebidragslov § 19-domæne.
         | _ -> fakta.beløb_kroner
     }
 }
---@end:ligningsloven_par10_par11_underholdsbidrag_praksis--
+
+}
 
 = ligningsloven_normalbidrag_2023_kilde = Ligningslov10Og11KildeInfo(
     url = "https://www.retsinformation.dk/eli/retsinfo/2022/10315",
@@ -545,7 +549,6 @@ Børnebidragslov § 19-domæne.
     )
 )
 
---@label:ligningsloven_par10_par11_normalbidrag::meta:ligningsloven_normalbidrag_metadata--
 ----
 Normalbidraget består i 2023 af et grundbeløb på 1.328 kr. om måneden og et
 tillæg på 172 kr. om måneden.
@@ -560,7 +563,9 @@ Normalbidraget består i 2026 af et grundbeløb på 1.483 kr. om måneden og et
 tillæg på 192 kr. om måneden.
 ----
 
---@begin:ligningsloven_par10_par11_normalbidrag--
+@ meta(ligningsloven_normalbidrag_metadata)
+@ section ligningsloven_par10_par11_normalbidrag {
+
 | exception ligningslov10_11_2023_normalbidrag_grundbeløb ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår: Heltal) -> 1328 under indkomstår == 2023
 | exception ligningslov10_11_2024_normalbidrag_grundbeløb ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår: Heltal) -> 1370 under indkomstår == 2024
 | exception ligningslov10_11_2025_normalbidrag_grundbeløb ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår: Heltal) -> 1419 under indkomstår == 2025
@@ -569,4 +574,5 @@ tillæg på 192 kr. om måneden.
 | exception ligningslov10_11_2024_normalbidrag_tillæg ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår: Heltal) -> 178 under indkomstår == 2024
 | exception ligningslov10_11_2025_normalbidrag_tillæg ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår: Heltal) -> 184 under indkomstår == 2025
 | exception ligningslov10_11_2026_normalbidrag_tillæg ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår: Heltal) -> 192 under indkomstår == 2026
---@end:ligningsloven_par10_par11_normalbidrag--
+
+}

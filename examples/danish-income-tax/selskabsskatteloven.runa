@@ -20,7 +20,7 @@
 = selskabslov_par1_stk1_nr1_kildemeta = Source(
     value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6
 )
---@label:selskabsskatteloven_par1_stk1_nr1::meta:selskabslov_par1_stk1_nr1_kildemeta--
+
 ----
 § 1. Skattepligt i henhold til denne lov påhviler følgende selskaber og
 foreninger m.v., der er hjemmehørende her i landet:
@@ -28,7 +28,9 @@ foreninger m.v., der er hjemmehørende her i landet:
 1) indregistrerede aktieselskaber og anpartsselskaber,
 ----
 
---@begin:selskabsskatteloven_par1_stk1_nr1--
+@ meta(selskabslov_par1_stk1_nr1_kildemeta)
+@ section selskabsskatteloven_par1_stk1_nr1 {
+
 # Selskabsskattelov1Stk1Nr1Kilde = SelskabsskattelovenLbk279Af2025Par1Stk1Nr1
 # Selskabsskattelov1Stk1Nr1Selskabsform = Sel1Stk1Nr1IndregistreretAktieselskab | Sel1Stk1Nr1IndregistreretAnpartsselskab | Sel1Stk1Nr1AndenSelskabsform
 # Selskabsskattelov1Stk1Nr1Input(selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform, hjemmehørende_i_danmark: Boolsk)
@@ -52,12 +54,13 @@ foreninger m.v., der er hjemmehørende her i landet:
 }
 | selskabsskattelov1_stk1_nr1_sag(input: Selskabsskattelov1Stk1Nr1Input) -> Selskabsskattelov1Stk1Nr1Sag(input)
 | selskabsskattelov1_stk1_nr1_resultat(input: Selskabsskattelov1Stk1Nr1Input) -> selskabsskattelov1_stk1_nr1_sag(input).resultat()
---@end:selskabsskatteloven_par1_stk1_nr1--
+
+}
 
 = selskabslov_par1_stk1_nr6_kildemeta = Source(
     value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6
 )
---@label:selskabsskatteloven_par1_stk1_nr6::meta:selskabslov_par1_stk1_nr6_kildemeta--
+
 ----
 § 1. Skattepligt i henhold til denne lov påhviler følgende selskaber og
 foreninger m.v., der er hjemmehørende her i landet:
@@ -78,7 +81,9 @@ ikke foreninger m.v., hvis midler ifølge vedtægter el.lign. udelukkende kan
 anvendes til almenvelgørende eller på anden måde almennyttige formål.
 ----
 
---@begin:selskabsskatteloven_par1_stk1_nr6--
+@ meta(selskabslov_par1_stk1_nr6_kildemeta)
+@ section selskabsskatteloven_par1_stk1_nr6 {
+
 # Selskabsskattelov1Stk1Nr6Kilde = SelskabsskattelovenLbk279Af2025Par1Stk1Nr6
 # Selskabsskattelov1Stk1Nr6Enhed = Ssl1Stk1Nr6AndenForening | Ssl1Stk1Nr6Korporation | Ssl1Stk1Nr6Stiftelse | Ssl1Stk1Nr6Legat | Ssl1Stk1Nr6SelvejendeInstitution | Ssl1Stk1Nr6Investeringsforening | Ssl1Stk1Nr6AndenEnhed
 # Selskabsskattelov1Stk1Nr6IndkomstArt = Ssl1Stk1Nr6ErhvervsmæssigVirksomhed | Ssl1Stk1Nr6FormuegodeMedErhvervstilknytning | Ssl1Stk1Nr6Par2UdbytteRenteRoyaltyKursgevinst | Ssl1Stk1Nr6AndenIndkomst
@@ -180,7 +185,8 @@ anvendes til almenvelgørende eller på anden måde almennyttige formål.
 | ssl1_stk1_nr6_fondsbeskatning_afskærer: ssl1_stk1_nr6_fondsbeskatning_fixture -> ssl1_stk1_nr6_fondsbeskatning_fixture.enhed_omfattet_af_nr6 == Sandt && ssl1_stk1_nr6_fondsbeskatning_fixture.skattepligtig_efter_par1_stk1_nr6 == Falskt
 | ssl1_stk1_nr6_par3_afskærer: ssl1_stk1_nr6_par3_undtagelse_fixture -> ssl1_stk1_nr6_par3_undtagelse_fixture.enhed_omfattet_af_nr6 == Sandt && ssl1_stk1_nr6_par3_undtagelse_fixture.skattepligtig_efter_par1_stk1_nr6 == Falskt
 | ssl1_stk1_nr6_erhvervsindkomst_skattepligtig: ssl1_stk1_nr6_erhvervsindkomst_fixture -> ssl1_stk1_nr6_erhvervsindkomst_fixture.indkomst_omfattet_af_nr6 == Sandt && ssl1_stk1_nr6_erhvervsindkomst_fixture.skattepligtig_indkomst_kroner == 17000
---@end:selskabsskatteloven_par1_stk1_nr6--
+
+}
 
 = selskabsskatteloven_lbk279_par17_stk1 = SelskabsskattelovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/279",
@@ -196,20 +202,18 @@ anvendes til almenvelgørende eller på anden måde almennyttige formål.
 = selskabslov_par17_stk1_kildemeta = Source(
     value = selskabsskatteloven_lbk1241_par17_stk1
 )
---@label:selskabsskatteloven_par17_stk1::meta:selskabslov_par17_stk1_kildemeta--
+
+= selskabslov_par17_stk1_kildemeta_2 = Source(
+    value = selskabsskatteloven_lbk279_par17_stk1
+)
+
 ----
 § 17. Indkomstskatten for de i § 1, stk. 1, nr. 1-2 b, 2 d-2 j og 3 a-5 b,
 og § 3, stk. 7, nævnte selskaber og foreninger m.v. (selskabsskatten) beregnes
 af den skattepligtige indkomst og udgør 22 pct. Indkomst omfattet af
 kulbrinteskattelovens § 4, stk. 1 og 2, beskattes med selskabsskatteprocenten
 efter 1. pkt. med tillæg af 3 procentpoint (tillægsselskabsskatten).
-----
 
-= selskabslov_par17_stk1_kildemeta_2 = Source(
-    value = selskabsskatteloven_lbk279_par17_stk1
-)
---@label:selskabsskatteloven_par17_stk1::meta:selskabslov_par17_stk1_kildemeta_2--
-----
 § 17. Indkomstskatten for de i § 1, stk. 1, nr. 1-2 i og 3 a-5 b, og § 3,
 stk. 7, nævnte selskaber og foreninger m.v. (selskabsskatten) beregnes af den
 skattepligtige indkomst og udgør 22 pct. Indkomst omfattet af
@@ -217,7 +221,10 @@ kulbrinteskattelovens § 4, stk. 1 og 2, beskattes med selskabsskatteprocenten
 efter 1. pkt. med tillæg af 3 procentpoint (tillægsselskabsskatten).
 ----
 
---@begin::selskabsskatteloven_par17_stk1--
+@ meta(selskabslov_par17_stk1_kildemeta)
+@ meta(selskabslov_par17_stk1_kildemeta_2)
+@ section selskabsskatteloven_par17_stk1 {
+
 # SelskabsskattelovPar17Stk1SatsKilde = SelskabsskattelovenLbk1241Af2022 | SelskabsskattelovenLbk279Af2025
 # SelskabsskattelovPar17Stk1SatsResultat(skatteår: Heltal, kilde: SelskabsskattelovPar17Stk1SatsKilde, selskabsskat_basispoint: Heltal, tillægsselskabsskat_basispoint: Heltal, cfc_sats_basispoint: Heltal)
 
@@ -245,4 +252,5 @@ efter 1. pkt. med tillæg af 3 procentpoint (tillægsselskabsskatten).
 | selskabsskattelov_par17_stk1_sats_resultat_opslag(skatteår: Heltal) -> None
 | selskabsskattelov_par17_stk1_sats_resultat(skatteår: Heltal) -> head(match selskabsskattelov_par17_stk1_sats_resultat_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
 | selskabsskattelov_par17_stk1_sats_basispoint(skatteår: Heltal) -> selskabsskattelov_par17_stk1_sats_resultat(skatteår).selskabsskat_basispoint
---@end::selskabsskatteloven_par17_stk1--
+
+}

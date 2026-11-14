@@ -396,4 +396,4 @@
     )
 )
 
---@label:PersonskatKsl25AVirksomhedsfordelingFakta::meta:personskat_kildeskat25a_beregningsmeta--
+@ meta(personskat_kildeskat25a_beregningsmeta) for PersonskatKsl25AVirksomhedsfordelingFakta

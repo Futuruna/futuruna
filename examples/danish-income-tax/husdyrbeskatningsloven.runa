@@ -38,7 +38,7 @@
 = hbl_par2_kildemeta = Source(
     value = husdyrbeskatningsloven_lbk1099_par2
 )
---@label:husdyrbeskatningsloven_par2::meta:hbl_par2_kildemeta--
+
 ----
 § 2. Ved opgørelsen af den skattepligtige indkomst skal landbrugere opgøre
 værdien af deres besætninger på grundlag af:
@@ -62,7 +62,9 @@ Indkomstår       pct.
 2003 og derefter 15.
 ----
 
---@begin:husdyrbeskatningsloven_par2--
+@ meta(hbl_par2_kildemeta)
+@ section husdyrbeskatningsloven_par2 {
+
 # HusdyrPar2Skatteyder = HusdyrLandbrugerPerson | HusdyrLandbrugerDødsbo | HusdyrLandbrugerSelskab | HusdyrIkkeLandbruger
 # HusdyrPar2Værdiansættelse = HusdyrNormalhandelsværdi(normalhandelsværdi_kroner: Heltal) | HusdyrHandelsværdi(normalhandelsværdi_kroner: Heltal, handelsværdi_inklusive_eventuel_indgående_moms_kroner: Heltal, fradragsberettiget_indgående_moms_kroner: Heltal)
 # HusdyrPar2Input(indkomstår: Heltal, skatteyder: HusdyrPar2Skatteyder, værdiansættelse: HusdyrPar2Værdiansættelse, ønsket_nedskrivning_kroner: Heltal)
@@ -115,12 +117,20 @@ Indkomstår       pct.
 }
 | husdyr_par2_sag(input: HusdyrPar2Input) -> HusdyrPar2Sag(input)
 | husdyr_par2_resultat(input: HusdyrPar2Input) -> husdyr_par2_sag(input).resultat()
---@end:husdyrbeskatningsloven_par2--
+
+}
 
 = hbl_par8_kildemeta = Source(
     value = husdyrbeskatningsloven_lbk1099_par8
 )
---@label:husdyrbeskatningsloven_par8::meta:hbl_par8_kildemeta--
+
+= hbl_par8_kildemeta_2 = Source(
+    value = husdyrbeskatningsloven_bek543_par1_par5
+)
+
+= hbl_par8_kildemeta_3 = Source(
+    value = skattestyrelsen_husdyr_forskelsbeløb_04013
+)
 ----
 § 8. Loven har virkning fra og med indkomståret 1981. Normalhandelsværdier som
 nævnt i § 2 fastsættes første gang med virkning for opgørelsen af værdien af
@@ -228,13 +238,7 @@ indkomståret 1981, som følge af en formindskelse af en stambesætning, der er
 sket før den 1. januar 1981. Eftergivelsen af skat efter 1. pkt. forudsætter,
 at den nævnte formindskelse af en stambesætning efter de hidtil gældende regler
 kunne ske, uden at fortjenesten skulle medregnes ved indkomstopgørelsen.
-----
 
-= hbl_par8_kildemeta_2 = Source(
-    value = husdyrbeskatningsloven_bek543_par1_par5
-)
---@label:husdyrbeskatningsloven_par8::meta:hbl_par8_kildemeta_2--
-----
 § 1. Ved opgørelsen af den skattepligtige indkomst og formue skal landbrugere
 opgøre værdien af deres besætninger på grundlag af:
 1) den af ligningsrådet fastsatte normalhandelsværdi eller
@@ -355,11 +359,11 @@ til § 4, stk. 4, er opnået fradrag for hele det resterende forskelsbeløb ved
 indkomstopgørelsen for indkomståret 1981.
 ----
 
-= hbl_par8_kildemeta_3 = Source(
-    value = skattestyrelsen_husdyr_forskelsbeløb_04013
-)
---@label:husdyrbeskatningsloven_par8::meta:hbl_par8_kildemeta_3--
---@begin:husdyrbeskatningsloven_par8--
+@ meta(hbl_par8_kildemeta)
+@ meta(hbl_par8_kildemeta_2)
+@ meta(hbl_par8_kildemeta_3)
+@ section husdyrbeskatningsloven_par8 {
+
 # HusdyrPar8Dyregruppe = HusdyrPar8Kvæg | HusdyrPar8Svin | HusdyrPar8Får | HusdyrPar8Heste
 # HusdyrPar8Rettighedshaver = HusdyrPar8Landbruger | HusdyrPar8DødsboMed1980Stambesætning | HusdyrPar8IkkeOmfattet
 # HusdyrPar8Forskelsgrundlag = HusdyrPar8OrdinærtForskelsgrundlag(normalhandelsværdi_1980_kroner: Heltal, normalpris_eller_lavere_handelsværdi_1980_kroner: Heltal) | HusdyrPar8MinisterfastsatForskelsbeløb(beløb_kroner: Heltal)
@@ -575,4 +579,5 @@ indkomstopgørelsen for indkomståret 1981.
     skattemæssig_anskaffelsesværdi_kroner = penge_positivt_beløb(input.dødsboets_senest_benyttede_værdi_kroner) + husdyr_par8_succession_forskelsbeløb_kroner(input),
     passivpostgrundlag_kroner = penge_positivt_beløb(input.dødsboets_senest_benyttede_værdi_kroner) + husdyr_par8_succession_forskelsbeløb_kroner(input)
 )
---@end:husdyrbeskatningsloven_par8--
+
+}

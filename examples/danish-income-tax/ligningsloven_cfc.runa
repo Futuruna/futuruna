@@ -54,7 +54,13 @@ StartDate: 2025-12-04
 EndDate: 2026-07-01
 ----
 
---@label:ligningsloven_par16h::meta:ligningsloven_cfc_metadata--
+----
+Den gengivne tekst er fra LBK nr. 1500 af 24/11/2025. De modellerede dele af
+§ 16 H, stk. 1, 2, 6, 7, 9 og 10, er ordret identiske i den officielle XML og
+PDF for LBK nr. 42 af 13/01/2023. Kilderne registreres hver for sig; reglen
+vælger den historiske kilde for 2023-2025 og den gældende kilde for 2026.
+----
+
 ----
 § 16 H.
 Hvis en skattepligtig omfattet af kildeskattelovens § 1 eller
@@ -136,14 +142,9 @@ Stk. 10. CFC-indkomsten efter stk. 7-9 kan ikke overstige den skattepligtiges
 andel af selskabets samlede skattepligtige indkomst efter stk. 4 og 5.
 ----
 
-----
-Den gengivne tekst er fra LBK nr. 1500 af 24/11/2025. De modellerede dele af
-§ 16 H, stk. 1, 2, 6, 7, 9 og 10, er ordret identiske i den officielle XML og
-PDF for LBK nr. 42 af 13/01/2023. Kilderne registreres hver for sig; reglen
-vælger den historiske kilde for 2023-2025 og den gældende kilde for 2026.
-----
+@ meta(ligningsloven_cfc_metadata)
+@ section ligningsloven_par16h {
 
---@begin:ligningsloven_par16h--
 # Ligningslov16HInput(indkomstår: Heltal, fuldt_skattepligtig_eller_dødsbo: Boolsk, udenlandsk_selskab: Boolsk, direkte_indirekte_ejerandel_basispoint: Heltal, stemmerettigheder_basispoint: Heltal, fælleskontrol_med_nærtstående_fond_eller_trust: Boolsk, aftale_om_skattesats_eller_beskatningsgrundlag: Boolsk, hjemstat_regler_indrettet_efter_kontrollerende_aktionær: Boolsk, udenlandsk_indkomstskat_kroner: Heltal, selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner: Heltal, selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner: Heltal, aktier_ikke_investeringsselskab: Boolsk, eu_eøs_selskab: Boolsk, reel_etablering_og_økonomisk_virksomhed: Boolsk, dokumentation_kan_verificeres: Boolsk, medregnet_efter_selskabsskat31a_32_eller_fondsbeskatning12: Boolsk, gennemsnitlig_ejerandel_basispoint: Heltal, kontrolperiode_basispoint: Heltal, fremført_underskud_danske_regler_kroner: Heltal)
 # Ligningslov16HResultat(indkomstår: Heltal, regelversion: LigningslovCfcRegelversion, skatteår_understøttet: Boolsk, dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner: Heltal, kontrollerer_selskab: Boolsk, lavskat_betingelse: Boolsk, cfc_over_halvdelen_betingelse: Boolsk, betingelser_for_stk1_til_stede: Boolsk, fritaget_efter_stk2: Boolsk, omfattet_af_par16h: Boolsk, fremført_underskud_medregnet_efter_stk9_kroner: Heltal, cfc_indkomst_efter_stk9_kroner: Heltal, andel_før_stk10_kroner: Heltal, stk10_cap_kroner: Heltal, medregnet_cfc_indkomst_kroner: Heltal)
 
@@ -188,9 +189,15 @@ vælger den historiske kilde for 2023-2025 og den gældende kilde for 2026.
 }
 | ligningslov16h_sag(input: Ligningslov16HInput) -> Ligningslov16HSag(input)
 | ligningslov16h_resultat(input: Ligningslov16HInput) -> ligningslov16h_sag(input).resultat()
---@end:ligningsloven_par16h--
 
---@label:ligningsloven_par16i_stk6_og_stk7::meta:ligningsloven_cfc_metadata--
+}
+
+----
+Den gengivne tekst er fra LBK nr. 1500 af 24/11/2025. § 16 I, stk. 6 og 7,
+er ordret identisk i den officielle XML og PDF for LBK nr. 42 af 13/01/2023.
+Kilderne og deres indkomstårshorisont følger den fælles CFC-regelversion.
+----
+
 ----
 § 16 I, stk. 6-7.
 
@@ -216,13 +223,9 @@ Kan der i et indkomstår opgøres et negativt merafkast, kan det negative
 merafkast fradrages ved opgørelsen af merafkastet i senere indkomstår.
 ----
 
-----
-Den gengivne tekst er fra LBK nr. 1500 af 24/11/2025. § 16 I, stk. 6 og 7,
-er ordret identisk i den officielle XML og PDF for LBK nr. 42 af 13/01/2023.
-Kilderne og deres indkomstårshorisont følger den fælles CFC-regelversion.
-----
+@ meta(ligningsloven_cfc_metadata)
+@ section ligningsloven_par16i_stk6_og_stk7 {
 
---@begin:ligningsloven_par16i_stk6_og_stk7--
 # Ligningslov16IStk6Og7Input(indkomstår: Heltal, fuldt_skattepligtig_eller_dødsbo: Boolsk, kontrollerer_efter_par16h_stk6: Boolsk, medstifter_eller_ledelse_i_fond: Boolsk, selskab_har_fortrinsstilling_i_fond: Boolsk, selskabets_afkast_via_fond_kroner: Heltal, standardafkast_kroner: Heltal, fremført_negativt_merafkast_kroner: Heltal, ret_til_merafkast_basispoint: Heltal)
 # Ligningslov16IStk6Og7Resultat(indkomstår: Heltal, regelversion: LigningslovCfcRegelversion, skatteår_understøttet: Boolsk, kontrollerer_selskab: Boolsk, omfattet_af_stk6: Boolsk, merafkast_før_fremførsel_kroner: Heltal, negativt_merafkast_til_fremførsel_kroner: Heltal, fremført_negativt_merafkast_anvendt_kroner: Heltal, positivt_merafkast_efter_fremførsel_kroner: Heltal, medregnet_som_cfc_indkomst_kroner: Heltal)
 
@@ -251,7 +254,8 @@ Kilderne og deres indkomstårshorisont følger den fælles CFC-regelversion.
 }
 | ligningslov16i_stk6_og_7_sag(input: Ligningslov16IStk6Og7Input) -> Ligningslov16IStk6Og7Sag(input)
 | ligningslov16i_stk6_og_7_resultat(input: Ligningslov16IStk6Og7Input) -> ligningslov16i_stk6_og_7_sag(input).resultat()
---@end:ligningsloven_par16i_stk6_og_stk7--
+
+}
 
 = ll16h_positiv_fixture = ligningslov16h_resultat(Ligningslov16HInput(
     indkomstår = 2026,

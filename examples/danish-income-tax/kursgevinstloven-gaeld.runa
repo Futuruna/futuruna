@@ -56,7 +56,6 @@
     )
 )
 
---@label:kursgevinstloven_gæld_par19_par21::meta:kursgevinstloven_gæld_par19_par21_metadata--
 ----
 § 19. Hvis personen eller dødsboet driver næringsvirksomhed ved finansiering, og
 gælden vedrører denne virksomhed, medregnes gevinst og tab på gæld ved
@@ -85,7 +84,9 @@ personen direkte og indirekte højst ejer eller har ejet 5 pct. af aktiekapitale
 ligningslovens § 16 E.
 ----
 
---@begin:kursgevinstloven_gæld_par19_par21--
+@ meta(kursgevinstloven_gæld_par19_par21_metadata)
+@ section kursgevinstloven_gæld_par19_par21 {
+
 # KursgevinstlovGældValuta = KglGældDanskeKroner | KglGældFremmedValuta | KglGældDanskeKronerValutareguleret | KglGældFremmedValutaKronereguleret
 # KursgevinstlovGældErhvervsforhold = KglGældUdenFinansieringsnæring | KglGældFinansieringsnæringUdenVirksomhedstilknytning | KglGældFinansieringsnæringMedVirksomhedstilknytning
 # KursgevinstlovGældFrigørelsesart = KglGældOrdinærIndfrielse | KglGældEftergivelse | KglGældForældelse | KglGældKonfusion | KglGældPræklusion
@@ -121,7 +122,8 @@ ligningslovens § 16 E.
 | kgl_gæld_bruttotab_kroner(beløb: KursgevinstlovGældBeløb) -> penge_positivt_beløb(beløb.gældens_værdi_ved_frigørelse_eller_indfrielse_kroner - beløb.gældens_værdi_ved_påtagelse_kroner)
 | kgl_gæld_par21_stk1_skattepligtig_gevinst_kroner(beløb: KursgevinstlovGældBeløb) -> penge_mindste_beløb(kgl_gæld_bruttogevinst_kroner(beløb), penge_positivt_beløb(beløb.fordringens_værdi_for_kreditor_kroner - beløb.gældens_værdi_ved_frigørelse_eller_indfrielse_kroner))
 | kgl_gæld_par21_stk2_skattepligtig_gevinst_kroner(beløb: KursgevinstlovGældBeløb) -> kgl_gæld_bruttogevinst_kroner(beløb)
---@end:kursgevinstloven_gæld_par19_par21--
+
+}
 
 = kursgevinstloven_gæld_par22_metadata = Metadata(
     attachments = (
@@ -130,7 +132,6 @@ ligningslovens § 16 E.
     )
 )
 
---@label:kursgevinstloven_gæld_par22::meta:kursgevinstloven_gæld_par22_metadata--
 ----
 § 22. Hvis en fordring stiftes på sådanne vilkår, at fordringens værdi på
 tidspunktet for debitors påtagelse af gælden overstiger det beløb, som debitor
@@ -200,7 +201,9 @@ anskaffelsestidspunktet i denne sammenhæng forstås henholdsvis
 udlodningstidspunktet eller tidspunktet for udlevering.
 ----
 
---@begin:kursgevinstloven_gæld_par22--
+@ meta(kursgevinstloven_gæld_par22_metadata)
+@ section kursgevinstloven_gæld_par22 {
+
 # KursgevinstlovPar22Sikkerhed = KglPar22IngenKvalificerendeSikkerhed | KglPar22PantIFastEjendom | KglPar22PantISkib | KglPar22EuEøsOffentligHæftelseEllerGaranti
 # KursgevinstlovPar22Lånetilbud(dato: Dato, obligationskurs_basispoint: Heltal)
 # KursgevinstlovPar22Realkreditgrundlag(långiver_driver_finansieringsnæring: Boolsk, sikkerhed: KursgevinstlovPar22Sikkerhed, lånet_baseret_på_obligationer: Boolsk, udbetalingsdato: Dato, obligationskurs_ved_udbetaling_basispoint: Heltal, lånetilbud: Option(KursgevinstlovPar22Lånetilbud))
@@ -245,7 +248,8 @@ udlodningstidspunktet eller tidspunktet for udlevering.
 | kgl_gæld_par22_stk3_eller_stk4_undtagelse(fakta: KursgevinstlovPar22Stk3Fakta) -> kgl_gæld_par22_stk3_undtagelse(fakta) || kgl_gæld_par22_stk4_undtagelse(fakta)
 | kgl_gæld_par22_stk3_input_gyldigt(fakta: KursgevinstlovPar22Stk3Fakta) -> dato_gyldig(fakta.indfrielses_eller_opsigelsesdato) && fakta.obligationsrestgæld_kroner >= 0 && fakta.indfrielsesbeløb_kroner >= 0 && kgl_gæld_par22_realkreditgrundlag_gyldigt(fakta.realkreditgrundlag) && kgl_gæld_par22_stk3_ejerskifte_input_gyldigt(fakta.ejerskifte)
 | kgl_gæld_par22_stk3_skattepligtig_gevinst_kroner(fakta: KursgevinstlovPar22Stk3Fakta) -> hvis kgl_gæld_par22_stk3_input_gyldigt(fakta) && fakta.ekstraordinær_indfrielse && fakta.kontantlån_i_danske_kroner && fakta.realkreditgrundlag.långiver_driver_finansieringsnæring && kgl_gæld_par22_kvalificerende_sikkerhed(fakta.realkreditgrundlag.sikkerhed) && kgl_gæld_par22_stk3_eller_stk4_undtagelse(fakta) == Falskt { penge_positivt_beløb(fakta.obligationsrestgæld_kroner - fakta.indfrielsesbeløb_kroner) } ellers { 0 }
---@end:kursgevinstloven_gæld_par22--
+
+}
 
 = kursgevinstloven_gæld_par22a_metadata = Metadata(
     attachments = (
@@ -254,7 +258,6 @@ udlodningstidspunktet eller tidspunktet for udlevering.
     )
 )
 
---@label:kursgevinstloven_gæld_par22a::meta:kursgevinstloven_gæld_par22a_metadata--
 ----
 § 22 A. En skattepligtig gevinst omfattet af § 22, stk. 1, beskattes efter
 reglerne i stk. 2, hvis
@@ -286,7 +289,9 @@ kursgevinstlovens § 22, stk. 1, når stiftelsen, refinansieringen eller
 overtagelsen sker den 1. januar 2016 eller senere.
 ----
 
---@begin:kursgevinstloven_gæld_par22a--
+@ meta(kursgevinstloven_gæld_par22a_metadata)
+@ section kursgevinstloven_gæld_par22a {
+
 # KursgevinstlovPar22ABeskatningsvalg = KglPar22AÅrligFordeling | KglPar22Stk1BeskatningValgtEfterManglendeIndberetning
 # KursgevinstlovPar22AFakta(stiftelsesfakta: KursgevinstlovPar22Stk1Fakta, inkonverterbart_lån: Boolsk, direkte_baseret_på_obligationer_på_reguleret_marked: Boolsk, rente_ved_stiftelsen_basispoint: Heltal, lavest_mulige_rente_i_obligationernes_løbetid_basispoint: Heltal, obligationernes_udløbsår: Heltal, lånets_udløbsår: Heltal, frigørelsesår: Option(Heltal), renteindtægt_indberettet_efter_sil13_i_stiftelsesåret: Boolsk, årets_indberettede_renteindtægt_kroner: Heltal, beskatningsvalg: KursgevinstlovPar22ABeskatningsvalg)
 
@@ -296,7 +301,8 @@ overtagelsen sker den 1. januar 2016 eller senere.
 | kgl_gæld_par22a_frigjort_før_indkomstår(fakta: KursgevinstlovPar22AFakta, indkomstår: Heltal) -> match fakta.frigørelsesår { | Some(år) -> år < indkomstår | None -> Falskt }
 | kgl_gæld_par22a_input_gyldigt(fakta: KursgevinstlovPar22AFakta) -> kgl_gæld_par22a_kvalificeret(fakta) && fakta.obligationernes_udløbsår >= fakta.stiftelsesfakta.stiftelsesdato.år && fakta.lånets_udløbsår >= fakta.stiftelsesfakta.stiftelsesdato.år && fakta.årets_indberettede_renteindtægt_kroner >= 0 && match fakta.frigørelsesår { | Some(år) -> år >= fakta.stiftelsesfakta.stiftelsesdato.år | None -> Sandt } && hvis fakta.beskatningsvalg == KglPar22Stk1BeskatningValgtEfterManglendeIndberetning { fakta.renteindtægt_indberettet_efter_sil13_i_stiftelsesåret == Falskt } ellers { Sandt }
 | kgl_gæld_par22a_skattepligtig_gevinst_kroner(fakta: KursgevinstlovPar22AFakta, indkomstår: Heltal) -> hvis kgl_gæld_par22a_input_gyldigt(fakta) == Falskt { 0 } ellers { hvis fakta.beskatningsvalg == KglPar22Stk1BeskatningValgtEfterManglendeIndberetning { hvis indkomstår == fakta.stiftelsesfakta.stiftelsesdato.år { kgl_gæld_par22_stk1_overkursgevinst_kroner(fakta.stiftelsesfakta) } ellers { 0 } } ellers { hvis indkomstår >= fakta.stiftelsesfakta.stiftelsesdato.år && indkomstår <= kgl_gæld_par22a_sidste_fordelingsår(fakta) && kgl_gæld_par22a_frigjort_før_indkomstår(fakta, indkomstår) == Falskt { fakta.årets_indberettede_renteindtægt_kroner } ellers { 0 } } }
---@end:kursgevinstloven_gæld_par22a--
+
+}
 
 = kursgevinstloven_gæld_par23_par24a_metadata = Metadata(
     attachments = (
@@ -306,7 +312,6 @@ overtagelsen sker den 1. januar 2016 eller senere.
     )
 )
 
---@label:kursgevinstloven_gæld_par23_par24a::meta:kursgevinstloven_gæld_par23_par24a_metadata--
 ----
 § 23. Gevinst og tab på gæld i fremmed valuta medregnes i det omfang, gevinsten
 eller tabet ikke er omfattet af § 22 eller § 24 A.
@@ -338,7 +343,9 @@ stk. 2.
 selskabskapital medregnes ikke ved opgørelsen af den skattepligtige indkomst.
 ----
 
---@begin:kursgevinstloven_gæld_par23_par24a--
+@ meta(kursgevinstloven_gæld_par23_par24a_metadata)
+@ section kursgevinstloven_gæld_par23_par24a {
+
 # KursgevinstlovUdeladtKravsSmåkravsgrundlag = KglUdeladtKravUdenSmåkravsdokumentation | KglUdeladtKravDokumenteretSomSmåkrav(afgørelsesreference: Tekst) | KglUdeladtKravDokumenteretSomIkkeSmåkrav(afgørelsesreference: Tekst)
 # KursgevinstlovFrivilligKreditorordningsdeltagelse = KglKreditorTiltrådtFrivilligOrdning(aftalt_restkrav_kroner: Heltal) | KglKreditorUdenforFrivilligOrdning(småkravsgrundlag: KursgevinstlovUdeladtKravsSmåkravsgrundlag)
 # KursgevinstlovFrivilligKreditorkrav(krav_identifikation: Tekst, kreditor_identifikation: Tekst, samlet_krav_kroner: Heltal, værdi_af_tilstrækkelig_sikkerhed_kroner: Heltal, deltagelse: KursgevinstlovFrivilligKreditorordningsdeltagelse)
@@ -578,4 +585,5 @@ selskabskapital medregnes ikke ved opgørelsen af den skattepligtige indkomst.
     vedrører_ikke_indbetalt_selskabskapital = Falskt,
     par22_hændelse = KglIngenPar22Hændelse
 ))
---@end:kursgevinstloven_gæld_par23_par24a--
+
+}

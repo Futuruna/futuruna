@@ -20,7 +20,7 @@
 = varelager_par1_kildemeta = Source(
     value = varelagerloven_lbk1088_par1
 )
---@label:varelagerloven_par1::meta:varelager_par1_kildemeta--
+
 ----
 § 1. Ved opgørelsen af den skattepligtige indkomst kan næringsdrivende
 personer, dødsboer samt selskaber og foreninger vælge at opgøre deres varelagre
@@ -54,7 +54,9 @@ produktionsvirksomheder, herunder brændsel, der hører til virksomheden ved
 regnskabsårets slutning.
 ----
 
---@begin:varelagerloven_par1--
+@ meta(varelager_par1_kildemeta)
+@ section varelagerloven_par1 {
+
 # VarelagerPar1Skatteyder = VarelagerNæringsdrivendePerson | VarelagerDødsbo | VarelagerSelskabEllerForening | VarelagerIkkeOmfattet
 # VarelagerPar1Art = VarelagerVarer | VarelagerRåstoffer | VarelagerHelfærdigeProdukter | VarelagerHalvfærdigeProdukter | VarelagerEmballage | VarelagerHjælpevarer | VarelagerBrændsel | VarelagerIkkeOmfattetArt
 # VarelagerPar1Opgørelsesmåde = VarelagerDagspris(bruttoværdi_kroner: Heltal) | VarelagerFakturapris(indkøbspris_kroner: Heltal, fragt_told_og_lignende_kroner: Heltal) | VarelagerFremstillingspris(fremstillingspris_kroner: Heltal)
@@ -109,4 +111,5 @@ regnskabsårets slutning.
 }
 | varelager_par1_sag(input: VarelagerPar1Input) -> VarelagerPar1Sag(input)
 | varelager_par1_resultat(input: VarelagerPar1Input) -> varelager_par1_sag(input).resultat()
---@end:varelagerloven_par1--
+
+}

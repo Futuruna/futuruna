@@ -46,7 +46,6 @@
     )
 )
 
---@label:aktieavancebeskatningsloven_par23_og_par23a::meta:aktieavancebeskatningsloven_par23_og_par23a_metadata--
 ----
 § 19 D. Fradrag efter §§ 19 B eller 19 C er betinget af, at told- og
 skatteforvaltningen inden udløbet af oplysningsfristen efter
@@ -191,7 +190,9 @@ aktieavancebeskatningslovens § 23, stk. 7, som affattet ved denne lovs § 3, nr
 skattekontrollovens § 2.
 ----
 
---@begin:aktieavancebeskatningsloven_par23_og_par23a--
+@ meta(aktieavancebeskatningsloven_par23_og_par23a_metadata)
+@ section aktieavancebeskatningsloven_par23_og_par23a {
+
 # AktieavancePar23Dato(år: Heltal, måned: Heltal, dag: Heltal)
 # AktieavanceInvesteringsselskabPapirart = AblInvesteringsselskabsaktie | AblOmsætteligtInvesteringsbevis | AblAndetInvesteringsselskabspapir
 # AktieavancePar23Aktiv = AblPar17Næringsaktiv | AblPar17Stk3Investeringsbevis | AblMinimumsinstitutsbevis(klassifikationsinput: AktieavancePar21Par22Input) | AblPar9Aktie(selskabsidentifikation: Tekst, markedsstatus: AktieavanceOrdinærMarkedsstatus) | AblPar9Tegningsret(underliggende_markedsstatus: AktieavanceOrdinærMarkedsstatus) | AblPar9KonvertibelObligation(underliggende_markedsstatus: AktieavanceOrdinærMarkedsstatus) | AblPar9TegningsretTilKonvertibelObligation(underliggende_markedsstatus: AktieavanceOrdinærMarkedsstatus) | AblPar20Stk1Investeringsbevis(klassifikationsinput: AktieavancePar19ATil20AInput) | AblPar20AInvesteringsbevis(klassifikationsinput: AktieavancePar19ATil20AInput) | AblPar19AInvesteringsselskabsaktiv(klassifikationsinput: AktieavancePar19ATil20AInput, papirart: AktieavanceInvesteringsselskabPapirart, markedsstatus: AktieavanceOrdinærMarkedsstatus, registreret_i_værdipapircentral: Boolsk) | AblInvesteringsselskabsaktiv(klassifikationsinput: AktieavancePar19BPar19CInput, papirart: AktieavanceInvesteringsselskabPapirart, markedsstatus: AktieavanceOrdinærMarkedsstatus, registreret_i_værdipapircentral: Boolsk) | AblPar23AKoncerninternKonvertibelObligation | AblPar23ATegningsretTilKoncerninternKonvertibelObligation | AblAndenAktieEfterPar23
@@ -387,7 +388,8 @@ skattekontrollovens § 2.
 
 | aktieavance_par23a_resultat(input: AktieavancePar23AInput) -> AktieavancePar23ASag(input).resultat()
 | aktieavance_par23a_resultat_gyldigt(resultat: AktieavancePar23AResultat) -> resultat == aktieavance_par23a_resultat(resultat.input)
---@end:aktieavancebeskatningsloven_par23_og_par23a--
+
+}
 
 = aktieavancebeskatningsloven_par24_metadata = Metadata(
     attachments = (
@@ -396,7 +398,6 @@ skattekontrollovens § 2.
     )
 )
 
---@label:aktieavancebeskatningsloven_par24::meta:aktieavancebeskatningsloven_par24_metadata--
 ----
 § 24. Gevinst og tab opgøres efter gennemsnitsmetoden, jf. § 26, jf. dog stk.
 2.
@@ -427,7 +428,9 @@ af skattepligt eller skattemæssigt hjemsted finder reglerne i § 38 anvendelse 
 forbindelse med opgørelsen af gevinst og tab efter stk. 1 og 2.
 ----
 
---@begin:aktieavancebeskatningsloven_par24--
+@ meta(aktieavancebeskatningsloven_par24_metadata)
+@ section aktieavancebeskatningsloven_par24 {
+
 # AktieavancePar24Principskift = AblFraRealisationsprincipTilLagerprincip(aktiens_anskaffelsessum_kroner: Heltal) | AblFraLagerprincipTilRealisationsprincip(værdi_ultimo_før_skift_kroner: Heltal)
 # AktieavancePar24PrincipskiftResultat(skift: AktieavancePar24Principskift, par33a_resultat: AktieavancePar33AResultat, reglen_finder_anvendelse: Boolsk, åbningsværdi_under_lagerprincip_kroner: Heltal, anskaffelsessum_under_senere_realisationsprincip_kroner: Heltal)
 
@@ -474,7 +477,8 @@ forbindelse med opgørelsen af gevinst og tab efter stk. 1 og 2.
 # AktieavancePar24Skattepligtskant = AblAktieErhvervetFørSkattepligtensIndtræden | AblOphørAfSkattepligtEllerSkattemæssigtHjemsted | AblIngenSkattepligtskant
 # AktieavancePar24Skattepligtsregel = AblPar37FinderAnvendelse | AblPar38FinderAnvendelse | AblIngenPar37EllerPar38Regel
 | aktieavance_par24_skattepligtsregel(kant: AktieavancePar24Skattepligtskant) -> match kant { | AblAktieErhvervetFørSkattepligtensIndtræden -> AblPar37FinderAnvendelse | AblOphørAfSkattepligtEllerSkattemæssigtHjemsted -> AblPar38FinderAnvendelse | AblIngenSkattepligtskant -> AblIngenPar37EllerPar38Regel }
---@end:aktieavancebeskatningsloven_par24--
+
+}
 
 = aktieavancebeskatningsloven_lov1563_par2_nr12_14_par8_stk6 = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2023/1563",
@@ -490,7 +494,6 @@ forbindelse med opgørelsen af gevinst og tab efter stk. 1 og 2.
     )
 )
 
---@label:aktieavancebeskatningsloven_rettigheder_mtf_overgang::meta:aktieavancebeskatningsloven_rettigheder_mtf_overgang_metadata--
 ----
 LOV nr. 1563 af 12/12/2023, § 2, nr. 12. I § 24, stk. 2, indsættes efter
 »reguleret marked«: »eller en multilateral handelsfacilitet«.
@@ -505,7 +508,9 @@ For sådanne aktieretter og tegningsretter til aktier finder de hidtil gældende
 regler anvendelse.
 ----
 
---@begin:aktieavancebeskatningsloven_rettigheder_mtf_overgang--
+@ meta(aktieavancebeskatningsloven_rettigheder_mtf_overgang_metadata)
+@ section aktieavancebeskatningsloven_rettigheder_mtf_overgang {
+
 # AktieavanceRettighedsOpgørelsesregime = AblRettighedUdenforAktieavancebeskatningsloven | AblRettighedEfterLagerprincippet | AblRettighedEfterPar25AktieForAktie | AblTegningsretEfterPar26Stk4SomAktie | AblAktieretEfterPar26Gennemsnitsmetode
 # AktieavanceRettighedsOpgørelsesresultat(rettighed: AktieavancePar25Rettighed, beskatningsprincip: AktieavancePar25Beskatningsprincip, erhvervelsesår: Heltal, regime: AktieavanceRettighedsOpgørelsesregime, mtf_overgang_før_2024_finder_anvendelse: Boolsk)
 
@@ -529,7 +534,8 @@ regler anvendelse.
 }
 
 | aktieavance_rettigheds_opgørelsesresultat(rettighed: AktieavancePar25Rettighed, beskatningsprincip: AktieavancePar25Beskatningsprincip, erhvervelsesår: Heltal) -> AktieavanceRettighedsOpgørelsesSag(rettighed, beskatningsprincip, erhvervelsesår).resultat()
---@end:aktieavancebeskatningsloven_rettigheder_mtf_overgang--
+
+}
 
 = aktieavancebeskatningsloven_par26_resterende_grene_metadata = Metadata(
     attachments = (
@@ -538,7 +544,6 @@ regler anvendelse.
     )
 )
 
---@label:aktieavancebeskatningsloven_par26_resterende_grene::meta:aktieavancebeskatningsloven_par26_resterende_grene_metadata--
 ----
 § 26. Gevinst og tab ved afståelse af aktier opgøres efter reglerne i stk. 2-6,
 jf. dog § 23, stk. 2, 4, 5, 8 og 9, og § 23 A, 1. pkt., om lagerprincippet.
@@ -591,7 +596,9 @@ andele, hvor indbetalingen ikke har været omfattet af ligningslovens § 7 N, se
 bort fra andele, hvor indbetalingen har været omfattet af ligningslovens § 7 N.
 ----
 
---@begin:aktieavancebeskatningsloven_par26_resterende_grene--
+@ meta(aktieavancebeskatningsloven_par26_resterende_grene_metadata)
+@ section aktieavancebeskatningsloven_par26_resterende_grene {
+
 # AktieavancePar26Stk2Andelsstatus = AblMedarbejderinvesteringsandelMedIndbetalingEfterLl7N | AblAndenAndel
 # AktieavancePar26Stk2Sælgerstatus = AblAndenSælger | AblSelskabUdenFradragEfterStatsskattelovPar6 | AblSelskabMedFradragEfterStatsskattelovPar6
 # AktieavancePar26Stk2Afståelsesprisinput(faktisk_afståelsessum_kroner: Heltal, handelsværdi_kroner: Heltal, sælgerstatus: AktieavancePar26Stk2Sælgerstatus)
@@ -644,4 +651,5 @@ bort fra andele, hvor indbetalingen har været omfattet af ligningslovens § 7 N
 }
 
 | aktieavance_par26_stk6_hændelsesresultat(beholdning: AktieavancePar26Stk6Beholdning, hændelse: AktieavancePar26Stk6Hændelse) -> AktieavancePar26Stk6HændelsesSag(beholdning, hændelse).resultat()
---@end:aktieavancebeskatningsloven_par26_resterende_grene--
+
+}

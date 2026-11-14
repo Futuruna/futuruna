@@ -1270,7 +1270,7 @@
     )
 )
 
---@label:Statsskattelov6DobbeltHusførelseÅrsinput::meta:personskat_sl6dh_beregningsmeta--
+@ meta(personskat_sl6dh_beregningsmeta) for Statsskattelov6DobbeltHusførelseÅrsinput
 
 = personskat_ll9a_beregningsmeta = TypetBeregningsmeta(
     felter = [
@@ -1396,4 +1396,4 @@
     )
 )
 
---@label:Ligningslov9AÅrsinput::meta:personskat_ll9a_beregningsmeta--
+@ meta(personskat_ll9a_beregningsmeta) for Ligningslov9AÅrsinput

@@ -13,8 +13,9 @@
     ]
 )
 
---@label:shape_rule::meta:geometry_metadata--
+@ meta(geometry_metadata)
+@ section shape_rule {
 
---@begin:shape_rule--
 | accepts_circle(shape: Shape) -> shape == Circle
---@end:shape_rule--
+
+}

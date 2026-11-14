@@ -150,7 +150,23 @@
     )
 )
 
---@label:ejendomsskatteloven_par3::meta:ejendomsskatteloven_par3_metadata--
+----
+Lov nr. 615 af 30/06/2026, § 2:
+
+2. § 3, stk. 1, nr. 3 og 4, ophæves, og i stedet indsættes:
+»3) Boliger tilhørende landbrugs-, skov- og naturejendomme, hvor der efter
+ejendomsvurderingslovens § 30, stk. 1, 1. pkt., ansættes en særskilt
+ejendomsværdi og en særskilt grundværdi.«
+Nr. 5-10 bliver herefter nr. 4-9.
+
+3. I § 3, stk. 2, ændres »nr. 1-5, 9 og 10« til: »nr. 1-4, 8 og 9«.
+
+Lov nr. 615 af 30/06/2026, § 16, stk. 5:
+
+§ 2, nr. 1-3, 5-9, 15 og 16, §§ 3-12, § 13, nr. 2, og §§ 14 og 15 har virkning
+fra og med den 1. januar 2027.
+----
+
 ----
 § 3. Der betales ejendomsværdiskat, jf. § 1, stk. 1, af følgende ejendomme:
 1) Ejendomme, der kun indeholder én selvstændig boligenhed.
@@ -223,24 +239,9 @@ Stk. 3. Ejendomme, som udlejes erhvervsmæssigt, er ikke omfattet af
 skattepligt efter § 1, stk. 1.
 ----
 
-----
-Lov nr. 615 af 30/06/2026, § 2:
+@ meta(ejendomsskatteloven_par3_metadata)
+@ section ejendomsskatteloven_par3 {
 
-2. § 3, stk. 1, nr. 3 og 4, ophæves, og i stedet indsættes:
-»3) Boliger tilhørende landbrugs-, skov- og naturejendomme, hvor der efter
-ejendomsvurderingslovens § 30, stk. 1, 1. pkt., ansættes en særskilt
-ejendomsværdi og en særskilt grundværdi.«
-Nr. 5-10 bliver herefter nr. 4-9.
-
-3. I § 3, stk. 2, ændres »nr. 1-5, 9 og 10« til: »nr. 1-4, 8 og 9«.
-
-Lov nr. 615 af 30/06/2026, § 16, stk. 5:
-
-§ 2, nr. 1-3, 5-9, 15 og 16, §§ 3-12, § 13, nr. 2, og §§ 14 og 15 har virkning
-fra og med den 1. januar 2027.
-----
-
---@begin:ejendomsskatteloven_par3--
 # EjendomsskattelovPar3Kategori = EjskEnBoligenhed | EjskToBoligenheder | EjskLandbrugsbolig | EjskSkovbolig | EjskLandbrugsSkovNaturbolig | EjskBlandetBoligErhverv | EjskEjerlejlighedTreTilSeks | EjskFlereEjereBeboet1994 | EjskBoligsamejeMv | EjskLandzoneOver5000M2 | EjskVindmølleparcel | EjskAndenEjendom
 # EjendomsskattelovPar3Beliggenhed = EjskDanmark | EjskUdlandFaeroerneGroenland
 # EjendomsskattelovPar3Hjemmel = EjskIngenPar3Hjemmel | EjskPar3Stk1Nr1 | EjskPar3Stk1Nr2 | EjskPar3Stk1Nr3 | EjskPar3Stk1Nr4 | EjskPar3Stk1Nr5 | EjskPar3Stk1Nr6 | EjskPar3Stk1Nr7 | EjskPar3Stk1Nr8 | EjskPar3Stk1Nr9 | EjskPar3Stk1Nr10
@@ -312,7 +313,8 @@ fra og med den 1. januar 2027.
 | ejsk_2027_tre_til_seks_betingelser_mangler_afskærer_ejendomsværdiskat: ejsk_2027_tre_til_seks_betingelser_mangler_fixture -> ejsk_2027_tre_til_seks_betingelser_mangler_fixture.stk1_hjemmel == EjskPar3Stk1Nr5 && ejsk_2027_tre_til_seks_betingelser_mangler_fixture.omfattet_af_ejendomsværdiskat == Falskt
 | ejsk_2027_udland_stk2_følger_psl_nr6_kategorier: ejsk_2027_udland_fixture -> ejsk_2027_udland_fixture.stk1_hjemmel == EjskPar3Stk1Nr9 && ejsk_2027_udland_fixture.stk2_udland == Sandt && ejsk_2027_udland_fixture.omfattet_af_ejendomsværdiskat == Sandt
 | ejsk_erhvervsudlejning_afskærer_ejendomsværdiskat_og_psl_nr6: ejsk_2027_erhvervsudlejet_fixture -> ejsk_2027_erhvervsudlejet_fixture.omfattet_af_ejendomsværdiskat == Falskt && ejsk_2027_erhvervsudlejet_fixture.omfattet_af_personskattelov_par4_nr6 == Falskt
---@end:ejendomsskatteloven_par3--
+
+}
 
 = ejendomsskatteloven_par72_metadata = Metadata(
     attachments = (
@@ -321,13 +323,14 @@ fra og med den 1. januar 2027.
     )
 )
 
---@label:ejendomsskatteloven_par72::meta:ejendomsskatteloven_par72_metadata--
 ----
 § 72. I hele loven anses indkomståret og kalenderåret at udgøre 360 dage med
 30 dage i hver kalendermåned.
 ----
 
---@begin:ejendomsskatteloven_par72--
+@ meta(ejendomsskatteloven_par72_metadata)
+@ section ejendomsskatteloven_par72 {
+
 # EjendomsskattelovDato(år: Heltal, måned: Heltal, dag: Heltal)
 # EjendomsskattelovDatointerval(fra_dato: EjendomsskattelovDato, til_dato: EjendomsskattelovDato)
 # EjendomsskattelovÅrsperiode = HeleEjendomsskatteåret | EjendomsskatFraOgMed(dato: EjendomsskattelovDato) | EjendomsskatTilOgMed(dato: EjendomsskattelovDato) | EjendomsskatFraOgMedTilOgMed(fra_dato: EjendomsskattelovDato, til_dato: EjendomsskattelovDato) | EjendomsskatIIntervaller(intervaller: List(EjendomsskattelovDatointerval))
@@ -391,7 +394,8 @@ fra og med den 1. januar 2027.
 
 = ejsk_par72_august_til_december_fixture = ejendomsskattelov_par72_periode_resultat(2025, EjendomsskatFraOgMed(EjendomsskattelovDato(år = 2025, måned = 8, dag = 1)))
 | ejsk_par72_august_til_december_er_150_dage: ejsk_par72_august_til_december_fixture -> ejsk_par72_august_til_december_fixture.datoer_gyldige && ejsk_par72_august_til_december_fixture.skattepligtige_dage == 150 && ejsk_par72_august_til_december_fixture.indkomstårets_dage == 360
---@end:ejendomsskatteloven_par72--
+
+}
 
 = ejendomsskatteloven_ejendomsværdiskat_metadata = Metadata(
     attachments = (
@@ -402,7 +406,6 @@ fra og med den 1. januar 2027.
     )
 )
 
---@label:ejendomsskatteloven_ejendomsvaerdiskat::meta:ejendomsskatteloven_ejendomsværdiskat_metadata--
 ----
 § 13. Ejendomsværdiskatten opgøres som beskatningsgrundlaget efter stk. 2-4
 ganget med ejendomsværdiskattesatsen i § 22 med fradrag for nedslagsbeløb
@@ -468,7 +471,9 @@ LOV nr. 562 af 27. maj 2025 § 17, stk. 1:
 Loven træder i kraft den 1. juli 2025.
 ----
 
---@begin:ejendomsskatteloven_ejendomsvaerdiskat--
+@ meta(ejendomsskatteloven_ejendomsværdiskat_metadata)
+@ section ejendomsskatteloven_ejendomsvaerdiskat {
+
 # EjendomsskattelovOrdinærPersonEjendomFakta(identifikation: Tekst, kommune: Kommune, kategori: EjendomsskattelovPar3Kategori, beliggenhed: EjendomsskattelovPar3Beliggenhed, erhvervsmæssigt_udlejet: Boolsk, særlige_betingelser_for_nr6_til_nr8_opfyldt: Boolsk, ejendomsværdi_kroner: Heltal, grundværdi_kroner: Heltal, produktionsjord: Boolsk, ejendomsværdiskatteperiode: EjendomsskattelovÅrsperiode, grundskyldsperiode: EjendomsskattelovÅrsperiode, ejerandel_basispoint: Heltal)
 # EjendomsskattelovEjendomsværdiskatResultat(par3_resultat: EjendomsskattelovPar3Resultat, periode: EjendomsskattelovPeriodeResultat, beskatningsgrundlag_kroner: Heltal, lavt_satsgrundlag_kroner: Heltal, højt_satsgrundlag_kroner: Heltal, lav_sats_promille_tiendedele: Heltal, høj_sats_promille_tiendedele: Heltal, ejerandel_basispoint: Heltal, beregning: PengeØreBeregning, skat_øre: Heltal, skat_kroner: Heltal, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk)
 # EjendomsskattelovGrundskyldResultat(periode: EjendomsskattelovPeriodeResultat, kommune: Kommune, grundskyld_promille_tiendedele: Heltal, beskatningsgrundlag_kroner: Heltal, ejerandel_basispoint: Heltal, beregning: PengeØreBeregning, skat_øre: Heltal, skat_kroner: Heltal, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk)
@@ -518,7 +523,8 @@ Loven træder i kraft den 1. juli 2025.
         regelgrundlag_understøttet = regelgrundlag_understøttet
     )
 }
---@end:ejendomsskatteloven_ejendomsvaerdiskat--
+
+}
 
 = ejendomsskatteloven_grundskyld_metadata = Metadata(
     attachments = (
@@ -527,7 +533,6 @@ Loven træder i kraft den 1. juli 2025.
     )
 )
 
---@label:ejendomsskatteloven_grundskyld::meta:ejendomsskatteloven_grundskyld_metadata--
 ----
 § 17. Grundskylden opgøres som beskatningsgrundlaget efter stk. 2 og 3 ganget
 med grundskyldssatsen i § 28 med fradrag for grundforbedringer efter
@@ -566,7 +571,9 @@ skatteforvaltningen via forskuds- og årsopgørelsen hos den eller de fysiske
 personer, der ejer ejendommen i henhold til et autoritativt register.
 ----
 
---@begin:ejendomsskatteloven_grundskyld--
+@ meta(ejendomsskatteloven_grundskyld_metadata)
+@ section ejendomsskatteloven_grundskyld {
+
 | ejendomsskattelov_par17_beskatningsgrundlag_kroner(grundværdi_kroner: Heltal) -> grundværdi_kroner * 80 / 100
 | ejendomsskattelov_grundskyld_regelgrundlag_understøttet(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> fakta.beliggenhed == EjskDanmark && fakta.produktionsjord == Falskt && kommune_understøttet_i_år(indkomstår, fakta.kommune)
 | ejendomsskattelov_grundskyld_input_gyldigt(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> fakta.identifikation != "" && fakta.grundværdi_kroner >= 0 && ejendomsskattelov_ejerandel_gyldig(fakta.ejerandel_basispoint) && ejendomsskattelov_par72_periode_datoer_gyldige(indkomstår, fakta.grundskyldsperiode)
@@ -660,7 +667,8 @@ personer, der ejer ejendommen i henhold til et autoritativt register.
     ejerandel_basispoint = 5000
 ))
 | ejsk_2025_erhvervsudlejning_er_gyldigt_nul_i_ejendomsværdiskat: ejsk_2025_erhvervsudlejet_fixture -> ejsk_2025_erhvervsudlejet_fixture.input_gyldigt && ejsk_2025_erhvervsudlejet_fixture.regelgrundlag_understøttet && ejsk_2025_erhvervsudlejet_fixture.ejendomsværdiskat.par3_resultat.omfattet_af_ejendomsværdiskat == Falskt && ejsk_2025_erhvervsudlejet_fixture.ejendomsværdiskat.skat_øre == 0 && ejsk_2025_erhvervsudlejet_fixture.grundskyld.skat_øre == 285855
---@end:ejendomsskatteloven_grundskyld--
+
+}
 
 = ejendomsskatteloven_nedslag_metadata = Metadata(
     attachments = (
@@ -672,7 +680,6 @@ personer, der ejer ejendommen i henhold til et autoritativt register.
     )
 )
 
---@label:ejendomsskatteloven_nedslag::meta:ejendomsskatteloven_nedslag_metadata--
 ----
 § 23. Har den skattepligtige erhvervet ejendommen senest den 1. juli 1998,
 nedsættes den beregnede ejendomsværdiskat med et beløb svarende til 1,0
@@ -750,7 +757,9 @@ Stk. 2. Fradragsbeløbet efter stk. 1, 1. pkt., kan ikke overstige den opgjorte
 ejendomsværdiskat.
 ----
 
---@begin:ejendomsskatteloven_nedslag--
+@ meta(ejendomsskatteloven_nedslag_metadata)
+@ section ejendomsskatteloven_nedslag {
+
 # EjendomsskattelovRegelkapabilitet = EjskInputUgyldigt | EjskIkkeRelevant | EjskUnderstøttet | EjskManglerKildefakta | EjskIkkeUnderstøttet
 # EjendomsskattelovFolkepensionsalder = EjskFolkepensionsalderIkkeOpnået | EjskFolkepensionsalderOpnået(opnået_dato: EjendomsskattelovDato)
 # EjendomsskattelovSkattemæssigtHjemsted = EjskFuldtSkattepligtigEfterKildeskattelovensPar1 | EjskHjemmehørendeUdenForDanmark(indkomstoplysninger_meddelt: Boolsk, administrativ_udveksling_mulig: Boolsk)
@@ -931,7 +940,8 @@ ejendomsværdiskat.
 }
 
 | ejendomsskattelov_nedslag_resultat(kontekst: EjendomsskattelovPersonÅrskontekst, fakta: EjendomsskattelovOrdinærPersonEjendomFakta, nedslagsfakta: EjendomsskattelovNedslagsfakta) -> EjendomsskattelovNedslagSag(kontekst, fakta, nedslagsfakta).resultat()
---@end:ejendomsskatteloven_nedslag--
+
+}
 
 = ejendomsskatteloven_rabatordning_metadata = Metadata(
     attachments = (
@@ -947,7 +957,109 @@ ejendomsværdiskat.
     )
 )
 
---@label:ejendomsskatteloven_rabatordning::meta:ejendomsskatteloven_rabatordning_metadata--
+----
+Tidligere ejendomsværdiskattelov, lovbekendtgørelse nr. 1590 af 2. november
+2020:
+
+§ 4 a. Som beregningsgrundlag for ejendomsværdiskatten for ejendomme omfattet
+af § 4, nr. 1-10, anvendes den laveste af følgende værdier:
+1) 80 pct. af den ejendomsværdi, der er ansat for den pågældende ejendom i året
+før indkomståret.
+2) Den ejendomsværdi, der er ansat for den pågældende ejendom pr. 1. januar 2001
+med tillæg af 5 pct.
+3) Den ejendomsværdi, der er ansat for den pågældende ejendom pr. 1. januar
+2002.
+
+§ 5. Ejendomsværdiskattesatsen er 9,2 promille af den del af det efter §§ 4 a
+og 4 b, opgjorte beregningsgrundlag, der ikke overstiger 3.040.000 kr. og 30
+promille af resten.
+Ejendomsværdiskatten opgøres for ejendommen.
+
+§ 6. Har den skattepligtige erhvervet ejendommen senest den 1. juli 1998,
+nedsættes den beregnede ejendomsværdiskat med et beløb svarende til 1,8
+promille af beregningsgrundlaget efter §§ 4 a og 4 b.
+
+§ 7. Har den skattepligtige senest den 1. juli 1998 erhvervet en ejendom som
+nævnt i § 4, nr. 1, 3-5 og 9-11, nedsættes den beregnede ejendomsværdiskat
+endvidere med et beløb svarende til 3,7 promille af beregningsgrundlaget efter
+§§ 4 a og 4 b.
+Stk. 2. Nedslag efter stk. 1 kan maksimalt udgøre 1.200 kr. pr. selvstændig
+boligenhed.
+
+§ 8. Hvis den skattepligtige eller den med denne samlevende ægtefælle inden
+udgangen af indkomståret har nået folkepensionsalderen, jf. § 1 a i lov om
+social pension, nedsættes den beregnede ejendomsværdiskat med et beløb svarende
+til 3,7 promille af beregningsgrundlaget efter §§ 4 a og 4 b.
+Nedslaget kan højst udgøre 6.000 kr. pr. bolig.
+For fritidsboliger, bortset fra sommerhuse, der efter tilladelse anvendes som
+helårsbolig, kan nedslaget dog højst udgøre 2.000 kr. pr. fritidsbolig.
+
+Stk. 3. Nedslaget efter stk. 1 og 2 gives tilsvarende til en længstlevende
+ægtefælle, som ikke opfylder betingelserne for nedsættelse, hvis denne efter
+den anden ægtefælles død bliver boende i en ejendom, som har tilhørt en af
+ægtefællerne. Det er en betingelse, at ægtefællerne ikke var separerede ved
+dødsfaldet. Hvis den længstlevende ægtefælle indgår ægteskab, ophører retten
+til at indtræde i nedslaget med virkning fra begyndelsen af det første
+påbegyndte indkomstår efter ægteskabets indgåelse.
+
+§ 9. Den beregnede ejendomsværdiskat, jf. §§ 5-8, 9 a og 9 b, begrænses efter
+reglerne i stk. 2-6, for skattepligtige,
+1) der inden udgangen af indkomståret har nået folkepensionsalderen, jf. § 1 a
+i lov om social pension,
+2) der inden udgangen af indkomståret er fyldt 60 år og efter lov om social
+pension eller § 6, stk. 4, i lov nr. 285 af 25. april 2001 om ændring af lov
+om social pension og andre love (Førtidspensionsreform) modtager eller får
+forskud på førtidspension eller seniorpension eller modtager invaliditetsydelse
+med bistands- eller plejetillæg,
+3) der ved indkomstårets udgang modtager efterløn, jf. lov om
+arbejdsløshedsforsikring m.v.,
+4) der ved indkomstårets udgang modtager fleksydelse, jf. lov om fleksydelse,
+eller
+5) hvis ægtefælle opfylder betingelserne i nr. 1, 2, 3 eller 4 og ægtefællerne
+er samlevende ved indkomstårets udløb.
+
+Stk. 3. Nedsættelse efter stk. 2 gives tilsvarende til en længstlevende
+ægtefælle, som ikke opfylder betingelserne for nedsættelse, hvis denne efter
+den anden ægtefælles død bliver boende i en ejendom, som har tilhørt en af
+ægtefællerne. Det er en betingelse, at ægtefællerne ikke var separerede ved
+dødsfaldet. Hvis den længstlevende ægtefælle indgår ægteskab, ophører retten
+til at indtræde i nedsættelse med virkning fra begyndelsen af det første
+påbegyndte indkomstår efter ægteskabets indgåelse.
+
+§ 10. Nedslaget efter § 8 reduceres med 5 procent af et beregningsgrundlag, som
+opgøres som den del af den skattepligtiges personlige indkomst med tillæg af
+positiv kapitalindkomst og positiv aktieindkomst bortset fra udbytteindkomst op
+til 5.000 kr., der overstiger et grundbeløb på 174.600 kr. (2010-niveau).
+Er den skattepligtige gift og var ægtefællerne samlevende ved udgangen af
+indkomståret, reduceres nedslaget med 5 procent af et beregningsgrundlag, som
+opgøres som den del af ægtefællernes samlede personlige indkomst med tillæg af
+samlet positiv kapitalindkomst og samlet positiv aktieindkomst bortset fra
+udbytteindkomst op til 10.000 kr., der overstiger et grundbeløb på 268.600 kr.
+(2010-niveau).
+
+Tidligere lov om kommunal ejendomsskat, lovbekendtgørelse nr. 1463 af 6.
+oktober 2020:
+
+§ 1, stk. 2. Grundskyld pålignes de afgiftspligtige ejendomme med en bestemt
+promille af den afgiftspligtige grundværdi.
+Ved den afgiftspligtige grundværdi forstås den laveste af følgende værdier:
+1) Ejendommens grundværdi efter fradrag for forbedringer, således som disse
+beløb er fastsat efter ejendomsvurderingsloven, og reduktion for fritagelser
+for grundskyld efter §§ 7 og 8.
+2) Den afgiftspligtige grundværdi for ejendommen, der dannede grundlag for
+påligningen af grundskyld det foregående skatteår, forhøjet med en
+reguleringsprocent.
+
+Stk. 3. For alle afgiftspligtige ejendomme udgør reguleringsprocenten 2,8 pct.
+fra 2023.
+----
+
+----
+Lov nr. 2202 af 29. december 2020, § 11, nr. 1:
+I § 9, stk. 1, nr. 2, ændres »førtidspension eller seniorpension« til:
+»førtidspension, seniorpension eller tidlig pension«.
+----
+
 ----
 § 35. Der ydes en samlet rabat i ejendomsværdiskat og grundskyld efter
 betingelserne i §§ 36 og 38 til fysiske personer, der pålægges højere samlet
@@ -1131,110 +1243,9 @@ den pågældende del af ejendommen på tidspunktet for, at skilsmissen er
 registreret i henhold til et autoritativt register.
 ----
 
-----
-Tidligere ejendomsværdiskattelov, lovbekendtgørelse nr. 1590 af 2. november
-2020:
+@ meta(ejendomsskatteloven_rabatordning_metadata)
+@ section ejendomsskatteloven_rabatordning {
 
-§ 4 a. Som beregningsgrundlag for ejendomsværdiskatten for ejendomme omfattet
-af § 4, nr. 1-10, anvendes den laveste af følgende værdier:
-1) 80 pct. af den ejendomsværdi, der er ansat for den pågældende ejendom i året
-før indkomståret.
-2) Den ejendomsværdi, der er ansat for den pågældende ejendom pr. 1. januar 2001
-med tillæg af 5 pct.
-3) Den ejendomsværdi, der er ansat for den pågældende ejendom pr. 1. januar
-2002.
-
-§ 5. Ejendomsværdiskattesatsen er 9,2 promille af den del af det efter §§ 4 a
-og 4 b, opgjorte beregningsgrundlag, der ikke overstiger 3.040.000 kr. og 30
-promille af resten.
-Ejendomsværdiskatten opgøres for ejendommen.
-
-§ 6. Har den skattepligtige erhvervet ejendommen senest den 1. juli 1998,
-nedsættes den beregnede ejendomsværdiskat med et beløb svarende til 1,8
-promille af beregningsgrundlaget efter §§ 4 a og 4 b.
-
-§ 7. Har den skattepligtige senest den 1. juli 1998 erhvervet en ejendom som
-nævnt i § 4, nr. 1, 3-5 og 9-11, nedsættes den beregnede ejendomsværdiskat
-endvidere med et beløb svarende til 3,7 promille af beregningsgrundlaget efter
-§§ 4 a og 4 b.
-Stk. 2. Nedslag efter stk. 1 kan maksimalt udgøre 1.200 kr. pr. selvstændig
-boligenhed.
-
-§ 8. Hvis den skattepligtige eller den med denne samlevende ægtefælle inden
-udgangen af indkomståret har nået folkepensionsalderen, jf. § 1 a i lov om
-social pension, nedsættes den beregnede ejendomsværdiskat med et beløb svarende
-til 3,7 promille af beregningsgrundlaget efter §§ 4 a og 4 b.
-Nedslaget kan højst udgøre 6.000 kr. pr. bolig.
-For fritidsboliger, bortset fra sommerhuse, der efter tilladelse anvendes som
-helårsbolig, kan nedslaget dog højst udgøre 2.000 kr. pr. fritidsbolig.
-
-Stk. 3. Nedslaget efter stk. 1 og 2 gives tilsvarende til en længstlevende
-ægtefælle, som ikke opfylder betingelserne for nedsættelse, hvis denne efter
-den anden ægtefælles død bliver boende i en ejendom, som har tilhørt en af
-ægtefællerne. Det er en betingelse, at ægtefællerne ikke var separerede ved
-dødsfaldet. Hvis den længstlevende ægtefælle indgår ægteskab, ophører retten
-til at indtræde i nedslaget med virkning fra begyndelsen af det første
-påbegyndte indkomstår efter ægteskabets indgåelse.
-
-§ 9. Den beregnede ejendomsværdiskat, jf. §§ 5-8, 9 a og 9 b, begrænses efter
-reglerne i stk. 2-6, for skattepligtige,
-1) der inden udgangen af indkomståret har nået folkepensionsalderen, jf. § 1 a
-i lov om social pension,
-2) der inden udgangen af indkomståret er fyldt 60 år og efter lov om social
-pension eller § 6, stk. 4, i lov nr. 285 af 25. april 2001 om ændring af lov
-om social pension og andre love (Førtidspensionsreform) modtager eller får
-forskud på førtidspension eller seniorpension eller modtager invaliditetsydelse
-med bistands- eller plejetillæg,
-3) der ved indkomstårets udgang modtager efterløn, jf. lov om
-arbejdsløshedsforsikring m.v.,
-4) der ved indkomstårets udgang modtager fleksydelse, jf. lov om fleksydelse,
-eller
-5) hvis ægtefælle opfylder betingelserne i nr. 1, 2, 3 eller 4 og ægtefællerne
-er samlevende ved indkomstårets udløb.
-
-Stk. 3. Nedsættelse efter stk. 2 gives tilsvarende til en længstlevende
-ægtefælle, som ikke opfylder betingelserne for nedsættelse, hvis denne efter
-den anden ægtefælles død bliver boende i en ejendom, som har tilhørt en af
-ægtefællerne. Det er en betingelse, at ægtefællerne ikke var separerede ved
-dødsfaldet. Hvis den længstlevende ægtefælle indgår ægteskab, ophører retten
-til at indtræde i nedsættelse med virkning fra begyndelsen af det første
-påbegyndte indkomstår efter ægteskabets indgåelse.
-
-§ 10. Nedslaget efter § 8 reduceres med 5 procent af et beregningsgrundlag, som
-opgøres som den del af den skattepligtiges personlige indkomst med tillæg af
-positiv kapitalindkomst og positiv aktieindkomst bortset fra udbytteindkomst op
-til 5.000 kr., der overstiger et grundbeløb på 174.600 kr. (2010-niveau).
-Er den skattepligtige gift og var ægtefællerne samlevende ved udgangen af
-indkomståret, reduceres nedslaget med 5 procent af et beregningsgrundlag, som
-opgøres som den del af ægtefællernes samlede personlige indkomst med tillæg af
-samlet positiv kapitalindkomst og samlet positiv aktieindkomst bortset fra
-udbytteindkomst op til 10.000 kr., der overstiger et grundbeløb på 268.600 kr.
-(2010-niveau).
-
-Tidligere lov om kommunal ejendomsskat, lovbekendtgørelse nr. 1463 af 6.
-oktober 2020:
-
-§ 1, stk. 2. Grundskyld pålignes de afgiftspligtige ejendomme med en bestemt
-promille af den afgiftspligtige grundværdi.
-Ved den afgiftspligtige grundværdi forstås den laveste af følgende værdier:
-1) Ejendommens grundværdi efter fradrag for forbedringer, således som disse
-beløb er fastsat efter ejendomsvurderingsloven, og reduktion for fritagelser
-for grundskyld efter §§ 7 og 8.
-2) Den afgiftspligtige grundværdi for ejendommen, der dannede grundlag for
-påligningen af grundskyld det foregående skatteår, forhøjet med en
-reguleringsprocent.
-
-Stk. 3. For alle afgiftspligtige ejendomme udgør reguleringsprocenten 2,8 pct.
-fra 2023.
-----
-
-----
-Lov nr. 2202 af 29. december 2020, § 11, nr. 1:
-I § 9, stk. 1, nr. 2, ændres »førtidspension eller seniorpension« til:
-»førtidspension, seniorpension eller tidlig pension«.
-----
-
---@begin:ejendomsskatteloven_rabatordning--
 # EjendomsskattelovByggeriVedOvergang = EjskIngenNyEllerOmbygning | EjskNybygningVedOvergang(færdigmeldt_dato: Option(EjendomsskattelovDato), færdigmelding_underkendt_for_forsæt_eller_grov_uagtsomhed: Boolsk) | EjskOmbygningVedOvergang(færdigmeldt_dato: Option(EjendomsskattelovDato), færdigmelding_underkendt_for_forsæt_eller_grov_uagtsomhed: Boolsk, sammenligningsfakta_vedrører_ejendommen_før_ombygning: Boolsk)
 # EjendomsskattelovVurderingskategori = EjskEjerboligEfterEjendomsvurderingslovensPar3Stk1Nr1 | EjskBoligdelEfterEjendomsskattelovensPar3Stk1Nr3Eller4 | EjskAndenVurderingskategori
 # EjendomsskattelovEjerkreds = EjskKunFysiskeEjere | EjskFysiskEjerSammenMedDødsbo | EjskFysiskEjerSammenMedJuridiskPerson | EjskFysiskEjerUndtagetEfterKildeskattelovensPar3Stk1
@@ -1630,7 +1641,8 @@ I § 9, stk. 1, nr. 2, ændres »førtidspension eller seniorpension« til:
         samlet_rabat_øre = hvis ejendomsskattelov_kapabilitet_beregnet(kapabilitet) { rabat_ejendomsværdiskat_øre + rabat_grundskyld_øre } ellers { 0 }
     )
 }
---@end:ejendomsskatteloven_rabatordning--
+
+}
 
 = ejendomsskatteloven_stigningsbegraensning_metadata = Metadata(
     attachments = (
@@ -1641,7 +1653,21 @@ I § 9, stk. 1, nr. 2, ændres »førtidspension eller seniorpension« til:
     )
 )
 
---@label:ejendomsskatteloven_stigningsbegraensning::meta:ejendomsskatteloven_stigningsbegraensning_metadata--
+----
+LOV nr. 562 af 27. maj 2025 § 1, nr. 31-33:
+
+31. I § 45, stk. 1, nr. 2, ændres »kalenderåret 2023« til: »skatteåret 2023«.
+
+32. I § 45, stk. 3, 1. pkt., indsættes efter »§ 43, stk. 3, 2. pkt.,«:
+»ejendomme, der ophører med at være undtaget fra vurdering efter
+ejendomsvurderingslovens §§ 9 eller 13,«.
+
+33. I § 45 indsættes som stk. 4:
+»Stk. 4. For ejendomme, der ophører med at være fritaget for grundskyld efter
+kapitel 1, udgør grundskylden for det første og de efterfølgende kalenderår det
+laveste beløb efter stk. 2.«
+----
+
 ----
 § 44. Der ydes rabat i form af begrænsning af stigninger i grundskyld, jf. §
 45, til følgende fysiske og juridiske personer:
@@ -1683,22 +1709,9 @@ kapitel 1, udgør grundskylden for det første og de efterfølgende kalenderår 
 laveste beløb efter stk. 2.
 ----
 
-----
-LOV nr. 562 af 27. maj 2025 § 1, nr. 31-33:
+@ meta(ejendomsskatteloven_stigningsbegraensning_metadata)
+@ section ejendomsskatteloven_stigningsbegraensning {
 
-31. I § 45, stk. 1, nr. 2, ændres »kalenderåret 2023« til: »skatteåret 2023«.
-
-32. I § 45, stk. 3, 1. pkt., indsættes efter »§ 43, stk. 3, 2. pkt.,«:
-»ejendomme, der ophører med at være undtaget fra vurdering efter
-ejendomsvurderingslovens §§ 9 eller 13,«.
-
-33. I § 45 indsættes som stk. 4:
-»Stk. 4. For ejendomme, der ophører med at være fritaget for grundskyld efter
-kapitel 1, udgør grundskylden for det første og de efterfølgende kalenderår det
-laveste beløb efter stk. 2.«
-----
-
---@begin:ejendomsskatteloven_stigningsbegraensning--
 # EjendomsskattelovStigningshændelse = EjskIngenStigningshændelse | EjskNyopståetEjendom | EjskOmkategoriseretEjendom | EjskOmfattetAfPar41Stk2 | EjskAnvendelsesændringEfterPar43Stk3 | EjskVurderingsundtagelseOphørt | EjskBfeNummerBortfaldet | EjskGrundskyldsfritagelseOphørt
 # EjendomsskattelovStigningsårsfakta(kalenderår: Heltal, kommune: Kommune, grundværdi_kroner: Heltal, produktionsjord: Boolsk, ejerandel_basispoint: Heltal, almen_bolig: Boolsk, hændelse: EjendomsskattelovStigningshændelse)
 # EjendomsskattelovStigningsbegrænsningsfakta(tidligere_grundskyld_2024: EjendomsskattelovTidligereGrundskyld2024Fakta, tidligere_år: List(EjendomsskattelovStigningsårsfakta), aktuel_almen_bolig: Boolsk, aktuel_hændelse: EjendomsskattelovStigningshændelse)
@@ -1761,7 +1774,8 @@ laveste beløb efter stk. 2.«
         begrænsning_øre = hvis kapabilitet == EjskUnderstøttet { penge_positivt_beløb(ordinær_grundskyld_øre - grundskyld_efter_stigningsbegrænsning_øre) } ellers { 0 }
     )
 }
---@end:ejendomsskatteloven_stigningsbegraensning--
+
+}
 
 = ejendomsskatteloven_person_ejendom_metadata = Metadata(
     attachments = (
@@ -1770,7 +1784,6 @@ laveste beløb efter stk. 2.«
     )
 )
 
---@label:ejendomsskatteloven_person_ejendom::meta:ejendomsskatteloven_person_ejendom_metadata--
 ----
 § 13. Ejendomsværdiskatten opgøres som beskatningsgrundlaget efter stk. 2-4
 ganget med ejendomsværdiskattesatsen i § 22 med fradrag for nedslagsbeløb efter
@@ -1783,7 +1796,9 @@ ejendomsvurderingslovens §§ 22 og 23 og for fritagelse efter § 5, stk. 2, og 
 stigninger i grundskyld efter § 45.
 ----
 
---@begin:ejendomsskatteloven_person_ejendom--
+@ meta(ejendomsskatteloven_person_ejendom_metadata)
+@ section ejendomsskatteloven_person_ejendom {
+
 # EjendomsskattelovRabatvurderinger = EjskIngenRabatvurderingerOplyst | EjskRabatvurderingerOplyst(fakta: EjendomsskattelovRabatOvergangsfakta)
 # EjendomsskattelovStigningsvurderinger = EjskIngenStigningsvurderingerOplyst | EjskStigningsvurderingerOplyst(fakta: EjendomsskattelovStigningsbegrænsningsfakta)
 # EjendomsskattelovOvergangsvurderinger(rabat: EjendomsskattelovRabatvurderinger, stigningsbegrænsning: EjendomsskattelovStigningsvurderinger)
@@ -1922,4 +1937,5 @@ stigninger i grundskyld efter § 45.
         samlet_ejendomsskat_kroner = samlet_ejendomsskat_øre / 100
     )
 }
---@end:ejendomsskatteloven_person_ejendom--
+
+}

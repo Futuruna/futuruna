@@ -102,7 +102,7 @@ LOV nr. 96 af 04/02/2025, § 7, stk. 4:
 = amb_par2_kildemeta = Source(
     value = arbejdsmarkedsbidragsloven_lbk121_par2
 )
---@label:arbejdsmarkedsbidragsloven_par2::meta:amb_par2_kildemeta--
+
 ----
 § 2. Grundlaget for arbejdsmarkedsbidrag for lønmodtagere m.v. er følgende
 indkomster, jf. dog stk. 2 og § 3:
@@ -154,7 +154,9 @@ pensionskasse omfattet af lov om firmapensionskasser eller til en hjælpe- og
 understøttelsesfond som nævnt i pensionsbeskatningslovens § 52.
 ----
 
---@begin::arbejdsmarkedsbidragsloven_par2--
+@ meta(amb_par2_kildemeta)
+@ section arbejdsmarkedsbidragsloven_par2 {
+
 # ArbejdsmarkedsbidragInput(lønvederlag_kroner: Heltal, naturalieværdi_kroner: Heltal)
 # ArbejdsmarkedsbidragUdvidetLønmodtagerInput(ansættelsesvederlag_skatteværdi_kroner: Heltal, udenfor_ansættelse_skatteværdi_kroner: Heltal, rådighed_danmark_skatteværdi_kroner: Heltal, arbejdsgiver_pension_kroner: Heltal, udenlandsk_pension_kroner: Heltal, pbl14b_udbetaling_kroner: Heltal, fælles_firmapension_kroner: Heltal, sømandsvederlag_kroner: Heltal, biblioteksafgift_kroner: Heltal, ikke_skattepligtigt_vederlag_kroner: Heltal, pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner: Heltal, obligatorisk_atp_pension_kroner: Heltal)
 # ArbejdsmarkedsbidragLønmodtagerGrundlagResultat(par2_stk1_nr1_ansættelsesvederlag_kroner: Heltal, par2_stk1_nr2_udenfor_ansættelse_kroner: Heltal, par2_stk1_nr3_rådighed_danmark_kroner: Heltal, par2_stk1_nr4_arbejdsgiver_pension_kroner: Heltal, par2_stk1_nr5_udenlandsk_pension_kroner: Heltal, par2_stk1_nr6_pbl14b_udbetaling_kroner: Heltal, par2_stk3_fælles_pensionsindbetaling_kroner: Heltal, brutto_grundlag_kroner: Heltal, par3_udelukkelse: ArbejdsmarkedsbidragPar3UdelukkelseResultat, udelukket_grundlag_kroner: Heltal, grundlag_kroner: Heltal, bidrag_kroner: Heltal)
@@ -240,12 +242,13 @@ understøttelsesfond som nævnt i pensionsbeskatningslovens § 52.
 | arbejdsmarkedsbidrag_lønmodtager_kroner(input: ArbejdsmarkedsbidragInput) -> penge_beløb_gange_basispoint_kroner(arbejdsmarkedsbidrag_lønmodtager_grundlag_kroner(input), arbejdsmarkedsbidrag_sats_basispoint())
 | arbejdsmarkedsbidrag_lønmodtager_med_naturalie_sag(input: ArbejdsmarkedsbidragLønMedNaturalieInput) -> ArbejdsmarkedsbidragLønMedNaturalieSag(input)
 | arbejdsmarkedsbidrag_lønmodtager_med_naturalie_resultat(input: ArbejdsmarkedsbidragLønMedNaturalieInput) -> arbejdsmarkedsbidrag_lønmodtager_med_naturalie_sag(input).resultat()
---@end::arbejdsmarkedsbidragsloven_par2--
+
+}
 
 = amb_par3_kildemeta = Source(
     value = arbejdsmarkedsbidragsloven_lbk121_par3
 )
---@label:arbejdsmarkedsbidragsloven_par3::meta:amb_par3_kildemeta--
+
 ----
 § 3. Følgende medregnes ikke i grundlaget for arbejdsmarkedsbidrag:
 1) Vederlag omfattet af sømandsbeskatningslovens §§ 5-8.
@@ -257,7 +260,9 @@ vederlag ikke skal medregnes ved opgørelsen af den skattepligtige indkomst.
 Arbejdsmarkedets Tillægspension.
 ----
 
---@begin::arbejdsmarkedsbidragsloven_par3--
+@ meta(amb_par3_kildemeta)
+@ section arbejdsmarkedsbidragsloven_par3 {
+
 # ArbejdsmarkedsbidragPar3UdelukkelseResultat(nr1_sømandsbeskatningsvederlag_kroner: Heltal, nr2_biblioteksafgift_kroner: Heltal, nr3_ikke_skattepligtigt_vederlag_kroner: Heltal, nr4_pensionsindbetaling_kroner: Heltal, nr5_obligatorisk_atp_pension_kroner: Heltal, samlet_udelukket_grundlag_kroner: Heltal)
 # ArbejdsmarkedsbidragPar3UdelukkelseSag(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) {
     | nr1_sømandsbeskatningsvederlag_kroner() -> 0
@@ -286,12 +291,13 @@ Arbejdsmarkedets Tillægspension.
 | arbejdsmarkedsbidrag_sømandsvederlag_udelukkes(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> arbejdsmarkedsbidrag_par3_udelukkelse_resultat(input).nr1_sømandsbeskatningsvederlag_kroner > 0
 | arbejdsmarkedsbidrag_biblioteksafgift_udelukkes(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> arbejdsmarkedsbidrag_par3_udelukkelse_resultat(input).nr2_biblioteksafgift_kroner > 0
 | arbejdsmarkedsbidrag_ikke_skattepligtigt_vederlag_udelukkes(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> arbejdsmarkedsbidrag_par3_udelukkelse_resultat(input).nr3_ikke_skattepligtigt_vederlag_kroner > 0 || arbejdsmarkedsbidrag_par3_udelukkelse_resultat(input).nr4_pensionsindbetaling_kroner > 0
---@end::arbejdsmarkedsbidragsloven_par3--
+
+}
 
 = arbejdsmarkedsbidragsloven_par4_metadata = Metadata(
     attachments = Source(value = arbejdsmarkedsbidragsloven_lbk121_par4)
 )
---@label:arbejdsmarkedsbidragsloven_par4::meta:arbejdsmarkedsbidragsloven_par4_metadata--
+
 ----
 § 4. Grundlaget for arbejdsmarkedsbidrag for selvstændigt erhvervsdrivende,
 som ikke anvender virksomhedsordningen i virksomhedsskattelovens afsnit I,
@@ -312,7 +318,9 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 § 18, fragår dog ikke.
 ----
 
---@begin:arbejdsmarkedsbidragsloven_par4--
+@ meta(arbejdsmarkedsbidragsloven_par4_metadata)
+@ section arbejdsmarkedsbidragsloven_par4 {
+
 # ArbejdsmarkedsbidragSelvstændigInput(personlig_indkomst_ved_selvstændig_virksomhed_kroner: Heltal, biblioteksafgift_kroner: Heltal, fremført_negativ_personlig_indkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_fra_pension_kroner: Heltal)
 # ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstOprindelse = AmblFremførtNegativFraPbl18Pension | AmblFremførtNegativFraAndet
 # ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche(identifikation: Tekst, oprindelsesår: Heltal, resterende_beløb_primo_kroner: Heltal, oprindelse: ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstOprindelse, dokumentreference: Tekst)
@@ -339,7 +347,8 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
         fradrag_i_arbejdsmarkedsbidragsgrundlaget_kroner = hvis indkomstår > 0 && identifikationer_entydige && alle_trancher_gyldige { arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_fradrag_kroner(samlet_kroner, pension_kroner) } ellers { 0 }
     )
 }
---@end:arbejdsmarkedsbidragsloven_par4--
+
+}
 
 = arbejdsmarkedsbidragsloven_par5_metadata = Metadata(
     attachments = (
@@ -347,7 +356,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
         AmendmentSource(value = arbejdsmarkedsbidragsloven_lov2226_par5),
     )
 )
---@label:arbejdsmarkedsbidragsloven_par5::meta:arbejdsmarkedsbidragsloven_par5_metadata--
+
 ----
 § 5. Grundlaget for arbejdsmarkedsbidrag for selvstændigt erhvervsdrivende,
 som anvender virksomhedsordningen i virksomhedsskattelovens afsnit I, udgør
@@ -367,7 +376,9 @@ Stk. 3. § 4, stk. 2 og 3, finder tilsvarende anvendelse for personer omfattet
 af stk. 1.
 ----
 
---@begin:arbejdsmarkedsbidragsloven_par5--
+@ meta(arbejdsmarkedsbidragsloven_par5_metadata)
+@ section arbejdsmarkedsbidragsloven_par5 {
+
 # ArbejdsmarkedsbidragVirksomhedsordningInput(overførsel_fra_virksomhedsoverskud_kroner: Heltal, kapitalafkast_fradrag_kroner: Heltal, kapitalafkast_medregnet_personlig_indkomst_kroner: Heltal, overførsel_opsparet_overskud_kroner: Heltal, tilhørende_virksomhedsskat_kroner: Heltal, rentekorrektion_par11_kroner: Heltal, rentekorrektion_par11a_kroner: Heltal, fremført_negativ_personlig_indkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_fra_pension_kroner: Heltal)
 # ArbejdsmarkedsbidragVirksomhedsoverskudOverførselFakta(beløb_kroner: Heltal, dokumentreference: Tekst)
 # ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta(identifikation: Tekst, oprindelsesår: Heltal, overført_netto_kroner: Heltal, tilhørende_virksomhedsskat_kroner: Heltal, dokumentreference: Tekst)
@@ -395,12 +406,13 @@ af stk. 1.
     | AmblPar4UdenVirksomhedsordning(fremført) -> arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_resultat(indkomstår, fremført).input_gyldigt
     | AmblPar5MedVirksomhedsordning(fakta, fremført) -> fakta.indkomstår == indkomstår && arbejdsmarkedsbidrag_virksomhedsordning_årsfakta_gyldige(fakta) && arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_resultat(indkomstår, fremført).input_gyldigt
 }
---@end:arbejdsmarkedsbidragsloven_par5--
+
+}
 
 = arbejdsmarkedsbidragsloven_par6_metadata = Metadata(
     attachments = Source(value = arbejdsmarkedsbidragsloven_lbk121_par6)
 )
---@label:arbejdsmarkedsbidragsloven_par6::meta:arbejdsmarkedsbidragsloven_par6_metadata--
+
 ----
 § 6. Til personer omfattet af § 5, som modtager ydelser i henhold til lov om
 biblioteksafgift, ydes en godtgørelse på 8,7 pct. af biblioteksafgiften.
@@ -415,7 +427,9 @@ slutskat for det pågældende indkomstår, jf. kildeskattelovens § 60, stk. 1,
 litra i.
 ----
 
---@begin:arbejdsmarkedsbidragsloven_par6--
+@ meta(arbejdsmarkedsbidragsloven_par6_metadata)
+@ section arbejdsmarkedsbidragsloven_par6 {
+
 # ArbejdsmarkedsbidragBiblioteksafgiftInput(biblioteksafgift_kroner: Heltal, modtager_omfattet_af_virksomhedsordning: Boolsk)
 # ArbejdsmarkedsbidragSelvstændigÅrsinput(skatteår: Heltal, alder_ved_indkomstårets_udløb: Heltal, virksomhedsordning_valgt: Boolsk, kildeinput: ArbejdsmarkedsbidragSelvstændigKildeinput, personlig_indkomst_fra_virksomheder_uden_virksomhedsordning_kroner: Heltal, biblioteksafgift_uden_virksomhedsordning_kroner: Heltal, kapitalafkastordning_personlig_indkomst_regulering_kroner: Heltal, virksomhedsordning_skattepligtigt_overskud_kroner: Heltal, virksomhedsordning_kapitalafkast_kroner: Heltal, virksomhedsordning_kapitalafkast_medregnet_personlig_indkomst_kroner: Heltal, virksomhedsordning_rentekorrektion_par11_kroner: Heltal, virksomhedsordning_rentekorrektion_par11a_kroner: Heltal)
 # ArbejdsmarkedsbidragSelvstændigÅrsresultat(input: ArbejdsmarkedsbidragSelvstændigÅrsinput, fremført_negativ_personlig_indkomst: ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstResultat, anvender_virksomhedsordningen: Boolsk, ordning_og_kildeinput_matcher: Boolsk, kildefakta_gyldige: Boolsk, afledte_beløb_gyldige: Boolsk, input_gyldigt: Boolsk, biblioteksafgift_kroner: Heltal, biblioteksafgift_godtgørelse_kroner: Heltal, overført_opsparet_overskud_netto_kroner: Heltal, tilhørende_virksomhedsskat_kroner: Heltal, kapitalafkast_fradrag_efter_par23a_kroner: Heltal, rentekorrektion_kroner: Heltal, personlig_indkomst_ved_selvstændig_virksomhed_før_fremførsel_kroner: Heltal, fremført_negativ_personlig_indkomst_fradrag_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, arbejdsmarkedsbidragssats_basispoint: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, nyt_personligt_bruttobeløb_til_kanonisk_sammensætning_kroner: Heltal, kildeskat_par60_kredit_øre: Heltal)
@@ -493,7 +507,8 @@ litra i.
 }
 
 | arbejdsmarkedsbidrag_selvstændig_årsresultat(input: ArbejdsmarkedsbidragSelvstændigÅrsinput) -> ArbejdsmarkedsbidragSelvstændigÅrssag(input).resultat()
---@end:arbejdsmarkedsbidragsloven_par6--
+
+}
 
 ----
 § 7. Bestemmelserne i kildeskatteloven og opkrævningsloven om indeholdelse,

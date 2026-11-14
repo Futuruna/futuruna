@@ -29,7 +29,6 @@
     )
 )
 
---@label:personskat_par4_finansielle_poster_kildefakta::meta:personskat_par4_finansielle_poster_kildefakta_metadata--
 ----
 § 4. Kapitalindkomst omfatter det samlede nettobeløb af
 5 a) skattepligtig gevinst og fradragsberettiget tab ved afståelse af
@@ -45,7 +44,9 @@ i en aktie eller et investeringsbevis omfattet af aktieavancebeskatningslovens
 7) de i ligningslovens § 8, stk. 3, omhandlede provisioner mv.,
 ----
 
---@begin:personskat_par4_finansielle_poster_kildefakta--
+@ meta(personskat_par4_finansielle_poster_kildefakta_metadata)
+@ section personskat_par4_finansielle_poster_kildefakta {
+
 # PersonskatPar4FinansielPostkilde = PsPar4Nr5AMedlemsbevis(opgjort_gevinst_eller_tab_kroner: Heltal, selskabsskattelov1_stk1_nr6_input: Selskabsskattelov1Stk1Nr6Input) | PsPar4Nr5BFormidlerbeløb(modtaget_beløb_kroner: Heltal, formidler: Par4Stk1Nr5bFormidler, formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut: Boolsk, aktieavance_aktivklassifikation_input: AktieavanceAktivklassifikationInput) | PsPar4Nr7Provision(input: Ligningslov8Stk3Input)
 # PersonskatPar4FinansielPostfakta(identifikation: Tekst, indkomstår: Heltal, kilde: PersonskatPar4FinansielPostkilde)
 # PersonskatPar4FinansielPostLovresultat = PsPar4Nr5ALovresultat(resultat: Par4Stk1Nr5aResultat) | PsPar4Nr5BLovresultat(resultat: Par4Stk1Nr5bResultat) | PsPar4Nr7Lovresultat(resultat: Par4Stk1Nr7Resultat)
@@ -108,4 +109,5 @@ i en aktie eller et investeringsbevis omfattet af aktieavancebeskatningslovens
 | personskat_par4_finansielle_postresultater(fakta: List(PersonskatPar4FinansielPostfakta), skatteår: Heltal) -> map(fakta, |post: PersonskatPar4FinansielPostfakta| personskat_par4_finansiel_post_resultat(fakta, post, skatteår))
 | personskat_par4_finansielle_postresultater_gyldige(resultater: List(PersonskatPar4FinansielPostresultat)) -> all(resultater, |resultat: PersonskatPar4FinansielPostresultat| resultat.input_gyldigt)
 | personskat_par4_finansielle_kapitalposter(resultater: List(PersonskatPar4FinansielPostresultat)) -> hvis personskat_par4_finansielle_postresultater_gyldige(resultater) { map(resultater, |resultat: PersonskatPar4FinansielPostresultat| resultat.kapitalpost) } ellers { [] }
---@end:personskat_par4_finansielle_poster_kildefakta--
+
+}

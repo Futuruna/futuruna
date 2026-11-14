@@ -9,7 +9,7 @@
 = ebl_par6_stk3_til_5_scenarie_kildemeta = Source(
     value = ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5
 )
---@label:ejendomsavancebeskatningsloven_par6_stk3_til_5_scenarie::meta:ebl_par6_stk3_til_5_scenarie_kildemeta--
+
 ----
 Stk. 3. I fortjeneste, der i et givet indkomstår er skattepligtig efter stk. 1,
 kan den skattepligtige fradrage indkomstårets tab ved afståelse af fast ejendom,
@@ -38,7 +38,9 @@ i det pågældende indkomstår, og hvis ægtefællerne er samlevende ved
 indkomstårets udgang.
 ----
 
---@begin:ejendomsavancebeskatningsloven_par6_stk3_til_5_scenarie--
+@ meta(ebl_par6_stk3_til_5_scenarie_kildemeta)
+@ section ejendomsavancebeskatningsloven_par6_stk3_til_5_scenarie {
+
 | ebl_par6_scenarie_anskaffelsesdato(indkomstår: Heltal, anskaffelsesgrundlag: EjendomsavancePar4Anskaffelsesgrundlag) -> hvis anskaffelsesgrundlag == EblPar4AlmindeligtAnskaffelsesgrundlag { EblDato(år = indkomstår, måned = 1, dag = 1) } ellers { EblDato(år = 1992, måned = 1, dag = 1) }
 | ebl_par6_scenarie_ejendomsresultat(indkomstår: Heltal, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal, anskaffelsesgrundlag: EjendomsavancePar4Anskaffelsesgrundlag, ejendomstype: EjendomsavanceEjendomstype) -> ejendomsavancebeskatningslov_resultat(EjendomsavancebeskatningslovInput(
     indkomstår = indkomstår,
@@ -186,4 +188,5 @@ indkomstårets udgang.
 ? ebl_par6_fremførsel_kræver_forrige_indkomstårs_resultat
 
 @ print("EBL § 6 tab fremført efter samlevende ægtefælle: " + vis(ebl_par6_tabsår_med_samlevende_ægtefælle.tab_fremført_til_følgende_indkomstår_kroner))
---@end:ejendomsavancebeskatningsloven_par6_stk3_til_5_scenarie--
+
+}

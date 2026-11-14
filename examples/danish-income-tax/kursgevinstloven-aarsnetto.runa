@@ -43,7 +43,6 @@
     )
 )
 
---@label:kursgevinstloven_årsnetto_afgrænsning::meta:kursgevinstloven_årsnetto_afgrænsning_metadata--
 ----
 § 1. Denne lov omfatter
 1) gevinst og tab ved afståelse eller indfrielse af pengefordringer herunder
@@ -112,7 +111,9 @@ lov som følge af en dobbeltbeskatningsoverenskomst ikke skal medregnes ved
 opgørelse af den skattepligtige indkomst.
 ----
 
---@begin:kursgevinstloven_årsnetto_afgrænsning--
+@ meta(kursgevinstloven_årsnetto_afgrænsning_metadata)
+@ section kursgevinstloven_årsnetto_afgrænsning {
+
 # KglÅrsnettoFordringsart = KglÅrsnettoPengefordring | KglÅrsnettoObligation | KglÅrsnettoFordringIFastEjendomsNæring | KglÅrsnettoKonvertibelObligation | KglÅrsnettoPræmieobligation
 # KglÅrsnettoOplysningsstatus = KglÅrsnettoOplystRettidigt | KglÅrsnettoIkkeOplystRettidigt
 # KglÅrsnettoMarkedsfakta = KglÅrsnettoIkkeOptagetPåReguleretMarked | KglÅrsnettoOptagetPåReguleretMarked(oplysningsstatus: KglÅrsnettoOplysningsstatus)
@@ -141,7 +142,8 @@ opgørelse af den skattepligtige indkomst.
 | exception kgl_årsnetto_par14_stk2_kontrol kgl_årsnetto_fordring_tabsbegrænsning(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabKontrolEllerNærtstående under kgl_årsnetto_fordring_omfattet_af_par17(kilde) == Falskt && kilde.debitorrelation != KglÅrsnettoUafhængigDebitor
 | exception kgl_årsnetto_par15_manglende_oplysning kgl_årsnetto_fordring_tabsbegrænsning(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabReguleretMarkedUdenOplysning under kgl_årsnetto_fordring_omfattet_af_par17(kilde) == Falskt && kgl_årsnetto_markedsnoteret(kilde.markedsfakta) && kgl_årsnetto_oplyst_rettidigt(kilde.markedsfakta) == Falskt
 | kgl_årsnetto_fordring_i_par14_bagatelgrundlag(kilde: KglÅrsnettoFordringskilde) -> kgl_årsnetto_par1_afgrænsning(kilde) == KglPar1Omfattet && kgl_årsnetto_fordring_omfattet_af_par13(kilde) == Falskt && kgl_årsnetto_fordring_omfattet_af_par17(kilde) == Falskt
---@end:kursgevinstloven_årsnetto_afgrænsning--
+
+}
 
 = kursgevinstloven_årsnetto_opgørelse_metadata = Metadata(
     attachments = (
@@ -153,7 +155,6 @@ opgørelse af den skattepligtige indkomst.
     )
 )
 
---@label:kursgevinstloven_årsnetto_opgørelse::meta:kursgevinstloven_årsnetto_opgørelse_metadata--
 ----
 § 25. Gevinst og tab på fordringer og gæld, der skal medregnes ved opgørelsen af
 den skattepligtige indkomst, medregnes i det indkomstår, hvori gevinsten eller
@@ -208,7 +209,9 @@ ved stiftelsen, jf. dog stk. 11-15, som værdien primo for det første indkomst�
 hvor ændringen har virkning fra.
 ----
 
---@begin:kursgevinstloven_årsnetto_opgørelse--
+@ meta(kursgevinstloven_årsnetto_opgørelse_metadata)
+@ section kursgevinstloven_årsnetto_opgørelse {
+
 # KglÅrsnettoPar25ValgPrimo = KglÅrsnettoIntetPar25ValgPrimo | KglÅrsnettoVidereførtPar25Valg(fra_indkomstår: Heltal, princip: KursgevinstlovOpgørelsesprincip)
 # KglÅrsnettoPar25Ændringstilladelse = KglÅrsnettoIngenPar25Ændringstilladelse | KglÅrsnettoPar25ÆndringTilladt(afgørelsesreference: Tekst)
 # KglÅrsnettoPar25KategoriÅrsvalg(position_primo: KglÅrsnettoPar25ValgPrimo, aktuelt_princip: KursgevinstlovOpgørelsesprincip, ændringstilladelse: KglÅrsnettoPar25Ændringstilladelse)
@@ -601,7 +604,8 @@ hvor ændringen har virkning fra.
 }
 | kgl_årsnetto_grupperet_forløbsresultat(indkomstår: Heltal, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse), princip: KursgevinstlovOpgørelsesprincip, fordringsgruppe: KglÅrsnettoFordringsgruppe, allokeringsprincip: KglÅrsnettoAllokeringsprincip) -> KglÅrsnettoForløbssag(indkomstår, position_primo, hændelser, princip, fordringsgruppe, allokeringsprincip).resultat()
 | kgl_årsnetto_forløbsresultat(indkomstår: Heltal, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse), princip: KursgevinstlovOpgørelsesprincip) -> kgl_årsnetto_grupperet_forløbsresultat(indkomstår, position_primo, hændelser, princip, kgl_årsnetto_tom_fordringsgruppe(), KglÅrsnettoFifoEfterPar26Stk5)
---@end:kursgevinstloven_årsnetto_opgørelse--
+
+}
 
 = aktieavancebeskatningsloven_lbk1098_par22_årsnetto = KursgevinstlovÅrsnettoKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1098",
@@ -615,7 +619,6 @@ hvor ændringen har virkning fra.
     )
 )
 
---@label:kursgevinstloven_årsnetto_abl22::meta:kursgevinstloven_årsnetto_abl22_metadata--
 ----
 § 22.
 Gevinst og tab ved afståelse af omsættelige beviser for indskud i
@@ -650,7 +653,9 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 § 17 nævnte tilfælde.
 ----
 
---@begin:kursgevinstloven_årsnetto_abl22--
+@ meta(kursgevinstloven_årsnetto_abl22_metadata)
+@ section kursgevinstloven_årsnetto_abl22 {
+
 # KglÅrsnettoFordringsforløb(identifikation: Tekst, kilde: KglÅrsnettoFordringskilde, fordringsgruppe: KglÅrsnettoFordringsgruppe, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse))
 # KglÅrsnettoAbl22Kilde(klassifikation: AktieavancePar21Par22Input, par17_modprøve: AktieavancePar17Modprøve)
 # KglÅrsnettoAbl22Forløb(kilde: KglÅrsnettoAbl22Kilde, beholdning: AktieavanceInvesteringsbevisBeholdningsforløbsinput)
@@ -817,4 +822,5 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
     )
 }
 | kursgevinstlov_årsnetto_resultat(input: KursgevinstlovÅrsnettoInput, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> KursgevinstlovÅrsnettoSag(input, indkomstår, årets_samlede_netto_kroner).resultat()
---@end:kursgevinstloven_årsnetto_abl22--
+
+}

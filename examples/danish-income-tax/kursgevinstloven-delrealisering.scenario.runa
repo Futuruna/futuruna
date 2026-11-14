@@ -11,7 +11,6 @@
     )
 )
 
---@label:kursgevinstloven_delrealisering_scenarier::meta:kursgevinstloven_delrealisering_scenarier_metadata--
 ----
 Fokuserede regressionsscenarier for delvise og gentagne realisationer efter
 kursgevinstlovens § 26, stk. 2, 4 og 5.
@@ -21,7 +20,9 @@ anskaffelsesrækkefølge, selvstændige realisationsresultater og videreførsel
 mellem indkomstår.
 ----
 
---@begin:kursgevinstloven_delrealisering_scenarier--
+@ meta(kursgevinstloven_delrealisering_scenarier_metadata)
+@ section kursgevinstloven_delrealisering_scenarier {
+
 | kgl_delrealisering_tidspunkt(år: Heltal, måned: Heltal, dag: Heltal, rækkefølge: Heltal) -> KglÅrsnettoTidspunkt(dato = Dato(år = år, måned = måned, dag = dag), rækkefølge_på_dagen = rækkefølge)
 | kgl_delrealisering_gruppe() -> KglÅrsnettoFondskode(fondskode = "DK0000000001", mængdeenhed = KglÅrsnettoAntalStyk)
 | kgl_delrealisering_samme_vilkår_gruppe(vilkårsidentifikation: Tekst) -> KglÅrsnettoSammeVilkår(udsteder_identifikation = "udsteder-1", vilkårsidentifikation = vilkårsidentifikation, mængdeenhed = KglÅrsnettoNominelleHundreddele)
@@ -273,4 +274,5 @@ mellem indkomstår.
 ? kgl_delrealisering_mængder_kræver_fifo_eller_gennemsnit
 
 @ print("Kursgevinstlovens delrealiseringer: 16 kildefaktabaserede scenarier kontrolleret")
---@end:kursgevinstloven_delrealisering_scenarier--
+
+}

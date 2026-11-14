@@ -59,27 +59,6 @@
     )
 )
 
---@label:ligningsloven_par9g_fiskerfradrag::meta:ligningsloven_par9g_metadata--
-----
-Ligningsloven, LBK nr. 42 af 13/01/2023 og LBK nr. 1500 af 24/11/2025,
-enslydende § 9 G:
-
-§ 9 G. Personer, der ved indkomstårets udløb er, eller som i løbet af
-indkomståret har været registreret som erhvervsfiskere efter fiskeriloven, kan
-ved opgørelsen af den skattepligtige indkomst fradrage 190 kr. pr. påbegyndt
-havdag ved fangstture af mindst 12 timers varighed. Fradraget vælges for hele
-indkomståret og kan højst udgøre 41.800 kr. årligt.
-
-Stk. 2. Hvis fradrag foretages efter stk. 1, kan udgifter i forbindelse med
-erhvervelsen af indkomsten som registreret erhvervsfisker ikke fradrages efter
-§§ 9 A-9 D. Der indrømmes heller ikke fradrag efter § 13 eller efter § 49,
-stk. 1, i lov om beskatningen af pensionsordninger m.v., hvis medlemskabet af
-fagforeningen m.v. eller arbejdsløshedskassen har tilknytning til beskæftigelsen
-som erhvervsfisker. For ansatte fiskere træder fradraget endvidere i stedet for
-fradrag efter § 9, stk. 1. Selvstændige fiskere kan ikke fradrage driftsudgifter,
-som kan sidestilles med lønmodtagerudgifter efter § 9, stk. 1.
-----
-
 ----
 Den juridiske vejledning C.A.4.3.2.12 opgør en havdag som 24 timer, kræver at
 den enkelte fangsttur varer mindst 12 timer og anser turen for afbrudt ved ophold
@@ -103,7 +82,29 @@ fangsttur over 31. december. Modellen henfører derfor hver påbegyndt
 Fortolkningen er typet i metadata, så den kan findes og efterprøves særskilt.
 ----
 
---@begin::ligningsloven_par9g_fiskerfradrag--
+----
+Ligningsloven, LBK nr. 42 af 13/01/2023 og LBK nr. 1500 af 24/11/2025,
+enslydende § 9 G:
+
+§ 9 G. Personer, der ved indkomstårets udløb er, eller som i løbet af
+indkomståret har været registreret som erhvervsfiskere efter fiskeriloven, kan
+ved opgørelsen af den skattepligtige indkomst fradrage 190 kr. pr. påbegyndt
+havdag ved fangstture af mindst 12 timers varighed. Fradraget vælges for hele
+indkomståret og kan højst udgøre 41.800 kr. årligt.
+
+Stk. 2. Hvis fradrag foretages efter stk. 1, kan udgifter i forbindelse med
+erhvervelsen af indkomsten som registreret erhvervsfisker ikke fradrages efter
+§§ 9 A-9 D. Der indrømmes heller ikke fradrag efter § 13 eller efter § 49,
+stk. 1, i lov om beskatningen af pensionsordninger m.v., hvis medlemskabet af
+fagforeningen m.v. eller arbejdsløshedskassen har tilknytning til beskæftigelsen
+som erhvervsfisker. For ansatte fiskere træder fradraget endvidere i stedet for
+fradrag efter § 9, stk. 1. Selvstændige fiskere kan ikke fradrage driftsudgifter,
+som kan sidestilles med lønmodtagerudgifter efter § 9, stk. 1.
+----
+
+@ meta(ligningsloven_par9g_metadata)
+@ section ligningsloven_par9g_fiskerfradrag {
+
 # Ligningslov9GLovversion = Ll9GLbk42Af2023 | Ll9GLbk1500Af2025 | Ll9GLovUdenKildedækning
 # Ligningslov9GFradragsvalg = Ll9GFravælgFiskerfradrag | Ll9GVælgFiskerfradrag
 # Ligningslov9GRegistreringsstatus = Ll9GErhvervsfiskerMedAStatus | Ll9GErhvervsfiskerMedBStatus
@@ -266,4 +267,5 @@ Fortolkningen er typet i metadata, så den kan findes og efterprøves særskilt.
     )
 }
 | ligningslov9g_kilde_afskåret(resultat: Ligningslov9GÅrsresultat, kilde: Ligningslov9GFradragskilde) -> resultat.fradrag_foretaget_efter_par9g && ligningslov9g_kilde_tilknyttet_erhvervsfiskerarbejde(resultat.input, kilde)
---@end::ligningsloven_par9g_fiskerfradrag--
+
+}

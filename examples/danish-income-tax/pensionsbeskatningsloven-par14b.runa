@@ -25,7 +25,6 @@
     )
 )
 
---@label:pensionsbeskatningsloven_par14b::meta:pensionsbeskatningsloven_par14b_metadata--
 ----
 § 14 B. Udbetaling af tilgodehavende feriemidler med tillæg af regulering,
 jf. § 13, stk. 2, og § 15 i lov om forvaltning og administration af
@@ -55,7 +54,9 @@ Arbejdsmarkedsbidragsloven § 2, stk. 1:
 6) Udbetalinger som nævnt i pensionsbeskatningslovens § 14 B, stk. 1, 1. pkt.
 ----
 
---@begin:pensionsbeskatningsloven_par14b--
+@ meta(pensionsbeskatningsloven_par14b_metadata)
+@ section pensionsbeskatningsloven_par14b {
+
 # Pbl14BOptjeningsgrundlag = Pbl14BFerieMedLøn | Pbl14BFeriegodtgørelseIFeriekortordningUdenFeriekasse | Pbl14BØvrigUdbetalingEfterFeriemiddellovensPar15
 # Pbl14BOprindelse = Pbl14BAlmindeligArbejdsgiverindbetaling | Pbl14BLønmodtagernesGarantifondEfterPar8B
 # Pbl14BUdbetalingsfakta(identifikation: Tekst, indkomstår: Heltal, optjeningsgrundlag: Pbl14BOptjeningsgrundlag, oprindelse: Pbl14BOprindelse, tilgodehavende_feriemidler_kroner: Heltal, regulering_kroner: Heltal)
@@ -112,4 +113,5 @@ Arbejdsmarkedsbidragsloven § 2, stk. 1:
 }
 
 | pbl14b_årsresultat(indkomstår: Heltal, grundlag: Pbl14BÅrsgrundlag) -> Pbl14BÅrssag(indkomstår, grundlag).resultat()
---@end:pensionsbeskatningsloven_par14b--
+
+}

@@ -11,8 +11,9 @@
     )
 )
 
---@label:personskat_etableringskonto_kildefakta::meta:personskat_etableringskonto_kildefakta_metadata--
---@begin:personskat_etableringskonto_kildefakta--
+@ meta(personskat_etableringskonto_kildefakta_metadata)
+@ section personskat_etableringskonto_kildefakta {
+
 # PersonskatEtableringskontoInput = UdenEtableringskontoindskud | MedEtableringskontoindskud(input: EtableringskontoIndskudInput)
 # PersonskatEtableringskontoResultat = IngenEtableringskontoindskud | UgyldigtEtableringskontoindskud(input: EtableringskontoIndskudInput, etableringskontolov_resultat: EtableringskontoIndskudResultat, skatteår_matcher: Boolsk, grundfakta_gyldige: Boolsk) | BeregnetEtableringskontoindskud(input: EtableringskontoIndskudInput, etableringskontolov_resultat: EtableringskontoIndskudResultat, par3_stk2_nr11_resultat: Par3Stk2Nr11Resultat)
 
@@ -73,4 +74,5 @@
     | BeregnetEtableringskontoindskud(_, _, par3_resultat) -> par3_resultat.etableringskonto_fradrag_uden_for_personlig_indkomst_kroner
     | _ -> 0
 }
---@end:personskat_etableringskonto_kildefakta--
+
+}

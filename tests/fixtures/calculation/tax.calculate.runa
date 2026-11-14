@@ -59,8 +59,6 @@
     )
 )
 
---@label:calculate_tax::meta:tax_input_meta--
-
 | annual_income(input: TaxInput) -> input.monthly_income * 12
 
 | taxable_income(input: TaxInput) -> annual_income(input)
@@ -76,16 +74,19 @@
     )
 )
 
---@label:tax_calculation::meta:tax_calculation_meta--
 ----
 Synthetic calculation source used to verify typed calculation provenance.
 ----
 
---@begin:tax_calculation--
+@ meta(tax_calculation_meta)
+@ section tax_calculation {
+
+@ meta(tax_input_meta)
 @ calculate("Household tax calculation")
 | calculate_tax(input: TaxInput) -> TaxResult(
     annual_income = annual_income(input),
     taxable_income = taxable_income(input),
     annual_tax = annual_tax(input)
 )
---@end:tax_calculation--
+
+}

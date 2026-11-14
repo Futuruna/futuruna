@@ -10,8 +10,9 @@
     )
 )
 
---@label:ebl_par6d_scenarier::meta:ebl_par6d_scenarier_metadata--
---@begin:ebl_par6d_scenarier--
+@ meta(ebl_par6d_scenarier_metadata)
+@ section ebl_par6d_scenarier {
+
 | ebl_par6d_scenarie_afdragsplan() -> [
     EblPar6DAfdragsplanpost(år_efter_afståelsen = 1, hovedstol_forfalder_kroner = 375000),
     EblPar6DAfdragsplanpost(år_efter_afståelsen = 2, hovedstol_forfalder_kroner = 375000),
@@ -357,4 +358,5 @@
 ? ebl_par6d_scenarie_afviser_uafklaret_betalingsrækkefølge
 
 @ print("EBL § 6 D scenarios passed")
---@end:ebl_par6d_scenarier--
+
+}

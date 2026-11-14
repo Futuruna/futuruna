@@ -11,8 +11,9 @@
     )
 )
 
---@label:personskat_par6d_delvis_succession_scenarier::meta:personskat_par6d_delvis_succession_scenarier_metadata--
---@begin:personskat_par6d_delvis_succession_scenarier--
+@ meta(personskat_par6d_delvis_succession_scenarier_metadata)
+@ section personskat_par6d_delvis_succession_scenarier {
+
 = personskat_par6d_scenarie_delvis_ægtefællesuccession_årsforhold = [
     EblPar6DÅrsforhold(
         indkomstår = 2027,
@@ -67,4 +68,5 @@
 ? personskat_par6d_scenarie_manglende_ægtefælleidentifikation_fejler_uden_skattevirkning
 
 @ print("Personskat EBL § 6 D partial succession scenarios passed")
---@end:personskat_par6d_delvis_succession_scenarier--
+
+}

@@ -10,7 +10,6 @@
     )
 )
 
---@label:personskat_kursgevinst_årsnetto_scenarier::meta:personskat_kursgevinst_årsnetto_scenarier_metadata--
 ----
 Fokuserede regressionsscenarier for den kanoniske årsopgørelse af fordringer,
 obligationer og obligationsbaserede minimumsbeviser.
@@ -20,7 +19,9 @@ kildehændelser og en udtrykkelig position fra det foregående indkomstår, mens
 Futuruna afleder instrumentresultaterne og den fælles bagatelgrænse.
 ----
 
---@begin:personskat_kursgevinst_årsnetto_scenarier--
+@ meta(personskat_kursgevinst_årsnetto_scenarier_metadata)
+@ section personskat_kursgevinst_årsnetto_scenarier {
+
 | personskat_kgl_årsnetto_almindelig_fordringskilde() -> KglÅrsnettoFordringskilde(
     fordringsart = KglÅrsnettoPengefordring,
     markedsfakta = KglÅrsnettoIkkeOptagetPåReguleretMarked,
@@ -272,4 +273,5 @@ Futuruna afleder instrumentresultaterne og den fælles bagatelgrænse.
 ? personskat_kgl_årsnetto_obligationslager_kan_ikke_ændre_tidligere_princip
 
 @ print("Kursgevinstlovens årsnetto: 11 kildefaktabaserede scenarier kontrolleret")
---@end:personskat_kursgevinst_årsnetto_scenarier--
+
+}

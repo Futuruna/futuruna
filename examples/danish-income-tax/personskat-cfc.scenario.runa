@@ -13,14 +13,15 @@
     )
 )
 
---@label:personskat_cfc_scenarier::meta:personskat_cfc_scenarier_metadata--
 ----
 Scenarierne er ikke lovtekst. De fastholder den kanoniske kæde fra
 kildefakta efter ligningslovens §§ 16 H og 16 I gennem personskattelovens
 § 4 b til CFC-skatten efter § 8 b.
 ----
 
---@begin:personskat_cfc_scenarier--
+@ meta(personskat_cfc_scenarier_metadata)
+@ section personskat_cfc_scenarier {
+
 | personskat_cfc_scenarie_input_for_år(skatteår: Heltal, cfc: PersonskatCfcInput) -> PersonskatInput(
     lønmodtager = PersonskatLønmodtagerInput(
         skatteår = skatteår,
@@ -170,4 +171,5 @@ kildefakta efter ligningslovens §§ 16 H og 16 I gennem personskattelovens
 ? personskat_cfc_negativt_merafkast_fremføres_før_par4b
 ? personskat_cfc_ugyldig_ejerandel_afvises
 ? personskat_cfc_udenfor_kildehorisont_afvises
---@end:personskat_cfc_scenarier--
+
+}

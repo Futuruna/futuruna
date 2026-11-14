@@ -765,4 +765,4 @@
     )
 )
 
---@label:PersonskatPersonligIndkomstInput::meta:personskat_par3_nr2_beregningsmeta--
+@ meta(personskat_par3_nr2_beregningsmeta) for PersonskatPersonligIndkomstInput

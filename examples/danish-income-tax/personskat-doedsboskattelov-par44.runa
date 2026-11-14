@@ -13,7 +13,6 @@
     )
 )
 
---@label:personskat_dødsboskattelov_par44::meta:personskat_dødsboskattelov_par44_metadata--
 ----
 § 44. Hvis den længstlevende ægtefælle i mellemperioden har drevet en
 erhvervsvirksomhed, der tilhørte afdøde, kan boet bestemme, at den
@@ -37,7 +36,9 @@ jf. § 9, stk. 1, nr. 7, eller medregnes til bobeskatningsindkomsten efter § 22
 stk. 1, nr. 7.
 ----
 
---@begin:personskat_dødsboskattelov_par44--
+@ meta(personskat_dødsboskattelov_par44_metadata)
+@ section personskat_dødsboskattelov_par44 {
+
 # PersonskatDødsboskattelov44Resultat(personskatinput: PersonskatInput, vederlagsresultat: Dødsboskattelov44Resultat, kildevirksomhed: Option(PersonskatOrdinærVirksomhedFakta), skatteår_matcher: Boolsk, ingen_levende_ægtefælle_i_personskatinput: Boolsk, virksomhedsplacering_matcher: Boolsk, input_gyldigt: Boolsk, personskatgrundlag_før_regulering: Kildeskat25AVirksomhedsbeløb, personskatgrundlag_efter_regulering: Kildeskat25AVirksomhedsbeløb, hovedpersonsregulering: PersonskatKsl25APersonregulering, personskatresultat: Option(PersonskatBeregningResultat))
 
 | personskat_dødsboskattelov44_virksomheder(input: PersonskatInput) -> input.lønmodtager.personlig_indkomst.ordinære_forhold.virksomheder_uden_virksomhedsordning
@@ -98,4 +99,5 @@ stk. 1, nr. 7.
 }
 
 | personskat_dødsboskattelov44_resultat(personskatinput: PersonskatInput, vederlagsresultat: Dødsboskattelov44Resultat) -> PersonskatDødsboskattelov44Sag(personskatinput, vederlagsresultat).resultat()
---@end:personskat_dødsboskattelov_par44--
+
+}

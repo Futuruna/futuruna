@@ -6,8 +6,9 @@
 = kgl_ebl_par6d_scenarier_vejledningsmeta = Guidance(
     value = kgl_ebl_par6d_vejledning_2026
 )
---@label:kgl_ebl_par6d_scenarier::meta:kgl_ebl_par6d_scenarier_vejledningsmeta--
---@begin:kgl_ebl_par6d_scenarier--
+@ meta(kgl_ebl_par6d_scenarier_vejledningsmeta)
+@ section kgl_ebl_par6d_scenarier {
+
 | kgl_ebl_par6d_scenarie_afdragsplan() -> [
     EblPar6DAfdragsplanpost(år_efter_afståelsen = 1, hovedstol_forfalder_kroner = 375000),
     EblPar6DAfdragsplanpost(år_efter_afståelsen = 2, hovedstol_forfalder_kroner = 375000),
@@ -322,4 +323,5 @@
 ? kgl_ebl_par6d_scenarie_salgsvalg_udløser_både_ebl_og_kgl_realisering
 
 @ print("KGL/EBL § 6 D bridge scenarios passed")
---@end:kgl_ebl_par6d_scenarier--
+
+}

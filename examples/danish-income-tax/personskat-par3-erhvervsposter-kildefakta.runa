@@ -11,7 +11,6 @@
     )
 )
 
---@label:personskat_par3_erhvervsposter_kildefakta::meta:personskat_par3_erhvervsposter_kildefakta_metadata--
 ----
 Personskatteloven § 3, stk. 2:
 
@@ -26,7 +25,9 @@ ligningslovens § 8 O,
 statsskatteloven for selvstændige erhvervsdrivende og
 ----
 
---@begin:personskat_par3_erhvervsposter_kildefakta--
+@ meta(personskat_par3_erhvervsposter_kildefakta_metadata)
+@ section personskat_par3_erhvervsposter_kildefakta {
+
 # PersonskatPar3Nr10Driftsmiddelkilde = PsPar3Nr10Al5(input: Afskrivningslov5Input) | PsPar3Nr10Al5A(input: Afskrivningslov5AInput) | PsPar3Nr10Al5B(input: Afskrivningslov5BInput) | PsPar3Nr10Al5C(input: Afskrivningslov5CInput) | PsPar3Nr10Al5D5E(input: AfskrivningslovForhøjetSaldoInput) | PsPar3Nr10Al6(input: Afskrivningslov6Input) | PsPar3Nr10Al6Salg(input: Afskrivningslov6SalgInput) | PsPar3Nr10Al7(input: Afskrivningslov7Input) | PsPar3Nr10Al8(input: Afskrivningslov8Input) | PsPar3Nr10Al9(input: Afskrivningslov9Input) | PsPar3Nr10Al9EfterfølgendeSalg(input: Afskrivningslov9EfterfølgendeSalgInput) | PsPar3Nr10Al11(input: Afskrivningslov11Input) | PsPar3Nr10Al12(input: Afskrivningslov12Input) | PsPar3Nr10Al13Udgang(input: Afskrivningslov13UdgangInput) | PsPar3Nr10Al13Reparation(input: Afskrivningslov13ReparationInput)
 # PersonskatPar3Nr10Bygningskilde = PsPar3Nr10Al17(input: Afskrivningslov17Input) | PsPar3Nr10Al17Par19(input: Afskrivningslov17Par19Input) | PsPar3Nr10Al18(input: Afskrivningslov18Input) | PsPar3Nr10Al21(input: Afskrivningslov21Input) | PsPar3Nr10Al22(input: Afskrivningslov22Input) | PsPar3Nr10Al23(input: Afskrivningslov23Input) | PsPar3Nr10Al24Samordning(fakta: EblPar10Fakta) | PsPar3Nr10Al24Fristsvigt(input: Afskrivningslov24Input) | PsPar3Nr10Al25(input: Afskrivningslov25Input) | PsPar3Nr10Al26(input: Afskrivningslov26Input) | PsPar3Nr10Al27(input: Afskrivningslov27Input)
 # PersonskatPar3Nr10Forskudsafskrivningskilde = PsPar3Nr10Al32(input: Afskrivningslov32ÅrsInput) | PsPar3Nr10Al34(input: Afskrivningslov34Input)
@@ -269,4 +270,5 @@ statsskatteloven for selvstændige erhvervsdrivende og
 )
 | personskat_par3_erhvervspost_resultater(fakta: List(PersonskatPar3Erhvervspostfakta)) -> map(fakta, personskat_par3_erhvervspost_resultat)
 | personskat_par3_erhvervspost_poster(resultater: List(PersonskatPar3Erhvervspostresultat)) -> map(resultater, |resultat: PersonskatPar3Erhvervspostresultat| resultat.par3_post)
---@end:personskat_par3_erhvervsposter_kildefakta--
+
+}

@@ -42,7 +42,9 @@
     afgrænsning = "Prøvningen afgør ikke, hvilken fortolkning der er gældende ret; der er ikke tilføjet supplerende retskilder."
 )
 
---@label:fortolkning_troskrav_og_ligebehandling::meta:troskrav_og_ligebehandling_fund--
---@begin:fortolkning_troskrav_og_ligebehandling--
+@ meta(troskrav_og_ligebehandling_fund)
+@ section fortolkning_troskrav_og_ligebehandling {
+
 | troskravsfortolkningerne_er_eksplicit_adskilte() -> Par6SomSærregelForKongeembedet != Par70OmfatterAdgangTilKongeembedet
---@end:fortolkning_troskrav_og_ligebehandling--
+
+}

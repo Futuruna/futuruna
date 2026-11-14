@@ -11,8 +11,9 @@
     )
 )
 
---@label:personskat_udenlandske_sociale_bidrag_kildefakta::meta:personskat_udenlandske_sociale_bidrag_kildefakta_metadata--
---@begin:personskat_udenlandske_sociale_bidrag_kildefakta--
+@ meta(personskat_udenlandske_sociale_bidrag_kildefakta_metadata)
+@ section personskat_udenlandske_sociale_bidrag_kildefakta {
+
 # PersonskatLigningslov8MFakta(kildeskattepligt: Ligningslov8MKildeskattepligt, arbejdsgiver_indeholdelsespligtig_af_løn: Boolsk, udenlandsk_socialt_bidrag: Ligningslov8MUdenlandskSocialtBidragInput, udenlandsk_arbejdsgiverbidrag: Ligningslov8MUdenlandskArbejdsgiverbidragInput)
 # PersonskatUdenlandskeSocialeBidragInput = UdenUdenlandskeSocialeBidragEfterLigningslov8M | MedUdenlandskeSocialeBidragEfterLigningslov8M(fakta: PersonskatLigningslov8MFakta)
 # PersonskatUdenlandskeSocialeBidragResultat = IngenUdenlandskeSocialeBidragEfterLigningslov8M | UgyldigtUdenlandskSocialbidragsgrundlag(fakta: PersonskatLigningslov8MFakta, grundfakta_gyldige: Boolsk, skattepligt_forenelig_med_personskattesagen: Boolsk) | BeregnetUdenlandskSocialbidragsfradrag(fakta: PersonskatLigningslov8MFakta, ligningslov8m_input: Ligningslov8MInput, ligningslov8m_resultat: Ligningslov8MResultat, par3_stk2_nr6_resultat: Par3Stk2Nr6Resultat, arbejdsmarkedsbidrag_indregnet_i_lønmodtagermodellen_kroner: Heltal, yderligere_fradrag_i_personlig_indkomst_kroner: Heltal)
@@ -62,4 +63,5 @@
     | BeregnetUdenlandskSocialbidragsfradrag(_, _, _, _, _, yderligere_fradrag_i_personlig_indkomst_kroner) -> yderligere_fradrag_i_personlig_indkomst_kroner
     | _ -> 0
 }
---@end:personskat_udenlandske_sociale_bidrag_kildefakta--
+
+}

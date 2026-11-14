@@ -18,17 +18,6 @@
     Warning(value = "Historisk afrunding er ikke uafhængigt verificeret. Beregnerobservationer er ikke en lovbestemmelse eller bevis for fuld modeldækning. Ukendte ydelsesfakta må ikke erstattes af nul."),
 )
 = ll9j_enlig_kildemeta = Metadata(attachments = ll9j_enlig_kildehenvisninger)
---@label:ll9j_enlig::meta:ll9j_enlig_kildemeta--
-----
-Ved enlige forsørgere forstås i denne bestemmelse personer, der er berettiget
-til og modtager ekstra børnetilskud efter lov om børnetilskud og forskudsvis
-udbetaling af børnebidrag.
-
-Den angivne procent kan fradrages med en fjerdedel for hvert kvartal, for
-hvilket de enlige forsørgere får det ekstra børnetilskud.
-
-Fradraget kan højst udgøre grundbeløbet i stk. 4.
-----
 -- Forarbejderne til L 194 (2011-12), almindelige og specielle bemærkninger,
 -- beskriver en fjerdedel af indkomstårets samlede ekstra beskæftigelsesfradrag
 -- pr. kvartal. Derfor fordeles det begrænsede årsfradrag, ikke kun satsen.
@@ -45,11 +34,26 @@ Fradraget kan højst udgøre grundbeløbet i stk. 4.
 -- Se skatdk-fradrag-oere-ekstern.md; historisk afrunding er ikke verificeret.
 
 -- Ukendt står først, så genererede skabeloner ikke hævder, at en ydelse er nul.
+@ meta(ll9j_enlig_inputmeta)
 # Ligningslov9JEnligInput = EkstraBørnetilskudUoplyst | IntetEkstraBørnetilskud | OplystEkstraBørnetilskud(kvartaler: List(Ligningslov9JEnligKvartal), oplysninger_for_året_komplette: Boolsk)
+@ meta(ll9j_enlig_kvartalsmeta)
 # Ligningslov9JEnligKvartal(indkomstår: Heltal, kvartal: Heltal, berettiget: Boolsk, modtaget: Boolsk, kildereference: Tekst)
 # Ligningslov9JEnligResultat(skatteår: Heltal, regelgrundlag_understøttet: Boolsk, oplysninger_afklarede: Boolsk, kvartalsfakta_gyldige: Boolsk, input_gyldigt: Boolsk, fejl: List(Tekst), kvartaler: List(Ligningslov9JEnligKvartal), berettigede_modtagelseskvartaler: Heltal, omfattet_af_stk1: Boolsk, grundlag_kroner: Heltal, sats_basispoint: Heltal, årsloft_kroner: Heltal, helårsfradrag_kroner: Heltal, fradrag_kroner: Heltal)
 
---@begin:ll9j_enlig--
+----
+Ved enlige forsørgere forstås i denne bestemmelse personer, der er berettiget
+til og modtager ekstra børnetilskud efter lov om børnetilskud og forskudsvis
+udbetaling af børnebidrag.
+
+Den angivne procent kan fradrages med en fjerdedel for hvert kvartal, for
+hvilket de enlige forsørgere får det ekstra børnetilskud.
+
+Fradraget kan højst udgøre grundbeløbet i stk. 4.
+----
+
+@ meta(ll9j_enlig_kildemeta)
+@ section ll9j_enlig {
+
 > ll9j_enlig_kvartaler(input: Ligningslov9JEnligInput) -> List(Ligningslov9JEnligKvartal) {
     match input {
         | OplystEkstraBørnetilskud(kvartaler, _) -> kvartaler
@@ -100,7 +104,8 @@ Fradraget kan højst udgøre grundbeløbet i stk. 4.
         fradrag_kroner = hvis gyldigt { penge_øre_oprundet_kroner(helårs_øre * antal / 4) } ellers { 0 }
     )
 }
---@end:ll9j_enlig--
+
+}
 
 = ll9j_enlig_inputmeta = TypetBeregningsmeta(
     felter = [
@@ -109,7 +114,6 @@ Fradraget kan højst udgøre grundbeløbet i stk. 4.
         TypetBeregningsfelt(path = refof(Ligningslov9JEnligInput::OplystEkstraBørnetilskud::kvartaler), label = "Kvartaler med oplyst børnetilskud", question = Some("Hvilke kvartaler dækker oplysningerne fra Udbetaling Danmark?"), help = Some("Én række pr. kvartal, ikke pr. barn eller betaling. Det er ydelsens kvartal, ikke betalingsdatoens kvartal, der bruges."), unit = None)
     ], spørgsmål = [], beløbsfelter = [], attachments = ll9j_enlig_kildehenvisninger
 )
---@label:Ligningslov9JEnligInput::meta:ll9j_enlig_inputmeta--
 = ll9j_enlig_kvartalsmeta = TypetBeregningsmeta(
     felter = [
         TypetBeregningsfelt(path = refof(Ligningslov9JEnligKvartal::indkomstår), label = "Ydelsens indkomstår", question = Some("Hvilket år vedrører kvartalet?"), help = None, unit = Some("år")),
@@ -119,4 +123,3 @@ Fradraget kan højst udgøre grundbeløbet i stk. 4.
         TypetBeregningsfelt(path = refof(Ligningslov9JEnligKvartal::kildereference), label = "Kilde til ydelsesfakta", question = Some("Hvilken afgørelse eller ydelsesoversigt dokumenterer kvartalets oplysninger?"), help = Some("Lokal dokumenthenvisning; indtast ikke CPR-nummer. Modellen verificerer ikke dokumentets ægthed."), unit = None)
     ], spørgsmål = [], beløbsfelter = [], attachments = ll9j_enlig_kildehenvisninger
 )
---@label:Ligningslov9JEnligKvartal::meta:ll9j_enlig_kvartalsmeta--
