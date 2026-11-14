@@ -1775,7 +1775,7 @@ mod tests {
             serde_json::json!({ "income": 5, "spouse": { "share": 3, "cohabiting": false } });
         assert_eq!(
             completion_text(&partial, &completion),
-            "spouse.share = 3, spouse.cohabiting = false"
+            "spouse.cohabiting = false, spouse.share = 3"
         );
     }
 }
