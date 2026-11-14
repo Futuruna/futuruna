@@ -14,7 +14,10 @@
 //! (`futuruna::calculate::PreparedCalculation`).
 
 use futuruna::calculate::{self, CalculationInputEnvelope, PreparedCalculation};
-use futuruna::{parse_prelude, prepend_prelude, provide_source_files, Lexer, Parser, TypeChecker};
+use futuruna::{
+    parse_prelude, prepend_prelude, provide_source_files, with_constructor_elaboration, Lexer,
+    Parser, TypeChecker,
+};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use wasm_bindgen::prelude::*;
@@ -74,6 +77,7 @@ impl Model {
         provide_source_files(files.iter().cloned());
 
         let user_statements = Parser::new(Lexer::new(&main_source).tokenize(), &main_source)
+            .with_source_path(&root.join(main))
             .parse_program()
             .map_err(|error| format!("{main}: {error:?}"))?;
         let statements = prepend_prelude(parse_prelude(), &user_statements);
@@ -81,8 +85,11 @@ impl Model {
             .join(main)
             .parent()
             .map(|dir| dir.to_string_lossy().into_owned());
-        let artifacts =
-            TypeChecker::check_with_artifacts(&statements, source_dir.clone(), &main_source);
+        // The check starts from no other model's constructor names and leaves
+        // its own with this model alone: each entry runs under them.
+        let artifacts = with_constructor_elaboration(None, || {
+            TypeChecker::check_with_artifacts(&statements, source_dir.clone(), &main_source)
+        });
         if !artifacts.diagnostics.is_empty() {
             let messages = artifacts
                 .diagnostics
@@ -96,8 +103,13 @@ impl Model {
             .calculation_contracts
             .into_iter()
             .map(|contract| {
-                PreparedCalculation::new(contract, statements.clone(), source_dir.clone())
-                    .with_root_file(root.join(main))
+                PreparedCalculation::new(
+                    contract,
+                    statements.clone(),
+                    source_dir.clone(),
+                    artifacts.constructor_elaboration.clone(),
+                )
+                .with_root_file(root.join(main))
             })
             .collect();
         Ok(Model {

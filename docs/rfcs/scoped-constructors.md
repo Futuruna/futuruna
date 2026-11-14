@@ -81,6 +81,17 @@ declared name in each type's position), contracts and `runa schema`, solver
 models, content hashes of declarations, and the variant identifiers of
 generated Rust enums.
 
+The internal names and the elaborated imports belong to one program: the same
+constructor in the same imported file is renamed differently, or not at all,
+in a program that declares other types. The checked artifacts own them
+(`TypeCheckArtifacts::constructor_elaboration`), and they are read through the
+elaboration current on the running thread, never a process-wide table. A
+successful check makes its program's elaboration current on its thread; a
+prepared calculation runs every batch, and every worker thread of a batch,
+under its own program's elaboration. So a host holding several programs in
+one process or thread (WebAssembly models, a server, tests) runs each with its
+own names, whichever was checked last.
+
 A program without shared names and without `Type.Constructor` is not
 elaborated; its outputs and schema hashes are unchanged.
 

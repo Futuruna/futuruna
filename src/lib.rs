@@ -42,7 +42,7 @@ mod constructor_scope;
 pub use constructor_scope::{
     bare_constructor_name, clear_constructor_elaboration, constructor_display_name,
     constructor_display_text, constructor_runtime_name, qualified_constructor_name,
-    split_qualified_constructor, ConstructorElaboration,
+    split_qualified_constructor, with_constructor_elaboration, ConstructorElaboration,
 };
 mod danish;
 mod declaration_contracts;
@@ -62553,8 +62553,11 @@ impl TypeChecker {
             exploration_universes.clear();
             Vec::new()
         };
-        // Every consumer that runs this program in the process reads its
-        // imports and constructor names through the installed elaboration.
+        // A consumer that runs this program on this thread reads its imports
+        // and constructor names through the current elaboration. A host that
+        // holds several programs passes each its own
+        // (`constructor_scope::with_constructor_elaboration`).
+        let constructor_elaboration = constructor_elaboration.map(Arc::new);
         if tc.diagnostics.is_empty() {
             if let Some(elaboration) = &constructor_elaboration {
                 elaboration.install();
@@ -62572,7 +62575,7 @@ impl TypeChecker {
             calculation_contracts,
             compile_time_metadata_bindings,
             unit_names: tc.unit_types.keys().cloned().collect(),
-            constructor_elaboration: constructor_elaboration.map(Arc::new),
+            constructor_elaboration,
             program,
             rule_return_types: tc.rule_return_types,
             rule_scope_member_return_types: tc.rule_scope_member_return_types,

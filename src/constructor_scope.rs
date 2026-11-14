@@ -13,12 +13,19 @@
 //! where a constructor name leaves the program (display, `show`, collection
 //! order, calculation JSON, solver models) maps it back with
 //! [`constructor_display_name`].
+//!
+//! The internal names, and the rewritten imports, belong to one program: the
+//! same constructor is renamed differently, or not at all, in another. They
+//! are read through the elaboration current on this thread. A successful
+//! check makes its program's elaboration current, for a consumer that checks
+//! and then runs one program on its thread; a host holding several programs
+//! runs each inside [`with_constructor_elaboration`] with that program's own
+//! elaboration, as `calculate::PreparedCalculation` does.
 
 use super::*;
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
-use std::sync::RwLock;
 
 /// The spelling of `Owner.Constructor` in a pattern.
 pub fn qualified_constructor_name(owner: &str, constructor: &str) -> String {
@@ -46,122 +53,131 @@ pub fn bare_constructor_name(name: &str) -> &str {
     split_qualified_constructor(name).map_or(name, |(_, constructor)| constructor)
 }
 
-#[derive(Debug, Default)]
-struct ConstructorNameRegistry {
-    /// Internal name -> constructor name as written.
-    display: BTreeMap<String, String>,
-    /// (owner type, constructor name as written) -> internal name.
-    internal: BTreeMap<(String, String), String>,
-    /// Elaborated imported modules, by canonical path.
-    modules: BTreeMap<PathBuf, Arc<ParsedSourceModule>>,
+thread_local! {
+    /// The elaboration of the program this thread checks or runs; `None`
+    /// for a program that renames nothing.
+    static CURRENT: RefCell<Option<Arc<ConstructorElaboration>>> = const { RefCell::new(None) };
 }
 
-static REGISTRY_ACTIVE: AtomicBool = AtomicBool::new(false);
-static REGISTRY: std::sync::LazyLock<RwLock<ConstructorNameRegistry>> =
-    std::sync::LazyLock::new(|| RwLock::new(ConstructorNameRegistry::default()));
+fn with_current<R>(read: impl FnOnce(Option<&ConstructorElaboration>) -> R) -> R {
+    CURRENT.with(|current| read(current.borrow().as_deref()))
+}
 
-fn registry() -> std::sync::RwLockReadGuard<'static, ConstructorNameRegistry> {
-    REGISTRY
-        .read()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
+fn replace_current(
+    elaboration: Option<Arc<ConstructorElaboration>>,
+) -> Option<Arc<ConstructorElaboration>> {
+    CURRENT.with(|current| current.replace(elaboration))
+}
+
+/// Run `run` with `elaboration` as this thread's constructor names and
+/// imports, then restore the ones current before, also when `run` panics.
+/// `None` runs a program that renames nothing: no other program's names are
+/// visible to it.
+pub fn with_constructor_elaboration<R>(
+    elaboration: Option<&Arc<ConstructorElaboration>>,
+    run: impl FnOnce() -> R,
+) -> R {
+    struct Restore(Option<Option<Arc<ConstructorElaboration>>>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            if let Some(previous) = self.0.take() {
+                replace_current(previous);
+            }
+        }
+    }
+    let _restore = Restore(Some(replace_current(elaboration.cloned())));
+    run()
 }
 
 /// The name a constructor has in source and in data: the internal name of a
 /// shared constructor maps back to the name its declaration wrote.
 pub fn constructor_display_name(name: &str) -> Cow<'_, str> {
-    if !REGISTRY_ACTIVE.load(AtomicOrdering::Acquire) {
-        return Cow::Borrowed(name);
-    }
-    match registry().display.get(name) {
-        Some(display) => Cow::Owned(display.clone()),
-        None => Cow::Borrowed(name),
-    }
+    with_current(
+        |current| match current.and_then(|elaboration| elaboration.display.get(name)) {
+            Some(display) => Cow::Owned(display.clone()),
+            None => Cow::Borrowed(name),
+        },
+    )
 }
 
 /// `text` with every internal constructor name that stands as a whole
 /// identifier replaced by its declared name, for solver models and other
 /// rendered terms.
 pub fn constructor_display_text(text: &str) -> Cow<'_, str> {
-    if !REGISTRY_ACTIVE.load(AtomicOrdering::Acquire) {
-        return Cow::Borrowed(text);
-    }
-    let registry = registry();
-    let identifier = |c: char| c.is_alphanumeric() || c == '_';
-    let mut out = String::with_capacity(text.len());
-    let mut rest = text;
-    while let Some(start) = rest.find(identifier) {
-        out.push_str(&rest[..start]);
-        let word = &rest[start..];
-        let end = word.find(|c: char| !identifier(c)).unwrap_or(word.len());
-        let token = &word[..end];
-        out.push_str(registry.display.get(token).map_or(token, String::as_str));
-        rest = &word[end..];
-    }
-    out.push_str(rest);
-    Cow::Owned(out)
+    with_current(|current| {
+        let Some(elaboration) = current.filter(|elaboration| !elaboration.display.is_empty())
+        else {
+            return Cow::Borrowed(text);
+        };
+        let identifier = |c: char| c.is_alphanumeric() || c == '_';
+        let mut out = String::with_capacity(text.len());
+        let mut rest = text;
+        while let Some(start) = rest.find(identifier) {
+            out.push_str(&rest[..start]);
+            let word = &rest[start..];
+            let end = word.find(|c: char| !identifier(c)).unwrap_or(word.len());
+            let token = &word[..end];
+            out.push_str(elaboration.display.get(token).map_or(token, String::as_str));
+            rest = &word[end..];
+        }
+        out.push_str(rest);
+        Cow::Owned(out)
+    })
 }
 
 /// The runtime name of `owner`'s constructor `constructor`.
 pub fn constructor_runtime_name<'a>(owner: &str, constructor: &'a str) -> Cow<'a, str> {
-    if !REGISTRY_ACTIVE.load(AtomicOrdering::Acquire) {
-        return Cow::Borrowed(constructor);
-    }
-    match registry()
-        .internal
-        .get(&(owner.to_string(), constructor.to_string()))
-    {
-        Some(internal) => Cow::Owned(internal.clone()),
-        None => Cow::Borrowed(constructor),
-    }
+    with_current(|current| {
+        match current.and_then(|elaboration| {
+            elaboration
+                .internal
+                .get(&(owner.to_string(), constructor.to_string()))
+        }) {
+            Some(internal) => Cow::Owned(internal.clone()),
+            None => Cow::Borrowed(constructor),
+        }
+    })
 }
 
-/// The elaborated syntax of an imported module, when the installed
+/// The elaborated syntax of an imported module, when the current
 /// elaboration renamed constructors in it.
 pub(crate) fn elaborated_source_module(
     path: &Path,
     content_hash: &str,
 ) -> Option<Arc<ParsedSourceModule>> {
-    if !REGISTRY_ACTIVE.load(AtomicOrdering::Acquire) {
-        return None;
-    }
-    registry()
-        .modules
-        .get(path)
-        .filter(|module| module.content_hash() == content_hash)
-        .cloned()
+    with_current(|current| {
+        current?
+            .modules
+            .get(path)
+            .filter(|module| module.content_hash() == content_hash)
+            .cloned()
+    })
 }
 
-/// Start checking a root program. An installed elaboration stays when the
+/// Start checking a root program. The current elaboration stays when the
 /// program is an elaborated one (it names an internal constructor, so its
 /// imports must be read elaborated too); any other program is checked with its
 /// imports as written.
 pub(crate) fn begin_root_check(statements: &[Stmt]) {
-    if !REGISTRY_ACTIVE.load(AtomicOrdering::Acquire) {
-        return;
-    }
-    let elaborated = {
-        let registry = registry();
+    let elaborated = with_current(|current| {
+        let Some(elaboration) = current else {
+            return true;
+        };
         let text = format!("{statements:?}");
-        registry
+        elaboration
             .display
             .keys()
             .any(|internal| text.contains(&format!("\"{internal}\"")))
-    };
+    });
     if !elaborated {
         clear_constructor_elaboration();
     }
 }
 
-/// Forget an installed elaboration. Checking a new root program starts here,
-/// so its imports are read as written.
+/// Forget this thread's current elaboration. Checking a new root program
+/// starts here, so its imports are read as written.
 pub fn clear_constructor_elaboration() {
-    if !REGISTRY_ACTIVE.swap(false, AtomicOrdering::AcqRel) {
-        return;
-    }
-    let mut registry = REGISTRY
-        .write()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    *registry = ConstructorNameRegistry::default();
+    replace_current(None);
 }
 
 /// The checked program with every shared constructor given its internal name,
@@ -170,9 +186,12 @@ pub fn clear_constructor_elaboration() {
 #[derive(Debug, Clone, Default)]
 pub struct ConstructorElaboration {
     root: Option<Vec<Stmt>>,
+    /// Rewritten imported modules, by canonical path.
     modules: BTreeMap<PathBuf, Arc<ParsedSourceModule>>,
-    /// (owner type, constructor name as written, internal name).
-    names: Vec<(String, String, String)>,
+    /// Internal name -> constructor name as written.
+    display: BTreeMap<String, String>,
+    /// (owner type, constructor name as written) -> internal name.
+    internal: BTreeMap<(String, String), String>,
 }
 
 impl ConstructorElaboration {
@@ -188,25 +207,13 @@ impl ConstructorElaboration {
         self.modules.keys().map(PathBuf::as_path)
     }
 
-    /// Make the elaborated imports and the internal names visible to the
-    /// interpreter, the backends and every data edge of this process.
-    pub fn install(&self) {
-        let mut registry = REGISTRY
-            .write()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        *registry = ConstructorNameRegistry::default();
-        for (owner, constructor, internal) in &self.names {
-            registry
-                .display
-                .insert(internal.clone(), constructor.clone());
-            registry
-                .internal
-                .insert((owner.clone(), constructor.clone()), internal.clone());
-        }
-        registry.modules = self.modules.clone();
-        let active = !registry.display.is_empty() || !registry.modules.is_empty();
-        drop(registry);
-        REGISTRY_ACTIVE.store(active, AtomicOrdering::Release);
+    /// Make this elaboration current on this thread: the interpreter, the
+    /// backends and every data edge that runs its program here read its
+    /// imports and constructor names. One that renames nothing leaves no
+    /// elaboration current.
+    pub(crate) fn install(self: &Arc<Self>) {
+        let renames = !self.display.is_empty() || !self.modules.is_empty();
+        replace_current(renames.then(|| self.clone()));
     }
 
     /// Rewrite one file of the program: the root when `module` is `None`,
@@ -630,8 +637,11 @@ impl TypeChecker {
         let mut elaboration = ConstructorElaboration::default();
         for ((owner, constructor), internal) in &shared.internal {
             elaboration
-                .names
-                .push((owner.clone(), constructor.clone(), internal.clone()));
+                .display
+                .insert(internal.clone(), constructor.clone());
+            elaboration
+                .internal
+                .insert((owner.clone(), constructor.clone()), internal.clone());
         }
 
         let (root_statements, rewrites) =

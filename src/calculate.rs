@@ -5939,16 +5939,20 @@ struct CalculationProgram {
     entry: String,
     stmts: Arc<[Stmt]>,
     source_dir: Option<String>,
+    /// The program's internal constructor names and rewritten imports.
+    constructor_elaboration: Option<Arc<ConstructorElaboration>>,
     /// The program's root file, where rules without a recorded file are.
     root_file: Option<PathBuf>,
     rule_dispatch: Arc<RuleDispatchMetadata>,
 }
 
 impl CalculationProgram {
+    /// Runs under `constructor_elaboration`, which must be current.
     fn new(
         entry: &str,
         stmts: Arc<[Stmt]>,
         source_dir: Option<String>,
+        constructor_elaboration: Option<Arc<ConstructorElaboration>>,
         root_file: Option<PathBuf>,
     ) -> Self {
         let (return_types, return_issues, runtime_boolean_miss_keys) =
@@ -5957,6 +5961,7 @@ impl CalculationProgram {
             entry: entry.to_string(),
             stmts,
             source_dir,
+            constructor_elaboration,
             root_file,
             rule_dispatch: Arc::new(RuleDispatchMetadata {
                 return_types,
@@ -6378,27 +6383,39 @@ fn invoke_calculation_case_queue(
 /// A batch with four or more ready cases also runs on further workers, each
 /// initializing its own interpreter for that batch (natively; WebAssembly runs
 /// one worker).
+///
+/// The program's constructor elaboration (its internal constructor names and
+/// rewritten imports) is part of the program: every batch, and every worker of
+/// a batch, runs under it, whatever other program this thread or process has
+/// checked or run since.
 pub struct PreparedCalculation {
     contract: CalculationContract,
     stmts: Arc<[Stmt]>,
     source_dir: Option<String>,
+    constructor_elaboration: Option<Arc<ConstructorElaboration>>,
     root_file: Option<PathBuf>,
     worker: Option<CalculationWorker>,
 }
 
 impl PreparedCalculation {
     /// Prepare `contract`'s entry of the program `stmts` (with the prelude
-    /// already prepended when the program uses it). Nothing runs until the
-    /// first batch with a ready case.
+    /// already prepended when the program uses it) and its
+    /// `constructor_elaboration`, both as its check returned them
+    /// ([`TypeCheckArtifacts::program`] and
+    /// [`TypeCheckArtifacts::constructor_elaboration`]); `None` for a
+    /// program that renames no constructor. Nothing runs until the first
+    /// batch with a ready case.
     pub fn new(
         contract: CalculationContract,
         stmts: Arc<[Stmt]>,
         source_dir: Option<String>,
+        constructor_elaboration: Option<Arc<ConstructorElaboration>>,
     ) -> Self {
         Self {
             contract,
             stmts,
             source_dir,
+            constructor_elaboration,
             root_file: None,
             worker: None,
         }
@@ -6467,7 +6484,21 @@ impl PreparedCalculation {
         self.run_batch(envelope, requested_jobs, partial, None)
     }
 
+    /// Run a batch under the program's own constructor elaboration.
     fn run_batch(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+        requested_jobs: Option<usize>,
+        partial: Option<partial::PartialMode>,
+        explain_options: Option<&ExplainOptions>,
+    ) -> CalculationOutputEnvelope {
+        let elaboration = self.constructor_elaboration.clone();
+        with_constructor_elaboration(elaboration.as_ref(), || {
+            self.run_batch_in_program(envelope, requested_jobs, partial, explain_options)
+        })
+    }
+
+    fn run_batch_in_program(
         &mut self,
         envelope: &CalculationInputEnvelope,
         requested_jobs: Option<usize>,
@@ -6478,6 +6509,7 @@ impl PreparedCalculation {
             contract,
             stmts,
             source_dir,
+            constructor_elaboration,
             root_file,
             worker,
         } = self;
@@ -6537,6 +6569,7 @@ impl PreparedCalculation {
                 &contract.entry,
                 stmts.clone(),
                 source_dir.clone(),
+                constructor_elaboration.clone(),
                 root_file.clone(),
             ))
         });
@@ -6560,16 +6593,22 @@ impl PreparedCalculation {
                                 .name(format!("futuruna-calculation-{worker_index}"))
                                 .stack_size(CALCULATION_WORKER_STACK_BYTES)
                                 .spawn_scoped(scope, move || {
-                                    let mut worker = CalculationWorker::new(program.clone());
-                                    worker.partial = partial;
-                                    worker.explain =
-                                        explain_options.cloned().map(explain::ExplainRenderer::new);
-                                    invoke_calculation_case_queue(
-                                        &mut worker,
-                                        contract,
-                                        cases,
-                                        next_case,
-                                    )
+                                    // A worker thread starts with no
+                                    // elaboration current: give it the program's.
+                                    let elaboration = program.constructor_elaboration.as_ref();
+                                    with_constructor_elaboration(elaboration, || {
+                                        let mut worker = CalculationWorker::new(program.clone());
+                                        worker.partial = partial;
+                                        worker.explain = explain_options
+                                            .cloned()
+                                            .map(explain::ExplainRenderer::new);
+                                        invoke_calculation_case_queue(
+                                            &mut worker,
+                                            contract,
+                                            cases,
+                                            next_case,
+                                        )
+                                    })
                                 })
                                 .expect("start calculation worker"),
                         );
@@ -7134,7 +7173,7 @@ mod calculation_execution_tests {
         envelope: &CalculationInputEnvelope,
         requested_jobs: Option<usize>,
     ) -> CalculationOutputEnvelope {
-        PreparedCalculation::new(contract.clone(), stmts.into(), source_dir).invoke_batch(
+        PreparedCalculation::new(contract.clone(), stmts.into(), source_dir, None).invoke_batch(
             envelope,
             requested_jobs,
             None,
@@ -7261,7 +7300,7 @@ mod calculation_execution_tests {
         let (stmts, contract) = needs_fixture();
         let envelope = partial_envelope(&contract, serde_json::json!({ "income": 50 }));
         let checked =
-            PreparedCalculation::new(contract, stmts.into(), None).check_partial(&envelope);
+            PreparedCalculation::new(contract, stmts.into(), None, None).check_partial(&envelope);
         assert!(checked.diagnostics.is_empty(), "{:?}", checked.diagnostics);
         assert_eq!(
             checked.results[0].result,
@@ -7392,11 +7431,141 @@ mod calculation_execution_tests {
                 input: serde_json::json!({"amount": 100000}),
             }],
         };
-        let output =
-            PreparedCalculation::new(contract, statements.into(), source_dir).invoke(&envelope);
+        let output = PreparedCalculation::new(contract, statements.into(), source_dir, None)
+            .invoke(&envelope);
         crate::provide_source_files([]);
         assert!(output.diagnostics.is_empty(), "{output:?}");
         assert_eq!(output.results[0].result, serde_json::json!(27000));
+    }
+
+    /// Two programs checked and prepared in one thread, then run alternately,
+    /// as two WebAssembly `Model`s in one instance are. Each shares
+    /// constructor names between two of its types, so each runs elaborated
+    /// under its own internal names; neither may decode, match or encode a
+    /// constructor by the other's names. Before constructor names belonged to
+    /// their program, the account program run after the door program was
+    /// checked decoded `AccountState`'s `Closed` as `Event`'s: an entry
+    /// prepared before found no arm in `account_label`, and one prepared after
+    /// took the wildcard arm of `status` and answered "open" without an error.
+    #[test]
+    fn programs_checked_in_one_thread_run_with_their_own_constructor_names() {
+        let _provided = crate::PROVIDED_SOURCE_FILES_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let root = Path::new("/futuruna-two-programs-test/model/src");
+        let files = [
+            (
+                "events.runa",
+                "# Event = Opened | Closed\n# AccountState = Active | Closed\n> account_label(state: AccountState) -> String {\n    match state {\n        | Active -> \"account open\"\n        | Closed -> \"account closed\"\n    }\n}\n",
+            ),
+            (
+                "account.calculate.runa",
+                "@ import ./events\n# Input(state: AccountState, event: Event)\n# Output(label: String, status: String, state: AccountState, event: Event)\n> status(state: AccountState) -> String {\n    match state {\n        | Closed -> \"closed\"\n        | _ -> \"open\"\n    }\n}\n@ calculate\n> account(input: Input) -> Output { Output(account_label(input.state), status(input.state), input.state, input.event) }\n",
+            ),
+            (
+                "door.calculate.runa",
+                "# Door = Open | Shut\n# Valve = Shut | Leak\n# Input(valve: Valve)\n@ calculate\n> door(input: Input) -> String {\n    match input.valve {\n        | Shut -> \"valve shut\"\n        | _ -> \"valve leaking\"\n    }\n}\n",
+            ),
+        ];
+        crate::provide_source_files(
+            files
+                .iter()
+                .map(|(name, source)| (root.join(name), source.to_string())),
+        );
+        let source_dir = Some(root.to_string_lossy().into_owned());
+        // What `Model::new` does: check the root, prepare its entry.
+        let load = |name: &str| {
+            let source = files.iter().find(|(file, _)| *file == name).unwrap().1;
+            let statements = Parser::new(Lexer::new(source).tokenize(), source)
+                .parse_program()
+                .expect("parse root");
+            let mut artifacts =
+                TypeChecker::check_with_artifacts(&statements, source_dir.clone(), source);
+            assert!(
+                artifacts.diagnostics.is_empty(),
+                "{name}: {:?}",
+                artifacts.diagnostics
+            );
+            assert!(
+                artifacts.constructor_elaboration.is_some(),
+                "{name} shares a constructor name"
+            );
+            PreparedCalculation::new(
+                artifacts.calculation_contracts.pop().expect("one entry"),
+                artifacts.program().clone(),
+                source_dir.clone(),
+                artifacts.constructor_elaboration.clone(),
+            )
+            .with_root_file(root.join(name))
+        };
+        let call = |prepared: &mut PreparedCalculation, input: serde_json::Value| {
+            let envelope = CalculationInputEnvelope {
+                futuruna: CalculationEnvelopeMetadata {
+                    schema: INPUT_SCHEMA.to_string(),
+                    schema_hash: prepared.contract().schema_hash.clone(),
+                    entry: prepared.contract().entry.clone(),
+                },
+                cases: vec![CalculationInputCase {
+                    case_id: "case".to_string(),
+                    input_status: Some(CalculationInputStatus::Ready),
+                    input,
+                }],
+            };
+            let output = prepared.invoke(&envelope);
+            assert!(output.diagnostics.is_empty(), "{output:?}");
+            output.results[0].result.clone()
+        };
+        let account_input = |state: &str| {
+            serde_json::json!({
+                "state": {"$variant": state},
+                "event": {"$variant": "Closed"},
+            })
+        };
+        let account_output = |label: &str, status: &str, state: &str| {
+            serde_json::json!({
+                "label": label,
+                "status": status,
+                "state": {"$variant": state},
+                "event": {"$variant": "Closed"},
+            })
+        };
+        let check_account = |prepared: &mut PreparedCalculation| {
+            assert_eq!(
+                call(prepared, account_input("Closed")),
+                account_output("account closed", "closed", "Closed")
+            );
+            assert_eq!(
+                call(prepared, account_input("Active")),
+                account_output("account open", "open", "Active")
+            );
+        };
+        let check_door = |prepared: &mut PreparedCalculation| {
+            assert_eq!(
+                call(prepared, serde_json::json!({"valve": {"$variant": "Shut"}})),
+                "valve shut"
+            );
+            assert_eq!(
+                call(prepared, serde_json::json!({"valve": {"$variant": "Leak"}})),
+                "valve leaking"
+            );
+        };
+
+        // Prepared (on its first call) before another program is checked.
+        let mut early = load("account.calculate.runa");
+        check_account(&mut early);
+        // Prepared after another program is checked.
+        let mut late = load("account.calculate.runa");
+        let mut door = load("door.calculate.runa");
+        check_account(&mut late);
+        check_account(&mut early);
+        check_door(&mut door);
+        check_account(&mut late);
+        check_account(&mut early);
+        let mut door_again = load("door.calculate.runa");
+        check_account(&mut early);
+        check_door(&mut door_again);
+        check_door(&mut door);
+        crate::provide_source_files([]);
     }
 
     #[test]
@@ -8190,6 +8359,7 @@ mod calculation_execution_tests {
             stmts.into(),
             None,
             None,
+            None,
         ));
 
         assert!(worker.interpreter.output.is_empty());
@@ -8473,7 +8643,7 @@ mod calculation_execution_tests {
                 .collect(),
         );
         let mut prepared =
-            PreparedCalculation::new(contract.clone(), statements.as_slice().into(), None);
+            PreparedCalculation::new(contract.clone(), statements.as_slice().into(), None, None);
         let first = prepared.invoke_batch(&envelope, Some(1), None);
         assert!(first.diagnostics.is_empty(), "{:?}", first.diagnostics);
         let shuffled = &first.results[0].result["shuffled"];
@@ -8508,7 +8678,7 @@ mod calculation_execution_tests {
     fn a_prepared_calculation_is_initialized_once_for_every_call() {
         let (stmts, contract, envelope) = batch_fixture();
         let fresh = invoke_calculation_cases_with_jobs(&contract, &stmts, None, &envelope, Some(1));
-        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None);
+        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None, None);
         for _ in 0..3 {
             let output = prepared.invoke_batch(&envelope, Some(1), None);
             assert_eq!(document(&output), document(&fresh));
@@ -8531,7 +8701,7 @@ mod calculation_execution_tests {
         );
         let fresh = |envelope: &CalculationInputEnvelope, partial| {
             document(
-                &PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None)
+                &PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None, None)
                     .invoke_batch(envelope, Some(1), partial),
             )
         };
@@ -8545,7 +8715,7 @@ mod calculation_execution_tests {
         assert!(expected[1].contains("Needs"), "{}", expected[1]);
 
         let mut prepared =
-            PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None);
+            PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None, None);
         for _ in 0..2 {
             for (envelope, partial, expected) in [
                 (&decided, propagate, &expected[0]),
@@ -8601,7 +8771,7 @@ mod calculation_execution_tests {
                 }),
             }],
         };
-        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None);
+        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None, None);
         let before = crate::explain::tracing_counts();
         let off = prepared.invoke_batch(&envelope, Some(1), None);
         assert_eq!(

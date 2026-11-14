@@ -2047,11 +2047,11 @@ fn run_calculation_command(
             user_stmts.as_slice().into()
         }
     });
-    let contracts = if let Some(cached) = cached_contracts {
+    let (contracts, constructor_elaboration) = if let Some(cached) = cached_contracts {
         // A cached program was never elaborated: its parsed statements are
         // the ones a check would hand back.
         trace_calculation_contract_cache("hit");
-        cached
+        (cached, None)
     } else {
         if calculation_contract_cache_dir().is_some() {
             trace_calculation_contract_cache("miss");
@@ -2069,13 +2069,13 @@ fn run_calculation_command(
         .unwrap_or_else(|| std::process::exit(1));
         stmts = Some(checked.program().clone());
         let contracts = std::mem::take(&mut checked.calculation_contracts);
-        // An elaborated program must be checked on every run: the check
-        // installs the internal constructor names its consumers need.
+        // An elaborated program must be checked on every run: its internal
+        // constructor names come from the check.
         let elaborated = checked.constructor_elaboration.is_some();
         if let Some(source_graph) = source_graph.filter(|_| !elaborated) {
             store_calculation_contract_cache(filename, use_prelude, source_graph, &contracts);
         }
-        contracts
+        (contracts, checked.constructor_elaboration.clone())
     };
     let source_dir = source_dir_for(filename);
     let contract =
@@ -2158,6 +2158,7 @@ fn run_calculation_command(
                 contract.clone(),
                 stmts.expect("calculation calls parse source"),
                 source_dir,
+                constructor_elaboration,
             )
             .with_root_file(
                 std::fs::canonicalize(filename)
