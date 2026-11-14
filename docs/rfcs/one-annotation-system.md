@@ -618,7 +618,13 @@ Details the design above leaves open, as implemented:
   of an annotation (on the declaration, `for`, the old label) gives the same.
 - **`runa meta --json`** writes `futuruna.meta.v2`: every anchor names its
   `target` (`kind`: `section`, `type`, `binding`, `function`, `rule` or
-  `member`, and `name`).
+  `member`, and `name`). With `--type` or `--role`, an anchor lists only
+  its values that match, and is listed when one does. Each attachment
+  gives the `definition_file` (`null` for the file read) and
+  `definition_line` of the binding it is written with, so
+  `@ meta(Source(value = law))` still leads to `law`, as `@ meta(law)` did.
+  A value that names a binding nothing defines is reported as
+  "references unresolved binding `name`".
 
 ## Open questions
 

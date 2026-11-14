@@ -2,9 +2,12 @@
 
 # Input(value: Int)
 # Output(value: Int)
+# SourceMetaRole(a) = Source(value: a)
+# impl MetaRole for SourceMetaRole {}
+# impl Meta for SourceMetaRole {}
 
-@ meta(registry_source)
-@ meta(imported_source)
+@ meta(Source(value = registry_source))
+@ meta(Source(value = imported_source))
 @ section imported_calculation {
 
 @ calculate

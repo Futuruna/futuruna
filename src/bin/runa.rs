@@ -6320,11 +6320,16 @@ fn print_meta_index_human(
                     })
             }) {
                 println!(
-                    "  attachment {} role {} value {} type {}",
+                    "  attachment {} role {} value {} type {} definition {}",
                     attachment.attachment_path,
                     attachment.role,
                     attachment.value.to_source(),
-                    attachment.value.qualified_type().unwrap_or("-")
+                    attachment.value.qualified_type().unwrap_or("-"),
+                    meta_attachment_definition(reference, &attachment)
+                        .map_or_else(|| "-".to_string(), |location| match &location.file {
+                            Some(file) => format!("{}:{}", file, location.line),
+                            None => location.line.to_string(),
+                        })
                 );
             }
         }
@@ -6410,26 +6415,26 @@ fn meta_index_json_value(
 ) -> serde_json::Value {
     let references = index.references_matching(type_filter, role_filter);
     let filtered = type_filter.is_some() || role_filter.is_some();
-    let selected_comments: BTreeSet<usize> = references
-        .iter()
-        .map(|reference| reference.comment_line)
-        .collect();
     let selected_labels: BTreeSet<&str> = references
         .iter()
         .map(|reference| reference.label.as_str())
         .collect();
 
+    // An anchor is selected by its references that match; the others of
+    // the same declaration are left out.
     let anchors: Vec<serde_json::Value> = index
         .anchors
         .iter()
-        .filter(|anchor| !filtered || selected_comments.contains(&anchor.comment_line))
-        .map(|anchor| {
+        .filter_map(|anchor| {
             let anchor_references: Vec<serde_json::Value> = anchor
                 .references
                 .iter()
                 .filter(|reference| !filtered || reference.matches(type_filter, role_filter))
                 .map(meta_reference_json)
                 .collect();
+            if filtered && anchor_references.is_empty() {
+                return None;
+            }
             // Metadata written apart (`@ meta(...) for <name>`) says where
             // its declaration is; on the declaration it is this file.
             let declared_in = match anchor.declared_in.as_deref() {
@@ -6437,7 +6442,7 @@ fn meta_index_json_value(
                 Some("") => filename,
                 Some(file) => file,
             };
-            serde_json::json!({
+            Some(serde_json::json!({
                 "target": {
                     "kind": anchor.kind,
                     "name": anchor.label,
@@ -6454,7 +6459,7 @@ fn meta_index_json_value(
                 "text_end_line": anchor.text_end_line,
                 "text": anchor.text,
                 "references": anchor_references,
-            })
+            }))
         })
         .collect();
 
@@ -6686,6 +6691,7 @@ fn meta_reference_json(reference: &MetaReference) -> serde_json::Value {
         .attachments()
         .into_iter()
         .map(|attachment| {
+            let definition = meta_attachment_definition(reference, &attachment);
             serde_json::json!({
                 "path": attachment.attachment_path,
                 "role_path": attachment.role_path,
@@ -6695,6 +6701,8 @@ fn meta_reference_json(reference: &MetaReference) -> serde_json::Value {
                 "type": attachment.value.qualified_type(),
                 "value": attachment.value.to_source(),
                 "data": meta_value_json(attachment.value),
+                "definition_file": definition.and_then(|location| location.file.as_deref()),
+                "definition_line": definition.map(|location| location.line),
             })
         })
         .collect::<Vec<_>>();
@@ -6712,6 +6720,16 @@ fn meta_reference_json(reference: &MetaReference) -> serde_json::Value {
         "definition_line": reference.definition_line,
         "comment_line": reference.comment_line,
     })
+}
+
+/// Where the binding an attachment is written with is defined.
+fn meta_attachment_definition<'a>(
+    reference: &'a MetaReference,
+    attachment: &MetaRoleValue<'_>,
+) -> Option<&'a futuruna::MetaDefinitionLocation> {
+    reference
+        .value_binding_definitions
+        .get(attachment.binding_name?)
 }
 
 fn meta_value_json(value: &MetaValue) -> serde_json::Value {

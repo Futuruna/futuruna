@@ -1,4 +1,7 @@
 # Shape = Circle | Triangle | Square
+# CorpusRole(a) = Source(value: a)
+# impl MetaRole for CorpusRole {}
+# impl Meta for CorpusRole {}
 
 = circle_source = Circle
 
@@ -6,5 +9,5 @@
 Circle source
 ----
 
-@ meta(circle_source)
+@ meta(Source(value = circle_source))
 | circle_rule(shape: Shape) -> shape == Circle

@@ -2571,6 +2571,17 @@ pub struct MetaReference {
     /// attachment's module graph. Their applied variant name is the role and
     /// their sole named `value` field is the attached payload.
     pub meta_role_types: BTreeSet<String>,
+    /// Where each binding the value is built from is defined, by name: an
+    /// attachment written in a role wrapper, `Source(value = law)`, still
+    /// leads to the definition of `law`.
+    pub value_binding_definitions: BTreeMap<String, MetaDefinitionLocation>,
+}
+
+/// The file (`None` for the file being read) and line defining a binding.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetaDefinitionLocation {
+    pub file: Option<String>,
+    pub line: usize,
 }
 
 impl MetaReference {
@@ -3018,6 +3029,7 @@ fn annotation_meta_reference(label: &str, value: &str, line: usize) -> MetaRefer
         definition_line: None,
         comment_line: line,
         meta_role_types: BTreeSet::new(),
+        value_binding_definitions: BTreeMap::new(),
     }
 }
 
@@ -3277,6 +3289,13 @@ impl MetaGroundEvaluator {
         self.ensure_initialized();
         let value = self.evaluate_expr(expr, bindings)?;
         runtime_value_to_meta_value(&value, &self.interpreter)
+    }
+
+    /// Whether the program defines `name` as something a value can use: a
+    /// rule, function or runtime value.
+    fn defines(&mut self, name: &str) -> bool {
+        self.ensure_initialized();
+        self.callables.contains_key(name) || self.env.get(name).is_some()
     }
 
     fn evaluate_expr(&mut self, expr: &Expr, bindings: &BTreeMap<String, &Expr>) -> Option<Value> {
@@ -3860,6 +3879,28 @@ fn meta_binding_dependencies(
     dependencies
 }
 
+/// Where each binding `roots` are built from is defined, through the
+/// bindings they use in turn.
+fn meta_binding_locations(
+    roots: &BTreeSet<String>,
+    bindings: &BTreeMap<String, MetaBindingDefinition>,
+    constructors: &BTreeMap<String, (String, usize)>,
+) -> BTreeMap<String, MetaDefinitionLocation> {
+    meta_binding_dependencies(roots, bindings, constructors)
+        .into_iter()
+        .filter_map(|name| {
+            let definition = bindings.get(&name)?;
+            Some((
+                name,
+                MetaDefinitionLocation {
+                    file: definition.definition_file.clone(),
+                    line: definition.definition_line,
+                },
+            ))
+        })
+        .collect()
+}
+
 fn collect_meta_expr_dependencies(expr: &Expr, dependencies: &mut BTreeSet<String>) {
     match &expr.kind {
         ExprKind::Var(name) => {
@@ -4057,19 +4098,48 @@ fn resolve_meta_references_with_stmts_and_checker(
                 );
                 reference.static_value =
                     reference.static_data.as_ref().map(MetaValue::to_source);
+                let mut roots = BTreeSet::new();
+                collect_meta_expr_dependencies(&expr, &mut roots);
+                reference.value_binding_definitions =
+                    meta_binding_locations(&roots, &bindings, &checker.constructors);
                 reference.qualified_type = reference
                     .static_data
                     .as_ref()
                     .and_then(MetaValue::qualified_type)
                     .map(|type_name| checker.declared_type_head(type_name));
                 match (&reference.static_data, reference.qualified_type.as_deref()) {
-                    (None, _) => index.diagnostics.push(MetaDiagnostic {
-                        line: reference.comment_line,
-                        message: format!(
-                            "meta value `{}` is not a pure ground value",
-                            reference.binding_name
-                        ),
-                    }),
+                    (None, _) => {
+                        // A name nothing defines is why the value is not
+                        // ground: say which.
+                        let unresolved = roots
+                            .iter()
+                            .filter(|name| {
+                                !bindings.contains_key(*name)
+                                    && !checker.constructors.contains_key(*name)
+                                    && !ground_evaluator.defines(name)
+                            })
+                            .map(|name| format!("`{name}`"))
+                            .collect::<Vec<_>>();
+                        let message = match unresolved.as_slice() {
+                            [] => format!(
+                                "meta value `{}` is not a pure ground value",
+                                reference.binding_name
+                            ),
+                            [one] => format!(
+                                "meta value `{}` references unresolved binding {one}",
+                                reference.binding_name
+                            ),
+                            several => format!(
+                                "meta value `{}` references unresolved bindings {}",
+                                reference.binding_name,
+                                several.join(", ")
+                            ),
+                        };
+                        index.diagnostics.push(MetaDiagnostic {
+                            line: reference.comment_line,
+                            message,
+                        });
+                    }
                     (Some(_), Some(qualified_type))
                         if !checker.implements_trait("Meta", qualified_type) =>
                     {
@@ -4160,6 +4230,11 @@ fn resolve_meta_references_with_stmts_and_checker(
                 &mut ground_evaluator,
             );
             reference.static_value = reference.static_data.as_ref().map(MetaValue::to_source);
+            reference.value_binding_definitions = meta_binding_locations(
+                &BTreeSet::from([reference.binding_name.clone()]),
+                &bindings,
+                &checker.constructors,
+            );
             if reference.static_data.is_none() {
                 index.diagnostics.push(MetaDiagnostic {
                     line: reference.comment_line,

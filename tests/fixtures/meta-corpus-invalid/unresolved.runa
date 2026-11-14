@@ -1,3 +1,6 @@
-# Warning(message: String)
+# AuditWarning(message: String)
+# AuditRole(a) = Warning(value: a)
+# impl MetaRole for AuditRole {}
+# impl Meta for AuditRole {}
 
-@ meta(missing_warning) for missing_warning
+@ meta(Warning(value = missing_warning)) for missing_warning

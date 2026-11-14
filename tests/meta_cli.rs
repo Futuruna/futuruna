@@ -55,20 +55,30 @@ fn directory_meta_json_sweeps_typed_sources_recursively() {
         .as_str()
         .expect("first file")
         .ends_with("meta-corpus/alpha.runa"));
-    assert_eq!(files[0]["references"][0]["binding"], "circle_source");
-    assert_eq!(files[0]["references"][0]["type"], "Shape");
-    assert_eq!(files[0]["references"][0]["data"]["kind"], "constructor");
-    assert_eq!(files[0]["references"][0]["data"]["name"], "Circle");
-    assert_eq!(files[0]["references"][0]["data"]["applied"], false);
-    assert_eq!(files[0]["anchors"][0]["text_begin_marker_line"], 6);
-    assert_eq!(files[0]["anchors"][0]["text_end_marker_line"], 8);
-    assert_eq!(files[0]["anchors"][0]["text_start_line"], 7);
-    assert_eq!(files[0]["anchors"][0]["text_end_line"], 7);
+    // A role is a type: the source is written in the file's `MetaRole`
+    // wrapper, and the shape is its attachment.
+    let reference = &files[0]["references"][0];
+    assert_eq!(reference["binding"], "Source(value = circle_source)");
+    assert_eq!(reference["type"], "CorpusRole");
+    let source = &reference["attachments"][0];
+    assert_eq!(source["role"], "source");
+    assert_eq!(source["binding"], "circle_source");
+    assert_eq!(source["type"], "Shape");
+    assert_eq!(source["data"]["kind"], "constructor");
+    assert_eq!(source["data"]["name"], "Circle");
+    assert_eq!(source["data"]["applied"], false);
+    assert_eq!(source["definition_line"], 6);
+    assert_eq!(files[0]["anchors"][0]["target"]["name"], "circle_rule");
+    assert_eq!(files[0]["anchors"][0]["written"], "on_declaration");
+    assert_eq!(files[0]["spans"][0]["symbols"][0]["name"], "circle_rule");
     assert!(files[1]["file"]
         .as_str()
         .expect("second file")
         .ends_with("meta-corpus/nested/beta.runa"));
-    assert_eq!(files[1]["references"][0]["binding"], "square_source");
+    assert_eq!(
+        files[1]["references"][0]["attachments"][0]["binding"],
+        "square_source"
+    );
 }
 
 #[test]
@@ -224,18 +234,30 @@ fn directory_meta_json_sweeps_warning_roles() {
     assert_eq!(document["counts"]["files_scanned"], 2);
     assert_eq!(document["counts"]["files_returned"], 1);
     assert_eq!(document["counts"]["references"], 1);
-    assert_eq!(document["files"][0]["references"][0]["role"], "warning");
-    assert_eq!(document["files"][0]["references"][0]["type"], "Warning");
-    assert_eq!(
-        document["files"][0]["references"][0]["binding"],
-        "shape_warning"
-    );
-    let data = &document["files"][0]["references"][0]["data"];
+    assert_eq!(document["counts"]["attachments"], 1);
+    assert_eq!(document["counts"]["anchors"], 1);
+    let reference = &document["files"][0]["references"][0];
+    assert_eq!(reference["binding"], "Warning(value = shape_warning)");
+    assert_eq!(reference["type"], "CorpusRole");
+    let warning = &reference["attachments"][0];
+    assert_eq!(warning["role"], "warning");
+    assert_eq!(warning["type"], "ShapeWarning");
+    assert_eq!(warning["binding"], "shape_warning");
+    let data = &warning["data"];
     assert_eq!(data["kind"], "constructor");
-    assert_eq!(data["name"], "Warning");
+    assert_eq!(data["name"], "ShapeWarning");
     assert_eq!(data["arguments"][0]["field"], "message");
     assert_eq!(data["arguments"][0]["value"]["kind"], "string");
     assert_eq!(data["arguments"][0]["value"]["value"], "Review this shape");
+    // The anchor holds the declaration's warning, not its source.
+    let anchor_references = document["files"][0]["anchors"][0]["references"]
+        .as_array()
+        .expect("anchor references");
+    assert_eq!(anchor_references.len(), 1);
+    assert_eq!(
+        anchor_references[0]["binding"],
+        "Warning(value = shape_warning)"
+    );
 }
 
 #[test]
@@ -245,9 +267,12 @@ fn directory_meta_human_output_reports_a_collection_summary() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("meta collection:"));
-    assert!(
-        stdout.contains("reference square_rule role warning binding shape_warning type Warning")
-    );
+    assert!(stdout.contains(
+        "reference square_rule role meta binding Warning(value = shape_warning) type CorpusRole"
+    ));
+    assert!(stdout.contains(
+        "attachment $ role warning value ShapeWarning(message = \"Review this shape\") type ShapeWarning definition 8"
+    ));
     assert!(stdout.contains(
         "summary files scanned 2 returned 1 references 1 anchors 1 spans 1 diagnostics 0"
     ));
@@ -268,10 +293,18 @@ fn imported_meta_bindings_retain_types_values_and_definition_locations() {
     let references = document["references"].as_array().expect("references");
     assert_eq!(references.len(), 2);
 
-    let direct = references
-        .iter()
-        .find(|reference| reference["binding"] == "registry_source")
-        .expect("direct imported reference");
+    // Each imported binding is written in the `Source` wrapper; its
+    // attachment keeps the binding's type, value and definition.
+    let attachment = |binding: &str| {
+        references
+            .iter()
+            .find(|reference| reference["binding"] == format!("Source(value = {binding})"))
+            .unwrap_or_else(|| panic!("reference for {binding}"))["attachments"][0]
+            .clone()
+    };
+    let direct = attachment("registry_source");
+    assert_eq!(direct["role"], "source");
+    assert_eq!(direct["binding"], "registry_source");
     assert_eq!(direct["type"], "SourceInfo");
     assert_eq!(direct["data"]["name"], "SourceInfo");
     assert!(direct["definition_file"]
@@ -280,10 +313,9 @@ fn imported_meta_bindings_retain_types_values_and_definition_locations() {
         .ends_with("meta-imports/registry.runa"));
     assert_eq!(direct["definition_line"], 3);
 
-    let nested = references
-        .iter()
-        .find(|reference| reference["binding"] == "imported_source")
-        .expect("nested imported reference");
+    let nested = attachment("imported_source");
+    assert_eq!(nested["role"], "source");
+    assert_eq!(nested["binding"], "imported_source");
     assert_eq!(nested["type"], "SourceInfo");
     assert_eq!(nested["data"]["arguments"][0]["field"], "url");
     assert_eq!(

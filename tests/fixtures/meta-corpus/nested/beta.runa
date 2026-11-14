@@ -1,13 +1,16 @@
 # Shape = Circle | Triangle | Square
-# Warning(message: String)
+# ShapeWarning(message: String)
+# CorpusRole(a) = Source(value: a) | Warning(value: a)
+# impl MetaRole for CorpusRole {}
+# impl Meta for CorpusRole {}
 
 = square_source = Square
-= shape_warning = Warning(message = "Review this shape")
+= shape_warning = ShapeWarning(message = "Review this shape")
 
 ----
 Square source
 ----
 
-@ meta(square_source)
-@ meta(shape_warning)
+@ meta(Source(value = square_source))
+@ meta(Warning(value = shape_warning))
 | square_rule(shape: Shape) -> shape == Square
