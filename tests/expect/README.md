@@ -14,7 +14,7 @@ is expected:
 
 Supported directives:
 
-- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|emit-imports|meta|verify|audit|call|lint-library|lint-library-imports`
+- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|emit-imports|meta|verify|audit|call|migrate|lint-library|lint-library-imports`
 - `-- expect-status: pass|fail`
 - `-- expect-stdout: text that must appear on stdout`
 - `-- expect-stderr: text that must appear on stderr`
@@ -35,6 +35,9 @@ Use this suite for minimized compiler-facing contracts: diagnostics,
 pass-specific output, artifact contracts, and run/fail behavior. Artifact
 contracts live under `artifact/` and assert the emitted declarations they
 promise.
+The `migrate` command runs `runa fmt --migrate --check` on the case: its
+stderr lists what the migration rewrites and what it leaves, and the file is
+not written.
 The `emit-imports` command snapshots the normalized public import/export graph
 for import-boundary translation checks. Use `tests/canary/` for realistic
 multi-subsystem workflows and `tests/downstream/` for library-consumer

@@ -1,0 +1,20 @@
+-- `unknown` is a reserved word in 0.5: `runa fmt --migrate` renames it to
+-- `unknown_` wherever the program uses it as a name (a field, a binding, a
+-- parameter, a use), and reports each rename. Text in strings and comments
+-- is not a name.
+-- expect-command: migrate
+-- expect-status: fail
+-- expect-stderr: :12: renamed `unknown` to `unknown_`: `unknown` is a reserved word in 0.5
+-- expect-stderr: :14: renamed `unknown` to `unknown_`
+-- expect-stderr: :16: renamed `unknown` to `unknown_`
+-- expect-stderr: :18: renamed `unknown` to `unknown_`
+-- expect-stderr-not: :20:
+# Reading(unknown: Int)
+
+= unknown = 3
+
+| scaled(unknown: Int) -> unknown * 2
+
+| total(r: Reading) -> r.unknown + scaled(unknown)
+
+= note = "an unknown reading"

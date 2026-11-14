@@ -10445,6 +10445,9 @@ enum ExpectCommand {
     LintLibraryImports,
     Audit,
     Call,
+    /// `runa fmt --migrate --check`: what the migration rewrites and lists,
+    /// without writing the file.
+    Migrate,
 }
 
 impl ExpectCommand {
@@ -10463,8 +10466,9 @@ impl ExpectCommand {
             "lint-library-imports" => Ok(Self::LintLibraryImports),
             "audit" => Ok(Self::Audit),
             "call" => Ok(Self::Call),
+            "migrate" => Ok(Self::Migrate),
             other => Err(format!(
-                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, emit-imports, meta, verify, audit, call, lint-library, or lint-library-imports",
+                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, emit-imports, meta, verify, audit, call, migrate, lint-library, or lint-library-imports",
                 other
             )),
         }
@@ -10485,6 +10489,7 @@ impl ExpectCommand {
             Self::LintLibraryImports => "lint-library-imports",
             Self::Audit => "audit",
             Self::Call => "call",
+            Self::Migrate => "migrate",
         }
     }
 
@@ -10528,6 +10533,9 @@ impl ExpectCommand {
             }
             Self::Call => {
                 cmd.arg("call").arg(file);
+            }
+            Self::Migrate => {
+                cmd.arg("fmt").arg("--migrate").arg("--check").arg(file);
             }
         }
     }
@@ -20807,10 +20815,12 @@ fn migration_root(file: &Path) -> PathBuf {
 }
 
 /// `runa fmt --migrate`: rewrite the retired comment directives of every
-/// file as annotations, then format it. A file the migration cannot rewrite
-/// is left unchanged and its reasons are listed.
+/// file as annotations, then format it; rewrite string `entry`/`subject`
+/// field metadata as `refof`/`pathof` and rename `unknown`, reserved in 0.5,
+/// to `unknown_`. A file the migration cannot rewrite is left unchanged and
+/// its reasons are listed; so is metadata it cannot rewrite.
 fn migrate_targets(targets: &[String], check: bool) {
-    use futuruna::migrate::{add_document_impl, migrate_source, MigrationProgram};
+    use futuruna::migrate::{add_document_impl, migrate_needs, migrate_source, MigrationProgram};
     let mut files = Vec::new();
     for target in targets {
         if Path::new(target).is_dir() {
@@ -20833,39 +20843,72 @@ fn migrate_targets(targets: &[String], check: bool) {
                 continue;
             }
         };
-        if !source.lines().any(|line| line.trim_start().starts_with("--@")) {
+        let directives = source
+            .lines()
+            .any(|line| line.trim_start().starts_with("--@"));
+        if !directives
+            && !source.contains("unknown")
+            && !(source.contains("entry") && source.contains("subject"))
+        {
             continue;
         }
         let root = migration_root(Path::new(path));
         let program = programs
             .entry(root.clone())
             .or_insert_with(|| MigrationProgram::scan(&root));
-        let result = match migrate_source(&source, program) {
-            Ok(result) => result,
-            Err(errors) => {
-                for error in errors {
-                    eprintln!("{path}:{error}");
+        let result = if directives {
+            match migrate_source(&source, program) {
+                Ok(result) => Some(result),
+                Err(errors) => {
+                    for error in errors {
+                        eprintln!("{path}:{error}");
+                    }
+                    failed += 1;
+                    continue;
                 }
-                failed += 1;
-                continue;
             }
+        } else {
+            None
         };
-        let formatted = match checked_format_runa_source(&result.source) {
-            Ok(formatted) => formatted,
-            Err(error) => {
-                eprintln!("{path}: the migrated file does not format: {error}; file unchanged");
-                failed += 1;
-                continue;
+        let needs = migrate_needs(
+            result
+                .as_ref()
+                .map_or(source.as_str(), |result| result.source.as_str()),
+            Path::new(path),
+            program,
+        );
+        for listed in &needs.listed {
+            eprintln!("{path}:{listed}");
+        }
+        // Only the directive rewrite moves code; the 0.5 rewrites replace
+        // single tokens and keep the file's layout.
+        let formatted = if result.is_some() {
+            match checked_format_runa_source(&needs.source) {
+                Ok(formatted) => formatted,
+                Err(error) => {
+                    eprintln!("{path}: the migrated file does not format: {error}; file unchanged");
+                    failed += 1;
+                    continue;
+                }
             }
+        } else if needs.source != source {
+            needs.source.clone()
+        } else {
+            continue;
         };
-        for note in &result.notes {
+        for note in result.iter().flat_map(|result| &result.notes) {
             eprintln!("{path}: {note}");
         }
-        missing_impls.extend(program.missing_document_impls(
-            &result.document_constructors,
-            Path::new(path),
-            &source,
-        ));
+        for rewritten in &needs.rewritten {
+            eprintln!("{path}:{rewritten}");
+        }
+        if let Some(result) = &result {
+            missing_impls.extend(program.missing_document_impls(
+                &result.document_constructors,
+                Path::new(path),
+                &source,
+            ));
+        }
         migrated += 1;
         if check {
             eprintln!("{path} needs migration");
