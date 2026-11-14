@@ -596,7 +596,6 @@ export type SourceReference = {
   label: string;
   role: string;
   binding: string;
-  attachmentPath?: string | undefined;
   type?: string | undefined;
   value?: string | undefined;
   data?: unknown;
@@ -609,7 +608,6 @@ export const SourceReferenceSchema: z.ZodType<SourceReference> = z
     label: z.string(),
     role: z.string(),
     binding: z.string(),
-    attachmentPath: z.string().optional(),
     type: z.string().optional(),
     value: z.string().optional(),
     data: z.unknown().optional(),
@@ -811,8 +809,7 @@ export function queryResultSchema<R, N extends Need>(
   ]);
 }
 
-/** Wire names of the result's and sources' fields that differ in TypeScript. */
-const SOURCE_NAMES: { readonly [wireName: string]: string } = { attachment_path: "attachmentPath" };
+/** Wire names of the result's fields that differ in TypeScript. */
 const RESULT_NAMES: { readonly [wireName: string]: string } = { unused_paths: "unusedPaths" };
 
 function renamed(
@@ -858,10 +855,6 @@ function needFromWire(entry: CalculationEntry, wireCase: unknown, need: unknown)
   }
   const subject = need["subject"];
   if (typeof subject === "string") translated["subject"] = fromWirePath(entry.input, wireCase, subject);
-  const sources = need["sources"];
-  if (Array.isArray(sources)) {
-    translated["sources"] = sources.map((source: unknown) => (isObject(source) ? renamed(source, SOURCE_NAMES) : source));
-  }
   const keys = need["keys"];
   if (Array.isArray(keys)) translated["keys"] = keys.map((key: unknown) => elementKeyFromWire(entry, wireCase, key));
   return translated;

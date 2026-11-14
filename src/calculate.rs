@@ -159,13 +159,17 @@ pub struct CalculationTypeDefinition {
     pub key: Option<String>,
 }
 
+/// One metadata value that holds for a calculation: its target (`label`,
+/// a section or declaration), role and value. Where and how it is written
+/// (a metadata binding, an inline `@ meta`, a quote's role, its position in
+/// a list) is not part of it; `runa meta` reports that.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CalculationMetadataReference {
     pub label: String,
     pub role: String,
+    /// The binding the value is, as in `Source(value = aktiesparekontoloven)`;
+    /// empty for a value written as a literal.
     pub binding: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub attachment_path: Option<String>,
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub qualified_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -2625,11 +2629,16 @@ fn contract_definition(name: &str, catalog: &TypeCatalog) -> Option<CalculationT
     })
 }
 
+/// The metadata of the targets (sections and declarations) a calculation
+/// reaches: a target whose code the calculation reaches, or one of whose
+/// values names a type it reaches, contributes all of its values. Each value
+/// is listed once, ordered by target, role, binding and value, so the list
+/// depends on what holds, not on how or where it is written.
 fn contract_metadata(
     index: &MetaIndex,
     relevant_names: &BTreeSet<String>,
 ) -> Vec<CalculationMetadataReference> {
-    let relevant_labels: BTreeSet<String> = index
+    let mut relevant_labels: BTreeSet<&str> = index
         .spans
         .iter()
         .filter(|span| {
@@ -2637,32 +2646,43 @@ fn contract_metadata(
                 .iter()
                 .any(|symbol| relevant_names.contains(&symbol.name))
         })
-        .map(|span| span.label.clone())
+        .map(|span| span.label.as_str())
         .collect();
-
-    let mut result = Vec::new();
     for anchor in &index.anchors {
-        let label_relevant = relevant_labels.contains(&anchor.label);
-        for reference in &anchor.references {
-            let type_relevant = reference
+        let type_relevant = anchor.references.iter().any(|reference| {
+            reference
                 .qualified_type
                 .as_ref()
                 .is_some_and(|name| relevant_names.contains(name))
                 || reference
                     .typed_values()
                     .iter()
-                    .any(|value| relevant_names.contains(value.qualified_type));
-            if !label_relevant && !type_relevant {
-                continue;
-            }
-            let symbols = index
-                .spans_for_label(&anchor.label)
-                .into_iter()
-                .flat_map(|span| span.symbols.iter().map(|symbol| symbol.name.clone()))
-                .collect();
-            result.extend(calculation_metadata_references(anchor, reference, symbols));
+                    .any(|value| relevant_names.contains(value.qualified_type))
+        });
+        if type_relevant {
+            relevant_labels.insert(&anchor.label);
         }
     }
+
+    let mut result = Vec::new();
+    for anchor in &index.anchors {
+        if !relevant_labels.contains(anchor.label.as_str()) {
+            continue;
+        }
+        let symbols: Vec<String> = index
+            .spans_for_label(&anchor.label)
+            .into_iter()
+            .flat_map(|span| span.symbols.iter().map(|symbol| symbol.name.clone()))
+            .collect();
+        for reference in &anchor.references {
+            result.extend(calculation_metadata_references(anchor, reference, symbols.clone()));
+        }
+    }
+    result.sort_by(|left, right| {
+        (&left.label, &left.role, &left.binding, &left.value)
+            .cmp(&(&right.label, &right.role, &right.binding, &right.value))
+    });
+    result.dedup();
     result
 }
 
@@ -2677,12 +2697,7 @@ fn calculation_metadata_references(
             .into_iter()
             .filter(|attachment| attachment.role != "field")
             .map(|attachment| {
-                calculation_metadata_attachment_reference(
-                    anchor,
-                    reference,
-                    symbols.clone(),
-                    attachment,
-                )
+                calculation_metadata_attachment_reference(anchor, symbols.clone(), attachment)
             })
             .collect();
     }
@@ -2691,28 +2706,13 @@ fn calculation_metadata_references(
 
 fn calculation_metadata_attachment_reference(
     anchor: &MetaAnchor,
-    reference: &MetaReference,
     symbols: Vec<String>,
     attachment: MetaRoleValue<'_>,
 ) -> CalculationMetadataReference {
     CalculationMetadataReference {
         label: anchor.label.clone(),
         role: attachment.role,
-        binding: attachment
-            .binding_name
-            .map(str::to_string)
-            .unwrap_or_else(|| {
-                format!(
-                    "{}{}",
-                    reference.binding_name,
-                    attachment.value_path.trim_start_matches('$')
-                )
-            }),
-        attachment_path: Some(format!(
-            "{}{}",
-            reference.binding_name,
-            attachment.attachment_path.trim_start_matches('$')
-        )),
+        binding: attachment.binding_name.unwrap_or_default().to_string(),
         qualified_type: attachment.value.qualified_type().map(str::to_string),
         value: Some(attachment.value.to_source()),
         data: Some(calculation_meta_value_json(attachment.value)),
@@ -2729,8 +2729,7 @@ fn calculation_metadata_reference(
     CalculationMetadataReference {
         label: anchor.label.clone(),
         role: reference.role.clone(),
-        binding: reference.binding_name.clone(),
-        attachment_path: None,
+        binding: reference.named_binding().unwrap_or_default().to_string(),
         qualified_type: reference.qualified_type.clone(),
         value: reference.static_value.clone(),
         data: reference
@@ -3616,15 +3615,10 @@ fn declared_field_source(
                 binding, index
             ))
         })?;
-    let attachment_path = format!("{}.sources[{}]", binding, index);
     Ok(CalculationMetadataReference {
         label: type_name.to_string(),
         role: attachment.role,
-        binding: attachment
-            .binding_name
-            .map(str::to_string)
-            .unwrap_or_else(|| format!("{}.value", attachment_path)),
-        attachment_path: Some(attachment_path),
+        binding: attachment.binding_name.unwrap_or_default().to_string(),
         qualified_type: attachment.value.qualified_type().map(str::to_string),
         value: Some(attachment.value.to_source()),
         data: Some(calculation_meta_value_json(attachment.value)),
@@ -3828,12 +3822,7 @@ fn calculation_scoped_metadata_references(
                 .max_by_key(|typed_value| typed_value.value_path.len())
                 .map(|typed_value| typed_value.value_path.clone())
                 .unwrap_or_else(|| "$".to_string());
-            let source = calculation_metadata_attachment_reference(
-                anchor,
-                reference,
-                Vec::new(),
-                attachment,
-            );
+            let source = calculation_metadata_attachment_reference(anchor, Vec::new(), attachment);
             (scope_path, source)
         })
         .collect()

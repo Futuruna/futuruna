@@ -457,7 +457,7 @@ impl ExplainRenderer {
                 if roles.is_empty() {
                     attachments.push(serde_json::json!({
                         "role": reference.role,
-                        "binding": reference.binding_name,
+                        "binding": reference.named_binding(),
                         "value": reference.static_data.as_ref().map(meta_value_data),
                     }));
                 }
@@ -475,6 +475,16 @@ impl ExplainRenderer {
                     attachments.push(JsonValue::Object(attachment));
                 }
             }
+            // What holds, in one order however it is written: by role,
+            // binding and value, each once.
+            attachments.sort_by_cached_key(|attachment| {
+                (
+                    attachment["role"].as_str().unwrap_or_default().to_string(),
+                    attachment["binding"].as_str().unwrap_or_default().to_string(),
+                    attachment["value"].to_string(),
+                )
+            });
+            attachments.dedup();
             if anchor.kind != "section" {
                 item_attachments
                     .entry(anchor.label.clone())

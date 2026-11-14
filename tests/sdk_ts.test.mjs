@@ -448,7 +448,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
     input: sdk.recordCodec({ bookedOn: ['booked_on', sdk.isoDateCodec], kind: ['kind', sdk.enumCodec],
       openingPositions: ['opening_positions', positions] }),
     patterns: ['bookedOn', 'openingPositions[]', 'openingPositions[].isin', 'openingPositions[].valueOre'] };
-  const sources = [{ label: 'law', role: 'source', binding: 'b', attachment_path: 'law.pdf' }];
+  const sources = [{ label: 'law', role: 'source', binding: 'b' }];
   const act = { title: 'aktiesparekontoloven', identifier: 'LBK nr. 281 af 2025' };
   const cited = [{ rule: 'r', section: 'ask', paragraphs: [{ paragraph: '§ 16', source: 'sources/01.txt', act }] }];
   const needsQuery = await sdk.queryEntry(needing([
@@ -459,7 +459,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   { openingPositions: [{}, { isin: 'DK0060534915' }] });
   assert.deepEqual(needsQuery, { $variant: 'Needs', needs: [
     { kind: 'fact', path: 'bookedOn', pattern: 'bookedOn', label: 'Booking date',
-      sources: [{ label: 'law', role: 'source', binding: 'b', attachmentPath: 'law.pdf' }], waiting: cited },
+      sources, waiting: cited },
     { kind: 'fact', path: 'openingPositions[1].valueOre', pattern: 'openingPositions[].valueOre', waiting,
       keys: [{ path: 'openingPositions[1]', field: 'isin', value: 'DK0060534915' }] },
   ], later: [{ kind: 'fact', path: 'openingPositions[0].isin', pattern: 'openingPositions[].isin', waiting }] });

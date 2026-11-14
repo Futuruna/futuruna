@@ -2572,6 +2572,14 @@ pub struct MetaReference {
 }
 
 impl MetaReference {
+    /// The binding the metadata value is, when it is written as a binding's
+    /// name; `None` for a value written inline (`@ meta(Note(text = "..."))`).
+    pub fn named_binding(&self) -> Option<&str> {
+        parse_meta_value_expression(&self.binding_name)
+            .is_none()
+            .then_some(self.binding_name.as_str())
+    }
+
     pub fn typed_values(&self) -> Vec<MetaTypedValue<'_>> {
         self.static_data
             .as_ref()

@@ -258,7 +258,6 @@ mod tests {
             label: "law".into(),
             role: "source".into(),
             binding: "source".into(),
-            attachment_path: Some("root.attachments[0]".into()),
             qualified_type: Some("SourceInfo".into()),
             value: Some("complete value".into()),
             data: Some(json!({"url":"https://example.invalid", "section": 3})),
@@ -266,7 +265,7 @@ mod tests {
             symbols: vec!["input".into()],
         };
         let mut alternate = source.clone();
-        alternate.attachment_path = Some("other.attachments[0]".into());
+        alternate.binding = "other".into();
         let field = |path: &str, sources| CalculationFieldMetadata {
             path: path.into(),
             label: path.into(),

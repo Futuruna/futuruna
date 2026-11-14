@@ -618,10 +618,12 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
     // The spans that become sections: (begin, end, label).
     let mut section_spans: Vec<(usize, usize, String)> = Vec::new();
 
-    // Spans that enclose the same code (their `--@begin` lines adjacent and
-    // their `--@end` lines adjacent) implement several passages together:
-    // one section, named by the outermost, holding all their quotes and
-    // metadata. Sections do not nest.
+    // Spans that enclose the same code (only directives between their
+    // `--@begin` lines and between their `--@end` lines) implement several
+    // passages together: one section, holding all their quotes and
+    // metadata. Sections do not nest. It is named by the innermost label,
+    // the section the code's rules belonged to (the innermost span around a
+    // line was its section), so no rule changes section.
     let only_directives = |range: std::ops::Range<usize>| {
         range.into_iter().all(|line| {
             let trimmed = lines[line].trim();
@@ -631,7 +633,8 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
     let mut by_begin: Vec<(String, (usize, usize))> =
         spans.iter().map(|(label, span)| (label.clone(), *span)).collect();
     by_begin.sort_by_key(|(_, (begin, _))| *begin);
-    let mut outer_of: BTreeMap<String, String> = BTreeMap::new();
+    // The span directly inside each span that marks the same code.
+    let mut same_inner: BTreeMap<String, String> = BTreeMap::new();
     for (position, (inner, (inner_begin, inner_end))) in by_begin.iter().enumerate() {
         let Some((outer, (outer_begin, outer_end))) = by_begin[..position]
             .iter()
@@ -641,32 +644,44 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
             continue;
         };
         if only_directives(outer_begin + 1..*inner_begin) && only_directives(inner_end + 1..*outer_end) {
-            let root = outer_of.get(outer).cloned().unwrap_or_else(|| outer.clone());
-            outer_of.insert(inner.clone(), root);
+            same_inner.insert(outer.clone(), inner.clone());
         }
     }
-    for (inner, outer) in &outer_of {
-        let Some((begin, end)) = spans.remove(inner) else {
+    let mut joins: Vec<(String, String)> = Vec::new();
+    for outer in same_inner.keys() {
+        let mut innermost = outer;
+        while let Some(inner) = same_inner.get(innermost) {
+            innermost = inner;
+        }
+        joins.push((outer.clone(), innermost.clone()));
+    }
+    // Innermost enclosing span first, so each join puts the next enclosing
+    // label's values before those already joined.
+    joins.sort_by_key(|(outer, _)| std::cmp::Reverse(spans.get(outer).map(|(begin, _)| *begin)));
+    for (outer, innermost) in &joins {
+        let Some((begin, end)) = spans.remove(outer) else {
             continue;
         };
         removed.insert(begin);
         removed.insert(end);
-        anchor_order.retain(|label| label != inner);
-        if let Some(merged) = anchors.remove(inner) {
-            match anchors.get_mut(outer) {
+        anchor_order.retain(|label| label != outer);
+        if let Some(merged) = anchors.remove(outer) {
+            match anchors.get_mut(innermost) {
                 Some(anchor) => {
                     anchor.lines.extend(merged.lines);
-                    anchor.attrs.extend(merged.attrs);
+                    // The enclosing label's values stand first, as written.
+                    let inner_attrs = std::mem::replace(&mut anchor.attrs, merged.attrs);
+                    anchor.attrs.extend(inner_attrs);
                     anchor.quotes.extend(merged.quotes);
                 }
                 None => {
-                    anchor_order.push(outer.clone());
-                    anchors.insert(outer.clone(), merged);
+                    anchor_order.push(innermost.clone());
+                    anchors.insert(innermost.clone(), merged);
                 }
             }
         }
         notes.push(format!(
-            "`{inner}` joins section `{outer}`: they mark the same code, and sections do not nest"
+            "`{outer}` joins section `{innermost}`: they mark the same code, sections do not nest, and the code's rules belonged to `{innermost}`, the innermost"
         ));
     }
     for anchor in anchors.values_mut() {
@@ -1149,9 +1164,9 @@ Guide text.
         let migrated = migrate_source(source, &MigrationProgram::default()).unwrap();
         assert_eq!(
             migrated.source.trim_start(),
-            "----\nBase.\n\nAmended.\n\nMore base.\n----\n\n@ meta(base_meta)\n@ meta(amended_meta)\n@ section base {\n\n| f(x: Int) -> x\n\n}\n"
+            "----\nBase.\n\nAmended.\n\nMore base.\n----\n\n@ meta(base_meta)\n@ meta(amended_meta)\n@ section amended {\n\n| f(x: Int) -> x\n\n}\n"
         );
-        assert!(migrated.notes.iter().any(|note| note.contains("`amended` joins section `base`")));
+        assert!(migrated.notes.iter().any(|note| note.contains("`base` joins section `amended`")));
     }
 
     #[test]

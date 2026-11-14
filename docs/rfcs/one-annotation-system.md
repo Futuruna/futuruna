@@ -552,12 +552,18 @@ Details the design above leaves open, as implemented:
 - **Spans around the same code are one section.** Old models marked code
   that implements several passages (a consolidated act and the acts that
   amended it) with nested `--@begin`/`--@end` pairs around the same lines.
-  The migration makes them one section, named by the outermost label, whose
-  quotes and metadata are those of all the labels, and reports each label
-  that joined; a label with two quotes likewise becomes one section with two
-  quotes.
-- **Paragraph numbers compare without case**: `§ 8 a` and `§ 8 A` are the
-  same paragraph; a citation is shown as written.
+  The migration makes them one section whose quotes and metadata are those
+  of all the labels, and reports each label that joined; a label with two
+  quotes likewise becomes one section with two quotes. The section is named
+  by the innermost label: the innermost span around a line was the section
+  its rules belonged to in explanations and needs, so no rule changes
+  section. A span inside another around code of its own moves to just
+  after the enclosing section, which keeps every rule in the section it
+  belonged to.
+- **Paragraph letters are capitals**: `§ 8 a`, `§ 8 A` and `§ 8a` are the
+  same paragraph and are shown as `§ 8 A` in explanations, needs and
+  messages, as before the annotations; a change of spelling changes no
+  result.
 - **Sentences.** Besides a capital letter, a sentence may open with an
   ordinal (`1. og 2. pkt. gælder ...`). The abbreviations are `kr.`, `pct.`,
   `stk.`, `nr.`, `pkt.`, `jf.`, `m.v.`, `f.eks.` and `bl.a.`; a `pct.` that
@@ -573,7 +579,29 @@ Details the design above leaves open, as implemented:
 - **Explanations** keep the `[<file>]` line before each document's text in
   a section's `quote`, so the text reads as before; sections add `documents`
   (binding, file, role) and, when an instruction amends a quoted base
-  passage, `superseded`.
+  passage, `superseded`. A section's or item's `attachments` are listed by
+  role, binding and value, each once, whether a role is written on a quote,
+  inline or in a metadata binding.
+- **The contract records what holds, not where it is written.** Its
+  `metadata` list has one entry per value that holds for a target the
+  calculation reaches: the target (`label`, a section or declaration), the
+  role, the value's binding (empty for a literal), its type, value and data,
+  and the target's quoted text and symbols, ordered by target, role,
+  binding and value, each once. A target contributes all its values when
+  its code is reached or any of its values names a reached type, so moving
+  a role from a metadata binding onto a quote cannot drop it.
+  `attachment_path` (`ask_year_rounding_meta.attachments[0]`) said where a
+  value was written; nothing but tooling read it, so it left the contract,
+  field metadata sources and needs, and stays in `runa meta`
+  (`path`, `role_path`, `value_path`). The schema hash therefore changes
+  once, for contracts with metadata roles or field sources, and then no
+  more with notation: a contract of an old-syntax model, put in this form,
+  is byte for byte the contract of its migration (tax-service:
+  `aktiesparekonto_year` 1b461f… → c4af60…, `tax_report` f24937… →
+  b34ee1…, `aktiesparekonto_report` unchanged 6c37f1…). Field metadata
+  keeps its provenance (`anchor`, `binding`, see
+  [Field metadata](field-metadata.md#contract-equivalence)): every spelling
+  of an annotation (on the declaration, `for`, the old label) gives the same.
 - **`runa meta --json`** writes `futuruna.meta.v2`: every anchor names its
   `target` (`kind`: `section`, `type`, `binding`, `function`, `rule` or
   `member`, and `name`).

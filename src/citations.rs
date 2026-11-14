@@ -70,20 +70,15 @@ impl CitationRef {
         label
     }
 
-    /// The passage, without document or amendment; a paragraph's letter
-    /// compares without case (`§ 8 a` is `§ 8 A`).
-    fn passage(&self) -> (String, Option<u32>, Option<u32>, Option<u32>) {
-        (
-            self.section.to_lowercase(),
-            self.subsection,
-            self.item,
-            self.sentence,
-        )
+    /// The passage, without document or amendment (the paragraph number is
+    /// normalized, so `§ 8 a` is `§ 8 A`).
+    fn passage(&self) -> (&str, Option<u32>, Option<u32>, Option<u32>) {
+        (&self.section, self.subsection, self.item, self.sentence)
     }
 
     /// Whether this passage contains `other` and is not the same passage.
     fn contains(&self, other: &CitationRef) -> bool {
-        if !same_number(&self.section, &other.section) || self.passage() == other.passage() {
+        if self.section != other.section || self.passage() == other.passage() {
             return false;
         }
         // A paragraph's first subsection is its unnumbered opening: `§ 5,
@@ -244,7 +239,9 @@ fn parse_passage(text: &str) -> Option<CitationRef> {
     })
 }
 
-/// `9`, `16 A` or `8a` as written after `§`, normalized to `9`, `16 A`, `8 a`.
+/// `9`, `16 A`, `8 a` or `8a` as written after `§`, normalized to `9`,
+/// `16 A`, `8 A`: a paragraph's letter is shown as a capital, as
+/// explanations and needs always showed it.
 fn normalize_section_number(text: &str) -> Option<String> {
     let text = text.trim();
     let digits: String = text.chars().take_while(char::is_ascii_digit).collect();
@@ -255,15 +252,10 @@ fn normalize_section_number(text: &str) -> Option<String> {
     match suffix.chars().count() {
         0 => Some(digits),
         1 if suffix.chars().all(|c| c.is_ascii_alphabetic()) => {
-            Some(format!("{digits} {suffix}"))
+            Some(format!("{digits} {}", suffix.to_uppercase()))
         }
         _ => None,
     }
-}
-
-/// Whether two normalized paragraph numbers are the same: `8 a` is `8 A`.
-fn same_number(left: &str, right: &str) -> bool {
-    left.eq_ignore_ascii_case(right)
 }
 
 /// One quoted document's text in a section: its binding, file and
@@ -682,7 +674,7 @@ impl Quote {
     ) -> Option<std::ops::Range<usize>> {
         let mut found = None;
         for paragraph in &document.paragraphs {
-            if !same_number(&paragraph.number, &reference.section) {
+            if paragraph.number != reference.section {
                 continue;
             }
             let whole = reference.subsection.is_none()
@@ -896,7 +888,7 @@ impl Quote {
                 }
             }
             for amendment in &document.amendments {
-                if by.is_some_and(|by| !same_number(&by.paragraph, &amendment.number)) {
+                if by.is_some_and(|by| by.paragraph != amendment.number) {
                     continue;
                 }
                 for instruction in &amendment.instructions {
@@ -949,7 +941,7 @@ impl Quote {
                 && document
                     .paragraphs
                     .iter()
-                    .any(|paragraph| same_number(&paragraph.number, &reference.section))
+                    .any(|paragraph| paragraph.number == reference.section)
         });
         if let (Some(base), Some(amended_base)) = (base, amendment.base) {
             if let Some(identifier) = base
@@ -1409,13 +1401,13 @@ Stk. 3. Ophævet tekst.";
             .resolve(&parse_citation("§ 8 a, stk. 1, 1. pkt.").unwrap()[0])
             .unwrap_err();
         assert!(
-            plain.contains("LOV nr. 1691 af 30/12/2024 § 4, nr. 1 (quoted in this section) rewords this passage; cite `§ 8 a, stk. 1, 1. pkt. as amended`"),
+            plain.contains("LOV nr. 1691 af 30/12/2024 § 4, nr. 1 (quoted in this section) rewords this passage; cite `§ 8 A, stk. 1, 1. pkt. as amended`"),
             "{plain}"
         );
         let container = quote
             .resolve(&parse_citation("§ 8 a, stk. 1").unwrap()[0])
             .unwrap_err();
-        assert!(container.contains("contains § 8 a, stk. 1, 1. pkt."), "{container}");
+        assert!(container.contains("contains § 8 A, stk. 1, 1. pkt."), "{container}");
         assert!(quote
             .resolve(&parse_citation("§ 8 a, stk. 1, 2. pkt.").unwrap()[0])
             .is_ok());

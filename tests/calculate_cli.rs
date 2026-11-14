@@ -108,6 +108,82 @@ fn metadata_written_for_a_declaration_is_its_metadata() {
     assert_eq!(on_schema["schema_hash"], apart_schema["schema_hash"]);
 }
 
+/// The contract lists what metadata holds for a section, not how or where it
+/// is written: roles in a metadata binding, in either order, or on the quote
+/// and inline give one `metadata` list and one schema hash.
+#[test]
+fn section_metadata_is_one_contract_however_it_is_written() {
+    let directory = temp_path("dir");
+    std::fs::create_dir_all(directory.join("sources")).expect("create model directory");
+    std::fs::write(directory.join("sources/guide.md"), "Round to whole kroner.\n")
+        .expect("write guide");
+    let head = "# SourceInfo(file: String)\n\
+# impl Document for SourceInfo {}\n\
+# AssumptionInfo(id: String)\n\
+# Role(a) = Source(value: a) | Guidance(value: a) | Assumption(value: a)\n\
+# Metadata(a) = Metadata(attachments: a)\n\
+# impl MetaRole for Role {}\n\
+# impl Meta for Role {}\n\
+# impl Meta for Metadata {}\n\
+= guide = SourceInfo(file = \"sources/guide.md\")\n\
+= assumption_x = AssumptionInfo(id = \"X\")\n\
+# Input(x: Int)\n\
+# Result(value: Int)\n";
+    let section = |meta: &str, quote: &str| {
+        format!(
+            "{head}{meta}@ section rounding {{\n\n@ quote({quote})\n----\nRound to whole kroner.\n----\n\n@ calculate\n| calculate(input: Input) -> Result(value = input.x)\n\n}}\n"
+        )
+    };
+    let forms = [
+        section(
+            "= rounding_meta = Metadata(attachments = (Guidance(value = guide), Assumption(value = assumption_x)))\n@ meta(rounding_meta)\n",
+            "guide",
+        ),
+        section(
+            "= rounding_meta = Metadata(attachments = (Assumption(value = assumption_x), Guidance(value = guide)))\n@ meta(rounding_meta)\n",
+            "guide",
+        ),
+        section(
+            "@ meta(Assumption(value = assumption_x))\n",
+            "Guidance(value = guide)",
+        ),
+    ];
+    let schemas: Vec<Value> = forms
+        .iter()
+        .enumerate()
+        .map(|(index, source)| {
+            let path = directory.join(format!("form{index}.calculate.runa"));
+            std::fs::write(&path, source).expect("write form");
+            let output = run(&["schema", path.to_str().expect("source path")]);
+            assert!(
+                output.status.success(),
+                "stderr:\n{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            parse_stdout(&output)
+        })
+        .collect();
+    std::fs::remove_dir_all(&directory).ok();
+    let roles: Vec<(&str, &str)> = schemas[0]["metadata"]
+        .as_array()
+        .expect("metadata")
+        .iter()
+        .map(|entry| {
+            assert_eq!(entry["label"], "rounding");
+            assert!(entry.get("attachment_path").is_none());
+            (
+                entry["role"].as_str().expect("role"),
+                entry["binding"].as_str().expect("binding"),
+            )
+        })
+        .collect();
+    assert_eq!(roles, [("assumption", "assumption_x"), ("guidance", "guide")]);
+    for schema in &schemas[1..] {
+        assert_eq!(schema["metadata"], schemas[0]["metadata"]);
+        assert_eq!(schema["schema_hash"], schemas[0]["schema_hash"]);
+    }
+}
+
 fn fixture_facts() -> Value {
     serde_json::json!({
         "monthly_income": 0,
@@ -718,10 +794,8 @@ fn schema_expands_typed_aggregate_meta_into_field_metadata() {
     assert_eq!(fields[0]["sources"].as_array().expect("sources").len(), 1);
     assert_eq!(fields[0]["sources"][0]["role"], "source");
     assert_eq!(fields[0]["sources"][0]["binding"], "source");
-    assert_eq!(
-        fields[0]["sources"][0]["attachment_path"],
-        "calculation_meta.attachments[1]"
-    );
+    // Where a source is written is not part of the contract.
+    assert!(fields[0]["sources"][0].get("attachment_path").is_none());
     assert_eq!(fields[1]["path"], "monthly_income");
     assert_eq!(fields[1]["label"], "Monthly income");
     assert_eq!(fields[1]["binding"], "calculation_meta.fields[0]");
@@ -1332,17 +1406,10 @@ fn schema_scopes_sources_through_nested_typed_metadata() {
     assert_eq!(fields[0]["path"], "first");
     assert_eq!(fields[0]["sources"].as_array().expect("sources").len(), 1);
     assert_eq!(fields[0]["sources"][0]["binding"], "first_source");
-    assert_eq!(
-        fields[0]["sources"][0]["attachment_path"],
-        "calculation_meta.parts[0].attachments"
-    );
+    assert!(fields[0]["sources"][0].get("attachment_path").is_none());
     assert_eq!(fields[1]["path"], "second");
     assert_eq!(fields[1]["sources"].as_array().expect("sources").len(), 1);
     assert_eq!(fields[1]["sources"][0]["binding"], "second_source");
-    assert_eq!(
-        fields[1]["sources"][0]["attachment_path"],
-        "calculation_meta.parts[1].attachments"
-    );
 }
 
 #[test]
@@ -24819,7 +24886,7 @@ fn field_metadata_without_provenance(schema: &Value) -> Vec<Value> {
             if let Some(sources) = object.get_mut("sources") {
                 for source in sources.as_array_mut().expect("sources") {
                     let source = source.as_object_mut().expect("source object");
-                    for key in ["label", "attachment_path", "text", "symbols"] {
+                    for key in ["label", "text", "symbols"] {
                         source.remove(key);
                     }
                 }
@@ -24859,7 +24926,7 @@ fn schema_declared_field_metadata_equals_listed_field_metadata() {
     let source = &at("trades.amount_ore")["sources"][0];
     assert_eq!(source["role"], "source");
     assert_eq!(source["binding"], "tax_law");
-    assert_eq!(source["attachment_path"], "Trade::amount_ore.sources[0]");
+    assert!(source.get("attachment_path").is_none());
     assert_eq!(
         at("spouse_share_ore")["provided_by"],
         serde_json::json!({"entry": "spouse_share", "subject": "spouse"})
