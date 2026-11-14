@@ -8,6 +8,11 @@ feature_stage_surfaces:
 
 Status: Experimental
 
+Metadata attached to an entry or a type is written `@ meta(<value>)` on the
+line above it ([One annotation system](one-annotation-system.md)). This RFC
+first called that form the anchored list, written as a
+`--@label:<name>::meta:<binding>--` comment; the text below says `@ meta`.
+
 ## Summary
 
 A calculation's input fields carry interview metadata: a label, a question,
@@ -53,9 +58,10 @@ holding `trades: List(Trade)`, the declarations above give
 ## Non-goals
 
 - Changing the contract format or the schema fingerprint scheme.
-- Replacing the anchored metadata list. It remains the way to write metadata
-  that depends on where a type is used, metadata for one calculation entry,
-  metadata kept in a separate module, and groups of fields that share sources.
+- Replacing the `@ meta` list of field records. It remains the way to write
+  metadata that depends on where a type is used, metadata for one calculation
+  entry, metadata whose value is kept in a separate module, and groups of
+  fields that share sources.
 - Deriving labels from field names. A field without metadata keeps the
   deterministic humanized fallback.
 
@@ -88,18 +94,19 @@ Values are plain strings, not `Some(...)`: a key that does not apply is left
 out. A value may be any pure ground expression, resolved like a metadata
 binding in the program's flat import scope. A `sources` item is a value of a
 sum type that implements `MetaRole`; its variant names the role and its sole
-`value` field is the source, exactly as in anchored metadata attachments.
+`value` field is the source, exactly as in `@ meta` metadata attachments.
 
 ### Why this syntax
 
-Futuruna has two annotation forms: `@ name` before a declaration (`@ export`,
-`@ comptime`, `@ calculate("title")`) and `--@label:...::meta:binding--`
-comments that attach a typed metadata value to a label. The comment form names
-its target by a string label and lives outside the code it describes; that is
-the distance this RFC removes. `@ calculate("title")` already labels the
-declaration that follows it, so `@ field(label = "...")` labels the field that
-follows it, with the same reading order and no new punctuation. The keys are
-the contract's own field names, so the source and `runa schema` read alike.
+Futuruna has typed annotations that stand before what they describe:
+`@ export`, `@ comptime`, `@ calculate("title")` and `@ meta(<value>)`. When
+this RFC was written, metadata was attached by a
+`--@label:...::meta:binding--` comment that named its target by a string
+label and lived outside the code it describes; that is the distance this RFC
+removes. `@ calculate("title")` already labels the declaration that follows
+it, so `@ field(label = "...")` labels the field that follows it, with the
+same reading order and no new punctuation. The keys are the contract's own
+field names, so the source and `runa schema` read alike.
 
 The metadata needs no declared record type (`CalculationField`,
 `CalculationMeta`, `impl Meta`) and no `path`: the position is the path.
@@ -108,11 +115,11 @@ The metadata needs no declared record type (`CalculationField`,
 
 For each input path, the most specific metadata wins, whole:
 
-1. **Exact path for one calculation:** anchored metadata whose `path` is a
-   string, `pathof(...)`, or `refof(...)` rooted at the calculation's input
-   type.
+1. **Exact path for one calculation:** `@ meta` field records on the entry
+   whose `path` is a string, `pathof(...)`, or `refof(...)` rooted at the
+   calculation's input type.
 2. **A type's field, wherever the type occurs:** `@ field` on a field, or
-   anchored `refof(Type::field)` metadata.
+   `@ meta` field records with `refof(Type::field)` paths.
 3. **A type's default:** `@ field` on a type.
 
 The winner supplies every key; keys are not merged across levels, so the
@@ -159,7 +166,7 @@ pure ground data, a `sources` item that is not a `MetaRole` value, two
 declarations at the winning level for one path, and, for both forms, a
 provided field whose `subject` is not an input path holding the providing
 entry's input type. Metadata for a field that does not exist cannot be written
-with `@ field`; anchored exact paths keep their unknown-path errors.
+with `@ field`; exact paths in `@ meta` field records keep their unknown-path errors.
 
 ## Contract equivalence
 
@@ -184,11 +191,12 @@ semantic interface or its runtime behaviour.
 
 ## Alternatives considered
 
-- **Replace the anchored list entirely.** The list remains necessary for
-  metadata that depends on where a type is used (for example help that applies
-  to one calculation only), for metadata in a separate module, and for groups
-  of questions sharing sources. Keeping it as the exact-path level gives one
-  precedence rule instead of a second override syntax.
+- **Replace the `@ meta` field records entirely.** They remain necessary for
+  metadata that depends on where a type is used (for example help that
+  applies to one calculation only), for metadata values kept in a separate
+  module, and for groups of questions sharing sources. Keeping them as the
+  exact-path level gives one precedence rule instead of a second override
+  syntax.
 - **Merge keys across levels.** An exact path could add `help` to a declared
   `label`. Rejected: a reader would have to look in several places to know a
   field's metadata, and the contract's `binding` could no longer name its

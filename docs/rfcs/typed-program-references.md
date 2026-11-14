@@ -26,9 +26,13 @@ dependency graph.
     target = refof(calculate_tax)
 )
 
---@label:calculate_tax::meta:section_evidence--
+@ meta(section_evidence)
 | calculate_tax(income: Int) -> income / 2
 ```
+
+(The metadata was first attached with a `--@label:calculate_tax::meta:...--`
+comment; it is written `@ meta(...)` now, see
+[One annotation system](one-annotation-system.md).)
 
 The standard prelude defines:
 
@@ -37,16 +41,19 @@ The standard prelude defines:
     ProgramSymbolReference(name: String)
   | ProgramTypeReference(name: String)
   | ProgramMemberReference(root_type: String, path: String)
+  | ProgramSectionReference(name: String)
 ```
 
 ## Syntax and resolution
 
-Version 1 accepts three forms:
+Version 1 accepts three forms, and `refof(section <name>)` names an
+`@ section` of the file it stands in:
 
 ```runa
 refof(calculate_tax)
 refof(TaxInput)
 refof(TaxInput::household::children::age)
+refof(section ask_ceiling)
 ```
 
 A lower-case symbol target must resolve unambiguously to a rule, function, or

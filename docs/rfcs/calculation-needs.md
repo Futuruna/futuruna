@@ -8,6 +8,12 @@ feature_stage_surfaces:
 
 Status: Experimental
 
+Sections, quotes and citations are written with the annotations of
+[One annotation system](one-annotation-system.md) (`@ section`, `@ quote`,
+`@ cite`); this RFC first described them as the `--@label`,
+`--@begin`/`--@end` and `--@cite` comment directives, and its text is updated
+to the annotations.
+
 ## Summary
 
 A calculation case may leave facts out. `runa call --partial` evaluates such a
@@ -263,14 +269,12 @@ variants.
   time evaluation reads the unknown value, or a value computed from it, the
   rule families and named functions being evaluated form a stack (for a rule
   family, the clause being tried); every such stack counts, also inside
-  speculation. A frame's *section* is the section (between
-  `--@begin:<section>--` and `--@end:<section>--`) its clause, or function
-  body, is declared in, when the section's `--@label:<section>` anchor has a
-  `----` quote (an anchor that only carries metadata, such as an entry's
-  input guide, makes no section here); a *law section* is one whose quote
-  holds a `[sources/...]` document; a frame is *cited* when its clause, or the
-  rule's first clause when that clause cites none, or its function carries a
-  `--@cite` (see [Explanations](explanations.md)). Each stack names one
+  speculation. A frame's *section* is the `@ section <name> { ... }` its
+  clause, or function body, is declared in; every section counts, whether it
+  quotes a document or not. A *law section* is one that quotes a document
+  (`@ quote(<document>)`); a frame is *cited* when its clause, or the
+  rule's first clause when that clause cites none, or its function carries an
+  `@ cite` (see [Explanations](explanations.md)). Each stack names one
   consumer: its innermost cited frame of a law section; without one, its
   innermost frame of a law section; then of any section (a section of input
   checks, say); then its innermost rule family. `waiting` lists the consumers
@@ -282,16 +286,19 @@ variants.
   - `rule`: the rule or function;
   - `section`: its section, omitted for a frame in no section;
   - `paragraphs`: the paragraphs its clause or function cites, each with its
-    `paragraph` label (`§ 9, stk. 3`), the quoted `source` document it was
-    found in, and that document's `act`; omitted when nothing is cited;
+    `paragraph` label (`§ 9, stk. 3`), the file of the quoted document it was
+    found in (`source`), that document's `act`, and, for a passage cited
+    `as amended`, `as_amended_by`: the amending act (`act`), its paragraph and
+    instruction (`paragraph`, as `§ 4, nr. 1`) and the instruction line
+    (`instruction`); omitted when nothing is cited;
 - `act`: the act a quoted document is, read from the document's header: a
   block of `Key: value` lines between a first line `---` and the next `---`,
   whose `Title:` gives `title` (required), `Document identifier:` gives
   `identifier` and `Human-readable URL:` (else `URL:`) gives `url`. The
-  document is found at its `[sources/...]` path beside the model file, or in
-  the nearest directory above it that holds it; a document without such a
-  header has no `act`. In the WebAssembly engine the document must be among
-  the model's provided sources (its header suffices);
+  document is found at its `Document` binding's `file` path beside the model
+  file, or in the nearest directory above it that holds it; a document
+  without such a header has no `act`. In the WebAssembly engine the
+  document must be among the model's provided sources (its header suffices);
 - `entry`, `subject` (entry needs only): the calculation entry that provides
   the value, and the input path of the subject it runs for.
 

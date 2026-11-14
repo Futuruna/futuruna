@@ -38,6 +38,11 @@
           "end": "-{4,}"
         },
         {
+          "comment": "Retired --@ comment directives: errors since 0.4; `runa fmt --migrate` rewrites them as annotations",
+          "name": "invalid.deprecated.directive.runa",
+          "match": "--@(?:label|begin|end|cite|source|meta)\\b.*$"
+        },
+        {
           "name": "comment.line.double-dash.runa",
           "match": "--.*$"
         }
@@ -86,6 +91,45 @@
     },
     "annotations": {
       "patterns": [
+        {
+          "comment": "@ section name { — a block of top-level items implementing one passage",
+          "match": "^(@)\\s+(section)\\s+(\\w+)\\s*(\\{)",
+          "captures": {
+            "1": { "name": "keyword.operator.annotation.runa" },
+            "2": { "name": "keyword.control.annotation.runa" },
+            "3": { "name": "entity.name.section.runa" },
+            "4": { "name": "punctuation.section.block.begin.runa" }
+          }
+        },
+        {
+          "comment": "@ cite(§ 9, stk. 3; § 8 a, stk. 1, 1. pkt. as amended) — legal citation text, not expressions",
+          "begin": "(@)\\s+(cite)\\s*(\\()",
+          "beginCaptures": {
+            "1": { "name": "keyword.operator.annotation.runa" },
+            "2": { "name": "keyword.control.annotation.runa" },
+            "3": { "name": "punctuation.section.parens.begin.runa" }
+          },
+          "end": "\\)",
+          "endCaptures": {
+            "0": { "name": "punctuation.section.parens.end.runa" }
+          },
+          "name": "meta.annotation.cite.runa",
+          "contentName": "string.unquoted.citation.runa",
+          "patterns": [
+            {
+              "name": "keyword.other.citation.runa",
+              "match": "§|\\b(?:as\\s+amended(?:\\s+by)?|in)\\b"
+            }
+          ]
+        },
+        {
+          "comment": "@ quote(document), @ meta(value)",
+          "match": "(@)\\s+(quote|meta)\\s*(?=\\()",
+          "captures": {
+            "1": { "name": "keyword.operator.annotation.runa" },
+            "2": { "name": "keyword.control.annotation.runa" }
+          }
+        },
         {
           "comment": "@ import, @ depend, @ use, @ comptime",
           "match": "(@)\\s+(import|depend|use|comptime)\\b",

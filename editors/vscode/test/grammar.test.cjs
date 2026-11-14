@@ -123,3 +123,26 @@ test('existing match arms, pipes and line comments retain their scopes', () => {
   has(rows, 3, 'comment', 'comment.line.double-dash.runa');
   has(rows, 4, 'løn', 'entity.name.function.rule.runa');
 });
+
+test('annotations that describe code have their own scopes', () => {
+  const rows = tokenize([
+    '@ section ask_ceiling {',
+    '@ quote(Source(value = aktiesparekontoloven))',
+    '@ cite(§ 8 a, stk. 1, 1. pkt. as amended; § 1 in bek_19_2024)',
+    '| levy(x) -> x',
+    '@ meta(note)',
+    '--@cite:§ 9--',
+  ].join('\n'));
+  has(rows, 0, '@', 'keyword.operator.annotation.runa');
+  has(rows, 0, 'section', 'keyword.control.annotation.runa');
+  has(rows, 0, 'ask_ceiling', 'entity.name.section.runa');
+  has(rows, 1, 'quote', 'keyword.control.annotation.runa');
+  has(rows, 2, 'cite', 'keyword.control.annotation.runa');
+  has(rows, 2, 'stk', 'string.unquoted.citation.runa');
+  has(rows, 2, '1. pkt', 'string.unquoted.citation.runa');
+  has(rows, 2, 'as amended', 'keyword.other.citation.runa');
+  has(rows, 2, 'bek_19_2024', 'string.unquoted.citation.runa');
+  has(rows, 3, 'levy', 'entity.name.function.rule.runa');
+  has(rows, 4, 'meta', 'keyword.control.annotation.runa');
+  has(rows, 5, '--@cite', 'invalid.deprecated.directive.runa');
+});

@@ -1,3 +1,9 @@
+---
+feature_stage: experimental
+feature_stage_surfaces:
+  - annotations
+---
+
 # RFC: One annotation system
 
 Status: Implemented (Futuruna 0.4, Experimental). Replaces the `--@` comment
@@ -16,7 +22,7 @@ Futuruna attaches facts about code in two ways that do not know each other.
   that name's quote, `[sources/<file>]` lines inside the quote name its
   documents, `--@begin:<name>--` and `--@end:<name>--` mark the code that
   implements it, and `--@cite:§ 9, stk. 3--` names the paragraphs one clause
-  implements ([Explanations](explanations.md#paragraph-citations-cite)).
+  implements ([Explanations](explanations.md#paragraph-citations--cite)).
 
 Because the second layer is made of strings and adjacency, the language cannot
 check most of what it says:

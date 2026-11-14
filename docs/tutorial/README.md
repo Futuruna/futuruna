@@ -5,6 +5,7 @@ feature_stage_surfaces:
   - source-meta-comment-tooling
   - typed-program-references
   - exploratory-audit-tooling
+  - annotations
 ---
 
 # Build a Rule-Driven Tax Program
@@ -81,9 +82,9 @@ The constructor uses named arguments, and each member has direct access to
 
 ## 3. Attach Traceable Metadata
 
-Metadata stays ordinary, typed Futuruna data. The meta comment attaches one
-value to a label, while the matching `begin` and `end` markers identify the
-code covered by that label.
+Metadata stays ordinary, typed Futuruna data. `@ meta(...)` attaches one value
+to the item below it, and `@ section <name> { ... }` marks the code that
+implements one passage of a policy.
 
 ```runa
 # SourceInfo(title: String, url: String)
@@ -100,20 +101,28 @@ code covered by that label.
     target = refof(TaxCase::tax_due)
 )
 
---@label:family_tax_rule::meta:metadata--
 ----
 Synthetic tutorial policy: income is taxed at 25%, except that a person with
 at least two children pays 20%.
 ----
 
---@begin:family_tax_rule--
+@ meta(metadata)
+@ section family_tax_rule {
+
 # TaxCase(person: Person) {
     | rate_percent() -> 25
     | exception two_children rate_percent() -> 20 under length(person.children) >= 2
     | tax_due() -> person.annual_income * rate_percent() / 100
 }
---@end:family_tax_rule--
+
+}
 ```
+
+The policy text has no saved source file, so it stays a `----` block comment
+above the section. A policy saved in the project would be quoted inside the
+section with `@ quote(<document>)`, and `runa check` would compare the quote
+with the file; see [Annotations describe
+code](../reference/style.md#annotations-describe-code).
 
 `ProgramReference` and `refof(TaxCase::tax_due)` make the target structural and
 checked against the program. Index the canonical example with:
