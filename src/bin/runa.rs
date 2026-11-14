@@ -1597,7 +1597,7 @@ impl ToolGuarantee {
             Self::Verify => "Every invariant reported PROVED holds for all inputs under 64-bit Int semantics; any unproved, skipped or refuted claim makes verify fail.",
             Self::Audit => "Findings are structural (conflicting branches, tensions, asymmetries and gaps among declared rules of a frontend-clean program); a clause reported unreachable never fires for any input under 64-bit Int semantics, and a reported gap's witness is missed by every clause; no findings does not prove the rules consistent or correct.",
             Self::Fmt => "Only layout changes; every file's tokens and parsed program are identical before and after formatting.",
-            Self::Test => "Every PASS file ran to completion with each `?` check holding (or failed with its declared expected error); SKIP files were not run.",
+            Self::Test => "Every PASS file ran to completion with each `?` check holding and each `query` passing the strict-mode oracle and the completion test (or failed with its declared expected error); SKIP files were not run.",
         }
     }
 
@@ -5716,7 +5716,27 @@ fn type_check_artifacts_with_backend_metadata(
                 source_dir,
             ));
     }
+    print_type_check_warnings(&artifacts.warnings, source, filename);
     artifacts
+}
+
+/// Print the checker's warnings on stderr, each once per process however
+/// often a command checks the file. A warning never fails the command.
+fn print_type_check_warnings(warnings: &[Diagnostic], source: &str, filename: &str) {
+    static PRINTED: std::sync::Mutex<BTreeSet<String>> = std::sync::Mutex::new(BTreeSet::new());
+    if warnings.is_empty() {
+        return;
+    }
+    let use_color = should_use_color();
+    let mut printed = PRINTED
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    for warning in warnings {
+        let text = warning.display(source, filename, use_color);
+        if printed.insert(text.clone()) {
+            eprint!("{text}");
+        }
+    }
 }
 
 fn print_type_check_diagnostics(diagnostics: &[Diagnostic], source: &str, filename: &str) -> bool {

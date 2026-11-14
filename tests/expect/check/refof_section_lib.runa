@@ -1,0 +1,5 @@
+-- expect-skip: dependency-only fixture for refof_section_imported.runa and refof_section_ambiguous.runa
+
+@ section transfer {
+| threshold(income: Int) -> income / 2
+}

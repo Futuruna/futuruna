@@ -23085,7 +23085,21 @@ impl Interpreter {
                     ));
                 }
             }
-            if has_named_args(arguments) {
+            // A value binding does not hide a function at a call, as it does
+            // not hide a rule: `closed(…)` calls the function `closed` while
+            // `closed` reads the binding. A binding holding a function does
+            // take the call (above).
+            let hidden_by_value = env.get(function_name).is_some_and(|value| {
+                !matches!(
+                    value,
+                    Value::Closure { .. }
+                        | Value::Builtin(_)
+                        | Value::NamespacedBuiltin { .. }
+                        | Value::Constructor(..)
+                        | Value::NamespacedConstructor { .. }
+                )
+            });
+            if has_named_args(arguments) || hidden_by_value {
                 if let Some((owner, definition, declaration_env)) =
                     self.runtime_function(&namespace, function_name)
                 {
@@ -23097,9 +23111,15 @@ impl Interpreter {
                             .with_runtime_namespace(owner)
                             .with_runtime_declaration_env(declaration_env),
                     };
-                    let argument_values = self
-                        .eval_named_args_by_names(&definition.params, arguments, env)
-                        .unwrap_or_default();
+                    let argument_values = if has_named_args(arguments) {
+                        self.eval_named_args_by_names(&definition.params, arguments, env)
+                            .unwrap_or_default()
+                    } else {
+                        arguments
+                            .iter()
+                            .map(|argument| self.eval(argument, env))
+                            .collect()
+                    };
                     return self.apply(callable, argument_values, env);
                 }
             }
@@ -33079,6 +33099,8 @@ impl CheckedExploreQueryView<'_> {
 
 pub struct TypeCheckArtifacts {
     pub diagnostics: Vec<Diagnostic>,
+    /// Warnings: reported, never failing the check.
+    pub warnings: Vec<Diagnostic>,
     pub calculation_contracts: Vec<calculate::CalculationContract>,
     pub compile_time_metadata_bindings: BTreeSet<String>,
     /// Every declared unit of measure, including imported ones. A backend
@@ -52538,23 +52560,57 @@ impl TypeChecker {
         }
 
         if mode == "section" {
-            let sections = annotations::read(&self.source_text).sections;
-            if !sections.iter().any(|section| section.name == *root) {
-                self.error_at_expr(
+            // A section of this file or of a file the program imports. Names
+            // are unique per file and the reference holds only the name, so a
+            // name declared in two files is ambiguous.
+            let mut declared: Vec<String> = Vec::new();
+            let mut names: BTreeSet<String> = BTreeSet::new();
+            let mut scan = |path: Option<&str>, source: &str| {
+                if !source.contains("@ section") {
+                    return;
+                }
+                for section in annotations::read(source).sections {
+                    if section.name == *root {
+                        declared.push(match path {
+                            None => format!("line {} of this file", section.line),
+                            Some(path) => format!("{path}:{}", section.line),
+                        });
+                    }
+                    names.insert(section.name);
+                }
+            };
+            scan(None, &self.source_text);
+            let mut seen = BTreeSet::new();
+            for (path, module) in &self.imported_modules {
+                // While an imported file's bodies are checked, it is this file.
+                if seen.insert(path.as_str()) && module.source() != self.source_text {
+                    scan(Some(path), module.source());
+                }
+            }
+            match declared.len() {
+                1 => {}
+                0 => self.error_at_expr(
                     &arguments[1],
                     format!(
-                        "refof references unknown section `{root}`; this file declares {}",
-                        if sections.is_empty() {
+                        "refof references unknown section `{root}`; this file and the files it imports declare {}",
+                        if names.is_empty() {
                             "no section".to_string()
                         } else {
-                            sections
+                            names
                                 .iter()
-                                .map(|section| format!("`{}`", section.name))
+                                .map(|name| format!("`{name}`"))
                                 .collect::<Vec<_>>()
                                 .join(", ")
                         }
                     ),
-                );
+                ),
+                _ => self.error_at_expr(
+                    &arguments[1],
+                    format!(
+                        "refof section `{root}` is ambiguous; it is declared at {}. A section reference holds only the name; rename one of the sections",
+                        declared.join(" and ")
+                    ),
+                ),
             }
             return;
         }
@@ -63233,6 +63289,7 @@ impl TypeChecker {
         tc.check_program(stmts);
         let query_diagnostics = query::check_program(stmts, source, &tc);
         tc.diagnostics.extend(query_diagnostics);
+        let warnings = ordinary_declarations::binding_name_warnings(stmts, source, &tc);
         let mut constructor_elaboration = tc.elaborate_constructor_scope(stmts);
         let elaborated_root = constructor_elaboration
             .as_mut()
@@ -63321,6 +63378,7 @@ impl TypeChecker {
         let runtime_root_source_dir = tc.source_dir.clone().map(String::into_boxed_str);
         TypeCheckArtifacts {
             diagnostics: tc.diagnostics,
+            warnings,
             calculation_contracts,
             compile_time_metadata_bindings,
             unit_names: tc.unit_types.keys().cloned().collect(),

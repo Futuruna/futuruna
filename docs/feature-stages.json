@@ -325,6 +325,7 @@
       "stage": "experimental",
       "commands": [],
       "docs": [
+        "docs/reference/calculations.md",
         "docs/rfcs/needs-in-the-language.md"
       ]
     },
@@ -679,6 +680,7 @@
         "typed-calculation-contracts",
         "calculation-field-declarations",
         "calculation-needs",
+        "needs-in-the-language",
         "typescript-sdk",
         "annotations"
       ]

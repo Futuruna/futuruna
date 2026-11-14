@@ -552,6 +552,16 @@ binding moves with its dependencies.
 Rebound names keep source-order semantics. A cycle between unique top-level
 bindings is rejected with the complete initialization path.
 
+### A binding named like a function or rule
+
+A binding may take the name of a function or rule, as a result bound under
+its rule's name (`= tax = tax(case)`). The name then reads the binding, and
+a call of the name still calls the function or rule, unless the binding
+holds a function: that binding takes the calls after it. Bindings in a body
+and parameters behave the same way. Every command that checks the program
+prints a warning for each such top-level binding, naming the function or
+rule and where it is declared; the warning does not fail the command.
+
 ### Monadic bind (early return)
 ```runa
 = value <- parse_int("42")

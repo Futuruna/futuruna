@@ -1,0 +1,14 @@
+-- A section reference holds only the section's name: a name two files of the
+-- program declare is ambiguous, and a name no file declares is unknown.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: refof section `transfer` is ambiguous; it is declared at
+-- expect-stderr: refof_section_lib.runa:3 and
+-- expect-stderr: refof_section_other_lib.runa:3
+-- expect-stderr: refof references unknown section `missing`; this file and the files it imports declare `transfer`
+
+@ import ./refof_section_lib
+@ import ./refof_section_other_lib
+
+= ambiguous = refof(section transfer)
+= missing = refof(section missing)

@@ -120,7 +120,7 @@ output as a `guarantee:` line. A tool that finds a problem exits non-zero.
 | `runa verify` | Every invariant reported PROVED holds for all inputs under 64-bit Int semantics; any unproved, skipped or refuted claim makes verify fail. |
 | `runa audit` | Findings are structural (conflicting branches, tensions, asymmetries and gaps among declared rules of a frontend-clean program); a clause reported unreachable never fires for any input under 64-bit Int semantics, and a reported gap's witness is missed by every clause; no findings does not prove the rules consistent or correct. |
 | `runa fmt` | Only layout changes; every file's tokens and parsed program are identical before and after formatting. `runa fmt --migrate` additionally rewrites the retired `--@` comment directives as annotations, which emit no tokens, rewrites string `entry`/`subject` field metadata as `refof`/`pathof`, renames `unknown` (reserved in 0.5) to `unknown_`, and leaves a file it cannot rewrite unchanged. |
-| `runa test` | Every PASS file ran to completion with each `?` check holding (or failed with its declared expected error); SKIP files were not run. |
+| `runa test` | Every PASS file ran to completion with each `?` check holding and each `query` passing the strict-mode oracle and the completion test (or failed with its declared expected error); SKIP files were not run. |
 
 Oracles test these guarantees against the runtime: the verify oracle
 evaluates every invariant `verify` proves in its test corpus on boundary inputs

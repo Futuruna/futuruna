@@ -1,0 +1,17 @@
+-- A binding may take the name of a function a file the program imports
+-- declares; the function's own calls still reach it, and a warning names
+-- both.
+-- expect-command: interp
+-- expect-stdout: value=4
+-- expect-stdout: call=6
+-- expect-stdout: inside=7
+-- expect-stderr: the binding `closed` takes the name of the function `closed` declared at
+-- expect-stderr: binding_name_lib.runa:3: `closed` reads this binding, while a call `closed(…)` calls the function. Rename one of them so the name means one thing
+
+@ import ./binding_name_lib
+
+= closed = closed(3)
+
+@ print("value=" + show(closed))
+@ print("call=" + show(closed(5)))
+@ print("inside=" + show(closed_twice(5)))

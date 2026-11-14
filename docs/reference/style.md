@@ -209,7 +209,8 @@ passage's text:
   in one file is an error. A section may share its name with a rule it holds.
 - **`refof(section grundlov_par3)`** is a `ProgramReference`
   (`ProgramSectionReference(name)`) to the section, checked against the
-  sections of the file it stands in.
+  sections of the file it stands in and of the files it imports. The
+  reference holds only the name, so a name two files declare is an error.
 
 **Documents.** `@ quote` names a *document*: a binding whose type implements
 the standard marker trait `Document`, or a `MetaRole` value holding one

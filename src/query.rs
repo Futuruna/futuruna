@@ -226,15 +226,15 @@ enum Place {
 }
 
 /// One file of the program, with what its diagnostics need.
-struct ProgramFile<'a> {
+pub(crate) struct ProgramFile<'a> {
     /// `None` for the root file, whose diagnostics carry spans.
-    path: Option<&'a str>,
-    source: &'a str,
-    statements: &'a [Stmt],
+    pub(crate) path: Option<&'a str>,
+    pub(crate) source: &'a str,
+    pub(crate) statements: &'a [Stmt],
 }
 
 impl ProgramFile<'_> {
-    fn diagnostic(&self, span: Span, message: String) -> Diagnostic {
+    pub(crate) fn diagnostic(&self, span: Span, message: String) -> Diagnostic {
         match self.path {
             None => Diagnostic::error_at(span, message),
             Some(path) => Diagnostic::error(format!(
@@ -243,6 +243,42 @@ impl ProgramFile<'_> {
             )),
         }
     }
+
+    /// Where `span` is, for a message about another place: `line N` in the
+    /// root file, `path:N` in an imported one.
+    pub(crate) fn place(&self, span: Span) -> String {
+        let line = line_of_offset(self.source, span.start);
+        match self.path {
+            None => format!("line {line}"),
+            Some(path) => format!("{path}:{line}"),
+        }
+    }
+}
+
+/// The root file's own statements (after the prelude) and each file it
+/// imports, as the checker read them.
+pub(crate) fn program_files<'a>(
+    statements: &'a [Stmt],
+    source: &'a str,
+    checker: &'a TypeChecker,
+) -> Vec<ProgramFile<'a>> {
+    let user = statements
+        .iter()
+        .position(|statement| matches!(statement, Stmt::PreludeBoundary))
+        .map_or(statements, |boundary| &statements[boundary + 1..]);
+    let mut files = vec![ProgramFile {
+        path: None,
+        source,
+        statements: user,
+    }];
+    for (path, module) in &checker.imported_modules {
+        files.push(ProgramFile {
+            path: Some(path),
+            source: module.source(),
+            statements: module.statements(),
+        });
+    }
+    files
 }
 
 /// The 1-based line of a character offset.
@@ -255,7 +291,7 @@ pub(crate) fn line_of_offset(source: &str, offset: usize) -> usize {
         + 1
 }
 
-fn rule_head_name(head: &Expr) -> Option<&str> {
+pub(crate) fn rule_head_name(head: &Expr) -> Option<&str> {
     match &head.kind {
         ExprKind::App(function, _) => rule_head_name(function),
         ExprKind::Var(name) => Some(name.as_str()),
@@ -301,22 +337,7 @@ pub(crate) fn check_program(
     source: &str,
     checker: &TypeChecker,
 ) -> Vec<Diagnostic> {
-    let user = statements
-        .iter()
-        .position(|statement| matches!(statement, Stmt::PreludeBoundary))
-        .map_or(statements, |boundary| &statements[boundary + 1..]);
-    let mut files = vec![ProgramFile {
-        path: None,
-        source,
-        statements: user,
-    }];
-    for (path, module) in &checker.imported_modules {
-        files.push(ProgramFile {
-            path: Some(path),
-            source: module.source(),
-            statements: module.statements(),
-        });
-    }
+    let files = program_files(statements, source, checker);
     let mentions = files
         .iter()
         .any(|file| file.statements.iter().any(stmt_mentions_query_or_unknown));
@@ -1776,6 +1797,183 @@ mod tests {
         assert_eq!(
             completion_text(&partial, &completion),
             "spouse.cohabiting = false, spouse.share = 3"
+        );
+    }
+
+    /// A model with a calculation entry, for the checks of `unknown` and
+    /// `pathof`.
+    const MODEL: &str = "\
+# Spouse(income: Int, cohabiting: Bool)
+# Case(income: Int, spouse: Option(Spouse), incomes: List(Int))
+# Result(tax: Int)
+
+@ calculate
+| tax(c: Case) -> Result(tax = c.income)
+> case_of(income: Int) -> Case { Case(income = income, spouse = None, incomes = []) }
+";
+
+    fn program(body: &str) -> (String, Vec<Stmt>) {
+        let source = format!("{MODEL}{body}\n");
+        let user = Parser::new(Lexer::new(&source).tokenize(), &source)
+            .parse_program()
+            .unwrap_or_else(|error| panic!("{body}: {error}"));
+        let statements = prepend_prelude(parse_prelude(), &user);
+        (source, statements)
+    }
+
+    /// The checker's error messages for `body` after the model.
+    fn errors(body: &str) -> Vec<String> {
+        let (source, statements) = program(body);
+        TypeChecker::check_with_artifacts(&statements, None, &source)
+            .diagnostics
+            .into_iter()
+            .filter(|diagnostic| matches!(diagnostic.severity, Severity::Error))
+            .map(|diagnostic| diagnostic.message)
+            .collect()
+    }
+
+    fn placed(body: &str) {
+        let errors = errors(body);
+        assert!(errors.is_empty(), "{body}: {errors:#?}");
+    }
+
+    fn rejected(body: &str, message: &str) {
+        let errors = errors(body);
+        assert!(
+            errors.iter().any(|error| error.contains(message)),
+            "{body}: expected `{message}` in {errors:#?}"
+        );
+    }
+
+    #[test]
+    fn unknown_is_placed_as_an_argument() {
+        placed("= asked = query tax(case_of(unknown))");
+    }
+
+    #[test]
+    fn unknown_is_placed_as_a_field_value() {
+        placed("= asked = query tax(Case(income = unknown, spouse = None, incomes = []))");
+    }
+
+    #[test]
+    fn unknown_is_placed_as_a_list_element() {
+        placed("= asked = query tax(Case(income = 1, spouse = None, incomes = [1, unknown]))");
+    }
+
+    #[test]
+    fn unknown_is_placed_in_a_typed_binding() {
+        placed("= later: Int = unknown");
+    }
+
+    #[test]
+    fn unknown_is_placed_as_a_declared_result() {
+        placed("> later() -> Int { unknown }");
+    }
+
+    #[test]
+    fn unknown_is_placed_as_a_branch() {
+        placed("= later: Int = if True { 1 } else { unknown }");
+    }
+
+    #[test]
+    fn unknown_is_not_an_operand() {
+        rejected("= sum: Int = unknown + 1", "`unknown` cannot be an operand");
+    }
+
+    #[test]
+    fn unknown_is_not_matched() {
+        rejected(
+            "= matched: Int = match unknown {\n    | _ -> 1\n}",
+            "`unknown` cannot be matched",
+        );
+    }
+
+    #[test]
+    fn unknown_is_not_a_guard() {
+        rejected(
+            "= guarded: Int = match 1 {\n    | n if unknown -> n\n    | _ -> 0\n}",
+            "`unknown` cannot be a guard",
+        );
+    }
+
+    #[test]
+    fn unknown_is_not_shown() {
+        rejected(
+            "= shown = show(unknown)",
+            "`unknown` cannot be an argument of a builtin",
+        );
+    }
+
+    #[test]
+    fn unknown_is_not_a_side_of_a_comparison() {
+        rejected(
+            "= compared = unknown == 3",
+            "`unknown` cannot be a side of a comparison",
+        );
+    }
+
+    #[test]
+    fn unknown_needs_a_typed_binding() {
+        rejected(
+            "= untyped = unknown",
+            "`unknown` takes the type of its place, and this place has none",
+        );
+    }
+
+    /// The value of the binding `name` after running `body`.
+    fn value_of(body: &str, name: &str) -> String {
+        let errors = errors(body);
+        assert!(errors.is_empty(), "{body}: {errors:#?}");
+        let (_, statements) = program(body);
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+        interpreter.run_program(&statements, &mut env);
+        env.get(name)
+            .map(ToString::to_string)
+            .unwrap_or_else(|| panic!("{body}: no binding `{name}`"))
+    }
+
+    #[test]
+    fn paths_of_one_root_are_equal_when_they_name_the_same_place() {
+        assert_eq!(
+            value_of(
+                "= same = pathof(Case::spouse::income) == pathof(Case::spouse::income)",
+                "same"
+            ),
+            "True"
+        );
+        assert_eq!(
+            value_of(
+                "= indexed = pathof(Case::incomes[1]) == pathof(Case::incomes[1])",
+                "indexed"
+            ),
+            "True"
+        );
+    }
+
+    #[test]
+    fn paths_of_one_root_differ_when_they_name_different_places() {
+        assert_eq!(
+            value_of(
+                "= other = pathof(Case::income) == pathof(Case::spouse::income)",
+                "other"
+            ),
+            "False"
+        );
+        assert_eq!(
+            value_of(
+                "= index = pathof(Case::incomes[0]) == pathof(Case::incomes[1])",
+                "index"
+            ),
+            "False"
+        );
+    }
+
+    #[test]
+    fn paths_of_different_roots_are_not_compared() {
+        rejected(
+            "= mixed = pathof(Case::income) == pathof(Spouse::income)",
+            "Path(Spouse)",
         );
     }
 }

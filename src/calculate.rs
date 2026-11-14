@@ -7460,7 +7460,11 @@ fn check_partial_calculation_cases(
     envelope: &CalculationInputEnvelope,
 ) -> (CalculationOutputEnvelope, Vec<PartialViolation>) {
     let jobs = requested_calculation_jobs();
-    let propagated = prepared.invoke_batch(envelope, jobs, Some(partial::PartialMode::Propagate));
+    #[cfg_attr(not(debug_assertions), allow(unused_mut))]
+    let mut propagated =
+        prepared.invoke_batch(envelope, jobs, Some(partial::PartialMode::Propagate));
+    #[cfg(debug_assertions)]
+    fault_claim_complete(prepared, envelope, jobs, &mut propagated);
     let strict = prepared.invoke_batch(envelope, jobs, Some(partial::PartialMode::Strict));
     let parse = |case: &CalculationResultCase| {
         serde_json::from_value::<CalculationPartialResult>(case.result.clone()).ok()
@@ -7538,6 +7542,58 @@ fn check_partial_calculation_cases(
         }
     }
     (propagated, violations)
+}
+
+/// Test hook, compiled only into debug builds (release builds, which users
+/// run, have no such variable): with `FUTURUNA_TEST_FAULT=claim-complete`,
+/// propagation answers every `Needs` case `Complete`, with the result of one
+/// completion of the case. The completion test must refute that claim; the
+/// tests of `runa test` use it to show where a broken guarantee is reported.
+#[cfg(debug_assertions)]
+fn fault_claim_complete(
+    prepared: &mut PreparedCalculation,
+    envelope: &CalculationInputEnvelope,
+    jobs: Option<usize>,
+    propagated: &mut CalculationOutputEnvelope,
+) {
+    if std::env::var("FUTURUNA_TEST_FAULT").as_deref() != Ok("claim-complete") {
+        return;
+    }
+    for case in &mut propagated.results {
+        let needs = matches!(
+            serde_json::from_value::<CalculationPartialResult>(case.result.clone()),
+            Ok(CalculationPartialResult::Needs { .. })
+        );
+        let Some(input) = envelope
+            .cases
+            .iter()
+            .find(|input| needs && input.case_id == case.case_id)
+        else {
+            continue;
+        };
+        let Some(completion) = prepared
+            .contract
+            .partial_case_completions(&input.input, 1, 1)
+            .pop()
+        else {
+            continue;
+        };
+        let one = CalculationInputEnvelope {
+            futuruna: envelope.futuruna.clone(),
+            cases: vec![CalculationInputCase {
+                case_id: case.case_id.clone(),
+                input_status: Some(CalculationInputStatus::Ready),
+                input: completion,
+            }],
+        };
+        if let Some(completed) = prepared.invoke_batch(&one, jobs, None).results.pop() {
+            case.result = serde_json::json!({
+                "$variant": "Complete",
+                "result": completed.result,
+                "unused_paths": [],
+            });
+        }
+    }
 }
 
 #[cfg(test)]

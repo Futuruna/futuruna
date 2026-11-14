@@ -475,9 +475,30 @@ Taken while implementing this RFC for 0.5:
   `interview`; other programs are unchanged.
 - **Cost.** The completion test runs 32 completions per `Complete` query, as
   `--partial=check` does; no per-query budget yet.
-- **`refof(section ...)` in tests.** `refof(section name)` resolves sections
-  of the file it is written in, so a test names a model's section by its
-  value, `ProgramSectionReference(name = "share_income")`.
+- **`refof(section ...)` in tests.** `refof(section name)` resolves the
+  sections of the file it is written in and of the files it imports, so a
+  test compares a need's waiting section with
+  `Some(refof(section share_income))` for a section of the model it imports.
+  The reference holds only the name: a name two files declare is a check
+  error naming both.
+- **A binding named like a function or rule.** Futuruna allows a binding to
+  take the name of a rule (`= tax = tax(case)`; tested as
+  `forward_top_level_value_dependency_*`, and used in the Danish examples):
+  `tax` reads the binding and `tax(...)` calls the rule, unless the binding
+  holds a function, which takes the calls after it. A function did not
+  follow this: `runa check` passed, and the interpreter called the binding's
+  value and stopped with "value is not callable". Now a function behaves as
+  a rule does, and since the shadowing is intended, `runa check` and every
+  command that checks the program print a warning for each top-level
+  binding naming it and the function or rule, and what each use means,
+  rather than an error. Bindings in a body, parameters and patterns are
+  lexical and not reported (tax-service binds `cash` and `held` in rule
+  bodies while its test builders declare functions of those names); the
+  prelude's declarations may still be overridden.
+- **Showing a broken guarantee.** A debug build reads
+  `FUTURUNA_TEST_FAULT=claim-complete`, which makes propagation answer a
+  `Needs` case `Complete`; `tests/needs_query_cli.rs` uses it to show `runa
+  test` failing at the query's line. Release builds have no such hook.
 
 ## Decisions: typed entry metadata
 
