@@ -2752,7 +2752,7 @@ mod tests {
         assert_eq!(runtime(&ledger), runtime(&household));
         assert_contains(
             &runtime(&ledger),
-            "export async function resolve<C, R, N extends Need>(",
+            "export async function resolve<C, R, N extends Need, Patterns = AnyPatterns>(",
         );
         assert!(!runtime(&ledger).contains("{INPUT_SCHEMA}"));
         for file in &ledger {

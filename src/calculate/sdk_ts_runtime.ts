@@ -625,12 +625,21 @@ export type Act = {
   url?: string | undefined;
 };
 
+/**
+ * The amending act's instruction behind a passage cited `as amended`: the act
+ * (`LOV nr. 1691 af 30/12/2024`), its paragraph (`§ 4, nr. 1`) and the
+ * instruction line (`1. § 8 a, stk. 1, 1. pkt., affattes således:`).
+ */
+export type Amendment = { act: string; paragraph: string; instruction: string };
+
 /** A paragraph of an act, as a rule cites it: `§ 16, stk. 2`, the document quoting it, and the act. */
 export type ParagraphReference = {
   paragraph: string;
   /** The quoted document, such as `sources/01-aktiesparekontoloven.txt`. */
   source?: string | undefined;
   act?: Act | undefined;
+  /** For a passage cited `as amended`, the instruction that gives its wording. */
+  asAmendedBy?: Amendment | undefined;
 };
 
 /** A rule or function that waits for a need's value, in its law section, with the paragraphs it cites. */
@@ -645,9 +654,23 @@ const ActSchema: z.ZodType<Act> = z
   .object({ title: z.string(), identifier: z.string().optional(), url: z.string().optional() })
   .strict();
 
-const ParagraphReferenceSchema: z.ZodType<ParagraphReference> = z
-  .object({ paragraph: z.string(), source: z.string().optional(), act: ActSchema.optional() })
+const AmendmentSchema: z.ZodType<Amendment> = z
+  .object({ act: z.string(), paragraph: z.string(), instruction: z.string() })
   .strict();
+
+const ParagraphReferenceSchema: z.ZodType<ParagraphReference> = z
+  .object({ paragraph: z.string(), source: z.string().optional(), act: ActSchema.optional(), asAmendedBy: AmendmentSchema.optional() })
+  .strict();
+
+const PARAGRAPH_NAMES: { readonly [wireName: string]: string } = { as_amended_by: "asAmendedBy" };
+
+/** The list at `key` of `object`, each cited paragraph with TypeScript names (`as_amended_by` is `asAmendedBy`). */
+function withParagraphsFromWire(object: unknown, key: string): unknown {
+  if (!isObject(object)) return object;
+  const list = object[key];
+  if (!Array.isArray(list)) return object;
+  return { ...object, [key]: list.map((paragraph: unknown) => (isObject(paragraph) ? renamed(paragraph, PARAGRAPH_NAMES) : paragraph)) };
+}
 
 const WaitingRuleSchema: z.ZodType<WaitingRule> = z
   .object({ rule: z.string(), section: z.string().optional(), paragraphs: z.array(ParagraphReferenceSchema).optional() })
@@ -857,6 +880,8 @@ function needFromWire(entry: CalculationEntry, wireCase: unknown, need: unknown)
   if (typeof subject === "string") translated["subject"] = fromWirePath(entry.input, wireCase, subject);
   const keys = need["keys"];
   if (Array.isArray(keys)) translated["keys"] = keys.map((key: unknown) => elementKeyFromWire(entry, wireCase, key));
+  const waiting = need["waiting"];
+  if (Array.isArray(waiting)) translated["waiting"] = waiting.map((rule: unknown) => withParagraphsFromWire(rule, "paragraphs"));
   return translated;
 }
 
@@ -1122,8 +1147,12 @@ export type ExplainedValue = {
 export type ExplainedSection = {
   location: string;
   sources: string[];
+  /** Each document the section quotes: its binding, file and role. */
+  documents: { binding: string; file: string | null; role: string | null }[];
   attachments: { role: string; binding?: string | undefined; value: unknown }[];
   quote: string;
+  /** The quoted passages an instruction quoted in the same section amends. */
+  superseded?: { paragraph: string; asAmendedBy: Amendment }[] | undefined;
 };
 
 /**
@@ -1182,7 +1211,7 @@ function contributorsFromWire(input: (path: string) => LocatedPath, from: readon
   const dates = new Map<string, { at: number; parts: Map<string, JsonObject> }>();
   for (const item of from) {
     if (!isObject(item) || item["$variant"] !== "Input" || typeof item["path"] !== "string") {
-      out.push([item]);
+      out.push([withParagraphsFromWire(item, "paragraphs")]);
       continue;
     }
     const located = input(item["path"]);
@@ -1214,6 +1243,8 @@ function explainedFromWire(input: (path: string) => LocatedPath, value: unknown)
   const by = out["by"];
   if (isObject(by) && by["$variant"] === "Input" && typeof by["path"] === "string") {
     out["by"] = { ...by, path: input(by["path"]).path };
+  } else if (isObject(by)) {
+    out["by"] = withParagraphsFromWire(by, "cites");
   }
   for (const list of ["from", "because"]) {
     const items = out[list];
@@ -1279,7 +1310,11 @@ function explanationFromWire(entry: CalculationEntry, wireCase: unknown, wireRes
   }
   const translated: JsonObject = {};
   for (const [path, value] of values.sort(([left], [right]) => byText(left, right))) put(translated, path, value);
-  const out: JsonObject = { ...explanation, values: translated };
+  const sections: JsonObject = {};
+  for (const [label, section] of Object.entries(explanation["sections"])) {
+    sections[label] = withParagraphsFromWire(section, "superseded");
+  }
+  const out: JsonObject = { ...explanation, values: translated, sections };
   const derivation = explanation["derivation"];
   if (isObject(derivation)) {
     const nodes: JsonObject = {};

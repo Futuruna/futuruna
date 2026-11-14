@@ -2678,12 +2678,20 @@ fn contract_metadata(
             .flat_map(|span| span.symbols.iter().map(|symbol| symbol.name.clone()))
             .collect();
         for reference in &anchor.references {
-            result.extend(calculation_metadata_references(anchor, reference, symbols.clone()));
+            result.extend(calculation_metadata_references(
+                anchor,
+                reference,
+                symbols.clone(),
+            ));
         }
     }
     result.sort_by(|left, right| {
-        (&left.label, &left.role, &left.binding, &left.value)
-            .cmp(&(&right.label, &right.role, &right.binding, &right.value))
+        (&left.label, &left.role, &left.binding, &left.value).cmp(&(
+            &right.label,
+            &right.role,
+            &right.binding,
+            &right.value,
+        ))
     });
     result.dedup();
     result

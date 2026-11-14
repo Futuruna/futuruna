@@ -6325,11 +6325,13 @@ fn print_meta_index_human(
                     attachment.role,
                     attachment.value.to_source(),
                     attachment.value.qualified_type().unwrap_or("-"),
-                    meta_attachment_definition(reference, &attachment)
-                        .map_or_else(|| "-".to_string(), |location| match &location.file {
+                    meta_attachment_definition(reference, &attachment).map_or_else(
+                        || "-".to_string(),
+                        |location| match &location.file {
                             Some(file) => format!("{}:{}", file, location.line),
                             None => location.line.to_string(),
-                        })
+                        }
+                    )
                 );
             }
         }
@@ -20833,7 +20835,10 @@ fn migrate_targets(targets: &[String], check: bool) {
                 continue;
             }
         };
-        if !source.lines().any(|line| line.trim_start().starts_with("--@")) {
+        if !source
+            .lines()
+            .any(|line| line.trim_start().starts_with("--@"))
+        {
             continue;
         }
         let root = migration_root(Path::new(path));
@@ -20887,7 +20892,10 @@ fn migrate_targets(targets: &[String], check: bool) {
             continue;
         }
         if check {
-            eprintln!("{}: needs `# impl Document for {type_name} {{}}`", file.display());
+            eprintln!(
+                "{}: needs `# impl Document for {type_name} {{}}`",
+                file.display()
+            );
         } else if std::fs::write(&file, updated).is_ok() {
             eprintln!(
                 "{}: added `# impl Document for {type_name} {{}}`: its values are quoted documents",
@@ -21871,7 +21879,8 @@ fn fmt_layout_source(source: &str) -> String {
         if depth == 0 && continuation_stack.is_empty() {
             let annotation = trimmed.strip_prefix('@').map(str::trim_start);
             if !section_open
-                && annotation.is_some_and(|rest| rest.starts_with("section ") && rest.ends_with('{'))
+                && annotation
+                    .is_some_and(|rest| rest.starts_with("section ") && rest.ends_with('{'))
             {
                 result.push(fmt_normalize_line(trimmed));
                 section_open = true;

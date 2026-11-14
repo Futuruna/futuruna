@@ -34,10 +34,10 @@ use std::rc::{Rc, Weak};
 use std::sync::{Arc, Mutex, OnceLock};
 
 mod annotation_types;
+mod annotations;
 pub mod calculate;
 mod checked_explore_classification;
 mod checked_explore_source_events;
-mod annotations;
 mod citations;
 mod constructor_scope;
 pub use constructor_scope::{
@@ -848,9 +848,7 @@ impl Lexer {
     /// A retired `--@label`, `--@begin`, `--@end`, `--@cite`, `--@source`
     /// or `--@meta` comment directive at the current position.
     fn retired_directive(&self) -> Option<String> {
-        if !(self.peek() == Some('-')
-            && self.peek2() == Some('-')
-            && self.peek_at(2) == Some('@'))
+        if !(self.peek() == Some('-') && self.peek2() == Some('-') && self.peek_at(2) == Some('@'))
         {
             return None;
         }
@@ -980,9 +978,7 @@ impl Lexer {
             self.advance();
         }
         if depth != 0 {
-            return Some(Err(error(format!(
-                "`@ {kind}(` has no closing `)`"
-            ))));
+            return Some(Err(error(format!("`@ {kind}(` has no closing `)`"))));
         }
         let end_line = self.line;
         // `@ meta(<value>) for <name>`: metadata written apart from its
@@ -2876,7 +2872,9 @@ fn collect_imported_meta_anchors_from_stmts(
             .unwrap_or_else(|| ".".to_string());
 
         if imported_source.contains("@ ")
-            && labels.iter().any(|label| imported_source.contains(label.as_str()))
+            && labels
+                .iter()
+                .any(|label| imported_source.contains(label.as_str()))
         {
             let mut imported_index = scan_meta_comment_structure_from_stmts(
                 imported_source,
@@ -3084,7 +3082,11 @@ fn scan_meta_annotations(
             ));
         }
         for meta in &section.metas {
-            references.push(annotation_meta_reference(&section.name, &meta.value, meta.line));
+            references.push(annotation_meta_reference(
+                &section.name,
+                &meta.value,
+                meta.line,
+            ));
             comments.push(comment("meta", &section.name, meta.line));
         }
         comments.push(comment("section", &section.name, section.line));
@@ -3165,7 +3167,9 @@ fn scan_meta_annotations(
         comments.push(comment("meta", &meta_for.target, meta_for.line));
         let (kind, declared_in) = for_targets
             .get(&meta_for.target)
-            .map_or(("unresolved", String::new()), |(kind, file)| (*kind, file.clone()));
+            .map_or(("unresolved", String::new()), |(kind, file)| {
+                (*kind, file.clone())
+            });
         anchors.push(MetaAnchor {
             kind: kind.to_string(),
             declared_in: Some(declared_in),
@@ -4096,8 +4100,7 @@ fn resolve_meta_references_with_stmts_and_checker(
                     &mut visiting,
                     &mut ground_evaluator,
                 );
-                reference.static_value =
-                    reference.static_data.as_ref().map(MetaValue::to_source);
+                reference.static_value = reference.static_data.as_ref().map(MetaValue::to_source);
                 let mut roots = BTreeSet::new();
                 collect_meta_expr_dependencies(&expr, &mut roots);
                 reference.value_binding_definitions =
@@ -4721,11 +4724,17 @@ mod meta_comment_tests {
         assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
         assert_eq!(index.anchors.len(), 1);
         let anchor = &index.anchors[0];
-        assert_eq!((anchor.kind.as_str(), anchor.label.as_str()), ("section", "kommunal_par5_stk3"));
+        assert_eq!(
+            (anchor.kind.as_str(), anchor.label.as_str()),
+            ("section", "kommunal_par5_stk3")
+        );
         assert_eq!(anchor.comment_line, 9);
         assert_eq!(anchor.references[0].role, "meta");
         assert_eq!(anchor.references[0].binding_name, "source1234");
-        assert_eq!(anchor.references[0].qualified_type.as_deref(), Some("SourceInfo"));
+        assert_eq!(
+            anchor.references[0].qualified_type.as_deref(),
+            Some("SourceInfo")
+        );
         assert_eq!(
             anchor.references[0].static_value.as_deref(),
             Some("SourceInfo(url = \"ret.dk/1234\")")
@@ -4794,7 +4803,13 @@ Guide.
             .references
             .iter()
             .flat_map(|reference| reference.attachments())
-            .map(|attachment| format!("{} {}", attachment.role, attachment.binding_name.unwrap_or("-")))
+            .map(|attachment| {
+                format!(
+                    "{} {}",
+                    attachment.role,
+                    attachment.binding_name.unwrap_or("-")
+                )
+            })
             .collect();
         assert_eq!(roles, vec!["source law", "guidance guide"]);
     }
@@ -4953,7 +4968,10 @@ Guide.
 
         assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
         let reference = &index.anchors[0].references[0];
-        assert_eq!(reference.meta_role_types, BTreeSet::from(["SourceMetaRole".into()]));
+        assert_eq!(
+            reference.meta_role_types,
+            BTreeSet::from(["SourceMetaRole".into()])
+        );
         let attachments = reference.attachments();
         assert_eq!(attachments.len(), 2);
         assert_eq!(attachments[0].role, "source");
@@ -5016,7 +5034,9 @@ Guide.
         assert!(index.diagnostics.iter().any(|diagnostic| {
             diagnostic.line == 13
                 && diagnostic.message.contains("metadata role `Source`")
-                && diagnostic.message.contains("exactly one named `value` field")
+                && diagnostic
+                    .message
+                    .contains("exactly one named `value` field")
         }));
         assert!(index.anchors[0].references[0].attachments().is_empty());
     }
@@ -5530,11 +5550,20 @@ pub fn pathof_canonical_path(expr: &Expr) -> Option<String> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProgramReferenceLiteral {
-    Symbol { name: String },
-    Type { name: String },
-    Member { root_type: String, path: String },
+    Symbol {
+        name: String,
+    },
+    Type {
+        name: String,
+    },
+    Member {
+        root_type: String,
+        path: String,
+    },
     /// `refof(section <name>)`.
-    Section { name: String },
+    Section {
+        name: String,
+    },
 }
 
 /// Decode the parser's internal `refof` expression into its portable value.
