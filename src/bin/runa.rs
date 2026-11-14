@@ -33181,6 +33181,9 @@ impl RustCodegen {
             }
         }
 
+        // An imported declaration replaces the prelude's of the same name,
+        // exactly as an authored one does in `prepend_prelude`: a library's
+        // own `Result` or `Option` is a type of its own, not Rust's.
         let imported_functions = all_stmts
             .iter()
             .filter_map(|statement| {
@@ -33191,14 +33194,30 @@ impl RustCodegen {
                 }
             })
             .collect::<BTreeSet<_>>();
+        let imported_types = all_stmts
+            .iter()
+            .filter_map(|statement| match statement {
+                Stmt::TypeDecl(TypeDecl::ADT { name, .. })
+                | Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. })
+                | Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) => Some(name.clone()),
+                _ => None,
+            })
+            .collect::<BTreeSet<_>>();
         let prelude_len = stmts
             .iter()
             .rposition(|statement| matches!(statement, Stmt::PreludeBoundary))
             .map_or(0, |index| index + 1);
         for (index, stmt) in stmts.iter().enumerate() {
             if index < prelude_len
-                && matches!(stmt,
-                Stmt::Defn(Defn::Fn { name, .. }) if imported_functions.contains(name))
+                && match stmt {
+                    Stmt::Defn(Defn::Fn { name, .. }) => imported_functions.contains(name),
+                    Stmt::TypeDecl(TypeDecl::ADT { name, .. })
+                    | Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. })
+                    | Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) => {
+                        imported_types.contains(name)
+                    }
+                    _ => false,
+                }
             {
                 continue;
             }
