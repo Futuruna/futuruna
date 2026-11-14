@@ -1,24 +1,31 @@
+-- A section quoting a saved document in its `Source` role: the quote is the
+-- section's text, linked to the document, and the span holds its code.
 -- expect-command: meta
 -- expect-status: pass
--- expect-stdout: comments: 3
--- expect-stdout: sources: 1
+-- expect-stdout: anchors: 1
+-- expect-stdout: anchor section kommunal_par5_stk3
+-- expect-stdout: references: 1
+-- expect-stdout: reference kommunal_par5_stk3 role meta binding Source(value = ksl_2019_935_par5_stk3) type Kilderolle value Source(value = SourceInfo(file = "sources/ksl-2019-935-par5-stk3.txt"
 -- expect-stdout: spans: 1
--- expect-stdout: source kommunal_par5_stk3 line 15 meta ksl_2019_935_par5_stk3 text 17-17
--- expect-stdout: span kommunal_par5_stk3 lines 21-24 source ksl_2019_935_par5_stk3
--- expect-stdout: symbol type KommunalPar5DelårsInput line 21
--- expect-stdout: symbol rule kommunal_par5_delårsskat line 23
--- expect-stdout: symbol binding kommunal_par5_fixture line 24
+-- expect-stdout: span kommunal_par5_stk3 lines
+-- expect-stdout: symbol type KommunalPar5DelårsInput
+-- expect-stdout: symbol rule kommunal_par5_delårsskat
+-- expect-stdout: symbol binding kommunal_par5_fixture
 
 @ sprog da
-# SourceInfo(url: Tekst, identifier: Tekst)
-= ksl_2019_935_par5_stk3 = SourceInfo(url = "https://www.retsinformation.dk/eli/lta/2019/935", identifier = "§ 5, stk. 3")
+# SourceInfo(file: Tekst, url: Tekst, identifier: Tekst)
+# impl Document for SourceInfo {}
+# Kilderolle(a) = Source(value: a)
+# impl MetaRole for Kilderolle {}
+# impl Meta for Kilderolle {}
+= ksl_2019_935_par5_stk3 = SourceInfo(file = "sources/ksl-2019-935-par5-stk3.txt", url = "https://www.retsinformation.dk/eli/lta/2019/935", identifier = "§ 5, stk. 3")
 
+@ section kommunal_par5_stk3 {
+
+@ quote(Source(value = ksl_2019_935_par5_stk3))
 ----
 Stk. 3. Omfatter indkomstansættelsen for en person en kortere periode end et år.
 ----
-
-@ meta(ksl_2019_935_par5_stk3)
-@ section kommunal_par5_stk3 {
 
 # KommunalPar5DelårsInput(kortere_periode_end_et_år: Boolsk)
 # KommunalPar5DelårsResultat(skat_kroner: Heltal)

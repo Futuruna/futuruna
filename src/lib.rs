@@ -2523,7 +2523,9 @@ fn meta_role_identifier(value: &MetaValue) -> Option<String> {
     }
 }
 
-fn meta_constructor_role_identifier(name: &str) -> String {
+/// The role a `MetaRole` wrapper's constructor names: `Source` is
+/// `source`, `AmendmentSource` is `amendment_source`.
+pub fn meta_constructor_role_identifier(name: &str) -> String {
     let chars = name.chars().collect::<Vec<_>>();
     let mut identifier = String::new();
     for (index, character) in chars.iter().copied().enumerate() {

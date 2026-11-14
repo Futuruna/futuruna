@@ -604,7 +604,9 @@ fn main_inner() {
                     eprintln!("error: --role requires a metadata role");
                     std::process::exit(1);
                 }
-                meta_role_filter = Some(args[i + 1].clone());
+                // A role is its wrapper type: `--role Source` and `--role
+                // source` select `Source(value = ...)`.
+                meta_role_filter = Some(futuruna::meta_constructor_role_identifier(&args[i + 1]));
                 i += 2;
             }
             arg if mode == "meta" && arg.starts_with("--role=") => {
@@ -613,7 +615,7 @@ fn main_inner() {
                     eprintln!("error: --role requires a metadata role");
                     std::process::exit(1);
                 }
-                meta_role_filter = Some(value.to_string());
+                meta_role_filter = Some(futuruna::meta_constructor_role_identifier(value));
                 i += 1;
             }
             "--roundtrip" if mode == "test" => {

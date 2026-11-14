@@ -524,9 +524,18 @@ Details the design above leaves open, as implemented:
   or a binding it describes the declaration and has no span.
 - **A value may be written inline.** `@ meta(<value>)` takes a binding's
   name or any ground value; the role of a `MetaRole` value is its
-  constructor, as in a metadata binding. Direct role chains
-  (`::source:binding`) are gone: the migration writes `@ meta(binding)` and
-  reports the role it dropped.
+  constructor, as in a metadata binding.
+- **Roles are types, never strings.** A role is the constructor of a type
+  implementing `MetaRole` (`Source(value = law)` has role `source`). The
+  prelude declares no wrappers; a model declares its own, as tax-service's
+  `TaxMeta` does. The migration writes each role of an old chain
+  (`--@label:x::source:a::warning:b--`) in the program's wrapper of that
+  role, `@ meta(Source(value = a))` and `@ meta(Warning(value = b))`, on the
+  declaration or with `for`. A role with no wrapper (or two) stops the file
+  with the role, the binding and the fix (declare `# Warning(value: T)` with
+  `# impl MetaRole for Warning {}` and `# impl Meta for Warning {}`, then
+  migrate again); no role is dropped. `runa meta --role <R>` selects the
+  values of a wrapper: `--role Warning` and `--role warning` are the same.
 - **Metadata written apart: `@ meta(<value>) for <name>`.** A model may keep
   the metadata of declarations in a file of its own (danish-income-tax's
   `*-beregningsmeta.runa` files describe the input types the domain files

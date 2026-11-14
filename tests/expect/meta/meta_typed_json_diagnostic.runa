@@ -1,12 +1,17 @@
 -- expect-command: meta
--- expect-args: --json --role warning
+-- expect-args: --json --role Warning
 -- expect-status: fail
--- expect-stdout: "schema": "futuruna.meta.v1"
+-- expect-stdout: "schema": "futuruna.meta.v2"
 -- expect-stdout: "diagnostics": 1
 -- expect-stdout: "role": "warning"
--- expect-stdout: "binding": "missing_warning"
 -- expect-stdout: "type": null
--- expect-stdout: meta role `warning` references unresolved binding `missing_warning`
+-- expect-stdout: meta value `Warning(value = missing_warning)` is not a pure ground value
 -- expect-stderr-not: unresolved binding
 
-@ meta(missing_warning) for audit_gap
+# AuditWarning(message: String)
+# AuditRole(a) = Warning(value: a)
+# impl MetaRole for AuditRole {}
+# impl Meta for AuditRole {}
+
+@ meta(Warning(value = missing_warning))
+| audit_gap(x: Int) -> x

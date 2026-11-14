@@ -39,6 +39,10 @@ pub struct MigrationProgram {
     document_types: BTreeSet<String>,
     /// The file and line (0-based) declaring each record type.
     types: BTreeMap<String, (PathBuf, usize)>,
+    /// Types with `# impl MetaRole for <type> {}`.
+    meta_role_types: BTreeSet<String>,
+    /// The constructors each declared type has.
+    constructors: BTreeMap<String, Vec<String>>,
 }
 
 fn identifiers(text: &str) -> impl Iterator<Item = &str> {
@@ -148,23 +152,120 @@ impl MigrationProgram {
                     .take_while(|c| *c == '_' || c.is_alphanumeric())
                     .collect();
                 self.document_types.insert(name);
+            } else if let Some(rest) = line.strip_prefix("# impl MetaRole for ") {
+                let name: String = rest
+                    .chars()
+                    .take_while(|c| *c == '_' || c.is_alphanumeric())
+                    .collect();
+                self.meta_role_types.insert(name);
             } else if let Some(rest) = line.strip_prefix("# ") {
                 let name: String = rest
                     .chars()
                     .take_while(|c| *c == '_' || c.is_alphanumeric())
                     .collect();
-                if name.starts_with(char::is_uppercase)
-                    && rest[name.len()..].starts_with('(')
-                    && name != "impl"
-                {
+                if !name.starts_with(char::is_uppercase) || name == "impl" {
+                    continue;
+                }
+                if rest[name.len()..].starts_with('(') {
                     self.types
-                        .entry(name)
+                        .entry(name.clone())
                         .or_insert_with(|| (path.to_path_buf(), index));
                 }
+                let (text, _) = balanced_text(&lines, index);
+                self.constructors
+                    .entry(name.clone())
+                    .or_insert_with(|| type_constructors(&name, &text));
             }
         }
     }
 
+    /// The constructor of the program's `MetaRole` wrapper whose role is
+    /// `role` (`source` is `Source`).
+    fn role_wrapper(&self, role: &str) -> Result<String, String> {
+        let wrappers: BTreeSet<&String> = self
+            .meta_role_types
+            .iter()
+            .filter_map(|type_name| self.constructors.get(type_name))
+            .flatten()
+            .filter(|constructor| crate::meta_constructor_role_identifier(constructor) == role)
+            .collect();
+        let wrapper = role
+            .split('_')
+            .map(|part| {
+                let mut chars = part.chars();
+                chars
+                    .next()
+                    .map(|first| first.to_uppercase().chain(chars).collect::<String>())
+                    .unwrap_or_default()
+            })
+            .collect::<String>();
+        match wrappers.into_iter().collect::<Vec<_>>().as_slice() {
+            [one] => Ok((*one).clone()),
+            [] => Err(format!(
+                "a role is a type, and no type implementing `MetaRole` has a constructor `{wrapper}`; declare `# {wrapper}(value: T)` with `# impl MetaRole for {wrapper} {{}}` and `# impl Meta for {wrapper} {{}}` (or add a `{wrapper}(value: a)` variant to an existing `MetaRole` type), then migrate again"
+            )),
+            several => Err(format!(
+                "more than one `MetaRole` type has a constructor for it ({}); keep one",
+                several
+                    .iter()
+                    .map(|name| format!("`{name}`"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )),
+        }
+    }
+}
+
+/// The constructors a type declaration `# Name...` declares: the record
+/// itself, or each variant of a sum type.
+fn type_constructors(name: &str, text: &str) -> Vec<String> {
+    let rest = text.trim().strip_prefix("# ").unwrap_or(text)[name.len()..].to_string();
+    let mut depth = 0i32;
+    let mut equals = None;
+    for (offset, character) in rest.char_indices() {
+        match character {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            '=' if depth == 0 => {
+                equals = Some(offset);
+                break;
+            }
+            _ => {}
+        }
+    }
+    let Some(equals) = equals else {
+        return vec![name.to_string()];
+    };
+    let mut constructors = Vec::new();
+    let mut depth = 0i32;
+    let mut start = equals + 1;
+    let body = &rest;
+    for (offset, character) in body.char_indices().skip_while(|(offset, _)| *offset <= equals) {
+        match character {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            '|' if depth == 0 => {
+                constructors.push(body[start..offset].to_string());
+                start = offset + 1;
+            }
+            _ => {}
+        }
+    }
+    constructors.push(body[start..].to_string());
+    constructors
+        .iter()
+        .map(|variant| {
+            variant
+                .trim()
+                .chars()
+                .take_while(|c| *c == '_' || c.is_alphanumeric())
+                .collect::<String>()
+        })
+        .filter(|constructor| !constructor.is_empty())
+        .collect()
+}
+
+impl MigrationProgram {
     /// The binding whose `file` is `file`.
     fn document(&self, file: &str) -> Result<&(String, String), String> {
         let candidates: Vec<&(String, String)> = self
@@ -706,19 +807,31 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
         anchor.attrs.retain(|attr| seen.insert(attr.clone()));
     }
 
-    // Metadata lines of one anchor, after rule 2 moved roles onto quotes.
-    let meta_lines = |attrs: &[(String, String)], notes: &mut Vec<String>, label: &str| {
+    // Metadata lines of one anchor. A role of a chain (`::source:a`) is a
+    // type: the value is written in the program's `MetaRole` wrapper of that
+    // role, `@ meta(Source(value = a))`, the file's own wrapper first (one
+    // directory may hold independent models declaring types of one name).
+    // A role with no wrapper stops the file, since dropping it would change
+    // what the metadata says.
+    let mut own = MigrationProgram::default();
+    own.add_source(Path::new(""), source);
+    let meta_lines = |attrs: &[(String, String)], errors: &mut Vec<String>, label: &str, line: usize| {
         let mut values = Vec::new();
         for (role, binding) in attrs {
             if binding.is_empty() {
                 continue;
             }
-            if role != "meta" {
-                notes.push(format!(
-                    "`{label}`: the `{role}` role of `{binding}` is not written in `@ meta`; a role is a `MetaRole` value inside the metadata value"
-                ));
+            if role == "meta" {
+                values.push(format!("@ meta({binding})"));
+                continue;
             }
-            values.push(format!("@ meta({binding})"));
+            match own.role_wrapper(role).or_else(|_| program.role_wrapper(role)) {
+                Ok(wrapper) => values.push(format!("@ meta({wrapper}(value = {binding}))")),
+                Err(message) => errors.push(format!(
+                    "{}: `{label}` gives `{binding}` the role `{role}`: {message}",
+                    line + 1
+                )),
+            }
         }
         values
     };
@@ -816,7 +929,12 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
                             "`{label}`: `{binding}` is used elsewhere too, so the roles of its quoted documents stay in it"
                         ));
                     }
-                    metas.extend(meta_lines(&[(role.clone(), binding.clone())], &mut notes, label));
+                    metas.extend(meta_lines(
+                        &[(role.clone(), binding.clone())],
+                        &mut errors,
+                        label,
+                        anchor.map_or(begin, Anchor::line),
+                    ));
                     continue;
                 };
                 let mut remaining = Vec::new();
@@ -900,7 +1018,7 @@ pub fn migrate_source(source: &str, program: &MigrationProgram) -> Result<Migrat
             // Quoted text with no saved document stays a block comment.
             inserted.entry(anchor.line()).or_default().extend(block);
         }
-        let metas = meta_lines(&attrs, &mut notes, label);
+        let metas = meta_lines(&attrs, &mut errors, label, anchor.map_or(0, Anchor::line));
         if metas.is_empty() {
             continue;
         }
@@ -1204,6 +1322,36 @@ Guide text.
                 "identifier: String)\n# impl Document for SourceInfo {}\n",
                 1
             )
+        );
+    }
+
+    #[test]
+    fn a_role_chain_is_written_in_its_typed_wrappers() {
+        let source = "# Shape = Circle | Square\n# Role(a) = Source(value: a) | Warning(value: a)\n# impl MetaRole for Role {}\n# impl Meta for Role {}\n= a = Circle\n= b = Square\n--@label:f::source:a::warning:b::meta:guide--\n| f(x: Int) -> x\n";
+        let mut program = MigrationProgram::default();
+        program.add_source(Path::new("model.runa"), source);
+        let migrated = migrate_source(source, &program).unwrap();
+        assert!(
+            migrated.source.contains(
+                "@ meta(Source(value = a))\n@ meta(Warning(value = b))\n@ meta(guide)\n| f(x: Int) -> x\n"
+            ),
+            "{}",
+            migrated.source
+        );
+    }
+
+    #[test]
+    fn a_role_without_a_wrapper_stops_the_file() {
+        let source = "# Role(a) = Source(value: a)\n# impl MetaRole for Role {}\n= a = 1\n= b = 2\n--@label:f::source:a::warning:b--\n| f(x: Int) -> x\n";
+        let mut program = MigrationProgram::default();
+        program.add_source(Path::new("model.runa"), source);
+        let errors = migrate_source(source, &program).unwrap_err();
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert!(
+            errors[0].starts_with("5: `f` gives `b` the role `warning`: a role is a type")
+                && errors[0].contains("declare `# Warning(value: T)` with `# impl MetaRole for Warning {}` and `# impl Meta for Warning {}`"),
+            "{}",
+            errors[0]
         );
     }
 }

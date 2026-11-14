@@ -1,22 +1,30 @@
+-- A role is a type: `--role Source` selects the values written in the
+-- `Source` wrapper of a `MetaRole` type, not the warning.
 -- expect-command: meta
--- expect-args: --type Shape --role source
+-- expect-args: --type Shape --role Source
 -- expect-status: pass
 -- expect-stdout: filter type Shape role source
 -- expect-stdout: references: 2
--- expect-stdout: reference shape_filter role source binding primary_shape type Shape value Circle
--- expect-stdout: reference shape_filter role source binding secondary_shape type Shape value Square
+-- expect-stdout: reference shape_filter role meta binding Source(value = primary_shape) type ShapeRole value Source(value = Circle)
+-- expect-stdout: attachment $ role source value Circle type Shape
+-- expect-stdout: reference shape_filter role meta binding Source(value = secondary_shape) type ShapeRole value Source(value = Square)
+-- expect-stdout: attachment $ role source value Square type Shape
+-- expect-stdout-not: Warning(value
 -- expect-stdout-not: role warning
 
 # Shape = Circle | Triangle | Square
-# Warning(message: String)
+# ShapeWarning(message: String)
+# ShapeRole(a) = Source(value: a) | Warning(value: a)
+# impl MetaRole for ShapeRole {}
+# impl Meta for ShapeRole {}
 
 = primary_shape = Circle
 = secondary_shape = Square
-= shape_warning = Warning(message = "Not selected")
+= shape_warning = ShapeWarning(message = "Not selected")
 
-@ meta(primary_shape)
-@ meta(secondary_shape)
-@ meta(shape_warning)
+@ meta(Source(value = primary_shape))
+@ meta(Source(value = secondary_shape))
+@ meta(Warning(value = shape_warning))
 @ section shape_filter {
 
 | circles_rule(shape: Shape) -> shape == Circle

@@ -1,24 +1,24 @@
 -- expect-command: meta
 -- expect-args: --json --type Shape --role source
 -- expect-status: pass
--- expect-stdout: "schema": "futuruna.meta.v1"
+-- expect-stdout: "schema": "futuruna.meta.v2"
 -- expect-stdout: "references": 2
 -- expect-stdout: "label": "geometry"
 -- expect-stdout: "role": "source"
 -- expect-stdout: "binding": "primary_shape"
 -- expect-stdout: "binding": "secondary_shape"
+-- expect-stdout: "binding": "Source(value = primary_shape)"
 -- expect-stdout: "type": "Shape"
+-- expect-stdout: "type": "ShapeRole"
 -- expect-stdout: "data": {
--- expect-stdout: "text": "Raw additions"
--- expect-stdout: "text_begin_marker_line": 28
--- expect-stdout: "text_end_marker_line": 30
--- expect-stdout: "text_start_line": 29
--- expect-stdout: "text_end_line": 29
 -- expect-stdout: "name": "geometry_fixture"
 -- expect-stdout-not: "role": "warning"
 
 # Shape = Circle | Triangle | Square
 # AuditWarning(message: String)
+# ShapeRole(a) = Source(value: a) | Warning(value: a)
+# impl MetaRole for ShapeRole {}
+# impl Meta for ShapeRole {}
 
 = primary_shape = Circle
 = secondary_shape = Triangle
@@ -28,9 +28,9 @@
 Raw additions
 ----
 
-@ meta(primary_shape)
-@ meta(secondary_shape)
-@ meta(shape_warning)
+@ meta(Source(value = primary_shape))
+@ meta(Source(value = secondary_shape))
+@ meta(Warning(value = shape_warning))
 @ section geometry {
 
 = geometry_fixture = Circle
