@@ -58075,6 +58075,7 @@ impl TypeChecker {
                     .replace(canonical_source_path(&unit.path));
                 let start = self.diagnostics.len();
                 self.check_function_declarations(&unit.statements);
+                self.check_top_level_bindings(&unit.statements);
                 if unit.scope.is_some() {
                     self.check_rule_result_contracts(&unit.statements);
                 }
@@ -58978,6 +58979,7 @@ impl TypeChecker {
     pub fn check_program(&mut self, stmts: &[Stmt]) {
         self.infer_rule_call_site_param_types(stmts);
         self.check_rule_result_contracts(stmts);
+        self.check_top_level_bindings(stmts);
         self.check_stmt_sequence_with_exploration_selection(stmts, true);
         self.check_unhandled_effects(stmts);
         self.check_imported_bodies();
@@ -61620,6 +61622,7 @@ impl TypeChecker {
                 self.push_scope();
                 let constructor_catalog = self.snapshot_inline_module_constructor_catalog();
                 self.collect_nested_declarations(body);
+                self.check_top_level_bindings(body);
                 self.check_stmt_sequence(body);
                 self.restore_inline_module_constructor_catalog(constructor_catalog);
                 self.pop_scope();
