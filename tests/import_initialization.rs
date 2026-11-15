@@ -70,18 +70,20 @@ fn maintained_import_corpus_agrees_in_both_execution_modes() {
             include_str!("differential/corpus/imports/static_initializer_bridge.runa"),
         ),
     ]);
-    fixture.agrees("initialized\n6\n6\n6\nfalse\n[1]\n2");
+    fixture.agrees("initialized\n500\n500\n6\nfalse\n[1]\n2");
 }
 
+/// A module's initializers and calls mean its own functions; the importer's
+/// function of the same name serves only the importer's calls.
 #[test]
-fn imported_initializers_and_later_calls_use_the_same_local_override() {
+fn imported_initializers_and_later_calls_keep_the_module_function() {
     for prefix in ["", "> anchor() -> Int { 0 }\n"] {
         let source = format!("{prefix}@ import ./dependency\n> fee(x: Int) -> Int {{ x + 1 }}\n@ print(show(seed))\n@ print(show(fee(5)))\n@ print(show(imported_total(5)))\n");
         let fixture = Fixture::new(&[
             ("dependency.runa", "> fee(x: Int) -> Int { x * 100 }\n= seed = fee(5)\n> imported_total(x: Int) -> Int { fee(x) }\n"),
             ("main.runa", &source),
         ]);
-        fixture.agrees("6\n6\n6");
+        fixture.agrees("500\n6\n500");
     }
 }
 
@@ -89,9 +91,9 @@ fn imported_initializers_and_later_calls_use_the_same_local_override() {
 fn merged_initializer_dependencies_can_cross_the_import_boundary() {
     let fixture = Fixture::new(&[
         ("dependency.runa", "> fee(x: Int) -> Int { x * 100 }\n= seed = fee(5)\n"),
-        ("main.runa", "@ import ./dependency\n> fee(x: Int) -> Int { x + adjustment }\n= adjustment = 1\n@ print(show(seed))\n"),
+        ("main.runa", "@ import ./dependency\n> fee(x: Int) -> Int { x + adjustment }\n= total = seed + fee(5)\n= adjustment = 1\n@ print(show(total))\n"),
     ]);
-    fixture.agrees("6");
+    fixture.agrees("506");
 }
 
 #[test]
@@ -102,14 +104,14 @@ fn diamond_import_initializers_run_once_in_the_merged_context() {
         ("right.runa", "@ import ./shared\n> right() -> Int { seed }\n"),
         ("main.runa", "@ import ./left\n@ import ./right\n> fee(x: Int) -> Int { x + 1 }\n@ print(show(left() + right()))\n"),
     ]);
-    fixture.agrees("initialized\n12");
+    fixture.agrees("initialized\n1000");
 }
 
 #[test]
 fn imported_initializer_proofs_agree_with_execution() {
     let fixture = Fixture::new(&[
         ("dependency.runa", "> fee(x: Int) -> Int { x * 100 }\n= seed = fee(5)\n"),
-        ("main.runa", "@ import ./dependency\n> fee(x: Int) -> Int { x + 1 }\n| correct: 0 -> seed == 6\n| wrong: 0 -> seed == 500\n? correct else { @ print(\"incorrect value\") }\n? wrong else { @ print(\"counterexample\") }\n"),
+        ("main.runa", "@ import ./dependency\n> fee(x: Int) -> Int { x + 1 }\n| correct: 0 -> seed == 500\n| wrong: 0 -> seed == 6\n? correct else { @ print(\"incorrect value\") }\n? wrong else { @ print(\"counterexample\") }\n"),
     ]);
     fixture.agrees("counterexample");
     if Command::new("z3")
@@ -165,7 +167,7 @@ fn plain_import_planning_keeps_qualified_initialization_isolated() {
         ("dependency.runa", "@ export fee\n@ export seed\n> fee(x: Int) -> Int { x * 100 }\n= seed = fee(5)\n"),
         ("main.runa", "@ import ./dependency\n@ import Lib from ./dependency\n> fee(x: Int) -> Int { x + 1 }\n@ print(show(seed))\n@ print(show(Lib.seed))\n@ print(show(Lib.fee(5)))\n"),
     ]);
-    fixture.agrees("6\n500\n500");
+    fixture.agrees("500\n500\n500");
 }
 
 #[test]
@@ -229,7 +231,7 @@ fn maintained_qualified_initializer_corpus_agrees_in_both_execution_modes() {
             include_str!("differential/corpus/imports/qualified_initializer_context_dep.runa"),
         ),
     ]);
-    fixture.agrees("6\n500\n500\n500\n500");
+    fixture.agrees("500\n500\n500\n500\n500");
 }
 
 #[test]

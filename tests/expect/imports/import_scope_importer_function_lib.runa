@@ -1,0 +1,3 @@
+-- expect-skip: dependency-only fixture: a module calling a function only its importer declares
+
+> helper(n: Int) -> Int { hook(n) }

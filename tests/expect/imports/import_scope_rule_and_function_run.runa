@@ -1,0 +1,12 @@
+-- expect-command: run
+-- expect-status: fail
+-- expect-stderr: `tax` is declared both as a rule (line 3 of import_scope_rule_lib.runa) and as a function (line 10)
+-- expect-stderr-not: defined multiple times
+
+@ import ./import_scope_rule_lib
+
+-- A rule family spans the plain imports of a file, so a function of its
+-- name in the importer is the same clash as in one file.
+> tax(income: Int) -> Int { income / 2 }
+
+@ print(show(uses_rule(100)))

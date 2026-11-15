@@ -61,6 +61,7 @@ pub mod explore;
 mod host_effects;
 pub use host_effects::{audit_host_effect_diagnostics, is_host_effect_builtin};
 mod function_returns;
+mod import_scope;
 pub mod manifest;
 pub mod migrate;
 // The search runtime that compiled programs embed; the interpreter shares its
@@ -63497,11 +63498,19 @@ impl TypeChecker {
         extract_calculation_contracts: bool,
     ) -> TypeCheckArtifacts {
         constructor_scope::begin_root_check(stmts);
+        // Each file's names mean its own scope's declarations; the checker
+        // and every consumer of the checked program read the files with the
+        // functions that would meet in the merged program renamed apart.
+        let mut import_scopes = import_scope::ImportScopes::resolve(stmts, source_dir.as_deref());
+        import_scopes.install();
+        let scoped_root = import_scopes.take_root();
+        let stmts = scoped_root.as_deref().unwrap_or(stmts);
         let mut tc = TypeChecker::new();
         tc.source_dir = source_dir;
         tc.source_text = source.to_string();
         tc.install_constructor_prepass(stmts);
         tc.collect_declarations(stmts);
+        tc.report_import_scope_errors(&import_scopes);
         // The same preparation is used by the lightweight runtime installer;
         // neither path may infer a callable contract the other cannot prove.
         tc.prepare_rule_dispatch_metadata(stmts);
@@ -63510,7 +63519,8 @@ impl TypeChecker {
             Some(checked) => tc.check_program(&checked),
             None => tc.check_program(stmts),
         }
-        let mut constructor_elaboration = tc.elaborate_constructor_scope(stmts);
+        let mut constructor_elaboration =
+            ConstructorElaboration::keeping_current_modules(tc.elaborate_constructor_scope(stmts));
         let elaborated_root = constructor_elaboration
             .as_mut()
             .and_then(ConstructorElaboration::take_root);

@@ -216,6 +216,38 @@ impl ConstructorElaboration {
         replace_current(renames.then(|| self.clone()));
     }
 
+    /// Read `modules` (files rewritten for their import scopes, see
+    /// `import_scope`) on this thread from now on, besides whatever the
+    /// current elaboration renames.
+    pub(crate) fn install_import_scopes(modules: &BTreeMap<PathBuf, Arc<ParsedSourceModule>>) {
+        if modules.is_empty() {
+            return;
+        }
+        let mut elaboration = with_current(|current| current.cloned()).unwrap_or_default();
+        elaboration.modules.extend(
+            modules
+                .iter()
+                .map(|(path, module)| (path.clone(), module.clone())),
+        );
+        replace_current(Some(Arc::new(elaboration)));
+    }
+
+    /// `elaboration` with the rewritten files current on this thread that it
+    /// did not rewrite again: the checked program's files, read rewritten
+    /// for their import scopes or by an earlier check of the same program.
+    pub(crate) fn keeping_current_modules(elaboration: Option<Self>) -> Option<Self> {
+        let current = with_current(|current| current.map(|current| current.modules.clone()))
+            .unwrap_or_default();
+        if current.is_empty() {
+            return elaboration;
+        }
+        let mut elaboration = elaboration.unwrap_or_default();
+        for (path, module) in current {
+            elaboration.modules.entry(path).or_insert(module);
+        }
+        Some(elaboration)
+    }
+
     /// Rewrite one file of the program: the root when `module` is `None`,
     /// else the imported file at that canonical path. Starts from the file
     /// as elaboration has rewritten it so far, or as it is written.
@@ -830,7 +862,7 @@ impl TypeChecker {
 }
 
 impl ParsedSourceModule {
-    fn elaborated(original: &ParsedSourceModule, statements: Vec<Stmt>) -> Self {
+    pub(crate) fn elaborated(original: &ParsedSourceModule, statements: Vec<Stmt>) -> Self {
         Self {
             source: original.source.clone(),
             statements: Arc::new(statements),

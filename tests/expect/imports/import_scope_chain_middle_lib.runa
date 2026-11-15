@@ -1,0 +1,7 @@
+-- expect-skip: dependency-only fixture: a file declaring `rate` over an import that declares it
+
+@ import ./import_scope_chain_base_lib
+
+> rate() -> Int { 2 }
+> middle_rate() -> Int { rate() }
+> middle_base_rate() -> Int { base_rate() }
