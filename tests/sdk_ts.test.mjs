@@ -365,6 +365,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   assert.equal(first.questions[0].question, 'What is your income before tax each month?');
   assert.deepEqual(first.questions[0].waiting, [{ rule: 'annual_income' }]);
   assert.deepEqual(first.partialCase, { children: [{ name: 'Ada', age: 4 }], filingStatus: 'Married' });
+  assert.ok(Array.isArray(first.later), 'Questions carries the last round\'s later facts');
   const second = await usage.interview(transport, usage.answerNeed(first.partialCase, first.questions[0]));
   assert.equal(second.$variant, 'Complete');
   assert.deepEqual(second.result, { annualIncome: 600000, taxableIncome: 600000, annualTax: 120000 });

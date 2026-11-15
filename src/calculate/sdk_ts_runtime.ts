@@ -1555,6 +1555,11 @@ export type Resolution<C, R, N extends Need = Need> =
       readonly questions: readonly N[];
       /** Entry needs waiting on questions in another entry's case. */
       readonly pending: readonly PendingEntry[];
+      /**
+       * Facts read only behind an unknown condition in the last round: what the
+       * engine may ask once the questions are answered.
+       */
+      readonly later: readonly N[];
       readonly partialCase: C;
       readonly rounds: number;
     };
@@ -1676,7 +1681,9 @@ export async function resolve<C, R, N extends Need, Patterns = AnyPatterns>(
         pending.push({ need, resolution: reply.resolution });
       }
     }
-    if (next === partialCase) return { $variant: "Questions", questions, pending, partialCase, rounds };
+    if (next === partialCase) {
+      return { $variant: "Questions", questions, pending, later: result.later ?? [], partialCase, rounds };
+    }
     partialCase = next;
   }
 }

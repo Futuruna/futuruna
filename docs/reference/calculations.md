@@ -1209,7 +1209,9 @@ backend's rows) would: a reply for another path throws `ResolveError`.
 `context.partialCase` is the case of the round, with every answer so far. A
 need no registered pattern covers is a question. The loop stops
 with `Complete`, or with `Questions` (the questions, entry needs waiting on
-another case's questions, and the partial case) when a round adds no answer.
+another case's questions, the last round's `later` facts that may be asked
+once the questions are answered, and the partial case) when a round adds no
+answer.
 It keeps the stack of `(entry, subject)` pairs it runs: a pair that repeats
 throws `ResolveCycleError`, since entries that need each other belong in one
 joint entry. A path the engine still needs after it was answered throws
