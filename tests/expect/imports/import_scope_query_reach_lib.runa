@@ -7,7 +7,7 @@
     = q = query lib_tax(h)
     match q {
         | Complete -> 1
-        | _ -> 0
+        | Needs -> 0
     }
 }
 

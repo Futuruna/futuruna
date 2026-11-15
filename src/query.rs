@@ -191,6 +191,87 @@ pub fn needs_prelude() -> Vec<Stmt> {
     }
 }
 
+/// `statements` with the needs prelude when the program does not have it
+/// while a file it imports (plain, through any chain of plain imports) asks a
+/// query, places an `unknown` or calls `fill` or `interview`: a prelude is
+/// prepended to the root only, and the imported file needs the same `Query`,
+/// `Need`, `NeedKind` and `Interview` the root would get. `None` when nothing
+/// is added.
+pub(crate) fn with_needs_prelude_for_imports(
+    statements: &[Stmt],
+    source_dir: Option<&str>,
+) -> Option<Vec<Stmt>> {
+    let source_dir = source_dir?;
+    let has_prelude = statements.iter().any(|statement| {
+        matches!(statement, Stmt::TypeDecl(TypeDecl::ADT { name, .. }) if name == "NeedKind")
+    });
+    if has_prelude
+        || !statements
+            .iter()
+            .any(|statement| matches!(statement, Stmt::Import(_)))
+    {
+        return None;
+    }
+    let mut visited = BTreeSet::new();
+    if !imports_use_needs(statements, source_dir, &mut visited) {
+        return None;
+    }
+    let declared: BTreeSet<&str> = statements
+        .iter()
+        .filter_map(|statement| match statement {
+            Stmt::Defn(Defn::Fn { name, .. }) | Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
+                Some(name.as_str())
+            }
+            _ => None,
+        })
+        .collect();
+    let prelude = needs_prelude()
+        .into_iter()
+        .filter(|statement| match statement {
+            Stmt::Defn(Defn::Fn { name, .. }) | Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
+                !declared.contains(name.as_str())
+            }
+            _ => true,
+        });
+    let boundary = statements
+        .iter()
+        .position(|statement| matches!(statement, Stmt::PreludeBoundary))
+        .unwrap_or(0);
+    let mut result = statements[..boundary].to_vec();
+    result.extend(prelude);
+    result.extend_from_slice(&statements[boundary..]);
+    Some(result)
+}
+
+fn imports_use_needs(statements: &[Stmt], dir: &str, visited: &mut BTreeSet<PathBuf>) -> bool {
+    for statement in statements {
+        let Stmt::Import(import_path) = statement else {
+            continue;
+        };
+        let Some(file) = crate::Interpreter::resolve_import_path_for_source(import_path, dir)
+        else {
+            continue;
+        };
+        let path = std::fs::canonicalize(&file).unwrap_or_else(|_| PathBuf::from(&file));
+        if !visited.insert(path.clone()) {
+            continue;
+        }
+        let Ok(module) = crate::parse_source_module_file_cached(&path) else {
+            continue;
+        };
+        let module_dir = path
+            .parent()
+            .map(|parent| parent.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if program_uses_needs(module.statements())
+            || imports_use_needs(module.statements(), &module_dir, visited)
+        {
+            return true;
+        }
+    }
+    false
+}
+
 /// Whether a program asks a query, places an `unknown`, or calls `fill` or
 /// `interview` without declaring its own.
 pub fn program_uses_needs(statements: &[Stmt]) -> bool {

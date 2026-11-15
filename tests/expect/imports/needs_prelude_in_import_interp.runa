@@ -1,0 +1,13 @@
+-- A module that asks a query sees the needs prelude the root would get,
+-- though the root itself asks none: its matches on `Query`, `NeedKind` and
+-- `Interview` are exhaustive and `interview` is there.
+-- expect-command: interp
+-- expect-stdout: complete 50
+-- expect-stdout: needs fact
+-- expect-stdout: 1
+
+@ import ./needs_prelude_in_import_lib
+
+@ print(answered(Household(income = 100, married = True)))
+@ print(answered(undecided(100)))
+@ print(show(rounds(undecided(100), Household(income = 100, married = True))))

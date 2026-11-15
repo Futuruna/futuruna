@@ -22261,6 +22261,8 @@ impl Interpreter {
     }
 
     pub fn run_program(&mut self, stmts: &[Stmt], env: &mut Env) -> Value {
+        let with_needs = query::with_needs_prelude_for_imports(stmts, self.source_dir.as_deref());
+        let stmts = with_needs.as_deref().unwrap_or(stmts);
         with_program_constructor_names!(self, self.run_program_entered(stmts, env))
     }
 
@@ -64115,6 +64117,10 @@ impl TypeChecker {
         collect_all_imported_metadata_bindings: bool,
         extract_calculation_contracts: bool,
     ) -> TypeCheckArtifacts {
+        // An imported file that asks a query sees the needs prelude the
+        // root would get.
+        let with_needs = query::with_needs_prelude_for_imports(stmts, source_dir.as_deref());
+        let stmts = with_needs.as_deref().unwrap_or(stmts);
         constructor_scope::begin_root_check(stmts);
         // Each file's names mean its own scope's declarations; the checker
         // and every consumer of the checked program read the files with the
