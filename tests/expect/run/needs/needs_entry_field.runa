@@ -1,0 +1,26 @@
+-- The typed `@ field` form: `entry = refof(share_income)` and `subject =
+-- pathof(Household::spouse)`. Its need is the one of the field record in
+-- needs_entry.runa, and its contract and need are those of the string form
+-- in needs_entry_field_string.runa.
+-- expect-command: call
+-- expect-input: needs_entry_field.json
+-- expect-args: --entry household_tax --partial
+-- expect-stdout-file: needs_entry_field.stdout
+
+# Spouse(income: Int)
+# Household(
+    income: Int,
+    spouse: Spouse,
+    @ field(label = "Spouse's share income", unit = "øre", entry = refof(share_income), subject = pathof(Household::spouse))
+    spouse_share_income: Int
+)
+# Result(tax: Int)
+
+@ calculate
+| share_income(s: Spouse) -> s.income
+
+| threshold(h: Household) -> 100
+| exception transferred threshold(h: Household) -> 200 - h.spouse_share_income under h.spouse_share_income < 100
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = h.income - threshold(h))

@@ -19,7 +19,7 @@
     moved_in: Date,
     status: Status,
     spouse: Spouse,
-    @ field(label = "Spouse's income", unit = "DKK øre", entry = "spouse_income", subject = "spouse")
+    @ field(label = "Spouse's income", unit = "DKK øre", entry = refof(spouse_income), subject = pathof(Household::spouse))
     spouse_income: Int
 )
 # TaxResult(tax: Int)

@@ -47,7 +47,8 @@ The standard prelude defines:
 ## Syntax and resolution
 
 Version 1 accepts three forms, and `refof(section <name>)` names an
-`@ section` of the file it stands in:
+`@ section` of the file it stands in or of a file it imports (since 0.5; a
+name two files declare is ambiguous and an error):
 
 ```runa
 refof(calculate_tax)

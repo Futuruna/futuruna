@@ -1,0 +1,33 @@
+-- A field record's typed subject is rooted at the calculation's input type.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: calculation `household_tax` field `spouse_share_income` is provided by `share_income` for subject `pathof(Couple::spouse)`, which is rooted at `Couple`, not at `household_tax`'s input type `Household`
+
+# Spouse(income: Int)
+# Couple(spouse: Spouse)
+# Household(income: Int, spouse: Spouse, spouse_share_income: Int)
+# Result(tax: Int)
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?, entry: ProgramReference?, subject: String?)
+# CalculationMeta = CalculationMeta(fields: List(CalculationField))
+# impl Meta for CalculationMeta {}
+
+= household_meta = CalculationMeta(
+    fields = [
+        CalculationField(
+            path = pathof(Household::spouse_share_income),
+            label = "Spouse's share income",
+            question = None,
+            help = None,
+            unit = None,
+            entry = Some(refof(share_income)),
+            subject = Some(pathof(Couple::spouse))
+        )
+    ]
+)
+
+@ calculate
+| share_income(s: Spouse) -> s.income
+
+@ meta(household_meta)
+@ calculate
+| household_tax(h: Household) -> Result(tax = h.income - h.spouse_share_income)

@@ -1,6 +1,13 @@
+---
+feature_stage: experimental
+feature_stage_surfaces:
+  - needs-in-the-language
+---
+
 # RFC: Needs in the language
 
-Status: Proposed (Futuruna 0.5). Builds on [Calculation needs](calculation-needs.md).
+Status: Experimental (Futuruna 0.5). Builds on [Calculation needs](calculation-needs.md).
+Decisions made while implementing it are under *Decisions* at the end.
 
 ## Problem
 
@@ -428,3 +435,95 @@ from.
   whether that rule's parameter types form a contract stable enough to ask
   from outside the model (JSON, SDK), or whether such queries stay in tests
   and a published question still needs an entry.
+
+## Decisions
+
+Taken while implementing this RFC for 0.5:
+
+- **The path form.** A `Path(i)` value is the string `pathof` writes, in a
+  `Path` place and a `String` place alike: fields joined with `.`, list
+  indices kept, `$variant` for a tag, and the alternative of a sum type named
+  before its payload field
+  (`taxpayer.outside_endavu.OutsideDeclared.other_share_income_ore`). This is
+  the JSON path except for that alternative name, and the path field
+  metadata already uses; `show(path)` shows it. A query writes every path it
+  returns in this form, taking the alternative from the case. One runtime
+  form keeps `pathof` independent of its place.
+- **Typing by place.** The checker infers types; `unknown` and `pathof` fit
+  their place where literals with units do (arguments, field values, typed
+  bindings, list elements, results), and `==` holds a `pathof` to the
+  `Path(T)` on its other side. A path rooted at another type is an error
+  there; through a generic parameter (`fill`'s `List(Path(i))`) the root is
+  not checked.
+- **Where `unknown` has no place in a partial case.** A partial case leaves
+  out record fields. An `unknown` scalar as a list element, a map value or
+  the payload of `Some` cannot be written there and is an error when the
+  query runs (`Some(unknown)` of a record is the record with unknown fields).
+- **Which entry a query asks.** The entry is found in the asking file or the
+  files it imports, and checked and prepared as `runa call` prepares it, once
+  per run. Its result and needs cross into the asking program through their
+  JSON encoding, so a query returns exactly what `runa call --partial`
+  returns.
+- **`Need(i)` names.** The record types a need is made of are `NeedKind`
+  (`FactNeed | EntryNeed`), `NeedKey(i)`, `NeedSource`, `NeedWaiting`,
+  `NeedParagraph`, `NeedAct` and `NeedAmendment`: prefixed so that a model's
+  own `Entry` or `Act` does not share a constructor with them. A source's
+  `binding` is a `ProgramReference`. A key's `value` is its JSON text.
+  `later` stays out of `Needs` (open question above).
+- **The prelude.** The types and `fill`/`interview` join the prelude of a
+  program that asks a query, places an `unknown`, or calls `fill` or
+  `interview`; other programs are unchanged.
+- **Cost.** The completion test runs 32 completions per `Complete` query, as
+  `--partial=check` does; no per-query budget yet.
+- **`refof(section ...)` in tests.** `refof(section name)` resolves the
+  sections of the file it is written in and of the files it imports, so a
+  test compares a need's waiting section with
+  `Some(refof(section share_income))` for a section of the model it imports.
+  The reference holds only the name: a name two files declare is a check
+  error naming both.
+- **A binding named like a function or rule.** Futuruna allows a binding to
+  take the name of a rule (`= tax = tax(case)`; tested as
+  `forward_top_level_value_dependency_*`, and used in the Danish examples):
+  `tax` reads the binding and `tax(...)` calls the rule, unless the binding
+  holds a function, which takes the calls after it. A function did not
+  follow this: `runa check` passed, and the interpreter called the binding's
+  value and stopped with "value is not callable". Now a function behaves as
+  a rule does, and since the shadowing is intended, `runa check` and every
+  command that checks the program print a warning for each top-level
+  binding naming it and the function or rule, and what each use means,
+  rather than an error. Bindings in a body, parameters and patterns are
+  lexical and not reported (tax-service binds `cash` and `held` in rule
+  bodies while its test builders declare functions of those names); the
+  prelude's declarations may still be overridden.
+- **Showing a broken guarantee.** A debug build reads
+  `FUTURUNA_TEST_FAULT=claim-complete`, which makes propagation answer a
+  `Needs` case `Complete`; `tests/needs_query_cli.rs` uses it to show `runa
+  test` failing at the query's line. Release builds have no such hook.
+
+## Decisions: typed entry metadata
+
+- **Where the checks run.** `entry`, `subject` and the field's type are
+  checked per calculation that reads the field, where contract extraction
+  checked the strings; the errors are `runa check` errors naming the
+  calculation and the field. `entry` must be an `@ calculate` entry of the
+  program; `refof` of a type, field or section is an error.
+- **The subject's root.** A `pathof` subject must be rooted at the input type
+  of each calculation that reads the field. The contract keeps the path
+  without its root (`provided_by.subject`), so for `@ field` the contract
+  JSON and schema hash do not change. A field record's `@ meta` value is
+  carried in the contract as written, so rewriting `Some("e")` as
+  `Some(refof(e))` changes that value and the schema hash; its field
+  metadata and needs stay the same.
+- **A subject through a binding** (`subject = Some(spouse_path)`) is read as
+  its string, without the root check.
+- **The migration's calculations** are the file's own and those of the
+  program's files (the nearest `runa.toml` directory, else the file's) that
+  import it. A pair is rewritten whole or not at all; a field record's
+  `entry: String?` becomes `ProgramReference?` only when the record is
+  declared in the file and every string value of it there is rewritten. A
+  file without retired directives is not reformatted.
+- **`unknown` as a name.** A program that uses `unknown` as a name anywhere
+  (by its place: `x.unknown`, `unknown: T`, `unknown = ...`, `unknown(...)`,
+  `T::unknown`) has every `unknown` token renamed; a program without such a
+  use keeps a bare `unknown` (its 0.5 meaning). When `unknown_` is already a
+  name, the uses are listed instead.

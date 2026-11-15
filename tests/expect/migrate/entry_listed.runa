@@ -1,0 +1,34 @@
+-- A string `entry`/`subject` the migration cannot root is left and listed:
+-- the inputs of two calculations reach `Owner::share`, and no calculation
+-- reaches `Ledger::amount`. Nothing else changes, so the file is not
+-- migrated.
+-- expect-command: migrate
+-- expect-status: pass
+-- expect-stderr: :14: left `entry = "share"`, `subject = "owner.person"` on `Owner::share`: the inputs of several calculations reach `Owner::share` (`First`, `Second`); a subject is rooted at one of them; write `entry = refof(<calculation>)`, `subject = pathof(<Input>::...)` by hand
+-- expect-stderr: :20: left `entry = "share"`, `subject = "person"` on `Ledger::amount`: no calculation's input reaches `Ledger::amount`, so its subject has no root type
+-- expect-stderr: 0 file(s) migrated, 0 not migrated
+
+# Person(income: Int)
+# Owner(
+    person: Person,
+    @ field(label = "Share", entry = "share", subject = "owner.person")
+    share: Int
+)
+
+# Ledger(
+    person: Person,
+    @ field(label = "Amount", entry = "share", subject = "person")
+    amount: Int
+)
+
+# First(owner: Owner)
+# Second(owner: Owner)
+
+@ calculate
+| share(p: Person) -> p.income
+
+@ calculate
+| first(x: First) -> x.owner.share
+
+@ calculate
+| second(x: Second) -> x.owner.share * 2

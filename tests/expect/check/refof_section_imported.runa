@@ -1,0 +1,9 @@
+-- A section reference names a section of this file or of a file it imports.
+-- expect-command: interp
+-- expect-stdout: |names_the_imported_section| holds
+
+@ import ./refof_section_lib
+
+= transfer_section = refof(section transfer)
+| names_the_imported_section: transfer_section -> transfer_section == ProgramSectionReference(name = "transfer")
+? names_the_imported_section

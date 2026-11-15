@@ -209,7 +209,8 @@ passage's text:
   in one file is an error. A section may share its name with a rule it holds.
 - **`refof(section grundlov_par3)`** is a `ProgramReference`
   (`ProgramSectionReference(name)`) to the section, checked against the
-  sections of the file it stands in.
+  sections of the file it stands in and of the files it imports. The
+  reference holds only the name, so a name two files declare is an error.
 
 **Documents.** `@ quote` names a *document*: a binding whose type implements
 the standard marker trait `Document`, or a `MetaRole` value holding one
@@ -610,6 +611,23 @@ directory of the nearest `runa.toml`, else the file's own directory):
 Quoted text with no `[sources/...]` document stays a `----` block comment
 directly above the section. A type whose values are quoted documents gains
 `# impl Document for <Type> {}` after its declaration.
+
+For 0.5 (docs/rfcs/needs-in-the-language.md) the migration also rewrites,
+without reformatting a file that has no directives:
+
+6. A providing entry written as strings, `@ field(entry = "share_income",
+   subject = "taxpayer.spouse")` or a field record's `entry =
+   Some("share_income")`, `subject = Some("taxpayer.spouse")`, becomes
+   `entry = refof(share_income)`, `subject =
+   pathof(TaxCase::taxpayer::spouse)` when exactly one calculation input type
+   reaches the field (the file's own calculations and those of the program's
+   files that import it); a field record's `entry: String?` becomes
+   `entry: ProgramReference?`. Each one it cannot root is left and listed as
+   `file:line: left ...` with the reason.
+7. `unknown`, a reserved word in 0.5, is renamed `unknown_` wherever the
+   program uses it as a name (a binding, parameter, function or field), on the
+   tokens, so a file that no longer parses is still renamed. Each rename is
+   reported.
 
 Spans around the same code (nested `--@begin`/`--@end` pairs with only
 directives between them, as models wrote for a consolidated act and the acts

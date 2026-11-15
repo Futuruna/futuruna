@@ -204,10 +204,34 @@ pub struct CalculationFieldMetadata {
 
 /// The calculation entry that provides a field, and the input path of the
 /// subject it runs for (`taxpayer.spouse`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CalculationFieldProvider {
     pub entry: String,
     pub subject: String,
+    /// The type a typed subject (`pathof(TaxCase::taxpayer::spouse)`) is
+    /// rooted at. The contract carries only the path, so a contract read
+    /// back equals the one extracted.
+    #[serde(skip)]
+    pub subject_root: Option<String>,
+}
+
+impl PartialEq for CalculationFieldProvider {
+    fn eq(&self, other: &Self) -> bool {
+        self.entry == other.entry && self.subject == other.subject
+    }
+}
+
+impl Eq for CalculationFieldProvider {}
+
+impl CalculationFieldProvider {
+    /// The subject as written: `pathof(TaxCase::taxpayer::spouse)` for a
+    /// typed subject, else its JSON path.
+    fn subject_source(&self) -> String {
+        match &self.subject_root {
+            Some(root) => format!("pathof({}::{})", root, self.subject.replace('.', "::")),
+            None => self.subject.clone(),
+        }
+    }
 }
 
 /// Field metadata record members a calculation reads.
@@ -307,6 +331,38 @@ impl CalculationContract {
 
     pub fn encode_output(&self, value: &Value) -> Result<JsonValue, CalculationValueError> {
         encode_value(value, &self.output, self, &BTreeMap::new(), "$")
+    }
+
+    /// Decode a result in its canonical JSON encoding.
+    pub fn decode_output(&self, value: &JsonValue) -> Result<Value, CalculationValueError> {
+        decode_value(value, &self.output, self, &BTreeMap::new(), "$", None).map_err(|errors| {
+            errors
+                .into_iter()
+                .next()
+                .expect("invalid output has a diagnostic")
+        })
+    }
+
+    /// Encode an input value that holds `unknown`s as a partial case: an
+    /// unknown record field is left out (a record or a sum type as `{}`, the
+    /// record existing with unknown fields, or the variant unknown).
+    pub fn encode_partial_input(&self, value: &Value) -> Result<JsonValue, CalculationValueError> {
+        struct Reset;
+        impl Drop for Reset {
+            fn drop(&mut self) {
+                ENCODING_PARTIAL.with(|partial| partial.set(false));
+            }
+        }
+        ENCODING_PARTIAL.with(|partial| partial.set(true));
+        let _reset = Reset;
+        let encoded = encode_value(value, &self.input, self, &BTreeMap::new(), "$")?;
+        match left_out_path(&encoded, "$") {
+            Some(path) => Err(value_error(
+                &path,
+                "an `unknown` here has no place in a partial case: a partial case leaves out record fields, and gives a list element, a map value or the value of `Some` whole. Place a record with unknown fields, or `unknown` for the whole list, map or optional",
+            )),
+            None => Ok(encoded),
+        }
     }
 
     pub fn input_layout(&self) -> CalculationInputLayout {
@@ -683,6 +739,18 @@ impl CalculationContract {
     /// and map keys removed, a sum type's payload under its variant name.
     /// `input` resolves which variant a payload belongs to.
     pub fn canonical_input_path(&self, input: &JsonValue, path: &str) -> Option<String> {
+        self.input_path_form(input, path, false)
+    }
+
+    /// A concrete input path as `pathof` writes it: a sum type's payload
+    /// under its variant name, list indices and map keys kept
+    /// (`accounts[1].ask_ending.Closed.prices`). `input` resolves which
+    /// variant a payload belongs to.
+    pub fn typed_input_path(&self, input: &JsonValue, path: &str) -> Option<String> {
+        self.input_path_form(input, path, true)
+    }
+
+    fn input_path_form(&self, input: &JsonValue, path: &str, concrete: bool) -> Option<String> {
         let mut ty = self.input.clone();
         let mut substitutions = BTreeMap::new();
         let mut json = Some(input);
@@ -698,6 +766,9 @@ impl CalculationContract {
                     ) => {
                         json = json.and_then(|json| json.get(*index));
                         ty = (**item).clone();
+                        if concrete {
+                            canonical.push(format!("[{index}]"));
+                        }
                         break;
                     }
                     _ => break,
@@ -710,6 +781,9 @@ impl CalculationContract {
                 CalculationTypeRef::Map { value, .. } => {
                     json = json.and_then(|json| json.get(name));
                     ty = (**value).clone();
+                    if concrete {
+                        canonical.push(name.to_string());
+                    }
                     continue;
                 }
                 CalculationTypeRef::Named {
@@ -723,7 +797,9 @@ impl CalculationContract {
                         canonical.push(name.to_string());
                     } else if name == "$variant" {
                         canonical.push(name.to_string());
-                        return Some(canonical.join("."));
+                        return Some(crate::join_pathof_segments(
+                            canonical.iter().map(String::as_str),
+                        ));
                     } else {
                         let chosen = json
                             .and_then(|json| json.get("$variant"))
@@ -741,7 +817,9 @@ impl CalculationContract {
                 _ => return None,
             }
         }
-        Some(canonical.join("."))
+        Some(crate::join_pathof_segments(
+            canonical.iter().map(String::as_str),
+        ))
     }
 
     /// The need for a concrete input path, with the field's metadata and
@@ -2855,7 +2933,7 @@ fn entry_provider_diagnostics(contracts: &[CalculationContract]) -> Vec<Diagnost
                 .find(|candidate| candidate.entry == provider.entry)
             else {
                 diagnostics.push(Diagnostic::error(format!(
-                    "calculation `{}` field `{}` is provided by `{}`, which is not a calculation entry of this program",
+                    "calculation `{}` field `{}` is provided by `{}`, which is not a calculation entry of this program; `entry` names an `@ calculate` function",
                     contract.entry, field.path, provider.entry
                 )));
                 continue;
@@ -2875,6 +2953,26 @@ fn entry_provider_diagnostics(contracts: &[CalculationContract]) -> Vec<Diagnost
                     contract.entry, field.path, provider.entry
                 ))),
             }
+            // A typed subject is rooted at the calculation's input type.
+            if let Some(root) = &provider.subject_root {
+                let input = match &contract.input {
+                    CalculationTypeRef::Named { name, .. } => Some(name.as_str()),
+                    _ => None,
+                };
+                if input != Some(root.as_str()) {
+                    diagnostics.push(Diagnostic::error(format!(
+                        "calculation `{}` field `{}` is provided by `{}` for subject `{}`, which is rooted at `{}`, not at `{}`'s input type `{}`",
+                        contract.entry,
+                        field.path,
+                        provider.entry,
+                        provider.subject_source(),
+                        root,
+                        contract.entry,
+                        contract.input.display_name()
+                    )));
+                    continue;
+                }
+            }
             // The provider runs on the value at the subject path: it must
             // exist and have the provider's input type.
             match contract_type_at_path(contract, &provider.subject).map(contained_value_type) {
@@ -2884,14 +2982,14 @@ fn entry_provider_diagnostics(contracts: &[CalculationContract]) -> Vec<Diagnost
                     contract.entry,
                     field.path,
                     provider.entry,
-                    provider.subject,
+                    provider.subject_source(),
                     ty.display_name(),
                     provider.entry,
                     providing.input.display_name()
                 ))),
                 None => diagnostics.push(Diagnostic::error(format!(
                     "calculation `{}` field `{}` is provided by `{}` for subject `{}`, which is not an input path of `{}`",
-                    contract.entry, field.path, provider.entry, provider.subject, contract.entry
+                    contract.entry, field.path, provider.entry, provider.subject_source(), contract.entry
                 ))),
             }
         }
@@ -3512,7 +3610,12 @@ fn resolve_declared_field_meta(
             };
             values.insert(key.as_str(), resolved);
         }
-        match resolved_field_meta(type_name, &binding, &values, &meta_role_types) {
+        let subject_root = declaration
+            .entries
+            .iter()
+            .find(|(key, _)| key == "subject")
+            .and_then(|(_, value)| pathof_root(value).map(str::to_string));
+        match resolved_field_meta(type_name, &binding, &values, subject_root, &meta_role_types) {
             Ok(meta) => {
                 let entry = declared.types.entry(type_name.clone()).or_default();
                 match member {
@@ -3567,6 +3670,7 @@ fn resolved_field_meta(
     type_name: &str,
     binding: &str,
     values: &BTreeMap<&str, Option<MetaValue>>,
+    subject_root: Option<String>,
     meta_role_types: &BTreeSet<String>,
 ) -> Result<ResolvedFieldMeta, Diagnostic> {
     let text = |key: &str| -> Result<Option<String>, Diagnostic> {
@@ -3585,8 +3689,22 @@ fn resolved_field_meta(
     let label = text("label")?.ok_or_else(|| {
         Diagnostic::error(format!("`@ field` on `{}` has an empty label", binding))
     })?;
-    let provided_by = match (text("entry")?, text("subject")?) {
-        (Some(entry), Some(subject)) => Some(CalculationFieldProvider { entry, subject }),
+    let entry = match values.get("entry") {
+        None => None,
+        Some(value) => Some(value.as_ref().and_then(meta_entry_name).ok_or_else(|| {
+            Diagnostic::error(format!(
+                "`@ field` on `{}`: `entry` names the calculation that provides the field, as `refof(<calculation>)`",
+                binding
+            ))
+        })?),
+    }
+    .filter(|entry| !entry.is_empty());
+    let provided_by = match (entry, text("subject")?) {
+        (Some(entry), Some(subject)) => Some(CalculationFieldProvider {
+            entry,
+            subject,
+            subject_root,
+        }),
         _ => None,
     };
     let sources = match values.get("sources") {
@@ -3963,10 +4081,14 @@ fn calculation_field_metadata_from_value(
     let help = optional_meta_string(&fields, "help", binding)?;
     let unit = optional_meta_string(&fields, "unit", binding)?;
     let provided_by = match (
-        optional_meta_string(&fields, "entry", binding)?,
+        optional_meta_entry(&fields, binding)?,
         optional_meta_string(&fields, "subject", binding)?,
     ) {
-        (Some(entry), Some(subject)) => Some(CalculationFieldProvider { entry, subject }),
+        (Some(entry), Some(subject)) => Some(CalculationFieldProvider {
+            entry,
+            subject,
+            subject_root: meta_subject_root(arguments),
+        }),
         (None, None) => None,
         _ => {
             return Err(Diagnostic::error(format!(
@@ -4374,6 +4496,58 @@ fn optional_meta_string(
         let trimmed = value.trim();
         (!trimmed.is_empty()).then(|| trimmed.to_string())
     }))
+}
+
+/// A field record's optional `entry`: `Some(refof(<calculation>))`, or the
+/// older `Some("<calculation>")`.
+fn optional_meta_entry(
+    fields: &BTreeMap<&str, &MetaValue>,
+    binding: &str,
+) -> Result<Option<String>, Diagnostic> {
+    let Some(value) = fields.get("entry") else {
+        return Ok(None);
+    };
+    let value = match value {
+        MetaValue::Constructor {
+            name, arguments, ..
+        } if name == "None" && arguments.is_empty() => return Ok(None),
+        MetaValue::Constructor {
+            name, arguments, ..
+        } if name == "Some" && arguments.len() == 1 => &arguments[0].value,
+        value => value,
+    };
+    let entry = meta_entry_name(value).ok_or_else(|| {
+        Diagnostic::error(format!(
+            "calculation field metadata binding `{}` field `entry` names the calculation that provides the field, as `Some(refof(<calculation>))`",
+            binding
+        ))
+    })?;
+    Ok((!entry.is_empty()).then_some(entry))
+}
+
+/// The calculation an `entry` value names: `refof(<calculation>)` or the
+/// older string.
+fn meta_entry_name(value: &MetaValue) -> Option<String> {
+    match value {
+        MetaValue::String(name) => Some(name.trim().to_string()),
+        MetaValue::Constructor {
+            name, arguments, ..
+        } if name == "ProgramSymbolReference" => meta_named_string_argument(arguments, "name"),
+        _ => None,
+    }
+}
+
+/// The root type of a field record's `subject = Some(pathof(Root::...))`.
+fn meta_subject_root(arguments: &[MetaValueArgument]) -> Option<String> {
+    let argument = arguments
+        .iter()
+        .find(|argument| argument.field.as_deref() == Some("subject"))?;
+    match &argument.value {
+        MetaValue::Constructor {
+            name, arguments, ..
+        } if name == "Some" && arguments.len() == 1 => arguments[0].path_root.clone(),
+        _ => argument.path_root.clone(),
+    }
 }
 
 fn definition_substitutions(
@@ -5053,6 +5227,50 @@ fn decode_variant(
     }
 }
 
+thread_local! {
+    /// Set while [`CalculationContract::encode_partial_input`] runs.
+    static ENCODING_PARTIAL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// What an unknown value encodes to in a partial case before its record
+/// field leaves it out.
+const LEFT_OUT: &str = "\u{0}futuruna:left-out";
+
+fn is_left_out(value: &JsonValue) -> bool {
+    value.as_str() == Some(LEFT_OUT)
+}
+
+/// The path of a left-out marker that no record field left out.
+fn left_out_path(value: &JsonValue, path: &str) -> Option<String> {
+    match value {
+        _ if is_left_out(value) => Some(path.to_string()),
+        JsonValue::Array(items) => items
+            .iter()
+            .enumerate()
+            .find_map(|(index, item)| left_out_path(item, &format!("{path}[{index}]"))),
+        JsonValue::Object(fields) => fields
+            .iter()
+            .find_map(|(name, item)| left_out_path(item, &field_path(path, name))),
+        _ => None,
+    }
+}
+
+/// An unknown of type `ty` in a partial case: a record (it exists, its fields
+/// unknown) or a sum type (its variant unknown) is `{}`; anything else is
+/// left out where a record field holds it.
+fn encode_partial_unknown(
+    ty: &CalculationTypeRef,
+    contract: &CalculationContract,
+    substitutions: &BTreeMap<String, CalculationTypeRef>,
+) -> JsonValue {
+    match substitute_contract_type(ty, substitutions) {
+        CalculationTypeRef::Named { name, .. } if contract.definition(&name).is_some() => {
+            JsonValue::Object(JsonMap::new())
+        }
+        _ => JsonValue::String(LEFT_OUT.to_string()),
+    }
+}
+
 fn encode_value(
     value: &Value,
     ty: &CalculationTypeRef,
@@ -5061,6 +5279,9 @@ fn encode_value(
     path: &str,
 ) -> Result<JsonValue, CalculationValueError> {
     if matches!(value, Value::Unknown(_)) {
+        if ENCODING_PARTIAL.with(|partial| partial.get()) {
+            return Ok(encode_partial_unknown(ty, contract, substitutions));
+        }
         return Err(value_error(
             path,
             partial::unknown_leak_message("JSON encoding"),
@@ -5078,7 +5299,14 @@ fn encode_value(
                 Ok(JsonValue::Null)
             }
             Value::Constructor(name, values) if name == "Some" && values.len() == 1 => {
-                encode_value(&values[0], &item, contract, substitutions, path)
+                let encoded = encode_value(&values[0], &item, contract, substitutions, path)?;
+                if is_left_out(&encoded) {
+                    return Err(value_error(
+                        path,
+                        format!("`Some(unknown)` of `{}`: a partial case cannot say that a `{}` is present but unknown; place `unknown` for the whole optional", item.display_name(), item.display_name()),
+                    ));
+                }
+                Ok(encoded)
             }
             _ => Err(runtime_type_error(
                 path,
@@ -5274,16 +5502,17 @@ fn encode_named_fields(
                 "runtime value is missing a declared field",
             )
         })?;
-        object.insert(
-            field.name.clone(),
-            encode_value(
-                value,
-                &field.ty,
-                contract,
-                substitutions,
-                &field_path(path, &field.name),
-            )?,
-        );
+        let encoded = encode_value(
+            value,
+            &field.ty,
+            contract,
+            substitutions,
+            &field_path(path, &field.name),
+        )?;
+        // An unknown field is left out of a partial case.
+        if !is_left_out(&encoded) {
+            object.insert(field.name.clone(), encoded);
+        }
     }
     for name in by_name.keys() {
         if !variant.fields.iter().any(|field| field.name == *name) {
@@ -7264,6 +7493,66 @@ pub fn partial_result_json_schema(contract: &CalculationContract) -> JsonValue {
 /// Completions the completion test runs per `Complete` partial case.
 pub const COMPLETION_TEST_COUNT: usize = 32;
 
+/// A violation of the guarantee that checking a partial case found.
+#[derive(Debug, Clone, PartialEq)]
+pub enum PartialViolation {
+    /// Strict evaluation is `Complete`, propagation does not return the same
+    /// result.
+    Oracle { case_id: String },
+    /// A completion of a `Complete(r)` case returns another result.
+    CompletionDiffers {
+        case_id: String,
+        completion: JsonValue,
+        returns: JsonValue,
+        expected: JsonValue,
+    },
+    /// A completion of a `Complete(r)` case fails, other than by overflow.
+    CompletionFails {
+        case_id: String,
+        completion: JsonValue,
+        path: String,
+        message: String,
+    },
+}
+
+impl PartialViolation {
+    /// The violation as a diagnostic of `runa call --partial=check`.
+    pub fn diagnostic(&self) -> CalculationCaseDiagnostic {
+        match self {
+            Self::Oracle { case_id } => CalculationCaseDiagnostic {
+                case_id: case_id.clone(),
+                path: "$".to_string(),
+                message: "strict-mode oracle: strict evaluation is Complete, propagation does not return the same result".to_string(),
+            },
+            Self::CompletionDiffers {
+                case_id,
+                completion,
+                returns,
+                expected,
+            } => CalculationCaseDiagnostic {
+                case_id: case_id.clone(),
+                path: "$".to_string(),
+                message: format!(
+                    "completion test: completion {} returns {} instead of {}",
+                    serde_json::to_string(completion).unwrap_or_default(),
+                    returns,
+                    expected
+                ),
+            },
+            Self::CompletionFails {
+                case_id,
+                path,
+                message,
+                ..
+            } => CalculationCaseDiagnostic {
+                case_id: case_id.clone(),
+                path: path.clone(),
+                message: format!("completion test: {message}"),
+            },
+        }
+    }
+}
+
 impl PreparedCalculation {
     /// Run partial cases and check the guarantee: the strict-mode oracle
     /// (strict `Complete(r)` implies propagating `Complete(r)`) and the
@@ -7275,6 +7564,19 @@ impl PreparedCalculation {
         &mut self,
         envelope: &CalculationInputEnvelope,
     ) -> CalculationOutputEnvelope {
+        let (mut propagated, violations) = check_partial_calculation_cases(self, envelope);
+        propagated
+            .diagnostics
+            .extend(violations.iter().map(PartialViolation::diagnostic));
+        propagated
+    }
+
+    /// [`Self::check_partial`] with the violations apart from the
+    /// propagating results' own diagnostics.
+    pub fn check_partial_violations(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+    ) -> (CalculationOutputEnvelope, Vec<PartialViolation>) {
         check_partial_calculation_cases(self, envelope)
     }
 }
@@ -7282,10 +7584,13 @@ impl PreparedCalculation {
 fn check_partial_calculation_cases(
     prepared: &mut PreparedCalculation,
     envelope: &CalculationInputEnvelope,
-) -> CalculationOutputEnvelope {
+) -> (CalculationOutputEnvelope, Vec<PartialViolation>) {
     let jobs = requested_calculation_jobs();
+    #[cfg_attr(not(debug_assertions), allow(unused_mut))]
     let mut propagated =
         prepared.invoke_batch(envelope, jobs, Some(partial::PartialMode::Propagate));
+    #[cfg(debug_assertions)]
+    fault_claim_complete(prepared, envelope, jobs, &mut propagated);
     let strict = prepared.invoke_batch(envelope, jobs, Some(partial::PartialMode::Strict));
     let parse = |case: &CalculationResultCase| {
         serde_json::from_value::<CalculationPartialResult>(case.result.clone()).ok()
@@ -7300,10 +7605,8 @@ fn check_partial_calculation_cases(
                 && matches!(parse(case), Some(CalculationPartialResult::Complete { result: ref propagated, .. }) if *propagated == result)
         });
         if !agrees {
-            violations.push(CalculationCaseDiagnostic {
+            violations.push(PartialViolation::Oracle {
                 case_id: strict_case.case_id.clone(),
-                path: "$".to_string(),
-                message: "strict-mode oracle: strict evaluation is Complete, propagation does not return the same result".to_string(),
             });
         }
     }
@@ -7334,42 +7637,89 @@ fn check_partial_calculation_cases(
                 })
                 .collect(),
         };
+        let completion_input = |case_id: &str| {
+            completion_envelope
+                .cases
+                .iter()
+                .find(|completion| completion.case_id == case_id)
+                .map(|completion| completion.input.clone())
+                .unwrap_or_default()
+        };
         let completed = prepared.invoke_batch(&completion_envelope, jobs, None);
         for completion in &completed.results {
             if completion.result != result {
-                let index = completion
-                    .case_id
-                    .trim_start_matches("completion-")
-                    .parse::<usize>()
-                    .unwrap_or_default();
-                violations.push(CalculationCaseDiagnostic {
+                violations.push(PartialViolation::CompletionDiffers {
                     case_id: case.case_id.clone(),
-                    path: "$".to_string(),
-                    message: format!(
-                        "completion test: completion {} returns {} instead of {}",
-                        serde_json::to_string(&completion_envelope.cases[index].input)
-                            .unwrap_or_default(),
-                        completion.result,
-                        result
-                    ),
+                    completion: completion_input(&completion.case_id),
+                    returns: completion.result.clone(),
+                    expected: result.clone(),
                 });
             }
         }
         for diagnostic in &completed.diagnostics {
             if !diagnostic.message.contains("overflow") {
-                violations.push(CalculationCaseDiagnostic {
+                violations.push(PartialViolation::CompletionFails {
                     case_id: case.case_id.clone(),
+                    completion: completion_input(&diagnostic.case_id),
                     path: diagnostic.path.clone(),
-                    message: format!(
-                        "completion test: {} fails: {}",
-                        diagnostic.case_id, diagnostic.message
-                    ),
+                    message: format!("{} fails: {}", diagnostic.case_id, diagnostic.message),
                 });
             }
         }
     }
-    propagated.diagnostics.extend(violations);
-    propagated
+    (propagated, violations)
+}
+
+/// Test hook, compiled only into debug builds (release builds, which users
+/// run, have no such variable): with `FUTURUNA_TEST_FAULT=claim-complete`,
+/// propagation answers every `Needs` case `Complete`, with the result of one
+/// completion of the case. The completion test must refute that claim; the
+/// tests of `runa test` use it to show where a broken guarantee is reported.
+#[cfg(debug_assertions)]
+fn fault_claim_complete(
+    prepared: &mut PreparedCalculation,
+    envelope: &CalculationInputEnvelope,
+    jobs: Option<usize>,
+    propagated: &mut CalculationOutputEnvelope,
+) {
+    if std::env::var("FUTURUNA_TEST_FAULT").as_deref() != Ok("claim-complete") {
+        return;
+    }
+    for case in &mut propagated.results {
+        let needs = matches!(
+            serde_json::from_value::<CalculationPartialResult>(case.result.clone()),
+            Ok(CalculationPartialResult::Needs { .. })
+        );
+        let Some(input) = envelope
+            .cases
+            .iter()
+            .find(|input| needs && input.case_id == case.case_id)
+        else {
+            continue;
+        };
+        let Some(completion) = prepared
+            .contract
+            .partial_case_completions(&input.input, 1, 1)
+            .pop()
+        else {
+            continue;
+        };
+        let one = CalculationInputEnvelope {
+            futuruna: envelope.futuruna.clone(),
+            cases: vec![CalculationInputCase {
+                case_id: case.case_id.clone(),
+                input_status: Some(CalculationInputStatus::Ready),
+                input: completion,
+            }],
+        };
+        if let Some(completed) = prepared.invoke_batch(&one, jobs, None).results.pop() {
+            case.result = serde_json::json!({
+                "$variant": "Complete",
+                "result": completed.result,
+                "unused_paths": [],
+            });
+        }
+    }
 }
 
 #[cfg(test)]

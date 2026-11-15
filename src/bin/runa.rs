@@ -1597,7 +1597,7 @@ impl ToolGuarantee {
             Self::Verify => "Every invariant reported PROVED holds for all inputs under 64-bit Int semantics; any unproved, skipped or refuted claim makes verify fail.",
             Self::Audit => "Findings are structural (conflicting branches, tensions, asymmetries and gaps among declared rules of a frontend-clean program); a clause reported unreachable never fires for any input under 64-bit Int semantics, and a reported gap's witness is missed by every clause; no findings does not prove the rules consistent or correct.",
             Self::Fmt => "Only layout changes; every file's tokens and parsed program are identical before and after formatting.",
-            Self::Test => "Every PASS file ran to completion with each `?` check holding (or failed with its declared expected error); SKIP files were not run.",
+            Self::Test => "Every PASS file ran to completion with each `?` check holding and each `query` passing the strict-mode oracle and the completion test (or failed with its declared expected error); SKIP files were not run.",
         }
     }
 
@@ -5766,7 +5766,27 @@ fn type_check_artifacts_with_backend_metadata(
                 source_dir,
             ));
     }
+    print_type_check_warnings(&artifacts.warnings, source, filename);
     artifacts
+}
+
+/// Print the checker's warnings on stderr, each once per process however
+/// often a command checks the file. A warning never fails the command.
+fn print_type_check_warnings(warnings: &[Diagnostic], source: &str, filename: &str) {
+    static PRINTED: std::sync::Mutex<BTreeSet<String>> = std::sync::Mutex::new(BTreeSet::new());
+    if warnings.is_empty() {
+        return;
+    }
+    let use_color = should_use_color();
+    let mut printed = PRINTED
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    for warning in warnings {
+        let text = warning.display(source, filename, use_color);
+        if printed.insert(text.clone()) {
+            eprint!("{text}");
+        }
+    }
 }
 
 fn print_type_check_diagnostics(diagnostics: &[Diagnostic], source: &str, filename: &str) -> bool {
@@ -5814,9 +5834,14 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
             } else {
                 user_stmts
             };
+            // A query runs in the interpreter only.
             // Pre-codegen type checking (M16)
             let type_check = backend_type_check_artifacts(&stmts, source, filename);
             if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
+                std::process::exit(1);
+            }
+            let refusals = native_query_refusals(&stmts);
+            if print_type_check_diagnostics(&refusals, source, filename) {
                 std::process::exit(1);
             }
             let stmts = type_check.program().clone();
@@ -10498,6 +10523,9 @@ enum ExpectCommand {
     LintLibraryImports,
     Audit,
     Call,
+    /// `runa fmt --migrate --check`: what the migration rewrites and lists,
+    /// without writing the file.
+    Migrate,
 }
 
 impl ExpectCommand {
@@ -10516,8 +10544,9 @@ impl ExpectCommand {
             "lint-library-imports" => Ok(Self::LintLibraryImports),
             "audit" => Ok(Self::Audit),
             "call" => Ok(Self::Call),
+            "migrate" => Ok(Self::Migrate),
             other => Err(format!(
-                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, emit-imports, meta, verify, audit, call, lint-library, or lint-library-imports",
+                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, emit-imports, meta, verify, audit, call, migrate, lint-library, or lint-library-imports",
                 other
             )),
         }
@@ -10538,6 +10567,7 @@ impl ExpectCommand {
             Self::LintLibraryImports => "lint-library-imports",
             Self::Audit => "audit",
             Self::Call => "call",
+            Self::Migrate => "migrate",
         }
     }
 
@@ -10581,6 +10611,9 @@ impl ExpectCommand {
             }
             Self::Call => {
                 cmd.arg("call").arg(file);
+            }
+            Self::Migrate => {
+                cmd.arg("fmt").arg("--migrate").arg("--check").arg(file);
             }
         }
     }
@@ -11145,6 +11178,9 @@ fn run_test_file_child(filename: &str, use_prelude: bool) {
         .map(|parent| parent.to_string_lossy().to_string());
     let mut interp = Interpreter::for_checked(&artifacts);
     interp.source_dir = source_dir;
+    // Every query a test asks also runs the strict-mode oracle and the
+    // completion test, failing at the query's line.
+    interp.check_queries(Path::new(filename));
     let mut env = interp.default_env();
     interp.run_program(&stmts, &mut env);
 }
@@ -11171,6 +11207,37 @@ fn source_has_embedded_rust(source: &str) -> bool {
             .strip_prefix("@ rust")
             .is_some_and(|rest| rest.is_empty() || rest.starts_with([' ', '{']))
     })
+}
+
+/// Whether a test file asks a `query` or places an `unknown`.
+fn source_asks_query(source: &str) -> bool {
+    Parser::new(Lexer::new(source).tokenize(), source)
+        .parse_program()
+        .is_ok_and(|statements| statements.iter().any(stmt_mentions_query_or_unknown))
+}
+
+/// Each `query` and `unknown` of a program compiled to native code: a query
+/// runs in the interpreter, and native code takes complete input.
+fn native_query_refusals(stmts: &[Stmt]) -> Vec<Diagnostic> {
+    let mut refusals = Vec::new();
+    for statement in stmts {
+        walk_ast_stmt(statement, &mut |child| {
+            if let AstChild::Expr(expr) = child {
+                let what = if is_unknown_expr(expr) {
+                    "`unknown`"
+                } else if query_parts(expr).is_some() {
+                    "`query`"
+                } else {
+                    return;
+                };
+                refusals.push(Diagnostic::error_at(
+                    expr.span,
+                    format!("{what} runs in the interpreter; native code takes complete input. Run the program with `runa FILE` and its tests with `runa test`"),
+                ));
+            }
+        });
+    }
+    refusals
 }
 
 fn run_test_case(
@@ -11209,9 +11276,12 @@ fn run_test_case(
         };
     }
 
+    // A query runs in the interpreter: under `--run` its test runs there too.
+    let interpreted_query =
+        compile_mode && expected_errors.is_empty() && source_asks_query(&source);
     let (command, expected, expectation_label, error_kind) = if !expected_errors.is_empty() {
         ("check", &expected_errors, "expect-error", "error")
-    } else if compile_mode {
+    } else if compile_mode && !interpreted_query {
         (
             "run",
             &expected_runtime_errors,
@@ -11244,7 +11314,11 @@ fn run_test_case(
     );
     let outcome = if output.status.success() {
         if expected.is_empty() {
-            TestFileOutcome::Pass("")
+            TestFileOutcome::Pass(if interpreted_query {
+                "interpreted (query)"
+            } else {
+                ""
+            })
         } else {
             TestFileOutcome::Fail(format!("expected {error_kind} but program succeeded"))
         }
@@ -20109,7 +20183,10 @@ fn check_source(
                 std::process::exit(1);
             }
 
-            if frontend_only {
+            // A program that asks a query runs in the interpreter only:
+            // native code takes complete input, so there is no Rust to check.
+            let interpreted_query = stmts.iter().any(stmt_mentions_query_or_unknown);
+            if frontend_only || interpreted_query {
                 check_output.success(
                     &CheckArtifactSummary {
                         statement_count: stmt_count,
@@ -20118,7 +20195,7 @@ fn check_source(
                         cargo_dependency_count: 0,
                         rust_line_count: 0,
                     },
-                    None,
+                    interpreted_query.then_some("interpreted (query)"),
                     start.elapsed(),
                 );
                 return;
@@ -20870,10 +20947,12 @@ fn migration_root(file: &Path) -> PathBuf {
 }
 
 /// `runa fmt --migrate`: rewrite the retired comment directives of every
-/// file as annotations, then format it. A file the migration cannot rewrite
-/// is left unchanged and its reasons are listed.
+/// file as annotations, then format it; rewrite string `entry`/`subject`
+/// field metadata as `refof`/`pathof` and rename `unknown`, reserved in 0.5,
+/// to `unknown_`. A file the migration cannot rewrite is left unchanged and
+/// its reasons are listed; so is metadata it cannot rewrite.
 fn migrate_targets(targets: &[String], check: bool) {
-    use futuruna::migrate::{add_document_impl, migrate_source, MigrationProgram};
+    use futuruna::migrate::{add_document_impl, migrate_needs, migrate_source, MigrationProgram};
     let mut files = Vec::new();
     for target in targets {
         if Path::new(target).is_dir() {
@@ -20896,9 +20975,12 @@ fn migrate_targets(targets: &[String], check: bool) {
                 continue;
             }
         };
-        if !source
+        let directives = source
             .lines()
-            .any(|line| line.trim_start().starts_with("--@"))
+            .any(|line| line.trim_start().starts_with("--@"));
+        if !directives
+            && !source.contains("unknown")
+            && !(source.contains("entry") && source.contains("subject"))
         {
             continue;
         }
@@ -20906,32 +20988,59 @@ fn migrate_targets(targets: &[String], check: bool) {
         let program = programs
             .entry(root.clone())
             .or_insert_with(|| MigrationProgram::scan(&root));
-        let result = match migrate_source(&source, program) {
-            Ok(result) => result,
-            Err(errors) => {
-                for error in errors {
-                    eprintln!("{path}:{error}");
+        let result = if directives {
+            match migrate_source(&source, program) {
+                Ok(result) => Some(result),
+                Err(errors) => {
+                    for error in errors {
+                        eprintln!("{path}:{error}");
+                    }
+                    failed += 1;
+                    continue;
                 }
-                failed += 1;
-                continue;
             }
+        } else {
+            None
         };
-        let formatted = match checked_format_runa_source(&result.source) {
-            Ok(formatted) => formatted,
-            Err(error) => {
-                eprintln!("{path}: the migrated file does not format: {error}; file unchanged");
-                failed += 1;
-                continue;
+        let needs = migrate_needs(
+            result
+                .as_ref()
+                .map_or(source.as_str(), |result| result.source.as_str()),
+            Path::new(path),
+            program,
+        );
+        for listed in &needs.listed {
+            eprintln!("{path}:{listed}");
+        }
+        // Only the directive rewrite moves code; the 0.5 rewrites replace
+        // single tokens and keep the file's layout.
+        let formatted = if result.is_some() {
+            match checked_format_runa_source(&needs.source) {
+                Ok(formatted) => formatted,
+                Err(error) => {
+                    eprintln!("{path}: the migrated file does not format: {error}; file unchanged");
+                    failed += 1;
+                    continue;
+                }
             }
+        } else if needs.source != source {
+            needs.source.clone()
+        } else {
+            continue;
         };
-        for note in &result.notes {
+        for note in result.iter().flat_map(|result| &result.notes) {
             eprintln!("{path}: {note}");
         }
-        missing_impls.extend(program.missing_document_impls(
-            &result.document_constructors,
-            Path::new(path),
-            &source,
-        ));
+        for rewritten in &needs.rewritten {
+            eprintln!("{path}:{rewritten}");
+        }
+        if let Some(result) = &result {
+            missing_impls.extend(program.missing_document_impls(
+                &result.document_constructors,
+                Path::new(path),
+                &source,
+            ));
+        }
         migrated += 1;
         if check {
             eprintln!("{path} needs migration");

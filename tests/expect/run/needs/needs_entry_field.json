@@ -1,0 +1,30 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "27c35004be34f942db9f801f640abb1023e0da59bcf77242cb54b9aab5012d24",
+    "entry": "household_tax"
+  },
+  "cases": [
+    {
+      "case_id": "spouse-share-income-left-out",
+      "input_status": "ready",
+      "input": {
+        "income": 1000,
+        "spouse": {
+          "income": 30
+        }
+      }
+    },
+    {
+      "case_id": "given",
+      "input_status": "ready",
+      "input": {
+        "income": 1000,
+        "spouse": {
+          "income": 30
+        },
+        "spouse_share_income": 30
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+-- A field's `subject` is a path rooted at the input type of the calculation
+-- the field is read in.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: calculation `household_tax` field `spouse_income` is provided by `spouse_income` for subject `pathof(Couple::spouse)`, which is rooted at `Couple`, not at `household_tax`'s input type `Household`
+
+# Spouse(income: Int)
+# Couple(spouse: Spouse)
+
+# Household(
+    spouse: Spouse,
+    @ field(label = "Spouse's income", entry = refof(spouse_income), subject = pathof(Couple::spouse))
+    spouse_income: Int
+)
+# TaxResult(tax: Int)
+
+@ calculate
+| spouse_income(s: Spouse) -> s.income
+
+@ calculate
+| household_tax(h: Household) -> TaxResult(tax = h.spouse_income)

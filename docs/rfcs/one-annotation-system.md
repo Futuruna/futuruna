@@ -523,7 +523,8 @@ Details the design above leaves open, as implemented:
 - **Section names** are unique per file; a second `@ section` with a name
   already used in the file is an error. `refof(section <name>)` is a
   `ProgramSectionReference(name)` and is checked against the sections of the
-  file it stands in.
+  file it stands in (since 0.5, also of the files it imports; a name two
+  files declare is an error).
 - **`@ meta` on a function, rule clause or member** gives that item a code
   span, as the `--@begin`/`--@end` pair around an entry did, so entry
   metadata reaches explanations and the contract unchanged. On a data type

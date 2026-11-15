@@ -1,0 +1,19 @@
+-- `entry` is a reference to a calculation, not to a type.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ field` key `entry` names the calculation that provides the field, as `refof(<calculation>)`; got a reference to the type `Spouse`
+
+# Spouse(income: Int)
+
+# Household(
+    spouse: Spouse,
+    @ field(label = "Spouse's income", entry = refof(Spouse), subject = pathof(Household::spouse))
+    spouse_income: Int
+)
+# TaxResult(tax: Int)
+
+@ calculate
+| spouse_income(s: Spouse) -> s.income
+
+@ calculate
+| household_tax(h: Household) -> TaxResult(tax = h.spouse_income)

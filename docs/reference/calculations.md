@@ -4,6 +4,7 @@ feature_stage_surfaces:
   - typed-calculation-contracts
   - calculation-field-declarations
   - calculation-needs
+  - needs-in-the-language
   - typescript-sdk
   - annotations
 ---
@@ -75,18 +76,20 @@ and map wrappers are transparent, as in `pathof`.
 | `label` | required `String` |
 | `question`, `help`, `unit` | `String` |
 | `sources` | list of source values such as `[Source(value = law)]`, whose type implements `MetaRole` |
-| `entry`, `subject` | `String`, together: the calculation that provides the field and the input path it runs for |
+| `entry`, `subject` | together: `entry = refof(<calculation>)`, the `@ calculate` entry that provides the field, and `subject = pathof(<Input>::...)`, the input path it runs for, rooted at the calculation's input type (see [Needs](#needs) below). The older strings (`entry = "share_income"`, `subject = "taxpayer.spouse"`) are still read; `runa fmt --migrate` rewrites them |
 | `key` | `Bool`: `True` makes this `String` or `Int` field of a record type the key that identifies an element of the type in a list (one per type); the contract's definition of the type names it as `key`, and a need inside such an element carries the element's key |
 
 A key that does not apply is left out; values are plain strings (`key` a
-plain `Bool`), not `Some(...)`. A value may be any pure ground expression,
-resolved like a metadata binding. `runa check` reports an unknown or repeated
-key, a missing label, `entry` without `subject`, two `@ field` on one field or
-type, an `@ field` that no field or data type follows, a value that is not a
-`String` (or, for `sources`, not a list; for `key`, not a `Bool`), and a `key`
-on a field that is not a `String` or `Int` of a record type, or a second one
-in a type. Declarations are presentation only: they do not change a type's
-meaning, content hash or semantic interface.
+plain `Bool`, `entry` a `refof`, `subject` a `pathof`), not `Some(...)`. A
+value may be any pure ground expression, resolved like a metadata binding.
+`runa check` reports an unknown or repeated key, a missing label, `entry`
+without `subject`, two `@ field` on one field or type, an `@ field` that no
+field or data type follows, a value that is not a `String` (or, for
+`sources`, not a list; for `key`, not a `Bool`; for `entry`, not a `refof` of
+a calculation), a providing entry that does not fit the field (see below),
+and a `key` on a field that is not a `String` or `Int` of a record type, or a
+second one in a type. Declarations are presentation only: they do not change a
+type's meaning, content hash or semantic interface.
 
 A required record field has no column of its own; its members are spread into
 columns. Its `@ field` label gives those members context: a label written for a
@@ -778,14 +781,35 @@ that may fail for some answer (division by an unknown, a rule that might
 match no clause) keeps the case from completing until its facts are known.
 
 A field another calculation provides carries `entry` and `subject` in its
-metadata (`@ field(label = "Spouse's share income", entry = "share_income",
-subject = "taxpayer.spouse")`, or `entry = Some(...)` and `subject = Some(...)`
-in a field record). Its need has kind `entry`: the client runs that entry for
-the subject and writes the entry's result at `path`. The field's type must be
-the entry's result type, and the subject must be an input path whose value
-(through optional, list, set and map wrappers) has the entry's input type;
-`runa check` reports a missing entry, a different type or a subject that does
-not fit.
+metadata:
+
+```runa
+# TaxCase(
+    taxpayer: Taxpayer,
+    @ field(label = "Spouse's share income", entry = refof(share_income), subject = pathof(TaxCase::taxpayer::spouse))
+    spouse_share_income_ore: Int
+)
+```
+
+In a field record, the record declares `entry: ProgramReference?` and gives
+`entry = Some(refof(share_income))`, `subject =
+Some(pathof(TaxCase::taxpayer::spouse))` (`pathof` in a `String?` place stays
+the path string). Its need has kind `entry`: the client runs that entry for
+the subject and writes the entry's result at `path`. The contract and the
+need carry the entry's name and the subject's input path
+(`"entry": "share_income"`, `"subject": "taxpayer.spouse"`). `runa check`
+reports, naming the field: an `entry` that is not an `@ calculate` entry of
+the program, a `subject` rooted at another type than the calculation's input,
+a subject whose value (through optional, list, set and map wrappers) does not
+have the entry's input type, and a field whose type is not the entry's result
+type.
+
+The string forms (`entry = "share_income"`, `subject = "taxpayer.spouse"`, and
+`Some("...")` in a field record whose `entry` is a `String?`) are still read,
+with the same checks. `runa fmt --migrate` rewrites them as `refof`/`pathof`
+when exactly one calculation input reaches the field (that type is the root
+of the `pathof`; a field record's `entry` type becomes `ProgramReference?`)
+and lists the others with the reason, as `file:line: left ...`.
 
 `--partial=strict` stops each case at the first unknown value it reads. Its
 `Complete(r)` holds by construction and serves as the test oracle.
@@ -803,6 +827,122 @@ The full format and evolution contract is in
 [Typed calculation contracts](../rfcs/typed-calculation-contracts.md). Partial
 cases and their needs are specified in
 [Calculation needs](../rfcs/calculation-needs.md).
+
+## Needs in the language
+
+Experimental. A program asks a calculation entry about a case that holds
+facts not known yet, in Futuruna, and a test states an interview round by
+round. Queries run in the interpreter, as `runa call --partial` does.
+
+```runa
+# Spouse(income: Int, cohabiting: Bool)
+# Household(income: Int, married: Bool, spouse: Option(Spouse))
+# Result(tax: Int)
+
+@ section transfer {
+| threshold(h: Household) -> match h.spouse {
+    | Some(s) -> if s.cohabiting { 200 - s.income } else { 100 }
+    | None -> 100
+}
+}
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = h.income - threshold(h))
+
+= with_spouse = Household(income = 500, married = True, spouse = Some(Spouse(income = 50, cohabiting = True)))
+= first = query household_tax(Household(income = 500, married = True, spouse = unknown))
+= asked = interview(|c| query household_tax(c), Household(income = 500, married = True, spouse = unknown), with_spouse)
+
+@ print(match first { | Needs -> map(first.needs, |n| n.path) == [pathof(Household::spouse)] | Complete -> False }) -- True
+@ print(asked.rounds == [[pathof(Household::spouse)], [pathof(Household::spouse::cohabiting), pathof(Household::spouse::income)]]) -- True
+@ print(asked.result == household_tax(with_spouse)) -- True
+```
+
+**`unknown`** is a value not known yet. It means what a left-out field means
+in a partial JSON case: for an optional, a scalar or a list it is one unknown
+value; for a record, the record exists with each field unknown; for a sum
+type, the variant is unknown. `Some(unknown)` of a record says "present,
+nothing known yet". `unknown` takes the type of its place, as a number
+literal takes its unit, so it stands only where a place gives it a type:
+
+| Placed (accepted) | Read (a check error) |
+|---|---|
+| an argument: `case_of(unknown)` | an operand: `unknown + 1` |
+| a field value: `Case(income = unknown)` | a side of a comparison: `unknown == 3` |
+| a list element: `[1, unknown]` | a scrutinee: `match unknown { ... }` |
+| a typed binding: `= later: Int = unknown` | a guard or condition: `\| n if unknown -> n`, `if unknown` |
+| a declared result: `> later() -> Int { unknown }` | the argument of a builtin: `show(unknown)` |
+| a branch: `if c { 1 } else { unknown }` | an untyped binding: `= x = unknown` |
+
+An unknown scalar as a list element, a map value or the payload of `Some`
+cannot be written in a partial case, so a query of such a case stops with an
+error at the query's line. A builder that reads an `unknown` before a query
+places it stops with an error naming the `unknown`'s line. `unknown` is a
+reserved word; `runa fmt --migrate` renames a binding, parameter or function
+called `unknown` to `unknown_`.
+
+**`query entry(case)`** asks the calculation entry `entry` (an
+`@ calculate` declared in the asking file or a file it imports) about
+`case`. It returns
+
+```text
+Query(o, i) = Complete(result: o, unused: List(Path(i))) | Needs(needs: List(Need(i)))
+```
+
+with what `runa call --partial` returns for the case: the entry is checked
+and prepared as `runa call` prepares it, the case crosses as a partial JSON
+case, and the result and needs cross back. `query` is a contextual keyword:
+only `query name(...)` is a query, and `runa check` rejects a query of a
+name that is not a calculation entry. No calculation may reach a `query` or
+an `unknown`: `runa check` reports one that any `@ calculate` entry can
+reach, with the call chain.
+
+A **`Need(i)`** has the members of a need in the partial result: `kind`
+(`FactNeed` or `EntryNeed`), `path: Path(i)`, `keys: List(NeedKey(i))`,
+`entry: Option(ProgramReference)`, `subject: Option(Path(i))`, `label`,
+`question`, `help`, `unit`, `sources: List(NeedSource)` and `waiting:
+List(NeedWaiting)`. A waiting rule's `section` is a
+`ProgramSectionReference`, so a test compares it with
+`Some(refof(section transfer))`; `refof(section name)` names a section of the
+file it stands in or of a file it imports, and a name two files declare is a
+check error. These types, `fill` and `interview` join the prelude of a
+program that asks a query, places an `unknown`, or calls `fill` or
+`interview`.
+
+**`Path(i)`** is a path into a value of type `i`. `pathof(T::...)` is a
+`Path(T)` where a path is expected and a `String` elsewhere; it takes list
+indices (`pathof(TaxCase::accounts[1]::closing_cash_ore)`) and names the
+alternative of a sum type it passes through
+(`taxpayer.outside_endavu.OutsideDeclared.other_share_income_ore`), as field
+metadata does. Paths of one root are equal when they name the same place;
+comparing a path with a path of another root type is a check error. A query
+writes every path it returns in this form.
+
+**`fill(partial, complete, paths)`** writes into `partial`, at each path, the
+value of `complete` there: a record as existing with its fields unknown, a
+variant by its tag, every other value (a `Date` too) whole.
+**`interview(ask, partial, complete)`** asks `ask(case)`, fills each round's
+needs from `complete` and asks again until the answer is `Complete`; it
+returns `Interview(rounds: List(List(Path(i))), result: o)`.
+
+**What `runa test` checks per query.** Outside tests a query only
+propagates. Under `runa test`, every query also runs the two checks of
+`--partial=check`: the strict-mode oracle (if strict evaluation of the case
+is `Complete(r)`, propagation must return `Complete(r)`) and the completion
+test (every generated completion of a `Complete(r)` case, 32 per query, must
+return `r` or stop with an arithmetic-overflow error). A violation fails the
+test at the query, naming its round (the how-manyth time this query ran) and
+the completion that disproves it:
+
+```text
+asks_income.runa:7: query tax_of, round 1: the propagated result is Complete, but the completion income = -1 returns a different result: {"tax":0} instead of {"tax":-10}
+```
+
+`runa build` and `runa run` refuse a program with a `query` or `unknown`,
+naming each; `runa check` checks its frontend and reports `interpreted
+(query)`, and `runa test --run` runs such a test in the interpreter and marks
+it `interpreted (query)`. Specified in
+[Needs in the language](../rfcs/needs-in-the-language.md).
 
 ## Explanations
 
