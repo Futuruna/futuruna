@@ -41,7 +41,10 @@ test('supplementary rules expose rates and distinguish rounding assumptions from
     const document = run(['meta', '--json', `examples/danish-income-tax/ligningsloven-par9j-${kind}.runa`]);
     assert.deepEqual(document.diagnostics, []);
     const anchor = document.anchors.find(anchor => anchor.label === `ll9j_${kind}`);
-    assert.ok(anchor.text_start_line > 0, 'keep the verbatim law anchor');
+    // The example's law text has no saved source document, so it is a comment
+    // above the section, not a checked quote (docs/rfcs/one-annotation-system.md,
+    // Decisions); the section and the sources it names stay.
+    assert.ok(anchor, 'keep the law section as an anchor');
     const sources = anchor.references.flatMap(reference => reference.attachments);
     if (kind === 'enlig') checkSingleParentSources(sources, kind);
     else {
