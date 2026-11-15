@@ -24683,7 +24683,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 1,
                 impure: false,
                 deps: D,
-                rust_tpl: "(({0} as f64).round() as i64)",
+                rust_tpl: "__FuturunaWhole::__futuruna_whole({0}, \"round\", f64::round)",
             },
         ),
         (
@@ -24692,7 +24692,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 1,
                 impure: false,
                 deps: D,
-                rust_tpl: "(({0} as f64).floor() as i64)",
+                rust_tpl: "__FuturunaWhole::__futuruna_whole({0}, \"floor\", f64::floor)",
             },
         ),
         (
@@ -36359,6 +36359,10 @@ fn __futuruna_map_remove<K: Ord, V>(map: &mut BTreeMap<K, V>, key: &K) {
         // order-preserving encoding of the value, never by its display text.
         out.push_str(
             r#"
+trait __FuturunaWhole { fn __futuruna_whole(self, builtin: &str, whole: fn(f64) -> f64) -> i64; }
+impl __FuturunaWhole for i64 { fn __futuruna_whole(self, _: &str, _: fn(f64) -> f64) -> i64 { self } }
+impl __FuturunaWhole for f64 { fn __futuruna_whole(self, builtin: &str, whole: fn(f64) -> f64) -> i64 { let w = whole(self); if w >= -9223372036854775808.0 && w < 9223372036854775808.0 { w as i64 } else { panic!("{}: {:e} does not fit in an Int (-9223372036854775808 to 9223372036854775807)", builtin, self) } } }
+impl<T: __FuturunaWhole + Copy> __FuturunaWhole for &T { fn __futuruna_whole(self, builtin: &str, whole: fn(f64) -> f64) -> i64 { (*self).__futuruna_whole(builtin, whole) } }
 trait __FuturunaShow { fn __futuruna_fmt(&self, out: &mut String); }
 fn __futuruna_show_any<T: __FuturunaShow + ?Sized>(v: &T) -> String { let mut out = String::new(); v.__futuruna_fmt(&mut out); out }
 macro_rules! __futuruna_show_via_display { ($($t:ty),*) => { $(impl __FuturunaShow for $t { fn __futuruna_fmt(&self, out: &mut String) { use std::fmt::Write as _; let _ = write!(out, "{}", self); } })* } }

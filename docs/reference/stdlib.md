@@ -64,8 +64,8 @@ values by constructor name, then by their fields in declaration order.
 | `pow` | `(Float, Float) -> Float` | Exponentiation |
 | `exp` | `Float -> Float` | Natural exponential (e^x) |
 | `ln` | `Float -> Float` | Natural logarithm |
-| `round` | `Float -> Int` | Round to nearest integer |
-| `floor` | `Float -> Int` | Floor (round down) |
+| `round` | `Float -> Int` | Round to nearest integer; a value outside the `Int` range (or NaN) is a runtime error naming it |
+| `floor` | `Float -> Int` | Floor (round down); a value outside the `Int` range (or NaN) is a runtime error naming it |
 | `to_float` | `Int -> Float` | Convert integer to float |
 | `max_int` | `(Int, Int) -> Int` | Maximum of two integers |
 | `min_int` | `(Int, Int) -> Int` | Minimum of two integers |
