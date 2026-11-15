@@ -62365,6 +62365,14 @@ impl TypeChecker {
                         if name == "concat" && actual_arity == 2 && !self.var_defined(name) {
                             self.check_concat_arguments(args);
                         }
+                        // Output is an effect, written with the `@` rune as
+                        // at top level, where the parser already says so.
+                        if name == "print" && !self.var_defined(name) {
+                            self.error_at_expr(
+                                expr,
+                                "In Futuruna, IO is an effect: write `@ print(...)`, not a bare `print(...)` call".to_string(),
+                            );
+                        }
                         if name == "not" && actual_arity == 1 && !self.var_defined(name) {
                             self.check_not_argument(&args[0]);
                         }

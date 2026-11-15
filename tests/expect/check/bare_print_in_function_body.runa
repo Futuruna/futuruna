@@ -1,0 +1,15 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: In Futuruna, IO is an effect: write `@ print(...)`, not a bare `print(...)` call
+-- expect-stderr: bare_print_in_function_body.runa:9:
+-- expect-stderr-not: bare_print_in_function_body.runa:13:
+
+-- Output is an effect in a body as at top level: `@ print(...)`.
+> noisy(x: Int) -> Int {
+    print("x=" + show(x))
+    x + 1
+}
+> quiet(x: Int) -> Int {
+    @ print("x=" + show(x))
+    x + 1
+}

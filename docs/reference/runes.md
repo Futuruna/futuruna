@@ -671,7 +671,9 @@ The boundary between the verified world and effects. Every `@` says: formal reas
 ```
 
 Effect invocations use supported builtin names. Unknown names such as
-`@ println(...)` or `@ log(...)` are errors. Assertions are ordinary calls:
+`@ println(...)` or `@ log(...)` are errors. Output is written with the `@`
+rune in a function body as at top level: a bare `print(...)` call is an error
+that says to write `@ print(...)`. Assertions are ordinary calls:
 write `assert(condition)` or `assert_with_message(condition, "message")`
 without `@`. Declared algebraic operations also use ordinary call syntax, as
 shown in the handler example above.
