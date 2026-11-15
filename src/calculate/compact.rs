@@ -65,6 +65,8 @@ pub struct CompactCalculationContract {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub units: Vec<super::CalculationUnit>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub scalars: Vec<super::CalculationScalar>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub metadata: Vec<CalculationMetadataReference>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub field_metadata: Vec<CompactFieldMetadata>,
@@ -135,6 +137,7 @@ impl CompactCalculationContract {
             output: contract.output.clone(),
             definitions: contract.definitions.clone(),
             units: contract.units.clone(),
+            scalars: contract.scalars.clone(),
             metadata: contract.metadata.clone(),
             field_metadata,
             source_objects,
@@ -236,6 +239,7 @@ impl CompactCalculationContract {
             output: self.output,
             definitions: self.definitions,
             units: self.units,
+            scalars: self.scalars,
             metadata: self.metadata,
             field_metadata: fields,
             schema_hash: String::new(),
@@ -286,12 +290,15 @@ mod tests {
             input: CalculationTypeRef::Primitive {
                 name: "Int".into(),
                 unit: None,
+                scalar: None,
             },
             output: CalculationTypeRef::Primitive {
                 name: "Int".into(),
                 unit: None,
+                scalar: None,
             },
             units: vec![],
+            scalars: vec![],
             definitions: vec![],
             metadata: vec![source.clone()],
             field_metadata: vec![

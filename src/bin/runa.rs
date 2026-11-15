@@ -4042,6 +4042,8 @@ fn read_calculation_xlsx(
                 case_id,
                 path: format!("cases!A{}", row_index + 3),
                 message: "case_id must not be empty".to_string(),
+                scalar: None,
+                check: None,
             });
             continue;
         }
@@ -4050,6 +4052,8 @@ fn read_calculation_xlsx(
                 case_id: case_id.clone(),
                 path: format!("cases!A{}", row_index + 3),
                 message: format!("duplicate case_id `{}`", case_id),
+                scalar: None,
+                check: None,
             });
             invalid_cases.insert(case_id);
             continue;
@@ -4066,6 +4070,8 @@ fn read_calculation_xlsx(
                         case_id: case_id.clone(),
                         path: calculation_xlsx_cell_path("cases", 1, row_index + 3),
                         message: "input_status must be draft or ready".to_string(),
+                        scalar: None,
+                        check: None,
                     });
                     row_valid = false;
                     None
@@ -4090,6 +4096,8 @@ fn read_calculation_xlsx(
                             "input column is inactive unless {}",
                             calculation_variant_guards_description(&column.variant_guards)
                         ),
+                        scalar: None,
+                        check: None,
                     });
                     row_valid = false;
                 }
@@ -4112,6 +4120,8 @@ fn read_calculation_xlsx(
                             row_index + 3,
                         ),
                         message,
+                        scalar: None,
+                        check: None,
                     });
                     row_valid = false;
                     continue;
@@ -4124,6 +4134,8 @@ fn read_calculation_xlsx(
                     case_id: case_id.clone(),
                     path: error.path,
                     message: error.message,
+                    scalar: None,
+                    check: None,
                 });
                 row_valid = false;
             }
@@ -4175,6 +4187,8 @@ fn read_calculation_xlsx(
                         case_id,
                         path: table.path.clone(),
                         message: format!("selected input requires collection sheet `{}`; refresh with `runa template MODEL --input INPUT.xlsx --output REFRESHED.xlsx` and complete the new sheets before calling", table.sheet),
+                        scalar: None,
+                        check: None,
                     });
                 }
             }
@@ -4227,6 +4241,8 @@ fn read_calculation_xlsx(
                     case_id: case_id.clone(),
                     path: calculation_xlsx_cell_path(&table.sheet, 0, excel_row),
                     message: "case_id must not be empty".to_string(),
+                    scalar: None,
+                    check: None,
                 });
                 row_valid = false;
             } else if !case_known {
@@ -4234,6 +4250,8 @@ fn read_calculation_xlsx(
                     case_id: case_id.clone(),
                     path: calculation_xlsx_cell_path(&table.sheet, 0, excel_row),
                     message: format!("unknown case_id `{}`", case_id),
+                    scalar: None,
+                    check: None,
                 });
                 row_valid = false;
             }
@@ -4249,6 +4267,8 @@ fn read_calculation_xlsx(
                         case_id: case_id.clone(),
                         path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
                         message: "parent_id must not be empty".to_string(),
+                        scalar: None,
+                        check: None,
                     });
                     row_valid = false;
                 } else if case_known {
@@ -4262,6 +4282,8 @@ fn read_calculation_xlsx(
                             case_id: case_id.clone(),
                             path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
                             message: format!("orphan parent_id `{}`", value),
+                            scalar: None,
+                            check: None,
                         });
                         row_valid = false;
                     }
@@ -4297,6 +4319,8 @@ fn read_calculation_xlsx(
                         "collection table is inactive unless {}",
                         calculation_variant_guards_description(&table.variant_guards)
                     ),
+                    scalar: None,
+                    check: None,
                 });
                 row_valid = false;
             }
@@ -4310,6 +4334,8 @@ fn read_calculation_xlsx(
                     case_id: case_id.clone(),
                     path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
                     message: "item_id must not be empty".to_string(),
+                    scalar: None,
+                    check: None,
                 });
                 row_valid = false;
             } else if !seen_item_ids.insert((case_id.clone(), item_id.clone())) {
@@ -4317,6 +4343,8 @@ fn read_calculation_xlsx(
                     case_id: case_id.clone(),
                     path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
                     message: format!("duplicate item_id `{}`", item_id),
+                    scalar: None,
+                    check: None,
                 });
                 row_valid = false;
             }
@@ -4343,6 +4371,8 @@ fn read_calculation_xlsx(
                                         "duplicate list position `{}` for the same parent",
                                         value
                                     ),
+                                    scalar: None,
+                                    check: None,
                                 });
                                 row_valid = false;
                             }
@@ -4357,6 +4387,8 @@ fn read_calculation_xlsx(
                                     excel_row,
                                 ),
                                 message,
+                                scalar: None,
+                                check: None,
                             });
                             row_valid = false;
                         }
@@ -4391,6 +4423,8 @@ fn read_calculation_xlsx(
                                         "duplicate map key `{}` for the same parent",
                                         value
                                     ),
+                                    scalar: None,
+                                    check: None,
                                 });
                                 row_valid = false;
                             }
@@ -4405,6 +4439,8 @@ fn read_calculation_xlsx(
                                     excel_row,
                                 ),
                                 message,
+                                scalar: None,
+                                check: None,
                             });
                             row_valid = false;
                         }
@@ -4430,6 +4466,8 @@ fn read_calculation_xlsx(
                                 "input column is inactive unless {}",
                                 calculation_variant_guards_description(&column.variant_guards)
                             ),
+                            scalar: None,
+                            check: None,
                         });
                         row_valid = false;
                     }
@@ -4447,6 +4485,8 @@ fn read_calculation_xlsx(
                                 case_id: case_id.clone(),
                                 path: error.path,
                                 message: error.message,
+                                scalar: None,
+                                check: None,
                             });
                             row_valid = false;
                         }
@@ -4456,6 +4496,8 @@ fn read_calculation_xlsx(
                             case_id: case_id.clone(),
                             path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
                             message,
+                            scalar: None,
+                            check: None,
                         });
                         row_valid = false;
                     }
@@ -4510,6 +4552,8 @@ fn read_calculation_xlsx(
                         case_id: case.case_id.clone(),
                         path: table.path.clone(),
                         message,
+                        scalar: None,
+                        check: None,
                     });
                     invalid_cases.insert(case.case_id.clone());
                     break;
@@ -4524,6 +4568,8 @@ fn read_calculation_xlsx(
                     case_id: case.case_id.clone(),
                     path: error.path,
                     message: error.message,
+                    scalar: None,
+                    check: None,
                 });
                 invalid_cases.insert(case.case_id.clone());
                 break;
@@ -9348,7 +9394,7 @@ fn collect_generated_rust_direct_stmt_names(statement: &Stmt, names: &mut BTreeS
                 }
             }
         }
-        Stmt::TypeDecl(TypeDecl::Unit { name, .. }) => {
+        Stmt::TypeDecl(TypeDecl::Unit { name, .. } | TypeDecl::Scalar { name, .. }) => {
             names.insert(name.clone());
         }
         Stmt::TypeDecl(TypeDecl::WhenType { name, variants, .. }) => {
@@ -20870,8 +20916,9 @@ fn migration_root(file: &Path) -> PathBuf {
 }
 
 /// `runa fmt --migrate`: rewrite the retired comment directives of every
-/// file as annotations, then format it. A file the migration cannot rewrite
-/// is left unchanged and its reasons are listed.
+/// file as annotations, remove each field-level `@ field` that says what its
+/// named scalar's `@ field` says, then format it. A file the migration cannot
+/// rewrite is left unchanged and its reasons are listed.
 fn migrate_targets(targets: &[String], check: bool) {
     use futuruna::migrate::{add_document_impl, migrate_source, MigrationProgram};
     let mut files = Vec::new();
@@ -20896,26 +20943,41 @@ fn migrate_targets(targets: &[String], check: bool) {
                 continue;
             }
         };
-        if !source
+        let directives = source
             .lines()
-            .any(|line| line.trim_start().starts_with("--@"))
-        {
-            continue;
-        }
+            .any(|line| line.trim_start().starts_with("--@"));
         let root = migration_root(Path::new(path));
         let program = programs
             .entry(root.clone())
             .or_insert_with(|| MigrationProgram::scan(&root));
-        let result = match migrate_source(&source, program) {
-            Ok(result) => result,
-            Err(errors) => {
-                for error in errors {
-                    eprintln!("{path}:{error}");
+        let mut result = if directives {
+            match migrate_source(&source, program) {
+                Ok(result) => result,
+                Err(errors) => {
+                    for error in errors {
+                        eprintln!("{path}:{error}");
+                    }
+                    failed += 1;
+                    continue;
                 }
-                failed += 1;
-                continue;
+            }
+        } else {
+            futuruna::migrate::MigratedFile {
+                source: source.clone(),
+                notes: Vec::new(),
+                document_constructors: BTreeSet::new(),
             }
         };
+        let repeated =
+            program.remove_repeated_scalar_field_meta(Path::new(path), &result.source);
+        if let Some((rewritten, removed)) = repeated {
+            result.source = rewritten;
+            result.notes.push(format!(
+                "removed {removed} `@ field` that said what the field's named scalar type says"
+            ));
+        } else if !directives {
+            continue;
+        }
         let formatted = match checked_format_runa_source(&result.source) {
             Ok(formatted) => formatted,
             Err(error) => {
@@ -32948,7 +33010,9 @@ impl RustCodegen {
                         exported.extend(variants.iter().map(|variant| variant.name.clone()));
                     }
                     Stmt::TypeDecl(
-                        TypeDecl::RuleScope { name, .. } | TypeDecl::Unit { name, .. },
+                        TypeDecl::RuleScope { name, .. }
+                        | TypeDecl::Unit { name, .. }
+                        | TypeDecl::Scalar { name, .. },
                     ) => {
                         exported.insert(name.clone());
                     }
@@ -33307,7 +33371,8 @@ impl RustCodegen {
                     TypeDecl::WhenType { .. }
                     | TypeDecl::ImplBlock { .. }
                     | TypeDecl::RuleScope { .. }
-                    | TypeDecl::Unit { .. },
+                    | TypeDecl::Unit { .. }
+                    | TypeDecl::Scalar { .. },
                 )
                 | Stmt::PreludeBoundary
                 | Stmt::Defn(_)
@@ -33356,7 +33421,8 @@ impl RustCodegen {
                         TypeDecl::WhenType { .. }
                         | TypeDecl::ImplBlock { .. }
                         | TypeDecl::RuleScope { .. }
-                        | TypeDecl::Unit { .. },
+                        | TypeDecl::Unit { .. }
+                        | TypeDecl::Scalar { .. },
                     )
                     | Stmt::PreludeBoundary
                     | Stmt::Rule(_)
@@ -33557,7 +33623,9 @@ impl RustCodegen {
                             }
                         }
                         Stmt::TypeDecl(
-                            TypeDecl::RuleScope { name, .. } | TypeDecl::Unit { name, .. },
+                            TypeDecl::RuleScope { name, .. }
+                        | TypeDecl::Unit { name, .. }
+                        | TypeDecl::Scalar { name, .. },
                         ) => {
                             self.types.exported_names.insert(name.clone());
                             self.types.root_exported_names.insert(name.clone());
@@ -35540,7 +35608,9 @@ impl RustCodegen {
                 | Stmt::HashImport(_, _)
                 | Stmt::Depend(_, _)
                 | Stmt::RustBlock(_)
-                | Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. })
+                | Stmt::TypeDecl(
+                    TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } | TypeDecl::Scalar { .. },
+                )
                 | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
                 | Stmt::TypeDecl(TypeDecl::WhenType { .. })
                 | Stmt::Explore(_) => {}
@@ -35981,7 +36051,9 @@ impl RustCodegen {
             | Stmt::HashImport(_, _)
             | Stmt::Depend(_, _)
             | Stmt::RustBlock(_)
-            | Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. })
+            | Stmt::TypeDecl(
+                    TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } | TypeDecl::Scalar { .. },
+                )
             | Stmt::Explore(_) => {}
         }
     }
@@ -36259,6 +36331,19 @@ impl RustCodegen {
     }
 
     fn emit_program(&mut self, input_stmts: &[Stmt]) -> String {
+        self.ensure_canonical_rule_metadata(input_stmts);
+        // The imports are read as the program's elaboration rewrote them
+        // (named scalars declare their check functions there), also when
+        // another check on this thread made another elaboration current.
+        match self.constructor_elaboration.clone() {
+            Some(elaboration) => futuruna::with_constructor_elaboration(Some(&elaboration), || {
+                self.emit_program_elaborated(input_stmts)
+            }),
+            None => self.emit_program_elaborated(input_stmts),
+        }
+    }
+
+    fn emit_program_elaborated(&mut self, input_stmts: &[Stmt]) -> String {
         self.ensure_canonical_rule_metadata(input_stmts);
         let all_stmts = self.scan_declarations(input_stmts);
         self.has_raw_rust_blocks = all_stmts.iter().any(stmt_contains_raw_rust);
@@ -41492,6 +41577,20 @@ fn __futuruna_install_error_hook() {
             } => {
                 format!(
                     "/// {}\n#[allow(dead_code)]\npub type {name} = i64;\n",
+                    description.replace(['\n', '\r'], " ")
+                )
+            }
+            // A named scalar is its primitive; its checks ran where a value
+            // was made.
+            TypeDecl::Scalar {
+                name,
+                primitive,
+                description,
+                ..
+            } => {
+                let rust = if primitive == "Int" { "i64" } else { "String" };
+                format!(
+                    "/// {}\n#[allow(dead_code)]\npub type {name} = {rust};\n",
                     description.replace(['\n', '\r'], " ")
                 )
             }
@@ -56205,7 +56304,9 @@ fn __futuruna_install_error_hook() {
                 | Stmt::HashImport(_, _)
                 | Stmt::Depend(_, _)
                 | Stmt::Explore(_)
-                | Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. }) => {}
+                | Stmt::TypeDecl(
+                    TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } | TypeDecl::Scalar { .. },
+                ) => {}
                 Stmt::TypeDecl(TypeDecl::WhenType { condition, .. }) => {
                     self.scan_actor_message_site_expr(condition, actor_handles, local_tys);
                 }

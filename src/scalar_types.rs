@@ -31,6 +31,9 @@ pub(crate) struct ScalarType {
     pub(crate) description: String,
     pub(crate) checks: Vec<ScalarCheck>,
     pub(crate) field_meta: Option<FieldMetaDecl>,
+    /// The file that declares the type (`None` for the root program). Its
+    /// checks are names resolved there, and run as written there.
+    pub(crate) module: Option<PathBuf>,
 }
 
 /// A checked `Isin(p)` or `parse(Isin, p)`, written as its checks by
@@ -69,7 +72,11 @@ enum Verdict {
 /// Runs the checks of named scalars on literals with the program's own
 /// definitions, before the program runs.
 pub(crate) struct ScalarLiteralEvaluator {
-    evaluator: MetaGroundEvaluator,
+    root: Vec<Stmt>,
+    root_dir: Option<String>,
+    /// One evaluator per declaring file, so that a check runs with the
+    /// definitions of the file that declares the type.
+    evaluators: BTreeMap<Option<PathBuf>, Option<MetaGroundEvaluator>>,
     verdicts: BTreeMap<(String, String), Verdict>,
 }
 
@@ -83,6 +90,15 @@ impl fmt::Debug for ScalarLiteralEvaluator {
 
 /// The local that holds the value a conversion checks.
 const SCALAR_VALUE: &str = "__scalar_value";
+
+/// The function elaboration declares beside a named scalar for its check at
+/// `index`: `__scalar_check_Isin_0(value)` is `isin_shape(value)`, with the
+/// check's name and arguments resolved in the declaring file. A conversion
+/// and the calculation boundary call it, so a function of the same name in
+/// another file never stands in for the check.
+pub(crate) fn scalar_check_function(scalar: &str, index: usize) -> String {
+    format!("__scalar_check_{scalar}_{index}")
+}
 
 /// `a` or `an` before a type name.
 pub(crate) fn article(name: &str) -> &'static str {
@@ -177,6 +193,7 @@ impl TypeChecker {
                 description: description.to_string(),
                 checks: checks.to_vec(),
                 field_meta: field_meta.cloned(),
+                module: self.unit_conversion_module.clone(),
             },
         );
     }
@@ -186,7 +203,11 @@ impl TypeChecker {
     /// ordinary expressions. The type's `@ field` describes fields, so it
     /// holds text and sources but no `key`: a key belongs to the record.
     pub(super) fn check_scalar_declaration(&mut self, name: &str) {
-        let Some(scalar) = self.scalar_types.get(name).cloned() else {
+        let module = self.unit_conversion_module.clone();
+        let Some(scalar) = self.scalar_types.get_mut(name).map(|scalar| {
+            scalar.module = module;
+            scalar.clone()
+        }) else {
             return;
         };
         for check in &scalar.checks {
@@ -397,7 +418,9 @@ impl TypeChecker {
             return;
         }
         self.scalar_evaluator = Some(ScalarLiteralEvaluator {
-            evaluator: MetaGroundEvaluator::new(stmts, self.source_dir.as_deref()),
+            root: stmts.to_vec(),
+            root_dir: self.source_dir.clone(),
+            evaluators: BTreeMap::new(),
             verdicts: BTreeMap::new(),
         });
     }
@@ -816,9 +839,11 @@ impl TypeChecker {
         Some(known_widened)
     }
 
-    /// Whether a checked conversion waits for elaboration.
+    /// Whether elaboration has work: a checked conversion, or a named
+    /// scalar with checks, which gets its check functions.
     pub(crate) fn has_scalar_conversions(&self) -> bool {
         !self.scalar_conversions.is_empty()
+            || self.scalar_types.values().any(|scalar| !scalar.checks.is_empty())
     }
 
     /// Write every checked `Isin(p)` and `parse(Isin, p)` as the checks it
@@ -829,12 +854,156 @@ impl TypeChecker {
         root: &[Stmt],
         elaboration: &mut ConstructorElaboration,
     ) {
+        let mut functions: BTreeMap<Option<PathBuf>, Vec<Stmt>> = BTreeMap::new();
+        for (name, scalar) in &self.scalar_types {
+            let declared = functions.entry(scalar.module.clone()).or_default();
+            for (index, check) in scalar.checks.iter().enumerate() {
+                let definition = check_definition(
+                    scalar.module.as_deref(),
+                    root,
+                    self.source_dir.as_deref(),
+                    &check.name,
+                );
+                let callee = match definition {
+                    Some(mut definition) => {
+                        let copy = scalar_check_definition(name, index);
+                        for statement in &mut definition {
+                            rename_definition(statement, &copy);
+                        }
+                        declared.extend(definition);
+                        copy
+                    }
+                    None => check.name.clone(),
+                };
+                declared.push(check_function(name, scalar, index, check, &callee));
+            }
+        }
+        for (module, functions) in functions.into_iter().filter(|(_, f)| !f.is_empty()) {
+            elaboration.rewrite_file(module.as_deref(), root, |statements| {
+                statements.extend(functions)
+            });
+        }
         for (module, conversions) in std::mem::take(&mut self.scalar_conversions) {
             let mut rewrite = ScalarElaboration { conversions };
             elaboration.rewrite_file(module.as_deref(), root, |statements| {
                 rewrite_stmts(statements, &mut rewrite)
             });
         }
+    }
+}
+
+/// The name of the copy of a check's definition that elaboration declares
+/// beside the type.
+fn scalar_check_definition(scalar: &str, index: usize) -> String {
+    format!("__scalar_check_definition_{scalar}_{index}")
+}
+
+/// `> __scalar_check_Isin_0(__scalar_value: String) -> Bool { callee(__scalar_value) }`
+/// at the check's position in the declaring file, `callee` being the copy of
+/// the check's definition.
+fn check_function(
+    name: &str,
+    scalar: &ScalarType,
+    index: usize,
+    check: &ScalarCheck,
+    callee: &str,
+) -> Stmt {
+    let at = |kind| Expr::new(kind, check.span);
+    let mut arguments = vec![at(ExprKind::Var(SCALAR_VALUE.to_string()))];
+    arguments.extend(check.arguments.iter().cloned());
+    Stmt::Defn(Defn::Fn {
+        name: scalar_check_function(name, index),
+        params: vec![Param {
+            name: SCALAR_VALUE.to_string(),
+            ty: Some(Ty::Name(scalar.primitive.clone())),
+            inout: false,
+        }],
+        ret_ty: Some(Ty::Name("Bool".to_string())),
+        effects: Vec::new(),
+        body: at(ExprKind::App(
+            Box::new(at(ExprKind::Var(callee.to_string()))),
+            arguments,
+        )),
+    })
+}
+
+/// The definition of the check `name` as the checker resolved it for a type
+/// declared in `module`: the function or the rule clauses of that name in
+/// the declaring file, else in the first file it imports (breadth first)
+/// that declares it. A program's functions share one namespace at runtime,
+/// where a later declaration of the same name replaces an earlier one; the
+/// copy keeps the check the declaration named. `None` for a check the
+/// program does not declare (a prelude function).
+fn check_definition(
+    module: Option<&Path>,
+    root: &[Stmt],
+    root_dir: Option<&str>,
+    name: &str,
+) -> Option<Vec<Stmt>> {
+    let first: (Vec<Stmt>, String) = match module {
+        None => (root.to_vec(), root_dir.unwrap_or(".").to_string()),
+        Some(path) => (
+            parse_source_module_file_cached(path).ok()?.statements().to_vec(),
+            Interpreter::imported_source_dir(&path.to_string_lossy()),
+        ),
+    };
+    let mut seen = BTreeSet::new();
+    let mut pending = std::collections::VecDeque::from([first]);
+    while let Some((statements, dir)) = pending.pop_front() {
+        let definition: Vec<Stmt> = statements
+            .iter()
+            .filter(|statement| match statement {
+                Stmt::Defn(Defn::Fn { name: declared, .. }) => declared == name,
+                Stmt::Rule(
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. },
+                ) => rule_head_name(head) == Some(name),
+                _ => false,
+            })
+            .cloned()
+            .collect();
+        if !definition.is_empty() {
+            return Some(definition);
+        }
+        for statement in &statements {
+            let Stmt::Import(import) = statement else {
+                continue;
+            };
+            let Some(path) = Interpreter::resolve_import_path_for_source(import, &dir) else {
+                continue;
+            };
+            let path = canonical_source_path(Path::new(&path));
+            if !seen.insert(path.clone()) {
+                continue;
+            }
+            if let Ok(module) = parse_source_module_file_cached(&path) {
+                pending.push_back((
+                    module.statements().to_vec(),
+                    Interpreter::imported_source_dir(&path.to_string_lossy()),
+                ));
+            }
+        }
+    }
+    None
+}
+
+/// Give a copied function or rule clause the name `name`.
+fn rename_definition(statement: &mut Stmt, name: &str) {
+    match statement {
+        Stmt::Defn(Defn::Fn { name: declared, .. }) => *declared = name.to_string(),
+        Stmt::Rule(
+            Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. },
+        ) => {
+            let callee = match &mut head.kind {
+                ExprKind::App(function, _) => function.as_mut(),
+                _ => head,
+            };
+            if let ExprKind::Var(declared) = &mut callee.kind {
+                *declared = name.to_string();
+            }
+        }
+        _ => {}
     }
 }
 
@@ -859,6 +1028,24 @@ impl ScalarLiteralEvaluator {
         if let Some(verdict) = self.verdicts.get(&key) {
             return verdict.clone();
         }
+        let (root, root_dir) = (&self.root, &self.root_dir);
+        let evaluator = self
+            .evaluators
+            .entry(scalar.module.clone())
+            .or_insert_with(|| match &scalar.module {
+                None => Some(MetaGroundEvaluator::new(root, root_dir.as_deref())),
+                Some(path) => parse_source_module_file_cached(path).ok().map(|module| {
+                    MetaGroundEvaluator::new(
+                        module.statements(),
+                        Some(&Interpreter::imported_source_dir(&path.to_string_lossy())),
+                    )
+                }),
+            });
+        let Some(evaluator) = evaluator.as_mut() else {
+            let verdict = Verdict::Failed(scalar.checks[0].text.clone());
+            self.verdicts.insert(key, verdict.clone());
+            return verdict;
+        };
         let mut verdict = Verdict::Holds;
         for check in &scalar.checks {
             let at = |kind| Expr::new(kind, Span::dummy());
@@ -868,8 +1055,8 @@ impl ScalarLiteralEvaluator {
                 Box::new(at(ExprKind::Var(check.name.clone()))),
                 arguments,
             ));
-            self.evaluator.ensure_initialized();
-            match self.evaluator.evaluate_expr(&call, &BTreeMap::new()) {
+            evaluator.ensure_initialized();
+            match evaluator.evaluate_expr(&call, &BTreeMap::new()) {
                 Some(Value::Bool(true)) => continue,
                 Some(Value::Bool(false)) => verdict = Verdict::False(check.text.clone()),
                 _ => verdict = Verdict::Failed(check.text.clone()),
@@ -929,10 +1116,8 @@ impl ScalarConversion {
                 text(format!("{quote}{after}")),
             )
         };
-        let holds = |check: &ScalarCheck| {
-            let mut arguments = vec![variable()];
-            arguments.extend(check.arguments.iter().cloned());
-            call(&check.name, arguments)
+        let holds = |index: usize| {
+            call(&scalar_check_function(&self.scalar, index), vec![variable()])
         };
         let trusted = Expr::new(
             ExprKind::App(
@@ -944,19 +1129,19 @@ impl ScalarConversion {
         let mut statements = vec![Stmt::Bind(Pat::Var(SCALAR_VALUE.to_string()), None, value)];
         if self.parse {
             let mut result = call("Ok", vec![trusted]);
-            for check in self.checks.iter().rev() {
+            for (index, check) in self.checks.iter().enumerate().rev() {
                 result = at(ExprKind::If(
-                    Box::new(holds(check)),
+                    Box::new(holds(index)),
                     Box::new(result),
                     Box::new(call("Err", vec![message(check)])),
                 ));
             }
             statements.push(Stmt::Expr(result));
         } else {
-            for check in &self.checks {
+            for (index, check) in self.checks.iter().enumerate() {
                 statements.push(Stmt::Expr(call(
                     "assert_with_message",
-                    vec![holds(check), message(check)],
+                    vec![holds(index), message(check)],
                 )));
             }
             statements.push(Stmt::Expr(trusted));

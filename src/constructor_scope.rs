@@ -155,19 +155,22 @@ pub(crate) fn elaborated_source_module(
 }
 
 /// Start checking a root program. The current elaboration stays when the
-/// program is an elaborated one (it names an internal constructor, so its
-/// imports must be read elaborated too); any other program is checked with its
-/// imports as written.
+/// program is an elaborated one (it names an internal constructor or a named
+/// scalar's check function, so its imports must be read elaborated too); any
+/// other program is checked with its imports as written.
 pub(crate) fn begin_root_check(statements: &[Stmt]) {
     let elaborated = with_current(|current| {
         let Some(elaboration) = current else {
             return true;
         };
         let text = format!("{statements:?}");
-        elaboration
-            .display
-            .keys()
-            .any(|internal| text.contains(&format!("\"{internal}\"")))
+        // A conversion to a named scalar calls the check functions
+        // elaboration declared beside the type, in its file.
+        text.contains("\"__scalar_check_")
+            || elaboration
+                .display
+                .keys()
+                .any(|internal| text.contains(&format!("\"{internal}\"")))
     });
     if !elaborated {
         clear_constructor_elaboration();

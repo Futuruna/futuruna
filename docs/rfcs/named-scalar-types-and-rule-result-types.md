@@ -1,6 +1,6 @@
 # RFC: Named scalar types and declared rule result types
 
-Status: Proposed. Builds on [Unit types](unit-types.md),
+Status: Part 1 implemented (Experimental, 0.5.0); Part 2 proposed. Builds on [Unit types](unit-types.md),
 [Field metadata](field-metadata.md), [Scoped constructors](scoped-constructors.md)
 and [One annotation system](one-annotation-system.md).
 
@@ -467,6 +467,39 @@ cannot make it. The steps:
   records and an ordinary field of three.
 - **Checking results.** Every value of a named scalar was checked when it was
   made.
+
+## Decisions
+
+Recorded while implementing Part 1 (Experimental in 0.5.0):
+
+- **A check is the definition the declaration resolved.** Elaboration
+  declares one function per check beside the type, in the declaring file:
+  `__scalar_check_Isin_0(value)` is `isin_shape(value)`, with the check's
+  name and arguments resolved there. `Isin(p)`, `parse(Isin, p)` and the
+  calculation boundary call these functions, never the check by name in the
+  file that converts, so a function of the same name in another file never
+  stands in for the check. `runa check` runs a literal's checks with the
+  declaring file's definitions too.
+- **Elaboration trusts its own `Isin(v)`.** The `Isin(v)` that ends an
+  elaborated conversion has no source position; the checker accepts a
+  conversion without a position as already checked, and at runtime it leaves
+  the value as it is.
+- **`String` is a runtime identity**, like `Int`: `String(isin)` returns its
+  argument.
+- **In joins only `Int` literals take the scalar.** `if c { isin } else
+  { "DK0060534915" }` joins to `String`; a String literal branch is text
+  until something expects an `Isin`.
+- **A check that cannot run at check time is an error at the literal**, not
+  a silent pass.
+- **The repeated-label rule ignores `key`.** A field's `@ field` that says
+  what its type's says, apart from `key`, is an error; `@ field(key = True)`
+  alone parses without a `label`, marks the key and keeps the type's
+  metadata.
+- **Boundary errors are input errors.** A value that fails a check is a
+  diagnostic with `scalar` and `check`, reported beside the case's decoding
+  errors; the TypeScript SDK throws `CalculationError` of kind `input` with
+  `scalar`, `check` and the issue at the TypeScript path. `runa template`
+  carries a draft input over as it is; `runa call` refuses a failing value.
 
 ## Open questions
 

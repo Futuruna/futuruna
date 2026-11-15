@@ -349,6 +349,37 @@ its `unit` text from the declaration (`"DKK øre"`); writing `unit = Some(...)`
 in the metadata of such a field states the unit a second time and is a check
 error.
 
+### Named scalar types
+
+Experimental. A field, output or other type position whose type is a declared
+[named scalar](runes.md#named-scalar) keeps its primitive type and gains an
+additive `scalar` member, and the contract lists the named scalars it uses
+with their descriptions and checks as written:
+
+```json
+"type": { "kind": "primitive", "name": "String", "scalar": "Isin" }
+```
+
+```json
+"scalars": [{ "name": "Isin", "of": "String", "description": "International Securities Identification Number", "checks": ["isin_shape", "isin_check_digit"] }]
+```
+
+A `Map` may be keyed by a named scalar over `String`. Values on the wire stay
+JSON strings and numbers. `runa call` (also `--partial`) runs the checks on
+every input value at a position of a named scalar type: a field, a list or set
+element, a map key or value, a variant payload and a present optional value.
+A value that fails is an input diagnostic at its path, reported with the
+case's other input errors, and the case does not run:
+
+```json
+{"case_id": "demo", "path": "$.events[3].isin", "message": "`\"DK006053491\"` is not an `Isin`: `isin_shape` is false", "scalar": "Isin", "check": "isin_shape"}
+```
+
+In a partial case a missing value is still a need; a present value that fails
+is an input error. Results are not checked: every value of a named scalar was
+checked where it was made. The type's `@ field` is the field metadata of every
+input field that holds it, unless the field or an exact path says otherwise.
+
 ### Inspect one input branch
 
 For a large contract, the repository's read-only Python 3 helper can inspect a

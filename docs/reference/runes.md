@@ -204,6 +204,85 @@ keeps the type `{"kind": "primitive", "name": "Int"}` and gains
 scales; see [Calculations](calculations.md#unit-types). See also
 [the design](../rfcs/unit-types.md).
 
+### Named scalar
+
+Experimental. `# Name: Primitive "description" where check, ...` declares a
+named scalar type: its values are the `String`s (or `Int`s) that pass every
+check. The description says what a value is; the calculation contract and the
+SDK repeat it.
+
+```runa
+| isin_shape(text: String) -> string_length(text) == 12
+@ field(label = "ISIN")
+# Isin: String "International Securities Identification Number" where isin_shape
+# AccountId: String "the custodian's identifier of an account"
+# Month: Int "a month of the year" where between(1, 12)
+| between(n: Int, low: Int, high: Int) -> n >= low && n <= high
+
+> describe(isin: Isin) -> String { "ISIN " + isin }
+> read_isin(text: String) -> String {
+    match parse(Isin, text) {
+        Ok(isin) -> describe(isin)
+        Err(message) -> message
+    }
+}
+
+= home: Isin = "DK0060534915"
+@ print(describe(home)) -- ISIN DK0060534915
+@ print(read_isin("DK006053491")) -- `"DK006053491"` is not an `Isin`: `isin_shape` is false
+@ print(show(Int(Month(12)))) -- 12
+```
+
+Each check is a pure rule or function whose first parameter takes the
+primitive and which returns `Bool`; further arguments follow its name, and the
+value is passed first: `between(1, 12)` checks `between(value, 1, 12)`. The
+checks run in the order written and the first `False` stops them. A named
+scalar without `where` (`AccountId`) is a name and nothing more. The name may
+not reuse a built-in type name or the name of a declared type, constructor or
+unit; `where` is `hvor` in Danish.
+
+For a named scalar `S` over the primitive `P`, another named scalar `S2` and a
+plain `P` value `p`:
+
+| Expression | Type |
+|---|---|
+| an `S` where a `P` is expected (also in `List`, `Set`, `Option`, `Map`) | accepted |
+| `p` where an `S` is expected | error: write `S(p)` or `parse(S, p)` |
+| an `S2` where an `S` is expected | error |
+| a literal where an `S` is expected | `S`; `runa check` runs the checks on it |
+| `S` compared with `S`, `p` or a literal | `Bool`; a literal that fails a check is an error |
+| `S` compared with `S2` | error |
+| any other operator | applies to `P` and gives `P` |
+| `if`, `match` or a list joining `S` with `S2` or `p` | `P` |
+
+`map_contains(accounts, e.isin)` with `accounts: Map(AccountId, Account)` is
+an error, and so are `map_get`, `set_contains`, `contains` and the other
+lookups given a value of another named scalar.
+
+`Isin(p)` makes an `Isin` after the checks; a value that fails one stops the
+program as a failed assertion does. `parse(Isin, p)` gives
+`Result(Isin, String)`: `Err` names the check that is false. `String(isin)` and
+`Int(id)` take the name off; `Isin(account_id)` is an error, so that a step
+from one named scalar to another goes through `String(...)` and is visible. A
+program that declares its own `parse` keeps it.
+
+A check is the definition its name has in the file that declares the type:
+`Isin(p)` in another file runs the same check, also when that file declares a
+function of the same name.
+
+`@ field(...)` before the declaration is the type's field metadata: it
+describes every input field that holds the type. It may not set `key`, which
+belongs to the record: write `@ field(key = True)` on the field, which marks
+the key and keeps the type's label. A field whose `@ field` says what its
+type's says is an error; `runa fmt --migrate` removes it.
+
+A named scalar value is its primitive everywhere outside the checker: the
+interpreter, `runa call` JSON, `runa verify` and generated Rust (which declares
+`pub type Isin = String;`). `runa call` runs the checks on every input value of
+a named scalar type and reports a value that fails as an input error at its
+path; see [Calculations](calculations.md#named-scalar-types). See also
+[the design](../rfcs/named-scalar-types-and-rule-result-types.md).
+
 ### Product types with rule members
 ```runa
 # TaxCase(person: Person, rates: Rates) {

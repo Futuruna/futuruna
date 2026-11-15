@@ -43,6 +43,9 @@ pub struct MigrationProgram {
     meta_role_types: BTreeSet<String>,
     /// The constructors each declared type has.
     constructors: BTreeMap<String, Vec<String>>,
+    /// Every named scalar type (`# Isin: String "..."`), with what its
+    /// `@ field` says apart from `key` (empty without one).
+    scalar_field_meta: BTreeMap<String, Vec<(String, String)>>,
 }
 
 fn identifiers(text: &str) -> impl Iterator<Item = &str> {
@@ -132,6 +135,19 @@ impl MigrationProgram {
     }
 
     pub fn add_source(&mut self, path: &Path, source: &str) {
+        if let Ok(module) = crate::parse_source_module_cached(path, source) {
+            for statement in module.statements() {
+                if let crate::Stmt::TypeDecl(crate::TypeDecl::Scalar {
+                    name, field_meta, ..
+                }) = statement
+                {
+                    self.scalar_field_meta.insert(
+                        name.clone(),
+                        field_meta.as_ref().map(presentation).unwrap_or_default(),
+                    );
+                }
+            }
+        }
         let lines: Vec<&str> = source.lines().collect();
         for word in identifiers(source) {
             *self.words.entry(word.to_string()).or_default() += 1;
@@ -332,6 +348,122 @@ impl MigrationProgram {
 
 /// `source` with `# impl Document for <type> {}` after the declaration of
 /// the record type `type`; `None` when the source does not declare it.
+/// What an `@ field` says apart from `key`, comparable across files.
+fn presentation(meta: &crate::FieldMetaDecl) -> Vec<(String, String)> {
+    let mut entries: Vec<(String, String)> = meta
+        .entries
+        .iter()
+        .filter(|(key, _)| key != "key")
+        .map(|(key, value)| (key.clone(), format!("{:?}", crate::strip_spans_expr(value))))
+        .collect();
+    entries.sort();
+    entries
+}
+
+impl MigrationProgram {
+    /// The named scalar a field of this type holds: the type itself, or the
+    /// item of an `Option`, `List` or `Set`, or the value of a `Map`.
+    fn held_scalar<'a>(&self, ty: &'a crate::Ty) -> Option<&'a str> {
+        use crate::Ty;
+        match ty {
+            Ty::Name(name) => self.scalar_field_meta.contains_key(name).then_some(name.as_str()),
+            Ty::Optional(inner) | Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) => {
+                self.held_scalar(inner)
+            }
+            Ty::App(head, arguments) => match (head.as_ref(), arguments.as_slice()) {
+                (Ty::Name(head), [item]) if matches!(head.as_str(), "Option" | "List" | "Set") => {
+                    self.held_scalar(item)
+                }
+                (Ty::Name(head), [_, value]) if head == "Map" => self.held_scalar(value),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    /// Remove each field-level `@ field` that says what its named scalar's
+    /// `@ field` says; one that also sets `key` becomes `@ field(key = True)`.
+    /// The rewritten source and the number of entries removed, or `None`
+    /// when nothing repeats.
+    pub fn remove_repeated_scalar_field_meta(
+        &self,
+        path: &Path,
+        source: &str,
+    ) -> Option<(String, usize)> {
+        if self.scalar_field_meta.values().all(Vec::is_empty) {
+            return None;
+        }
+        let module = crate::parse_source_module_cached(path, source).ok()?;
+        let mut edits: Vec<(usize, usize, &str)> = Vec::new();
+        let chars: Vec<char> = source.chars().collect();
+        for statement in module.statements() {
+            let crate::Stmt::TypeDecl(crate::TypeDecl::ADT {
+                variants,
+                field_meta: Some(field_meta),
+                ..
+            }) = statement
+            else {
+                continue;
+            };
+            for member in &field_meta.members {
+                let Some(scalar) = variants
+                    .iter()
+                    .find(|variant| variant.name == member.variant)
+                    .and_then(|variant| {
+                        variant.fields.iter().find(|field| field.name == member.field)
+                    })
+                    .and_then(|field| self.held_scalar(&field.ty))
+                else {
+                    continue;
+                };
+                let written = presentation(&member.meta);
+                if written.is_empty() || written != self.scalar_field_meta[scalar] {
+                    continue;
+                }
+                let (start, end) = (member.meta.span.start, member.meta.span.end);
+                if member.meta.value("key").is_some() {
+                    edits.push((start, end, "field(key = True)"));
+                    continue;
+                }
+                // From the `@` before `field(...)`.
+                let Some(at) = (0..start)
+                    .rev()
+                    .find(|index| !chars[*index].is_whitespace())
+                    .filter(|index| chars[*index] == '@')
+                else {
+                    continue;
+                };
+                let line_start = chars[..at].iter().rposition(|c| *c == '\n').map_or(0, |i| i + 1);
+                let line_end = chars[end..]
+                    .iter()
+                    .position(|c| *c == '\n')
+                    .map_or(chars.len(), |i| end + i);
+                let alone = chars[line_start..at].iter().all(|c| c.is_whitespace())
+                    && chars[end..line_end].iter().all(|c| c.is_whitespace());
+                if alone {
+                    edits.push((line_start, (line_end + 1).min(chars.len()), ""));
+                } else {
+                    let after = chars[end..line_end]
+                        .iter()
+                        .position(|c| !c.is_whitespace())
+                        .map_or(line_end, |i| end + i);
+                    edits.push((at, after, ""));
+                }
+            }
+        }
+        if edits.is_empty() {
+            return None;
+        }
+        edits.sort_by_key(|edit| std::cmp::Reverse(edit.0));
+        let mut chars = chars;
+        let removed = edits.len();
+        for (start, end, text) in edits {
+            chars.splice(start..end, text.chars());
+        }
+        Some((chars.into_iter().collect(), removed))
+    }
+}
+
 pub fn add_document_impl(source: &str, type_name: &str) -> Option<String> {
     let lines: Vec<&str> = source.lines().collect();
     if lines

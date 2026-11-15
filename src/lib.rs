@@ -13126,9 +13126,12 @@ impl Parser {
             entries.push((key.to_string(), value.clone()));
         }
         let has = |key: &str| entries.iter().any(|(existing, _)| existing == key);
-        if !has("label") {
+        // `@ field(key = True)` alone marks the key; the field keeps the
+        // metadata of its type.
+        let key_only = !entries.is_empty() && entries.iter().all(|(key, _)| key == "key");
+        if !has("label") && !key_only {
             return Err(format!(
-                "{}:{}: `@ field` needs a `label`",
+                "{}:{}: `@ field` needs a `label`, or only `key` (`@ field(key = True)`)",
                 name.line, name.col
             ));
         }
@@ -58178,7 +58181,13 @@ impl TypeChecker {
         let previous_source = std::mem::replace(&mut self.source_text, module.source().to_string());
         let diagnostic_start = self.diagnostics.len();
         self.source_dir = Some(imported_dir);
+        // A named scalar declared here runs its checks with this file's
+        // definitions.
+        let previous_module = self
+            .unit_conversion_module
+            .replace(canonical_source_path(Path::new(file_path)));
         self.collect_declarations(&import_stmts);
+        self.unit_conversion_module = previous_module;
         self.infer_rule_return_types(&import_stmts);
         // Exact Explore rule-return inference is a whole-program fixed point.
         // Running it at every nested import boundary repeatedly revisits the

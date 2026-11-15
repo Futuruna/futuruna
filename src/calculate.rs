@@ -328,6 +328,35 @@ impl CalculationContract {
         )
     }
 
+    /// Decode a case, complete or partial, and collect the input values at
+    /// positions of named scalar types, also when the case has other input
+    /// errors: the boundary runs their checks and reports every error of the
+    /// case together.
+    pub(crate) fn decode_case_with_scalars(
+        &self,
+        value: &JsonValue,
+        partial: bool,
+    ) -> (
+        Result<(Value, Option<PartialDecoder>), Vec<CalculationValueError>>,
+        Vec<ScalarInput>,
+    ) {
+        let decoder = RefCell::new(PartialDecoder::default());
+        let scalars = RefCell::new(Vec::new());
+        let decoded = decode_value(
+            value,
+            &self.input,
+            self,
+            &BTreeMap::new(),
+            "$",
+            PartialDecode {
+                partial: partial.then_some(&decoder),
+                scalars: (!self.scalars.is_empty()).then_some(&scalars),
+            },
+        );
+        let decoded = decoded.map(|value| (value, partial.then(|| decoder.into_inner())));
+        (decoded, scalars.into_inner())
+    }
+
     /// Decode a partial case: left-out fields are unknown values carrying
     /// their input paths. Also returns the provided input leaves and the
     /// input containers, for read tracking.
@@ -519,6 +548,8 @@ impl CalculationInputCase {
                 message: format!(
                     "template placeholder is not filled; replace it with a `{expected}` value"
                 ),
+                scalar: None,
+                check: None,
             })
             .collect();
         if self.input_status != Some(CalculationInputStatus::Ready) {
@@ -526,6 +557,8 @@ impl CalculationInputCase {
                 case_id: self.case_id.clone(),
                 path: format!("$.cases[{index}].input_status"),
                 message: "case inputs are not marked ready; review all supplied values, including zeros, empty collections and optional facts, then set input_status to `ready`. Readiness is not verification of documents or model correctness".to_string(),
+                scalar: None,
+                check: None,
             });
         }
         diagnostics
@@ -571,6 +604,12 @@ pub struct CalculationCaseDiagnostic {
     pub case_id: String,
     pub path: String,
     pub message: String,
+    /// The named scalar type an input value at `path` is not a value of.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scalar: Option<String>,
+    /// The check of `scalar` that is false for the value, as written.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub check: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6183,6 +6222,8 @@ pub fn validate_input_envelope(
                 "unsupported input schema `{}`; expected `{}` or `{}`",
                 envelope.futuruna.schema, INPUT_SCHEMA, LEGACY_INPUT_SCHEMA
             ),
+            scalar: None,
+            check: None,
         });
     }
     if envelope.futuruna.entry != contract.entry {
@@ -6193,6 +6234,8 @@ pub fn validate_input_envelope(
                 "template entry `{}` does not match requested `{}`",
                 envelope.futuruna.entry, contract.entry
             ),
+            scalar: None,
+            check: None,
         });
     }
     if envelope.futuruna.schema_hash != contract.schema_hash {
@@ -6203,6 +6246,8 @@ pub fn validate_input_envelope(
                 "stale calculation template: expected schema hash `{}`, got `{}`",
                 contract.schema_hash, envelope.futuruna.schema_hash
             ),
+            scalar: None,
+            check: None,
         });
     }
     let mut case_ids = BTreeSet::new();
@@ -6212,12 +6257,16 @@ pub fn validate_input_envelope(
                 case_id: case.case_id.clone(),
                 path: format!("$.cases[{}].case_id", index),
                 message: "case_id must not be empty".to_string(),
+                scalar: None,
+                check: None,
             });
         } else if !case_ids.insert(case.case_id.clone()) {
             diagnostics.push(CalculationCaseDiagnostic {
                 case_id: case.case_id.clone(),
                 path: format!("$.cases[{}].case_id", index),
                 message: format!("duplicate case_id `{}`", case.case_id),
+                scalar: None,
+                check: None,
             });
         }
     }
@@ -6363,32 +6412,6 @@ impl CalculationWorker {
         case: &CalculationInputCase,
     ) -> CalculationCaseOutcome {
         let started = trace_clock();
-        let decoded = match self.partial {
-            Some(_) => contract
-                .decode_partial_input(&case.input)
-                .map(|(input, decoder)| (input, Some(decoder))),
-            None => contract
-                .decode_input_diagnostics(&case.input)
-                .map(|input| (input, None)),
-        };
-        let (input, decoder) = match decoded {
-            Ok(decoded) => decoded,
-            Err(errors) => {
-                let outcome = CalculationCaseOutcome::Diagnostics(
-                    errors
-                        .into_iter()
-                        .map(|error| CalculationCaseDiagnostic {
-                            case_id: case.case_id.clone(),
-                            path: error.path,
-                            message: error.message,
-                        })
-                        .collect(),
-                );
-                trace_calculation_case(&case.case_id, started);
-                return outcome;
-            }
-        };
-
         if self.needs_reinitialization {
             let partial = self.partial;
             let explain = self.explain.take();
@@ -6396,12 +6419,39 @@ impl CalculationWorker {
             self.partial = partial;
             self.explain = explain;
         }
+        let (decoded, scalars) =
+            contract.decode_case_with_scalars(&case.input, self.partial.is_some());
+        let mut diagnostics: Vec<CalculationCaseDiagnostic> = match &decoded {
+            Ok(_) => Vec::new(),
+            Err(errors) => errors
+                .iter()
+                .map(|error| CalculationCaseDiagnostic {
+                    case_id: case.case_id.clone(),
+                    path: error.path.clone(),
+                    message: error.message.clone(),
+                    scalar: None,
+                    check: None,
+                })
+                .collect(),
+        };
+        if self.initialization_error.is_none() {
+            diagnostics.extend(self.scalar_diagnostics(contract, &case.case_id, scalars));
+        }
+        let (input, decoder) = match decoded {
+            Ok(decoded) if diagnostics.is_empty() => decoded,
+            _ => {
+                trace_calculation_case(&case.case_id, started);
+                return CalculationCaseOutcome::Diagnostics(diagnostics);
+            }
+        };
         if let Some(message) = &self.initialization_error {
             trace_calculation_case(&case.case_id, started);
             return CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
                 case_id: case.case_id.clone(),
                 path: "$".to_string(),
                 message: message.clone(),
+                scalar: None,
+                check: None,
             });
         }
 
@@ -6475,6 +6525,8 @@ impl CalculationWorker {
                     case_id: case.case_id.clone(),
                     path: "$".to_string(),
                     message: format!("calculation `{}` failed: {error}", contract.entry),
+                    scalar: None,
+                    check: None,
                 });
             }
         };
@@ -6500,10 +6552,79 @@ impl CalculationWorker {
                 case_id: case.case_id.clone(),
                 path: error.path,
                 message: error.message,
+                scalar: None,
+                check: None,
             }),
         };
         trace_calculation_case(&case.case_id, started);
         outcome
+    }
+
+    /// Run the checks of each input value of a named scalar type, through
+    /// the functions elaboration declared beside the type, and report each
+    /// value that fails one at its path.
+    fn scalar_diagnostics(
+        &mut self,
+        contract: &CalculationContract,
+        case_id: &str,
+        inputs: Vec<ScalarInput>,
+    ) -> Vec<CalculationCaseDiagnostic> {
+        let mut diagnostics = Vec::new();
+        for input in inputs {
+            let Some(scalar) = contract.scalars.iter().find(|scalar| scalar.name == input.scalar)
+            else {
+                continue;
+            };
+            let shown = match &input.value {
+                Value::Str(text) => format!("\"{text}\""),
+                other => other.to_string(),
+            };
+            for (index, check) in scalar.checks.iter().enumerate() {
+                let binding = "__futuruna_scalar_input".to_string();
+                let mut env = self.base_env.clone();
+                env.set(binding.clone(), input.value.clone());
+                let call: Expr = ExprKind::App(
+                    Box::new(
+                        ExprKind::Var(crate::scalar_types::scalar_check_function(
+                            &scalar.name,
+                            index,
+                        ))
+                        .into(),
+                    ),
+                    vec![ExprKind::Var(binding).into()],
+                )
+                .into();
+                let message = match self
+                    .interpreter
+                    .with_calculation_runtime(|runtime| runtime.eval(&call, &env))
+                {
+                    Ok(Value::Bool(true)) => continue,
+                    Ok(Value::Bool(false)) => {
+                        crate::scalar_types::not_a_scalar_message(&shown, &scalar.name, check)
+                    }
+                    Ok(other) => format!(
+                        "check `{check}` of `{}` returned `{other}` for `{shown}`, not a `Bool`",
+                        scalar.name
+                    ),
+                    Err(error) => {
+                        self.needs_reinitialization = true;
+                        format!(
+                            "check `{check}` of `{}` failed on `{shown}`: {error}",
+                            scalar.name
+                        )
+                    }
+                };
+                diagnostics.push(CalculationCaseDiagnostic {
+                    case_id: case_id.to_string(),
+                    path: input.path.clone(),
+                    message,
+                    scalar: Some(scalar.name.clone()),
+                    check: Some(check.clone()),
+                });
+                break;
+            }
+        }
+        diagnostics
     }
 
     /// The assumptions of a case's result: those of the clauses that fired
@@ -6546,6 +6667,8 @@ impl CalculationWorker {
                 case_id: case.case_id.clone(),
                 path,
                 message,
+                scalar: None,
+                check: None,
             })
         };
         let outcome = match evaluated {
@@ -7518,6 +7641,8 @@ fn check_partial_calculation_cases(
                 case_id: strict_case.case_id.clone(),
                 path: "$".to_string(),
                 message: "strict-mode oracle: strict evaluation is Complete, propagation does not return the same result".to_string(),
+                scalar: None,
+                check: None,
             });
         }
     }
@@ -7566,6 +7691,8 @@ fn check_partial_calculation_cases(
                         completion.result,
                         result
                     ),
+                    scalar: None,
+                    check: None,
                 });
             }
         }
@@ -7578,6 +7705,8 @@ fn check_partial_calculation_cases(
                         "completion test: {} fails: {}",
                         diagnostic.case_id, diagnostic.message
                     ),
+                    scalar: None,
+                    check: None,
                 });
             }
         }
