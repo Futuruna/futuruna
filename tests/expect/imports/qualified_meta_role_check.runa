@@ -1,0 +1,8 @@
+-- A qualified module is checked with the standard prelude a root file gets:
+-- it implements the prelude's `MetaRole` and writes an assumption.
+-- expect-command: check
+-- expect-status: pass
+
+@ import Rooms from ./qualified_meta_role_lib
+
+@ print(show(Rooms.room(False, 400)))

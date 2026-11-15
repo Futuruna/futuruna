@@ -57714,11 +57714,14 @@ impl TypeChecker {
         child.imported.insert(source.clone());
         child.module_return_sources_in_progress = self.module_return_sources_in_progress.clone();
         child.module_return_sources_in_progress.insert(source);
-        // A qualified module is a program of its own: it gets the needs
-        // prelude when it, or a file it imports, asks a query.
+        // A qualified module is a program of its own: it is checked with the
+        // standard prelude a root file gets (at runtime its namespace reaches
+        // the root's), and with the needs prelude when it, or a file it
+        // imports, asks a query.
+        let with_prelude = prepend_prelude(parse_prelude(), statements);
         let with_needs =
-            query::with_needs_prelude_for_imports(statements, child.source_dir.as_deref());
-        let statements = with_needs.as_deref().unwrap_or(statements);
+            query::with_needs_prelude_for_imports(&with_prelude, child.source_dir.as_deref());
+        let statements = with_needs.as_deref().unwrap_or(&with_prelude);
         child.install_constructor_prepass(statements);
         child.collect_declarations(statements);
         child.prepare_rule_dispatch_metadata(statements);

@@ -1,0 +1,12 @@
+-- expect-skip: dependency-only fixture for qualified_meta_role_check.runa: a qualified module with a meta role and an assumption
+
+# AssumptionInfo(id: String)
+# LawRole(a) = Assumption(value: a)
+# impl MetaRole for LawRole {}
+
+= closing_day = AssumptionInfo(id = "CLOSING-DAY")
+
+@ export
+| room(closed: Bool, value: Int) -> 1000 - value
+@ meta(Assumption(value = closing_day))
+| exception closed room(closed: Bool, value: Int) -> 0 under closed

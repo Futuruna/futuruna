@@ -1,11 +1,14 @@
 -- A qualified module compares the `Option` members of its query answers
--- (an assumption's section, rule and binding; a need's entry and its
--- waiting sections) with `Some`/`None` it builds itself, and matches on them.
+-- (an assumption's section, rule and binding; the entry of a fact need and
+-- of an entry need; the waiting sections) with `Some`/`None` it builds
+-- itself, and matches on them.
 -- expect-command: interp
 -- expect-stdout: assumption compared: true
 -- expect-stdout: assumption matched: closing/room/none
 -- expect-stdout: need compared: true
 -- expect-stdout: need matched: fact:closing
+-- expect-stdout: entry compared: true
+-- expect-stdout: entry matched: entry share_income
 
 @ import Accounts from ./needs_options_in_qualified_import_lib
 
@@ -13,3 +16,5 @@
 @ print("assumption matched: " + Accounts.assumption_matched())
 @ print("need compared: " + show(Accounts.need_compared()))
 @ print("need matched: " + Accounts.need_matched())
+@ print("entry compared: " + show(Accounts.entry_compared()))
+@ print("entry matched: " + Accounts.entry_matched())
