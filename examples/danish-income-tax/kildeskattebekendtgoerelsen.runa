@@ -53,9 +53,9 @@ indberetningspligtige og registre oplysningerne kommer fra.
 # ForskudsregistreringKilde = ÅrsopgørelseAndetForudgåendeÅr | SidsteÅrsForskudsændring | LøbendeIndberetning | Registeroplysning | ForskudsskemaOplysning | SkattepligtigAnmodning | Forvaltningsskøn
 # ForskudsregistreringKildevalg(sidste_års_forskudsændring_rettidig: Boolsk, seneste_oplysning_rettidig: Boolsk, førstegangsredegørelse: Boolsk, skattepligtig_anmodning_sandsynliggjort: Boolsk, forvaltning_har_nærliggende_afvigelsesgrund: Boolsk)
 
-| forskudsregistrering_ordinær_kilde(input: ForskudsregistreringKildevalg) -> ÅrsopgørelseAndetForudgåendeÅr
-| exception forskudsregistrering_sidste_års_ændring_går_forud forskudsregistrering_ordinær_kilde(input: ForskudsregistreringKildevalg) -> SidsteÅrsForskudsændring under input.sidste_års_forskudsændring_rettidig
-| exception forskudsregistrering_førstegangsredegørelse forskudsregistrering_ordinær_kilde(input: ForskudsregistreringKildevalg) -> ForskudsskemaOplysning under input.førstegangsredegørelse
+| forskudsregistrering_ordinær_kilde(input: ForskudsregistreringKildevalg): ForskudsregistreringKilde -> ÅrsopgørelseAndetForudgåendeÅr
+| exception forskudsregistrering_sidste_års_ændring_går_forud forskudsregistrering_ordinær_kilde(input) -> SidsteÅrsForskudsændring under input.sidste_års_forskudsændring_rettidig
+| exception forskudsregistrering_førstegangsredegørelse forskudsregistrering_ordinær_kilde(input) -> ForskudsskemaOplysning under input.førstegangsredegørelse
 
 | forskudsregistrering_fristefterlevelse(input: ForskudsregistreringKildevalg) -> input.seneste_oplysning_rettidig || input.sidste_års_forskudsændring_rettidig
 | forskudsregistrering_underretter_skattepligtig() -> Sandt
@@ -72,9 +72,9 @@ forskudsskat beregnet efter reglerne i virksomhedsskatteloven.
 ----
 
 | forskudsskema_kan_bære_forventede_indkomstforhold(input: ForskudsregistreringKildevalg) -> input.skattepligtig_anmodning_sandsynliggjort || input.førstegangsredegørelse
-| forskudsgrundlag_ændringskilde(input: ForskudsregistreringKildevalg) -> forskudsregistrering_ordinær_kilde(input)
-| exception forskudsgrundlag_skattepligtig_anmodning forskudsgrundlag_ændringskilde(input: ForskudsregistreringKildevalg) -> SkattepligtigAnmodning under input.skattepligtig_anmodning_sandsynliggjort
-| exception forskudsgrundlag_forvaltningsskøn forskudsgrundlag_ændringskilde(input: ForskudsregistreringKildevalg) -> Forvaltningsskøn under input.forvaltning_har_nærliggende_afvigelsesgrund && input.skattepligtig_anmodning_sandsynliggjort == Falskt
+| forskudsgrundlag_ændringskilde(input: ForskudsregistreringKildevalg): ForskudsregistreringKilde -> forskudsregistrering_ordinær_kilde(input)
+| exception forskudsgrundlag_skattepligtig_anmodning forskudsgrundlag_ændringskilde(input) -> SkattepligtigAnmodning under input.skattepligtig_anmodning_sandsynliggjort
+| exception forskudsgrundlag_forvaltningsskøn forskudsgrundlag_ændringskilde(input) -> Forvaltningsskøn under input.forvaltning_har_nærliggende_afvigelsesgrund && input.skattepligtig_anmodning_sandsynliggjort == Falskt
 
 ----
 § 8. Skatteforvaltningen udarbejder og udsender de i kildeskattelovens afsnit
@@ -165,14 +165,14 @@ procent.
 ----
 
 | kildeskattebekendtgørelse_afrundet_op_til_hel_procent_basispoint(procent_basispoint: Heltal) -> penge_basispoint_afrundet_op_til_hel_procent(procent_basispoint)
-| kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input: KildeskattebekendtgørelseForskudskortInput) -> input.uafrundet_indeholdelsesprocent_basispoint
-| exception kildeskattebekendtgørelse_skatteloft_afskærer_procent kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input: KildeskattebekendtgørelseForskudskortInput) -> input.skatteloft_plus_par7a_og_kirke_basispoint under input.uafrundet_indeholdelsesprocent_basispoint > input.skatteloft_plus_par7a_og_kirke_basispoint
+| kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input: KildeskattebekendtgørelseForskudskortInput): Int -> input.uafrundet_indeholdelsesprocent_basispoint
+| exception kildeskattebekendtgørelse_skatteloft_afskærer_procent kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input) -> input.skatteloft_plus_par7a_og_kirke_basispoint under input.uafrundet_indeholdelsesprocent_basispoint > input.skatteloft_plus_par7a_og_kirke_basispoint
 | kildeskattebekendtgørelse_indeholdelsesprocent_for_kort_basispoint(input: KildeskattebekendtgørelseForskudskortInput) -> kildeskattebekendtgørelse_afrundet_op_til_hel_procent_basispoint(kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input)) + input.lønindeholdelsesprocent_basispoint
 
 | kildeskattebekendtgørelse_maksimal_indeholdelig_a_skat_kroner(input: KildeskattebekendtgørelseForskudskortInput) -> penge_beløb_gange_basispoint_kroner(kildeskattebekendtgørelse_a_skat_grundlag_til_skattekort_kroner(input), kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input))
 | kildeskattebekendtgørelse_skattebillet_b_skat_kroner(input: KildeskattebekendtgørelseForskudskortInput) -> kildeskattebekendtgørelse_positivt_beløb(kildeskattebekendtgørelse_forskudsskat_til_a_skat_kroner(input) - kildeskattebekendtgørelse_maksimal_indeholdelig_a_skat_kroner(input))
-| kildeskattebekendtgørelse_samlet_skattekortfradrag_kroner(input: KildeskattebekendtgørelseForskudskortInput) -> 0
-| exception kildeskattebekendtgørelse_skattekortfradrag_beregnes kildeskattebekendtgørelse_samlet_skattekortfradrag_kroner(input: KildeskattebekendtgørelseForskudskortInput) -> kildeskattebekendtgørelse_positivt_beløb(kildeskattebekendtgørelse_a_skat_grundlag_til_skattekort_kroner(input) - kildeskattebekendtgørelse_forskudsskat_til_a_skat_kroner(input) * 10000 / kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input)) under input.hovedkort && input.skattekortfradrag_kan_udnyttes && kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input) > 0 && kildeskattebekendtgørelse_forskudsskat_til_a_skat_kroner(input) > 0
+| kildeskattebekendtgørelse_samlet_skattekortfradrag_kroner(input: KildeskattebekendtgørelseForskudskortInput): Int -> 0
+| exception kildeskattebekendtgørelse_skattekortfradrag_beregnes kildeskattebekendtgørelse_samlet_skattekortfradrag_kroner(input) -> kildeskattebekendtgørelse_positivt_beløb(kildeskattebekendtgørelse_a_skat_grundlag_til_skattekort_kroner(input) - kildeskattebekendtgørelse_forskudsskat_til_a_skat_kroner(input) * 10000 / kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input)) under input.hovedkort && input.skattekortfradrag_kan_udnyttes && kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input) > 0 && kildeskattebekendtgørelse_forskudsskat_til_a_skat_kroner(input) > 0
 
 ----
 § 13. Hvis den skattepligtige ikke fuldt ud vil kunne udnytte et
@@ -180,9 +180,9 @@ skattekortfradrag, jf. § 9, kan der udfærdiges skattekort uden anførelse af
 fradragsbeløb efter Skatteforvaltningens nærmere bestemmelse.
 ----
 
-| kildeskattebekendtgørelse_korttype(input: KildeskattebekendtgørelseForskudskortInput) -> Bikort
-| exception kildeskattebekendtgørelse_hovedkort_med_forskudsskat kildeskattebekendtgørelse_korttype(input: KildeskattebekendtgørelseForskudskortInput) -> Skattekort under input.hovedkort && kildeskattebekendtgørelse_forskudsskat_til_a_skat_kroner(input) > 0
-| exception kildeskattebekendtgørelse_forskudsskat_nul_giver_frikort kildeskattebekendtgørelse_korttype(input: KildeskattebekendtgørelseForskudskortInput) -> Frikort under kildeskattebekendtgørelse_forskudsskat_til_a_skat_kroner(input) == 0
+| kildeskattebekendtgørelse_korttype(input: KildeskattebekendtgørelseForskudskortInput): KildeskatKort -> Bikort
+| exception kildeskattebekendtgørelse_hovedkort_med_forskudsskat kildeskattebekendtgørelse_korttype(input) -> Skattekort under input.hovedkort && kildeskattebekendtgørelse_forskudsskat_til_a_skat_kroner(input) > 0
+| exception kildeskattebekendtgørelse_forskudsskat_nul_giver_frikort kildeskattebekendtgørelse_korttype(input) -> Frikort under kildeskattebekendtgørelse_forskudsskat_til_a_skat_kroner(input) == 0
 
 | kildeskattebekendtgørelse_månedsfradrag_kroner(input: KildeskattebekendtgørelseForskudskortInput) -> kildeskattebekendtgørelse_samlet_skattekortfradrag_kroner(input) / 12
 | kildeskattebekendtgørelse_fjorten_dages_fradrag_kroner(input: KildeskattebekendtgørelseForskudskortInput) -> kildeskattebekendtgørelse_samlet_skattekortfradrag_kroner(input) / 26

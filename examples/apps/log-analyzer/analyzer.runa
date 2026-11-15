@@ -105,7 +105,7 @@
 -- ============================================================================
 
 -- Base: no alert needed
-| should_alert(entry) -> False
+| should_alert(entry): Bool -> False
 
 -- Errors and fatals always alert
 | exception error_alert should_alert(entry) -> True under is_error_level(entry.level)

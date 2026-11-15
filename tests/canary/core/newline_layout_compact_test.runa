@@ -4,8 +4,8 @@
 # LayoutEvent = Created(code: Int, tags: List(String)) | Closed(Int)
 
 # LayoutCase(base: Int, values: List(Int)) {
-    | amount(extra: Int) -> base + sum(values) + extra
-    | amount(extra: Int) -> 99 under extra > 10
+    | amount(extra: Int): Int -> base + sum(values) + extra
+    | amount(extra) -> 99 under extra > 10
 }
 
 > event_code(event: LayoutEvent) -> Int {

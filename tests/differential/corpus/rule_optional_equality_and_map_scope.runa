@@ -5,7 +5,7 @@
 | present(entry: Option(Entry)) -> entry != None
 | present_reversed(entry: Option(Entry)) -> None != entry
 # Ledger(values: Map(String, Int), key: String) {
-    | updated() -> values
+    | updated(): Map(String, Int) -> values
     | exception record_key updated() -> map_insert(values, key, 5) under key != ""
 }
 @ print(show(assessment_complete(Report(None, True))))

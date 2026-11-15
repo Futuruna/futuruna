@@ -75,7 +75,7 @@
 -- ============================================================================
 
 -- Default: classify based on standard thresholds
-| alert_for(v) -> Alert(vital_name(v), severity_name(classify_vital(v)), show(v))
+| alert_for(v): Alert -> Alert(vital_name(v), severity_name(classify_vital(v)), show(v))
 
 -- Exception: beta-blocker patient — low HR (45-59) is expected, override to Normal
 | exception beta_blocker alert_for(v) -> Alert("HeartRate", "NORMAL", show(v) + " (beta-blocker)") under match v { | HeartRate(bpm: b) -> b >= 45 && b < 60 | _ -> false }

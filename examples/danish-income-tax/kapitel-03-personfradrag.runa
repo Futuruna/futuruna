@@ -146,35 +146,35 @@ Stk. 2. §§ 1 og 5 har virkning fra og med indkomståret 2023.
 # Par10ÆgtefællePersonfradragInput(kilde: Par10ÆgtefællePersonfradragKilde, modtagers_skatter: Par10ÆgtefællePersonfradragSkatter, gift_samlevende_ved_årets_udløb: Boolsk)
 # Par10ÆgtefællePersonfradragResultat(statslig_nedsættelse: Par10ÆgtefælleStatsskatResultat, ikke_statslig_nedsættelse: Par9IkkeStatPersonfradragResultat, overført_skatteværdi_kroner: Heltal, anvendt_skatteværdi_kroner: Heltal, ubrugt_efter_ægtefælle_kroner: Heltal, afskåret_uden_samliv_kroner: Heltal)
 
-| personfradrag_par10_regelversion(skatteår: Heltal) -> Par10Lbk1284FørIndkomstår2023
-| exception par10_lov1564_har_virkning_fra_indkomstår2023 personfradrag_par10_regelversion(skatteår: Heltal) -> Par10Lov1564FraIndkomstår2023 under skatteår >= 2023
-| personfradrag_par10_grundbeløb_stk(status: PersonfradragAlderStatus, skatteår: Heltal) -> 1
-| exception par10_under18_historisk_stk2 personfradrag_par10_grundbeløb_stk(status: PersonfradragAlderStatus, skatteår: Heltal) -> 2 under status == Under18Ugift && skatteår < 2023
+| personfradrag_par10_regelversion(skatteår: Heltal): PersonfradragPar10Regelversion -> Par10Lbk1284FørIndkomstår2023
+| exception par10_lov1564_har_virkning_fra_indkomstår2023 personfradrag_par10_regelversion(skatteår) -> Par10Lov1564FraIndkomstår2023 under skatteår >= 2023
+| personfradrag_par10_grundbeløb_stk(status: PersonfradragAlderStatus, skatteår: Heltal): Int -> 1
+| exception par10_under18_historisk_stk2 personfradrag_par10_grundbeløb_stk(status, skatteår) -> 2 under status == Under18Ugift && skatteår < 2023
 | personfradrag_par10_retsadresse(status: PersonfradragAlderStatus, skatteår: Heltal) -> match personfradrag_par10_regelversion(skatteår) {
     | Par10Lbk1284FørIndkomstår2023 -> PersonfradragPar10Retsadresse(grundbeløb_stk = personfradrag_par10_grundbeløb_stk(status, skatteår), ægtefælleoverførsel_stk = 3, forskerordning_stk = 4, kildeskattelov_par2_helår_stk = 5, kildeskattelov_par2_delår_stk = 6, regulering_stk = 7)
     | Par10Lov1564FraIndkomstår2023 -> PersonfradragPar10Retsadresse(grundbeløb_stk = 1, ægtefælleoverførsel_stk = 2, forskerordning_stk = 3, kildeskattelov_par2_helår_stk = 4, kildeskattelov_par2_delår_stk = 5, regulering_stk = 6)
 }
 
-| personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> match status {
+| personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal): Int -> match status {
     | Fyldt18EllerGift -> 42000
     | Under18Ugift -> 31500
 }
-| exception voksen_2019 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 41300 under status == Fyldt18EllerGift && skatteår == 2019
-| exception voksen_2020 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 40600 under status == Fyldt18EllerGift && skatteår == 2020
-| exception voksen_2021 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 39900 under status == Fyldt18EllerGift && skatteår == 2021
-| exception voksen_2022_og_frem personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 39350 under status == Fyldt18EllerGift && skatteår >= 2022
-| exception under18_ugift_før_lov1564 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 31500 under status == Under18Ugift && skatteår < 2023
-| exception under18_ugift_efter_lov1564 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 39350 under status == Under18Ugift && skatteår >= 2023
+| exception voksen_2019 personfradrag_grundbeløb_2010_niveau(status, skatteår) -> 41300 under status == Fyldt18EllerGift && skatteår == 2019
+| exception voksen_2020 personfradrag_grundbeløb_2010_niveau(status, skatteår) -> 40600 under status == Fyldt18EllerGift && skatteår == 2020
+| exception voksen_2021 personfradrag_grundbeløb_2010_niveau(status, skatteår) -> 39900 under status == Fyldt18EllerGift && skatteår == 2021
+| exception voksen_2022_og_frem personfradrag_grundbeløb_2010_niveau(status, skatteår) -> 39350 under status == Fyldt18EllerGift && skatteår >= 2022
+| exception under18_ugift_før_lov1564 personfradrag_grundbeløb_2010_niveau(status, skatteår) -> 31500 under status == Under18Ugift && skatteår < 2023
+| exception under18_ugift_efter_lov1564 personfradrag_grundbeløb_2010_niveau(status, skatteår) -> 39350 under status == Under18Ugift && skatteår >= 2023
 
 | personfradrag_beløb_for(skatteår: Heltal, status: PersonfradragAlderStatus) -> match status {
     | Fyldt18EllerGift -> nationalparametre_for(skatteår).personfradrag_voksen_kroner
     | Under18Ugift -> nationalparametre_for(skatteår).personfradrag_under18_kroner
 }
 
-| personfradrag_anvendes_for(status: PersonfradragSkattepligt) -> Falskt
-| exception fuldt_skattepligtig personfradrag_anvendes_for(status: PersonfradragSkattepligt) -> Sandt under status == FuldtSkattepligtigHerILandet
-| exception ksl_par2_helår personfradrag_anvendes_for(status: PersonfradragSkattepligt) -> Sandt under status == KildeskattelovPar2HelårRelevantIndtægt
-| exception ksl_par2_delår_valgt personfradrag_anvendes_for(status: PersonfradragSkattepligt) -> Sandt under status == KildeskattelovPar2DelårValgtRelevantIndtægt
+| personfradrag_anvendes_for(status: PersonfradragSkattepligt): Bool -> Falskt
+| exception fuldt_skattepligtig personfradrag_anvendes_for(status) -> Sandt under status == FuldtSkattepligtigHerILandet
+| exception ksl_par2_helår personfradrag_anvendes_for(status) -> Sandt under status == KildeskattelovPar2HelårRelevantIndtægt
+| exception ksl_par2_delår_valgt personfradrag_anvendes_for(status) -> Sandt under status == KildeskattelovPar2DelårValgtRelevantIndtægt
 
 | ubrugt_personfradrag_skatteværdi_overføres_til_ægtefælle(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
 | personfradrag_grundbeløb_reguleres_efter_par20() -> Sandt
@@ -187,11 +187,11 @@ Stk. 2. §§ 1 og 5 har virkning fra og med indkomståret 2023.
     | afskåret_af_sømandsbeskatning() -> input.skattepligt == SømandsbeskatningPar9Indkomst
     | afskåret_af_opholdstilladelse() -> input.skattepligt == OpholdstilladelseUdl7Ansøger
     | afskåret_af_forskerordning() -> input.skattepligt == Kildeskattelov48Eller48FIndkomst
-    | personfradrag_anvendes() -> Falskt
+    | personfradrag_anvendes(): Bool -> Falskt
     | exception par10_fuldt_skattepligtig personfradrag_anvendes() -> Sandt under input.skattepligt == FuldtSkattepligtigHerILandet
     | exception par10_ksl_par2_helår_anvendes personfradrag_anvendes() -> Sandt under input.skattepligt == KildeskattelovPar2HelårRelevantIndtægt
     | exception par10_ksl_par2_delår_rettidigt_valgt_anvendes personfradrag_anvendes() -> Sandt under input.skattepligt == KildeskattelovPar2DelårValgtRelevantIndtægt && delårsvalg_rettidigt()
-    | personfradrag_kroner() -> 0
+    | personfradrag_kroner(): Int -> 0
     | exception par10_personfradrag_beløb personfradrag_kroner() -> personfradrag_beløb_for(input.skatteår, input.alder_status) under personfradrag_anvendes()
     | resultat() -> PersonfradragPar10Resultat(
         regelversion = personfradrag_par10_regelversion(input.skatteår),
@@ -212,9 +212,9 @@ Stk. 2. §§ 1 og 5 har virkning fra og med indkomståret 2023.
 
 # Par10ÆgtefælleStatsskatSag(input: Par10ÆgtefælleStatsskatInput) {
     | overførsel_tilladt() -> input.gift_samlevende_ved_årets_udløb
-    | overført_par8_skatteværdi_kroner() -> 0
+    | overført_par8_skatteværdi_kroner(): Int -> 0
     | exception par10_par8værdi_overføres_til_samlevende_ægtefælle overført_par8_skatteværdi_kroner() -> input.ubrugt_par8_skatteværdi_kroner under overførsel_tilladt()
-    | overført_par6_skatteværdi_kroner() -> 0
+    | overført_par6_skatteværdi_kroner(): Int -> 0
     | exception par10_par6værdi_overføres_til_samlevende_ægtefælle overført_par6_skatteværdi_kroner() -> input.ubrugt_par6_skatteværdi_kroner under overførsel_tilladt()
     | par9_input() -> Par9StatsskatPersonfradragInput(
         par6_skat_kroner = input.ægtefælle_par6_skat_kroner,
@@ -229,7 +229,7 @@ Stk. 2. §§ 1 og 5 har virkning fra og med indkomståret 2023.
     | samlet_overført_skatteværdi_kroner() -> overført_par8_skatteværdi_kroner() + overført_par6_skatteværdi_kroner()
     | ubrugt_efter_ægtefælle_kroner() -> par9_resultat().ubrugt_skatteværdi_kroner
     | anvendt_skatteværdi_kroner() -> samlet_overført_skatteværdi_kroner() - ubrugt_efter_ægtefælle_kroner()
-    | afskåret_uden_samliv_kroner() -> 0
+    | afskåret_uden_samliv_kroner(): Int -> 0
     | exception par10_ægtefælleoverførsel_kræver_samliv afskåret_uden_samliv_kroner() -> input.ubrugt_par8_skatteværdi_kroner + input.ubrugt_par6_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb == Falskt
     | resultat() -> Par10ÆgtefælleStatsskatResultat(
         par6_efter_kroner = par9_resultat().par6_efter_kroner,
@@ -248,11 +248,11 @@ Stk. 2. §§ 1 og 5 har virkning fra og med indkomståret 2023.
 | par10_ægtefælle_statsskat_resultat(input: Par10ÆgtefælleStatsskatInput) -> par10_ægtefælle_statsskat_sag(input).resultat()
 
 # Par10ÆgtefællePersonfradragSag(input: Par10ÆgtefællePersonfradragInput) {
-    | overført_par8c_skatteværdi_kroner() -> 0
+    | overført_par8c_skatteværdi_kroner(): Int -> 0
     | exception par10_ægtefælle_par8c_skatteværdi overført_par8c_skatteværdi_kroner() -> input.kilde.ikke_statslig_nedsættelse.ubrugt_par8c_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb
-    | overført_kommunal_skatteværdi_kroner() -> 0
+    | overført_kommunal_skatteværdi_kroner(): Int -> 0
     | exception par10_ægtefælle_kommunal_skatteværdi overført_kommunal_skatteværdi_kroner() -> input.kilde.ikke_statslig_nedsættelse.ubrugt_kommunal_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb
-    | overført_kirkelig_skatteværdi_kroner() -> 0
+    | overført_kirkelig_skatteværdi_kroner(): Int -> 0
     | exception par10_ægtefælle_kirkelig_skatteværdi overført_kirkelig_skatteværdi_kroner() -> input.kilde.ikke_statslig_nedsættelse.ubrugt_kirkelig_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb
     | statslig_nedsættelse_før_samordning() -> par10_ægtefælle_statsskat_resultat(Par10ÆgtefælleStatsskatInput(
         ubrugt_par8_skatteværdi_kroner = input.kilde.statslig_nedsættelse.ubrugt_par8_skatteværdi_kroner,
@@ -303,7 +303,7 @@ Stk. 2. §§ 1 og 5 har virkning fra og med indkomståret 2023.
     | overført_skatteværdi_kroner() -> statslig_nedsættelse().overført_par8_skatteværdi_kroner + statslig_nedsættelse().overført_par6_skatteværdi_kroner + overført_ikke_statslig_skatteværdi_kroner()
     | ubrugt_efter_ægtefælle_kroner() -> statslig_nedsættelse().ubrugt_efter_ægtefælle_kroner + ubrugt_ikke_statslig_skatteværdi_kroner()
     | anvendt_skatteværdi_kroner() -> overført_skatteværdi_kroner() - ubrugt_efter_ægtefælle_kroner()
-    | afskåret_uden_samliv_kroner() -> statslig_nedsættelse().afskåret_uden_samliv_kroner
+    | afskåret_uden_samliv_kroner(): Int -> statslig_nedsættelse().afskåret_uden_samliv_kroner
     | exception par10_ægtefælle_ikke_statslig_skatteværdi_kræver_samliv afskåret_uden_samliv_kroner() -> statslig_nedsættelse().afskåret_uden_samliv_kroner + input.kilde.ikke_statslig_nedsættelse.ubrugt_par8c_skatteværdi_kroner + input.kilde.ikke_statslig_nedsættelse.ubrugt_kommunal_skatteværdi_kroner + input.kilde.ikke_statslig_nedsættelse.ubrugt_kirkelig_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb == Falskt
     | resultat() -> Par10ÆgtefællePersonfradragResultat(
         statslig_nedsættelse = statslig_nedsættelse(),
@@ -452,16 +452,16 @@ til at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     | negativ_nettokapitalindkomst_kroner() -> par11_negativ_abs_kroner(input.nettokapitalindkomst_kroner)
     | ægtefælle_negativ_nettokapitalindkomst_kroner() -> par11_negativ_abs_kroner(input.ægtefælle_nettokapitalindkomst_kroner)
     | ægtefælle_positiv_nettokapitalindkomst_kroner() -> par11_positiv_nettokapitalindkomst_kroner(input.ægtefælle_nettokapitalindkomst_kroner)
-    | ægtefælle_positiv_modregning_kroner() -> 0
+    | ægtefælle_positiv_modregning_kroner(): Int -> 0
     | exception par11_stk3_ægtefælles_positive_modregnes ægtefælle_positiv_modregning_kroner() -> penge_mindste_beløb(negativ_nettokapitalindkomst_kroner(), ægtefælle_positiv_nettokapitalindkomst_kroner()) under input.gift_samlevende_ved_årets_udløb && ægtefælle_positiv_nettokapitalindkomst_kroner() > 0
     | negativ_nettokapitalindkomst_efter_ægtefællepositiv_kroner() -> negativ_nettokapitalindkomst_kroner() - ægtefælle_positiv_modregning_kroner()
-    | ægtefælle_ubrugt_beløbsgrænse_kroner() -> 0
+    | ægtefælle_ubrugt_beløbsgrænse_kroner(): Int -> 0
     | exception par11_stk3_ægtefælle_uden_negativ_kapital ægtefælle_ubrugt_beløbsgrænse_kroner() -> par11_beløbsgrænse_kroner() under input.gift_samlevende_ved_årets_udløb && input.ægtefælle_nettokapitalindkomst_kroner >= 0
     | exception par11_stk3_ægtefælle_negativ_under_beløbsgrænse ægtefælle_ubrugt_beløbsgrænse_kroner() -> par11_beløbsgrænse_kroner() - ægtefælle_negativ_nettokapitalindkomst_kroner() under input.gift_samlevende_ved_årets_udløb && input.ægtefælle_nettokapitalindkomst_kroner < 0 && ægtefælle_negativ_nettokapitalindkomst_kroner() < par11_beløbsgrænse_kroner()
     | effektiv_beløbsgrænse_kroner() -> par11_beløbsgrænse_kroner() + ægtefælle_ubrugt_beløbsgrænse_kroner()
     | nedslagsgrundlag_kroner() -> penge_mindste_beløb(negativ_nettokapitalindkomst_efter_ægtefællepositiv_kroner(), effektiv_beløbsgrænse_kroner())
     | sats_basispoint() -> negativ_kapital_nedslag_sats_basispoint(input.skatteår)
-    | nedslag_kroner() -> 0
+    | nedslag_kroner(): Int -> 0
     | exception par11_stk5_kommunal_eller_par8c_pligt nedslag_kroner() -> penge_beløb_gange_basispoint_kroner(nedslagsgrundlag_kroner(), sats_basispoint()) under input.betaler_kommunal_eller_par8c
     | resultat() -> Par11NegativKapitalNedslagResultat(
         negativ_nettokapitalindkomst_kroner = negativ_nettokapitalindkomst_kroner(),
@@ -494,7 +494,7 @@ til at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     | rester_efter_kommuneskat() -> par11_ubrugt_efter_skat(input.skatter.kommuneskat_kroner, rester_efter_par8c())
     | kirkeskat_efter() -> par11_skat_efter_nedslag(input.skatter.kirkeskat_kroner, rester_efter_kommuneskat())
     | ubrugt_efter_egne_skatter() -> par11_ubrugt_efter_skat(input.skatter.kirkeskat_kroner, rester_efter_kommuneskat())
-    | overført_til_ægtefælle() -> 0
+    | overført_til_ægtefælle(): Int -> 0
     | exception par11_stk4_ubrugt_nedslag_til_ægtefælle overført_til_ægtefælle() -> ubrugt_efter_egne_skatter() under input.gift_samlevende_ved_årets_udløb
     | resultat() -> Par11NedslagModregningResultat(
         par6_efter_kroner = par6_efter(),
@@ -512,7 +512,7 @@ til at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 | par11_nedslag_modregning_resultat(input: Par11NedslagModregningInput) -> Par11NedslagModregningSag(input).resultat()
 
 # Par11IndgåendeÆgtefælleNedslagSag(input: Par11IndgåendeÆgtefælleNedslagInput) {
-    | overført_nedslag_kroner() -> 0
+    | overført_nedslag_kroner(): Int -> 0
     | exception par11_stk4_indgående_nedslag_fra_samlevende_ægtefælle overført_nedslag_kroner() -> input.afsenders_modregning.overført_til_ægtefælle_kroner under input.gift_samlevende_ved_årets_udløb
     | modregning() -> par11_nedslag_modregning_resultat(Par11NedslagModregningInput(
         nedslag_kroner = overført_nedslag_kroner(),
@@ -521,7 +521,7 @@ til at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     ))
     | ubrugt_efter_modtager_kroner() -> modregning().ubrugt_efter_egne_skatter_kroner
     | anvendt_nedslag_kroner() -> overført_nedslag_kroner() - ubrugt_efter_modtager_kroner()
-    | afskåret_uden_samliv_kroner() -> 0
+    | afskåret_uden_samliv_kroner(): Int -> 0
     | exception par11_stk4_indgående_nedslag_kræver_samliv afskåret_uden_samliv_kroner() -> input.afsenders_modregning.overført_til_ægtefælle_kroner under input.gift_samlevende_ved_årets_udløb == Falskt
     | resultat() -> Par11IndgåendeÆgtefælleNedslagResultat(
         modregning = modregning(),
@@ -920,11 +920,11 @@ som nævnt i § 10, stk. 1.
 | par13_underskud_skatteværdi_kroner(input: Par13UnderskudSkatteværdiInput) -> penge_beløb_gange_basispoint_kroner(input.underskud_kroner, par13_skatteværdi_sats_basispoint(input))
 | par13_ubrugt_nedslag_efter_skat(skat_kroner: Heltal, nedslag_kroner: Heltal) -> penge_positivt_beløb(nedslag_kroner - skat_kroner)
 | par13_udnyttet_skatteværdi_kroner(skatteværdi_kroner: Heltal, ubrugt_skatteværdi_kroner: Heltal) -> par13_positivt_beløb(skatteværdi_kroner - ubrugt_skatteværdi_kroner)
-| par13_dækket_underskud_ved_skattemodregning_kroner(input: Par13Stk1FremførselInput) -> 0
-| exception par13_udnyttet_skatteværdi_omregnes_til_underskud par13_dækket_underskud_ved_skattemodregning_kroner(input: Par13Stk1FremførselInput) -> par13_mindste_beløb(par13_positivt_beløb(input.underskud_kroner), input.udnyttet_skatteværdi_kroner * 10000 / input.skatteværdi_sats_basispoint) under input.skatteværdi_sats_basispoint > 0
+| par13_dækket_underskud_ved_skattemodregning_kroner(input: Par13Stk1FremførselInput): Int -> 0
+| exception par13_udnyttet_skatteværdi_omregnes_til_underskud par13_dækket_underskud_ved_skattemodregning_kroner(input) -> par13_mindste_beløb(par13_positivt_beløb(input.underskud_kroner), input.udnyttet_skatteværdi_kroner * 10000 / input.skatteværdi_sats_basispoint) under input.skatteværdi_sats_basispoint > 0
 | par13_resterende_underskud_efter_skattemodregning_kroner(input: Par13Stk1FremførselInput) -> par13_positivt_beløb(input.underskud_kroner) - par13_dækket_underskud_ved_skattemodregning_kroner(input)
-| par13_fremført_underskud_kroner(input: Par13Stk1FremførselInput) -> 0
-| exception par13_fremførsel_hvis_ikke_rummet_tidligere par13_fremført_underskud_kroner(input: Par13Stk1FremførselInput) -> par13_resterende_underskud_efter_skattemodregning_kroner(input) under input.ikke_rummet_i_tidligere_indkomst_eller_skat
+| par13_fremført_underskud_kroner(input: Par13Stk1FremførselInput): Int -> 0
+| exception par13_fremførsel_hvis_ikke_rummet_tidligere par13_fremført_underskud_kroner(input) -> par13_resterende_underskud_efter_skattemodregning_kroner(input) under input.ikke_rummet_i_tidligere_indkomst_eller_skat
 | par13_stk1_fremførsel_resultat(input: Par13Stk1FremførselInput) -> Par13Stk1FremførselResult(
     dækket_underskud_ved_skattemodregning_kroner = par13_dækket_underskud_ved_skattemodregning_kroner(input),
     resterende_underskud_kroner = par13_resterende_underskud_efter_skattemodregning_kroner(input),
@@ -1008,7 +1008,7 @@ som nævnt i § 10, stk. 1.
 }
 # Par13ÆgtefælleSkatModregningSag(input: Par13ÆgtefælleSkatModregningInput) {
     | overførsel_tilladt() -> input.gift_samlevende_ved_årets_udløb
-    | underskud_til_skattemodregning_kroner() -> 0
+    | underskud_til_skattemodregning_kroner(): Int -> 0
     | exception par13_stk2_resterende_underskud_modregnes_i_ægtefælles_skatter underskud_til_skattemodregning_kroner() -> par13_positivt_beløb(input.ubenyttet_underskud_efter_ægtefælleindkomst_kroner) under overførsel_tilladt()
     | skattemodregning_input() -> Par13UnderskudSkatModregningInput(
         underskud_kroner = underskud_til_skattemodregning_kroner(),
@@ -1016,7 +1016,7 @@ som nævnt i § 10, stk. 1.
         skatter = input.ægtefælle_skatter
     )
     | skattemodregning() -> par13_underskud_skattemodregning_resultat(skattemodregning_input())
-    | resterende_underskud_kroner() -> par13_positivt_beløb(input.ubenyttet_underskud_efter_ægtefælleindkomst_kroner)
+    | resterende_underskud_kroner(): Int -> par13_positivt_beløb(input.ubenyttet_underskud_efter_ægtefælleindkomst_kroner)
     | exception par13_stk2_resterende_underskud_efter_ægtefælleskat resterende_underskud_kroner() -> skattemodregning().resterende_underskud_kroner under overførsel_tilladt()
     | resultat() -> Par13ÆgtefælleSkatModregningResult(
         overførsel_tilladt = overførsel_tilladt(),
@@ -1038,7 +1038,7 @@ som nævnt i § 10, stk. 1.
     | ægtefælle_skattepligtig_indkomst_kroner() -> par13_positivt_beløb(input.ægtefælle_skattepligtig_indkomst_kroner)
     | egne_underskud_indkomstfradrag_kroner() -> par13_mindste_beløb(ægtefælles_egne_tidligere_underskud_kroner(), ægtefælle_skattepligtig_indkomst_kroner())
     | ægtefælle_indkomst_efter_egne_underskud_kroner() -> ægtefælle_skattepligtig_indkomst_kroner() - egne_underskud_indkomstfradrag_kroner()
-    | overført_underskud_indkomstfradrag_kroner() -> 0
+    | overført_underskud_indkomstfradrag_kroner(): Int -> 0
     | exception par13_stk2_overført_underskud_fradrages_i_ægtefælleindkomst overført_underskud_indkomstfradrag_kroner() -> par13_mindste_beløb(overført_underskud_fra_skattepligtig_kroner(), ægtefælle_indkomst_efter_egne_underskud_kroner()) under overførsel_tilladt()
     | egne_underskud_rest_efter_indkomst_kroner() -> ægtefælles_egne_tidligere_underskud_kroner() - egne_underskud_indkomstfradrag_kroner()
     | overført_underskud_rest_efter_indkomst_kroner() -> overført_underskud_fra_skattepligtig_kroner() - overført_underskud_indkomstfradrag_kroner()
@@ -1087,14 +1087,14 @@ som nævnt i § 10, stk. 1.
     | ægtefælle_personlig_indkomstgrundlag_kroner() -> par13_positivt_beløb(input.ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner)
     | egen_positiv_kapitalindkomst_kroner() -> par13_positivt_beløb(input.egen_positiv_kapitalindkomst_kroner)
     | ægtefælle_positiv_kapitalindkomst_kroner() -> par13_positivt_beløb(input.ægtefælle_positiv_kapitalindkomst_kroner)
-    | modregnet_i_ægtefælles_personlige_indkomst_kroner() -> 0
+    | modregnet_i_ægtefælles_personlige_indkomst_kroner(): Int -> 0
     | exception par13_stk4_negativ_personlig_modregnes_i_ægtefælle_personlig modregnet_i_ægtefælles_personlige_indkomst_kroner() -> par13_mindste_beløb(negativ_personlig_indkomst_abs_kroner(), ægtefælle_personlig_indkomstgrundlag_kroner()) under input.gift_samlevende_ved_årets_udløb
     | rest_efter_ægtefælles_personlige_indkomst_kroner() -> negativ_personlig_indkomst_abs_kroner() - modregnet_i_ægtefælles_personlige_indkomst_kroner()
-    | grundlag_for_egen_kapitalmodregning_kroner() -> negativ_personlig_indkomst_abs_kroner()
+    | grundlag_for_egen_kapitalmodregning_kroner(): Int -> negativ_personlig_indkomst_abs_kroner()
     | exception par13_stk4_egen_kapital_efter_ægtefælle_personlig grundlag_for_egen_kapitalmodregning_kroner() -> rest_efter_ægtefælles_personlige_indkomst_kroner() under input.gift_samlevende_ved_årets_udløb
     | modregnet_i_egen_positiv_kapitalindkomst_kroner() -> par13_mindste_beløb(grundlag_for_egen_kapitalmodregning_kroner(), egen_positiv_kapitalindkomst_kroner())
     | rest_efter_egen_positiv_kapitalindkomst_kroner() -> grundlag_for_egen_kapitalmodregning_kroner() - modregnet_i_egen_positiv_kapitalindkomst_kroner()
-    | modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner() -> 0
+    | modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner(): Int -> 0
     | exception par13_stk4_rest_modregnes_i_ægtefælle_kapital modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner() -> par13_mindste_beløb(rest_efter_egen_positiv_kapitalindkomst_kroner(), ægtefælle_positiv_kapitalindkomst_kroner()) under input.gift_samlevende_ved_årets_udløb
     | fremført_negativ_personlig_indkomst_kroner() -> rest_efter_egen_positiv_kapitalindkomst_kroner() - modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner()
     | resultat() -> Par13NegativPersonligModregningResult(
@@ -1116,12 +1116,12 @@ som nævnt i § 10, stk. 1.
     | ægtefælle_personlig_indkomstgrundlag_kroner() -> par13_positivt_beløb(input.ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner)
     | modregnet_i_egen_positiv_kapitalindkomst_kroner() -> par13_mindste_beløb(fremført_negativ_personlig_indkomst_kroner(), egen_positiv_kapitalindkomst_kroner())
     | rest_efter_egen_positiv_kapitalindkomst_kroner() -> fremført_negativ_personlig_indkomst_kroner() - modregnet_i_egen_positiv_kapitalindkomst_kroner()
-    | modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner() -> 0
+    | modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner(): Int -> 0
     | exception par13_stk4_fremført_modregnes_i_ægtefælle_kapital modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner() -> par13_mindste_beløb(rest_efter_egen_positiv_kapitalindkomst_kroner(), ægtefælle_positiv_kapitalindkomst_kroner()) under input.gift_samlevende_ved_årets_udløb
     | rest_efter_positiv_kapitalindkomst_kroner() -> rest_efter_egen_positiv_kapitalindkomst_kroner() - modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner()
     | modregnet_i_egen_personlige_indkomst_kroner() -> par13_mindste_beløb(rest_efter_positiv_kapitalindkomst_kroner(), egen_personlig_indkomstgrundlag_kroner())
     | rest_efter_egen_personlige_indkomst_kroner() -> rest_efter_positiv_kapitalindkomst_kroner() - modregnet_i_egen_personlige_indkomst_kroner()
-    | modregnet_i_ægtefælles_personlige_indkomst_kroner() -> 0
+    | modregnet_i_ægtefælles_personlige_indkomst_kroner(): Int -> 0
     | exception par13_stk4_fremført_modregnes_i_ægtefælle_personlig modregnet_i_ægtefælles_personlige_indkomst_kroner() -> par13_mindste_beløb(rest_efter_egen_personlige_indkomst_kroner(), ægtefælle_personlig_indkomstgrundlag_kroner()) under input.gift_samlevende_ved_årets_udløb
     | resterende_fremført_negativ_personlig_indkomst_kroner() -> rest_efter_egen_personlige_indkomst_kroner() - modregnet_i_ægtefælles_personlige_indkomst_kroner()
     | resultat() -> Par13FremførtNegativPersonligModregningResult(
@@ -1152,15 +1152,15 @@ som nævnt i § 10, stk. 1.
     afskåret_pbl16_kroner = par13_stk5_pbl16_afskåret_kroner(input),
     samlet_afskåret_kroner = par13_stk5_samlet_afskåret_kroner(input)
 )
-| par13_virksomhedsunderskud_hjemmel(status: Par13VirksomhedsUnderskudStatus) -> Par13Stk6Par4Nr9Eller11 under status == PassivVirksomhedPar4Nr9Eller11
-| par13_virksomhedsunderskud_hjemmel(status: Par13VirksomhedsUnderskudStatus) -> Par13Stk6SkibsvirksomhedGodkendtSenest1993 under status == SkibsvirksomhedGodkendtSenest1993
-| par13_virksomhedsunderskud_hjemmel(status: Par13VirksomhedsUnderskudStatus) -> Par13Stk7TransparentSelskab under status == TransparentSelskabPassiv
-| par13_virksomhedsunderskud_hjemmel(status: Par13VirksomhedsUnderskudStatus) -> Par13Stk7VæsentligDeltagelse36Måneder under status == TransparentSelskabDeltagetVæsentligt36Måneder
-| par13_virksomhedsunderskud_låses_til_samme_virksomhed(status: Par13VirksomhedsUnderskudStatus) -> Falskt
-| exception par13_stk6_passiv_virksomhed_låses par13_virksomhedsunderskud_låses_til_samme_virksomhed(status: Par13VirksomhedsUnderskudStatus) -> Sandt under status == PassivVirksomhedPar4Nr9Eller11
-| exception par13_stk7_transparent_selskab_låses par13_virksomhedsunderskud_låses_til_samme_virksomhed(status: Par13VirksomhedsUnderskudStatus) -> Sandt under status == TransparentSelskabPassiv
-| par13_forskudsafskrivning_låses_til_samme_virksomhed(status: Par13VirksomhedsUnderskudStatus) -> Falskt
-| exception par13_stk6_forskudsafskrivning_låses par13_forskudsafskrivning_låses_til_samme_virksomhed(status: Par13VirksomhedsUnderskudStatus) -> Sandt under status == PassivVirksomhedPar4Nr9Eller11
+| par13_virksomhedsunderskud_hjemmel(status: Par13VirksomhedsUnderskudStatus): Par13VirksomhedsUnderskudHjemmel -> Par13Stk6Par4Nr9Eller11 under status == PassivVirksomhedPar4Nr9Eller11
+| par13_virksomhedsunderskud_hjemmel(status) -> Par13Stk6SkibsvirksomhedGodkendtSenest1993 under status == SkibsvirksomhedGodkendtSenest1993
+| par13_virksomhedsunderskud_hjemmel(status) -> Par13Stk7TransparentSelskab under status == TransparentSelskabPassiv
+| par13_virksomhedsunderskud_hjemmel(status) -> Par13Stk7VæsentligDeltagelse36Måneder under status == TransparentSelskabDeltagetVæsentligt36Måneder
+| par13_virksomhedsunderskud_låses_til_samme_virksomhed(status: Par13VirksomhedsUnderskudStatus): Bool -> Falskt
+| exception par13_stk6_passiv_virksomhed_låses par13_virksomhedsunderskud_låses_til_samme_virksomhed(status) -> Sandt under status == PassivVirksomhedPar4Nr9Eller11
+| exception par13_stk7_transparent_selskab_låses par13_virksomhedsunderskud_låses_til_samme_virksomhed(status) -> Sandt under status == TransparentSelskabPassiv
+| par13_forskudsafskrivning_låses_til_samme_virksomhed(status: Par13VirksomhedsUnderskudStatus): Bool -> Falskt
+| exception par13_stk6_forskudsafskrivning_låses par13_forskudsafskrivning_låses_til_samme_virksomhed(status) -> Sandt under status == PassivVirksomhedPar4Nr9Eller11
 
 # Par13VirksomhedsUnderskudSag(input: Par13VirksomhedsUnderskudInput) {
     | hjemmel() -> par13_virksomhedsunderskud_hjemmel(input.status)
@@ -1168,11 +1168,11 @@ som nævnt i § 10, stk. 1.
     | forskudsafskrivning_låst_til_samme_virksomhed() -> par13_forskudsafskrivning_låses_til_samme_virksomhed(input.status)
     | underskud_kroner() -> par13_positivt_beløb(input.underskud_kroner)
     | positiv_indkomst_samme_virksomhed_kroner() -> par13_positivt_beløb(input.positiv_indkomst_samme_virksomhed_kroner)
-    | modregnet_i_samme_virksomhed_kroner() -> 0
+    | modregnet_i_samme_virksomhed_kroner(): Int -> 0
     | exception par13_låst_underskud_modregnes_i_samme_virksomhed modregnet_i_samme_virksomhed_kroner() -> par13_mindste_beløb(underskud_kroner(), positiv_indkomst_samme_virksomhed_kroner()) under låst_til_samme_virksomhed()
-    | fradrag_i_øvrig_indkomst_kroner() -> underskud_kroner()
+    | fradrag_i_øvrig_indkomst_kroner(): Int -> underskud_kroner()
     | exception par13_låst_underskud_afskærer_øvrigt_fradrag fradrag_i_øvrig_indkomst_kroner() -> 0 under låst_til_samme_virksomhed()
-    | fremført_til_samme_virksomhed_kroner() -> 0
+    | fremført_til_samme_virksomhed_kroner(): Int -> 0
     | exception par13_låst_rest_fremføres_til_samme_virksomhed fremført_til_samme_virksomhed_kroner() -> underskud_kroner() - modregnet_i_samme_virksomhed_kroner() under låst_til_samme_virksomhed()
     | resultat() -> Par13VirksomhedsUnderskudResult(
         fradrag_i_øvrig_indkomst_kroner = fradrag_i_øvrig_indkomst_kroner(),
@@ -1503,7 +1503,7 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
 
 # Par13aNedsættelseSag(input: Par13aNedsættelseInput) {
     | ordning_omfattet() -> par13a_ordning_omfattet(input.status)
-    | nedsættelsesbeløb_kroner() -> 0
+    | nedsættelsesbeløb_kroner(): Int -> 0
     | exception par13a_stk1_gældsnedsættelse_efter_frigørelsesindkomst nedsættelsesbeløb_kroner() -> par13_positivt_beløb(input.gæld_nedsat_kroner - input.frigørelsesindkomst_kroner) under ordning_omfattet()
     | skyldner_underskud_kroner() -> par13_positivt_beløb(input.skyldner_underskud_kroner)
     | skyldner_fremførbare_tab_resultat() -> par13a_fremførbare_tab_resultat(Par13aFremførbareTabInput(indkomstår = input.indkomstår, poster = input.skyldner_fremførbare_tab))
@@ -1523,7 +1523,7 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
     | nedsættelsesbeløb_efter_skyldner_kroner() -> nedsættelsesbeløb_efter_tab_kroner() - nedsættelsesbeløb_brugt_til_negativ_aktieskat_kroner()
     | ægtefælle_ikke_virksomhedsnettoindtægt_kroner() -> par13_positivt_beløb(input.ægtefælle_ikke_virksomhedsindtægter_kroner - input.ægtefælle_ikke_virksomhedsudgifter_kroner)
     | ægtefælle_virksomhedsunderskud_efter_stk3_kroner() -> par13_positivt_beløb(input.ægtefælle_virksomhedsunderskud_før_stk3_kroner - ægtefælle_ikke_virksomhedsnettoindtægt_kroner())
-    | ægtefælle_virksomhedsunderskud_nedsat_kroner() -> 0
+    | ægtefælle_virksomhedsunderskud_nedsat_kroner(): Int -> 0
     | exception par13a_stk2_rest_nedsætter_ægtefælles_virksomhedsunderskud ægtefælle_virksomhedsunderskud_nedsat_kroner() -> par13_mindste_beløb(nedsættelsesbeløb_efter_skyldner_kroner(), ægtefælle_virksomhedsunderskud_efter_stk3_kroner()) under input.ægtefælle_samlevende_driver_virksomhed
     | resultat() -> Par13aNedsættelseResultat(
         indkomstår = input.indkomstår,

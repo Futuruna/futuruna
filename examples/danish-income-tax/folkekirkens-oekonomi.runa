@@ -55,8 +55,8 @@ og lade det hidtidige stk. 2 blive stk. 3 med en tekstændring.
 
 # KirkeskatInput(skattepligtig_indkomst_kroner: Heltal, kirkelig_ligningsprocent_basispoint: Heltal, folkekirkemedlem: Boolsk)
 
-| kirkeskat_sats_basispoint(input: KirkeskatInput) -> 0
-| exception folkekirkemedlem_pålignes_kirkeskat kirkeskat_sats_basispoint(input: KirkeskatInput) -> input.kirkelig_ligningsprocent_basispoint under input.folkekirkemedlem
+| kirkeskat_sats_basispoint(input: KirkeskatInput): Int -> 0
+| exception folkekirkemedlem_pålignes_kirkeskat kirkeskat_sats_basispoint(input) -> input.kirkelig_ligningsprocent_basispoint under input.folkekirkemedlem
 | kirkeskat_før_personfradrag_kroner(input: KirkeskatInput) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.skattepligtig_indkomst_kroner), kirkeskat_sats_basispoint(input))
 
 = kirkeskat_medlem_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(

@@ -5,7 +5,7 @@
 -- RuleScope rules doing checked Int arithmetic translate; the solver proves
 -- that no reachable operation overflows instead of rejecting the rule.
 # TaxCase(income: Int) {
-    | rate_percent() -> 25
+    | rate_percent(): Int -> 25
     | rate_percent() -> 30 under income > 500000
     | exception low_income rate_percent() -> 20 under income < 100000
     | tax_due() -> income * rate_percent() / 100

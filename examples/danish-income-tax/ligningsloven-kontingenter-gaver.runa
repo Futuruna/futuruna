@@ -126,12 +126,12 @@ kontingentudgiften til told- og skatteforvaltningen.
 | ligningslov13_kontingentperioder_ikke_overlappende(kontingenter: List(Ligningslov13KontingentFakta)) -> all(kontingenter, |a: Ligningslov13KontingentFakta| all(kontingenter, |b: Ligningslov13KontingentFakta| ligningslov13_kontingentperioder_overlapper(a, b) == Falskt))
 | ligningslov13_fradrag_før_årsloft_kroner(resultater: List(Ligningslov13KontingentResultat)) -> foldl(resultater, 0, |sum_kroner: Heltal, resultat: Ligningslov13KontingentResultat| sum_kroner + resultat.fradragsberettiget_før_årsloft_kroner)
 | ligningslov13_betalt_kontingent_kroner(kontingenter: List(Ligningslov13KontingentFakta)) -> foldl(kontingenter, 0, |sum_kroner: Heltal, fakta: Ligningslov13KontingentFakta| sum_kroner + penge_positivt_beløb(fakta.betalt_kontingent_kroner))
-| ligningslov13_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus) -> 7000
-| exception ligningslov13_selvstændig_uden_årsloft ligningslov13_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus) -> 0 under skatteyderstatus == Ll13SelvstændigtErhvervsdrivende
-| exception ligningslov13_juridisk_person_uden_årsloft ligningslov13_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus) -> 0 under skatteyderstatus == Ll13JuridiskPerson
-| ligningslov13_fradrag_efter_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus, fradrag_før_årsloft_kroner: Heltal) -> penge_mindste_beløb(fradrag_før_årsloft_kroner, ligningslov13_årsloft_kroner(indkomstår, skatteyderstatus))
-| exception ligningslov13_selvstændig_får_fuldt_fradrag ligningslov13_fradrag_efter_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus, fradrag_før_årsloft_kroner: Heltal) -> fradrag_før_årsloft_kroner under skatteyderstatus == Ll13SelvstændigtErhvervsdrivende
-| exception ligningslov13_juridisk_person_får_fuldt_fradrag ligningslov13_fradrag_efter_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus, fradrag_før_årsloft_kroner: Heltal) -> fradrag_før_årsloft_kroner under skatteyderstatus == Ll13JuridiskPerson
+| ligningslov13_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus): Int -> 7000
+| exception ligningslov13_selvstændig_uden_årsloft ligningslov13_årsloft_kroner(indkomstår, skatteyderstatus) -> 0 under skatteyderstatus == Ll13SelvstændigtErhvervsdrivende
+| exception ligningslov13_juridisk_person_uden_årsloft ligningslov13_årsloft_kroner(indkomstår, skatteyderstatus) -> 0 under skatteyderstatus == Ll13JuridiskPerson
+| ligningslov13_fradrag_efter_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus, fradrag_før_årsloft_kroner: Heltal): Int -> penge_mindste_beløb(fradrag_før_årsloft_kroner, ligningslov13_årsloft_kroner(indkomstår, skatteyderstatus))
+| exception ligningslov13_selvstændig_får_fuldt_fradrag ligningslov13_fradrag_efter_årsloft_kroner(indkomstår, skatteyderstatus, fradrag_før_årsloft_kroner) -> fradrag_før_årsloft_kroner under skatteyderstatus == Ll13SelvstændigtErhvervsdrivende
+| exception ligningslov13_juridisk_person_får_fuldt_fradrag ligningslov13_fradrag_efter_årsloft_kroner(indkomstår, skatteyderstatus, fradrag_før_årsloft_kroner) -> fradrag_før_årsloft_kroner under skatteyderstatus == Ll13JuridiskPerson
 | ligningslov13_årsresultat(indkomstår: Heltal, input: Ligningslov13Årsinput) -> {
     = kontingentresultater = map(input.kontingenter, |fakta: Ligningslov13KontingentFakta| ligningslov13_kontingent_resultat(indkomstår, fakta))
     = skatteår_understøttet = length(input.kontingenter) == 0 || ligningslov13_skatteår_understøttet(indkomstår)
@@ -179,9 +179,9 @@ Stk. 2. Loven har virkning fra og med indkomståret 2024.
 @ meta(ligningsloven_par13_historiske_lofter_metadata)
 @ section ligningsloven_par13_historiske_lofter {
 
-| exception ligningslov13_2023_understøttet ligningslov13_skatteår_understøttet(indkomstår: Heltal) -> Sandt under indkomstår == 2023
-| exception ligningslov13_2024_understøttet ligningslov13_skatteår_understøttet(indkomstår: Heltal) -> Sandt under indkomstår == 2024
-| exception ligningslov13_2023_årsloft ligningslov13_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus) -> 6000 under indkomstår == 2023 && skatteyderstatus == Ll13Lønmodtager
+| exception ligningslov13_2023_understøttet ligningslov13_skatteår_understøttet(indkomstår) -> Sandt under indkomstår == 2023
+| exception ligningslov13_2024_understøttet ligningslov13_skatteår_understøttet(indkomstår) -> Sandt under indkomstår == 2024
+| exception ligningslov13_2023_årsloft ligningslov13_årsloft_kroner(indkomstår, skatteyderstatus) -> 6000 under indkomstår == 2023 && skatteyderstatus == Ll13Lønmodtager
 
 }
 
@@ -316,11 +316,11 @@ Stk. 4. Gaver, der er fradraget efter § 8 S, kan ikke fradrages efter stk. 1 og
     | LlGaveGodkendtEfterPar8A(godkendelsesår) -> godkendelsesår == indkomstår
     | _ -> Falskt
 }
-| ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 0
-| exception ligningslov8a_2023_årsloft ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 17700 under indkomstår == 2023
-| exception ligningslov8a_2024_årsloft ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 18300 under indkomstår == 2024
-| exception ligningslov8a_2025_årsloft ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 19000 under indkomstår == 2025
-| exception ligningslov8a_2026_årsloft ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 20000 under indkomstår == 2026
+| ligningslov8a_årsloft_kroner(indkomstår: Heltal): Int -> 0
+| exception ligningslov8a_2023_årsloft ligningslov8a_årsloft_kroner(indkomstår) -> 17700 under indkomstår == 2023
+| exception ligningslov8a_2024_årsloft ligningslov8a_årsloft_kroner(indkomstår) -> 18300 under indkomstår == 2024
+| exception ligningslov8a_2025_årsloft ligningslov8a_årsloft_kroner(indkomstår) -> 19000 under indkomstår == 2025
+| exception ligningslov8a_2026_årsloft ligningslov8a_årsloft_kroner(indkomstår) -> 20000 under indkomstår == 2026
 
 }
 
@@ -515,25 +515,25 @@ myndighedens virksomhed eller for en afgørelse, som myndigheden skal træffe.
     | er_par12() -> match fakta.art { | Ll12BindendeLøbendeYdelse(_, _, _, _, _, _, _, _, _) -> Sandt | _ -> Falskt }
     | fradraget_efter_par8s() -> match fakta.art { | Ll8AAlmindeligGave(fradraget) -> fradraget | _ -> Falskt }
     | interesseforbundet_efter_par2() -> match fakta.art { | Ll8HForskningsgave(interesseforbundet) -> interesseforbundet | _ -> Falskt }
-    | modtagerformål_opfyldt() -> Falskt
+    | modtagerformål_opfyldt(): Bool -> Falskt
     | exception ligningslov8a_almenvelgørende_eller_almennyttigt_formål modtagerformål_opfyldt() -> ligningslov_gave_formål_almenvelgørende_eller_almennyttigt(fakta.modtager.formål) under er_par8a()
     | exception ligningslov8h_forskningsformål modtagerformål_opfyldt() -> Sandt under er_par8h() && fakta.modtager.formål == LlGaveAlmennyttigForskning
     | exception ligningslov12_tilladt_formål modtagerformål_opfyldt() -> ligningslov12_tilladt_modtagerformål(fakta.modtager.formål) under er_par12()
-    | godkendelse_opfyldt() -> Falskt
+    | godkendelse_opfyldt(): Bool -> Falskt
     | exception ligningslov8a_godkendelse godkendelse_opfyldt() -> ligningslov_gave_godkendt_efter_par8a(fakta.modtager.godkendelse, indkomstår) under er_par8a()
     | exception ligningslov8h_godkendelse godkendelse_opfyldt() -> ligningslov_gave_godkendt_efter_par8h(fakta.modtager.godkendelse, indkomstår) under er_par8h()
     | exception ligningslov12_godkendelse godkendelse_opfyldt() -> ligningslov_gave_godkendt_efter_par12(fakta.modtager.godkendelse, indkomstår) under er_par12()
     | likvidationsbetingelse_opfyldt() -> er_par8h() || fakta.modtager.likvidationsprovenu_til_anden_velgørende_forening
-    | særlige_artbetingelser_opfyldt() -> Falskt
+    | særlige_artbetingelser_opfyldt(): Bool -> Falskt
     | exception ligningslov8a_ikke_par8s særlige_artbetingelser_opfyldt() -> fradraget_efter_par8s() == Falskt under er_par8a()
     | exception ligningslov8h_ikke_interesseforbundet særlige_artbetingelser_opfyldt() -> interesseforbundet_efter_par2() == Falskt under er_par8h()
     | exception ligningslov12_bindende_aftale særlige_artbetingelser_opfyldt() -> ligningslov12_aftalebetingelser_opfyldt(fakta.art) under er_par12()
     | fradragsberettiget() -> input_gyldigt() && modtagerhjemsted_opfyldt() && modtagerformål_opfyldt() && godkendelse_opfyldt() && fakta.indberettet_efter_skatteindberetningslov26 && likvidationsbetingelse_opfyldt() && særlige_artbetingelser_opfyldt()
-    | hjemmel() -> LlIngenGavehjemmel
+    | hjemmel(): LigningslovGavehjemmel -> LlIngenGavehjemmel
     | exception ligningslov8a_hjemmel hjemmel() -> LlPar8AGavefradrag under fradragsberettiget() && er_par8a()
     | exception ligningslov8h_hjemmel hjemmel() -> LlPar8HForskningsgavefradrag under fradragsberettiget() && er_par8h()
     | exception ligningslov12_hjemmel hjemmel() -> LlPar12LøbendeYdelsesfradrag under fradragsberettiget() && er_par12()
-    | fradragsgrundlag_før_årsloft_kroner() -> 0
+    | fradragsgrundlag_før_årsloft_kroner(): Int -> 0
     | exception ligningslov8a_og_8h_betalt_beløb fradragsgrundlag_før_årsloft_kroner() -> fakta.betalt_beløb_kroner under fradragsberettiget() && (er_par8a() || er_par8h())
     | exception ligningslov12_højst_betalt_og_forfaldent fradragsgrundlag_før_årsloft_kroner() -> penge_mindste_beløb(fakta.betalt_beløb_kroner, ligningslov12_forfalden_årlig_ydelse_kroner(fakta.art)) under fradragsberettiget() && er_par12()
     | resultat() -> LigningslovGaveResultat(

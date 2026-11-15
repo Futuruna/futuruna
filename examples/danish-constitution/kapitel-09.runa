@@ -17,7 +17,7 @@ eller i henhold til lov.
 # Rådstype = KommunaltRåd | Menighedsråd
 # ValgretsalderensRetsgrundlag = FølgerFolketingsvalgretsalderenTilEnhverTid | FastsættesVedLovEllerIHEnholdTilLov
 # Rådsvalgretsalder(rigsdel: Rigsdel, råd: Rådstype) {
-    | retsgrundlag_efter_par86() -> FølgerFolketingsvalgretsalderenTilEnhverTid
+    | retsgrundlag_efter_par86(): ValgretsalderensRetsgrundlag -> FølgerFolketingsvalgretsalderenTilEnhverTid
     | exception færøerne_og_grønland retsgrundlag_efter_par86() -> FastsættesVedLovEllerIHEnholdTilLov under rigsdel == Færøerne || rigsdel == Grønland
 }
 

@@ -14656,7 +14656,7 @@
         tidligere_erhvervsmæssige_kilometer_til_direkte_fradrag_i_indkomståret = tilstand.historik.bil_motorcykelkilometer_til_direkte_fradrag
     )
     | sagsresultat() -> personskat_erhvervsbefordring_sagsresultat(fakta, kilometerhistorik(), skatteår)
-    | bil_motorcykelkilometer_pr_arbejdsgiver_efter() -> tilstand.historik.bil_motorcykelkilometer_pr_arbejdsgiver
+    | bil_motorcykelkilometer_pr_arbejdsgiver_efter(): Map(String, Int) -> tilstand.historik.bil_motorcykelkilometer_pr_arbejdsgiver
     | exception bil_motorcykelkilometer_føjes_til_arbejdsgiverhistorik bil_motorcykelkilometer_pr_arbejdsgiver_efter() -> map_insert(
         tilstand.historik.bil_motorcykelkilometer_pr_arbejdsgiver,
         fakta.godtgørende_arbejdsgiver_identifikation,
@@ -15010,11 +15010,11 @@
     rejseudelukkelser = personskat_ll9g_rejseudelukkelser(input, koordinering),
     ølogiudelukkelse = personskat_ll9g_ølogiudelukkelse(koordinering)
 )
-| personskat_ll9g_kontingent_bevares(koordinering: PersonskatLigningslov9GKoordinering, kontingent: Ligningslov13KontingentFakta) -> personskat_ll9g_kilde_bevares(
+| personskat_ll9g_kontingent_bevares(koordinering: PersonskatLigningslov9GKoordinering, kontingent: Ligningslov13KontingentFakta): Bool -> personskat_ll9g_kilde_bevares(
     koordinering,
     Ll9GLigningslov13Forening(forening_identifikation = kontingent.forening_identifikation)
 )
-| exception personskat_ll9g_konkret_bedømt_kontingentperiode_bevares personskat_ll9g_kontingent_bevares(koordinering: PersonskatLigningslov9GKoordinering, kontingent: Ligningslov13KontingentFakta) -> Sandt under koordinering.samordning_gyldig && any(
+| exception personskat_ll9g_konkret_bedømt_kontingentperiode_bevares personskat_ll9g_kontingent_bevares(koordinering, kontingent) -> Sandt under koordinering.samordning_gyldig && any(
     koordinering.fiskerfradrag.input.kontingentperiodeundtagelser,
     |undtagelse: Ligningslov9GKontingentperiodeundtagelse| undtagelse.kontingent_identifikation == kontingent.identifikation
 )
@@ -17195,12 +17195,12 @@ fraflytningen."
     | BeregnetEjendomsdriftEfterPar4Nr6(_, _, _, par4_resultat) -> par4_resultat.ikke_omfattet_af_par4_nr6_kroner == 0
 }
 
-| personskat_fremlejerrolle_til_ligningslov15q(rolle: PersonskatFremlejerrolle) -> Ll15QLejer
-| exception andelshaverrolle_til_ligningslov15q personskat_fremlejerrolle_til_ligningslov15q(rolle: PersonskatFremlejerrolle) -> Ll15QAndelshaver under rolle == PersonskatUdlejendeAndelshaver
-| personskat_fremlejerrolle_til_ligningslov15p(rolle: PersonskatFremlejerrolle) -> Ll15PLejer
-| exception andelshaverrolle_til_ligningslov15p personskat_fremlejerrolle_til_ligningslov15p(rolle: PersonskatFremlejerrolle) -> Ll15PAndelshaver under rolle == PersonskatUdlejendeAndelshaver
-| personskat_indkomstårets_dage(skatteår: Heltal) -> 365
-| exception personskat_skudår_har_366_dage personskat_indkomstårets_dage(skatteår: Heltal) -> 366 under kildeskat_skudår(skatteår)
+| personskat_fremlejerrolle_til_ligningslov15q(rolle: PersonskatFremlejerrolle): Ligningslov15QBoligrolle -> Ll15QLejer
+| exception andelshaverrolle_til_ligningslov15q personskat_fremlejerrolle_til_ligningslov15q(rolle) -> Ll15QAndelshaver under rolle == PersonskatUdlejendeAndelshaver
+| personskat_fremlejerrolle_til_ligningslov15p(rolle: PersonskatFremlejerrolle): Ligningslov15PRolle -> Ll15PLejer
+| exception andelshaverrolle_til_ligningslov15p personskat_fremlejerrolle_til_ligningslov15p(rolle) -> Ll15PAndelshaver under rolle == PersonskatUdlejendeAndelshaver
+| personskat_indkomstårets_dage(skatteår: Heltal): Int -> 365
+| exception personskat_skudår_har_366_dage personskat_indkomstårets_dage(skatteår) -> 366 under kildeskat_skudår(skatteår)
 | personskat_ligningslov15p_samordningsinput(fakta: PersonskatLigningslov15PSamordningsfakta, rolle: PersonskatFremlejerrolle, skatteår: Heltal) -> Ligningslov15PInput(
     skatteår = skatteår,
     rolle = personskat_fremlejerrolle_til_ligningslov15p(rolle),
@@ -17500,9 +17500,9 @@ fraflytningen."
     aktiepensionsfradrag_valg = UdenAktiepensionsfradragIAktieindkomst
 )
 
-| personskat_pbl20_udbetalingsstatus(skattepligtig_udbetaling_kroner: Heltal, modregningspligtig_udbetaling_kroner: Heltal) -> Ll9lIngenPbl20Udbetaling
-| exception personskat_har_undtaget_pbl20_udbetaling personskat_pbl20_udbetalingsstatus(skattepligtig_udbetaling_kroner: Heltal, modregningspligtig_udbetaling_kroner: Heltal) -> Ll9lUndtagetPbl20Udbetaling under skattepligtig_udbetaling_kroner > 0 && modregningspligtig_udbetaling_kroner == 0
-| exception personskat_har_modregningspligtig_pbl20_udbetaling personskat_pbl20_udbetalingsstatus(skattepligtig_udbetaling_kroner: Heltal, modregningspligtig_udbetaling_kroner: Heltal) -> Ll9lModregningspligtigPbl20Udbetaling under modregningspligtig_udbetaling_kroner > 0
+| personskat_pbl20_udbetalingsstatus(skattepligtig_udbetaling_kroner: Heltal, modregningspligtig_udbetaling_kroner: Heltal): Ligningslov9LPensionsudbetalingStatus -> Ll9lIngenPbl20Udbetaling
+| exception personskat_har_undtaget_pbl20_udbetaling personskat_pbl20_udbetalingsstatus(skattepligtig_udbetaling_kroner, modregningspligtig_udbetaling_kroner) -> Ll9lUndtagetPbl20Udbetaling under skattepligtig_udbetaling_kroner > 0 && modregningspligtig_udbetaling_kroner == 0
+| exception personskat_har_modregningspligtig_pbl20_udbetaling personskat_pbl20_udbetalingsstatus(skattepligtig_udbetaling_kroner, modregningspligtig_udbetaling_kroner) -> Ll9lModregningspligtigPbl20Udbetaling under modregningspligtig_udbetaling_kroner > 0
 
 -- LL § 9 L, stk. 2: årets beløb, sidste års ikke-undtagne udbetaling som betingelse.
 -- Kilder kontrolleret 2026-09-22: https://skat.dk/borger/fradrag/ekstra-pensionsfradrag
@@ -18315,12 +18315,12 @@ fraflytningen."
     samlevende_ved_årets_udløb = samlevende_ved_indkomstårets_udløb && hovedpersons_skatteår == ægtefælles_skatteår
 ))
 
-| personskat_par13_par7_skat_kroner(model: LønmodtagerBeregning) -> model.før_personfradrag.topskat_kroner
-| exception personskat_par13_reform_par7_er_mellemskat personskat_par13_par7_skat_kroner(model: LønmodtagerBeregning) -> model.før_personfradrag.mellemskat_kroner under model.input.skatteår >= 2026
-| personskat_par13_par7a_skat_kroner(model: LønmodtagerBeregning) -> model.før_personfradrag.udligningsskat_kroner
-| exception personskat_par13_reform_par7a_er_topskat personskat_par13_par7a_skat_kroner(model: LønmodtagerBeregning) -> model.før_personfradrag.topskat_kroner under model.input.skatteår >= 2026
-| personskat_par13_par8_skat_kroner(model: LønmodtagerBeregning) -> model.før_personfradrag.sundhedsbidrag_kroner
-| exception personskat_par13_reform_par8_er_toptopskat personskat_par13_par8_skat_kroner(model: LønmodtagerBeregning) -> model.før_personfradrag.toptopskat_kroner under model.input.skatteår >= 2026
+| personskat_par13_par7_skat_kroner(model: LønmodtagerBeregning): Int -> model.før_personfradrag.topskat_kroner
+| exception personskat_par13_reform_par7_er_mellemskat personskat_par13_par7_skat_kroner(model) -> model.før_personfradrag.mellemskat_kroner under model.input.skatteår >= 2026
+| personskat_par13_par7a_skat_kroner(model: LønmodtagerBeregning): Int -> model.før_personfradrag.udligningsskat_kroner
+| exception personskat_par13_reform_par7a_er_topskat personskat_par13_par7a_skat_kroner(model) -> model.før_personfradrag.topskat_kroner under model.input.skatteår >= 2026
+| personskat_par13_par8_skat_kroner(model: LønmodtagerBeregning): Int -> model.før_personfradrag.sundhedsbidrag_kroner
+| exception personskat_par13_reform_par8_er_toptopskat personskat_par13_par8_skat_kroner(model) -> model.før_personfradrag.toptopskat_kroner under model.input.skatteår >= 2026
 | personskat_par13_modregningsskatter(model: LønmodtagerBeregning) -> Par13ModregningsSkatter(
     par6_skat_kroner = model.før_personfradrag.bundskat_kroner,
     par7_skat_kroner = personskat_par13_par7_skat_kroner(model),
@@ -18961,8 +18961,8 @@ fraflytningen."
     tilgængelig_indkomstskat_øre = penge_positivt_beløb(tilgængelig_indkomstskat_øre)
 )
 | personskat_ligningslov33_personlig_og_positiv_kapitalindkomst_kroner(kontekst: PersonskatLigningslov33DanskKontekst) -> penge_positivt_beløb(kontekst.personlig_indkomst_kroner + kontekst.positiv_kapitalindkomst_kroner)
-| personskat_ligningslov33_par8_beregningsgrundlag(kontekst: PersonskatLigningslov33DanskKontekst) -> Ll33SkattepligtigIndkomst(samlet_indkomst_kroner = kontekst.skattepligtig_indkomst_kroner)
-| exception personskat_ligningslov33_reform_par8_personlig_indkomst personskat_ligningslov33_par8_beregningsgrundlag(kontekst: PersonskatLigningslov33DanskKontekst) -> Ll33PersonligIndkomst(samlet_indkomst_kroner = kontekst.personlig_indkomst_kroner) under kontekst.skatteår >= 2026
+| personskat_ligningslov33_par8_beregningsgrundlag(kontekst: PersonskatLigningslov33DanskKontekst): Ligningslov33DanskBeregningsgrundlag -> Ll33SkattepligtigIndkomst(samlet_indkomst_kroner = kontekst.skattepligtig_indkomst_kroner)
+| exception personskat_ligningslov33_reform_par8_personlig_indkomst personskat_ligningslov33_par8_beregningsgrundlag(kontekst) -> Ll33PersonligIndkomst(samlet_indkomst_kroner = kontekst.personlig_indkomst_kroner) under kontekst.skatteår >= 2026
 | personskat_ligningslov33_danske_skattekomponenter(kontekst: PersonskatLigningslov33DanskKontekst) -> [
     Ligningslov33DanskSkattekomponent(
         art = Ll33PersonskattelovPar6,
@@ -19746,7 +19746,7 @@ fraflytningen."
     | hovedpersons_stk2_nedsættelse_kroner() -> personskat_par13a_hovedpersons_stk2_nedsættelse_kroner(foreløbigt.personskattelov13a)
     | ægtefælles_stk2_nedsættelse_kroner() -> personskat_par13a_ægtefælles_stk2_nedsættelse_kroner(foreløbigt.personskattelov13a)
     | har_stk2_nedsættelse() -> hovedpersons_stk2_nedsættelse_kroner() > 0 || ægtefælles_stk2_nedsættelse_kroner() > 0
-    | resultat() -> foreløbigt
+    | resultat(): PersonskatBeregningResultat -> foreløbigt
     | exception personskat_par13a_stk2_nedsættes_før_ægtefælleoverførsel resultat() -> personskat_beregning_resultat_fra_aktieavance_par_kerne(input, aktieavance_før_par32, hovedpersonsregulering, hovedpersonsregulering_input_gyldigt, hovedpersons_stk2_nedsættelse_kroner(), ægtefælles_stk2_nedsættelse_kroner()) under har_stk2_nedsættelse()
 }
 | personskat_par13a_stk2_beregningssag(input: PersonskatInput, aktieavance_før_par32: PersonskatAktieavanceParResultat, hovedpersonsregulering: PersonskatKsl25APersonregulering, hovedpersonsregulering_input_gyldigt: Boolsk) -> PersonskatPar13aStk2BeregningSag(

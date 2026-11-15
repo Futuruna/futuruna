@@ -100,12 +100,12 @@ Stk. 2. Loven har virkning fra og med indkomståret 2024.
 # Pbl49Til49BBidragsresultat(fakta: Pbl49Til49BBidragsfakta, input_gyldigt: Boolsk, arbejdsløshedskasse_opfyldt: Boolsk, skattepligtsbetingelse_opfyldt: Boolsk, privat_forsikringsminimum_finder_anvendelse: Boolsk, privat_forsikrings_minimum_opfyldt: Boolsk, skatteyderrelation_opfyldt: Boolsk, ordningsbetingelser_opfyldt: Boolsk, fradragsberettiget: Boolsk, hjemmel: Pbl49Til49BHjemmel, fradrag_kroner: Heltal)
 # Pbl49Til49BÅrsresultat(indkomstår: Heltal, lovversion: Pbl49Lovversion, privat_forsikringsminimum_version: Pbl49PrivatForsikringsminimumVersion, input: Pbl49Til49BÅrsinput, bidragsresultater: List(Pbl49Til49BBidragsresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, akassemedlemskab_indbetalt_kroner: Heltal, samlet_fradrag_kroner: Heltal, ikke_fradraget_kroner: Heltal)
 
-| pbl49_lovversion_for(indkomstår: Heltal) -> Pbl49LovversionUdenKildedækning
-| exception pbl49_lbk1327_for_2023 pbl49_lovversion_for(indkomstår: Heltal) -> Pbl49Lbk1327MedÆndringerTilOgMed2023 under indkomstår == 2023
-| exception pbl49_lbk1243_for_2024_til_2026 pbl49_lovversion_for(indkomstår: Heltal) -> Pbl49Lbk1243MedSenereÆndringer under indkomstår >= 2024 && indkomstår <= 2026
-| pbl49_privataftaleminimum_version_for(indkomstår: Heltal) -> Pbl49Stk3UdenKildedækning
-| exception pbl49_stk3_ikke_anvendelig_i_2023 pbl49_privataftaleminimum_version_for(indkomstår: Heltal) -> Pbl49Stk3IkkeAnvendeligFør2024 under indkomstår == 2023
-| exception pbl49_stk3_minimum_fra_2024 pbl49_privataftaleminimum_version_for(indkomstår: Heltal) -> Pbl49Stk3Minimum1300Fra2024 under indkomstår >= 2024 && indkomstår <= 2026
+| pbl49_lovversion_for(indkomstår: Heltal): Pbl49Lovversion -> Pbl49LovversionUdenKildedækning
+| exception pbl49_lbk1327_for_2023 pbl49_lovversion_for(indkomstår) -> Pbl49Lbk1327MedÆndringerTilOgMed2023 under indkomstår == 2023
+| exception pbl49_lbk1243_for_2024_til_2026 pbl49_lovversion_for(indkomstår) -> Pbl49Lbk1243MedSenereÆndringer under indkomstår >= 2024 && indkomstår <= 2026
+| pbl49_privataftaleminimum_version_for(indkomstår: Heltal): Pbl49PrivatForsikringsminimumVersion -> Pbl49Stk3UdenKildedækning
+| exception pbl49_stk3_ikke_anvendelig_i_2023 pbl49_privataftaleminimum_version_for(indkomstår) -> Pbl49Stk3IkkeAnvendeligFør2024 under indkomstår == 2023
+| exception pbl49_stk3_minimum_fra_2024 pbl49_privataftaleminimum_version_for(indkomstår) -> Pbl49Stk3Minimum1300Fra2024 under indkomstår >= 2024 && indkomstår <= 2026
 | pbl49_skatteår_understøttet(indkomstår: Heltal) -> pbl49_lovversion_for(indkomstår) != Pbl49LovversionUdenKildedækning && pbl49_privataftaleminimum_version_for(indkomstår) != Pbl49Stk3UdenKildedækning
 | pbl49_stk3_finder_anvendelse(indkomstår: Heltal) -> pbl49_privataftaleminimum_version_for(indkomstår) == Pbl49Stk3Minimum1300Fra2024
 | pbl49_arbejdsløshedskasse_opfyldt(status: Pbl49ArbejdsløshedskasseStatus) -> status != Pbl49IkkeArbejdsløshedskasse
@@ -390,14 +390,14 @@ fradragsberettigede efter pensionsbeskatningsloven.
         | Pbl49Akassekontingent(_, skatteyderen_er_medlem_og_forsikret) -> skatteyderen_er_medlem_og_forsikret
         | _ -> pbl54_ejer_og_forsikrede_opfyldt(fakta.art)
     }
-    | ordningsbetingelser_opfyldt() -> Falskt
+    | ordningsbetingelser_opfyldt(): Bool -> Falskt
     | exception pbl49_akasse_ordning_opfyldt ordningsbetingelser_opfyldt() -> arbejdsløshedskasse_opfyldt() && skatteyderrelation_opfyldt() under er_akassekontingent()
     | exception pbl49_privat_forsikring_ordning_opfyldt ordningsbetingelser_opfyldt() -> privat_forsikrings_minimum_opfyldt() && skatteyderrelation_opfyldt() under er_privat_arbejdsløshedsforsikring()
     | exception pbl49_seniormedlemskab_opfyldt ordningsbetingelser_opfyldt() -> match fakta.art { | Pbl49Seniormedlemskontingent(_, seniormedlem) -> arbejdsløshedskasse_opfyldt() && seniormedlem | _ -> Falskt } under er_seniormedlemskontingent()
     | exception pbl49a_efterlønsordning_opfyldt ordningsbetingelser_opfyldt() -> pbl49a_ordningsbetingelser_opfyldt(fakta.art) under er_efterlønsbidrag()
     | exception pbl49b_fleksydelsesordning_opfyldt ordningsbetingelser_opfyldt() -> pbl49b_ordningsbetingelser_opfyldt(fakta.art) under er_fleksydelsesbidrag()
     | fradragsberettiget() -> input_gyldigt() && skattepligtsbetingelse_opfyldt() && privat_forsikrings_minimum_opfyldt() && skatteyderrelation_opfyldt() && ordningsbetingelser_opfyldt()
-    | hjemmel() -> Pbl49IngenFradragshjemmel
+    | hjemmel(): Pbl49Til49BHjemmel -> Pbl49IngenFradragshjemmel
     | exception pbl49_arbejdsløshedsforsikring_hjemmel hjemmel() -> Pbl49Arbejdsløshedsforsikringsfradrag under fradragsberettiget() && (er_akassekontingent() || er_privat_arbejdsløshedsforsikring() || er_seniormedlemskontingent())
     | exception pbl49a_efterløn_hjemmel hjemmel() -> Pbl49AEfterlønsfradrag under fradragsberettiget() && er_efterlønsbidrag()
     | exception pbl49b_fleksydelse_hjemmel hjemmel() -> Pbl49BFleksydelsesfradrag under fradragsberettiget() && er_fleksydelsesbidrag()

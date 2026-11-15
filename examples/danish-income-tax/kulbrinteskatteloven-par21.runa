@@ -72,12 +72,12 @@ Stk. 2. Personer, som ikke er omfattet af kildeskattelovens § 1, og som arbejde
 # Kulbrinteskattelov21Stk2Input(indkomstår: Heltal, bruttoindtægt_kroner: Heltal, kildefakta: Kulbrinteskattelov21Stk2Kildefakta)
 # Kulbrinteskattelov21Stk2Resultat(input: Kulbrinteskattelov21Stk2Input, lovversion: Kulbrinteskattelov21Stk2Lovversion, input_gyldigt: Boolsk, skatteår_understøttet: Boolsk, grundbetingelser_opfyldt: Boolsk, dansk_beskatningsret_afklaret: Boolsk, dansk_beskatningsret: Boolsk, endelig_bruttoskat_valgt: Boolsk, kræver_kildeskattelov2_stk1_nr1_beregning: Boolsk, beregningsklar: Boolsk, bruttoskattegrundlag_kroner: Heltal, indkomstskattesats_basispoint: Heltal, endelig_indkomstskat_kroner: Heltal, arbejdsmarkedsbidragssats_basispoint: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, samlet_skat_kroner: Heltal)
 
-| kulbrinteskattelov21_stk2_lovversion_for(indkomstår: Heltal) -> KulbrintePar21Stk2LovversionUdenKildedækning
-| exception kulbrinte_par21_stk2_lbk1820_for_2023_2024 kulbrinteskattelov21_stk2_lovversion_for(indkomstår: Heltal) -> KulbrintePar21Stk2Lbk1820Af2021MedSenereÆndringer under indkomstår >= 2023 && indkomstår <= 2024
-| exception kulbrinte_par21_stk2_lbk477_for_2025_2026 kulbrinteskattelov21_stk2_lovversion_for(indkomstår: Heltal) -> KulbrintePar21Stk2Lbk477Af2025 under indkomstår >= 2025 && indkomstår <= 2026
-| kulbrinteskattelov21_stk2_indkomstskattesats_basispoint(lovversion: Kulbrinteskattelov21Stk2Lovversion) -> 0
-| exception kulbrinte_par21_stk2_lbk1820_sats kulbrinteskattelov21_stk2_indkomstskattesats_basispoint(lovversion: Kulbrinteskattelov21Stk2Lovversion) -> 3000 under lovversion == KulbrintePar21Stk2Lbk1820Af2021MedSenereÆndringer
-| exception kulbrinte_par21_stk2_lbk477_sats kulbrinteskattelov21_stk2_indkomstskattesats_basispoint(lovversion: Kulbrinteskattelov21Stk2Lovversion) -> 3000 under lovversion == KulbrintePar21Stk2Lbk477Af2025
+| kulbrinteskattelov21_stk2_lovversion_for(indkomstår: Heltal): Kulbrinteskattelov21Stk2Lovversion -> KulbrintePar21Stk2LovversionUdenKildedækning
+| exception kulbrinte_par21_stk2_lbk1820_for_2023_2024 kulbrinteskattelov21_stk2_lovversion_for(indkomstår) -> KulbrintePar21Stk2Lbk1820Af2021MedSenereÆndringer under indkomstår >= 2023 && indkomstår <= 2024
+| exception kulbrinte_par21_stk2_lbk477_for_2025_2026 kulbrinteskattelov21_stk2_lovversion_for(indkomstår) -> KulbrintePar21Stk2Lbk477Af2025 under indkomstår >= 2025 && indkomstår <= 2026
+| kulbrinteskattelov21_stk2_indkomstskattesats_basispoint(lovversion: Kulbrinteskattelov21Stk2Lovversion): Int -> 0
+| exception kulbrinte_par21_stk2_lbk1820_sats kulbrinteskattelov21_stk2_indkomstskattesats_basispoint(lovversion) -> 3000 under lovversion == KulbrintePar21Stk2Lbk1820Af2021MedSenereÆndringer
+| exception kulbrinte_par21_stk2_lbk477_sats kulbrinteskattelov21_stk2_indkomstskattesats_basispoint(lovversion) -> 3000 under lovversion == KulbrintePar21Stk2Lbk477Af2025
 | kulbrinteskattelov21_stk2_skatteår_understøttet(indkomstår: Heltal) -> kulbrinteskattelov21_stk2_lovversion_for(indkomstår = indkomstår) != KulbrintePar21Stk2LovversionUdenKildedækning
 | kulbrinteskattelov21_stk2_input_gyldigt(input: Kulbrinteskattelov21Stk2Input) -> kulbrinteskattelov21_stk2_skatteår_understøttet(input.indkomstår) && input.bruttoindtægt_kroner >= 0 && input.kildefakta.alder_ved_indkomstårets_udløb >= 0 && input.kildefakta.alder_ved_indkomstårets_udløb <= 130
 | kulbrinteskattelov21_stk2_grundbetingelser_opfyldt(kildefakta: Kulbrinteskattelov21Stk2Kildefakta) -> kildefakta.personstatus == KulbrintePersonIkkeOmfattetAfKildeskattelov1 && kildefakta.arbejdsgiverhjemting == KulbrinteArbejdsgiverUdenHjemtingIDanmark && kildefakta.indkomstkategori == KulbrinteLønEllerAndetIkkeErhvervsmæssigtVederlag

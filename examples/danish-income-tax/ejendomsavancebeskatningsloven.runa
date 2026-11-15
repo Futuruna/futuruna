@@ -522,7 +522,7 @@ indkomstårets udgang.
     | tab_modregnet_i_egne_fortjenester_kroner() -> penge_mindste_beløb(årets_og_fremførte_tab_kroner(), egne_skattepligtige_fortjenester_kroner())
     | tab_efter_egne_fortjenester_kroner() -> årets_og_fremførte_tab_kroner() - tab_modregnet_i_egne_fortjenester_kroner()
     | ægtefælles_nettofortjeneste_efter_egne_tab_kroner() -> penge_positivt_beløb(input.ægtefælles_nettofortjeneste_efter_egne_tab_kroner)
-    | tab_overført_til_ægtefælle_kroner() -> 0
+    | tab_overført_til_ægtefælle_kroner(): Int -> 0
     | exception ebl_par6_stk5_samlevende_ægtefælle tab_overført_til_ægtefælle_kroner() -> penge_mindste_beløb(tab_efter_egne_fortjenester_kroner(), ægtefælles_nettofortjeneste_efter_egne_tab_kroner()) under input.gift_samlevende_ved_indkomstårets_udgang
     | tab_fremført_til_følgende_indkomstår_kroner() -> tab_efter_egne_fortjenester_kroner() - tab_overført_til_ægtefælle_kroner()
     | resultat() -> EjendomsavancePar6Tabsårsresultat(

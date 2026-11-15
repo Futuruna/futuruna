@@ -100,19 +100,19 @@ indkomst, kapitalindkomst, aktieindkomst og CFC-indkomst.
 # Par1AlmindeligSkattepligtigIndkomstInput(personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal, aktieindkomst_kroner: Heltal, cfc_indkomst_kroner: Heltal, ligningsmæssige_fradrag_kroner: Heltal, aktieindkomst_indgår_i_skattepligtig_indkomst: Boolsk, cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a: Boolsk)
 # Par1AlmindeligSkattepligtigIndkomstResultat(personlig_indkomst_til_skattepligtig_indkomst_kroner: Heltal, kapitalindkomst_til_skattepligtig_indkomst_kroner: Heltal, aktieindkomst_medregnet_kroner: Heltal, aktieindkomst_udenfor_skattepligtig_indkomst_kroner: Heltal, cfc_indkomst_medregnet_ved_par6_til_8a_kroner: Heltal, cfc_indkomst_udenfor_par6_til_8a_kroner: Heltal, indkomst_før_ligningsmæssige_fradrag_kroner: Heltal, ligningsmæssige_fradrag_kroner: Heltal, skattepligtig_indkomst_kroner: Heltal)
 
-| opgøres_særskilt(kategori: Indkomstkategori) -> Falskt
-| exception personlig_indkomst opgøres_særskilt(kategori: Indkomstkategori) -> Sandt under kategori == PersonligIndkomst
-| exception kapitalindkomst opgøres_særskilt(kategori: Indkomstkategori) -> Sandt under kategori == Kapitalindkomst
-| exception aktieindkomst opgøres_særskilt(kategori: Indkomstkategori) -> Sandt under kategori == Aktieindkomst
-| exception cfc_indkomst opgøres_særskilt(kategori: Indkomstkategori) -> Sandt under kategori == CfcIndkomst
+| opgøres_særskilt(kategori: Indkomstkategori): Bool -> Falskt
+| exception personlig_indkomst opgøres_særskilt(kategori) -> Sandt under kategori == PersonligIndkomst
+| exception kapitalindkomst opgøres_særskilt(kategori) -> Sandt under kategori == Kapitalindkomst
+| exception aktieindkomst opgøres_særskilt(kategori) -> Sandt under kategori == Aktieindkomst
+| exception cfc_indkomst opgøres_særskilt(kategori) -> Sandt under kategori == CfcIndkomst
 
 # Par1AlmindeligSkattepligtigIndkomstSag(input: Par1AlmindeligSkattepligtigIndkomstInput) {
     | personlig_indkomst_til_skattepligtig_indkomst_kroner() -> input.personlig_indkomst_kroner
     | kapitalindkomst_til_skattepligtig_indkomst_kroner() -> input.kapitalindkomst_kroner
-    | aktieindkomst_medregnet_kroner() -> 0
+    | aktieindkomst_medregnet_kroner(): Int -> 0
     | exception par4a_aktieindkomst_medregnes_hvis_loven_siger_det aktieindkomst_medregnet_kroner() -> input.aktieindkomst_kroner under input.aktieindkomst_indgår_i_skattepligtig_indkomst
     | aktieindkomst_udenfor_skattepligtig_indkomst_kroner() -> input.aktieindkomst_kroner - aktieindkomst_medregnet_kroner()
-    | cfc_indkomst_medregnet_ved_par6_til_8a_kroner() -> 0
+    | cfc_indkomst_medregnet_ved_par6_til_8a_kroner(): Int -> 0
     | exception par4b_cfc_medregnes_hvis_loven_siger_det cfc_indkomst_medregnet_ved_par6_til_8a_kroner() -> input.cfc_indkomst_kroner under input.cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a
     | cfc_indkomst_udenfor_par6_til_8a_kroner() -> input.cfc_indkomst_kroner - cfc_indkomst_medregnet_ved_par6_til_8a_kroner()
     | indkomst_før_ligningsmæssige_fradrag_kroner() -> personlig_indkomst_til_skattepligtig_indkomst_kroner() + kapitalindkomst_til_skattepligtig_indkomst_kroner() + aktieindkomst_medregnet_kroner() + cfc_indkomst_medregnet_ved_par6_til_8a_kroner()
@@ -238,18 +238,18 @@ iværksætterkonto
     arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner = hvis input.pbl53a_forløbsresultat.input_gyldigt { input.pbl53a_forløbsresultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner } ellers { 0 }
 )
 | par3_fradragstype_nævnt_i_stk2(fradrag: PersonligFradrag) -> Sandt
-| par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning) -> Falskt
-| exception par3_stk2_nr1_undtager_par4_nr1 par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning) -> Sandt under afgrænsning == Par4Stk1Nr1RenterOgLl6
-| exception par3_stk2_nr1_undtager_par4_nr2 par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning) -> Sandt under afgrænsning == Par4Stk1Nr2Kursgevinst
-| exception par3_stk2_nr1_undtager_par4_nr7 par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning) -> Sandt under afgrænsning == Par4Stk1Nr7Provision
-| exception par3_stk2_nr1_undtager_par4_nr8 par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning) -> Sandt under afgrænsning == Par4Stk1Nr8Rentekorrektion
-| exception par3_stk2_nr1_undtager_ll9g par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning) -> Sandt under afgrænsning == Ligningslov9GUdgift
-| exception par3_stk2_nr1_undtager_ll13 par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning) -> Sandt under afgrænsning == Ligningslov13Udgift
+| par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning): Bool -> Falskt
+| exception par3_stk2_nr1_undtager_par4_nr1 par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning) -> Sandt under afgrænsning == Par4Stk1Nr1RenterOgLl6
+| exception par3_stk2_nr1_undtager_par4_nr2 par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning) -> Sandt under afgrænsning == Par4Stk1Nr2Kursgevinst
+| exception par3_stk2_nr1_undtager_par4_nr7 par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning) -> Sandt under afgrænsning == Par4Stk1Nr7Provision
+| exception par3_stk2_nr1_undtager_par4_nr8 par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning) -> Sandt under afgrænsning == Par4Stk1Nr8Rentekorrektion
+| exception par3_stk2_nr1_undtager_ll9g par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning) -> Sandt under afgrænsning == Ligningslov9GUdgift
+| exception par3_stk2_nr1_undtager_ll13 par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning) -> Sandt under afgrænsning == Ligningslov13Udgift
 | par3_stk2_nr1_udgift_fradragsberettiget(afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning) -> afgrænsning == SelvstændigErhvervsindkomstUdgift && par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning) == Falskt
 # Par3Stk2Nr1UdgiftSag(input: Par3Stk2Nr1UdgiftInput) {
     | positivt_beløb_kroner() -> penge_positivt_beløb(input.beløb_kroner)
     | fradragsberettiget_i_personlig_indkomst() -> par3_stk2_nr1_udgift_fradragsberettiget(input.afgrænsning)
-    | fradrag_kroner() -> 0
+    | fradrag_kroner(): Int -> 0
     | exception par3_stk2_nr1_hovedregel fradrag_kroner() -> positivt_beløb_kroner() under fradragsberettiget_i_personlig_indkomst()
     | afskåret_til_anden_regel_kroner() -> positivt_beløb_kroner() - fradrag_kroner()
     | resultat() -> Par3Stk2Nr1UdgiftResultat(
@@ -286,7 +286,7 @@ iværksætterkonto
 
 # Par3Stk2Nr2PostSag(post: Par3Stk2Nr2Post) {
     | henvist_beløb_kroner() -> penge_positivt_beløb(par3_stk2_nr2_henvist_beløb_kroner(post.grundlag))
-    | fradrag_i_personlig_indkomst_kroner() -> 0
+    | fradrag_i_personlig_indkomst_kroner(): Int -> 0
     | exception nr2_henvisning_ved_selvstændig_erhvervsvirksomhed fradrag_i_personlig_indkomst_kroner() -> henvist_beløb_kroner() under post.ved_selvstændig_erhvervsvirksomhed
     | afskåret_fordi_ikke_ved_selvstændig_erhvervsvirksomhed_kroner() -> henvist_beløb_kroner() - fradrag_i_personlig_indkomst_kroner()
     | resultat() -> Par3Stk2Nr2PostResultat(
@@ -338,8 +338,8 @@ iværksætterkonto
     | Par3Nr3Pbl18År(resultat) -> resultat.par15a_fradrag_kroner
     | Par3Nr3Pbl52(_) -> 0
 }
-| par3_stk2_nr3_fradrag_i_aktieindkomst_kroner(input: Par3Stk2Nr3Input) -> 0
-| exception par4a_stk4_par15a_fradrag par3_stk2_nr3_fradrag_i_aktieindkomst_kroner(input: Par3Stk2Nr3Input) -> penge_positivt_beløb(input.aktiepensionsfradrag_resultat.fradrag_i_aktieindkomst_kroner) under par3_stk2_nr3_par15a_ordning(input.grundlag)
+| par3_stk2_nr3_fradrag_i_aktieindkomst_kroner(input: Par3Stk2Nr3Input): Int -> 0
+| exception par4a_stk4_par15a_fradrag par3_stk2_nr3_fradrag_i_aktieindkomst_kroner(input) -> penge_positivt_beløb(input.aktiepensionsfradrag_resultat.fradrag_i_aktieindkomst_kroner) under par3_stk2_nr3_par15a_ordning(input.grundlag)
 | par3_stk2_nr3_dobbeltfradrag_afskåret_kroner(input: Par3Stk2Nr3Input) -> penge_mindste_beløb(penge_positivt_beløb(par3_stk2_nr3_par15a_fradrag_kroner(input.grundlag)), par3_stk2_nr3_fradrag_i_aktieindkomst_kroner(input))
 | par3_stk2_nr3_fradrag_i_personlig_indkomst_kroner(input: Par3Stk2Nr3Input) -> penge_positivt_beløb(par3_stk2_nr3_brutto_fradrag_kroner(input.grundlag) - par3_stk2_nr3_dobbeltfradrag_afskåret_kroner(input))
 # Par3Stk2Nr3Sag(input: Par3Stk2Nr3Input) {
@@ -360,12 +360,12 @@ iværksætterkonto
     aktiepensionsfradrag_resultat = aktiepensionsfradrag_resultat
 ))
 
-| par3_stk2_nr4_husdyrnedskrivning_kroner(input: Par3Stk2Nr4Input) -> 0
-| exception par3_stk2_nr4_landbrugerperson_par2 par3_stk2_nr4_husdyrnedskrivning_kroner(input: Par3Stk2Nr4Input) -> input.husdyr_par2_resultat.fradrag_i_skattepligtig_indkomst_kroner under input.husdyr_par2_resultat.skatteyder == HusdyrLandbrugerPerson
-| par3_stk2_nr4_forskelsbeløbsfradrag_kroner(input: Par3Stk2Nr4Input) -> 0
-| exception par3_stk2_nr4_landbruger_par8 par3_stk2_nr4_forskelsbeløbsfradrag_kroner(input: Par3Stk2Nr4Input) -> input.husdyr_par8_resultat.fradrag_i_skattepligtig_indkomst_kroner under input.husdyr_par8_resultat.rettighedshaver == HusdyrPar8Landbruger
-| par3_stk2_nr4_forskelsbeløbstillæg_kroner(input: Par3Stk2Nr4Input) -> 0
-| exception par3_stk2_nr4_landbruger_par8_tillæg par3_stk2_nr4_forskelsbeløbstillæg_kroner(input: Par3Stk2Nr4Input) -> input.husdyr_par8_resultat.tillæg_til_skattepligtig_indkomst_kroner under input.husdyr_par8_resultat.rettighedshaver == HusdyrPar8Landbruger
+| par3_stk2_nr4_husdyrnedskrivning_kroner(input: Par3Stk2Nr4Input): Int -> 0
+| exception par3_stk2_nr4_landbrugerperson_par2 par3_stk2_nr4_husdyrnedskrivning_kroner(input) -> input.husdyr_par2_resultat.fradrag_i_skattepligtig_indkomst_kroner under input.husdyr_par2_resultat.skatteyder == HusdyrLandbrugerPerson
+| par3_stk2_nr4_forskelsbeløbsfradrag_kroner(input: Par3Stk2Nr4Input): Int -> 0
+| exception par3_stk2_nr4_landbruger_par8 par3_stk2_nr4_forskelsbeløbsfradrag_kroner(input) -> input.husdyr_par8_resultat.fradrag_i_skattepligtig_indkomst_kroner under input.husdyr_par8_resultat.rettighedshaver == HusdyrPar8Landbruger
+| par3_stk2_nr4_forskelsbeløbstillæg_kroner(input: Par3Stk2Nr4Input): Int -> 0
+| exception par3_stk2_nr4_landbruger_par8_tillæg par3_stk2_nr4_forskelsbeløbstillæg_kroner(input) -> input.husdyr_par8_resultat.tillæg_til_skattepligtig_indkomst_kroner under input.husdyr_par8_resultat.rettighedshaver == HusdyrPar8Landbruger
 # Par3Stk2Nr4Sag(input: Par3Stk2Nr4Input) {
     | husdyrnedskrivning_kroner() -> par3_stk2_nr4_husdyrnedskrivning_kroner(input)
     | forskelsbeløbsfradrag_kroner() -> par3_stk2_nr4_forskelsbeløbsfradrag_kroner(input)
@@ -381,8 +381,8 @@ iværksætterkonto
 | par3_stk2_nr4_sag(input: Par3Stk2Nr4Input) -> Par3Stk2Nr4Sag(input)
 | par3_stk2_nr4_resultat(input: Par3Stk2Nr4Input) -> par3_stk2_nr4_sag(input).resultat()
 
-| par3_stk2_nr5_fradrag_i_personlig_indkomst_kroner(input: Par3Stk2Nr5Input) -> 0
-| exception par3_stk2_nr5_næringsdrivende_person par3_stk2_nr5_fradrag_i_personlig_indkomst_kroner(input: Par3Stk2Nr5Input) -> input.varelager_par1_resultat.fradrag_i_skattepligtig_indkomst_kroner under input.varelager_par1_resultat.skatteyder == VarelagerNæringsdrivendePerson
+| par3_stk2_nr5_fradrag_i_personlig_indkomst_kroner(input: Par3Stk2Nr5Input): Int -> 0
+| exception par3_stk2_nr5_næringsdrivende_person par3_stk2_nr5_fradrag_i_personlig_indkomst_kroner(input) -> input.varelager_par1_resultat.fradrag_i_skattepligtig_indkomst_kroner under input.varelager_par1_resultat.skatteyder == VarelagerNæringsdrivendePerson
 # Par3Stk2Nr5Sag(input: Par3Stk2Nr5Input) {
     | fradrag_i_personlig_indkomst_kroner() -> par3_stk2_nr5_fradrag_i_personlig_indkomst_kroner(input)
     | resultat() -> Par3Stk2Nr5Resultat(
@@ -646,8 +646,8 @@ iværksætterkonto
     | Par3Nr10Al62Miljøanlæg(resultat) -> resultat.skattepligtige_genvundne_afskrivninger_kroner
     | _ -> 0
 }
-| par3_stk2_nr10_indtægtsføring_i_personlig_indkomst_kroner(grundlag: Par3Stk2Nr10Grundlag) -> 0
-| exception par3_al_indtægtsføring_fysisk_person par3_stk2_nr10_indtægtsføring_i_personlig_indkomst_kroner(grundlag: Par3Stk2Nr10Grundlag) -> par3_stk2_nr10_skattepligtig_indtægtsføring_kroner(grundlag) under par3_stk2_nr10_fysisk_person(grundlag)
+| par3_stk2_nr10_indtægtsføring_i_personlig_indkomst_kroner(grundlag: Par3Stk2Nr10Grundlag): Int -> 0
+| exception par3_al_indtægtsføring_fysisk_person par3_stk2_nr10_indtægtsføring_i_personlig_indkomst_kroner(grundlag) -> par3_stk2_nr10_skattepligtig_indtægtsføring_kroner(grundlag) under par3_stk2_nr10_fysisk_person(grundlag)
 | par3_stk2_nr10_skattemæssig_afskrivning_kroner(grundlag: Par3Stk2Nr10Grundlag) -> match grundlag {
     | Par3Nr10Al5(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
     | Par3Nr10Al5B(resultat) -> resultat.samlet_fradrag_i_skattepligtig_indkomst_kroner
@@ -710,8 +710,8 @@ iværksætterkonto
     | _ -> 0
 }
 | par3_stk2_nr10_brutto_fradrag_kroner(grundlag: Par3Stk2Nr10Grundlag) -> par3_stk2_nr10_skattemæssig_afskrivning_kroner(grundlag) + par3_stk2_nr10_tab_kroner(grundlag) + par3_stk2_nr10_andet_fradrag_kroner(grundlag)
-| par3_stk2_nr10_fradrag_i_personlig_indkomst_kroner(grundlag: Par3Stk2Nr10Grundlag) -> 0
-| exception par3_nr10_selvstændig_person par3_stk2_nr10_fradrag_i_personlig_indkomst_kroner(grundlag: Par3Stk2Nr10Grundlag) -> par3_stk2_nr10_brutto_fradrag_kroner(grundlag) under par3_stk2_nr10_selvstændig_person(grundlag)
+| par3_stk2_nr10_fradrag_i_personlig_indkomst_kroner(grundlag: Par3Stk2Nr10Grundlag): Int -> 0
+| exception par3_nr10_selvstændig_person par3_stk2_nr10_fradrag_i_personlig_indkomst_kroner(grundlag) -> par3_stk2_nr10_brutto_fradrag_kroner(grundlag) under par3_stk2_nr10_selvstændig_person(grundlag)
 | par3_stk2_nr10_post_resultat(grundlag: Par3Stk2Nr10Grundlag) -> Par3Stk2Nr10PostResultat(
     hjemmel = par3_stk2_nr10_hjemmel(grundlag),
     selvstændig_erhvervsdrivende_person = par3_stk2_nr10_selvstændig_person(grundlag),
@@ -796,7 +796,7 @@ iværksætterkonto
 | par3_stk2_nr3_til_11_resultat(input: Par3Stk2Nr3Til11Input) -> par3_stk2_nr3_til_11_sag(input).resultat()
 
 # Par3UdligningsIndtægtsføringSag(resultat: VirksomhedsskattelovUdligningsIndtægtsføringResultat) {
-    | hjemmel() -> Par3Virksomhedsskattelov22BStk4Stk7Stk8
+    | hjemmel(): Par3UdligningsIndtægtsføringHjemmel -> Par3Virksomhedsskattelov22BStk4Stk7Stk8
     | exception par3_vsl22d_indtægtsføring hjemmel() -> Par3Virksomhedsskattelov22DStk2Stk3 under resultat.ordning == VslPar22DIndkomstudligning
     | resultat() -> Par3UdligningsIndtægtsføringResultat(
         indkomstår = resultat.indkomstår,
@@ -818,10 +818,10 @@ iværksætterkonto
     indgår_i_skattepligtig_indkomst = post.indgår_i_skattepligtig_indkomst,
     er_kapitalindkomst = post.er_kapitalindkomst
 ))
-| par3_indkomstpost_personlig_kroner(post: Par3Indkomstpost) -> 0
-| exception par3_indkomstpost_medregnes par3_indkomstpost_personlig_kroner(post: Par3Indkomstpost) -> post.beløb_kroner under par3_indkomstpost_er_personlig_indkomst(post)
-| par3_fradragspost_kroner(post: Par3Fradragspost) -> 0
-| exception par3_stk2_nr1_fradrag par3_fradragspost_kroner(post: Par3Fradragspost) -> par3_stk2_nr1_udgift_sag(Par3Stk2Nr1UdgiftInput(
+| par3_indkomstpost_personlig_kroner(post: Par3Indkomstpost): Int -> 0
+| exception par3_indkomstpost_medregnes par3_indkomstpost_personlig_kroner(post) -> post.beløb_kroner under par3_indkomstpost_er_personlig_indkomst(post)
+| par3_fradragspost_kroner(post: Par3Fradragspost): Int -> 0
+| exception par3_stk2_nr1_fradrag par3_fradragspost_kroner(post) -> par3_stk2_nr1_udgift_sag(Par3Stk2Nr1UdgiftInput(
     afgrænsning = post.stk2_nr1_afgrænsning,
     beløb_kroner = post.beløb_kroner
 )).fradrag_kroner() under post.art == ErhverveSikreVedligeholdeSelvstændigIndkomst
@@ -1153,29 +1153,29 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 | kapitalindkomst_omfatter(post: Kapitalpost) -> Sandt
 | kapitalomkostning_fradrages_i_kapitalindkomst() -> Sandt
 
-| kapitalpost_medregnes_personligt_ved_næring(post: Kapitalpost, status: Næringsstatus) -> Falskt
-| exception fordringsnæring kapitalpost_medregnes_personligt_ved_næring(post: Kapitalpost, status: Næringsstatus) -> Sandt under status == FordringsEllerKontraktNæring
-| exception finansieringsnæring kapitalpost_medregnes_personligt_ved_næring(post: Kapitalpost, status: Næringsstatus) -> Sandt under status == FinansieringsNæring
+| kapitalpost_medregnes_personligt_ved_næring(post: Kapitalpost, status: Næringsstatus): Bool -> Falskt
+| exception fordringsnæring kapitalpost_medregnes_personligt_ved_næring(post, status) -> Sandt under status == FordringsEllerKontraktNæring
+| exception finansieringsnæring kapitalpost_medregnes_personligt_ved_næring(post, status) -> Sandt under status == FinansieringsNæring
 
-| par4_reklassifikation_fra_næringsstatus(status: Næringsstatus) -> IngenPersonligReklassifikation
-| exception par4_stk3_fordrings_eller_kontraktnæring par4_reklassifikation_fra_næringsstatus(status: Næringsstatus) -> FordringsEllerKontraktNæringReklassifikation under status == FordringsEllerKontraktNæring
-| exception par4_stk3_finansieringsnæring par4_reklassifikation_fra_næringsstatus(status: Næringsstatus) -> FinansieringsNæringReklassifikation under status == FinansieringsNæring
+| par4_reklassifikation_fra_næringsstatus(status: Næringsstatus): KapitalPersonligReklassifikation -> IngenPersonligReklassifikation
+| exception par4_stk3_fordrings_eller_kontraktnæring par4_reklassifikation_fra_næringsstatus(status) -> FordringsEllerKontraktNæringReklassifikation under status == FordringsEllerKontraktNæring
+| exception par4_stk3_finansieringsnæring par4_reklassifikation_fra_næringsstatus(status) -> FinansieringsNæringReklassifikation under status == FinansieringsNæring
 
-| andelsudlodning_medregnes_personligt(udlodning: AndelsforeningUdlodning) -> Falskt
-| exception ikke_normal_forrentning andelsudlodning_medregnes_personligt(udlodning: AndelsforeningUdlodning) -> Sandt under udlodning == IkkeNormalForrentning
+| andelsudlodning_medregnes_personligt(udlodning: AndelsforeningUdlodning): Bool -> Falskt
+| exception ikke_normal_forrentning andelsudlodning_medregnes_personligt(udlodning) -> Sandt under udlodning == IkkeNormalForrentning
 
 | kapitalundtagelse_medregnes_personligt(undtagelse: KapitalTilPersonligUndtagelse) -> Sandt
 
-| udlejning_af_driftsmidler_regel_anvendes(anskaffelse: Anskaffelsesstatus, tilladelse: SkatterådsTilladelse, skøn: RådetsSkøn) -> Sandt
-| exception skatterådet_tillader udlejning_af_driftsmidler_regel_anvendes(anskaffelse: Anskaffelsesstatus, tilladelse: SkatterådsTilladelse, skøn: RådetsSkøn) -> Falskt under anskaffelse == Før19Maj1993 && tilladelse == TilladelseGivet && skøn == Godtgjort
+| udlejning_af_driftsmidler_regel_anvendes(anskaffelse: Anskaffelsesstatus, tilladelse: SkatterådsTilladelse, skøn: RådetsSkøn): Bool -> Sandt
+| exception skatterådet_tillader udlejning_af_driftsmidler_regel_anvendes(anskaffelse, tilladelse, skøn) -> Falskt under anskaffelse == Før19Maj1993 && tilladelse == TilladelseGivet && skøn == Godtgjort
 
-| medregnes_i_ejertal_par4_nr9(anvender_ligningslov8p: Boolsk) -> Sandt
-| exception vedvarende_energi medregnes_i_ejertal_par4_nr9(anvender_ligningslov8p: Boolsk) -> Falskt under anvender_ligningslov8p
+| medregnes_i_ejertal_par4_nr9(anvender_ligningslov8p: Boolsk): Bool -> Sandt
+| exception vedvarende_energi medregnes_i_ejertal_par4_nr9(anvender_ligningslov8p) -> Falskt under anvender_ligningslov8p
 
-| par4_reklassifikation_fra_kursgevinstlov(reklassifikation: KursgevinstlovPersonligReklassifikation) -> IngenPersonligReklassifikation
-| exception par4_kgl_fordrings_eller_kontraktnæring par4_reklassifikation_fra_kursgevinstlov(reklassifikation: KursgevinstlovPersonligReklassifikation) -> FordringsEllerKontraktNæringReklassifikation under reklassifikation == KglFordringsEllerKontraktNæring
-| exception par4_kgl_finansieringsnæring par4_reklassifikation_fra_kursgevinstlov(reklassifikation: KursgevinstlovPersonligReklassifikation) -> FinansieringsNæringReklassifikation under reklassifikation == KglFinansieringsNæring
-| exception par4_kgl_par17_fordringstab par4_reklassifikation_fra_kursgevinstlov(reklassifikation: KursgevinstlovPersonligReklassifikation) -> Kursgevinstlov17Fordringstab under reklassifikation == KglPar17Fordringstab
+| par4_reklassifikation_fra_kursgevinstlov(reklassifikation: KursgevinstlovPersonligReklassifikation): KapitalPersonligReklassifikation -> IngenPersonligReklassifikation
+| exception par4_kgl_fordrings_eller_kontraktnæring par4_reklassifikation_fra_kursgevinstlov(reklassifikation) -> FordringsEllerKontraktNæringReklassifikation under reklassifikation == KglFordringsEllerKontraktNæring
+| exception par4_kgl_finansieringsnæring par4_reklassifikation_fra_kursgevinstlov(reklassifikation) -> FinansieringsNæringReklassifikation under reklassifikation == KglFinansieringsNæring
+| exception par4_kgl_par17_fordringstab par4_reklassifikation_fra_kursgevinstlov(reklassifikation) -> Kursgevinstlov17Fordringstab under reklassifikation == KglPar17Fordringstab
 
 # Par4Stk1Nr1Sag(input: Par4Stk1Nr1Input) {
     | renteindtægter_kroner() -> penge_positivt_beløb(input.renteindtægter_kroner)
@@ -1233,10 +1233,10 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 | par4_stk1_nr2_kapitalpost_fra_kursgevinstlov(input: KursgevinstlovInput) -> par4_stk1_nr2_kapitalpost(par4_stk1_nr2_input_fra_kursgevinstlov(input))
 
 | par4_stk1_nr2_entydig_kgl_reklassifikation(resultat: KursgevinstPar32PersonÅrsresultat) -> hvis length(resultat.indkomstklassifikationer) == 1 { resultat.indkomstklassifikationer[0] } ellers { KglIngenPersonligReklassifikation }
-| par4_stk1_nr2_årsklassifikation(resultat: KursgevinstPar32PersonÅrsresultat) -> Par4Nr2ÅrKapitalindkomst
-| exception par4_stk1_nr2_ugyldig_par32_årsopgørelse par4_stk1_nr2_årsklassifikation(resultat: KursgevinstPar32PersonÅrsresultat) -> Par4Nr2ÅrUgyldigÅrsopgørelse under resultat.input_gyldigt == Falskt
-| exception par4_stk1_nr2_blandet_par32_indkomstklassifikation par4_stk1_nr2_årsklassifikation(resultat: KursgevinstPar32PersonÅrsresultat) -> Par4Nr2ÅrBlandetIndkomstklassifikation under resultat.input_gyldigt && resultat.indkomstklassifikation_entydig == Falskt
-| exception par4_stk3_entydig_personlig_par32_indkomst par4_stk1_nr2_årsklassifikation(resultat: KursgevinstPar32PersonÅrsresultat) -> Par4Nr2ÅrPersonligIndkomst(par4_reklassifikation_fra_kursgevinstlov(par4_stk1_nr2_entydig_kgl_reklassifikation(resultat))) under resultat.input_gyldigt && resultat.indkomstklassifikation_entydig && par4_stk1_nr2_entydig_kgl_reklassifikation(resultat) != KglIngenPersonligReklassifikation
+| par4_stk1_nr2_årsklassifikation(resultat: KursgevinstPar32PersonÅrsresultat): Par4Stk1Nr2Årsklassifikation -> Par4Nr2ÅrKapitalindkomst
+| exception par4_stk1_nr2_ugyldig_par32_årsopgørelse par4_stk1_nr2_årsklassifikation(resultat) -> Par4Nr2ÅrUgyldigÅrsopgørelse under resultat.input_gyldigt == Falskt
+| exception par4_stk1_nr2_blandet_par32_indkomstklassifikation par4_stk1_nr2_årsklassifikation(resultat) -> Par4Nr2ÅrBlandetIndkomstklassifikation under resultat.input_gyldigt && resultat.indkomstklassifikation_entydig == Falskt
+| exception par4_stk3_entydig_personlig_par32_indkomst par4_stk1_nr2_årsklassifikation(resultat) -> Par4Nr2ÅrPersonligIndkomst(par4_reklassifikation_fra_kursgevinstlov(par4_stk1_nr2_entydig_kgl_reklassifikation(resultat))) under resultat.input_gyldigt && resultat.indkomstklassifikation_entydig && par4_stk1_nr2_entydig_kgl_reklassifikation(resultat) != KglIngenPersonligReklassifikation
 | par4_stk1_nr2_klassificeret_post_netto_før_årsfordeling_kroner(post: KursgevinstPar32KlassificeretKontraktpost) -> post.skattepligtig_gevinst_kroner - post.direkte_fradragsberettiget_tab_kroner
 | par4_stk1_nr2_klassificeret_kapitalindkomst_før_årsfordeling_kroner(poster: List(KursgevinstPar32KlassificeretKontraktpost)) -> foldl(poster, 0, |sum: Heltal, post: KursgevinstPar32KlassificeretKontraktpost| sum + hvis post.personlig_reklassifikation == KglIngenPersonligReklassifikation { par4_stk1_nr2_klassificeret_post_netto_før_årsfordeling_kroner(post) } ellers { 0 })
 | par4_stk1_nr2_klassificeret_personlig_indkomst_før_årsfordeling_kroner(poster: List(KursgevinstPar32KlassificeretKontraktpost)) -> foldl(poster, 0, |sum: Heltal, post: KursgevinstPar32KlassificeretKontraktpost| sum + hvis post.personlig_reklassifikation != KglIngenPersonligReklassifikation { par4_stk1_nr2_klassificeret_post_netto_før_årsfordeling_kroner(post) } ellers { 0 })
@@ -1309,7 +1309,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     | overført_til_skattepligtig_inden_oplysningsfrist() -> input.skattekontrollov_oplysningsfrist_resultat.rettidigt
     | medregnet_personlig_indkomst_efter_par23a_kroner() -> input.virksomhedsskattelov23a_resultat.personlig_indkomst_kroner
     | kapitalafkast_efter_par23a_kroner() -> penge_positivt_beløb(brutto_kapitalafkast_kroner() - medregnet_personlig_indkomst_efter_par23a_kroner())
-    | kapitalindkomst_kroner() -> 0
+    | kapitalindkomst_kroner(): Int -> 0
     | exception par4_stk1_nr3_overført_resterende_kapitalafkast kapitalindkomst_kroner() -> kapitalafkast_efter_par23a_kroner() under overført_til_skattepligtig_inden_oplysningsfrist()
     | resultat() -> Par4Stk1Nr3Resultat(
         brutto_kapitalafkast_kroner = brutto_kapitalafkast_kroner(),
@@ -1413,7 +1413,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
         | None -> Sandt
     }
     | ikke_aktieindkomst_efter_par4a() -> par4a_samme_udbyttepost() && input.par4a_aktiepost_resultat.medregnes_i_aktieindkomst == Falskt
-    | personlig_reklassifikation() -> IngenPersonligReklassifikation
+    | personlig_reklassifikation(): KapitalPersonligReklassifikation -> IngenPersonligReklassifikation
     | exception par4_stk4_andelsudlodning_ikke_normal personlig_reklassifikation() -> AndelsUdlodningIkkeNormal under andelsudlodning_medregnes_personligt(input.andelsforening_udlodning)
     | exception par4_stk5_aktieavance19c_hvis17 personlig_reklassifikation() -> Aktieavance19CHvis17Aktier under match aktieavance_aktivklassifikation_resultat() {
         | Some(resultat) -> resultat.input_gyldigt && resultat.effektiv_aktiv == AblInvesteringsselskab19C && resultat.ville_være_omfattet_af_par17_uden_investeringsstatus
@@ -1424,9 +1424,9 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
         | None -> Falskt
     }
     | omfattet_af_kapitalindkomst() -> input.ligningslov16a_resultat.omfattet_af_par16a_udbytte && aktieavance_aktivklassifikation_gyldig() && aktieavance_aktivklassifikation_tillader_kapitalindkomst() && ikke_aktieindkomst_efter_par4a() && input.par4a_aktiepost_resultat.personlig_indkomst_kroner == 0 && personlig_reklassifikation() == IngenPersonligReklassifikation
-    | kapitalindkomst_kroner() -> 0
+    | kapitalindkomst_kroner(): Int -> 0
     | exception par4_stk1_nr4_udbytte_ikke_aktieindkomst kapitalindkomst_kroner() -> skattepligtigt_udbytte_kroner() under omfattet_af_kapitalindkomst()
-    | postbeløb_kroner() -> 0
+    | postbeløb_kroner(): Int -> 0
     | exception par4_stk1_nr4_kapitalpost postbeløb_kroner() -> skattepligtigt_udbytte_kroner() under omfattet_af_kapitalindkomst()
     | exception par4_stk4_til_7_personlig_post postbeløb_kroner() -> skattepligtigt_udbytte_kroner() under personlig_reklassifikation() != IngenPersonligReklassifikation
     | resultat() -> Par4Stk1Nr4Resultat(
@@ -1467,19 +1467,19 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 | par4_stk1_nr4_kapitalpost_fra_ligningslov16a(input: Ligningslov16AInput, par4a_afgrænsning: AktiepostStk1Og2Afgrænsning, andelsforening_udlodning: AndelsforeningUdlodning) -> par4_stk1_nr4_kapitalpost(par4_stk1_nr4_input_fra_ligningslov16a(input, par4a_afgrænsning, andelsforening_udlodning))
 | par4_stk1_nr4_kapitalpost_fra_ligningslov16a_resultat(ligningslov16a_resultat: Ligningslov16AResultat, par4a_afgrænsning: AktiepostStk1Og2Afgrænsning, andelsforening_udlodning: AndelsforeningUdlodning) -> par4_stk1_nr4_kapitalpost(par4_stk1_nr4_input_fra_ligningslov16a_resultat(ligningslov16a_resultat, par4a_afgrænsning, andelsforening_udlodning))
 
-| par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> IngenPersonligReklassifikation
-| exception par4_stk1_nr5_par17_til_personlig par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> Aktieavance17Aktier under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblNæringsaktiePar17
-| exception par4_stk1_nr5_par19c_hvis17_til_personlig par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> Aktieavance19CHvis17Aktier under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblInvesteringsselskab19C
-| exception par4_stk1_nr5_par22_efter17_til_personlig par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> Aktieavance22Efter17 under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblMinimumsbevis22
+| par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat): KapitalPersonligReklassifikation -> IngenPersonligReklassifikation
+| exception par4_stk1_nr5_par17_til_personlig par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat) -> Aktieavance17Aktier under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblNæringsaktiePar17
+| exception par4_stk1_nr5_par19c_hvis17_til_personlig par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat) -> Aktieavance19CHvis17Aktier under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblInvesteringsselskab19C
+| exception par4_stk1_nr5_par22_efter17_til_personlig par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat) -> Aktieavance22Efter17 under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblMinimumsbevis22
 
 # Par4Stk1Nr5Sag(input: Par4Stk1Nr5Input) {
     | effektiv_aktiv() -> input.aktieavancebeskatningslov_resultat.effektiv_aktiv
     | skattepligtig_gevinst_kroner() -> input.aktieavancebeskatningslov_resultat.skattepligtig_gevinst_kroner
     | fradragsberettiget_tab_kroner() -> input.aktieavancebeskatningslov_resultat.fradragsberettiget_tab_kroner
     | personlig_reklassifikation() -> par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(input.aktieavancebeskatningslov_resultat)
-    | kapitalindkomst_kroner() -> 0
+    | kapitalindkomst_kroner(): Int -> 0
     | exception par4_stk1_nr5_abl18_19c_22_kapital kapitalindkomst_kroner() -> input.aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner under input.aktieavancebeskatningslov_resultat.personskattelov_kategori == AblKapitalindkomstEfterPslPar4Nr5
-    | postbeløb_kroner() -> 0
+    | postbeløb_kroner(): Int -> 0
     | exception par4_stk1_nr5_kapitalpost postbeløb_kroner() -> input.aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner under input.aktieavancebeskatningslov_resultat.personskattelov_kategori == AblKapitalindkomstEfterPslPar4Nr5
     | exception par4_stk5_personlig_post postbeløb_kroner() -> input.aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner under personlig_reklassifikation() != IngenPersonligReklassifikation
     | resultat() -> Par4Stk1Nr5Resultat(
@@ -1509,7 +1509,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     | skattepligtig_efter_selskabsskattelov1_stk1_nr6() -> input.selskabsskattelov1_stk1_nr6_resultat.skattepligtig_efter_par1_stk1_nr6
     | investeringsforening() -> input.selskabsskattelov1_stk1_nr6_resultat.investeringsforening
     | omfattet_af_kapitalindkomst() -> skattepligtig_efter_selskabsskattelov1_stk1_nr6() && investeringsforening() == Falskt
-    | kapitalindkomst_kroner() -> 0
+    | kapitalindkomst_kroner(): Int -> 0
     | exception par4_stk1_nr5a_medlemsbevis kapitalindkomst_kroner() -> input.beløb_kroner under omfattet_af_kapitalindkomst()
     | resultat() -> Par4Stk1Nr5aResultat(
         selskabsskattelov_hjemmel = selskabsskattelov_hjemmel(),
@@ -1533,20 +1533,20 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     personlig_indkomst_tillæg_kroner = 0
 )
 
-| par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Falskt
-| exception par4_stk1_nr5b_pengeinstitut par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Sandt under formidler == Par4Nr5bPengeinstitut
-| exception par4_stk1_nr5b_realkreditinstitut par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Sandt under formidler == Par4Nr5bRealkreditinstitut
-| exception par4_stk1_nr5b_fondsmægler par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Sandt under formidler == Par4Nr5bFondsmæglerselskab
-| exception par4_stk1_nr5b_investeringsforvaltning par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Sandt under formidler == Par4Nr5bInvesteringsforvaltningsselskab
-| exception par4_stk1_nr5b_alternativ_fond_forvalter par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Sandt under formidler == Par4Nr5bForvalterAfAlternativeInvesteringsfonde
-| exception par4_stk1_nr5b_finansiel_rådgiver par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Sandt under formidler == Par4Nr5bFinansielRådgiver
-| exception par4_stk1_nr5b_investeringsrådgiver par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Sandt under formidler == Par4Nr5bInvesteringsrådgiver
-| par4_stk1_nr5b_aktiv_fra_aktieavanceklassifikation(resultat: AktieavanceAktivklassifikationResultat) -> Par4Nr5bAndet
-| exception par4_stk1_nr5b_aktiv_19c par4_stk1_nr5b_aktiv_fra_aktieavanceklassifikation(resultat: AktieavanceAktivklassifikationResultat) -> Par4Nr5bAktieEllerInvesteringsbevis19C under resultat.input_gyldigt && resultat.effektiv_aktiv == AblInvesteringsselskab19C
-| exception par4_stk1_nr5b_aktiv_22 par4_stk1_nr5b_aktiv_fra_aktieavanceklassifikation(resultat: AktieavanceAktivklassifikationResultat) -> Par4Nr5bInvesteringsbevis22 under resultat.input_gyldigt && resultat.effektiv_aktiv == AblMinimumsbevis22
-| par4_stk1_nr5b_aktiv_omfattet(aktiv: Par4Stk1Nr5bAktiv) -> Falskt
-| exception par4_stk1_nr5b_19c_aktiv par4_stk1_nr5b_aktiv_omfattet(aktiv: Par4Stk1Nr5bAktiv) -> Sandt under aktiv == Par4Nr5bAktieEllerInvesteringsbevis19C
-| exception par4_stk1_nr5b_22_bevis par4_stk1_nr5b_aktiv_omfattet(aktiv: Par4Stk1Nr5bAktiv) -> Sandt under aktiv == Par4Nr5bInvesteringsbevis22
+| par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler): Bool -> Falskt
+| exception par4_stk1_nr5b_pengeinstitut par4_stk1_nr5b_formidler_nævnt(formidler) -> Sandt under formidler == Par4Nr5bPengeinstitut
+| exception par4_stk1_nr5b_realkreditinstitut par4_stk1_nr5b_formidler_nævnt(formidler) -> Sandt under formidler == Par4Nr5bRealkreditinstitut
+| exception par4_stk1_nr5b_fondsmægler par4_stk1_nr5b_formidler_nævnt(formidler) -> Sandt under formidler == Par4Nr5bFondsmæglerselskab
+| exception par4_stk1_nr5b_investeringsforvaltning par4_stk1_nr5b_formidler_nævnt(formidler) -> Sandt under formidler == Par4Nr5bInvesteringsforvaltningsselskab
+| exception par4_stk1_nr5b_alternativ_fond_forvalter par4_stk1_nr5b_formidler_nævnt(formidler) -> Sandt under formidler == Par4Nr5bForvalterAfAlternativeInvesteringsfonde
+| exception par4_stk1_nr5b_finansiel_rådgiver par4_stk1_nr5b_formidler_nævnt(formidler) -> Sandt under formidler == Par4Nr5bFinansielRådgiver
+| exception par4_stk1_nr5b_investeringsrådgiver par4_stk1_nr5b_formidler_nævnt(formidler) -> Sandt under formidler == Par4Nr5bInvesteringsrådgiver
+| par4_stk1_nr5b_aktiv_fra_aktieavanceklassifikation(resultat: AktieavanceAktivklassifikationResultat): Par4Stk1Nr5bAktiv -> Par4Nr5bAndet
+| exception par4_stk1_nr5b_aktiv_19c par4_stk1_nr5b_aktiv_fra_aktieavanceklassifikation(resultat) -> Par4Nr5bAktieEllerInvesteringsbevis19C under resultat.input_gyldigt && resultat.effektiv_aktiv == AblInvesteringsselskab19C
+| exception par4_stk1_nr5b_aktiv_22 par4_stk1_nr5b_aktiv_fra_aktieavanceklassifikation(resultat) -> Par4Nr5bInvesteringsbevis22 under resultat.input_gyldigt && resultat.effektiv_aktiv == AblMinimumsbevis22
+| par4_stk1_nr5b_aktiv_omfattet(aktiv: Par4Stk1Nr5bAktiv): Bool -> Falskt
+| exception par4_stk1_nr5b_19c_aktiv par4_stk1_nr5b_aktiv_omfattet(aktiv) -> Sandt under aktiv == Par4Nr5bAktieEllerInvesteringsbevis19C
+| exception par4_stk1_nr5b_22_bevis par4_stk1_nr5b_aktiv_omfattet(aktiv) -> Sandt under aktiv == Par4Nr5bInvesteringsbevis22
 
 # Par4Stk1Nr5bSag(input: Par4Stk1Nr5bInput) {
     | aktivklassifikation_resultat() -> aktieavance_aktivklassifikation_resultat(input.aktieavance_aktivklassifikation_input)
@@ -1554,12 +1554,12 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     | formidler_nævnt_i_nr5b() -> par4_stk1_nr5b_formidler_nævnt(input.formidler)
     | aktiv_omfattet_af_nr5b() -> par4_stk1_nr5b_aktiv_omfattet(aktiv())
     | omfattet_af_par4_nr5b() -> formidler_nævnt_i_nr5b() && input.formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut && aktiv_omfattet_af_nr5b()
-    | personlig_reklassifikation() -> IngenPersonligReklassifikation
+    | personlig_reklassifikation(): KapitalPersonligReklassifikation -> IngenPersonligReklassifikation
     | exception par4_stk6_formidler_19c_hvis17_til_personlig personlig_reklassifikation() -> Investeringsformidler19CHvis17Aktier under omfattet_af_par4_nr5b() && aktiv() == Par4Nr5bAktieEllerInvesteringsbevis19C && aktivklassifikation_resultat().ville_være_omfattet_af_par17_uden_investeringsstatus
     | omfattet_af_kapitalindkomst() -> omfattet_af_par4_nr5b() && personlig_reklassifikation() == IngenPersonligReklassifikation
-    | kapitalindkomst_kroner() -> 0
+    | kapitalindkomst_kroner(): Int -> 0
     | exception par4_stk1_nr5b_formidlerbeløb kapitalindkomst_kroner() -> penge_positivt_beløb(input.beløb_kroner) under omfattet_af_kapitalindkomst()
-    | postbeløb_kroner() -> 0
+    | postbeløb_kroner(): Int -> 0
     | exception par4_stk1_nr5b_postbeløb postbeløb_kroner() -> penge_positivt_beløb(input.beløb_kroner) under omfattet_af_par4_nr5b()
     | resultat() -> Par4Stk1Nr5bResultat(
         formidler = input.formidler,
@@ -1610,7 +1610,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     | ejendomsskattelov_hjemmel() -> input.ejendomsskattelov_par3_resultat.stk1_hjemmel
     | omfattet_af_ejendomsskattelov_par3() -> input.ejendomsskattelov_par3_resultat.omfattet_af_ejendomsværdiskat
     | omfattet_af_kapitalindkomst() -> input.ejendomsskattelov_par3_resultat.omfattet_af_personskattelov_par4_nr6
-    | kapitalindkomst_kroner() -> 0
+    | kapitalindkomst_kroner(): Int -> 0
     | exception par4_stk1_nr6_ejendomsoverskud_underskud kapitalindkomst_kroner() -> input.overskud_eller_underskud_kroner under omfattet_af_kapitalindkomst()
     | ikke_omfattet_af_par4_nr6_kroner() -> input.overskud_eller_underskud_kroner - kapitalindkomst_kroner()
     | resultat() -> Par4Stk1Nr6Resultat(
@@ -1708,12 +1708,12 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 # Par4Stk1Nr9Sag(input: Par4Stk1Nr9Input) {
     | effektivt_ejerantal() -> penge_positivt_beløb(input.samlet_ejerantal - input.ligningslov8p_ejere_der_ikke_medregnes)
     | effektivt_personligt_ejerantal() -> penge_positivt_beløb(input.personligt_ejerantal - input.ligningslov8p_ejere_der_ikke_medregnes)
-    | ejergrænse_opfyldt() -> Falskt
+    | ejergrænse_opfyldt(): Bool -> Falskt
     | exception almindelig_virksomhed_over_ti_ejere ejergrænse_opfyldt() -> Sandt under input.virksomhedstype == AlmindeligSelvstændigVirksomhed && effektivt_ejerantal() > 10
     | exception ligningslov8k_over_to_personlige_ejere ejergrænse_opfyldt() -> Sandt under input.virksomhedstype == Ligningslov8KStk2SelvstændigVirksomhed && effektivt_personligt_ejerantal() > 2
     | væsentlig_deltagelse_afskærer() -> input.deltager_væsentligt_i_drift
     | omfattet_af_kapitalindkomst() -> ejergrænse_opfyldt() && væsentlig_deltagelse_afskærer() == Falskt
-    | kapitalindkomst_kroner() -> 0
+    | kapitalindkomst_kroner(): Int -> 0
     | exception par4_stk1_nr9_passiv_indkomst kapitalindkomst_kroner() -> input.beløb_kroner under omfattet_af_kapitalindkomst()
     | ikke_omfattet_af_par4_nr9_kroner() -> input.beløb_kroner - kapitalindkomst_kroner()
     | resultat() -> Par4Stk1Nr9Resultat(
@@ -1768,7 +1768,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     | stk8_tilladelse_afskærer() -> stk8_regel_anvendes() == Falskt
     | væsentlig_deltagelse_afskærer() -> input.deltager_væsentligt_i_drift
     | omfattet_af_kapitalindkomst() -> aktiv_omfattet() && stk8_regel_anvendes() && væsentlig_deltagelse_afskærer() == Falskt
-    | kapitalindkomst_kroner() -> 0
+    | kapitalindkomst_kroner(): Int -> 0
     | exception par4_stk1_nr11_udlejning_indkomst kapitalindkomst_kroner() -> input.beløb_kroner under omfattet_af_kapitalindkomst()
     | ikke_omfattet_af_par4_nr11_kroner() -> input.beløb_kroner - kapitalindkomst_kroner()
     | resultat() -> Par4Stk1Nr11Resultat(
@@ -1822,7 +1822,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     | omfattet_af_pensionsbeskatningslov53a_stk3() -> input.pensionsbeskatningslov53a_resultat.omfattet_af_stk1 && input.pensionsbeskatningslov53a_resultat.undtaget_efter_stk4 == Falskt
     | skattepligtigt_afkast_kroner() -> input.pensionsbeskatningslov53a_resultat.skattepligtigt_afkast_kroner
     | fremført_negativt_afkast_ultimo_kroner() -> input.pensionsbeskatningslov53a_resultat.fremført_negativt_afkast_ultimo_kroner
-    | kapitalindkomst_kroner() -> 0
+    | kapitalindkomst_kroner(): Int -> 0
     | exception par4_stk1_nr13_pbl53a_afkast kapitalindkomst_kroner() -> input.pensionsbeskatningslov53a_resultat.kapitalindkomst_kroner under omfattet_af_pensionsbeskatningslov53a_stk3()
     | resultat() -> Par4Stk1Nr13Resultat(
         omfattet_af_pensionsbeskatningslov53a_stk3 = omfattet_af_pensionsbeskatningslov53a_stk3(),
@@ -1850,7 +1850,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     | undtaget_efter_ejendomsavancebeskatningslov11() -> input.ejendomsavancebeskatningslov_resultat.undtaget_efter_par11
     | skattepligtig_fortjeneste_kroner() -> input.ejendomsavancebeskatningslov_resultat.skattepligtig_fortjeneste_kroner
     | tab_kroner() -> input.ejendomsavancebeskatningslov_resultat.tab_kroner
-    | kapitalindkomst_kroner() -> 0
+    | kapitalindkomst_kroner(): Int -> 0
     | exception par4_stk1_nr14_ejendomsavance kapitalindkomst_kroner() -> input.ejendomsavancebeskatningslov_resultat.skattepligtig_fortjeneste_kroner under skattepligtig_efter_ejendomsavancebeskatningsloven()
     | resultat() -> Par4Stk1Nr14Resultat(
         skattepligtig_efter_ejendomsavancebeskatningsloven = skattepligtig_efter_ejendomsavancebeskatningsloven(),
@@ -1903,7 +1903,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     | omfattet_af_ligningslov12b_stk4_til_7_eller_9() -> input.ligningslov12b_resultat.omfattet_af_stk4_til_7_eller_9
     | skattepligtige_beløb_kroner() -> input.ligningslov12b_resultat.modtager_skattepligtigt_kroner + input.ligningslov12b_resultat.yder_skattepligtigt_kroner
     | fradragsberettigede_beløb_kroner() -> input.ligningslov12b_resultat.modtager_fradrag_kroner + input.ligningslov12b_resultat.yder_fradrag_kroner
-    | kapitalindkomst_kroner() -> 0
+    | kapitalindkomst_kroner(): Int -> 0
     | exception par4_stk1_nr15_ll12b_beløb kapitalindkomst_kroner() -> input.ligningslov12b_resultat.netto_skattepligtigt_eller_fradragsberettiget_kroner under omfattet_af_ligningslov12b_stk4_til_7_eller_9()
     | resultat() -> Par4Stk1Nr15Resultat(
         omfattet_af_ligningslov12b_stk4_til_7_eller_9 = omfattet_af_ligningslov12b_stk4_til_7_eller_9(),
@@ -1930,7 +1930,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     | omfattet_af_afskrivningslov40c() -> input.afskrivningslov40c_resultat.omfattet_af_par40c
     | skattepligtige_beløb_kroner() -> input.afskrivningslov40c_resultat.skattepligtigt_beløb_kroner
     | fradragsberettigede_beløb_kroner() -> input.afskrivningslov40c_resultat.fradragsberettiget_beløb_kroner
-    | kapitalindkomst_kroner() -> 0
+    | kapitalindkomst_kroner(): Int -> 0
     | exception par4_stk1_nr16_al40c_beløb kapitalindkomst_kroner() -> input.afskrivningslov40c_resultat.netto_skattepligtigt_eller_fradragsberettiget_kroner under omfattet_af_afskrivningslov40c()
     | resultat() -> Par4Stk1Nr16Resultat(
         omfattet_af_afskrivningslov40c = omfattet_af_afskrivningslov40c(),
@@ -1953,12 +1953,12 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 )
 | par4_stk1_nr16_kapitalpost_fra_afskrivningslov40c(input: Afskrivningslov40CInput) -> par4_stk1_nr16_kapitalpost(par4_stk1_nr16_input_fra_afskrivningslov40c(input))
 
-| par4_stk1_nr17_lejer_eller_andelshaver(rolle: Par4Stk1Nr17Boligrolle) -> Falskt
-| exception par4_stk1_nr17_lejer par4_stk1_nr17_lejer_eller_andelshaver(rolle: Par4Stk1Nr17Boligrolle) -> Sandt under rolle == Lejer
-| exception par4_stk1_nr17_andelshaver par4_stk1_nr17_lejer_eller_andelshaver(rolle: Par4Stk1Nr17Boligrolle) -> Sandt under rolle == Andelshaver
-| par4_stk1_nr17_ligningslov15q_omfattet(afgrænsning: Par4Stk1Nr17Ligningslov15QAfgrænsning) -> Falskt
-| exception par4_stk1_nr17_ligningslov15q_stk1 par4_stk1_nr17_ligningslov15q_omfattet(afgrænsning: Par4Stk1Nr17Ligningslov15QAfgrænsning) -> Sandt under afgrænsning == Ligningslov15QStk1
-| exception par4_stk1_nr17_ligningslov15q_stk3 par4_stk1_nr17_ligningslov15q_omfattet(afgrænsning: Par4Stk1Nr17Ligningslov15QAfgrænsning) -> Sandt under afgrænsning == Ligningslov15QStk3
+| par4_stk1_nr17_lejer_eller_andelshaver(rolle: Par4Stk1Nr17Boligrolle): Bool -> Falskt
+| exception par4_stk1_nr17_lejer par4_stk1_nr17_lejer_eller_andelshaver(rolle) -> Sandt under rolle == Lejer
+| exception par4_stk1_nr17_andelshaver par4_stk1_nr17_lejer_eller_andelshaver(rolle) -> Sandt under rolle == Andelshaver
+| par4_stk1_nr17_ligningslov15q_omfattet(afgrænsning: Par4Stk1Nr17Ligningslov15QAfgrænsning): Bool -> Falskt
+| exception par4_stk1_nr17_ligningslov15q_stk1 par4_stk1_nr17_ligningslov15q_omfattet(afgrænsning) -> Sandt under afgrænsning == Ligningslov15QStk1
+| exception par4_stk1_nr17_ligningslov15q_stk3 par4_stk1_nr17_ligningslov15q_omfattet(afgrænsning) -> Sandt under afgrænsning == Ligningslov15QStk3
 
 # Par4Stk1Nr17Sag(input: Par4Stk1Nr17Input) {
     | lejer_eller_andelshaver() -> par4_stk1_nr17_lejer_eller_andelshaver(input.rolle)
@@ -1967,7 +1967,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     | ligningslov15q_fradrag_kroner() -> penge_positivt_beløb(input.ligningslov15q_fradrag_kroner)
     | overskud_efter_ligningslov15q_kroner() -> penge_positivt_beløb(bruttolejeindtægt_kroner() - ligningslov15q_fradrag_kroner())
     | omfattet_af_kapitalindkomst() -> lejer_eller_andelshaver() && omfattet_af_ligningslov15q() && overskud_efter_ligningslov15q_kroner() > 0
-    | kapitalindkomst_kroner() -> 0
+    | kapitalindkomst_kroner(): Int -> 0
     | exception par4_stk1_nr17_fremleje_overskud kapitalindkomst_kroner() -> overskud_efter_ligningslov15q_kroner() under omfattet_af_kapitalindkomst()
     | ikke_omfattet_af_par4_nr17_kroner() -> overskud_efter_ligningslov15q_kroner() - kapitalindkomst_kroner()
     | resultat() -> Par4Stk1Nr17Resultat(
@@ -1992,12 +1992,12 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     personlig_indkomst_tillæg_kroner = 0
 )
 
-| par4_stk1_nr17_rolle_fra_ligningslov15q(rolle: Ligningslov15QBoligrolle) -> EjerEllerAnden
-| exception par4_stk1_nr17_ll15q_lejer par4_stk1_nr17_rolle_fra_ligningslov15q(rolle: Ligningslov15QBoligrolle) -> Lejer under rolle == Ll15QLejer
-| exception par4_stk1_nr17_ll15q_andelshaver par4_stk1_nr17_rolle_fra_ligningslov15q(rolle: Ligningslov15QBoligrolle) -> Andelshaver under rolle == Ll15QAndelshaver
-| par4_stk1_nr17_afgrænsning_fra_ligningslov15q(resultat: Ligningslov15QResultat) -> IkkeLigningslov15Q
-| exception par4_stk1_nr17_ll15q_stk1 par4_stk1_nr17_afgrænsning_fra_ligningslov15q(resultat: Ligningslov15QResultat) -> Ligningslov15QStk1 under resultat.stk1_anvendelig
-| exception par4_stk1_nr17_ll15q_stk3 par4_stk1_nr17_afgrænsning_fra_ligningslov15q(resultat: Ligningslov15QResultat) -> Ligningslov15QStk3 under resultat.stk3_anvendelig
+| par4_stk1_nr17_rolle_fra_ligningslov15q(rolle: Ligningslov15QBoligrolle): Par4Stk1Nr17Boligrolle -> EjerEllerAnden
+| exception par4_stk1_nr17_ll15q_lejer par4_stk1_nr17_rolle_fra_ligningslov15q(rolle) -> Lejer under rolle == Ll15QLejer
+| exception par4_stk1_nr17_ll15q_andelshaver par4_stk1_nr17_rolle_fra_ligningslov15q(rolle) -> Andelshaver under rolle == Ll15QAndelshaver
+| par4_stk1_nr17_afgrænsning_fra_ligningslov15q(resultat: Ligningslov15QResultat): Par4Stk1Nr17Ligningslov15QAfgrænsning -> IkkeLigningslov15Q
+| exception par4_stk1_nr17_ll15q_stk1 par4_stk1_nr17_afgrænsning_fra_ligningslov15q(resultat) -> Ligningslov15QStk1 under resultat.stk1_anvendelig
+| exception par4_stk1_nr17_ll15q_stk3 par4_stk1_nr17_afgrænsning_fra_ligningslov15q(resultat) -> Ligningslov15QStk3 under resultat.stk3_anvendelig
 
 # Par4Stk1Nr17FraLigningslov15QSag(input: Ligningslov15QInput) {
     | ll15q_resultat() -> ligningslov15q_resultat(input)
@@ -2014,30 +2014,30 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 | par4_stk1_nr17_resultat_fra_ligningslov15q(input: Ligningslov15QInput) -> par4_stk1_nr17_fra_ligningslov15q_sag(input).par4_resultat()
 | par4_stk1_nr17_kapitalpost_fra_ligningslov15q(input: Ligningslov15QInput) -> par4_stk1_nr17_kapitalpost(par4_stk1_nr17_input_fra_ligningslov15q(input))
 
-| par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Falskt
-| exception par4_stk3_fordrings_eller_kontraktnæring par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == FordringsEllerKontraktNæringReklassifikation
-| exception par4_stk3_finansieringsnæring par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == FinansieringsNæringReklassifikation
-| exception par4_stk3_kursgevinstlov17_tab par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == Kursgevinstlov17Fordringstab
-| exception par4_stk4_andelsudlodning_ikke_normal par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == AndelsUdlodningIkkeNormal
-| exception par4_stk5_aktieavance17 par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == Aktieavance17Aktier
-| exception par4_stk5_aktieavance19c_hvis17 par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == Aktieavance19CHvis17Aktier
-| exception par4_stk5_aktieavance22_efter17 par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == Aktieavance22Efter17
-| exception par4_stk6_investeringsformidler19c_hvis17 par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == Investeringsformidler19CHvis17Aktier
-| exception par4_stk7_medarbejderinvesteringsselskab par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == MedarbejderinvesteringsselskabAndel
+| par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation): Bool -> Falskt
+| exception par4_stk3_fordrings_eller_kontraktnæring par4_reklassifikation_til_personlig_indkomst(reklassifikation) -> Sandt under reklassifikation == FordringsEllerKontraktNæringReklassifikation
+| exception par4_stk3_finansieringsnæring par4_reklassifikation_til_personlig_indkomst(reklassifikation) -> Sandt under reklassifikation == FinansieringsNæringReklassifikation
+| exception par4_stk3_kursgevinstlov17_tab par4_reklassifikation_til_personlig_indkomst(reklassifikation) -> Sandt under reklassifikation == Kursgevinstlov17Fordringstab
+| exception par4_stk4_andelsudlodning_ikke_normal par4_reklassifikation_til_personlig_indkomst(reklassifikation) -> Sandt under reklassifikation == AndelsUdlodningIkkeNormal
+| exception par4_stk5_aktieavance17 par4_reklassifikation_til_personlig_indkomst(reklassifikation) -> Sandt under reklassifikation == Aktieavance17Aktier
+| exception par4_stk5_aktieavance19c_hvis17 par4_reklassifikation_til_personlig_indkomst(reklassifikation) -> Sandt under reklassifikation == Aktieavance19CHvis17Aktier
+| exception par4_stk5_aktieavance22_efter17 par4_reklassifikation_til_personlig_indkomst(reklassifikation) -> Sandt under reklassifikation == Aktieavance22Efter17
+| exception par4_stk6_investeringsformidler19c_hvis17 par4_reklassifikation_til_personlig_indkomst(reklassifikation) -> Sandt under reklassifikation == Investeringsformidler19CHvis17Aktier
+| exception par4_stk7_medarbejderinvesteringsselskab par4_reklassifikation_til_personlig_indkomst(reklassifikation) -> Sandt under reklassifikation == MedarbejderinvesteringsselskabAndel
 | par4_kapitalpost_reklassificeres_til_personlig_indkomst(post: Par4Kapitalpost) -> par4_reklassifikation_til_personlig_indkomst(post.personlig_reklassifikation)
-| par4_kapitalpost_i_kapitalindkomst_kroner(post: Par4Kapitalpost) -> post.beløb_kroner
-| exception par4_stk3_til_7_reklassificeret_ikke_kapital par4_kapitalpost_i_kapitalindkomst_kroner(post: Par4Kapitalpost) -> 0 under par4_kapitalpost_reklassificeres_til_personlig_indkomst(post)
-| par4_kapitalpost_i_personlig_indkomst_kroner(post: Par4Kapitalpost) -> 0
-| exception par4_stk3_til_7_reklassificeret_personlig par4_kapitalpost_i_personlig_indkomst_kroner(post: Par4Kapitalpost) -> post.beløb_kroner under par4_kapitalpost_reklassificeres_til_personlig_indkomst(post)
+| par4_kapitalpost_i_kapitalindkomst_kroner(post: Par4Kapitalpost): Int -> post.beløb_kroner
+| exception par4_stk3_til_7_reklassificeret_ikke_kapital par4_kapitalpost_i_kapitalindkomst_kroner(post) -> 0 under par4_kapitalpost_reklassificeres_til_personlig_indkomst(post)
+| par4_kapitalpost_i_personlig_indkomst_kroner(post: Par4Kapitalpost): Int -> 0
+| exception par4_stk3_til_7_reklassificeret_personlig par4_kapitalpost_i_personlig_indkomst_kroner(post) -> post.beløb_kroner under par4_kapitalpost_reklassificeres_til_personlig_indkomst(post)
 | par4_kapitalpost_personlig_indkomst_tillæg_kroner(post: Par4Kapitalpost) -> penge_positivt_beløb(post.personlig_indkomst_tillæg_kroner)
 
-| par4_stk2_kapitalindkomstformål_opfyldt(anvendelse: Par4Stk2Omkostningsanvendelse) -> Falskt
-| exception par4_stk2_erhverve_kapitalindkomst par4_stk2_kapitalindkomstformål_opfyldt(anvendelse: Par4Stk2Omkostningsanvendelse) -> Sandt under anvendelse == Par4Stk2ErhverveKapitalindkomst
-| exception par4_stk2_sikre_kapitalindkomst par4_stk2_kapitalindkomstformål_opfyldt(anvendelse: Par4Stk2Omkostningsanvendelse) -> Sandt under anvendelse == Par4Stk2SikreKapitalindkomst
-| exception par4_stk2_vedligeholde_kapitalindkomst par4_stk2_kapitalindkomstformål_opfyldt(anvendelse: Par4Stk2Omkostningsanvendelse) -> Sandt under anvendelse == Par4Stk2VedligeholdeKapitalindkomst
+| par4_stk2_kapitalindkomstformål_opfyldt(anvendelse: Par4Stk2Omkostningsanvendelse): Bool -> Falskt
+| exception par4_stk2_erhverve_kapitalindkomst par4_stk2_kapitalindkomstformål_opfyldt(anvendelse) -> Sandt under anvendelse == Par4Stk2ErhverveKapitalindkomst
+| exception par4_stk2_sikre_kapitalindkomst par4_stk2_kapitalindkomstformål_opfyldt(anvendelse) -> Sandt under anvendelse == Par4Stk2SikreKapitalindkomst
+| exception par4_stk2_vedligeholde_kapitalindkomst par4_stk2_kapitalindkomstformål_opfyldt(anvendelse) -> Sandt under anvendelse == Par4Stk2VedligeholdeKapitalindkomst
 
-| par4_stk2_ligningslov17c_indkomsttilknytning(anvendelse: Par4Stk2Omkostningsanvendelse) -> Ll17CAndenIndkomst
-| exception par4_stk2_kapitalindkomsttilknytning par4_stk2_ligningslov17c_indkomsttilknytning(anvendelse: Par4Stk2Omkostningsanvendelse) -> Ll17CKapitalindkomst under par4_stk2_kapitalindkomstformål_opfyldt(anvendelse)
+| par4_stk2_ligningslov17c_indkomsttilknytning(anvendelse: Par4Stk2Omkostningsanvendelse): Ligningslov17CIndkomsttilknytning -> Ll17CAndenIndkomst
+| exception par4_stk2_kapitalindkomsttilknytning par4_stk2_ligningslov17c_indkomsttilknytning(anvendelse) -> Ll17CKapitalindkomst under par4_stk2_kapitalindkomstformål_opfyldt(anvendelse)
 
 # Par4Stk2Omkostningssag(input: Par4Stk2Omkostningsinput) {
     | input_gyldigt() -> input.indkomstår > 0 && input.anvendelsesår > 0 && input.beløb_kroner >= 0
@@ -2050,16 +2050,16 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     ))
     | fradrag_afskåret_efter_ligningslov17c() -> ligningslov17c_resultat().fradrag_afskåret
     | fradragsberettiget() -> input_gyldigt() && anvendt_i_indkomståret() && kapitalindkomstformål_opfyldt() && !fradrag_afskåret_efter_ligningslov17c()
-    | personlig_reklassifikation() -> IngenPersonligReklassifikation
+    | personlig_reklassifikation(): KapitalPersonligReklassifikation -> IngenPersonligReklassifikation
     | exception par4_stk3_fradragsberettiget_omkostning_følger_næring personlig_reklassifikation() -> par4_reklassifikation_fra_næringsstatus(input.næringsstatus) under fradragsberettiget()
     | bruttobeløb_kroner() -> penge_positivt_beløb(input.beløb_kroner)
-    | fradrag_i_kapitalindkomst_kroner() -> 0
+    | fradrag_i_kapitalindkomst_kroner(): Int -> 0
     | exception par4_stk2_fradrag_i_kapitalindkomst fradrag_i_kapitalindkomst_kroner() -> bruttobeløb_kroner() under fradragsberettiget() && personlig_reklassifikation() == IngenPersonligReklassifikation
-    | fradrag_i_personlig_indkomst_kroner() -> 0
+    | fradrag_i_personlig_indkomst_kroner(): Int -> 0
     | exception par4_stk3_fradrag_i_personlig_indkomst fradrag_i_personlig_indkomst_kroner() -> bruttobeløb_kroner() under fradragsberettiget() && par4_reklassifikation_til_personlig_indkomst(personlig_reklassifikation())
-    | afskåret_beløb_kroner() -> 0
+    | afskåret_beløb_kroner(): Int -> 0
     | exception par4_stk2_gyldig_men_ikke_fradragsberettiget afskåret_beløb_kroner() -> bruttobeløb_kroner() under input_gyldigt() && !fradragsberettiget()
-    | afvist_ugyldigt_beløb_kroner() -> 0
+    | afvist_ugyldigt_beløb_kroner(): Int -> 0
     | exception par4_stk2_ugyldigt_input_afvises afvist_ugyldigt_beløb_kroner() -> bruttobeløb_kroner() under !input_gyldigt()
     | resultat() -> Par4Stk2Omkostningsresultat(
         input = input,
@@ -2810,19 +2810,19 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 
 | aktieindkomst_omfatter(post: Aktiepost) -> Sandt
 | aktieindkomst_undtager(undtagelse: AktieUndtagelse) -> Sandt
-| aktieundtagelse_medregnes_personligt(undtagelse: AktieTilPersonligUndtagelse) -> Falskt
-| exception aktieavance19b_hvis_17_personlig aktieundtagelse_medregnes_personligt(undtagelse: AktieTilPersonligUndtagelse) -> Sandt under undtagelse == Aktieavance19BHvis17
-| exception aktieavance21_efter_17_personlig aktieundtagelse_medregnes_personligt(undtagelse: AktieTilPersonligUndtagelse) -> Sandt under undtagelse == Aktieavance21Efter17
-| par4a_aktiepost_undtages_efter_stk2(afgrænsning: AktiepostStk1Og2Afgrænsning) -> Falskt
-| exception par4a_stk2_aktieavance19c par4a_aktiepost_undtages_efter_stk2(afgrænsning: AktiepostStk1Og2Afgrænsning) -> Sandt under afgrænsning == AktiepostUndtagetAktieavance19C
-| exception par4a_stk2_ligningslov16a_stk5 par4a_aktiepost_undtages_efter_stk2(afgrænsning: AktiepostStk1Og2Afgrænsning) -> Sandt under afgrænsning == AktiepostUndtagetLigningslov16AStk5
-| exception par4a_stk2_medarbejderinvesteringsselskab par4a_aktiepost_undtages_efter_stk2(afgrænsning: AktiepostStk1Og2Afgrænsning) -> Sandt under afgrænsning == AktiepostUndtagetMedarbejderinvesteringsselskab
+| aktieundtagelse_medregnes_personligt(undtagelse: AktieTilPersonligUndtagelse): Bool -> Falskt
+| exception aktieavance19b_hvis_17_personlig aktieundtagelse_medregnes_personligt(undtagelse) -> Sandt under undtagelse == Aktieavance19BHvis17
+| exception aktieavance21_efter_17_personlig aktieundtagelse_medregnes_personligt(undtagelse) -> Sandt under undtagelse == Aktieavance21Efter17
+| par4a_aktiepost_undtages_efter_stk2(afgrænsning: AktiepostStk1Og2Afgrænsning): Bool -> Falskt
+| exception par4a_stk2_aktieavance19c par4a_aktiepost_undtages_efter_stk2(afgrænsning) -> Sandt under afgrænsning == AktiepostUndtagetAktieavance19C
+| exception par4a_stk2_ligningslov16a_stk5 par4a_aktiepost_undtages_efter_stk2(afgrænsning) -> Sandt under afgrænsning == AktiepostUndtagetLigningslov16AStk5
+| exception par4a_stk2_medarbejderinvesteringsselskab par4a_aktiepost_undtages_efter_stk2(afgrænsning) -> Sandt under afgrænsning == AktiepostUndtagetMedarbejderinvesteringsselskab
 | aktieindkomst_indgår_i_skattepligtig_indkomst() -> Falskt
 | par4a_aktiepost_medregnes_i_aktieindkomst(post: Par4aAktiepost) -> aktieindkomst_omfatter(post.art) && post.afgrænsning == AktiepostOmfattetAfStk1 && par4a_aktiepost_undtages_efter_stk2(post.afgrænsning) == Falskt && aktieundtagelse_medregnes_personligt(post.personlig_reklassifikation) == Falskt
-| par4a_aktiepost_i_aktieindkomst_kroner(post: Par4aAktiepost) -> 0
-| exception par4a_stk1_og_2_medregnet par4a_aktiepost_i_aktieindkomst_kroner(post: Par4aAktiepost) -> post.beløb_kroner under par4a_aktiepost_medregnes_i_aktieindkomst(post)
-| par4a_aktiepost_i_personlig_indkomst_kroner(post: Par4aAktiepost) -> 0
-| exception par4a_stk3_til_personlig_indkomst par4a_aktiepost_i_personlig_indkomst_kroner(post: Par4aAktiepost) -> post.beløb_kroner under aktieundtagelse_medregnes_personligt(post.personlig_reklassifikation)
+| par4a_aktiepost_i_aktieindkomst_kroner(post: Par4aAktiepost): Int -> 0
+| exception par4a_stk1_og_2_medregnet par4a_aktiepost_i_aktieindkomst_kroner(post) -> post.beløb_kroner under par4a_aktiepost_medregnes_i_aktieindkomst(post)
+| par4a_aktiepost_i_personlig_indkomst_kroner(post: Par4aAktiepost): Int -> 0
+| exception par4a_stk3_til_personlig_indkomst par4a_aktiepost_i_personlig_indkomst_kroner(post) -> post.beløb_kroner under aktieundtagelse_medregnes_personligt(post.personlig_reklassifikation)
 | par4a_aktiepost_resultat(post: Par4aAktiepost) -> Par4aAktiepostResultat(
     art = post.art,
     beløb_kroner = post.beløb_kroner,
@@ -2861,15 +2861,15 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
     aktieindkomst_indgår_i_skattepligtig_indkomst = aktieindkomst_indgår_i_skattepligtig_indkomst()
 )
 
-| par4a_afgrænsning_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> AktiepostUdenforStk1
-| exception par4a_abl_til_aktieindkomst par4a_afgrænsning_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> AktiepostOmfattetAfStk1 under resultat.personskattelov_kategori == AblAktieindkomstEfterPslPar4a
-| exception par4a_abl_19c_undtaget par4a_afgrænsning_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> AktiepostUndtagetAktieavance19C under resultat.effektiv_aktiv == AblInvesteringsselskab19C
+| par4a_afgrænsning_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat): AktiepostStk1Og2Afgrænsning -> AktiepostUdenforStk1
+| exception par4a_abl_til_aktieindkomst par4a_afgrænsning_fra_aktieavancebeskatningslov(resultat) -> AktiepostOmfattetAfStk1 under resultat.personskattelov_kategori == AblAktieindkomstEfterPslPar4a
+| exception par4a_abl_19c_undtaget par4a_afgrænsning_fra_aktieavancebeskatningslov(resultat) -> AktiepostUndtagetAktieavance19C under resultat.effektiv_aktiv == AblInvesteringsselskab19C
 
-| par4a_personlig_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> IngenAktieTilPersonligUndtagelse
-| exception par4a_19b_hvis17_til_personlig par4a_personlig_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> Aktieavance19BHvis17 under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblInvesteringsselskab19B
-| exception par4a_21_efter17_til_personlig par4a_personlig_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> Aktieavance21Efter17 under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblMinimumsbevis21
-| par4a_aktiepostart_fra_ligningslov7n(postart: Ligningslov7NPostart) -> AktieFortjenesteTab
-| exception par4a_ll7n_udbetaling_som_udbytte par4a_aktiepostart_fra_ligningslov7n(postart: Ligningslov7NPostart) -> Ligningslov16AUdbytte under postart == Ll7NUdbytteEllerUdbetaling
+| par4a_personlig_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat): AktieTilPersonligUndtagelse -> IngenAktieTilPersonligUndtagelse
+| exception par4a_19b_hvis17_til_personlig par4a_personlig_reklassifikation_fra_aktieavancebeskatningslov(resultat) -> Aktieavance19BHvis17 under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblInvesteringsselskab19B
+| exception par4a_21_efter17_til_personlig par4a_personlig_reklassifikation_fra_aktieavancebeskatningslov(resultat) -> Aktieavance21Efter17 under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblMinimumsbevis21
+| par4a_aktiepostart_fra_ligningslov7n(postart: Ligningslov7NPostart): Aktiepost -> AktieFortjenesteTab
+| exception par4a_ll7n_udbetaling_som_udbytte par4a_aktiepostart_fra_ligningslov7n(postart) -> Ligningslov16AUdbytte under postart == Ll7NUdbytteEllerUdbetaling
 
 # Par4aAktieavancebeskatningslovSag(input: Par4aAktieavancebeskatningslovInput) {
     | beløb_kroner() -> input.aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner
@@ -2909,7 +2909,7 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 | par4a_aktieavancebeskatningslov_resultat_fra_aktieavancebeskatningslov(input: AktieavancebeskatningslovInput) -> par4a_aktieavancebeskatningslov_resultat(par4a_aktieavancebeskatningslov_input_fra_aktieavancebeskatningslov(input))
 
 # Par4aLigningslov7NSag(input: Par4aLigningslov7NInput) {
-    | afgrænsning() -> AktiepostUdenforStk1
+    | afgrænsning(): AktiepostStk1Og2Afgrænsning -> AktiepostUdenforStk1
     | exception par4a_ll7n_tab_omfattet_af_stk1 afgrænsning() -> AktiepostOmfattetAfStk1 under input.ligningslov7n_resultat.andel_omfattet_af_par7n && input.ligningslov7n_resultat.postart == Ll7NTab
     | exception par4a_stk2_ligningslov7n_undtaget afgrænsning() -> AktiepostUndtagetMedarbejderinvesteringsselskab under input.ligningslov7n_resultat.personskattelov_par4a_stk2_undtagelse
     | aktiepost() -> Par4aAktiepost(
@@ -2969,12 +2969,12 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
     valg_resultat = par4a_intet_pensionsfradrag_valg(indkomstår)
 ))
 
-| par4a_pbl15a_grundlag_fra_pbl18(resultat: Pbl18Resultat) -> IntetPbl15AFradragsgrundlag
-| exception pbl18_par15a_ordning par4a_pbl15a_grundlag_fra_pbl18(resultat: Pbl18Resultat) -> Pbl15AFradragsgrundlag(
+| par4a_pbl15a_grundlag_fra_pbl18(resultat: Pbl18Resultat): AktiePensionsFradragPbl15AGrundlag -> IntetPbl15AFradragsgrundlag
+| exception pbl18_par15a_ordning par4a_pbl15a_grundlag_fra_pbl18(resultat) -> Pbl15AFradragsgrundlag(
     fradragsberettigede_bidrag_kroner = resultat.fradrag_i_skattepligtig_indkomst_kroner
 ) under resultat.ordning == Pbl18Par15ALøbendeUdbetaling || resultat.ordning == Pbl18Par15ARateordning
-| par4a_pbl15a_grundlag_fra_pbl18_år(resultat: Pbl18Årsresultat) -> IntetPbl15AFradragsgrundlag
-| exception pbl18_årsresultat_har_par15a_fradrag par4a_pbl15a_grundlag_fra_pbl18_år(resultat: Pbl18Årsresultat) -> Pbl15AFradragsgrundlag(
+| par4a_pbl15a_grundlag_fra_pbl18_år(resultat: Pbl18Årsresultat): AktiePensionsFradragPbl15AGrundlag -> IntetPbl15AFradragsgrundlag
+| exception pbl18_årsresultat_har_par15a_fradrag par4a_pbl15a_grundlag_fra_pbl18_år(resultat) -> Pbl15AFradragsgrundlag(
     fradragsberettigede_bidrag_kroner = resultat.par15a_fradrag_kroner
 ) under resultat.input_gyldigt && resultat.par15a_fradrag_kroner > 0
 
@@ -2990,7 +2990,7 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
     | meddelelse_givet() -> input.valg_resultat.meddelelse_givet
     | ikke_fradraget_personligt() -> input.valg_resultat.ikke_fradraget_i_personlig_indkomst
     | betingelser_opfyldt() -> har_positiv_aktieindkomst() && har_pbl15a_fradragsgrundlag() && input.valg_resultat.fradragsvalg_gældende && ikke_fradraget_personligt()
-    | fradrag_i_aktieindkomst_kroner() -> 0
+    | fradrag_i_aktieindkomst_kroner(): Int -> 0
     | exception pension_betingelser_opfyldt fradrag_i_aktieindkomst_kroner() -> penge_mindste_beløb(penge_mindste_beløb(ønsket_fradrag_kroner(), positiv_aktieindkomst_kroner()), pbl15a_fradragsramme_kroner()) under betingelser_opfyldt()
     | aktieindkomst_efter_fradrag_kroner() -> input.aktieindkomst_efter_stk1_og_2_kroner - fradrag_i_aktieindkomst_kroner()
     | afskåret_fradrag_kroner() -> ønsket_fradrag_kroner() - fradrag_i_aktieindkomst_kroner()

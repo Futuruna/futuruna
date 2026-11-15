@@ -1,24 +1,24 @@
 @ import ./rule_dispatch_middle
 
-| exception local_above_eight imported_band(amount: Int) -> 80 under amount > 8
+| exception local_above_eight imported_band(amount) -> 80 under amount > 8
 
 | conditional_boolean(value: Int) -> True under value > 0
-| exception_boolean(value: Int) -> False
-| exception positive exception_boolean(value: Int) -> True under value > 0
+| exception_boolean(value: Int): Bool -> False
+| exception positive exception_boolean(value) -> True under value > 0
 
-| ordered_band(amount: Int) -> 0
-| ordered_band(amount: Int) -> 70 under amount > 7
-| ordered_band(amount: Int) -> 80 under amount > 8
+| ordered_band(amount: Int): Int -> 0
+| ordered_band(amount) -> 70 under amount > 7
+| ordered_band(amount) -> 80 under amount > 8
 
-| reverse_ordered_band(amount: Int) -> 0
-| reverse_ordered_band(amount: Int) -> 80 under amount > 8
-| reverse_ordered_band(amount: Int) -> 70 under amount > 7
+| reverse_ordered_band(amount: Int): Int -> 0
+| reverse_ordered_band(amount) -> 80 under amount > 8
+| reverse_ordered_band(amount) -> 70 under amount > 7
 
 # OrderedCase(base: Int) {
-    | band(amount: Int) -> base
-    | band(amount: Int) -> 70 under amount > 7
-    | band(amount: Int) -> 80 under amount > 8
-    | exception special_base band(amount: Int) -> 99 under base == 99
+    | band(amount: Int): Int -> base
+    | band(amount) -> 70 under amount > 7
+    | band(amount) -> 80 under amount > 8
+    | exception special_base band(amount) -> 99 under base == 99
 }
 
 = imported_six = imported_band(amount = 6)

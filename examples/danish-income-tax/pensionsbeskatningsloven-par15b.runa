@@ -132,10 +132,10 @@ Maks. årlig hævning for sportsudøvere
     | _ -> pbl15b_årsparametre_uden_kildedækning(indkomstår)
 }
 
-| pbl15b_årsparametre(indkomstår: Heltal) -> pbl15b_årsparametre_uden_kildedækning(indkomstår)
-| exception pbl15b_satser_2010_til_2017 pbl15b_årsparametre(indkomstår: Heltal) -> pbl15b_årsparametre_2010_til_2017(indkomstår) under indkomstår >= 2010 && indkomstår <= 2017
-| exception pbl15b_satser_2018_til_2024 pbl15b_årsparametre(indkomstår: Heltal) -> pbl15b_årsparametre_2018_til_2024(indkomstår) under indkomstår >= 2018 && indkomstår <= 2024
-| exception pbl15b_satser_2025_til_2026 pbl15b_årsparametre(indkomstår: Heltal) -> pbl15b_årsparametre_2025_til_2026(indkomstår) under indkomstår >= 2025 && indkomstår <= 2026
+| pbl15b_årsparametre(indkomstår: Heltal): Pbl15BÅrsparametre -> pbl15b_årsparametre_uden_kildedækning(indkomstår)
+| exception pbl15b_satser_2010_til_2017 pbl15b_årsparametre(indkomstår) -> pbl15b_årsparametre_2010_til_2017(indkomstår) under indkomstår >= 2010 && indkomstår <= 2017
+| exception pbl15b_satser_2018_til_2024 pbl15b_årsparametre(indkomstår) -> pbl15b_årsparametre_2018_til_2024(indkomstår) under indkomstår >= 2018 && indkomstår <= 2024
+| exception pbl15b_satser_2025_til_2026 pbl15b_årsparametre(indkomstår) -> pbl15b_årsparametre_2025_til_2026(indkomstår) under indkomstår >= 2025 && indkomstår <= 2026
 | pbl15b_årsparametre_forventet_reguleret_kroner(indkomstår: Heltal, grundbeløb_kroner: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
     grundbeløb_2010_niveau_kroner = grundbeløb_kroner,
     reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår)

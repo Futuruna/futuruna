@@ -102,8 +102,8 @@ Stk. 6. Det er en betingelse for fradrag efter stk. 1, 2, 4 og 5, at fartøjet e
 # Sømandsbeskatningslov3Årsresultat(indkomstår: Heltal, lovversion: Sømandsbeskatningslov3Og4Lovversion, input: Sømandsbeskatningslov3Årsinput, beskæftigelsesresultater: List(Sømandsbeskatningslov3Beskæftigelsesresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, sødage_inden_for_årsgrænse: Boolsk, alle_input_gyldige: Boolsk, kan_foretage_fradrag_efter_par3: Boolsk, fradrag_før_valg_kroner: Heltal, fradrag_foretaget_efter_par3: Boolsk, samlet_fradrag_kroner: Heltal, sødage_med_fradrag_hundrededele: Heltal, almindelige_fradragsdage_hundrededele: Heltal, ligningslov9a_stk1_til9_afskåret: Boolsk)
 
 | sømandsbeskatningslov3_intet_årsinput() -> Sømandsbeskatningslov3Årsinput(valg = FravælgSømandsfradrag, beskæftigelser = [])
-| sømandsbeskatningslov3_og_4_lovversion_for(indkomstår: Heltal) -> Søbl3Og4LovversionUdenKildedækning
-| exception sømandsbeskatningslov3_og_4_lbk1181_for_2023_til_2026 sømandsbeskatningslov3_og_4_lovversion_for(indkomstår: Heltal) -> Søbl3Og4Lbk1181Af2023MedSenereÆndringer under indkomstår >= 2023 && indkomstår <= 2026
+| sømandsbeskatningslov3_og_4_lovversion_for(indkomstår: Heltal): Sømandsbeskatningslov3Og4Lovversion -> Søbl3Og4LovversionUdenKildedækning
+| exception sømandsbeskatningslov3_og_4_lbk1181_for_2023_til_2026 sømandsbeskatningslov3_og_4_lovversion_for(indkomstår) -> Søbl3Og4Lbk1181Af2023MedSenereÆndringer under indkomstår >= 2023 && indkomstår <= 2026
 | sømandsbeskatningslov3_skatteår_understøttet(indkomstår: Heltal) -> sømandsbeskatningslov3_og_4_lovversion_for(indkomstår = indkomstår) != Søbl3Og4LovversionUdenKildedækning
 | sømandsbeskatningslov3_hjemsted_opfyldt(hjemsted: Sømandsbeskatningslov3Hjemsted) -> hjemsted == RegistreretMedHjemstedIDanmark || hjemsted == RegistreretMedHjemstedIAndenEUEØSStat
 | sømandsbeskatningslov3_stenfiskerfartøj(anvendelse: Sømandsbeskatningslov3Skibsanvendelse) -> anvendelse == StenfiskerfartøjOmfattetAfPar8 || anvendelse == StenfiskerfartøjOmfattetAfPar10
@@ -129,7 +129,7 @@ Stk. 6. Det er en betingelse for fradrag efter stk. 1, 2, 4 og 5, at fartøjet e
         | ArbejdePåKulbrinteinstallationUdenForDanskOmråde -> Sandt
     }
     | par3a_anvendelse() -> sømandsbeskatningslov3a_anvendelse(ansættelsesforhold_startdato = fakta.ansættelsesforhold_startdato, arbejdssted = fakta.arbejdssted)
-    | par3a_opfyldt() -> match fakta.arbejdssted {
+    | par3a_opfyldt(): Bool -> match fakta.arbejdssted {
         | ArbejdePåSkib(_, ErhvervsmæssigBefordringAfPassagerer(rute)) -> sømandsbeskatningslov3a_passagerbetingelser_opfyldt(rute = rute)
         | _ -> Sandt
     }
@@ -145,7 +145,7 @@ Stk. 6. Det er en betingelse for fradrag efter stk. 1, 2, 4 og 5, at fartøjet e
         | ArbejdePåSkib(bruttotonnage, anvendelse) -> bruttotonnage >= 500 && sømandsbeskatningslov3_stenfiskerfartøj(anvendelse) == Falskt && sømandsbeskatningslov3_regelmæssig_passagersejlads_mellem_eu_eøs_havne(anvendelse) == Falskt
         | ArbejdePåKulbrinteinstallationUdenForDanskOmråde -> Falskt
     }
-    | årligt_fradragsgrundlag_kroner() -> 0
+    | årligt_fradragsgrundlag_kroner(): Int -> 0
     | exception sømandsbeskatningslov3_almindeligt_fradragsgrundlag årligt_fradragsgrundlag_kroner() -> 56900 under fradragsbetingelser_opfyldt() && forhøjet_fradragsgrundlag_opfyldt() == Falskt
     | exception sømandsbeskatningslov3_forhøjet_fradragsgrundlag årligt_fradragsgrundlag_kroner() -> 105000 under fradragsbetingelser_opfyldt() && forhøjet_fradragsgrundlag_opfyldt()
     | forholdsmæssigt_fradrag_kroner() -> sømandsbeskatningslov3_forholdsmæssigt_fradrag_kroner(årligt_fradragsgrundlag_kroner = årligt_fradragsgrundlag_kroner(), fuldtidsomregnede_sødage_hundrededele = fakta.fuldtidsomregnede_sødage_hundrededele)

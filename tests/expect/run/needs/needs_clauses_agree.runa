@@ -10,8 +10,8 @@
 # Household(income: Int, married: Bool, filing: Filing, spouse: Spouse?, accounts: List(Account), phone: String, n: Int)
 # Result(tax: Int)
 
-| allowance(h: Household) -> 7
-| exception large allowance(h: Household) -> 7 under h.income > 10
+| allowance(h: Household): Int -> 7
+| exception large allowance(h) -> 7 under h.income > 10
 
 @ calculate
 | household_tax(h: Household) -> Result(tax = allowance(h))

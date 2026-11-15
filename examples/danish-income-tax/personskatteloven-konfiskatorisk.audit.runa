@@ -99,8 +99,8 @@ current-year Personskatteloven tax itself doing so.
 
 | konfiskatorisk_aktie_slutopgørelse_resultat(case: AktieindkomstSlutopgørelseCase) -> case.resultat()
 | konfiskatorisk_resultat(case: KonfiskatoriskCase) -> case.resultat()
-| konfiskatorisk_effektiv_basispoint(belastning_kroner: Heltal, indkomstgrundlag_kroner: Heltal) -> 0 under indkomstgrundlag_kroner <= 0
-| exception positivt_indkomstgrundlag konfiskatorisk_effektiv_basispoint(belastning_kroner: Heltal, indkomstgrundlag_kroner: Heltal) -> belastning_kroner * 10000 / indkomstgrundlag_kroner under indkomstgrundlag_kroner > 0
+| konfiskatorisk_effektiv_basispoint(belastning_kroner: Heltal, indkomstgrundlag_kroner: Heltal): Int -> 0 under indkomstgrundlag_kroner <= 0
+| exception positivt_indkomstgrundlag konfiskatorisk_effektiv_basispoint(belastning_kroner, indkomstgrundlag_kroner) -> belastning_kroner * 10000 / indkomstgrundlag_kroner under indkomstgrundlag_kroner > 0
 
 | konfiskatorisk_år_kommune(KonfiskatoriskÅrKommune(skatteår = 2024, kommune = København))
 | konfiskatorisk_år_kommune(KonfiskatoriskÅrKommune(skatteår = 2024, kommune = Gentofte))

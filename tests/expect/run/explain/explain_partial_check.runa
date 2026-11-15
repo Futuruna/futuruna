@@ -8,8 +8,8 @@
 # Case(income: Int, married: Bool, spouse_income: Int)
 # Result(allowance: Int, income: Int)
 
-| allowance(married: Bool) -> 4000
-| exception married allowance(married: Bool) -> 8000 under married
+| allowance(married: Bool): Int -> 4000
+| exception married allowance(married) -> 8000 under married
 
 @ calculate
 | explain_partial(c: Case) -> Result(allowance = allowance(c.married), income = c.income)

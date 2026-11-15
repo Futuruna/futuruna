@@ -123,8 +123,8 @@ opgørelsen af overdragerens skattepligtige indkomst.
     )
 }
 
-| aktieavance_par35g_omvurderingsresultat(input: AktieavancePar35GOmvurderingsvalg) -> AktieavancePar35GOmvurderingsresultat(omvalg_aktuelt = input.værdiansættelse_ændret_af_skatteforvaltningen, kan_træffe_nyt_valg = Falskt)
-| exception par35g_omvalg_inden_tre_måneder aktieavance_par35g_omvurderingsresultat(input: AktieavancePar35GOmvurderingsvalg) -> AktieavancePar35GOmvurderingsresultat(omvalg_aktuelt = Sandt, kan_træffe_nyt_valg = Sandt) under input.værdiansættelse_ændret_af_skatteforvaltningen && input.overdrager_har_modtaget_meddelelse && input.nyt_valg_meddelt_inden_tre_måneder
+| aktieavance_par35g_omvurderingsresultat(input: AktieavancePar35GOmvurderingsvalg): AktieavancePar35GOmvurderingsresultat -> AktieavancePar35GOmvurderingsresultat(omvalg_aktuelt = input.værdiansættelse_ændret_af_skatteforvaltningen, kan_træffe_nyt_valg = Falskt)
+| exception par35g_omvalg_inden_tre_måneder aktieavance_par35g_omvurderingsresultat(input) -> AktieavancePar35GOmvurderingsresultat(omvalg_aktuelt = Sandt, kan_træffe_nyt_valg = Sandt) under input.værdiansættelse_ændret_af_skatteforvaltningen && input.overdrager_har_modtaget_meddelelse && input.nyt_valg_meddelt_inden_tre_måneder
 
 | aktieavance_par35g_til_beholdningsparti(parti: AktieavancePar35GOverdragelsesparti) -> AktieavancePar35IBeholdningsparti(
     identifikation = parti.identifikation,

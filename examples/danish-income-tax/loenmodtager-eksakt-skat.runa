@@ -109,9 +109,9 @@ skatteberegningen.
         cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a = cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a()
     )).skattepligtig_indkomst_kroner - penge_positivt_beløb(par13_forhold.egne_tidligere_underskud_kroner) - indgående_par13_indkomstfradrag_kroner()
     | bundskat_øre() -> lønmodtager_eksakt_skat_øre(lønmodtager_bundskat_grundlag_med_skatteforhold(input, skatteforhold), nationalparametre_for(input.skatteår).bundskat_basispoint)
-    | par7_skat_øre() -> lønmodtager_eksakt_skat_øre(lønmodtager_par7_topskat_resultat(input).samlet_grundlag_over_bundfradrag_kroner, nationalparametre_for(input.skatteår).topskat_basispoint)
+    | par7_skat_øre(): Int -> lønmodtager_eksakt_skat_øre(lønmodtager_par7_topskat_resultat(input).samlet_grundlag_over_bundfradrag_kroner, nationalparametre_for(input.skatteår).topskat_basispoint)
     | exception reform_par7_mellemskat_eksakt par7_skat_øre() -> lønmodtager_eksakt_skat_øre(lønmodtager_par7_reform_mellemskat_resultat(input).samlet_grundlag_over_bundfradrag_kroner, lønmodtager_par7_reform_mellemskat_resultat(input).sats_basispoint) under input.skatteår >= 2026
-    | par7a_skat_øre() -> {
+    | par7a_skat_øre(): Int -> {
         = resultat = par7a_udligningsskat_resultat(lønmodtager_par7a_udligningsskat_input(input))
         lønmodtager_eksakt_skat_øre(resultat.udligningsskattegrundlag_kroner, resultat.sats_basispoint)
     }
@@ -119,7 +119,7 @@ skatteberegningen.
         = resultat = lønmodtager_par7a_reform_topskat_resultat(input)
         lønmodtager_eksakt_skat_øre(resultat.personlig_over_bundfradrag_kroner, resultat.sats_basispoint)
     } under input.skatteår >= 2026
-    | par8_skat_øre() -> {
+    | par8_skat_øre(): Int -> {
         = resultat = par8_sundhedsbidrag_resultat(lønmodtager_par8_sundhedsbidrag_input(input))
         lønmodtager_eksakt_skat_øre(resultat.skattegrundlag_kroner, resultat.sats_basispoint)
     }
@@ -293,15 +293,15 @@ skatteberegningen.
     | arbejdsmarkedsbidrag_øre() -> arbejdsmarkedsbidrag_for(input) * 100
     | samlet_inkl_am_øre() -> arbejdsmarkedsbidrag_øre() + samlet_indkomstskat_øre()
     | egen_par13_udnyttet_skatteværdi_øre() -> egen_par13_skatteværdi_øre() - egen_par13_modregning().ubrugt_skatteværdi_kroner
-    | egen_par13_dækket_underskud_kroner() -> 0
+    | egen_par13_dækket_underskud_kroner(): Int -> 0
     | exception eksakt_par13_skatteværdi_omregnes_til_underskud egen_par13_dækket_underskud_kroner() -> penge_mindste_beløb(par13_skattepligtigt_underskud_kroner(), egen_par13_udnyttet_skatteværdi_øre() * 100 / par13_skatteværdi_sats_basispoint()) under par13_skatteværdi_sats_basispoint() > 0
     | par13_resterende_underskud_kroner() -> par13_skattepligtigt_underskud_kroner() - egen_par13_dækket_underskud_kroner()
     | par13a_underskud_nedsat_kroner() -> penge_mindste_beløb(par13_resterende_underskud_kroner(), penge_positivt_beløb(par13_forhold.par13a_nedsættelsesbeløb_kroner))
     | par13_resterende_underskud_efter_par13a_kroner() -> par13_resterende_underskud_kroner() - par13a_underskud_nedsat_kroner()
-    | par13_indkomstfradrag_til_ægtefælle_kroner() -> 0
+    | par13_indkomstfradrag_til_ægtefælle_kroner(): Int -> 0
     | exception eksakt_par13_underskud_overføres_til_ægtefælleindkomst par13_indkomstfradrag_til_ægtefælle_kroner() -> penge_mindste_beløb(par13_resterende_underskud_efter_par13a_kroner(), penge_positivt_beløb(par13_forhold.ægtefælle_skattepligtig_indkomst_kroner)) under par13_forhold.gift_samlevende_ved_årets_udløb
     | par13_underskud_til_ægtefælles_skat_kroner() -> par13_resterende_underskud_efter_par13a_kroner() - par13_indkomstfradrag_til_ægtefælle_kroner()
-    | par13_skatteværdi_til_ægtefælle_øre() -> 0
+    | par13_skatteværdi_til_ægtefælle_øre(): Int -> 0
     | exception eksakt_par13_rest_modregnes_i_ægtefælles_skat par13_skatteværdi_til_ægtefælle_øre() -> lønmodtager_eksakt_skat_øre(par13_underskud_til_ægtefælles_skat_kroner(), par13_forhold.ægtefælle_skatteværdi_sats_basispoint) under par13_forhold.gift_samlevende_ved_årets_udløb
     | udgående_overførsler() -> LønmodtagerEksakteUdgåendeOverførsler(
         par13_indkomstfradrag_kroner = par13_indkomstfradrag_til_ægtefælle_kroner(),

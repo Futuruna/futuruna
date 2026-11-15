@@ -210,9 +210,9 @@ længstlevende ægtefælle med hensyntagen til sådanne ændringer.
 # KglSælgerpantebrevResultat(input: KglSælgerpantebrevInput, grundfakta_gyldige: Boolsk, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, dispositionsresultater: List(KglSælgerpantebrevDispositionsresultat), samlet_rå_gevinst_kroner: Heltal, samlet_rå_tab_kroner: Heltal, samlet_rå_netto_kroner: Heltal, tilstand_ultimo: KglSælgerpantebrevTilstand)
 # KglSælgerpantebrevSkatteforhold(tabsgrundlag: KursgevinstlovFordringTabsgrundlag, tabsbegrænsning: KursgevinstlovFordringTabsbegrænsning, udøver_fordringsnæring: Boolsk, fordring_erhvervet_udenfor_næring: Boolsk)
 
-| kgl_sælgerpantebrev_disposition_understøttet(art: KglSælgerpantebrevDispositionstype) -> Sandt
-| exception kgl_sælgerpantebrev_ukendt_disposition_afvises kgl_sælgerpantebrev_disposition_understøttet(art: KglSælgerpantebrevDispositionstype) -> Falskt under match art { | KglSælgerpantebrevIkkeUnderstøttet(_) -> Sandt | _ -> Falskt }
-| exception kgl_sælgerpantebrev_ukendt_ejerskifte_afvises kgl_sælgerpantebrev_disposition_understøttet(art: KglSælgerpantebrevDispositionstype) -> Falskt under match art { | KglSælgerpantebrevEjerskifte(KglSælgerpantebrevIkkeUnderstøttetEjerskifte(_), _) -> Sandt | _ -> Falskt }
+| kgl_sælgerpantebrev_disposition_understøttet(art: KglSælgerpantebrevDispositionstype): Bool -> Sandt
+| exception kgl_sælgerpantebrev_ukendt_disposition_afvises kgl_sælgerpantebrev_disposition_understøttet(art) -> Falskt under match art { | KglSælgerpantebrevIkkeUnderstøttet(_) -> Sandt | _ -> Falskt }
+| exception kgl_sælgerpantebrev_ukendt_ejerskifte_afvises kgl_sælgerpantebrev_disposition_understøttet(art) -> Falskt under match art { | KglSælgerpantebrevEjerskifte(KglSælgerpantebrevIkkeUnderstøttetEjerskifte(_), _) -> Sandt | _ -> Falskt }
 
 | kgl_sælgerpantebrev_skatteyder_gyldig(skatteyder: KglSælgerpantebrevSkatteyder) -> skatteyder.identifikation != "" && skatteyder.rolle != KglUdenforPersonkapitlet
 | kgl_sælgerpantebrev_tom_tranche() -> KglSælgerpantebrevTranche(

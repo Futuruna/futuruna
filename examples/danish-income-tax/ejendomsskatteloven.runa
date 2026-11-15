@@ -249,38 +249,38 @@ skattepligt efter § 1, stk. 1.
 # EjendomsskattelovPar3Resultat(indkomstår: Heltal, kategori: EjendomsskattelovPar3Kategori, beliggenhed: EjendomsskattelovPar3Beliggenhed, stk1_hjemmel: EjendomsskattelovPar3Hjemmel, stk2_udland: Boolsk, erhvervsmæssigt_udlejet: Boolsk, særlige_betingelser_for_nr6_til_nr8_opfyldt: Boolsk, omfattet_af_ejendomsværdiskat: Boolsk, omfattet_af_personskattelov_par4_nr6: Boolsk)
 
 | ejendomsskattelov_lov615_par3_virkning(indkomstår: Heltal) -> indkomstår >= 2027
-| ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskIngenPar3Hjemmel
-| exception ejsk_par3_nr1 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr1 under kategori == EjskEnBoligenhed
-| exception ejsk_par3_nr2 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr2 under kategori == EjskToBoligenheder
-| exception ejsk_par3_nr3_landbrug_før_lov615 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr3 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskLandbrugsbolig
-| exception ejsk_par3_nr4_skov_før_lov615 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr4 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskSkovbolig
-| exception ejsk_par3_nr3_landbrug_skov_natur_fra_lov615 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr3 under ejendomsskattelov_lov615_par3_virkning(indkomstår) && (kategori == EjskLandbrugsbolig || kategori == EjskSkovbolig || kategori == EjskLandbrugsSkovNaturbolig)
-| exception ejsk_par3_nr5_blandet_før_lov615 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr5 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskBlandetBoligErhverv
-| exception ejsk_par3_nr4_blandet_fra_lov615 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr4 under ejendomsskattelov_lov615_par3_virkning(indkomstår) && kategori == EjskBlandetBoligErhverv
-| exception ejsk_par3_nr6_tre_til_seks_før_lov615 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr6 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskEjerlejlighedTreTilSeks
-| exception ejsk_par3_nr5_tre_til_seks_fra_lov615 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr5 under ejendomsskattelov_lov615_par3_virkning(indkomstår) && kategori == EjskEjerlejlighedTreTilSeks
-| exception ejsk_par3_nr7_flere_ejere_før_lov615 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr7 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskFlereEjereBeboet1994
-| exception ejsk_par3_nr6_flere_ejere_fra_lov615 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr6 under ejendomsskattelov_lov615_par3_virkning(indkomstår) && kategori == EjskFlereEjereBeboet1994
-| exception ejsk_par3_nr8_boligsameje_før_lov615 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr8 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskBoligsamejeMv
-| exception ejsk_par3_nr7_boligsameje_fra_lov615 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr7 under ejendomsskattelov_lov615_par3_virkning(indkomstår) && kategori == EjskBoligsamejeMv
-| exception ejsk_par3_nr9_landzone_før_lov615 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr9 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskLandzoneOver5000M2
-| exception ejsk_par3_nr8_landzone_fra_lov615 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr8 under ejendomsskattelov_lov615_par3_virkning(indkomstår) && kategori == EjskLandzoneOver5000M2
-| exception ejsk_par3_nr10_vindmølle_før_lov615 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr10 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskVindmølleparcel
-| exception ejsk_par3_nr9_vindmølle_fra_lov615 ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal) -> EjskPar3Stk1Nr9 under ejendomsskattelov_lov615_par3_virkning(indkomstår) && kategori == EjskVindmølleparcel
+| ejendomsskattelov_par3_hjemmel(kategori: EjendomsskattelovPar3Kategori, indkomstår: Heltal): EjendomsskattelovPar3Hjemmel -> EjskIngenPar3Hjemmel
+| exception ejsk_par3_nr1 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr1 under kategori == EjskEnBoligenhed
+| exception ejsk_par3_nr2 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr2 under kategori == EjskToBoligenheder
+| exception ejsk_par3_nr3_landbrug_før_lov615 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr3 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskLandbrugsbolig
+| exception ejsk_par3_nr4_skov_før_lov615 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr4 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskSkovbolig
+| exception ejsk_par3_nr3_landbrug_skov_natur_fra_lov615 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr3 under ejendomsskattelov_lov615_par3_virkning(indkomstår) && (kategori == EjskLandbrugsbolig || kategori == EjskSkovbolig || kategori == EjskLandbrugsSkovNaturbolig)
+| exception ejsk_par3_nr5_blandet_før_lov615 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr5 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskBlandetBoligErhverv
+| exception ejsk_par3_nr4_blandet_fra_lov615 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr4 under ejendomsskattelov_lov615_par3_virkning(indkomstår) && kategori == EjskBlandetBoligErhverv
+| exception ejsk_par3_nr6_tre_til_seks_før_lov615 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr6 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskEjerlejlighedTreTilSeks
+| exception ejsk_par3_nr5_tre_til_seks_fra_lov615 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr5 under ejendomsskattelov_lov615_par3_virkning(indkomstår) && kategori == EjskEjerlejlighedTreTilSeks
+| exception ejsk_par3_nr7_flere_ejere_før_lov615 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr7 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskFlereEjereBeboet1994
+| exception ejsk_par3_nr6_flere_ejere_fra_lov615 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr6 under ejendomsskattelov_lov615_par3_virkning(indkomstår) && kategori == EjskFlereEjereBeboet1994
+| exception ejsk_par3_nr8_boligsameje_før_lov615 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr8 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskBoligsamejeMv
+| exception ejsk_par3_nr7_boligsameje_fra_lov615 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr7 under ejendomsskattelov_lov615_par3_virkning(indkomstår) && kategori == EjskBoligsamejeMv
+| exception ejsk_par3_nr9_landzone_før_lov615 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr9 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskLandzoneOver5000M2
+| exception ejsk_par3_nr8_landzone_fra_lov615 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr8 under ejendomsskattelov_lov615_par3_virkning(indkomstår) && kategori == EjskLandzoneOver5000M2
+| exception ejsk_par3_nr10_vindmølle_før_lov615 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr10 under ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && kategori == EjskVindmølleparcel
+| exception ejsk_par3_nr9_vindmølle_fra_lov615 ejendomsskattelov_par3_hjemmel(kategori, indkomstår) -> EjskPar3Stk1Nr9 under ejendomsskattelov_lov615_par3_virkning(indkomstår) && kategori == EjskVindmølleparcel
 
 | ejendomsskattelov_par3_stk1_hjemmel_findes(hjemmel: EjendomsskattelovPar3Hjemmel) -> hjemmel != EjskIngenPar3Hjemmel
-| ejendomsskattelov_par3_hjemmel_i_personskattelov_par4_nr6(hjemmel: EjendomsskattelovPar3Hjemmel, indkomstår: Heltal) -> Falskt
-| exception ejsk_psl_nr6_foer_lov615_nr1_til_5 ejendomsskattelov_par3_hjemmel_i_personskattelov_par4_nr6(hjemmel: EjendomsskattelovPar3Hjemmel, indkomstår: Heltal) -> Sandt under indkomstår >= 2024 && ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && (hjemmel == EjskPar3Stk1Nr1 || hjemmel == EjskPar3Stk1Nr2 || hjemmel == EjskPar3Stk1Nr3 || hjemmel == EjskPar3Stk1Nr4 || hjemmel == EjskPar3Stk1Nr5)
-| exception ejsk_psl_nr6_foer_lov615_nr9_og_10 ejendomsskattelov_par3_hjemmel_i_personskattelov_par4_nr6(hjemmel: EjendomsskattelovPar3Hjemmel, indkomstår: Heltal) -> Sandt under indkomstår >= 2024 && ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && (hjemmel == EjskPar3Stk1Nr9 || hjemmel == EjskPar3Stk1Nr10)
-| exception ejsk_psl_nr6_fra_lov615_nr1_til_4 ejendomsskattelov_par3_hjemmel_i_personskattelov_par4_nr6(hjemmel: EjendomsskattelovPar3Hjemmel, indkomstår: Heltal) -> Sandt under ejendomsskattelov_lov615_par3_virkning(indkomstår) && (hjemmel == EjskPar3Stk1Nr1 || hjemmel == EjskPar3Stk1Nr2 || hjemmel == EjskPar3Stk1Nr3 || hjemmel == EjskPar3Stk1Nr4)
-| exception ejsk_psl_nr6_fra_lov615_nr8_og_9 ejendomsskattelov_par3_hjemmel_i_personskattelov_par4_nr6(hjemmel: EjendomsskattelovPar3Hjemmel, indkomstår: Heltal) -> Sandt under ejendomsskattelov_lov615_par3_virkning(indkomstår) && (hjemmel == EjskPar3Stk1Nr8 || hjemmel == EjskPar3Stk1Nr9)
+| ejendomsskattelov_par3_hjemmel_i_personskattelov_par4_nr6(hjemmel: EjendomsskattelovPar3Hjemmel, indkomstår: Heltal): Bool -> Falskt
+| exception ejsk_psl_nr6_foer_lov615_nr1_til_5 ejendomsskattelov_par3_hjemmel_i_personskattelov_par4_nr6(hjemmel, indkomstår) -> Sandt under indkomstår >= 2024 && ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && (hjemmel == EjskPar3Stk1Nr1 || hjemmel == EjskPar3Stk1Nr2 || hjemmel == EjskPar3Stk1Nr3 || hjemmel == EjskPar3Stk1Nr4 || hjemmel == EjskPar3Stk1Nr5)
+| exception ejsk_psl_nr6_foer_lov615_nr9_og_10 ejendomsskattelov_par3_hjemmel_i_personskattelov_par4_nr6(hjemmel, indkomstår) -> Sandt under indkomstår >= 2024 && ejendomsskattelov_lov615_par3_virkning(indkomstår) == Falskt && (hjemmel == EjskPar3Stk1Nr9 || hjemmel == EjskPar3Stk1Nr10)
+| exception ejsk_psl_nr6_fra_lov615_nr1_til_4 ejendomsskattelov_par3_hjemmel_i_personskattelov_par4_nr6(hjemmel, indkomstår) -> Sandt under ejendomsskattelov_lov615_par3_virkning(indkomstår) && (hjemmel == EjskPar3Stk1Nr1 || hjemmel == EjskPar3Stk1Nr2 || hjemmel == EjskPar3Stk1Nr3 || hjemmel == EjskPar3Stk1Nr4)
+| exception ejsk_psl_nr6_fra_lov615_nr8_og_9 ejendomsskattelov_par3_hjemmel_i_personskattelov_par4_nr6(hjemmel, indkomstår) -> Sandt under ejendomsskattelov_lov615_par3_virkning(indkomstår) && (hjemmel == EjskPar3Stk1Nr8 || hjemmel == EjskPar3Stk1Nr9)
 | ejendomsskattelov_par3_nr6_til_nr8_særlige_betingelser_påkrævet(kategori: EjendomsskattelovPar3Kategori) -> kategori == EjskEjerlejlighedTreTilSeks || kategori == EjskFlereEjereBeboet1994 || kategori == EjskBoligsamejeMv
-| ejendomsskattelov_par3_stk1_betingelser_opfyldt(input: EjendomsskattelovPar3Input) -> Sandt
-| exception ejsk_par3_nr6_til_nr8_betingelser_mangler ejendomsskattelov_par3_stk1_betingelser_opfyldt(input: EjendomsskattelovPar3Input) -> Falskt under ejendomsskattelov_par3_nr6_til_nr8_særlige_betingelser_påkrævet(input.kategori) && input.særlige_betingelser_for_nr6_til_nr8_opfyldt == Falskt
+| ejendomsskattelov_par3_stk1_betingelser_opfyldt(input: EjendomsskattelovPar3Input): Bool -> Sandt
+| exception ejsk_par3_nr6_til_nr8_betingelser_mangler ejendomsskattelov_par3_stk1_betingelser_opfyldt(input) -> Falskt under ejendomsskattelov_par3_nr6_til_nr8_særlige_betingelser_påkrævet(input.kategori) && input.særlige_betingelser_for_nr6_til_nr8_opfyldt == Falskt
 | ejendomsskattelov_par3_stk2_udland_omfattet(input: EjendomsskattelovPar3Input) -> input.beliggenhed == EjskUdlandFaeroerneGroenland && ejendomsskattelov_par3_hjemmel_i_personskattelov_par4_nr6(ejendomsskattelov_par3_hjemmel(input.kategori, input.indkomstår), input.indkomstår)
-| ejendomsskattelov_par3_omfattet_af_ejendomsværdiskat(input: EjendomsskattelovPar3Input) -> Falskt
-| exception ejsk_dansk_stk1_ejendomsværdiskat ejendomsskattelov_par3_omfattet_af_ejendomsværdiskat(input: EjendomsskattelovPar3Input) -> Sandt under input.erhvervsmæssigt_udlejet == Falskt && input.beliggenhed == EjskDanmark && ejendomsskattelov_par3_stk1_hjemmel_findes(ejendomsskattelov_par3_hjemmel(input.kategori, input.indkomstår)) && ejendomsskattelov_par3_stk1_betingelser_opfyldt(input)
-| exception ejsk_udland_stk2_ejendomsværdiskat ejendomsskattelov_par3_omfattet_af_ejendomsværdiskat(input: EjendomsskattelovPar3Input) -> Sandt under input.erhvervsmæssigt_udlejet == Falskt && ejendomsskattelov_par3_stk2_udland_omfattet(input)
+| ejendomsskattelov_par3_omfattet_af_ejendomsværdiskat(input: EjendomsskattelovPar3Input): Bool -> Falskt
+| exception ejsk_dansk_stk1_ejendomsværdiskat ejendomsskattelov_par3_omfattet_af_ejendomsværdiskat(input) -> Sandt under input.erhvervsmæssigt_udlejet == Falskt && input.beliggenhed == EjskDanmark && ejendomsskattelov_par3_stk1_hjemmel_findes(ejendomsskattelov_par3_hjemmel(input.kategori, input.indkomstår)) && ejendomsskattelov_par3_stk1_betingelser_opfyldt(input)
+| exception ejsk_udland_stk2_ejendomsværdiskat ejendomsskattelov_par3_omfattet_af_ejendomsværdiskat(input) -> Sandt under input.erhvervsmæssigt_udlejet == Falskt && ejendomsskattelov_par3_stk2_udland_omfattet(input)
 | ejendomsskattelov_par3_personskattelov_par4_nr6_omfattet(input: EjendomsskattelovPar3Input) -> ejendomsskattelov_par3_omfattet_af_ejendomsværdiskat(input) && ejendomsskattelov_par3_hjemmel_i_personskattelov_par4_nr6(ejendomsskattelov_par3_hjemmel(input.kategori, input.indkomstår), input.indkomstår)
 | ejendomsskattelov_par3_resultat(input: EjendomsskattelovPar3Input) -> EjendomsskattelovPar3Resultat(
     indkomstår = input.indkomstår,
@@ -484,19 +484,19 @@ Loven træder i kraft den 1. juli 2025.
 | ejendomsskattelov_tom_øre_beregning() -> PengeØreBeregning(tæller = 0, nævner = 1, øre_nedrundet = 0)
 | ejendomsskattelov_ejerandel_gyldig(ejerandel_basispoint: Heltal) -> ejerandel_basispoint > 0 && ejerandel_basispoint <= 10000
 | ejendomsskattelov_par13_beskatningsgrundlag_kroner(ejendomsværdi_kroner: Heltal) -> ejendomsværdi_kroner * 80 / 100
-| ejendomsskattelov_par22_satsadresse(dato: EjendomsskattelovDato) -> EjskPar22UgyldigSatsadresse
-| exception ejsk_par22_stk2_før_lov562_ikrafttræden ejendomsskattelov_par22_satsadresse(dato: EjendomsskattelovDato) -> EjskPar22Stk2Før1Juli2025 under ejendomsskattelov_dato_gyldig(dato) && ejendomsskattelov_dato_yyyymmdd(dato) < 20250701
-| exception ejsk_par22_stk1_fra_lov562_ikrafttræden ejendomsskattelov_par22_satsadresse(dato: EjendomsskattelovDato) -> EjskPar22Stk1Fra1Juli2025 under ejendomsskattelov_dato_gyldig(dato) && ejendomsskattelov_dato_yyyymmdd(dato) >= 20250701
-| ejendomsskattelov_par22_grundbeløb_kroner(indkomstår: Heltal) -> 0
-| exception ejsk_par22_grundbeløb_2024_2025 ejendomsskattelov_par22_grundbeløb_kroner(indkomstår: Heltal) -> 9200000 under indkomstår == 2024 || indkomstår == 2025
-| exception ejsk_par22_grundbeløb_2026 ejendomsskattelov_par22_grundbeløb_kroner(indkomstår: Heltal) -> 9007000 under indkomstår == 2026
+| ejendomsskattelov_par22_satsadresse(dato: EjendomsskattelovDato): EjendomsskattelovPar22Satsadresse -> EjskPar22UgyldigSatsadresse
+| exception ejsk_par22_stk2_før_lov562_ikrafttræden ejendomsskattelov_par22_satsadresse(dato) -> EjskPar22Stk2Før1Juli2025 under ejendomsskattelov_dato_gyldig(dato) && ejendomsskattelov_dato_yyyymmdd(dato) < 20250701
+| exception ejsk_par22_stk1_fra_lov562_ikrafttræden ejendomsskattelov_par22_satsadresse(dato) -> EjskPar22Stk1Fra1Juli2025 under ejendomsskattelov_dato_gyldig(dato) && ejendomsskattelov_dato_yyyymmdd(dato) >= 20250701
+| ejendomsskattelov_par22_grundbeløb_kroner(indkomstår: Heltal): Int -> 0
+| exception ejsk_par22_grundbeløb_2024_2025 ejendomsskattelov_par22_grundbeløb_kroner(indkomstår) -> 9200000 under indkomstår == 2024 || indkomstår == 2025
+| exception ejsk_par22_grundbeløb_2026 ejendomsskattelov_par22_grundbeløb_kroner(indkomstår) -> 9007000 under indkomstår == 2026
 | ejendomsskattelov_par22_grundbeløb_understøttet(indkomstår: Heltal) -> indkomstår == 2024 || indkomstår == 2025 || indkomstår == 2026
 | ejendomsskattelov_par22_lavt_satsgrundlag_kroner(indkomstår: Heltal, beskatningsgrundlag_kroner: Heltal) -> penge_mindste_beløb(beskatningsgrundlag_kroner, ejendomsskattelov_par22_grundbeløb_kroner(indkomstår))
 | ejendomsskattelov_par22_højt_satsgrundlag_kroner(indkomstår: Heltal, beskatningsgrundlag_kroner: Heltal) -> penge_positivt_beløb(beskatningsgrundlag_kroner - ejendomsskattelov_par22_grundbeløb_kroner(indkomstår))
 | ejendomsskattelov_ejendomsværdiskat_regelgrundlag_understøttet(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> ejendomsskattelov_par22_grundbeløb_understøttet(indkomstår) && fakta.beliggenhed == EjskDanmark
 | ejendomsskattelov_ejendomsværdiskat_input_gyldigt(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> fakta.identifikation != "" && fakta.ejendomsværdi_kroner >= 0 && ejendomsskattelov_ejerandel_gyldig(fakta.ejerandel_basispoint) && ejendomsskattelov_par72_periode_datoer_gyldige(indkomstår, fakta.ejendomsværdiskatteperiode)
-| ejendomsskattelov_ejendomsværdiskat_beregning(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> ejendomsskattelov_tom_øre_beregning()
-| exception ejsk_ordinær_ejendomsværdiskat_beregnes ejendomsskattelov_ejendomsværdiskat_beregning(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> penge_øre_beregning(
+| ejendomsskattelov_ejendomsværdiskat_beregning(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta): PengeØreBeregning -> ejendomsskattelov_tom_øre_beregning()
+| exception ejsk_ordinær_ejendomsværdiskat_beregnes ejendomsskattelov_ejendomsværdiskat_beregning(indkomstår, fakta) -> penge_øre_beregning(
     (ejendomsskattelov_par22_lavt_satsgrundlag_kroner(indkomstår, ejendomsskattelov_par13_beskatningsgrundlag_kroner(fakta.ejendomsværdi_kroner)) * 51 + ejendomsskattelov_par22_højt_satsgrundlag_kroner(indkomstår, ejendomsskattelov_par13_beskatningsgrundlag_kroner(fakta.ejendomsværdi_kroner)) * 140) * ejendomsskattelov_par72_skattepligtige_dage(fakta.ejendomsværdiskatteperiode) * fakta.ejerandel_basispoint,
     100 * 360 * 10000
 ) under ejendomsskattelov_ejendomsværdiskat_regelgrundlag_understøttet(indkomstår, fakta) && ejendomsskattelov_ejendomsværdiskat_input_gyldigt(indkomstår, fakta) && ejendomsskattelov_par3_omfattet_af_ejendomsværdiskat(EjendomsskattelovPar3Input(indkomstår = indkomstår, kategori = fakta.kategori, beliggenhed = fakta.beliggenhed, erhvervsmæssigt_udlejet = fakta.erhvervsmæssigt_udlejet, særlige_betingelser_for_nr6_til_nr8_opfyldt = fakta.særlige_betingelser_for_nr6_til_nr8_opfyldt))
@@ -577,8 +577,8 @@ personer, der ejer ejendommen i henhold til et autoritativt register.
 | ejendomsskattelov_par17_beskatningsgrundlag_kroner(grundværdi_kroner: Heltal) -> grundværdi_kroner * 80 / 100
 | ejendomsskattelov_grundskyld_regelgrundlag_understøttet(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> fakta.beliggenhed == EjskDanmark && fakta.produktionsjord == Falskt && kommune_understøttet_i_år(indkomstår, fakta.kommune)
 | ejendomsskattelov_grundskyld_input_gyldigt(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> fakta.identifikation != "" && fakta.grundværdi_kroner >= 0 && ejendomsskattelov_ejerandel_gyldig(fakta.ejerandel_basispoint) && ejendomsskattelov_par72_periode_datoer_gyldige(indkomstår, fakta.grundskyldsperiode)
-| ejendomsskattelov_grundskyld_beregning(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> ejendomsskattelov_tom_øre_beregning()
-| exception ejsk_ordinær_grundskyld_beregnes ejendomsskattelov_grundskyld_beregning(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> penge_øre_beregning(
+| ejendomsskattelov_grundskyld_beregning(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta): PengeØreBeregning -> ejendomsskattelov_tom_øre_beregning()
+| exception ejsk_ordinær_grundskyld_beregnes ejendomsskattelov_grundskyld_beregning(indkomstår, fakta) -> penge_øre_beregning(
     ejendomsskattelov_par17_beskatningsgrundlag_kroner(fakta.grundværdi_kroner) * kommunale_parametre_for(indkomstår, fakta.kommune).grundskyld_promille_tiendedele * ejendomsskattelov_par72_skattepligtige_dage(fakta.grundskyldsperiode) * fakta.ejerandel_basispoint,
     100 * 360 * 10000
 ) under ejendomsskattelov_grundskyld_regelgrundlag_understøttet(indkomstår, fakta) && ejendomsskattelov_grundskyld_input_gyldigt(indkomstår, fakta)
@@ -857,14 +857,14 @@ ejendomsværdiskat.
     ejer_opfylder || samlevende_ægtefælle_opfylder || længstlevende_succederer
 }
 
-| ejendomsskattelov_par26_enlig_grundbeløb_kroner(indkomstår: Heltal) -> 0
-| exception ejsk_par26_enlig_2024 ejendomsskattelov_par26_enlig_grundbeløb_kroner(indkomstår: Heltal) -> 220200 under indkomstår == 2024
-| exception ejsk_par26_enlig_2025 ejendomsskattelov_par26_enlig_grundbeløb_kroner(indkomstår: Heltal) -> 228800 under indkomstår == 2025
-| exception ejsk_par26_enlig_2026 ejendomsskattelov_par26_enlig_grundbeløb_kroner(indkomstår: Heltal) -> 239800 under indkomstår == 2026
-| ejendomsskattelov_par26_gift_grundbeløb_kroner(indkomstår: Heltal) -> 0
-| exception ejsk_par26_gift_2024 ejendomsskattelov_par26_gift_grundbeløb_kroner(indkomstår: Heltal) -> 338800 under indkomstår == 2024
-| exception ejsk_par26_gift_2025 ejendomsskattelov_par26_gift_grundbeløb_kroner(indkomstår: Heltal) -> 351900 under indkomstår == 2025
-| exception ejsk_par26_gift_2026 ejendomsskattelov_par26_gift_grundbeløb_kroner(indkomstår: Heltal) -> 368800 under indkomstår == 2026
+| ejendomsskattelov_par26_enlig_grundbeløb_kroner(indkomstår: Heltal): Int -> 0
+| exception ejsk_par26_enlig_2024 ejendomsskattelov_par26_enlig_grundbeløb_kroner(indkomstår) -> 220200 under indkomstår == 2024
+| exception ejsk_par26_enlig_2025 ejendomsskattelov_par26_enlig_grundbeløb_kroner(indkomstår) -> 228800 under indkomstår == 2025
+| exception ejsk_par26_enlig_2026 ejendomsskattelov_par26_enlig_grundbeløb_kroner(indkomstår) -> 239800 under indkomstår == 2026
+| ejendomsskattelov_par26_gift_grundbeløb_kroner(indkomstår: Heltal): Int -> 0
+| exception ejsk_par26_gift_2024 ejendomsskattelov_par26_gift_grundbeløb_kroner(indkomstår) -> 338800 under indkomstår == 2024
+| exception ejsk_par26_gift_2025 ejendomsskattelov_par26_gift_grundbeløb_kroner(indkomstår) -> 351900 under indkomstår == 2025
+| exception ejsk_par26_gift_2026 ejendomsskattelov_par26_gift_grundbeløb_kroner(indkomstår) -> 368800 under indkomstår == 2026
 | ejendomsskattelov_par26_grundbeløb_understøttet(indkomstår: Heltal) -> indkomstår == 2024 || indkomstår == 2025 || indkomstår == 2026
 | ejendomsskattelov_par26_positiv_indkomst_kroner(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
 | ejendomsskattelov_par26_aktieindkomst_efter_udbytte_kroner(aktieindkomst_kroner: Heltal, udbytteindkomst_kroner: Heltal, udbytteloft_kroner: Heltal) -> penge_positivt_beløb(ejendomsskattelov_par26_positiv_indkomst_kroner(aktieindkomst_kroner) - penge_mindste_beløb(udbytteindkomst_kroner, udbytteloft_kroner))

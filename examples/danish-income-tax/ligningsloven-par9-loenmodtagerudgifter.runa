@@ -121,11 +121,11 @@ Bundgrænse for visse lønmodtagerfradrag
     skatteyderstatus = Ll9Stk1Lønmodtager,
     udgifter = []
 )
-| ligningslov9_stk1_lovversion_for(indkomstår: Heltal) -> Ll9Stk1LovUdenKildedækning
-| exception ligningslov9_stk1_lbk42_for_2023_til_2025 ligningslov9_stk1_lovversion_for(indkomstår: Heltal) -> Ll9Stk1Lbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
-| exception ligningslov9_stk1_lbk1500_for_2026 ligningslov9_stk1_lovversion_for(indkomstår: Heltal) -> Ll9Stk1Lbk1500Af2025 under indkomstår == 2026
-| ligningslov9_stk1_grundbeløbsresultat(indkomstår: Heltal) -> None
-| exception ligningslov9_stk1_grundbeløb_fra_par20_2023_til_2026 ligningslov9_stk1_grundbeløbsresultat(indkomstår: Heltal) -> {
+| ligningslov9_stk1_lovversion_for(indkomstår: Heltal): Ligningslov9Stk1Lovversion -> Ll9Stk1LovUdenKildedækning
+| exception ligningslov9_stk1_lbk42_for_2023_til_2025 ligningslov9_stk1_lovversion_for(indkomstår) -> Ll9Stk1Lbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
+| exception ligningslov9_stk1_lbk1500_for_2026 ligningslov9_stk1_lovversion_for(indkomstår) -> Ll9Stk1Lbk1500Af2025 under indkomstår == 2026
+| ligningslov9_stk1_grundbeløbsresultat(indkomstår: Heltal): Ligningslov9Stk1Grundbeløbsresultat? -> None
+| exception ligningslov9_stk1_grundbeløb_fra_par20_2023_til_2026 ligningslov9_stk1_grundbeløbsresultat(indkomstår) -> {
     = reguleringstal = par20_reguleringstal_resultat(indkomstår)
     = regulering = par20_regulering_resultat(Par20ReguleringInput(
         grundbeløb_2010_niveau_kroner = 5500,
@@ -142,8 +142,8 @@ Bundgrænse for visse lønmodtagerfradrag
     | Some(_) -> Sandt
     | None -> Falskt
 }
-| ligningslov9_stk1_grundbeløb_kroner(indkomstår: Heltal) -> 0
-| exception ligningslov9_stk1_grundbeløb_fra_kilde ligningslov9_stk1_grundbeløb_kroner(indkomstår: Heltal) -> match ligningslov9_stk1_grundbeløbsresultat(indkomstår) {
+| ligningslov9_stk1_grundbeløb_kroner(indkomstår: Heltal): Int -> 0
+| exception ligningslov9_stk1_grundbeløb_fra_kilde ligningslov9_stk1_grundbeløb_kroner(indkomstår) -> match ligningslov9_stk1_grundbeløbsresultat(indkomstår) {
     | Some(resultat) -> resultat.regulering.reguleret_og_afrundet_kroner
     | None -> 0
 } under ligningslov9_stk1_skatteår_understøttet(indkomstår)

@@ -47,8 +47,8 @@ Afskrivninger;
 # Statsskattelov6OrdinærAfskrivningResultat(skatteyder: Statsskattelov6Skatteyder, driftsomkostning_omfattet: Boolsk, afskrivningsgrundlag_primo_kroner: Heltal, dokumenteret_ordinær_værdiforringelse_i_året_kroner: Heltal, ordinær_afskrivning_kroner: Heltal, afskrivningsgrundlag_ultimo_kroner: Heltal)
 
 | statsskattelov6_ordinær_afskrivning_omfattet(input: Statsskattelov6OrdinærAfskrivningInput) -> input.skatteyder == Sl6SelvstændigErhvervsdrivendePerson && input.udgift_eller_aktiv_anvendt_til_at_erhverve_sikre_og_vedligeholde_indkomsten && input.ikke_omfattet_af_særlig_afskrivningslovgivning
-| statsskattelov6_ordinær_afskrivning_kroner(input: Statsskattelov6OrdinærAfskrivningInput) -> 0
-| exception sl6_dokumenteret_ordinær_afskrivning statsskattelov6_ordinær_afskrivning_kroner(input: Statsskattelov6OrdinærAfskrivningInput) -> penge_mindste_beløb(
+| statsskattelov6_ordinær_afskrivning_kroner(input: Statsskattelov6OrdinærAfskrivningInput): Int -> 0
+| exception sl6_dokumenteret_ordinær_afskrivning statsskattelov6_ordinær_afskrivning_kroner(input) -> penge_mindste_beløb(
     penge_mindste_beløb(
         penge_positivt_beløb(input.afskrivningsgrundlag_primo_kroner),
         penge_positivt_beløb(input.dokumenteret_ordinær_værdiforringelse_i_året_kroner)

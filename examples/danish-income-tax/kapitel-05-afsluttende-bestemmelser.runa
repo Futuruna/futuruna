@@ -170,8 +170,8 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     grundbeløb_2010_niveau_kroner = grundbeløb_2010_niveau_kroner,
     reguleringstal_tiendedele = reguleringstal_tiendedele
 ))
-| par26_bundfradrag_nr1_2010_niveau(status: Par26AlderStatus) -> 44800 under status == Par26Fyldt18EllerGift
-| par26_bundfradrag_nr1_2010_niveau(status: Par26AlderStatus) -> 33600 under status == Par26Under18Ugift
+| par26_bundfradrag_nr1_2010_niveau(status: Par26AlderStatus): Int -> 44800 under status == Par26Fyldt18EllerGift
+| par26_bundfradrag_nr1_2010_niveau(status) -> 33600 under status == Par26Under18Ugift
 | par26_bundfradrag_nr2_og_nr3_2010_niveau() -> 362800
 | par26_fradragsgrundbeløb_nr5_2010_niveau() -> 14200
 | par26_personfradrag_nr6_2010_niveau() -> 1900
@@ -222,8 +222,8 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 )
 | par26_nr5_baseline_grundbeløb_kroner(skatteår: Heltal) -> par26_fradragsgrundbeløb_nr5_reguleret_kroner(par26_reguleringstal_tiendedele_for_skatteår(skatteår)) under par26_gælder_for_skatteår(skatteår)
 | par26_nr5_baseline_beregnet_kroner(input: Par26Nr5LigningsfradragInput) -> penge_beløb_gange_basispoint_kroner(par26_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner), 425)
-| par26_nr5_baseline_fradrag_kroner(input: Par26Nr5LigningsfradragInput) -> 0
-| exception par26_nr5_samme_betingelser_som_ll9j par26_nr5_baseline_fradrag_kroner(input: Par26Nr5LigningsfradragInput) -> penge_mindste_beløb(par26_nr5_baseline_beregnet_kroner(input), par26_nr5_baseline_grundbeløb_kroner(input.skatteår)) under input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt
+| par26_nr5_baseline_fradrag_kroner(input: Par26Nr5LigningsfradragInput): Int -> 0
+| exception par26_nr5_samme_betingelser_som_ll9j par26_nr5_baseline_fradrag_kroner(input) -> penge_mindste_beløb(par26_nr5_baseline_beregnet_kroner(input), par26_nr5_baseline_grundbeløb_kroner(input.skatteår)) under input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt
 | par26_nr5_ligningsfradrag_resultat(input: Par26Nr5LigningsfradragInput) -> Par26Nr5LigningsfradragResult(
     fradrag_efter_ll9j_9k_9l_kroner = ll9j_9k_9l_fradrag_resultat(par26_nr5_ll_input(input)).samlet_fradrag_kroner,
     baseline_fradrag_efter_425pct_grundbeløb_kroner = par26_nr5_baseline_fradrag_kroner(input),
@@ -362,8 +362,8 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 | par26_kompensation_afregning_resultat(input: Par26KompensationAfregningInput) -> par26_kompensation_afregning_sag(input).resultat()
 | par26_positivt_forskelsbeløb_nedsætter_ægtefælles_negative(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
 | par26_negativ_kapital_modregnes_i_ægtefælles_positive(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
-| par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
-| exception forskerordning_48f par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(status: Par26ÆgtefælleStatus) -> Falskt under status == Par26Forskerordning48FValgt
+| par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(status: Par26ÆgtefælleStatus): Bool -> status == Par26GiftSamlevendeVedÅretsUdløb
+| exception forskerordning_48f par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(status) -> Falskt under status == Par26Forskerordning48FValgt
 | par26_par7_ægtefælleregler_anvendes_for_nr3(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
 | par26_positiv_kapital_modregnes_i_ægtefælles_negative(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
 | par26_kompensation_kræver_kommunal_eller_par8c(input: Par26ForskelsbeløbInput) -> input.betaler_kommunal_eller_par8c
@@ -380,7 +380,7 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
         egne_ligningsmæssige_fradrag_kroner = input.egne_ligningsmæssige_fradrag_kroner,
         ægtefælles_ligningsmæssige_fradrag_kroner = input.ægtefælles_ligningsmæssige_fradrag_kroner
     ))
-    | højeste_personligt_beregningsgrundlag_kroner() -> egen_personligt_beregningsgrundlag_kroner()
+    | højeste_personligt_beregningsgrundlag_kroner(): Int -> egen_personligt_beregningsgrundlag_kroner()
     | exception par26_stk7_ægtefælle_højeste_beregningsgrundlag højeste_personligt_beregningsgrundlag_kroner() -> ægtefælle_personligt_beregningsgrundlag_kroner() under højeste_beregningsgrundlag() == ÆgtefælleHøjesteBeregningsgrundlag
     | egen_stk5_input() -> Par7ÆgtefælleKapitalStk5Input(
         nettokapitalindkomst_kroner = input.ægtefælle_nettokapitalindkomst_kroner,
@@ -438,9 +438,9 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 # Par26ÆgtefælleForskelsbeløbSag(input: Par26ÆgtefælleForskelsbeløbInput) {
     | egen_positive_forskelsbeløb() -> par26_positivt_beløb(input.egen_forskelsbeløb_efter_stk3_kroner)
     | ægtefælle_negative_forskelsbeløb_abs() -> par26_positivt_beløb(0 - input.ægtefælle_forskelsbeløb_efter_stk3_kroner)
-    | positivt_modregnet_i_ægtefælle() -> 0
+    | positivt_modregnet_i_ægtefælle(): Int -> 0
     | exception stk4_samlevende_modregner_positivt_forskelsbeløb positivt_modregnet_i_ægtefælle() -> penge_mindste_beløb(egen_positive_forskelsbeløb(), ægtefælle_negative_forskelsbeløb_abs()) under par26_positivt_forskelsbeløb_nedsætter_ægtefælles_negative(input.status)
-    | ægtefælle_forskelsbeløb_efter_stk4() -> input.ægtefælle_forskelsbeløb_efter_stk3_kroner
+    | ægtefælle_forskelsbeløb_efter_stk4(): Int -> input.ægtefælle_forskelsbeløb_efter_stk3_kroner
     | exception stk4_negativt_forskelsbeløb_nedsat ægtefælle_forskelsbeløb_efter_stk4() -> 0 - (ægtefælle_negative_forskelsbeløb_abs() - positivt_modregnet_i_ægtefælle()) under input.ægtefælle_forskelsbeløb_efter_stk3_kroner < 0
     | ægtefælle_kompensation_efter_stk4() -> par26_positivt_beløb(0 - ægtefælle_forskelsbeløb_efter_stk4())
     | resultat() -> Par26ÆgtefælleForskelsbeløbResult(
@@ -480,7 +480,7 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 # Par26Stk5NegativKapitalSag(input: Par26Stk5NegativKapitalInput) {
     | egen_negativ_abs() -> par26_positivt_beløb(0 - input.negativ_nettokapitalindkomst_kroner)
     | ægtefælle_positiv() -> par26_positivt_beløb(input.ægtefælle_positiv_nettokapitalindkomst_kroner)
-    | modregnet_i_ægtefælles_positive() -> 0
+    | modregnet_i_ægtefælles_positive(): Int -> 0
     | exception stk5_samlevende_modregner_negativ_kapital modregnet_i_ægtefælles_positive() -> penge_mindste_beløb(egen_negativ_abs(), ægtefælle_positiv()) under par26_negativ_kapital_modregnes_i_ægtefælles_positive(input.status)
     | resultat() -> Par26Stk5NegativKapitalResult(
         modregnet_i_ægtefælles_positive_kroner = modregnet_i_ægtefælles_positive(),
@@ -500,14 +500,14 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
         negativ_nettokapitalindkomst_kroner = input.ægtefælle_nettokapitalindkomst_kroner,
         ægtefælle_positiv_nettokapitalindkomst_kroner = input.egen_nettokapitalindkomst_kroner
     ))
-    | modregnet_fra_egen_til_ægtefælle() -> 0
+    | modregnet_fra_egen_til_ægtefælle(): Int -> 0
     | exception stk5_egen_negativ_modregnes_i_ægtefælle modregnet_fra_egen_til_ægtefælle() -> egen_negativ_mod_ægtefælle().modregnet_i_ægtefælles_positive_kroner under input.egen_nettokapitalindkomst_kroner < 0 && input.ægtefælle_nettokapitalindkomst_kroner > 0
-    | modregnet_fra_ægtefælle_til_egen() -> 0
+    | modregnet_fra_ægtefælle_til_egen(): Int -> 0
     | exception stk5_ægtefælle_negativ_modregnes_i_egen modregnet_fra_ægtefælle_til_egen() -> ægtefælle_negativ_mod_egen().modregnet_i_ægtefælles_positive_kroner under input.ægtefælle_nettokapitalindkomst_kroner < 0 && input.egen_nettokapitalindkomst_kroner > 0
-    | egen_nettokapitalindkomst_efter_stk5() -> input.egen_nettokapitalindkomst_kroner
+    | egen_nettokapitalindkomst_efter_stk5(): Int -> input.egen_nettokapitalindkomst_kroner
     | exception stk5_egen_negativ_efter_modregning egen_nettokapitalindkomst_efter_stk5() -> egen_negativ_mod_ægtefælle().negativ_nettokapitalindkomst_efter_modregning_kroner under input.egen_nettokapitalindkomst_kroner < 0
     | exception stk5_egen_positiv_nedsat_af_ægtefælle egen_nettokapitalindkomst_efter_stk5() -> ægtefælle_negativ_mod_egen().ægtefælle_positiv_nettokapitalindkomst_efter_modregning_kroner under input.egen_nettokapitalindkomst_kroner > 0 && input.ægtefælle_nettokapitalindkomst_kroner < 0
-    | ægtefælle_nettokapitalindkomst_efter_stk5() -> input.ægtefælle_nettokapitalindkomst_kroner
+    | ægtefælle_nettokapitalindkomst_efter_stk5(): Int -> input.ægtefælle_nettokapitalindkomst_kroner
     | exception stk5_ægtefælle_negativ_efter_modregning ægtefælle_nettokapitalindkomst_efter_stk5() -> ægtefælle_negativ_mod_egen().negativ_nettokapitalindkomst_efter_modregning_kroner under input.ægtefælle_nettokapitalindkomst_kroner < 0
     | exception stk5_ægtefælle_positiv_nedsat_af_egen ægtefælle_nettokapitalindkomst_efter_stk5() -> egen_negativ_mod_ægtefælle().ægtefælle_positiv_nettokapitalindkomst_efter_modregning_kroner under input.ægtefælle_nettokapitalindkomst_kroner > 0 && input.egen_nettokapitalindkomst_kroner < 0
     | resultat() -> Par26Stk5KapitalParResult(
@@ -523,7 +523,7 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 # Par26Stk6BundfradragSag(input: Par26Stk6BundfradragInput) {
     | egen_manglende_til_bundfradrag() -> par26_positivt_beløb(input.egen_bundfradrag_nr2_kroner - input.egen_personlig_plus_positiv_kapital_kroner)
     | forhøjelse_tilladt() -> par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(input.status) && input.forskerordning_48f_valgt == Falskt
-    | ægtefælle_bundfradragsforhøjelse() -> 0
+    | ægtefælle_bundfradragsforhøjelse(): Int -> 0
     | exception stk6_samlevende_forhøjer_ægtefælles_bundfradrag ægtefælle_bundfradragsforhøjelse() -> egen_manglende_til_bundfradrag() under forhøjelse_tilladt()
     | resultat() -> Par26Stk6BundfradragResult(
         egen_manglende_til_bundfradrag_kroner = egen_manglende_til_bundfradrag(),
@@ -568,7 +568,7 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 # Par26Stk8PositivKapitalSag(input: Par26Stk8PositivKapitalInput) {
     | egen_positiv() -> par26_positivt_beløb(input.positiv_nettokapitalindkomst_kroner)
     | ægtefælle_negativ_abs() -> par26_positivt_beløb(0 - input.ægtefælle_negativ_nettokapitalindkomst_kroner)
-    | modregnet_i_ægtefælles_negative() -> 0
+    | modregnet_i_ægtefælles_negative(): Int -> 0
     | exception stk8_samlevende_modregner_positiv_kapital modregnet_i_ægtefælles_negative() -> penge_mindste_beløb(egen_positiv(), ægtefælle_negativ_abs()) under par26_positiv_kapital_modregnes_i_ægtefælles_negative(input.status)
     | resultat() -> Par26Stk8PositivKapitalResult(
         modregnet_i_ægtefælles_negative_kroner = modregnet_i_ægtefælles_negative(),
@@ -588,14 +588,14 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
         positiv_nettokapitalindkomst_kroner = input.ægtefælle_nettokapitalindkomst_kroner,
         ægtefælle_negativ_nettokapitalindkomst_kroner = input.egen_nettokapitalindkomst_kroner
     ))
-    | modregnet_fra_egen_til_ægtefælle() -> 0
+    | modregnet_fra_egen_til_ægtefælle(): Int -> 0
     | exception stk8_egen_positiv_modregnes_i_ægtefælle modregnet_fra_egen_til_ægtefælle() -> egen_positiv_mod_ægtefælle().modregnet_i_ægtefælles_negative_kroner under input.egen_nettokapitalindkomst_kroner > 0 && input.ægtefælle_nettokapitalindkomst_kroner < 0
-    | modregnet_fra_ægtefælle_til_egen() -> 0
+    | modregnet_fra_ægtefælle_til_egen(): Int -> 0
     | exception stk8_ægtefælle_positiv_modregnes_i_egen modregnet_fra_ægtefælle_til_egen() -> ægtefælle_positiv_mod_egen().modregnet_i_ægtefælles_negative_kroner under input.ægtefælle_nettokapitalindkomst_kroner > 0 && input.egen_nettokapitalindkomst_kroner < 0
-    | egen_nettokapitalindkomst_efter_stk8() -> input.egen_nettokapitalindkomst_kroner
+    | egen_nettokapitalindkomst_efter_stk8(): Int -> input.egen_nettokapitalindkomst_kroner
     | exception stk8_egen_positiv_efter_modregning egen_nettokapitalindkomst_efter_stk8() -> egen_positiv_mod_ægtefælle().positiv_nettokapitalindkomst_efter_modregning_kroner under input.egen_nettokapitalindkomst_kroner > 0
     | exception stk8_egen_negativ_nedsat_af_ægtefælle egen_nettokapitalindkomst_efter_stk8() -> ægtefælle_positiv_mod_egen().ægtefælle_negativ_nettokapitalindkomst_efter_modregning_kroner under input.egen_nettokapitalindkomst_kroner < 0 && input.ægtefælle_nettokapitalindkomst_kroner > 0
-    | ægtefælle_nettokapitalindkomst_efter_stk8() -> input.ægtefælle_nettokapitalindkomst_kroner
+    | ægtefælle_nettokapitalindkomst_efter_stk8(): Int -> input.ægtefælle_nettokapitalindkomst_kroner
     | exception stk8_ægtefælle_positiv_efter_modregning ægtefælle_nettokapitalindkomst_efter_stk8() -> ægtefælle_positiv_mod_egen().positiv_nettokapitalindkomst_efter_modregning_kroner under input.ægtefælle_nettokapitalindkomst_kroner > 0
     | exception stk8_ægtefælle_negativ_nedsat_af_egen ægtefælle_nettokapitalindkomst_efter_stk8() -> egen_positiv_mod_ægtefælle().ægtefælle_negativ_nettokapitalindkomst_efter_modregning_kroner under input.ægtefælle_nettokapitalindkomst_kroner < 0 && input.egen_nettokapitalindkomst_kroner > 0
     | resultat() -> Par26Stk8KapitalParResult(
@@ -1117,12 +1117,12 @@ lovens gennemførelse og administration.
 # PersonskattelovTerritorialInput(territorium: PersonskattelovTerritorium)
 # PersonskattelovTerritorialResultat(territorium: PersonskattelovTerritorium, hjemmel: PersonskattelovTerritorialHjemmel, undtaget_af_par28: Boolsk, gælder_i_territorium: Boolsk)
 
-| personskatteloven_territorium_undtaget_af_par28(territorium: PersonskattelovTerritorium) -> Falskt
-| exception færøerne personskatteloven_territorium_undtaget_af_par28(territorium: PersonskattelovTerritorium) -> Sandt under territorium == PersonskatFærøerne
-| exception grønland personskatteloven_territorium_undtaget_af_par28(territorium: PersonskattelovTerritorium) -> Sandt under territorium == PersonskatGrønland
-| personskatteloven_territorial_hjemmel(territorium: PersonskattelovTerritorium) -> IngenPar28Undtagelse
-| exception par28_færøerne_hjemmel personskatteloven_territorial_hjemmel(territorium: PersonskattelovTerritorium) -> PersonskattelovenPar28FærøerneUndtaget under territorium == PersonskatFærøerne
-| exception par28_grønland_hjemmel personskatteloven_territorial_hjemmel(territorium: PersonskattelovTerritorium) -> PersonskattelovenPar28GrønlandUndtaget under territorium == PersonskatGrønland
+| personskatteloven_territorium_undtaget_af_par28(territorium: PersonskattelovTerritorium): Bool -> Falskt
+| exception færøerne personskatteloven_territorium_undtaget_af_par28(territorium) -> Sandt under territorium == PersonskatFærøerne
+| exception grønland personskatteloven_territorium_undtaget_af_par28(territorium) -> Sandt under territorium == PersonskatGrønland
+| personskatteloven_territorial_hjemmel(territorium: PersonskattelovTerritorium): PersonskattelovTerritorialHjemmel -> IngenPar28Undtagelse
+| exception par28_færøerne_hjemmel personskatteloven_territorial_hjemmel(territorium) -> PersonskattelovenPar28FærøerneUndtaget under territorium == PersonskatFærøerne
+| exception par28_grønland_hjemmel personskatteloven_territorial_hjemmel(territorium) -> PersonskattelovenPar28GrønlandUndtaget under territorium == PersonskatGrønland
 
 # PersonskattelovTerritorialSag(input: PersonskattelovTerritorialInput) {
     | undtaget_af_par28() -> personskatteloven_territorium_undtaget_af_par28(input.territorium)

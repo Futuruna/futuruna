@@ -74,9 +74,9 @@ umiddelbart ved tronskiftet regeringen.
 | forsikringsakt_opbevares_i(FolketingetsArkiv)
 | forsikringsakt_opbevares_i(Rigsarkivet)
 
-| regering_ved_tronskifte(situation: Tronskiftesituation) -> MonarkenSelv
-| regering_ved_tronskifte(situation: Tronskiftesituation) -> Statsrådet under situation.monark.forsikring == IkkeAfgivet && situation.kan_afgive_forsikring_umiddelbart == Falskt
-| exception lovbestemt_ordning regering_ved_tronskifte(situation: Tronskiftesituation) -> LovbestemtRegeringsfører under situation.monark.forsikring == IkkeAfgivet && situation.kan_afgive_forsikring_umiddelbart == Falskt && situation.anden_ordning_ved_lov
+| regering_ved_tronskifte(situation: Tronskiftesituation): Regeringsfører -> MonarkenSelv
+| regering_ved_tronskifte(situation) -> Statsrådet under situation.monark.forsikring == IkkeAfgivet && situation.kan_afgive_forsikring_umiddelbart == Falskt
+| exception lovbestemt_ordning regering_ved_tronskifte(situation) -> LovbestemtRegeringsfører under situation.monark.forsikring == IkkeAfgivet && situation.kan_afgive_forsikring_umiddelbart == Falskt && situation.anden_ordning_ved_lov
 
 | direkte_tiltræden_ved_forudgående_forsikring(monark: Monark) -> monark.forsikring == AfgivetSomTronfølger
 

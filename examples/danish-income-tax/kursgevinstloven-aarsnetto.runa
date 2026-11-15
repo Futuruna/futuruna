@@ -135,12 +135,12 @@ opgørelse af den skattepligtige indkomst.
 | kgl_årsnetto_fordring_erhvervet_udenfor_næring(næringsforhold: KglÅrsnettoNæringsforhold) -> næringsforhold == KglÅrsnettoDokumenteretErhvervetUdenForNæring
 | kgl_årsnetto_fordring_omfattet_af_par13(kilde: KglÅrsnettoFordringskilde) -> kgl_årsnetto_udøver_næring(kilde.næringsforhold) && kgl_årsnetto_fordring_erhvervet_udenfor_næring(kilde.næringsforhold) == Falskt
 | kgl_årsnetto_fordring_omfattet_af_par17(kilde: KglÅrsnettoFordringskilde) -> kilde.erhvervelsesgrundlag == KglÅrsnettoVederlagINæring || kilde.erhvervelsesgrundlag == KglÅrsnettoTilknyttetErhvervsdrift
-| kgl_årsnetto_fordring_tabsgrundlag(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabEfterPar14
-| exception kgl_årsnetto_par17_erhvervsfordring kgl_årsnetto_fordring_tabsgrundlag(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabEfterPar17Statsskattelov6A under kgl_årsnetto_fordring_omfattet_af_par17(kilde)
-| kgl_årsnetto_fordring_tabsbegrænsning(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabIkkeAfskåret
-| exception kgl_årsnetto_par18_dba kgl_årsnetto_fordring_tabsbegrænsning(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabDbaAfskåret under kilde.dba_status == KglÅrsnettoRenterEllerGevinsterUndtagetEfterDba
-| exception kgl_årsnetto_par14_stk2_kontrol kgl_årsnetto_fordring_tabsbegrænsning(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabKontrolEllerNærtstående under kgl_årsnetto_fordring_omfattet_af_par17(kilde) == Falskt && kilde.debitorrelation != KglÅrsnettoUafhængigDebitor
-| exception kgl_årsnetto_par15_manglende_oplysning kgl_årsnetto_fordring_tabsbegrænsning(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabReguleretMarkedUdenOplysning under kgl_årsnetto_fordring_omfattet_af_par17(kilde) == Falskt && kgl_årsnetto_markedsnoteret(kilde.markedsfakta) && kgl_årsnetto_oplyst_rettidigt(kilde.markedsfakta) == Falskt
+| kgl_årsnetto_fordring_tabsgrundlag(kilde: KglÅrsnettoFordringskilde): KursgevinstlovFordringTabsgrundlag -> KglFordringstabEfterPar14
+| exception kgl_årsnetto_par17_erhvervsfordring kgl_årsnetto_fordring_tabsgrundlag(kilde) -> KglFordringstabEfterPar17Statsskattelov6A under kgl_årsnetto_fordring_omfattet_af_par17(kilde)
+| kgl_årsnetto_fordring_tabsbegrænsning(kilde: KglÅrsnettoFordringskilde): KursgevinstlovFordringTabsbegrænsning -> KglFordringstabIkkeAfskåret
+| exception kgl_årsnetto_par18_dba kgl_årsnetto_fordring_tabsbegrænsning(kilde) -> KglFordringstabDbaAfskåret under kilde.dba_status == KglÅrsnettoRenterEllerGevinsterUndtagetEfterDba
+| exception kgl_årsnetto_par14_stk2_kontrol kgl_årsnetto_fordring_tabsbegrænsning(kilde) -> KglFordringstabKontrolEllerNærtstående under kgl_årsnetto_fordring_omfattet_af_par17(kilde) == Falskt && kilde.debitorrelation != KglÅrsnettoUafhængigDebitor
+| exception kgl_årsnetto_par15_manglende_oplysning kgl_årsnetto_fordring_tabsbegrænsning(kilde) -> KglFordringstabReguleretMarkedUdenOplysning under kgl_årsnetto_fordring_omfattet_af_par17(kilde) == Falskt && kgl_årsnetto_markedsnoteret(kilde.markedsfakta) && kgl_årsnetto_oplyst_rettidigt(kilde.markedsfakta) == Falskt
 | kgl_årsnetto_fordring_i_par14_bagatelgrundlag(kilde: KglÅrsnettoFordringskilde) -> kgl_årsnetto_par1_afgrænsning(kilde) == KglPar1Omfattet && kgl_årsnetto_fordring_omfattet_af_par13(kilde) == Falskt && kgl_årsnetto_fordring_omfattet_af_par17(kilde) == Falskt
 
 }

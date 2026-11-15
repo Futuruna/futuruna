@@ -69,14 +69,14 @@ bekendtgørelse nr. 839 af 24. juni 2025 om kildeskat.
 # Forskudsregistrering2026Progressionsskatter(mellemskat_efter_skatteloft_kroner: Heltal, topskat_kroner: Heltal, toptopskat_kroner: Heltal)
 # Forskudsregistrering2026IndeholdelsesprocentInput(skattekommune: Forskudsregistrering2026Skattekommune, progressionsgrundlag: Forskudsregistrering2026Progressionsgrundlag, progressionsskatter: Forskudsregistrering2026Progressionsskatter)
 
-| forskudsregistrering_2026_kirkeskat_basispoint(input: Forskudsregistrering2026Skattekommune) -> 0
-| exception forskudsregistrering_2026_folkekirkemedlem_kirkeskat forskudsregistrering_2026_kirkeskat_basispoint(input: Forskudsregistrering2026Skattekommune) -> input.kirkeskat_basispoint under input.betaler_kirkeskat
-| forskudsregistrering_2026_kommunal_eller_par8c_basispoint(input: Forskudsregistrering2026Skattekommune) -> input.kommunal_skat_basispoint
-| exception forskudsregistrering_2026_begrænset_skattepligtig_par8c forskudsregistrering_2026_kommunal_eller_par8c_basispoint(input: Forskudsregistrering2026Skattekommune) -> input.par8c_basispoint under input.begrænset_skattepligtig
+| forskudsregistrering_2026_kirkeskat_basispoint(input: Forskudsregistrering2026Skattekommune): Int -> 0
+| exception forskudsregistrering_2026_folkekirkemedlem_kirkeskat forskudsregistrering_2026_kirkeskat_basispoint(input) -> input.kirkeskat_basispoint under input.betaler_kirkeskat
+| forskudsregistrering_2026_kommunal_eller_par8c_basispoint(input: Forskudsregistrering2026Skattekommune): Int -> input.kommunal_skat_basispoint
+| exception forskudsregistrering_2026_begrænset_skattepligtig_par8c forskudsregistrering_2026_kommunal_eller_par8c_basispoint(input) -> input.par8c_basispoint under input.begrænset_skattepligtig
 | forskudsregistrering_2026_laveste_skatteprocentsats_basispoint(input: Forskudsregistrering2026Skattekommune) -> forskudsregistrering_2026_kommunal_eller_par8c_basispoint(input) + forskudsregistrering_2026_kirkeskat_basispoint(input) + input.bundskat_basispoint
 
-| forskudsregistrering_2026_procentsats_basispoint(skat_kroner: Heltal, grundlag_kroner: Heltal) -> 0
-| exception forskudsregistrering_2026_to_decimal_procentsats forskudsregistrering_2026_procentsats_basispoint(skat_kroner: Heltal, grundlag_kroner: Heltal) -> skat_kroner * 10000 / grundlag_kroner under skat_kroner > 0 && grundlag_kroner > 0
+| forskudsregistrering_2026_procentsats_basispoint(skat_kroner: Heltal, grundlag_kroner: Heltal): Int -> 0
+| exception forskudsregistrering_2026_to_decimal_procentsats forskudsregistrering_2026_procentsats_basispoint(skat_kroner, grundlag_kroner) -> skat_kroner * 10000 / grundlag_kroner under skat_kroner > 0 && grundlag_kroner > 0
 | forskudsregistrering_2026_mellemskat_nævner_kroner(input: Forskudsregistrering2026IndeholdelsesprocentInput) -> input.progressionsgrundlag.personlig_indkomst_kroner + input.progressionsgrundlag.positiv_nettokapitalindkomst_over_grænse_kroner
 | forskudsregistrering_2026_mellemskat_procentsats_basispoint(input: Forskudsregistrering2026IndeholdelsesprocentInput) -> forskudsregistrering_2026_procentsats_basispoint(input.progressionsskatter.mellemskat_efter_skatteloft_kroner, forskudsregistrering_2026_mellemskat_nævner_kroner(input))
 | forskudsregistrering_2026_topskat_procentsats_basispoint(input: Forskudsregistrering2026IndeholdelsesprocentInput) -> forskudsregistrering_2026_procentsats_basispoint(input.progressionsskatter.topskat_kroner, input.progressionsgrundlag.personlig_indkomst_kroner)

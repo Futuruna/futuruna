@@ -71,24 +71,24 @@ regnskabsårets slutning.
     | VarelagerFakturapris(indkøbspris_kroner, fragt_told_og_lignende_kroner) -> penge_positivt_beløb(indkøbspris_kroner) + penge_positivt_beløb(fragt_told_og_lignende_kroner)
     | VarelagerFremstillingspris(fremstillingspris_kroner) -> penge_positivt_beløb(fremstillingspris_kroner)
 }
-| varelager_par1_postværdi_efter_moms_kroner(post: VarelagerPar1Post) -> 0
-| exception varelager_par1_omfattet_post varelager_par1_postværdi_efter_moms_kroner(post: VarelagerPar1Post) -> penge_positivt_beløb(
+| varelager_par1_postværdi_efter_moms_kroner(post: VarelagerPar1Post): Int -> 0
+| exception varelager_par1_omfattet_post varelager_par1_postværdi_efter_moms_kroner(post) -> penge_positivt_beløb(
     varelager_par1_bruttoværdi_kroner(post.opgørelsesmåde) - penge_positivt_beløb(post.fradragsberettiget_indgående_moms_kroner)
 ) under varelager_par1_art_omfattet(post.art)
 | varelager_par1_omfattede_varegrupper(varegrupper: List(VarelagerPar1Post)) -> length(filter(varegrupper, |post| varelager_par1_art_omfattet(post.art)))
 | varelager_par1_varelagergrundlag_kroner(varegrupper: List(VarelagerPar1Post)) -> foldl(varegrupper, 0, |sum, post| sum + varelager_par1_postværdi_efter_moms_kroner(post))
-| varelager_par1_nedskrivningssats_basispoint(indkomstår: Heltal) -> 0
-| exception varelager_par1_indkomstår_1993 varelager_par1_nedskrivningssats_basispoint(indkomstår: Heltal) -> 2300 under indkomstår == 1993
-| exception varelager_par1_indkomstår_1994 varelager_par1_nedskrivningssats_basispoint(indkomstår: Heltal) -> 2000 under indkomstår == 1994
-| exception varelager_par1_indkomstår_1995 varelager_par1_nedskrivningssats_basispoint(indkomstår: Heltal) -> 1600 under indkomstår == 1995
-| exception varelager_par1_indkomstår_1996 varelager_par1_nedskrivningssats_basispoint(indkomstår: Heltal) -> 1200 under indkomstår == 1996
-| exception varelager_par1_indkomstår_1997 varelager_par1_nedskrivningssats_basispoint(indkomstår: Heltal) -> 800 under indkomstår == 1997
+| varelager_par1_nedskrivningssats_basispoint(indkomstår: Heltal): Int -> 0
+| exception varelager_par1_indkomstår_1993 varelager_par1_nedskrivningssats_basispoint(indkomstår) -> 2300 under indkomstår == 1993
+| exception varelager_par1_indkomstår_1994 varelager_par1_nedskrivningssats_basispoint(indkomstår) -> 2000 under indkomstår == 1994
+| exception varelager_par1_indkomstår_1995 varelager_par1_nedskrivningssats_basispoint(indkomstår) -> 1600 under indkomstår == 1995
+| exception varelager_par1_indkomstår_1996 varelager_par1_nedskrivningssats_basispoint(indkomstår) -> 1200 under indkomstår == 1996
+| exception varelager_par1_indkomstår_1997 varelager_par1_nedskrivningssats_basispoint(indkomstår) -> 800 under indkomstår == 1997
 | varelager_par1_højeste_nedskrivning_kroner(input: VarelagerPar1Input) -> penge_beløb_gange_basispoint_kroner(
     varelager_par1_varelagergrundlag_kroner(input.varegrupper),
     varelager_par1_nedskrivningssats_basispoint(input.indkomstår)
 )
-| varelager_par1_anvendt_nedskrivning_kroner(input: VarelagerPar1Input) -> 0
-| exception varelager_par1_omfattet_skatteyder_kan_nedskrive varelager_par1_anvendt_nedskrivning_kroner(input: VarelagerPar1Input) -> penge_mindste_beløb(
+| varelager_par1_anvendt_nedskrivning_kroner(input: VarelagerPar1Input): Int -> 0
+| exception varelager_par1_omfattet_skatteyder_kan_nedskrive varelager_par1_anvendt_nedskrivning_kroner(input) -> penge_mindste_beløb(
     penge_positivt_beløb(input.ønsket_nedskrivning_kroner),
     varelager_par1_højeste_nedskrivning_kroner(input)
 ) under varelager_par1_skatteyder_omfattet(input.skatteyder)

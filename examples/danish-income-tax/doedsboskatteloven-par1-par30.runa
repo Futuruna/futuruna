@@ -159,7 +159,7 @@ Stk. 2. En selvstændigt erhvervsdrivende kan anvende et andet indkomstår end k
     hentet_dato = "",
     ændringsstatus = ""
 )
-| dødsboskattelov30_regulerede_satser(dødsår: Heltal) -> Dødsboskattelov30ReguleredeSatser(
+| dødsboskattelov30_regulerede_satser(dødsår: Heltal): Dødsboskattelov30ReguleredeSatser -> Dødsboskattelov30ReguleredeSatser(
     dødsår = dødsår,
     understøttet = Falskt,
     bofradrag_pr_måned_kroner = 0,
@@ -169,7 +169,7 @@ Stk. 2. En selvstændigt erhvervsdrivende kan anvende et andet indkomstår end k
     aktieindkomst_høj_sats_basispoint = 0,
     kilde = dødsboskattelov_par30_ukendt_satskilde
 )
-| exception dødsboskattelov30_regulerede_satser_2023 dødsboskattelov30_regulerede_satser(dødsår: Heltal) -> Dødsboskattelov30ReguleredeSatser(
+| exception dødsboskattelov30_regulerede_satser_2023 dødsboskattelov30_regulerede_satser(dødsår) -> Dødsboskattelov30ReguleredeSatser(
     dødsår = 2023,
     understøttet = Sandt,
     bofradrag_pr_måned_kroner = 6400,
@@ -179,7 +179,7 @@ Stk. 2. En selvstændigt erhvervsdrivende kan anvende et andet indkomstår end k
     aktieindkomst_høj_sats_basispoint = 4200,
     kilde = dødsboskattelov_par30_satser_2023_2024
 ) under dødsår == 2023
-| exception dødsboskattelov30_regulerede_satser_2024 dødsboskattelov30_regulerede_satser(dødsår: Heltal) -> Dødsboskattelov30ReguleredeSatser(
+| exception dødsboskattelov30_regulerede_satser_2024 dødsboskattelov30_regulerede_satser(dødsår) -> Dødsboskattelov30ReguleredeSatser(
     dødsår = 2024,
     understøttet = Sandt,
     bofradrag_pr_måned_kroner = 6600,
@@ -189,7 +189,7 @@ Stk. 2. En selvstændigt erhvervsdrivende kan anvende et andet indkomstår end k
     aktieindkomst_høj_sats_basispoint = 4200,
     kilde = dødsboskattelov_par30_satser_2023_2024
 ) under dødsår == 2024
-| exception dødsboskattelov30_regulerede_satser_2025 dødsboskattelov30_regulerede_satser(dødsår: Heltal) -> Dødsboskattelov30ReguleredeSatser(
+| exception dødsboskattelov30_regulerede_satser_2025 dødsboskattelov30_regulerede_satser(dødsår) -> Dødsboskattelov30ReguleredeSatser(
     dødsår = 2025,
     understøttet = Sandt,
     bofradrag_pr_måned_kroner = 6900,
@@ -199,7 +199,7 @@ Stk. 2. En selvstændigt erhvervsdrivende kan anvende et andet indkomstår end k
     aktieindkomst_høj_sats_basispoint = 4200,
     kilde = dødsboskattelov_par30_satser_2024_2026
 ) under dødsår == 2025
-| exception dødsboskattelov30_regulerede_satser_2026 dødsboskattelov30_regulerede_satser(dødsår: Heltal) -> Dødsboskattelov30ReguleredeSatser(
+| exception dødsboskattelov30_regulerede_satser_2026 dødsboskattelov30_regulerede_satser(dødsår) -> Dødsboskattelov30ReguleredeSatser(
     dødsår = 2026,
     understøttet = Sandt,
     bofradrag_pr_måned_kroner = 7200,

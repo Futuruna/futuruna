@@ -221,8 +221,8 @@ forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
 
 | kildeskat25a_samlivsforløbsresultat(indkomstår: Heltal, forløb: Kildeskat25ASamlivsforløb) -> Kildeskat25ASamlivsforløbSag(indkomstår, forløb).resultat()
 
-| kildeskat25a_stk3_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> 0
-| exception kildeskat25a_stk3_regulerer_grundbeløbet kildeskat25a_stk3_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+| kildeskat25a_stk3_reguleret_grundbeløb_kroner(indkomstår: Heltal): Int -> 0
+| exception kildeskat25a_stk3_regulerer_grundbeløbet kildeskat25a_stk3_reguleret_grundbeløb_kroner(indkomstår) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
     grundbeløb_2010_niveau_kroner = 215500,
     reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår)
 )) under indkomstår >= 2009 && indkomstår <= 2026
@@ -238,7 +238,7 @@ forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
     | stk3_betingelser_opfyldt() -> input.samlevende_ved_indkomstårets_udgang && input.samliv_ophoert_i_indkomståret == Falskt && input.begge_deltaget_i_væsentligt_omfang && input.en_ægtefælle_driver_i_overvejende_grad && input.lønaftale_finder_anvendelse == Falskt && input.fordeling_efter_stk8_finder_anvendelse == Falskt && reguleret_grundbeløb_kroner() > 0
     | anmodet_overførsel_kroner() -> penge_positivt_beløb(input.anmodet_overførsel_kroner)
     | anmodet_beløb_begrænset() -> stk3_betingelser_opfyldt() && anmodet_overførsel_kroner() > højeste_overførsel_kroner()
-    | overført_til_medarbejdende_ægtefælle_kroner() -> 0
+    | overført_til_medarbejdende_ægtefælle_kroner(): Int -> 0
     | exception stk3_overfører_anmodet_beløb_inden_for_lofter overført_til_medarbejdende_ægtefælle_kroner() -> penge_mindste_beløb(anmodet_overførsel_kroner(), højeste_overførsel_kroner()) under stk3_betingelser_opfyldt()
     | resultat() -> Kildeskat25AStk3Resultat(
         indkomstår = input.indkomstår,
@@ -502,8 +502,8 @@ ikke for A-indkomst.
 # KildeskatAIndkomstInput(vederlag_i_penge_kroner: Heltal, fri_kost_og_logi_skatteværdi_kroner: Heltal, personligt_arbejde_i_tjenesteforhold: Boolsk, undtaget_gruppeliv_pbl56: Boolsk, undtaget_medarbejderinvestering_under_grænse: Boolsk)
 
 | kildeskat_a_indkomst_løn(input: KildeskatAIndkomstInput) -> input.personligt_arbejde_i_tjenesteforhold && input.undtaget_gruppeliv_pbl56 == Falskt && input.undtaget_medarbejderinvestering_under_grænse == Falskt
-| kildeskat_a_indkomst_beløb_kroner(input: KildeskatAIndkomstInput) -> 0
-| exception kildeskat_lønvederlag_er_a_indkomst kildeskat_a_indkomst_beløb_kroner(input: KildeskatAIndkomstInput) -> input.vederlag_i_penge_kroner + input.fri_kost_og_logi_skatteværdi_kroner under kildeskat_a_indkomst_løn(input)
+| kildeskat_a_indkomst_beløb_kroner(input: KildeskatAIndkomstInput): Int -> 0
+| exception kildeskat_lønvederlag_er_a_indkomst kildeskat_a_indkomst_beløb_kroner(input) -> input.vederlag_i_penge_kroner + input.fri_kost_og_logi_skatteværdi_kroner under kildeskat_a_indkomst_løn(input)
 
 ----
 § 46. I forbindelse med enhver udbetaling af A-indkomst skal den, for hvis
@@ -632,32 +632,32 @@ fastsat i medfør af stk. 4.
 | kildeskat_positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
 | kildeskat_nedrundet_til_ti_kroner(beløb_kroner: Heltal) -> penge_nedrundet_til_ti_kroner(beløb_kroner)
 
-| kildeskat_e_skattekort_modtaget(kort: KildeskatKort) -> Sandt
-| exception kildeskat_intet_e_skattekort_modtaget kildeskat_e_skattekort_modtaget(kort: KildeskatKort) -> Falskt under kort == IntetESkattekort
+| kildeskat_e_skattekort_modtaget(kort: KildeskatKort): Bool -> Sandt
+| exception kildeskat_intet_e_skattekort_modtaget kildeskat_e_skattekort_modtaget(kort) -> Falskt under kort == IntetESkattekort
 
-| kildeskat_kort_er_skattekort_eller_bikort(kort: KildeskatKort) -> Falskt
-| exception kildeskat_hovedkort_er_procentkort kildeskat_kort_er_skattekort_eller_bikort(kort: KildeskatKort) -> Sandt under kort == Skattekort
-| exception kildeskat_bikort_er_procentkort kildeskat_kort_er_skattekort_eller_bikort(kort: KildeskatKort) -> Sandt under kort == Bikort
+| kildeskat_kort_er_skattekort_eller_bikort(kort: KildeskatKort): Bool -> Falskt
+| exception kildeskat_hovedkort_er_procentkort kildeskat_kort_er_skattekort_eller_bikort(kort) -> Sandt under kort == Skattekort
+| exception kildeskat_bikort_er_procentkort kildeskat_kort_er_skattekort_eller_bikort(kort) -> Sandt under kort == Bikort
 
-| kildeskat_skattekort_periodefradrag_kroner(input: KildeskatESkattekortInput) -> 0
-| exception kildeskat_hovedkort_månedsfradrag kildeskat_skattekort_periodefradrag_kroner(input: KildeskatESkattekortInput) -> input.månedsfradrag_kroner under input.kort == Skattekort && input.periode == Måned
-| exception kildeskat_hovedkort_fjorten_dage_fradrag kildeskat_skattekort_periodefradrag_kroner(input: KildeskatESkattekortInput) -> input.fjorten_dages_fradrag_kroner under input.kort == Skattekort && input.periode == FjortenDage
-| exception kildeskat_hovedkort_ugefradrag kildeskat_skattekort_periodefradrag_kroner(input: KildeskatESkattekortInput) -> input.ugefradrag_kroner under input.kort == Skattekort && input.periode == Uge
-| exception kildeskat_hovedkort_dagsfradrag kildeskat_skattekort_periodefradrag_kroner(input: KildeskatESkattekortInput) -> input.dagsfradrag_kroner under input.kort == Skattekort && input.periode == Dag
+| kildeskat_skattekort_periodefradrag_kroner(input: KildeskatESkattekortInput): Int -> 0
+| exception kildeskat_hovedkort_månedsfradrag kildeskat_skattekort_periodefradrag_kroner(input) -> input.månedsfradrag_kroner under input.kort == Skattekort && input.periode == Måned
+| exception kildeskat_hovedkort_fjorten_dage_fradrag kildeskat_skattekort_periodefradrag_kroner(input) -> input.fjorten_dages_fradrag_kroner under input.kort == Skattekort && input.periode == FjortenDage
+| exception kildeskat_hovedkort_ugefradrag kildeskat_skattekort_periodefradrag_kroner(input) -> input.ugefradrag_kroner under input.kort == Skattekort && input.periode == Uge
+| exception kildeskat_hovedkort_dagsfradrag kildeskat_skattekort_periodefradrag_kroner(input) -> input.dagsfradrag_kroner under input.kort == Skattekort && input.periode == Dag
 
-| kildeskat_skattekort_fradrag_kroner(input: KildeskatSkattekortInput) -> 0
-| exception kildeskat_hovedkort_fradrag kildeskat_skattekort_fradrag_kroner(input: KildeskatSkattekortInput) -> input.fradrag_kroner under input.kort == Skattekort
+| kildeskat_skattekort_fradrag_kroner(input: KildeskatSkattekortInput): Int -> 0
+| exception kildeskat_hovedkort_fradrag kildeskat_skattekort_fradrag_kroner(input) -> input.fradrag_kroner under input.kort == Skattekort
 
-| kildeskat_indeholdelsesprocent_basispoint(input: KildeskatESkattekortInput) -> input.indeholdelsesprocent_basispoint
-| exception kildeskat_frikort_procent kildeskat_indeholdelsesprocent_basispoint(input: KildeskatESkattekortInput) -> 0 under input.kort == Frikort
-| exception kildeskat_manglende_kort_55_pct kildeskat_indeholdelsesprocent_basispoint(input: KildeskatESkattekortInput) -> 5500 under input.kort == IntetESkattekort
+| kildeskat_indeholdelsesprocent_basispoint(input: KildeskatESkattekortInput): Int -> input.indeholdelsesprocent_basispoint
+| exception kildeskat_frikort_procent kildeskat_indeholdelsesprocent_basispoint(input) -> 0 under input.kort == Frikort
+| exception kildeskat_manglende_kort_55_pct kildeskat_indeholdelsesprocent_basispoint(input) -> 5500 under input.kort == IntetESkattekort
 
-| kildeskat_effektiv_indeholdelsesprocent_basispoint(input: KildeskatESkattekortInput) -> kildeskat_indeholdelsesprocent_basispoint(input)
-| exception kildeskat_skattepligtig_begærer_højere_procent kildeskat_effektiv_indeholdelsesprocent_basispoint(input: KildeskatESkattekortInput) -> input.ønsket_højere_indeholdelsesprocent_basispoint under kildeskat_kort_er_skattekort_eller_bikort(input.kort) && input.ønsket_højere_indeholdelsesprocent_basispoint > kildeskat_indeholdelsesprocent_basispoint(input)
+| kildeskat_effektiv_indeholdelsesprocent_basispoint(input: KildeskatESkattekortInput): Int -> kildeskat_indeholdelsesprocent_basispoint(input)
+| exception kildeskat_skattepligtig_begærer_højere_procent kildeskat_effektiv_indeholdelsesprocent_basispoint(input) -> input.ønsket_højere_indeholdelsesprocent_basispoint under kildeskat_kort_er_skattekort_eller_bikort(input.kort) && input.ønsket_højere_indeholdelsesprocent_basispoint > kildeskat_indeholdelsesprocent_basispoint(input)
 
 | kildeskat_a_skat_beregningsgrundlag_før_nedrunding_kroner(input: KildeskatESkattekortInput) -> kildeskat_positivt_beløb(input.a_skat_grundlag_kroner - kildeskat_skattekort_periodefradrag_kroner(input))
-| kildeskat_a_skat_beregningsgrundlag_kroner(input: KildeskatESkattekortInput) -> kildeskat_a_skat_beregningsgrundlag_før_nedrunding_kroner(input)
-| exception kildeskat_nedrunder_a_skat_grundlag_til_ti kildeskat_a_skat_beregningsgrundlag_kroner(input: KildeskatESkattekortInput) -> kildeskat_nedrundet_til_ti_kroner(kildeskat_a_skat_beregningsgrundlag_før_nedrunding_kroner(input)) under input.nedrunding_til_ti_kroner
+| kildeskat_a_skat_beregningsgrundlag_kroner(input: KildeskatESkattekortInput): Int -> kildeskat_a_skat_beregningsgrundlag_før_nedrunding_kroner(input)
+| exception kildeskat_nedrunder_a_skat_grundlag_til_ti kildeskat_a_skat_beregningsgrundlag_kroner(input) -> kildeskat_nedrundet_til_ti_kroner(kildeskat_a_skat_beregningsgrundlag_før_nedrunding_kroner(input)) under input.nedrunding_til_ti_kroner
 
 | kildeskat_a_skat_med_eskattekort_kroner(input: KildeskatESkattekortInput) -> penge_beløb_gange_basispoint_kroner(kildeskat_a_skat_beregningsgrundlag_kroner(input), kildeskat_effektiv_indeholdelsesprocent_basispoint(input))
 | kildeskat_par48_stk11_pensionsinstitut_indeholdelsesprocent_basispoint() -> 4000
@@ -802,9 +802,9 @@ forskudsskatten.
 # KildeskatForskudsgrundlagKilde = KildeskatÅrsopgørelseAndetForudgåendeÅr | KildeskatSidsteÅrsForskudsændring | KildeskatLøbendeIndberetning | KildeskatRegisteroplysning | KildeskatFørstegangsRedegørelse
 # KildeskatForskudsgrundlagInput(sidste_års_forskudsændring_rettidig: Boolsk, førstegangsredegørelse: Boolsk, oplysning_senest_foerste_september: Boolsk)
 
-| kildeskat_forskudsgrundlag_kilde(input: KildeskatForskudsgrundlagInput) -> KildeskatÅrsopgørelseAndetForudgåendeÅr
-| exception kildeskat_sidste_års_forskudsændring_går_forud kildeskat_forskudsgrundlag_kilde(input: KildeskatForskudsgrundlagInput) -> KildeskatSidsteÅrsForskudsændring under input.sidste_års_forskudsændring_rettidig
-| exception kildeskat_førstegangs_redegørelse kildeskat_forskudsgrundlag_kilde(input: KildeskatForskudsgrundlagInput) -> KildeskatFørstegangsRedegørelse under input.førstegangsredegørelse
+| kildeskat_forskudsgrundlag_kilde(input: KildeskatForskudsgrundlagInput): KildeskatForskudsgrundlagKilde -> KildeskatÅrsopgørelseAndetForudgåendeÅr
+| exception kildeskat_sidste_års_forskudsændring_går_forud kildeskat_forskudsgrundlag_kilde(input) -> KildeskatSidsteÅrsForskudsændring under input.sidste_års_forskudsændring_rettidig
+| exception kildeskat_førstegangs_redegørelse kildeskat_forskudsgrundlag_kilde(input) -> KildeskatFørstegangsRedegørelse under input.førstegangsredegørelse
 | kildeskat_forskudsoplysning_kan_indgå(input: KildeskatForskudsgrundlagInput) -> input.oplysning_senest_foerste_september || input.sidste_års_forskudsændring_rettidig
 
 ----
@@ -839,9 +839,9 @@ grænse, jf. stk. 4.
 
 # KildeskatForskudsændringInput(skattepligtig_anmodning: Boolsk, oplysninger_tilstrækkeligt_sandsynliggjort: Boolsk, forvaltning_har_nærliggende_afvigelsesgrund: Boolsk, ændring_overstiger_fast_grænse: Boolsk)
 
-| kildeskat_forskudsgrundlag_ændres(input: KildeskatForskudsændringInput) -> Falskt
-| exception kildeskat_skattepligtig_anmodning_lægges_til_grund kildeskat_forskudsgrundlag_ændres(input: KildeskatForskudsændringInput) -> Sandt under input.skattepligtig_anmodning && input.oplysninger_tilstrækkeligt_sandsynliggjort
-| exception kildeskat_forvaltning_kan_ændre_forskudsgrundlag kildeskat_forskudsgrundlag_ændres(input: KildeskatForskudsændringInput) -> Sandt under input.forvaltning_har_nærliggende_afvigelsesgrund && input.ændring_overstiger_fast_grænse
+| kildeskat_forskudsgrundlag_ændres(input: KildeskatForskudsændringInput): Bool -> Falskt
+| exception kildeskat_skattepligtig_anmodning_lægges_til_grund kildeskat_forskudsgrundlag_ændres(input) -> Sandt under input.skattepligtig_anmodning && input.oplysninger_tilstrækkeligt_sandsynliggjort
+| exception kildeskat_forvaltning_kan_ændre_forskudsgrundlag kildeskat_forskudsgrundlag_ændres(input) -> Sandt under input.forvaltning_har_nærliggende_afvigelsesgrund && input.ændring_overstiger_fast_grænse
 
 = kildeskat_forskudsgrundlag_sidste_års_fixture = kildeskat_forskudsgrundlag_kilde(KildeskatForskudsgrundlagInput(
     sidste_års_forskudsændring_rettidig = Sandt,

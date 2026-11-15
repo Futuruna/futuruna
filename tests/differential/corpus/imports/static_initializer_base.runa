@@ -3,6 +3,6 @@
 > initialize() -> Int { @ print("initialized"); fee(5) }
 = seed = initialize()
 | known(1)
-| rate(x: Int) -> 1
-| rate(x: Int) -> 2 under x > 10
+| rate(x: Int): Int -> 1
+| rate(x) -> 2 under x > 10
 > initialized_value() -> Int { seed }

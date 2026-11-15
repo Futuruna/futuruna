@@ -501,9 +501,9 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
     | hændelse_gyldig() -> hændelse.investeringsinstitut_identifikation != "" && hændelse.minimumsindkomstens_kalenderår > 0 && hændelse.manglende_effektiv_udbetaling_kroner > 0 && dato_gyldig(hændelse.årlig_regnskabsgodkendelse) && hændelse.årlig_regnskabsgodkendelse.år >= hændelse.minimumsindkomstens_kalenderår
     | oprindelig_andel_erhvervet_senest_tillægsdato() -> dato_før_eller_lig_med(andel.anskaffelsestidspunkt, aktieavance_par27_faktisk_tillægsdato(hændelse))
     | reglen_finder_anvendelse() -> andel_gyldig() && hændelse_gyldig() && oprindelig_andel_erhvervet_senest_tillægsdato() && hændelse.investeringsinstitut_identifikation == andel.selskabsidentifikation && aktieavance_par27_institut_omfattet(hændelse.institutsstatus) && aktieavance_par27_stk2_betingelse_opfyldt(hændelse.stk2_vilkår)
-    | tillægstidspunkt() -> AblIntetPar27Tillægstidspunkt
+    | tillægstidspunkt(): AktieavancePar27Tillægstidspunkt -> AblIntetPar27Tillægstidspunkt
     | exception abl_par27_stk1_tillægstidspunkt tillægstidspunkt() -> AblPar27Tillægstidspunkt(dato = aktieavance_par27_faktisk_tillægsdato(hændelse)) under reglen_finder_anvendelse()
-    | position_efter() -> position_før()
+    | position_efter(): AktieavanceOrdinærPosition -> position_før()
     | exception abl_par27_stk1_anskaffelsessumtillæg position_efter() -> AktieavanceOrdinærPosition(
         selskabsidentifikation = position_før().selskabsidentifikation,
         kapitalmængde = position_før().kapitalmængde,
@@ -740,14 +740,14 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
     | hovedaktionærfordeling_gyldig() -> afståelsesvilkår().hovedaktionæraktier == Falskt || afstår_hele_beholdningen_efter_mængde() || (afståelsesvilkår().afståede_aktiers_handelsværdi_kroner >= 0 && afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner >= 0 && afståelsesvilkår().afståede_aktiers_handelsværdi_kroner + afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner > 0)
     | boligret_input_gyldigt() -> aktieavance_ordinaer_boligret_input_gyldigt(afståelsesvilkår().boligret)
     | afståelsesgrundlag_gyldigt() -> aktieavance_ordinaer_er_afståelse(hændelse) && afståelseskapital_sammenhængende() && aktieavance_ordinaer_afståelsessum_kroner(hændelse) >= 0 && hovedaktionærfordeling_gyldig() && boligret_input_gyldigt()
-    | anskaffelsessum_henført_til_afståelse_kroner() -> 0
+    | anskaffelsessum_henført_til_afståelse_kroner(): Int -> 0
     | exception abl_par26_stk5_hele_beholdningen anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner under afståelsesgrundlag_gyldigt() && afstår_hele_beholdningen_efter_mængde()
     | exception abl_par26_stk5_sammenlignelig_kapitalandelsfordeling anskaffelsessum_henført_til_afståelse_kroner() -> aktieavance_ordinaer_beløb_efter_kapitalvægt(position.anskaffelsessum_kroner, afstået_kapitalvægt(), beholdningens_kapitalvægt()) under afståelsesgrundlag_gyldigt() && afstår_hele_beholdningen_efter_mængde() == Falskt && afståelsesvilkår().hovedaktionæraktier == Falskt && har_sammenlignelig_kapitalvægt()
     | exception abl_par26_stk5_uden_pålydende_fordeling anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner * antal_aktier() / aktieavance_ordinaer_position_antal_aktier(position) under afståelsesgrundlag_gyldigt() && afstår_hele_beholdningen_efter_mængde() == Falskt && afståelsesvilkår().hovedaktionæraktier == Falskt && har_sammenlignelig_kapitalvægt() == Falskt
     | exception abl_par26_stk5_hovedaktionær_handelsværdi anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner * afståelsesvilkår().afståede_aktiers_handelsværdi_kroner / (afståelsesvilkår().afståede_aktiers_handelsværdi_kroner + afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner) under afståelsesgrundlag_gyldigt() && afstår_hele_beholdningen_efter_mængde() == Falskt && afståelsesvilkår().hovedaktionæraktier
-    | bruttogevinst_kroner() -> 0
+    | bruttogevinst_kroner(): Int -> 0
     | exception abl_par12_realiseret_gevinst bruttogevinst_kroner() -> penge_positivt_beløb(aktieavance_ordinaer_afståelsessum_kroner(hændelse) - anskaffelsessum_henført_til_afståelse_kroner()) under afståelsesgrundlag_gyldigt()
-    | bruttotab_kroner() -> 0
+    | bruttotab_kroner(): Int -> 0
     | exception abl_par13_realiseret_tab bruttotab_kroner() -> penge_positivt_beløb(anskaffelsessum_henført_til_afståelse_kroner() - aktieavance_ordinaer_afståelsessum_kroner(hændelse)) under afståelsesgrundlag_gyldigt()
     | par15_resultat() -> aktieavance_ordinaer_par15_resultat(afståelsesvilkår().boligret)
     | skattefri_efter_par15() -> afståelsesgrundlag_gyldigt() && aktieavance_ordinaer_par15_skattefri(par15_resultat())
@@ -772,11 +772,11 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
     | tab_behandles_efter_par13a() -> afståelse_gyldig() && aktieavance_ordinaer_tab_behandles_efter_par13a(afståelsesvilkår())
     | oplysningsbetingelse_efter_par14_opfyldt() -> aktieavance_ordinaer_oplysningsbetingelse_opfyldt(afståelsesvilkår().oplysningsstatus)
     | skattepligtig_gevinst_efter_par12_kroner() -> hvis afståelse_gyldig() && skattefri_efter_par15() == Falskt { bruttogevinst_kroner() } ellers { 0 }
-    | fradragsberettiget_tab_efter_par13_kroner() -> 0
+    | fradragsberettiget_tab_efter_par13_kroner(): Int -> 0
     | exception abl_par13_unoteret_tab fradragsberettiget_tab_efter_par13_kroner() -> tab_efter_par5a_kroner() under afståelse_gyldig() && skattefri_efter_par15() == Falskt && tab_behandles_efter_par13a() == Falskt
-    | tab_til_modregning_efter_par13a_kroner() -> 0
+    | tab_til_modregning_efter_par13a_kroner(): Int -> 0
     | exception abl_par13a_noteret_tab tab_til_modregning_efter_par13a_kroner() -> tab_efter_par5a_kroner() under afståelse_gyldig() && skattefri_efter_par15() == Falskt && tab_behandles_efter_par13a() && oplysningsbetingelse_efter_par14_opfyldt()
-    | tab_afskåret_efter_par14_kroner() -> 0
+    | tab_afskåret_efter_par14_kroner(): Int -> 0
     | exception abl_par14_oplysningsbetingelse_mangler tab_afskåret_efter_par14_kroner() -> tab_efter_par5a_kroner() under afståelse_gyldig() && skattefri_efter_par15() == Falskt && tab_behandles_efter_par13a() && oplysningsbetingelse_efter_par14_opfyldt() == Falskt
     | position_efter_anskaffelse() -> AktieavanceOrdinærPosition(
         selskabsidentifikation = position.selskabsidentifikation,
@@ -788,7 +788,7 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
         kapitalmængde = aktieavance_ordinaer_kapitalmængder_minus(position.kapitalmængde, kapitalmængde()),
         anskaffelsessum_kroner = position.anskaffelsessum_kroner - anskaffelsessum_henført_til_afståelse_kroner()
     )
-    | position_efter() -> position
+    | position_efter(): AktieavanceOrdinærPosition -> position
     | exception abl_gyldig_anskaffelse_position position_efter() -> position_efter_anskaffelse() under hændelse_gyldig() && aktieavance_ordinaer_er_anskaffelse(hændelse)
     | exception abl_gyldig_afståelse_position position_efter() -> position_efter_afståelse() under hændelse_gyldig() && aktieavance_ordinaer_er_afståelse(hændelse)
     | resultat() -> AktieavanceOrdinærHændelsesresultat(
@@ -1053,9 +1053,9 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
     | par_gyldigt() -> hovedperson.indkomstår > 0 && hovedperson.indkomstår == ægtefælle.indkomstår
     | hovedperson_før_ægtefælleoverførsel() -> aktieavance_ordinaer_årsresultat(hovedperson)
     | ægtefælle_før_ægtefælleoverførsel() -> aktieavance_ordinaer_årsresultat(ægtefælle)
-    | hovedperson_overfører_kroner() -> 0
+    | hovedperson_overfører_kroner(): Int -> 0
     | exception abl_par13a_stk3_hovedperson_overfører hovedperson_overfører_kroner() -> penge_mindste_beløb(hovedperson_før_ægtefælleoverførsel().tab_fremført_til_følgende_indkomstår_kroner, ægtefælle_før_ægtefælleoverførsel().positivt_nettobeløb_efter_egen_modregning_kroner) under par_gyldigt() && gift_og_samlevende_ved_årets_udgang
-    | ægtefælle_overfører_kroner() -> 0
+    | ægtefælle_overfører_kroner(): Int -> 0
     | exception abl_par13a_stk3_ægtefælle_overfører ægtefælle_overfører_kroner() -> penge_mindste_beløb(ægtefælle_før_ægtefælleoverførsel().tab_fremført_til_følgende_indkomstår_kroner, hovedperson_før_ægtefælleoverførsel().positivt_nettobeløb_efter_egen_modregning_kroner) under par_gyldigt() && gift_og_samlevende_ved_årets_udgang
     | hovedperson_resultat() -> aktieavance_ordinaer_årsresultat_med_ægtefælleoverførsel(hovedperson, hovedperson_overfører_kroner(), ægtefælle_overfører_kroner())
     | ægtefælle_resultat() -> aktieavance_ordinaer_årsresultat_med_ægtefælleoverførsel(ægtefælle, ægtefælle_overfører_kroner(), hovedperson_overfører_kroner())
@@ -1309,18 +1309,18 @@ regler anvendelse.
     | anskaffelse_gyldig() -> aktieavance_par25_er_anskaffelse(hændelse) && antal_rettigheder() > 0 && aktieavance_par25_erhvervelsesår(hændelse) > 0 && aktieavance_par25_erhvervelsesrækkefølge(hændelse) > 0 && aktieavance_par25_anskaffelsessum_kroner(hændelse) >= 0 && aktieavance_par25_anskaffelse_følger_seneste_parti(position, hændelse) && aktieavance_par25_finder_anvendelse(position.rettighed, position.beskatningsprincip, aktieavance_par25_erhvervelsesår(hændelse))
     | afståelse_gyldig() -> aktieavance_par25_er_afståelse(hændelse) && antal_rettigheder() > 0 && antal_rettigheder() <= aktieavance_par25_position_antal_rettigheder(position) && aktieavance_par25_afståelsessum_kroner(hændelse) >= 0 && fifo_resultat().resterende_antal_at_henføre == 0
     | hændelse_gyldig() -> position_gyldig() && omfattet_af_par25_stk1() && (anskaffelse_gyldig() || afståelse_gyldig())
-    | anskaffelsessum_henført_til_afståelse_kroner() -> 0
+    | anskaffelsessum_henført_til_afståelse_kroner(): Int -> 0
     | exception abl_par25_aktie_for_aktie_anskaffelsessum anskaffelsessum_henført_til_afståelse_kroner() -> fifo_resultat().anskaffelsessum_henført_kroner under hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse)
-    | bruttogevinst_kroner() -> 0
+    | bruttogevinst_kroner(): Int -> 0
     | exception abl_par25_realiseret_gevinst bruttogevinst_kroner() -> fifo_resultat().bruttogevinst_kroner under hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse)
-    | bruttotab_kroner() -> 0
+    | bruttotab_kroner(): Int -> 0
     | exception abl_par25_realiseret_tab bruttotab_kroner() -> fifo_resultat().bruttotab_kroner under hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse)
     | alle_forbrugte_partier_opfylder_oplysningsbetingelsen_efter_par14() -> hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse) && fifo_resultat().alle_forbrugte_partier_opfylder_par14
-    | skattepligtig_gevinst_efter_par12_kroner() -> 0
+    | skattepligtig_gevinst_efter_par12_kroner(): Int -> 0
     | exception abl_par25_skattepligtig_gevinst_pr_parti skattepligtig_gevinst_efter_par12_kroner() -> fifo_resultat().skattepligtig_gevinst_efter_par12_kroner under hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse)
-    | tab_til_modregning_efter_par13a_kroner() -> 0
+    | tab_til_modregning_efter_par13a_kroner(): Int -> 0
     | exception abl_par25_tab_med_oplysningsbetingelse tab_til_modregning_efter_par13a_kroner() -> fifo_resultat().tab_til_modregning_efter_par13a_kroner under hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse)
-    | tab_afskåret_efter_par14_kroner() -> 0
+    | tab_afskåret_efter_par14_kroner(): Int -> 0
     | exception abl_par25_tab_uden_oplysningsbetingelse tab_afskåret_efter_par14_kroner() -> fifo_resultat().tab_afskåret_efter_par14_kroner under hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse)
     | nyt_parti() -> AktieavancePar25Parti(
         erhvervelsesår = aktieavance_par25_erhvervelsesår(hændelse),
@@ -1339,7 +1339,7 @@ regler anvendelse.
         beskatningsprincip = position.beskatningsprincip,
         partier = fifo_resultat().resterende_partier
     )
-    | position_efter() -> position
+    | position_efter(): AktieavancePar25Position -> position
     | exception abl_par25_gyldig_anskaffelse_position position_efter() -> position_efter_anskaffelse() under hændelse_gyldig() && aktieavance_par25_er_anskaffelse(hændelse)
     | exception abl_par25_gyldig_afståelse_position position_efter() -> position_efter_afståelse() under hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse)
     | resultat() -> AktieavancePar25Hændelsesresultat(
@@ -1642,7 +1642,7 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 
 # AktieavanceAktivklassifikationSag(input: AktieavanceAktivklassifikationInput) {
     | input_gyldigt() -> input.indkomstår > 0 && aktieavance_investeringsklassifikation_matcher_aktiv(input.indkomstår, input.aktiv, input.investeringsklassifikation)
-    | effektiv_aktiv() -> input.aktiv
+    | effektiv_aktiv(): AktieavancebeskatningslovAktiv -> input.aktiv
     | exception afledt_investeringsaktiv effektiv_aktiv() -> aktieavance_effektiv_investeringsaktiv(input.investeringsklassifikation) under input_gyldigt() && (input.aktiv == AblInvesteringsselskabPar19TilKlassifikation || input.aktiv == AblMinimumsinstitutTilKlassifikation)
     | ville_være_omfattet_af_par17_uden_investeringsstatus() -> input_gyldigt() && aktieavance_par17_modprøve_finder_anvendelse(effektiv_aktiv(), input.par17_modprøve)
     | resultat() -> AktieavanceAktivklassifikationResultat(
@@ -1674,14 +1674,14 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
     | par22_bagatelgrundlag_abs_kroner() -> penge_positivt_beløb(input.årets_netto_med_kgl_par14_23_kroner) + penge_positivt_beløb(0 - input.årets_netto_med_kgl_par14_23_kroner)
     | par22_bagatelgrænse_afskærer() -> effektiv_aktiv() == AblMinimumsbevis22 && ville_være_omfattet_af_par17_uden_investeringsstatus() == Falskt && par22_bagatelgrundlag_abs_kroner() <= 2000
     | medregnes_i_skattepligtig_indkomst() -> input_gyldigt() && effektiv_aktiv() != AblUdenforDenneSlice && par18_gammel_andelsgevinst_undtaget() == Falskt && par22_bagatelgrænse_afskærer() == Falskt
-    | skattepligtig_gevinst_kroner() -> 0
+    | skattepligtig_gevinst_kroner(): Int -> 0
     | exception medregnet_gevinst skattepligtig_gevinst_kroner() -> bruttogevinst_kroner() under medregnes_i_skattepligtig_indkomst()
-    | tab_afskåret_kroner() -> 0
+    | tab_afskåret_kroner(): Int -> 0
     | exception koncernintern_konvertibel_tab_afskåret tab_afskåret_kroner() -> bruttotab_kroner() under input.koncernintern_konvertibel_eller_tegningsret
-    | fradragsberettiget_tab_kroner() -> 0
+    | fradragsberettiget_tab_kroner(): Int -> 0
     | exception medregnet_tab fradragsberettiget_tab_kroner() -> bruttotab_kroner() under medregnes_i_skattepligtig_indkomst() && input.koncernintern_konvertibel_eller_tegningsret == Falskt
     | netto_efter_aktieavancebeskatningsloven_kroner() -> skattepligtig_gevinst_kroner() - fradragsberettiget_tab_kroner()
-    | personskattelov_kategori() -> AblIkkeMedregnetISlice
+    | personskattelov_kategori(): AktieavancebeskatningslovPslKategori -> AblIkkeMedregnetISlice
     | exception par18_til_kapital personskattelov_kategori() -> AblKapitalindkomstEfterPslPar4Nr5 under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblAndelsbevisPar18
     | exception par19c_til_kapital personskattelov_kategori() -> AblKapitalindkomstEfterPslPar4Nr5 under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblInvesteringsselskab19C && ville_være_omfattet_af_par17_uden_investeringsstatus() == Falskt
     | exception par22_til_kapital personskattelov_kategori() -> AblKapitalindkomstEfterPslPar4Nr5 under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblMinimumsbevis22 && ville_være_omfattet_af_par17_uden_investeringsstatus() == Falskt

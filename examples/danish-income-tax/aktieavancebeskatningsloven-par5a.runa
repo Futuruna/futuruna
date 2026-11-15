@@ -143,9 +143,9 @@ statusskifte sker inden den 24. november 2010.
     | uudnyttede_præferenceudbytter_efter_stk2_kroner() -> hvis input_gyldigt() { aktieavance_par5a_uudnyttede_præferenceudbytter_kroner(input.fakta.præferenceposition) } ellers { 0 }
     | koncernbeløb_efter_stk3_kroner() -> hvis input_gyldigt() { foldl(input.fakta.koncernbeløb, 0, |sum: Heltal, koncernbeløb: AktieavancePar5AKoncernbeløb| sum + aktieavance_par5a_koncernbeløb_efter_stk3_kroner(input.fakta.skatteydergrundlag, koncernbeløb)) } ellers { 0 }
     | samlet_reduktionsgrundlag_kroner() -> reduktionsgrundlag_efter_stk1_kroner() + uudnyttede_præferenceudbytter_efter_stk2_kroner() + koncernbeløb_efter_stk3_kroner()
-    | tabsreduktion_efter_par5a_kroner() -> 0
+    | tabsreduktion_efter_par5a_kroner(): Int -> 0
     | exception abl_par5a_reducerer_afståelsestabet tabsreduktion_efter_par5a_kroner() -> penge_mindste_beløb(input.bruttotab_ved_afståelse_kroner, samlet_reduktionsgrundlag_kroner()) under reglen_finder_anvendelse()
-    | fradragsberettiget_tab_efter_par5a_kroner() -> 0
+    | fradragsberettiget_tab_efter_par5a_kroner(): Int -> 0
     | exception abl_par5a_gyldigt_tab_efter_reduktion fradragsberettiget_tab_efter_par5a_kroner() -> input.bruttotab_ved_afståelse_kroner - tabsreduktion_efter_par5a_kroner() under input_gyldigt()
     | resultat() -> AktieavancePar5AResultat(
         input = input,

@@ -140,11 +140,11 @@ LOV nr. 482 af 22/05/2024, § 8, stk. 4.
         ]
     )
     | slutskat_statsskat_før_personfradrag() -> par5_statsskat_resultat(slutskat_statsskat_før_personfradrag_input())
-    | par7_skat_før_personfradrag_kroner() -> slutskat_statsskat_før_personfradrag().topskat_kroner
+    | par7_skat_før_personfradrag_kroner(): Int -> slutskat_statsskat_før_personfradrag().topskat_kroner
     | exception aktie_reform_par7_er_mellemskat par7_skat_før_personfradrag_kroner() -> slutskat_statsskat_før_personfradrag().mellemskat_kroner under person.skatteår >= 2026
-    | par7a_skat_før_personfradrag_kroner() -> 0
+    | par7a_skat_før_personfradrag_kroner(): Int -> 0
     | exception aktie_reform_par7a_er_topskat par7a_skat_før_personfradrag_kroner() -> slutskat_statsskat_før_personfradrag().topskat_kroner under person.skatteår >= 2026
-    | par8_skat_før_personfradrag_kroner() -> 0
+    | par8_skat_før_personfradrag_kroner(): Int -> 0
     | exception aktie_reform_par8_er_toptopskat par8_skat_før_personfradrag_kroner() -> slutskat_statsskat_før_personfradrag().toptopskat_kroner under person.skatteår >= 2026
     | statsskat_personfradrag_input() -> PersonfradragStatsskatNedsættelseInput(
         par6_skat_kroner = slutskat_statsskat_før_personfradrag().bundskat_kroner,
@@ -224,9 +224,9 @@ LOV nr. 482 af 22/05/2024, § 8, stk. 4.
     | ægtefælles_negativ_skat_efter_egen_slutskat_kroner() -> ægtefælles_negativ_skat_kroner() - ægtefælles_modregnet_i_egen_slutskat_kroner()
     | egen_resterende_slutskat_kroner() -> egen_slutskat_før_negativ_skat_kroner() - egen_modregnet_i_egen_slutskat_kroner()
     | ægtefælles_resterende_slutskat_kroner() -> ægtefælles_slutskat_før_negativ_skat_kroner() - ægtefælles_modregnet_i_egen_slutskat_kroner()
-    | egen_modregnet_i_ægtefælles_slutskat_kroner() -> 0
+    | egen_modregnet_i_ægtefælles_slutskat_kroner(): Int -> 0
     | exception par8a_stk6_egen_negative_skat_modregnes_i_ægtefælles_slutskat egen_modregnet_i_ægtefælles_slutskat_kroner() -> penge_mindste_beløb(egen_negativ_skat_efter_egen_slutskat_kroner(), ægtefælles_resterende_slutskat_kroner()) under input.samlevende_ved_årets_udløb
-    | ægtefælles_modregnet_i_ægtefælles_slutskat_kroner() -> 0
+    | ægtefælles_modregnet_i_ægtefælles_slutskat_kroner(): Int -> 0
     | exception par8a_stk6_ægtefælles_negative_skat_modregnes_i_egen_slutskat ægtefælles_modregnet_i_ægtefælles_slutskat_kroner() -> penge_mindste_beløb(ægtefælles_negativ_skat_efter_egen_slutskat_kroner(), egen_resterende_slutskat_kroner()) under input.samlevende_ved_årets_udløb
     | egen_fremført_kroner() -> egen_negativ_skat_efter_egen_slutskat_kroner() - egen_modregnet_i_ægtefælles_slutskat_kroner()
     | ægtefælles_fremført_kroner() -> ægtefælles_negativ_skat_efter_egen_slutskat_kroner() - ægtefælles_modregnet_i_ægtefælles_slutskat_kroner()

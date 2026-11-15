@@ -113,7 +113,7 @@
 -- ============================================================================
 
 -- Base: a ballot from a registered voter is valid
-| validate(b) -> Valid
+| validate(b): Status -> Valid
 
 -- Override: duplicate voter (voted twice)
 | validate(b) -> Duplicate under is_duplicate(b.voter_id)

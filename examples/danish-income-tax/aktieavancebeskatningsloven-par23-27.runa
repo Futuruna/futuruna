@@ -266,7 +266,7 @@ skattekontrollovens § 2.
     | par23a_lager_påkrævet() -> aktieavance_par23_aktiv_omfattet_af_par23a(input.aktiv)
     | anden_opgørelsesmåde_tilladt() -> input.stk3_tilladelse == AblAndenOpgørelsesmådeTilladtEfterPar23Stk3 && input.stk2_valg == AblIntetPar23Stk2Valg && stk4_lager_påkrævet() == Falskt && aktieavance_par23_er_skattepligtig_efter_par6(input.skattepligtsresultat) == Falskt && stk8_lager_påkrævet() == Falskt && par23a_lager_påkrævet() == Falskt
     | valganmodning_gyldig() -> (input.stk2_valg == AblIntetPar23Stk2Valg || stk2_valg_gyldigt()) && (aktieavance_par23_stk6_valg_foretages(input.stk6_valg) == Falskt || stk6_valg_gyldigt()) && (aktieavance_par23_stk7_valg_foretages(input.stk7_valg) == Falskt || stk7_valg_formelt_gyldigt())
-    | princip() -> AblPar23Realisationsprincip
+    | princip(): AktieavancePar23Princip -> AblPar23Realisationsprincip
     | exception abl_par23_stk3_tilladt_opgørelsesmåde princip() -> AblPar23AndenTilladtOpgørelsesmåde under anden_opgørelsesmåde_tilladt()
     | exception abl_par23_stk2_valgt_lager princip() -> AblPar23Lagerprincip under stk2_valg_gyldigt()
     | exception abl_par23_stk4_tvunget_lager princip() -> AblPar23Lagerprincip under stk4_lager_påkrævet()
@@ -275,7 +275,7 @@ skattekontrollovens § 2.
     | exception abl_par23_stk7_syvaarsvalg princip() -> AblPar23Realisationsprincip under stk7_valg_virker_på_opgørelsesdato()
     | exception abl_par23_stk8_tvunget_lager princip() -> AblPar23Lagerprincip under stk8_lager_påkrævet()
     | exception abl_par23a_lager_pr_obligation princip() -> AblPar23Lagerprincip under par23a_lager_påkrævet()
-    | grundlag() -> AblPar23Stk1Grundlag
+    | grundlag(): AktieavancePar23Principgrundlag -> AblPar23Stk1Grundlag
     | exception abl_par23_stk3_grundlag grundlag() -> AblPar23Stk3TilladtOpgørelsesmåde under anden_opgørelsesmåde_tilladt()
     | exception abl_par23_stk2_grundlag grundlag() -> AblPar23Stk2ValgtLager under stk2_valg_gyldigt()
     | exception abl_par23_stk4_grundlag grundlag() -> AblPar23Stk4TvungetLager under stk4_lager_påkrævet()
@@ -438,9 +438,9 @@ forbindelse med opgørelsen af gevinst og tab efter stk. 1 og 2.
 
 # AktieavancePar24PrincipskiftSag(skift: AktieavancePar24Principskift, par33a_resultat: AktieavancePar33AResultat) {
     | reglen_finder_anvendelse() -> par33a_resultat.reglen_finder_anvendelse == Falskt && aktieavance_par24_principskift_beløb_kroner(skift) >= 0
-    | åbningsværdi_under_lagerprincip_kroner() -> 0
+    | åbningsværdi_under_lagerprincip_kroner(): Int -> 0
     | exception abl_par24_stk3_realisation_til_lager åbningsværdi_under_lagerprincip_kroner() -> aktieavance_par24_principskift_beløb_kroner(skift) under reglen_finder_anvendelse() && match skift { | AblFraRealisationsprincipTilLagerprincip(_) -> Sandt | _ -> Falskt }
-    | anskaffelsessum_under_senere_realisationsprincip_kroner() -> 0
+    | anskaffelsessum_under_senere_realisationsprincip_kroner(): Int -> 0
     | exception abl_par24_stk3_lager_til_realisation anskaffelsessum_under_senere_realisationsprincip_kroner() -> aktieavance_par24_principskift_beløb_kroner(skift) under reglen_finder_anvendelse() && match skift { | AblFraLagerprincipTilRealisationsprincip(_) -> Sandt | _ -> Falskt }
     | resultat() -> AktieavancePar24PrincipskiftResultat(
         skift = skift,
@@ -458,7 +458,7 @@ forbindelse med opgørelsen af gevinst og tab efter stk. 1 og 2.
 
 # AktieavancePar24NæringTilAnlægSag(input: AktieavancePar24NæringTilAnlægInput) {
     | reglen_finder_anvendelse() -> input.overgangsår > 0 && input.lagerprincip_valgt_efter_par23_stk2 && aktieavance_ordinaer_position_gyldig(input.næringsposition) && input.værdi_ultimo_før_overgang_kroner >= 0
-    | anlægsposition() -> input.næringsposition
+    | anlægsposition(): AktieavanceOrdinærPosition -> input.næringsposition
     | exception abl_par24_stk4_anlaegsbeholdning anlægsposition() -> AktieavanceOrdinærPosition(
         selskabsidentifikation = input.næringsposition.selskabsidentifikation,
         kapitalmængde = input.næringsposition.kapitalmængde,
@@ -519,7 +519,7 @@ regler anvendelse.
     | lagerprincip() -> beskatningsprincip == AblPar25Lagerprincip
     | par25_finder_anvendelse() -> aktieavance_par25_finder_anvendelse(rettighed, beskatningsprincip, erhvervelsesår)
     | mtf_overgang_før_2024_finder_anvendelse() -> omfattet_af_abl() && rettighed.underliggende_aktiers_markedsstatus == AblOptagetTilHandelPåMultilateralHandelsfacilitet && erhvervelsesår > 0 && erhvervelsesår < 2024
-    | regime() -> AblRettighedUdenforAktieavancebeskatningsloven
+    | regime(): AktieavanceRettighedsOpgørelsesregime -> AblRettighedUdenforAktieavancebeskatningsloven
     | exception abl_rettighed_lagerprincip regime() -> AblRettighedEfterLagerprincippet under omfattet_af_abl() && lagerprincip()
     | exception abl_rettighed_par25_aktie_for_aktie regime() -> AblRettighedEfterPar25AktieForAktie under par25_finder_anvendelse()
     | exception abl_tegningsret_udenfor_par25_par26_stk4 regime() -> AblTegningsretEfterPar26Stk4SomAktie under omfattet_af_abl() && lagerprincip() == Falskt && par25_finder_anvendelse() == Falskt && rettighed.art == AblPar25Tegningsret
@@ -604,8 +604,8 @@ bort fra andele, hvor indbetalingen har været omfattet af ligningslovens § 7 N
 # AktieavancePar26Stk2Afståelsesprisinput(faktisk_afståelsessum_kroner: Heltal, handelsværdi_kroner: Heltal, sælgerstatus: AktieavancePar26Stk2Sælgerstatus)
 
 | aktieavance_par26_stk2_anskaffelsessum_kroner(faktisk_anskaffelsessum_kroner: Heltal, status: AktieavancePar26Stk2Andelsstatus) -> hvis status == AblMedarbejderinvesteringsandelMedIndbetalingEfterLl7N { 0 } ellers { faktisk_anskaffelsessum_kroner }
-| aktieavance_par26_stk2_afståelsessum_kroner(input: AktieavancePar26Stk2Afståelsesprisinput) -> input.faktisk_afståelsessum_kroner
-| exception abl_par26_stk2_selskab_med_fradrag_til_handelsværdi aktieavance_par26_stk2_afståelsessum_kroner(input: AktieavancePar26Stk2Afståelsesprisinput) -> input.handelsværdi_kroner under input.sælgerstatus == AblSelskabMedFradragEfterStatsskattelovPar6 && input.handelsværdi_kroner > input.faktisk_afståelsessum_kroner
+| aktieavance_par26_stk2_afståelsessum_kroner(input: AktieavancePar26Stk2Afståelsesprisinput): Int -> input.faktisk_afståelsessum_kroner
+| exception abl_par26_stk2_selskab_med_fradrag_til_handelsværdi aktieavance_par26_stk2_afståelsessum_kroner(input) -> input.handelsværdi_kroner under input.sælgerstatus == AblSelskabMedFradragEfterStatsskattelovPar6 && input.handelsværdi_kroner > input.faktisk_afståelsessum_kroner
 | aktieavance_par26_stk2_anskaffelseshændelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, faktisk_anskaffelsessum_kroner: Heltal, status: AktieavancePar26Stk2Andelsstatus) -> AblOrdinærAnskaffelse(
     kapitalmængde = kapitalmængde,
     anskaffelsessum_kroner = aktieavance_par26_stk2_anskaffelsessum_kroner(faktisk_anskaffelsessum_kroner, status)
@@ -630,7 +630,7 @@ bort fra andele, hvor indbetalingen har været omfattet af ligningslovens § 7 N
     | hændelse_passer_til_gruppe() -> hændelse.gruppe == AblBeholdningUdenIndbetalingEfterLl7N || aktieavance_par26_stk6_anskaffelse_har_nul_basis(hændelse.hændelse)
     | valgt_hændelsesresultat() -> aktieavance_ordinaer_hændelsesresultat(aktieavance_par26_stk6_valgt_position(beholdning, hændelse.gruppe), hændelse.hændelse)
     | hændelse_gyldig() -> beholdning_gyldig() && hændelse_passer_til_gruppe() && valgt_hændelsesresultat().hændelse_gyldig
-    | beholdning_efter() -> beholdning
+    | beholdning_efter(): AktieavancePar26Stk6Beholdning -> beholdning
     | exception abl_par26_stk6_ll7n_beholdning_opdateres beholdning_efter() -> AktieavancePar26Stk6Beholdning(
         ll7n_position = valgt_hændelsesresultat().position_efter,
         anden_position = beholdning.anden_position

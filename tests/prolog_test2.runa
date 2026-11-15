@@ -5,7 +5,7 @@
 -- | with ground head + value body = Prolog-style functional lookup
 -- Author explicit missing-key values; native calls do not invent defaults.
 
-| capital("Denmark") -> "Copenhagen"
+| capital("Denmark"): String -> "Copenhagen"
 | capital("Sweden") -> "Stockholm"
 | capital("France") -> "Paris"
 | capital(country) -> ""
@@ -31,7 +31,7 @@
 
 -- === MULTI-CLAUSE VALUE DISPATCH ===
 
-| greeting("en") -> "Hello"
+| greeting("en"): String -> "Hello"
 | greeting("da") -> "Hej"
 | greeting("fr") -> "Bonjour"
 | greeting(language) -> ""
@@ -57,7 +57,7 @@
 -- === INTEGER FACTS ===
 -- Prolog-style lookup with integer values
 
-| port("http") -> 80
+| port("http"): Int -> 80
 | port("https") -> 443
 | port("ssh") -> 22
 | port(protocol) -> 0

@@ -34,8 +34,8 @@ skat efter §§ 6-8 a.
 | cfc_indkomst_omfatter(post: CfcPost) -> Sandt
 | cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a() -> Falskt
 | par4b_cfc_post_medregnes(post: Par4bCfcIndkomstPost) -> cfc_indkomst_omfatter(post.kilde)
-| par4b_cfc_post_kroner(post: Par4bCfcIndkomstPost) -> 0
-| exception par4b_cfc_post_omfattet par4b_cfc_post_kroner(post: Par4bCfcIndkomstPost) -> post.beløb_kroner under par4b_cfc_post_medregnes(post)
+| par4b_cfc_post_kroner(post: Par4bCfcIndkomstPost): Int -> 0
+| exception par4b_cfc_post_omfattet par4b_cfc_post_kroner(post) -> post.beløb_kroner under par4b_cfc_post_medregnes(post)
 | par4b_cfc_indkomst_kroner(input: Par4bCfcIndkomstInput) -> foldl(input.poster, 0, |sum, post| sum + par4b_cfc_post_kroner(post))
 | par4b_positiv_cfc_indkomst_til_par8b_kroner(input: Par4bCfcIndkomstInput) -> penge_positivt_beløb(par4b_cfc_indkomst_kroner(input))
 | par4b_cfc_indkomst_resultat(input: Par4bCfcIndkomstInput) -> Par4bCfcIndkomstResultat(

@@ -105,8 +105,8 @@ medfør af erklæringen.
 | pbl20_stk6_kildefakta_gyldige(fakta: Pbl20Stk6KildeFakta) -> fakta.indkomstskat_betalt_til_staten_kroner >= 0
 | pbl20_stk6_person_omfattet(fakta: Pbl20Stk6KildeFakta) -> fakta.skattepligt == Pbl20Stk6SkattepligtigEfterKsl1 || fakta.skattepligt == Pbl20Stk6HjemmehørendeIDanmarkEfterDbo
 | pbl20_stk6_erklæring_til_eu_eøs_stat(fakta: Pbl20Stk6KildeFakta) -> fakta.stat == Pbl20Stk6StatIndenForEuEøs && fakta.erklæring == Pbl20ErklæringEfterPar15C
-| pbl20_stk6_ligningslov33_stk1_finder_tilsvarende_anvendelse(input: Pbl20Stk6Input) -> Falskt
-| exception pbl20_stk6_eu_eøs_erklæring pbl20_stk6_ligningslov33_stk1_finder_tilsvarende_anvendelse(input: Pbl20Stk6Input) -> Sandt under pbl20_stk6_kildefakta_gyldige(input.kildefakta) && pbl20_stk6_person_omfattet(input.kildefakta) && pbl20_stk6_erklæring_til_eu_eøs_stat(input.kildefakta) && input.dansk_skattepligtig_pensionsindkomst_kroner > 0
+| pbl20_stk6_ligningslov33_stk1_finder_tilsvarende_anvendelse(input: Pbl20Stk6Input): Bool -> Falskt
+| exception pbl20_stk6_eu_eøs_erklæring pbl20_stk6_ligningslov33_stk1_finder_tilsvarende_anvendelse(input) -> Sandt under pbl20_stk6_kildefakta_gyldige(input.kildefakta) && pbl20_stk6_person_omfattet(input.kildefakta) && pbl20_stk6_erklæring_til_eu_eøs_stat(input.kildefakta) && input.dansk_skattepligtig_pensionsindkomst_kroner > 0
 | pbl20_stk6_resultat(input: Pbl20Stk6Input) -> Pbl20Stk6Resultat(
     input = input,
     kildefakta_gyldige = pbl20_stk6_kildefakta_gyldige(input.kildefakta) && input.dansk_skattepligtig_pensionsindkomst_kroner >= 0,

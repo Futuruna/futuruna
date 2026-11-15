@@ -33,9 +33,9 @@
 
 # LigningslovCfcRegelversion = LlCfcLbk42Af2023 | LlCfcLbk1500Af2025 | LlCfcUdenKildedækning
 
-| ligningslov_cfc_regelversion(indkomstår: Heltal) -> LlCfcUdenKildedækning
-| exception ll_cfc_lbk42_for_indkomstår_2023_til_2025 ligningslov_cfc_regelversion(indkomstår: Heltal) -> LlCfcLbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
-| exception ll_cfc_lbk1500_for_indkomstår_2026 ligningslov_cfc_regelversion(indkomstår: Heltal) -> LlCfcLbk1500Af2025 under indkomstår == 2026
+| ligningslov_cfc_regelversion(indkomstår: Heltal): LigningslovCfcRegelversion -> LlCfcUdenKildedækning
+| exception ll_cfc_lbk42_for_indkomstår_2023_til_2025 ligningslov_cfc_regelversion(indkomstår) -> LlCfcLbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
+| exception ll_cfc_lbk1500_for_indkomstår_2026 ligningslov_cfc_regelversion(indkomstår) -> LlCfcLbk1500Af2025 under indkomstår == 2026
 | ligningslov_cfc_indkomstår_understøttet(indkomstår: Heltal) -> ligningslov_cfc_regelversion(indkomstår) != LlCfcUdenKildedækning
 
 -- Ligningsloven -- CFC-afhængigheder (§§ 16 H og 16 I).
@@ -150,23 +150,23 @@ andel af selskabets samlede skattepligtige indkomst efter stk. 4 og 5.
 
 | ll16h_over_50_pct(basispoint: Heltal) -> basispoint > 5000
 | ll16h_kontrollerer_selskab(input: Ligningslov16HInput) -> input.udenlandsk_selskab && (ll16h_over_50_pct(input.direkte_indirekte_ejerandel_basispoint) || ll16h_over_50_pct(input.stemmerettigheder_basispoint) || input.fælleskontrol_med_nærtstående_fond_eller_trust)
-| ll16h_dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner(input: Ligningslov16HInput) -> 0
-| exception ll16h_understøttet_indkomstår_henter_selskabsskattesats ll16h_dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner(input: Ligningslov16HInput) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner), selskabsskattelov_par17_stk1_selskabsskat_basispoint(input.indkomstår)) under ligningslov_cfc_indkomstår_understøttet(input.indkomstår)
+| ll16h_dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner(input: Ligningslov16HInput): Int -> 0
+| exception ll16h_understøttet_indkomstår_henter_selskabsskattesats ll16h_dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner(input) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner), selskabsskattelov_par17_stk1_selskabsskat_basispoint(input.indkomstår)) under ligningslov_cfc_indkomstår_understøttet(input.indkomstår)
 | ll16h_lavskat_betingelse(input: Ligningslov16HInput) -> input.udenlandsk_indkomstskat_kroner * 4 < ll16h_dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner(input) * 3
 | ll16h_cfc_over_halvdelen_betingelse(input: Ligningslov16HInput) -> input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner > 0 && input.selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner * 2 > input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner
 | ll16h_stk1_nr1_til_3_betingelser(input: Ligningslov16HInput) -> ll16h_lavskat_betingelse(input) && ll16h_cfc_over_halvdelen_betingelse(input) && input.aktier_ikke_investeringsselskab
 | ll16h_betingelser_for_stk1_til_stede(input: Ligningslov16HInput) -> input.aftale_om_skattesats_eller_beskatningsgrundlag || input.hjemstat_regler_indrettet_efter_kontrollerende_aktionær || ll16h_stk1_nr1_til_3_betingelser(input)
 | ll16h_fritaget_efter_stk2(input: Ligningslov16HInput) -> input.eu_eøs_selskab && input.reel_etablering_og_økonomisk_virksomhed && input.dokumentation_kan_verificeres
 | ll16h_omfattet_af_par16h(input: Ligningslov16HInput) -> ligningslov_cfc_indkomstår_understøttet(input.indkomstår) && input.fuldt_skattepligtig_eller_dødsbo && ll16h_kontrollerer_selskab(input) && ll16h_betingelser_for_stk1_til_stede(input) && ll16h_fritaget_efter_stk2(input) == Falskt && input.medregnet_efter_selskabsskat31a_32_eller_fondsbeskatning12 == Falskt
-| ll16h_cfc_andel_af_samlet_indkomst_basispoint(input: Ligningslov16HInput) -> 0
-| exception ll16h_stk9_andel ll16h_cfc_andel_af_samlet_indkomst_basispoint(input: Ligningslov16HInput) -> penge_mindste_beløb(10000, input.selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner * 10000 / input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner) under input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner > 0 && input.selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner > 0
+| ll16h_cfc_andel_af_samlet_indkomst_basispoint(input: Ligningslov16HInput): Int -> 0
+| exception ll16h_stk9_andel ll16h_cfc_andel_af_samlet_indkomst_basispoint(input) -> penge_mindste_beløb(10000, input.selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner * 10000 / input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner) under input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner > 0 && input.selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner > 0
 | ll16h_fremført_underskud_medregnet_efter_stk9_kroner(input: Ligningslov16HInput) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.fremført_underskud_danske_regler_kroner), ll16h_cfc_andel_af_samlet_indkomst_basispoint(input))
 | ll16h_cfc_indkomst_efter_stk9_kroner(input: Ligningslov16HInput) -> input.selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner - ll16h_fremført_underskud_medregnet_efter_stk9_kroner(input)
 | ll16h_forholdsmæssig_andel_kroner(beløb_kroner: Heltal, ejerandel_basispoint: Heltal, periode_basispoint: Heltal) -> penge_beløb_gange_basispoint_kroner(penge_beløb_gange_basispoint_kroner(beløb_kroner, ejerandel_basispoint), periode_basispoint)
 | ll16h_andel_før_stk10_kroner(input: Ligningslov16HInput) -> ll16h_forholdsmæssig_andel_kroner(penge_positivt_beløb(ll16h_cfc_indkomst_efter_stk9_kroner(input)), input.gennemsnitlig_ejerandel_basispoint, input.kontrolperiode_basispoint)
 | ll16h_stk10_cap_kroner(input: Ligningslov16HInput) -> ll16h_forholdsmæssig_andel_kroner(penge_positivt_beløb(input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner), input.gennemsnitlig_ejerandel_basispoint, input.kontrolperiode_basispoint)
-| ll16h_medregnet_cfc_indkomst_kroner(input: Ligningslov16HInput) -> 0
-| exception ll16h_stk1_stk7_til_stk10_medregner_positiv_cfc ll16h_medregnet_cfc_indkomst_kroner(input: Ligningslov16HInput) -> penge_mindste_beløb(ll16h_andel_før_stk10_kroner(input), ll16h_stk10_cap_kroner(input)) under ll16h_omfattet_af_par16h(input)
+| ll16h_medregnet_cfc_indkomst_kroner(input: Ligningslov16HInput): Int -> 0
+| exception ll16h_stk1_stk7_til_stk10_medregner_positiv_cfc ll16h_medregnet_cfc_indkomst_kroner(input) -> penge_mindste_beløb(ll16h_andel_før_stk10_kroner(input), ll16h_stk10_cap_kroner(input)) under ll16h_omfattet_af_par16h(input)
 
 # Ligningslov16HSag(input: Ligningslov16HInput) {
     | resultat() -> Ligningslov16HResultat(
@@ -235,8 +235,8 @@ merafkast fradrages ved opgørelsen af merafkastet i senere indkomstår.
 | ll16i_stk7_negativt_merafkast_til_fremførsel_kroner(input: Ligningslov16IStk6Og7Input) -> penge_positivt_beløb(input.standardafkast_kroner - input.selskabets_afkast_via_fond_kroner)
 | ll16i_stk7_fremført_negativt_merafkast_anvendt_kroner(input: Ligningslov16IStk6Og7Input) -> penge_mindste_beløb(penge_positivt_beløb(input.fremført_negativt_merafkast_kroner), ll16i_stk7_merafkast_før_fremførsel_kroner(input))
 | ll16i_stk7_positivt_merafkast_efter_fremførsel_kroner(input: Ligningslov16IStk6Og7Input) -> ll16i_stk7_merafkast_før_fremførsel_kroner(input) - ll16i_stk7_fremført_negativt_merafkast_anvendt_kroner(input)
-| ll16i_stk7_medregnet_som_cfc_indkomst_kroner(input: Ligningslov16IStk6Og7Input) -> 0
-| exception ll16i_stk6_og_stk7_medregner_positivt_merafkast ll16i_stk7_medregnet_som_cfc_indkomst_kroner(input: Ligningslov16IStk6Og7Input) -> penge_beløb_gange_basispoint_kroner(ll16i_stk7_positivt_merafkast_efter_fremførsel_kroner(input), input.ret_til_merafkast_basispoint) under ll16i_stk6_omfattet(input)
+| ll16i_stk7_medregnet_som_cfc_indkomst_kroner(input: Ligningslov16IStk6Og7Input): Int -> 0
+| exception ll16i_stk6_og_stk7_medregner_positivt_merafkast ll16i_stk7_medregnet_som_cfc_indkomst_kroner(input) -> penge_beløb_gange_basispoint_kroner(ll16i_stk7_positivt_merafkast_efter_fremførsel_kroner(input), input.ret_til_merafkast_basispoint) under ll16i_stk6_omfattet(input)
 
 # Ligningslov16IStk6Og7Sag(input: Ligningslov16IStk6Og7Input) {
     | resultat() -> Ligningslov16IStk6Og7Resultat(

@@ -12,7 +12,7 @@
     }
 }
 
-| advisory(w) -> "all clear"
+| advisory(w): String -> "all clear"
 | advisory(w) -> "heat warning" under w.temp > 35.0
 | exception storm advisory(w) -> "danger" under w.condition == Stormy
 

@@ -6,8 +6,8 @@
 # MappedEntry(amount: Int)
 # MappingInput(enabled: Bool, entries: List(SourceEntry))
 
-| mapped_entries(input: MappingInput) -> []
-| exception mapping_enabled mapped_entries(input: MappingInput) -> map(
+| mapped_entries(input: MappingInput): List(MappedEntry) -> []
+| exception mapping_enabled mapped_entries(input) -> map(
     input.entries,
     |entry: SourceEntry| MappedEntry(amount = entry.amount)
 ) under input.enabled

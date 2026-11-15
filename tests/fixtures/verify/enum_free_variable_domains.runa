@@ -1,9 +1,9 @@
 # Light = Red | Amber | Green
 # Shape = Circle(Int) | Square(Int)
 
-| advance(l: Light) -> Red
-| advance(l: Light) -> Green under l == Red
-| advance(l: Light) -> Amber under l == Green
+| advance(l: Light): Light -> Red
+| advance(l) -> Green under l == Red
+| advance(l) -> Amber under l == Green
 
 | sides(shape: Shape) -> 4
 

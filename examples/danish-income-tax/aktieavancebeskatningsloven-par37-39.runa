@@ -76,7 +76,7 @@ anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
     | input_gyldigt() -> aktieavance_par23_dato_gyldig(input.faktisk_anskaffelsestidspunkt) && input.handelsværdi_på_tilflytningstidspunktet_kroner >= 0
     | reglen_finder_anvendelse() -> input_gyldigt() && input.i_forvejen_omfattet_af_dansk_beskatning == Falskt && aktieavance_par37_indtrædelsesgrund_omfattet(input.indtrædelsesgrund)
     | skattemæssigt_anskaffelsestidspunkt() -> input.faktisk_anskaffelsestidspunkt
-    | skattemæssig_anskaffelsessum_kroner() -> input.hidtidig_anskaffelsessum_kroner
+    | skattemæssig_anskaffelsessum_kroner(): Int -> input.hidtidig_anskaffelsessum_kroner
     | exception abl_par37_handelsværdi_som_indgangsværdi skattemæssig_anskaffelsessum_kroner() -> input.handelsværdi_på_tilflytningstidspunktet_kroner under reglen_finder_anvendelse()
     | resultat() -> AktieavancePar37Resultat(
         input = input,
@@ -376,7 +376,7 @@ fristen for afgivelse af beholdningsoversigt som nævnt i stk. 2, jf. stk. 4.
     | sikkerhedsbetingelse_opfyldt() -> sikkerhed_påkrævet_efter_stk3() == Falskt || aktieavance_par39_betryggende_sikkerhed(input.sikkerhed)
     | sikkerhed_frigives_efter_anmodning() -> input.bopæl.oprindeligt_fraflytningsland == AblPar39LandIkkeOmfattetAfNordiskOverenskomstEllerEuDirektiv && input.bopæl.aktuelt_land == AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv && input.bopæl.frigivelse_af_sikkerhed_anmodet
     | henstand_finder_anvendelse() -> grundbetingelser_efter_stk1() && indberetningsbetingelser_efter_stk2_opfyldt() && sikkerhedsbetingelse_opfyldt()
-    | henstandsbeløb_kroner() -> 0
+    | henstandsbeløb_kroner(): Int -> 0
     | exception abl_par39_henstand_med_realisationsopgjort_skat henstandsbeløb_kroner() -> input.beregnet_skat_for_realisationsopgjorte_poster_kroner under henstand_finder_anvendelse()
     | henstandsret_bortfalder_efter_stk4() -> grundbetingelser_efter_stk1() && indberetningsbetingelser_efter_stk2_opfyldt() == Falskt
     | henstand_afvist_på_grund_af_sikkerhed() -> grundbetingelser_efter_stk1() && indberetningsbetingelser_efter_stk2_opfyldt() && sikkerhedsbetingelse_opfyldt() == Falskt
