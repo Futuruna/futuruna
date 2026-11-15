@@ -9,6 +9,11 @@
 //! theirs. Nodes are interned per case, so a computation repeated with the
 //! same provenance adds no node.
 //!
+//! Every calculation case, explained or not, records the rule clauses that
+//! fired ([`FiredClauses`]): a result's assumptions are read from them, and
+//! an explanation's rule nodes name them. Recording costs one table lookup
+//! per clause that returns a value; no value is traced.
+//!
 //! Nothing is traced when the mode is off: no traced value exists, the
 //! interpreter's creation sites test one `Option`, and the sites that read
 //! values see through a trace with one more `match` arm. Every site that
@@ -89,8 +94,9 @@ impl Leaf {
 pub(crate) enum Node {
     /// Passed in at an input path.
     Input { path: Rc<str>, value: Leaf },
-    /// Returned by a rule clause; `from` is what the clause's body computed,
-    /// `because` what the guards that chose the clause were computed from.
+    /// Returned by a rule clause (its id in the case's [`FiredClauses`]);
+    /// `from` is what the clause's body computed, `because` what the guards
+    /// that chose the clause were computed from.
     Rule {
         clause: u32,
         from: Option<NodeId>,
@@ -101,7 +107,7 @@ pub(crate) enum Node {
     Computed { from: Box<[NodeId]> },
 }
 
-/// A rule clause that produced a value.
+/// A rule clause that fired.
 #[derive(Debug, Clone)]
 pub(crate) struct ClauseRecord {
     pub(crate) rule: Rc<Rule>,
@@ -109,13 +115,44 @@ pub(crate) struct ClauseRecord {
     pub(crate) name: String,
 }
 
+/// The rule clauses that fired in one calculation case, each once; their
+/// ids are `0..` in the order they first fired.
+#[derive(Debug, Default)]
+pub struct FiredClauses {
+    clauses: Vec<ClauseRecord>,
+    ids: HashMap<usize, u32>,
+}
+
+impl FiredClauses {
+    pub(crate) fn clause(&self, id: u32) -> &ClauseRecord {
+        &self.clauses[id as usize]
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.clauses.len()
+    }
+
+    fn id(&mut self, rule: &Rc<Rule>, family: &RuleDispatchKey) -> u32 {
+        let key = Rc::as_ptr(rule) as usize;
+        if let Some(id) = self.ids.get(&key) {
+            return *id;
+        }
+        let id = u32::try_from(self.clauses.len()).expect("clause table fits u32");
+        self.clauses.push(ClauseRecord {
+            rule: rule.clone(),
+            scope: family.scope.clone(),
+            name: family.name.clone(),
+        });
+        self.ids.insert(key, id);
+        id
+    }
+}
+
 /// The provenance graph of one case.
 #[derive(Debug, Default)]
 pub struct ExplainState {
     nodes: Vec<Node>,
     interned: HashMap<Node, NodeId>,
-    clauses: Vec<ClauseRecord>,
-    clause_ids: HashMap<usize, u32>,
     /// Per active builtin: whether it reads its callbacks' results whole.
     callback_whole: Vec<bool>,
     /// Per active rule dispatch, innermost last: the nodes of the guard
@@ -140,33 +177,8 @@ impl ExplainState {
         &self.nodes[id as usize]
     }
 
-    pub(crate) fn clause(&self, id: u32) -> &ClauseRecord {
-        &self.clauses[id as usize]
-    }
-
-    /// How many distinct rule clauses fired; their ids are `0..` in the
-    /// order they first fired.
-    pub(crate) fn clause_count(&self) -> usize {
-        self.clauses.len()
-    }
-
     pub(crate) fn node_count(&self) -> usize {
         self.nodes.len()
-    }
-
-    fn clause_id(&mut self, rule: &Rc<Rule>, family: &RuleDispatchKey) -> u32 {
-        let key = Rc::as_ptr(rule) as usize;
-        if let Some(id) = self.clause_ids.get(&key) {
-            return *id;
-        }
-        let id = u32::try_from(self.clauses.len()).expect("clause table fits u32");
-        self.clauses.push(ClauseRecord {
-            rule: rule.clone(),
-            scope: family.scope.clone(),
-            name: family.name.clone(),
-        });
-        self.clause_ids.insert(key, id);
-        id
     }
 
     /// The rules and inputs `id` was computed from: through computed nodes,
@@ -466,6 +478,19 @@ fn builtin_reads_callback_results(name: &str) -> bool {
 }
 
 impl Interpreter {
+    /// Start recording the rule clauses that fire in a calculation case.
+    pub(crate) fn begin_fired_clauses(&mut self) {
+        self.fired = Some(RefCell::new(FiredClauses::default()));
+    }
+
+    /// Stop recording, returning the clauses that fired.
+    pub(crate) fn finish_fired_clauses(&mut self) -> FiredClauses {
+        self.fired
+            .take()
+            .map(RefCell::into_inner)
+            .unwrap_or_default()
+    }
+
     /// Start an explained case: a fresh provenance graph.
     pub(crate) fn begin_explained_case(&mut self) {
         self.explain = Some(RefCell::new(ExplainState::default()));
@@ -680,21 +705,25 @@ impl Interpreter {
         }
     }
 
-    /// Tag the value a rule clause produced with the clause, and with the
-    /// guards its dispatch read to choose it.
-    pub(crate) fn explain_rule_result(
+    /// A rule clause returned `value`: record that it fired and, in an
+    /// explained case, tag the value with the clause and with the guards its
+    /// dispatch read to choose it.
+    pub(crate) fn rule_clause_fired(
         &self,
         rule: &Rc<Rule>,
         family: &RuleDispatchKey,
         value: Value,
     ) -> Value {
-        let Some(state) = &self.explain else {
+        let Some(fired) = &self.fired else {
             return value;
         };
         if matches!(value, Value::Unknown(_)) {
             return value;
         }
-        let clause = state.borrow_mut().clause_id(rule, family);
+        let clause = fired.borrow_mut().id(rule, family);
+        let Some(state) = &self.explain else {
+            return value;
+        };
         let because: Box<[NodeId]> = state
             .borrow()
             .guards

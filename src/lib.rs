@@ -17209,6 +17209,8 @@ pub struct Interpreter {
     /// is cited in a law section: the value it returns is then that rule's,
     /// and a later read of it waits on the rule, not on the fact.
     pub(crate) partial_cited: Option<partial::CitedFrames>,
+    /// Set while a calculation case runs: the rule clauses that fired.
+    fired: Option<RefCell<explain::FiredClauses>>,
     /// Set while an explained case runs; see `explain`.
     explain: Option<RefCell<explain::ExplainState>>,
     /// The file each rule declared outside the root file came from, by the
@@ -17308,6 +17310,7 @@ impl Interpreter {
             partial_mode: None,
             partial: RefCell::new(partial::PartialState::default()),
             partial_cited: None,
+            fired: None,
             explain: None,
             rule_source_files: HashMap::new(),
             runtime_source_file: None,
@@ -28050,8 +28053,8 @@ impl Interpreter {
             break 'dispatch matched_false_clause.then_some(Value::Bool(false));
         };
         let result = match (result, produced_by) {
-            (Some(value), Some(index)) if self.explain.is_some() => {
-                Some(self.explain_rule_result(&dispatch.matching[index].0, family, value))
+            (Some(value), Some(index)) if self.fired.is_some() => {
+                Some(self.rule_clause_fired(&dispatch.matching[index].0, family, value))
             }
             (result, _) => result,
         };

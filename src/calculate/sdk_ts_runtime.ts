@@ -798,10 +798,32 @@ export function needSchema<P extends string, K extends ElementKey>(
   return schema as unknown as z.ZodType<Need<P, K>>;
 }
 
+/**
+ * An assumption a result rests on: an `Assumption` written on a rule clause
+ * that fired, on the section it sits in, or on the entry or its section.
+ */
+export type CalculationAssumption = {
+  /** The section it is written in; for one on a clause outside any section, the clause's rule. */
+  section: string;
+  /** The binding the assumption is written as, when it is one. */
+  binding?: string | undefined;
+  /** Its value as the engine writes it: a record's fields as an object, at their names in the model. */
+  value: unknown;
+};
+
+export const CalculationAssumptionSchema: z.ZodType<CalculationAssumption> = z
+  .object({ section: z.string(), binding: z.string().optional(), value: z.unknown() })
+  .strict();
+
+/** A calculation's result and the assumptions it rests on, each once, in the order the model writes them. */
+export type Calculated<R> = { readonly result: R; readonly assumptions: readonly CalculationAssumption[] };
+
 /** A partial case whose result no completion of its unknown fields can change. */
 export type Complete<R, N extends Need = Need> = {
   $variant: "Complete";
   result: R;
+  /** The assumptions the result rests on, each once, in the order the model writes them. */
+  assumptions: CalculationAssumption[];
   /** The provided input paths evaluation never read, sorted. */
   unusedPaths: InputPath<N["pattern"]>[];
 };
@@ -827,7 +849,14 @@ export function queryResultSchema<R, N extends Need>(
   path: z.ZodType<InputPath<N["pattern"]>>,
 ): z.ZodType<QueryResult<R, N>> {
   return z.discriminatedUnion("$variant", [
-    z.object({ $variant: z.literal("Complete"), result, unusedPaths: z.array(path) }).strict(),
+    z
+      .object({
+        $variant: z.literal("Complete"),
+        result,
+        assumptions: z.array(CalculationAssumptionSchema),
+        unusedPaths: z.array(path),
+      })
+      .strict(),
     z.object({ $variant: z.literal("Needs"), needs: z.array(need), later: z.array(need).optional() }).strict(),
   ]);
 }
@@ -850,6 +879,8 @@ function queryResultFromWire(entry: CalculationEntry, wireCase: unknown, result:
   const out = renamed(result, RESULT_NAMES);
   if (result["$variant"] === "Complete") {
     if (hasOwn(out, "result")) out["result"] = fromWire(entry.output, out["result"]);
+    // The engine leaves out an empty list.
+    if (out["assumptions"] === undefined) out["assumptions"] = [];
     const unused = out["unusedPaths"];
     if (Array.isArray(unused)) {
       const paths = unused.map((item: unknown) => (typeof item === "string" ? fromWirePath(entry.input, wireCase, item) : item));
@@ -1049,7 +1080,8 @@ function validated<O>(entry: CalculationEntry, schema: z.ZodType<O>, decode: () 
 
 /**
  * Calculate `entry` on a complete case: validate it, encode it, run it through
- * `transport.call`, check the envelope, and decode and validate the result.
+ * `transport.call`, check the envelope, and decode and validate the result;
+ * returned with the assumptions it rests on.
  */
 export async function callEntry<I, O>(
   transport: EngineTransport,
@@ -1057,11 +1089,17 @@ export async function callEntry<I, O>(
   inputSchema: z.ZodType<I>,
   outputSchema: z.ZodType<O>,
   input: I,
-): Promise<O> {
+): Promise<Calculated<O>> {
   const { document } = inputDocument(entry, inputSchema, input);
-  const output = await transport.call(entry.name, document);
-  const result = caseOutput(entry, OUTPUT_SCHEMA, output)["result"];
-  return validated(entry, outputSchema, () => fromWire(entry.output, result));
+  const output = caseOutput(entry, OUTPUT_SCHEMA, await transport.call(entry.name, document));
+  return calculated(entry, outputSchema, output);
+}
+
+/** The result of a case and its assumptions (the engine leaves out an empty list), decoded and validated. */
+function calculated<O>(entry: CalculationEntry, outputSchema: z.ZodType<O>, output: { readonly [key: string]: unknown }): Calculated<O> {
+  const result = validated(entry, outputSchema, () => fromWire(entry.output, output["result"]));
+  const assumptions = validated(entry, z.array(CalculationAssumptionSchema), () => output["assumptions"] ?? []);
+  return { result, assumptions };
 }
 
 /**
@@ -1176,12 +1214,10 @@ export type Explanation = {
         };
       }
     | undefined;
-  /** The assumptions of the law sections whose clauses gave the result, and of the entry. */
-  assumptions?: { section: string; binding?: string | undefined; value: unknown }[] | undefined;
 };
 
-/** A result with its explanation. */
-export type Explained<R> = { readonly result: R; readonly explanation: Explanation };
+/** A result with its assumptions and its explanation. */
+export type Explained<R> = Calculated<R> & { readonly explanation: Explanation };
 
 /** A partial call's result; a `Complete` result carries an explanation. */
 export type ExplainedQuery<R> = { readonly result: R; readonly explanation?: Explanation | undefined };
@@ -1340,12 +1376,11 @@ export async function explainEntry<I, O>(
 ): Promise<Explained<O>> {
   const { wireCase, document } = inputDocument(entry, inputSchema, input);
   const output = caseOutput(entry, OUTPUT_SCHEMA, await transport.callExplained(entry.name, document, depth === "full"));
-  const wireResult = output["result"];
-  const result = validated(entry, outputSchema, () => fromWire(entry.output, wireResult));
+  const { result, assumptions } = calculated(entry, outputSchema, output);
   if (output["explanation"] === undefined) {
     throw new CalculationError("output", entry.name, "the engine returned no explanation");
   }
-  return { result, explanation: explanationFromWire(entry, wireCase, wireResult, output["explanation"]) };
+  return { result, assumptions, explanation: explanationFromWire(entry, wireCase, output["result"], output["explanation"]) };
 }
 
 /**
@@ -1508,6 +1543,8 @@ export type Resolution<C, R, N extends Need = Need> =
   | {
       readonly $variant: "Complete";
       readonly result: R;
+      /** The assumptions the result rests on. */
+      readonly assumptions: readonly CalculationAssumption[];
       readonly unusedPaths: readonly InputPath<N["pattern"]>[];
       readonly partialCase: C;
       readonly rounds: number;
@@ -1572,7 +1609,14 @@ export async function resolve<C, R, N extends Need, Patterns = AnyPatterns>(
   for (let rounds = 1; ; rounds += 1) {
     const result = await query(partialCase);
     if (result.$variant === "Complete") {
-      return { $variant: "Complete", result: result.result, unusedPaths: result.unusedPaths, partialCase, rounds };
+      return {
+        $variant: "Complete",
+        result: result.result,
+        assumptions: result.assumptions,
+        unusedPaths: result.unusedPaths,
+        partialCase,
+        rounds,
+      };
     }
     // The round's needs of each registered pattern, in the engine's order.
     const batches = new Map<string, N[]>();

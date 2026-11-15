@@ -11,17 +11,17 @@
         "received": 0,
         "room": 0
       },
-      "explanation": {
-        "assumptions": [
-          {
-            "binding": "closing_day",
-            "section": "closing",
-            "value": {
-              "id": "CLOSING-DAY",
-              "statement": "The value on the closing day is the custodian's."
-            }
+      "assumptions": [
+        {
+          "section": "closing",
+          "binding": "closing_day",
+          "value": {
+            "id": "CLOSING-DAY",
+            "statement": "The value on the closing day is the custodian's."
           }
-        ],
+        }
+      ],
+      "explanation": {
         "sections": {
           "closing": {
             "attachments": [

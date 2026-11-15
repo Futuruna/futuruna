@@ -1,0 +1,56 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.partial-output.v1",
+    "schema_hash": "432c3e1d980fb9cec1c50bfe91223a3069c4a953f9443daf639bd70d3394432a",
+    "entry": "assumptions_partial"
+  },
+  "results": [
+    {
+      "case_id": "closed-value-unknown",
+      "result": {
+        "$variant": "Complete",
+        "assumptions": [
+          {
+            "binding": "closing_day",
+            "section": "closing",
+            "value": {
+              "id": "CLOSING-DAY",
+              "statement": "The value on the closing day is the custodian's."
+            }
+          },
+          {
+            "binding": "whole_kroner",
+            "section": "report",
+            "value": {
+              "id": "WHOLE-KRONER",
+              "statement": "Amounts are whole kroner."
+            }
+          }
+        ],
+        "result": {
+          "room": 0
+        },
+        "unused_paths": []
+      }
+    },
+    {
+      "case_id": "open-value-unknown",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "value",
+            "waiting": [
+              {
+                "rule": "room",
+                "section": "closing"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

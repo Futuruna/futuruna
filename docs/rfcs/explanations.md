@@ -53,16 +53,19 @@ cite.
   blocks in order, each document's text after a `[<file>]` line) and, when
   an amending act quoted in the section amends a quoted base passage,
   `superseded`.
-- `assumptions`: the `Assumption` attachments of the sections whose rule
-  clauses fired in the case (in the order they first fired), then those of
-  the entry's own section, each once. An assumption is what a result rests
-  on; a section none of whose rules fired adds nothing. Only rule clauses
-  count: a function runs whenever it is called, so a section of functions
-  says nothing about which law applied. A model therefore attaches an
-  assumption to the section of the rules that apply only when it matters
-  (the rules of a transfer, of a closing), or with `@ meta` to the clause it
-  qualifies, where it is listed only when that clause fires, and need not
-  list assumptions in its result type.
+- Assumptions are not in the explanation. Since Futuruna 0.4.1 every case of
+  `runa call`, explained or not, carries `assumptions` beside its `result`
+  (in `Complete` for a partial call): the `Assumption` attachments of the
+  rule clauses that fired, of their sections, and of the entry and its
+  section, each once, in the order the model writes them
+  ([Assumptions](../reference/calculations.md#assumptions)). Both read the
+  one table of the clauses that fired in the case, which every case records
+  without tracing values; the explanation's rule nodes name its clauses. Only
+  rule clauses count: a function runs whenever it is called, so a section of
+  functions says nothing about which law applied. A model attaches an
+  assumption to the rules that apply only when it matters (the exception of
+  a closing, the rule that reads a transfer statement), with `@ meta` on the
+  clause it qualifies, and need not list assumptions in its result type.
 - `--explain=full` adds `derivation`: every rule node a reported value was
   computed from, by node number, each with its own clause, contributors and
   `because`. The default reports at most 32 direct contributors per value

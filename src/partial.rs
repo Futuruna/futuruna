@@ -1465,7 +1465,7 @@ impl Interpreter {
                     Candidate::NoMatch => {}
                     Candidate::FalseClause => matched_false_clause = true,
                     Candidate::Fires { value, paths } => {
-                        outcomes.push(self.explain_rule_result(&rule, family, value));
+                        outcomes.push(self.rule_clause_fired(&rule, family, value));
                         if paths.is_empty() {
                             certain = true;
                             break 'tiers;

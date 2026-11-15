@@ -8,7 +8,7 @@
 
 use super::*;
 use crate::citations::{CitedParagraph, FileCitations};
-use crate::explain::{traced, ExplainState, Leaf, Node, NodeId};
+use crate::explain::{traced, ClauseRecord, ExplainState, FiredClauses, Leaf, Node, NodeId};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -362,6 +362,22 @@ struct SectionInfo {
     superseded: Vec<JsonValue>,
 }
 
+/// The `@ meta` values written on a section or item, and the line of its
+/// first annotation.
+struct Attached {
+    line: usize,
+    attachments: Vec<JsonValue>,
+}
+
+/// A rule clause, member or function with `@ meta`: its name, its first and
+/// last line, and its metadata.
+struct ItemMeta {
+    name: String,
+    start: usize,
+    end: usize,
+    attached: Attached,
+}
+
 /// What an explanation reads from one source file.
 struct FileIndex {
     /// The file's path, as read.
@@ -371,19 +387,68 @@ struct FileIndex {
     citations: FileCitations,
     /// `(label, first code line, last code line)` of every section.
     spans: Vec<(String, usize, usize)>,
-    /// `(name, first line, last line)` of every rule, member or function
-    /// with `@ meta`.
-    item_spans: Vec<(String, usize, usize)>,
+    /// Every rule clause, member or function with `@ meta`, in source
+    /// order; two clauses of one rule are two items.
+    items: Vec<ItemMeta>,
     sections: BTreeMap<String, Rc<SectionInfo>>,
     /// The metadata attachments of every section.
-    anchor_attachments: BTreeMap<String, Vec<JsonValue>>,
-    /// The metadata attachments of every rule, member, function or other
-    /// item with `@ meta`.
-    item_attachments: BTreeMap<String, Vec<JsonValue>>,
+    anchor_attachments: BTreeMap<String, Attached>,
     /// The first clause line of every rule family, by `(scope, name)`.
     families: HashMap<(Option<String>, String), usize>,
     /// The line where each top-level function's body starts.
     functions: HashMap<String, usize>,
+}
+
+/// An assumption and where it is written: file, line, and its place among
+/// the values written there.
+type PlacedAssumption = ((Rc<str>, usize, usize), CalculationAssumption);
+
+impl FileIndex {
+    /// The assumptions written on the innermost section around `line` and
+    /// on the item `name` there (a clause, member or function with `@ meta`).
+    /// An assumption on an item names the section it sits in, else the item.
+    fn assumptions_at(&self, line: usize, name: &str) -> Vec<PlacedAssumption> {
+        let file: Rc<str> = Rc::from(self.path.as_str());
+        let section = self
+            .spans
+            .iter()
+            .filter(|(_, start, end)| *start <= line && line <= *end)
+            .max_by_key(|(_, start, _)| *start)
+            .map(|(label, _, _)| label.as_str());
+        let item = self
+            .items
+            .iter()
+            .filter(|item| item.name == name && item.start <= line && line <= item.end)
+            .max_by_key(|item| item.start);
+        let mut found = Vec::new();
+        let mut place = |label: &str, attached: &Attached| {
+            for (position, attachment) in attached.attachments.iter().enumerate() {
+                if attachment.get("role").and_then(JsonValue::as_str) != Some("Assumption") {
+                    continue;
+                }
+                found.push((
+                    (file.clone(), attached.line, position),
+                    CalculationAssumption {
+                        section: label.to_string(),
+                        binding: attachment
+                            .get("binding")
+                            .and_then(JsonValue::as_str)
+                            .map(str::to_string),
+                        value: attachment.get("value").cloned().unwrap_or(JsonValue::Null),
+                    },
+                ));
+            }
+        };
+        if let Some(label) = section {
+            if let Some(attached) = self.anchor_attachments.get(label) {
+                place(label, attached);
+            }
+        }
+        if let Some(item) = item {
+            place(section.unwrap_or(&item.name), &item.attached);
+        }
+        found
+    }
 }
 
 /// Renders explanations; caches what it reads from source files.
@@ -393,14 +458,18 @@ pub(super) struct ExplainRenderer {
     files: HashMap<String, Option<Rc<FileIndex>>>,
     /// The act of each quoted document, by `(model file, source)`.
     acts: HashMap<(String, String), Option<CalculationAct>>,
+    /// The assumptions written on each rule clause and its section, by the
+    /// clause's allocation (the clause is kept so its address is not reused).
+    clause_assumptions: HashMap<usize, (Rc<Rule>, Rc<[PlacedAssumption]>)>,
+    /// The assumptions written on each entry and its section.
+    entry_assumptions: HashMap<String, Rc<[PlacedAssumption]>>,
 }
 
 impl ExplainRenderer {
     pub(super) fn new(options: ExplainOptions) -> Self {
         Self {
             options,
-            files: HashMap::new(),
-            acts: HashMap::new(),
+            ..Self::default()
         }
     }
 
@@ -437,19 +506,18 @@ impl ExplainRenderer {
         let mut spans = Vec::new();
         let mut item_spans = Vec::new();
         for span in &meta.spans {
-            let entry = (span.label.clone(), span.code_start_line, span.code_end_line);
             if annotations
                 .section(&span.label)
                 .is_some_and(|section| section.line == span.begin_marker_line)
             {
-                spans.push(entry);
+                spans.push((span.label.clone(), span.code_start_line, span.code_end_line));
             } else {
-                item_spans.push(entry);
+                item_spans.push(span);
             }
         }
         let mut sections = BTreeMap::new();
-        let mut item_attachments: BTreeMap<String, Vec<JsonValue>> = BTreeMap::new();
-        let mut anchor_attachments: BTreeMap<String, Vec<JsonValue>> = BTreeMap::new();
+        let mut items = Vec::new();
+        let mut anchor_attachments: BTreeMap<String, Attached> = BTreeMap::new();
         for anchor in &meta.anchors {
             let mut attachments = Vec::new();
             for reference in &anchor.references {
@@ -489,14 +557,28 @@ impl ExplainRenderer {
             });
             attachments.dedup();
             if anchor.kind != "section" {
-                item_attachments
-                    .entry(anchor.label.clone())
-                    .or_insert(attachments);
+                // An item's anchor and code span start on its first `@ meta`.
+                if let Some(span) = item_spans.iter().find(|span| {
+                    span.label == anchor.label && span.begin_marker_line == anchor.comment_line
+                }) {
+                    items.push(ItemMeta {
+                        name: anchor.label.clone(),
+                        start: span.code_start_line,
+                        end: span.code_end_line,
+                        attached: Attached {
+                            line: anchor.comment_line,
+                            attachments,
+                        },
+                    });
+                }
                 continue;
             }
             anchor_attachments
                 .entry(anchor.label.clone())
-                .or_insert_with(|| attachments.clone());
+                .or_insert_with(|| Attached {
+                    line: anchor.comment_line,
+                    attachments: attachments.clone(),
+                });
             if sections.contains_key(&anchor.label) {
                 continue;
             }
@@ -560,22 +642,15 @@ impl ExplainRenderer {
             citations: crate::citations::file_citations_from(&annotations, &documents),
             source,
             spans,
-            item_spans,
+            items,
             sections,
             anchor_attachments,
-            item_attachments,
             families,
             functions,
         })
     }
 
-    fn clause_info(
-        &mut self,
-        interpreter: &Interpreter,
-        state: &ExplainState,
-        clause: u32,
-    ) -> ClauseInfo {
-        let record = state.clause(clause);
+    fn clause_info(&mut self, interpreter: &Interpreter, record: &ClauseRecord) -> ClauseInfo {
         let (kind, exception) = clause_kind(record.rule.as_ref());
         let mut info = ClauseInfo {
             rule: record.name.clone(),
@@ -651,10 +726,8 @@ impl ExplainRenderer {
     fn section(
         &mut self,
         interpreter: &Interpreter,
-        state: &ExplainState,
-        clause: u32,
+        record: &ClauseRecord,
     ) -> Option<(String, Rc<SectionInfo>)> {
-        let record = state.clause(clause);
         let file = interpreter
             .rule_source_file(&record.rule)
             .map(|file| file.to_string())
@@ -874,13 +947,85 @@ impl ExplainRenderer {
             .map(|file| file.to_string_lossy().into_owned())
     }
 
-    /// The section around the calculation entry and its anchor's metadata
-    /// attachments.
-    fn entry_attachments(
+    /// The assumptions a case's result rests on: the `Assumption`
+    /// attachments of the rule clauses that fired and of the sections they
+    /// sit in, then of the entry and its section; each once (by binding and
+    /// value), in the order the model writes them (by file, then line).
+    pub(super) fn assumptions(
+        &mut self,
+        interpreter: &Interpreter,
+        fired: &FiredClauses,
+        entry: &str,
+    ) -> Vec<CalculationAssumption> {
+        let mut placed: BTreeMap<(Rc<str>, usize, usize), CalculationAssumption> =
+            BTreeMap::new();
+        let mut add = |found: &[PlacedAssumption]| {
+            for (place, assumption) in found {
+                placed
+                    .entry(place.clone())
+                    .or_insert_with(|| assumption.clone());
+            }
+        };
+        for id in 0..fired.len() {
+            add(&self.clause_assumptions(interpreter, fired.clause(id as u32)));
+        }
+        add(&self.entry_assumptions(interpreter, entry));
+        let mut found: Vec<CalculationAssumption> = Vec::new();
+        for assumption in placed.into_values() {
+            if !found
+                .iter()
+                .any(|seen| seen.binding == assumption.binding && seen.value == assumption.value)
+            {
+                found.push(assumption);
+            }
+        }
+        found
+    }
+
+    /// The assumptions written on a rule clause (with `@ meta`) and on the
+    /// section around it.
+    fn clause_assumptions(
+        &mut self,
+        interpreter: &Interpreter,
+        record: &ClauseRecord,
+    ) -> Rc<[PlacedAssumption]> {
+        let key = Rc::as_ptr(&record.rule) as usize;
+        if let Some((_, found)) = self.clause_assumptions.get(&key) {
+            return found.clone();
+        }
+        let found: Rc<[PlacedAssumption]> = self
+            .locate_clause_assumptions(interpreter, record)
+            .unwrap_or_default()
+            .into();
+        self.clause_assumptions
+            .insert(key, (record.rule.clone(), found.clone()));
+        found
+    }
+
+    fn locate_clause_assumptions(
+        &mut self,
+        interpreter: &Interpreter,
+        record: &ClauseRecord,
+    ) -> Option<Vec<PlacedAssumption>> {
+        let file = interpreter
+            .rule_source_file(&record.rule)
+            .map(|file| file.to_string())
+            .or_else(|| self.root_file_name())?;
+        let index = self.file(&file)?;
+        let (line, _) = char_offset_to_line_col(&index.source, record.rule.head()?.span.start);
+        Some(index.assumptions_at(line, &record.name))
+    }
+
+    /// The assumptions written on the calculation entry and on the section
+    /// around it.
+    fn entry_assumptions(
         &mut self,
         interpreter: &Interpreter,
         entry: &str,
-    ) -> Option<(String, Vec<JsonValue>)> {
+    ) -> Rc<[PlacedAssumption]> {
+        if let Some(found) = self.entry_assumptions.get(entry) {
+            return found.clone();
+        }
         let located = [false, true].into_iter().find_map(|is_rule| {
             self.frame_location(
                 interpreter,
@@ -891,65 +1036,22 @@ impl ExplainRenderer {
                 },
             )
         });
-        let (index, line, _) = located?;
-        let innermost = |spans: &[(String, usize, usize)]| {
-            spans
-                .iter()
-                .filter(|(_, start, end)| *start <= line && line <= *end)
-                .max_by_key(|(_, start, _)| *start)
-                .cloned()
-        };
-        match (innermost(&index.item_spans), innermost(&index.spans)) {
-            (Some((label, item_start, _)), section)
-                if section
-                    .as_ref()
-                    .is_none_or(|(_, start, _)| *start <= item_start) =>
-            {
-                let attachments = index.item_attachments.get(&label)?.clone();
-                Some((label, attachments))
-            }
-            (_, Some((label, _, _))) => {
-                let attachments = index.anchor_attachments.get(&label)?.clone();
-                Some((label, attachments))
-            }
-            _ => None,
-        }
+        let found: Rc<[PlacedAssumption]> = located
+            .map(|(index, line, _)| index.assumptions_at(line, entry))
+            .unwrap_or_default()
+            .into();
+        self.entry_assumptions
+            .insert(entry.to_string(), found.clone());
+        found
     }
 
-    /// The `@ meta` attachments written on a clause or member, with the
-    /// section it stands in (else the rule's name).
-    fn clause_attachments(
-        &mut self,
-        interpreter: &Interpreter,
-        state: &ExplainState,
-        clause: u32,
-    ) -> Option<(String, Vec<JsonValue>)> {
-        let record = state.clause(clause);
-        let file = interpreter
-            .rule_source_file(&record.rule)
-            .map(|file| file.to_string())
-            .or_else(|| self.root_file_name())?;
-        let index = self.file(&file)?;
-        let (line, _) = char_offset_to_line_col(&index.source, record.rule.head()?.span.start);
-        let (name, _, _) = index
-            .item_spans
-            .iter()
-            .find(|(name, start, end)| *name == record.name && *start <= line && line <= *end)?;
-        let attachments = index.item_attachments.get(name)?.clone();
-        let label = index
-            .spans
-            .iter()
-            .filter(|(_, start, end)| *start <= line && line <= *end)
-            .max_by_key(|(_, start, _)| *start)
-            .map_or_else(|| name.clone(), |(label, _, _)| label.clone());
-        Some((label, attachments))
-    }
-
-    /// The explanation of one case's result.
+    /// The explanation of one case's result; `fired` holds the clauses its
+    /// rule nodes name.
     pub(super) fn explanation(
         &mut self,
         interpreter: &Interpreter,
         state: &ExplainState,
+        fired: &FiredClauses,
         result: &Value,
         contract: &CalculationContract,
     ) -> JsonValue {
@@ -966,6 +1068,7 @@ impl ExplainRenderer {
             renderer: self,
             interpreter,
             state,
+            fired,
             clauses: HashMap::new(),
             sections: BTreeMap::new(),
             reached: Vec::new(),
@@ -1077,10 +1180,6 @@ impl ExplainRenderer {
                 ),
             );
         }
-        let assumptions = case.assumptions(&contract.entry);
-        if !assumptions.is_empty() {
-            explanation.insert("assumptions".into(), JsonValue::Array(assumptions));
-        }
         let sections = std::mem::take(&mut case.sections);
         explanation.insert(
             "sections".into(),
@@ -1120,6 +1219,7 @@ struct CaseRenderer<'a> {
     renderer: &'a mut ExplainRenderer,
     interpreter: &'a Interpreter,
     state: &'a ExplainState,
+    fired: &'a FiredClauses,
     clauses: HashMap<u32, Rc<ClauseInfo>>,
     sections: BTreeMap<String, Rc<SectionInfo>>,
     /// Rule nodes referenced so far, for the full derivation.
@@ -1131,12 +1231,9 @@ impl CaseRenderer<'_> {
         if let Some(info) = self.clauses.get(&clause) {
             return info.clone();
         }
-        let info = Rc::new(
-            self.renderer
-                .clause_info(self.interpreter, self.state, clause),
-        );
-        if let Some((label, section)) = self.renderer.section(self.interpreter, self.state, clause)
-        {
+        let record = self.fired.clause(clause);
+        let info = Rc::new(self.renderer.clause_info(self.interpreter, record));
+        if let Some((label, section)) = self.renderer.section(self.interpreter, record) {
             self.sections.entry(label).or_insert(section);
         }
         self.clauses.insert(clause, info.clone());
@@ -1219,56 +1316,6 @@ impl CaseRenderer<'_> {
                     .collect(),
             )
         })
-    }
-
-    /// The `Assumption` attachments of the sections whose rule clauses
-    /// fired, in the order the clauses first fired, then those of the
-    /// entry's own section; each once.
-    fn assumptions(&mut self, entry: &str) -> Vec<JsonValue> {
-        let mut found: Vec<JsonValue> = Vec::new();
-        let add = |found: &mut Vec<JsonValue>, label: &str, attachments: &[JsonValue]| {
-            for attachment in attachments {
-                if attachment.get("role").and_then(JsonValue::as_str) != Some("Assumption") {
-                    continue;
-                }
-                let mut item = JsonMap::new();
-                item.insert("section".into(), JsonValue::from(label));
-                if let Some(binding) = attachment.get("binding") {
-                    item.insert("binding".into(), binding.clone());
-                }
-                item.insert(
-                    "value".into(),
-                    attachment.get("value").cloned().unwrap_or(JsonValue::Null),
-                );
-                let item = JsonValue::Object(item);
-                let known = found.iter().any(|seen| {
-                    seen.get("binding") == item.get("binding")
-                        && seen.get("value") == item.get("value")
-                });
-                if !known {
-                    found.push(item);
-                }
-            }
-        };
-        for clause in 0..self.state.clause_count() {
-            if let Some((label, section)) =
-                self.renderer
-                    .section(self.interpreter, self.state, clause as u32)
-            {
-                add(&mut found, &label, &section.attachments);
-            }
-            if let Some((label, attachments)) =
-                self.renderer
-                    .clause_attachments(self.interpreter, self.state, clause as u32)
-            {
-                add(&mut found, &label, &attachments);
-            }
-        }
-        if let Some((label, attachments)) = self.renderer.entry_attachments(self.interpreter, entry)
-        {
-            add(&mut found, &label, &attachments);
-        }
-        found
     }
 
     /// A contributor: a rule node or an input node, briefly.
@@ -1639,16 +1686,6 @@ pub fn explanation_json_schema(contract: &CalculationContract) -> JsonValue {
                             }
                         }
                     }
-                }
-            },
-            "assumptions": {
-                "type": "array",
-                "description": "The `Assumption` attachments of the sections whose rule clauses fired, and of the entry's own section, each once.",
-                "items": {
-                    "type": "object",
-                    "required": ["section", "value"],
-                    "additionalProperties": false,
-                    "properties": { "section": string, "binding": string, "value": {} }
                 }
             },
             "derivation": {
