@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `tax` is declared both as a rule (line 6) and as a function (line 7); a call cannot show which one it means, so rename one of them
+
+-- A rule family and a function never share a name.
+| tax(income: Int) -> income / 4
+> tax(income: Int) -> Int { income / 2 }

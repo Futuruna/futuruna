@@ -25893,13 +25893,18 @@ impl Interpreter {
                 Some(Value::Float(f)) => Value::Float(*f),
                 _ => Value::Float(0.0),
             },
-            "round" => match args.first() {
-                Some(Value::Float(f)) => Value::Int(f.round() as i64),
-                Some(Value::Int(n)) => Value::Int(*n),
-                _ => Value::Int(0),
-            },
-            "floor" => match args.first() {
-                Some(Value::Float(f)) => Value::Int(f.floor() as i64),
+            "round" | "floor" => match args.first() {
+                Some(Value::Float(f)) => {
+                    let whole = if name == "round" {
+                        f.round()
+                    } else {
+                        f.floor()
+                    };
+                    match float_to_int(whole) {
+                        Some(n) => Value::Int(n),
+                        None => self.panic_or_ground_fail(float_to_int_error(name, *f)),
+                    }
+                }
                 Some(Value::Int(n)) => Value::Int(*n),
                 _ => Value::Int(0),
             },
@@ -30636,6 +30641,24 @@ pub fn display_error_in(source: &str, error: &str, filename: &str) {
 pub fn display_diagnostic(source: &str, diag: &Diagnostic, filename: &str) {
     let use_color = should_use_color();
     eprint!("{}", diag.display(source, filename, use_color));
+}
+
+/// A whole Float as an Int, or `None` when the Int range cannot hold it
+/// (NaN and the infinities included): it is never saturated to the nearest
+/// Int. Generated Rust performs the same test (see `runa`'s `round` and
+/// `floor` templates).
+fn float_to_int(whole: f64) -> Option<i64> {
+    // -2^63 is exact as a Float; i64::MAX is not, so the upper bound is 2^63.
+    (whole >= -9_223_372_036_854_775_808.0 && whole < 9_223_372_036_854_775_808.0)
+        .then_some(whole as i64)
+}
+
+/// The runtime error for `round`/`floor` of a Float outside the Int range;
+/// generated Rust panics with the same text.
+fn float_to_int_error(builtin: &str, value: f64) -> String {
+    format!(
+        "{builtin}: {value:e} does not fit in an Int (-9223372036854775808 to 9223372036854775807)"
+    )
 }
 
 /// Convert 1-based line:col to a Span (for legacy error format).
@@ -58052,6 +58075,7 @@ impl TypeChecker {
                     .replace(canonical_source_path(&unit.path));
                 let start = self.diagnostics.len();
                 self.check_function_declarations(&unit.statements);
+                self.check_top_level_bindings(&unit.statements);
                 if unit.scope.is_some() {
                     self.check_rule_result_contracts(&unit.statements);
                 }
@@ -58955,6 +58979,7 @@ impl TypeChecker {
     pub fn check_program(&mut self, stmts: &[Stmt]) {
         self.infer_rule_call_site_param_types(stmts);
         self.check_rule_result_contracts(stmts);
+        self.check_top_level_bindings(stmts);
         self.check_stmt_sequence_with_exploration_selection(stmts, true);
         self.check_unhandled_effects(stmts);
         self.check_imported_bodies();
@@ -59131,6 +59156,23 @@ impl TypeChecker {
     }
 
     fn check_declared_binding_ty(&mut self, ty: &Ty, expr: &Expr) {
+        // Each branch has the declared type, as each branch of a function's
+        // body has its result type: a number written in one branch takes
+        // the unit of the binding (`= s: Micro = if c { 0 } else { amount }`).
+        match &expr.kind {
+            ExprKind::If(_, then_expr, else_expr) => {
+                self.check_declared_binding_ty(ty, then_expr);
+                self.check_declared_binding_ty(ty, else_expr);
+                return;
+            }
+            ExprKind::Block(stmts) => {
+                if let [Stmt::Expr(inner)] = stmts.as_slice() {
+                    self.check_declared_binding_ty(ty, inner);
+                    return;
+                }
+            }
+            _ => {}
+        }
         let Some(actual_ty) = self.obvious_expr_ty(expr) else {
             self.check_declared_binding_value(ty, expr);
             return;
@@ -61597,6 +61639,7 @@ impl TypeChecker {
                 self.push_scope();
                 let constructor_catalog = self.snapshot_inline_module_constructor_catalog();
                 self.collect_nested_declarations(body);
+                self.check_top_level_bindings(body);
                 self.check_stmt_sequence(body);
                 self.restore_inline_module_constructor_catalog(constructor_catalog);
                 self.pop_scope();
@@ -62321,6 +62364,14 @@ impl TypeChecker {
                         }
                         if name == "concat" && actual_arity == 2 && !self.var_defined(name) {
                             self.check_concat_arguments(args);
+                        }
+                        // Output is an effect, written with the `@` rune as
+                        // at top level, where the parser already says so.
+                        if name == "print" && !self.var_defined(name) {
+                            self.error_at_expr(
+                                expr,
+                                "In Futuruna, IO is an effect: write `@ print(...)`, not a bare `print(...)` call".to_string(),
+                            );
                         }
                         if name == "not" && actual_arity == 1 && !self.var_defined(name) {
                             self.check_not_argument(&args[0]);

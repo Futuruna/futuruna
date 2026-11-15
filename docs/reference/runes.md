@@ -156,9 +156,16 @@ A number written in the source (`0`, `-5`, `100 * 100`) has no unit of its own:
 it takes the unit its place requires. `amount > 0`, `amount + 100`, an `Ore`
 field given `0`, a function returning `0` for `-> Ore`,
 `if c { 0 } else { amount }`, a match arm `| None -> 0` beside an `Ore` arm,
-and `= amounts: List(Ore) = [0, 100]` need no conversion. A named value has the
+`= amounts: List(Ore) = [0, 100]` and `= least: Ore = if c { 0 } else { amount }`
+need no conversion. A named value has the
 unit it was given: `= counts = [0, 1]` is a `List(Int)`, so passing an element
 to an `Ore` parameter is an error.
+
+`concat([0], amounts)` has the type of `amounts`. In a program that declares
+units, `concat([0], xs)` with `xs` of unknown type (an untyped parameter, say)
+is an error: `[0]` could be a list of any unit, so nothing would check the
+result. Declare the type of `xs`, or write the numbers in their unit
+(`[Ore(0)]`). In a program without units, `[0]` is a `List(Int)`.
 
 The parameter of a callback given to `map`, `filter`, `foldl` and the other
 collection functions has the type of the collection's elements, so a mistake
@@ -327,7 +334,20 @@ An ordinary function name has one declaration in each authored lexical scope,
 regardless of parameter count. Duplicate declarations are errors before
 execution. Separate modules and nested scopes may use the same name, and a
 local declaration may override a name supplied by the prelude or a prefix
-import. Use `|` rules for a family of clauses and cases.
+import. Use `|` rules for a family of clauses and cases; a rule family and a
+function never share a name, and the error names the line of each.
+
+A top-level name (`= rate = 25`) is bound once in a file or module, or rebound
+by an update that reads it (`= scores = map_insert(scores, "fire", 1)`); each
+statement reads the latest binding. A second binding that does not read the
+name would replace the earlier value unseen, so it is an error that names both
+lines. A body may bind a local name again.
+
+A parameter or local binding hides every function, rule, builtin or effect
+operation of its name in its body: `> g(f: Int) -> Int { f(f) }` is an error
+(`f` is an `Int`, not a function), and a local `ask` is the value bound, not
+the `Console` operation. A function, authored or imported, hides the builtin
+of its name in the interpreter and in compiled code alike.
 
 ### Function with effects
 ```runa
@@ -651,7 +671,9 @@ The boundary between the verified world and effects. Every `@` says: formal reas
 ```
 
 Effect invocations use supported builtin names. Unknown names such as
-`@ println(...)` or `@ log(...)` are errors. Assertions are ordinary calls:
+`@ println(...)` or `@ log(...)` are errors. Output is written with the `@`
+rune in a function body as at top level: a bare `print(...)` call is an error
+that says to write `@ print(...)`. Assertions are ordinary calls:
 write `assert(condition)` or `assert_with_message(condition, "message")`
 without `@`. Declared algebraic operations also use ordinary call syntax, as
 shown in the handler example above.

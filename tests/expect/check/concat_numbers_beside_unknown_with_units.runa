@@ -1,0 +1,8 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: the element type of this `concat` is unknown: a list of numbers written in the source takes the unit of the list beside it, and the type of `xs` is not known; declare the type of `xs`, or write the numbers in their unit, as in `[Micro(0)]`
+
+-- In a program that declares units, `[0]` could be a list of any unit, so
+-- beside a list of unknown type it gives `concat` no type to check.
+# unit Micro "millionths of a share"
+> first_or_zero(xs) -> String { head(concat([0], xs)) }

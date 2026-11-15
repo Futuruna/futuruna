@@ -1,0 +1,15 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: declared_binding_unit_branches.runa:15:
+-- expect-stderr: binding expects `Micro` but expression has `String`
+-- expect-stderr-not: declared_binding_unit_branches.runa:13:
+-- expect-stderr-not: declared_binding_unit_branches.runa:14:
+
+-- A number written in one branch takes the unit the binding declares, as
+-- in a function's result.
+# unit Micro "millionths of a share"
+= amount: Micro = 5
+= amounts: List(Micro) = [1, 2]
+= s: Micro = if length(amounts) > 1 { 0 } else { amount }
+= g: List(Micro) = if length(amounts) > 1 { [0] } else { amounts }
+= wrong: Micro = if length(amounts) > 1 { 0 } else { "none" }

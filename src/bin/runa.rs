@@ -24683,7 +24683,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 1,
                 impure: false,
                 deps: D,
-                rust_tpl: "(({0} as f64).round() as i64)",
+                rust_tpl: "__FuturunaWhole::__futuruna_whole({0}, \"round\", f64::round)",
             },
         ),
         (
@@ -24692,7 +24692,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 1,
                 impure: false,
                 deps: D,
-                rust_tpl: "(({0} as f64).floor() as i64)",
+                rust_tpl: "__FuturunaWhole::__futuruna_whole({0}, \"floor\", f64::floor)",
             },
         ),
         (
@@ -28878,6 +28878,10 @@ impl<'a> LoweringCtx<'a> {
                             (FirTy::List(element), FirTy::Unknown | FirTy::Var(_))
                             | (FirTy::Unknown | FirTy::Var(_), FirTy::List(element)) => {
                                 Some(FirTy::List(element.clone()))
+                            }
+                            (FirTy::String, FirTy::String | FirTy::Unknown | FirTy::Var(_))
+                            | (FirTy::Unknown | FirTy::Var(_), FirTy::String) => {
+                                Some(FirTy::String)
                             }
                             _ => None,
                         };
@@ -33337,6 +33341,22 @@ impl RustCodegen {
             .rposition(|statement| matches!(statement, Stmt::PreludeBoundary))
             .map_or(0, |index| index + 1);
         let replaced_types = replaced_prelude_types(&stmts[..prelude_len], &all_stmts);
+        // Imported declarations come before the root's prelude boundary, so
+        // the boundary alone does not tell the prelude's functions from an
+        // imported `first`: only the prelude's own surviving functions leave
+        // a builtin of their name visible.
+        let prelude_function_names: BTreeSet<String> = stmts[..prelude_len]
+            .iter()
+            .filter_map(|statement| match statement {
+                Stmt::Defn(Defn::Fn { name, .. })
+                    if !imported_functions.contains(name)
+                        && !is_prelude_function_over(statement, &replaced_types) =>
+                {
+                    Some(name.clone())
+                }
+                _ => None,
+            })
+            .collect();
         for (index, stmt) in stmts.iter().enumerate() {
             if index < prelude_len
                 && match stmt {
@@ -33504,17 +33524,7 @@ impl RustCodegen {
         let stmts = &all_stmts;
         self.receiver_method_names.clear();
         Self::collect_receiver_method_names(stmts, &mut self.receiver_method_names);
-        let prelude_len = stmts
-            .iter()
-            .rposition(|statement| matches!(statement, Stmt::PreludeBoundary))
-            .map_or(0, |index| index + 1);
-        self.prelude_function_names = stmts[..prelude_len]
-            .iter()
-            .filter_map(|statement| match statement {
-                Stmt::Defn(Defn::Fn { name, .. }) => Some(name.clone()),
-                _ => None,
-            })
-            .collect();
+        self.prelude_function_names = prelude_function_names;
 
         // Pre-scan: collect @ export annotations (M3b)
         // Two forms: `@ export` (prefix, next stmt is exported) or `@ export name` (post-hoc)
@@ -36353,6 +36363,10 @@ fn __futuruna_map_remove<K: Ord, V>(map: &mut BTreeMap<K, V>, key: &K) {
         // order-preserving encoding of the value, never by its display text.
         out.push_str(
             r#"
+trait __FuturunaWhole { fn __futuruna_whole(self, builtin: &str, whole: fn(f64) -> f64) -> i64; }
+impl __FuturunaWhole for i64 { fn __futuruna_whole(self, _: &str, _: fn(f64) -> f64) -> i64 { self } }
+impl __FuturunaWhole for f64 { fn __futuruna_whole(self, builtin: &str, whole: fn(f64) -> f64) -> i64 { let w = whole(self); if w >= -9223372036854775808.0 && w < 9223372036854775808.0 { w as i64 } else { panic!("{}: {:e} does not fit in an Int (-9223372036854775808 to 9223372036854775807)", builtin, self) } } }
+impl<T: __FuturunaWhole + Copy> __FuturunaWhole for &T { fn __futuruna_whole(self, builtin: &str, whole: fn(f64) -> f64) -> i64 { (*self).__futuruna_whole(builtin, whole) } }
 trait __FuturunaShow { fn __futuruna_fmt(&self, out: &mut String); }
 fn __futuruna_show_any<T: __FuturunaShow + ?Sized>(v: &T) -> String { let mut out = String::new(); v.__futuruna_fmt(&mut out); out }
 macro_rules! __futuruna_show_via_display { ($($t:ty),*) => { $(impl __FuturunaShow for $t { fn __futuruna_fmt(&self, out: &mut String) { use std::fmt::Write as _; let _ = write!(out, "{}", self); } })* } }
@@ -42028,17 +42042,21 @@ fn __futuruna_install_error_hook() {
             }
         }
 
-        let mut fn_bodies: Vec<(String, Expr)> = Vec::new();
+        // Each body with the names its parameters bind: a parameter named
+        // like an effect operation is a value, not the operation.
+        let mut fn_bodies: Vec<(String, BTreeSet<String>, Expr)> = Vec::new();
         for stmt in stmts.iter() {
             if let Stmt::Defn(Defn::Fn {
                 name,
+                params,
                 effects,
                 body,
                 ..
             }) = stmt
             {
                 if effects.is_empty() {
-                    fn_bodies.push((name.clone(), body.clone()));
+                    let bound = params.iter().map(|param| param.name.clone()).collect();
+                    fn_bodies.push((name.clone(), bound, body.clone()));
                 }
             }
         }
@@ -42046,11 +42064,12 @@ fn __futuruna_install_error_hook() {
         if !op_to_effect.is_empty() && !fn_bodies.is_empty() {
             loop {
                 let mut changed = false;
-                for (fn_name, body) in &fn_bodies {
+                for (fn_name, bound, body) in &fn_bodies {
                     let handled = BTreeSet::new();
                     let inferred = Self::collect_expr_effects(
                         body,
                         &handled,
+                        bound,
                         &op_to_effect,
                         &self.types.fn_effects,
                     );
@@ -52940,6 +52959,14 @@ fn __futuruna_install_error_hook() {
                             );
                         }
                     }
+                    // `concat` joins two strings as well as two lists.
+                    if builtin_visible
+                        && name == "concat"
+                        && args_str.len() == 2
+                        && (self.expr_is_string(&args[0]) || self.expr_is_string(&args[1]))
+                    {
+                        return format!("format!(\"{{}}{{}}\", {}, {})", args_str[0], args_str[1]);
+                    }
                     // Builtin registry lookup — replaces 300+ lines of if-chain
 
                     if let Some(def) = self.builtin_registry.get(name.as_str()) {
@@ -53087,11 +53114,22 @@ fn __futuruna_install_error_hook() {
 
                 // Effect operation routing: if calling an effect op, dispatch through handler
                 if let ExprKind::Var(name) = &func.as_ref().kind {
+                    // A parameter or local of this name is the value called,
+                    // not an effect operation or a function of the name.
+                    let shadowed_by_local =
+                        !bypass_non_callable_local && self.name_bound_locally(name);
                     // Check if this is a direct effect operation (say, ask, etc.)
-                    for eff in &self.current_effects {
-                        if let Some(ops) = self.types.effect_ops.get(eff.as_str()) {
-                            if ops.contains(name.as_str()) {
-                                return format!("__eff_{}.{}({})", eff, name, args_str.join(", "));
+                    if !shadowed_by_local {
+                        for eff in &self.current_effects {
+                            if let Some(ops) = self.types.effect_ops.get(eff.as_str()) {
+                                if ops.contains(name.as_str()) {
+                                    return format!(
+                                        "__eff_{}.{}({})",
+                                        eff,
+                                        name,
+                                        args_str.join(", ")
+                                    );
+                                }
                             }
                         }
                     }
@@ -53099,16 +53137,15 @@ fn __futuruna_install_error_hook() {
                     if self.binary_global_env_arg_in_scope
                         && (self.binary_global_env_fns.contains(name.as_str())
                             || self.inherited_context_functions.contains_key(name))
-                        && (bypass_non_callable_local
-                            || (!self.current_borrow_params.contains(name.as_str())
-                                && !self.var_types.contains_key(name)
-                                && !self.local_bindings.contains(name.as_str())))
+                        && !shadowed_by_local
                     {
                         leading_args.extend(self.global_context_arguments(name));
                     }
                     // Effect forwarding: if calling a function that requires effects, pass handlers
                     let mut effect_args = Vec::new();
-                    if let Some(callee_effects) = self.types.fn_effects.get(name.as_str()).cloned()
+                    if let Some(callee_effects) = (!shadowed_by_local)
+                        .then(|| self.types.fn_effects.get(name.as_str()).cloned())
+                        .flatten()
                     {
                         for ce in &callee_effects {
                             if self.current_effects.contains(ce) {
@@ -55191,52 +55228,48 @@ fn __futuruna_install_error_hook() {
 
     /// Walk an expression tree collecting unhandled effect references.
     /// Used by effect type inference to discover which effects a function needs.
+    /// `bound` holds the names a parameter, binding, pattern or closure
+    /// parameter binds at this point: such a name is a value that shadows an
+    /// effect operation or function of its name, as in the interpreter.
     fn collect_expr_effects(
         expr: &Expr,
         handled: &BTreeSet<String>,
+        bound: &BTreeSet<String>,
         op_to_effect: &BTreeMap<String, String>,
         fn_effects: &BTreeMap<String, Vec<String>>,
     ) -> BTreeSet<String> {
-        let mut effects = BTreeSet::new();
-        match &expr.kind {
-            ExprKind::Var(name) => {
-                if let Some(eff) = op_to_effect.get(name.as_str()) {
-                    if !handled.contains(eff) {
-                        effects.insert(eff.clone());
+        let walk = |expr: &Expr, handled: &BTreeSet<String>, bound: &BTreeSet<String>| {
+            Self::collect_expr_effects(expr, handled, bound, op_to_effect, fn_effects)
+        };
+        let named = |name: &str, effects: &mut BTreeSet<String>, called: bool| {
+            if bound.contains(name) {
+                return;
+            }
+            if let Some(eff) = op_to_effect.get(name) {
+                if !handled.contains(eff) {
+                    effects.insert(eff.clone());
+                }
+            }
+            // Transitive: calling a function that has effects
+            if called {
+                for e in fn_effects.get(name).into_iter().flatten() {
+                    if !handled.contains(e) {
+                        effects.insert(e.clone());
                     }
                 }
             }
+        };
+        let mut effects = BTreeSet::new();
+        match &expr.kind {
+            ExprKind::Var(name) => named(name, &mut effects, false),
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    // Direct effect op call
-                    if let Some(eff) = op_to_effect.get(name.as_str()) {
-                        if !handled.contains(eff) {
-                            effects.insert(eff.clone());
-                        }
-                    }
-                    // Transitive: calling a function that has effects
-                    if let Some(callee_effs) = fn_effects.get(name.as_str()) {
-                        for e in callee_effs {
-                            if !handled.contains(e) {
-                                effects.insert(e.clone());
-                            }
-                        }
-                    }
+                    named(name, &mut effects, true);
                 } else {
-                    effects.extend(Self::collect_expr_effects(
-                        func,
-                        handled,
-                        op_to_effect,
-                        fn_effects,
-                    ));
+                    effects.extend(walk(func, handled, bound));
                 }
                 for arg in args {
-                    effects.extend(Self::collect_expr_effects(
-                        arg,
-                        handled,
-                        op_to_effect,
-                        fn_effects,
-                    ));
+                    effects.extend(walk(arg, handled, bound));
                 }
             }
             ExprKind::Handle {
@@ -55247,234 +55280,119 @@ fn __futuruna_install_error_hook() {
                 // Body has this effect handled — don't propagate it
                 let mut inner_handled = handled.clone();
                 inner_handled.insert(effect.clone());
-                effects.extend(Self::collect_expr_effects(
-                    body,
-                    &inner_handled,
-                    op_to_effect,
-                    fn_effects,
-                ));
+                effects.extend(walk(body, &inner_handled, bound));
                 // Handler bodies can introduce other effects
                 for h in handlers {
-                    effects.extend(Self::collect_expr_effects(
-                        &h.body,
-                        handled,
-                        op_to_effect,
-                        fn_effects,
-                    ));
+                    let mut handler_bound = bound.clone();
+                    handler_bound.extend(h.params.iter().cloned());
+                    effects.extend(walk(&h.body, handled, &handler_bound));
                 }
             }
             ExprKind::Block(stmts) => {
-                for stmt in stmts {
-                    match stmt {
-                        Stmt::Expr(e) | Stmt::Bind(_, _, e) | Stmt::MonadicBind(_, _, e) => {
-                            effects.extend(Self::collect_expr_effects(
-                                e,
-                                handled,
-                                op_to_effect,
-                                fn_effects,
-                            ));
-                        }
-                        Stmt::StreamBind(_, e) => {
-                            effects.extend(Self::collect_expr_effects(
-                                e,
-                                handled,
-                                op_to_effect,
-                                fn_effects,
-                            ));
-                        }
-                        Stmt::StreamSub(e, arms) => {
-                            effects.extend(Self::collect_expr_effects(
-                                e,
-                                handled,
-                                op_to_effect,
-                                fn_effects,
-                            ));
-                            for arm in arms {
-                                if let Some(g) = &arm.guard {
-                                    effects.extend(Self::collect_expr_effects(
-                                        g,
-                                        handled,
-                                        op_to_effect,
-                                        fn_effects,
-                                    ));
-                                }
-                                effects.extend(Self::collect_expr_effects(
-                                    &arm.body,
-                                    handled,
-                                    op_to_effect,
-                                    fn_effects,
-                                ));
-                            }
-                        }
-                        Stmt::For(_, iter_e, body_stmts) => {
-                            effects.extend(Self::collect_expr_effects(
-                                iter_e,
-                                handled,
-                                op_to_effect,
-                                fn_effects,
-                            ));
-                            for s in body_stmts {
-                                if let Stmt::Expr(e) | Stmt::Bind(_, _, e) = s {
-                                    effects.extend(Self::collect_expr_effects(
-                                        e,
-                                        handled,
-                                        op_to_effect,
-                                        fn_effects,
-                                    ));
-                                }
-                            }
-                        }
-                        Stmt::Send(target, msg) => {
-                            effects.extend(Self::collect_expr_effects(
-                                target,
-                                handled,
-                                op_to_effect,
-                                fn_effects,
-                            ));
-                            effects.extend(Self::collect_expr_effects(
-                                msg,
-                                handled,
-                                op_to_effect,
-                                fn_effects,
-                            ));
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            ExprKind::If(cond, then_, else_) => {
-                effects.extend(Self::collect_expr_effects(
-                    cond,
+                effects.extend(Self::collect_block_effects(
+                    stmts,
                     handled,
-                    op_to_effect,
-                    fn_effects,
-                ));
-                effects.extend(Self::collect_expr_effects(
-                    then_,
-                    handled,
-                    op_to_effect,
-                    fn_effects,
-                ));
-                effects.extend(Self::collect_expr_effects(
-                    else_,
-                    handled,
+                    bound,
                     op_to_effect,
                     fn_effects,
                 ));
             }
             ExprKind::Match(scrutinee, arms) => {
-                effects.extend(Self::collect_expr_effects(
-                    scrutinee,
-                    handled,
-                    op_to_effect,
-                    fn_effects,
-                ));
+                effects.extend(walk(scrutinee, handled, bound));
                 for arm in arms {
+                    let mut arm_bound = bound.clone();
+                    collect_pattern_names(&arm.pat, &mut arm_bound);
                     if let Some(g) = &arm.guard {
-                        effects.extend(Self::collect_expr_effects(
-                            g,
-                            handled,
-                            op_to_effect,
-                            fn_effects,
-                        ));
+                        effects.extend(walk(g, handled, &arm_bound));
                     }
-                    effects.extend(Self::collect_expr_effects(
-                        &arm.body,
-                        handled,
-                        op_to_effect,
-                        fn_effects,
-                    ));
+                    effects.extend(walk(&arm.body, handled, &arm_bound));
                 }
             }
-            ExprKind::BinOp(_, l, r) => {
-                effects.extend(Self::collect_expr_effects(
-                    l,
-                    handled,
-                    op_to_effect,
-                    fn_effects,
-                ));
-                effects.extend(Self::collect_expr_effects(
-                    r,
-                    handled,
-                    op_to_effect,
-                    fn_effects,
-                ));
+            ExprKind::Lambda(params, body) => {
+                let mut lambda_bound = bound.clone();
+                lambda_bound.extend(params.iter().map(|param| param.name.clone()));
+                effects.extend(walk(body, handled, &lambda_bound));
+            }
+            ExprKind::If(cond, then_, else_) => {
+                for part in [cond, then_, else_] {
+                    effects.extend(walk(part, handled, bound));
+                }
+            }
+            ExprKind::BinOp(_, l, r) | ExprKind::Index(l, r) | ExprKind::Pipe(l, r) => {
+                effects.extend(walk(l, handled, bound));
+                effects.extend(walk(r, handled, bound));
             }
             ExprKind::UnOp(_, e) | ExprKind::Try(e) | ExprKind::Field(e, _) => {
-                effects.extend(Self::collect_expr_effects(
-                    e,
-                    handled,
-                    op_to_effect,
-                    fn_effects,
-                ));
+                effects.extend(walk(e, handled, bound));
             }
-            ExprKind::Lambda(_, body) => {
-                effects.extend(Self::collect_expr_effects(
-                    body,
-                    handled,
-                    op_to_effect,
-                    fn_effects,
-                ));
-            }
-            ExprKind::Index(a, b) => {
-                effects.extend(Self::collect_expr_effects(
-                    a,
-                    handled,
-                    op_to_effect,
-                    fn_effects,
-                ));
-                effects.extend(Self::collect_expr_effects(
-                    b,
-                    handled,
-                    op_to_effect,
-                    fn_effects,
-                ));
-            }
-            ExprKind::Pipe(input, transform) => {
-                effects.extend(Self::collect_expr_effects(
-                    input,
-                    handled,
-                    op_to_effect,
-                    fn_effects,
-                ));
-                effects.extend(Self::collect_expr_effects(
-                    transform,
-                    handled,
-                    op_to_effect,
-                    fn_effects,
-                ));
-            }
-            ExprKind::List(items) | ExprKind::Tuple(items) => {
+            ExprKind::List(items)
+            | ExprKind::Tuple(items)
+            | ExprKind::Effect(_, items)
+            | ExprKind::Conjunction(items)
+            | ExprKind::Disjunction(items) => {
                 for item in items {
-                    effects.extend(Self::collect_expr_effects(
-                        item,
-                        handled,
-                        op_to_effect,
-                        fn_effects,
-                    ));
-                }
-            }
-            ExprKind::Effect(_, args) => {
-                for arg in args {
-                    effects.extend(Self::collect_expr_effects(
-                        arg,
-                        handled,
-                        op_to_effect,
-                        fn_effects,
-                    ));
-                }
-            }
-            ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
-                for g in goals {
-                    effects.extend(Self::collect_expr_effects(
-                        g,
-                        handled,
-                        op_to_effect,
-                        fn_effects,
-                    ));
+                    effects.extend(walk(item, handled, bound));
                 }
             }
             ExprKind::Lit(_) | ExprKind::Unit => {}
+        }
+        effects
+    }
+
+    /// The effects of a statement sequence; each statement sees the names
+    /// the statements before it bind.
+    fn collect_block_effects(
+        stmts: &[Stmt],
+        handled: &BTreeSet<String>,
+        bound: &BTreeSet<String>,
+        op_to_effect: &BTreeMap<String, String>,
+        fn_effects: &BTreeMap<String, Vec<String>>,
+    ) -> BTreeSet<String> {
+        let walk = |expr: &Expr, bound: &BTreeSet<String>| {
+            Self::collect_expr_effects(expr, handled, bound, op_to_effect, fn_effects)
+        };
+        let mut effects = BTreeSet::new();
+        let mut bound = bound.clone();
+        for stmt in stmts {
+            match stmt {
+                Stmt::Expr(e) => effects.extend(walk(e, &bound)),
+                Stmt::Bind(pat, _, e) | Stmt::MonadicBind(pat, _, e) => {
+                    effects.extend(walk(e, &bound));
+                    collect_pattern_names(pat, &mut bound);
+                }
+                Stmt::StreamBind(name, e) => {
+                    effects.extend(walk(e, &bound));
+                    bound.insert(name.clone());
+                }
+                Stmt::StreamSub(e, arms) => {
+                    effects.extend(walk(e, &bound));
+                    for arm in arms {
+                        let mut arm_bound = bound.clone();
+                        collect_pattern_names(&arm.pat, &mut arm_bound);
+                        if let Some(g) = &arm.guard {
+                            effects.extend(walk(g, &arm_bound));
+                        }
+                        effects.extend(walk(&arm.body, &arm_bound));
+                    }
+                }
+                Stmt::For(var, iter_e, body_stmts) => {
+                    effects.extend(walk(iter_e, &bound));
+                    let mut body_bound = bound.clone();
+                    body_bound.insert(var.clone());
+                    effects.extend(Self::collect_block_effects(
+                        body_stmts,
+                        handled,
+                        &body_bound,
+                        op_to_effect,
+                        fn_effects,
+                    ));
+                }
+                Stmt::Send(target, msg) => {
+                    effects.extend(walk(target, &bound));
+                    effects.extend(walk(msg, &bound));
+                }
+                _ => {}
+            }
         }
         effects
     }
@@ -56616,16 +56534,24 @@ fn __futuruna_install_error_hook() {
     fn is_effect_op_call(&self, value: &Expr) -> bool {
         if let ExprKind::App(func, _) = &value.kind {
             if let ExprKind::Var(op_name) = &func.as_ref().kind {
-                return self.current_effects.iter().any(|eff| {
-                    self.types
-                        .effect_ops
-                        .get(eff.as_str())
-                        .map(|ops| ops.contains(op_name.as_str()))
-                        .unwrap_or(false)
-                });
+                return !self.name_bound_locally(op_name)
+                    && self.current_effects.iter().any(|eff| {
+                        self.types
+                            .effect_ops
+                            .get(eff.as_str())
+                            .map(|ops| ops.contains(op_name.as_str()))
+                            .unwrap_or(false)
+                    });
             }
         }
         false
+    }
+
+    /// A parameter or local binding of this name is in scope.
+    fn name_bound_locally(&self, name: &str) -> bool {
+        self.current_borrow_params.contains(name)
+            || self.var_types.contains_key(name)
+            || self.local_bindings.contains(name)
     }
 
     fn variant_field_count_with_expected(&self, variant_name: &str, expected_ty: &FirTy) -> usize {
