@@ -192,28 +192,28 @@ pub fn needs_prelude() -> Vec<Stmt> {
 }
 
 /// `statements` with the needs prelude when the program does not have it
-/// while a file it imports (plain, through any chain of plain imports) asks a
-/// query, places an `unknown` or calls `fill` or `interview`: a prelude is
-/// prepended to the root only, and the imported file needs the same `Query`,
-/// `Need`, `NeedKind` and `Interview` the root would get. `None` when nothing
-/// is added.
+/// while it, or a file it imports (plain or qualified, through any chain of
+/// imports), asks a query, places an `unknown` or calls `fill` or
+/// `interview`. A prelude is prepended to the root only, and a module needs
+/// the same `Query`, `Need`, `NeedKind` and `Interview` the root would get:
+/// a plain module shares the root's; a qualified module, checked and run as a
+/// program of its own, gets its own, as it gets the language's other prelude
+/// types. `None` when nothing is added.
 pub(crate) fn with_needs_prelude_for_imports(
     statements: &[Stmt],
     source_dir: Option<&str>,
 ) -> Option<Vec<Stmt>> {
-    let source_dir = source_dir?;
     let has_prelude = statements.iter().any(|statement| {
         matches!(statement, Stmt::TypeDecl(TypeDecl::ADT { name, .. }) if name == "NeedKind")
     });
-    if has_prelude
-        || !statements
-            .iter()
-            .any(|statement| matches!(statement, Stmt::Import(_)))
-    {
+    if has_prelude {
         return None;
     }
-    let mut visited = BTreeSet::new();
-    if !imports_use_needs(statements, source_dir, &mut visited) {
+    let uses = program_uses_needs(statements)
+        || source_dir.is_some_and(|source_dir| {
+            imports_use_needs(statements, source_dir, &mut BTreeSet::new())
+        });
+    if !uses {
         return None;
     }
     let declared: BTreeSet<&str> = statements
@@ -245,7 +245,7 @@ pub(crate) fn with_needs_prelude_for_imports(
 
 fn imports_use_needs(statements: &[Stmt], dir: &str, visited: &mut BTreeSet<PathBuf>) -> bool {
     for statement in statements {
-        let Stmt::Import(import_path) = statement else {
+        let (Stmt::Import(import_path) | Stmt::QualifiedImport(_, import_path)) = statement else {
             continue;
         };
         let Some(file) = crate::Interpreter::resolve_import_path_for_source(import_path, dir)
@@ -877,6 +877,54 @@ impl QueryRuntime {
     }
 }
 
+/// `value` with each constructor of a qualified module as the plain
+/// constructor of its declared name: a query in a qualified module asks an
+/// entry of that module, which is prepared as a program of its own, where
+/// the module's types are the root's.
+fn declared_constructors(value: &Value) -> Value {
+    let fields = |fields: &[(String, Value)]| -> Rc<Vec<(String, Value)>> {
+        Rc::new(
+            fields
+                .iter()
+                .map(|(name, value)| (name.clone(), declared_constructors(value)))
+                .collect(),
+        )
+    };
+    let values =
+        |values: &[Value]| -> Vec<Value> { values.iter().map(declared_constructors).collect() };
+    match value {
+        Value::NamespacedConstructor {
+            name, arguments, ..
+        } => Value::Constructor(name.clone(), Rc::new(values(arguments))),
+        Value::NamespacedNamedConstructor {
+            name,
+            fields: named,
+            ..
+        } => Value::NamedConstructor(name.clone(), fields(named)),
+        Value::Constructor(name, arguments) => {
+            Value::Constructor(name.clone(), Rc::new(values(arguments)))
+        }
+        Value::NamedConstructor(name, named) => {
+            Value::NamedConstructor(name.clone(), fields(named))
+        }
+        Value::List(items) => Value::List(values(items)),
+        Value::Tuple(items) => Value::Tuple(values(items)),
+        Value::Map(entries) => Value::Map(
+            entries
+                .iter()
+                .map(|(key, value)| (key.clone(), declared_constructors(value)))
+                .collect(),
+        ),
+        Value::Set(entries) => Value::Set(
+            entries
+                .iter()
+                .map(|(key, value)| (key.clone(), declared_constructors(value)))
+                .collect(),
+        ),
+        other => other.clone(),
+    }
+}
+
 /// `path:line` for display, relative to the working directory when below it.
 fn display_location(path: &Path, line: Option<usize>) -> String {
     let shown = std::env::current_dir()
@@ -890,11 +938,14 @@ fn display_location(path: &Path, line: Option<usize>) -> String {
 }
 
 /// The file that declares the calculation entry `entry`: `start` or a file it
-/// imports, directly or through others.
+/// imports, directly or through others. Files reached through plain imports
+/// come first; a qualified module, which may ask a query of its own entry, is
+/// searched after them.
 fn entry_file(entry: &str, start: &Path) -> Result<PathBuf, String> {
     let mut queue = std::collections::VecDeque::from([start.to_path_buf()]);
+    let mut qualified = std::collections::VecDeque::new();
     let mut seen = BTreeSet::new();
-    while let Some(file) = queue.pop_front() {
+    while let Some(file) = queue.pop_front().or_else(|| qualified.pop_front()) {
         let canonical = std::fs::canonicalize(&file).unwrap_or_else(|_| file.clone());
         if !seen.insert(canonical.clone()) {
             continue;
@@ -914,9 +965,14 @@ fn entry_file(entry: &str, start: &Path) -> Result<PathBuf, String> {
             .map(|parent| parent.to_string_lossy().to_string())
             .unwrap_or_else(|| ".".to_string());
         for statement in &statements {
-            if let Stmt::Import(path) = statement {
-                if let Some(path) = TypeChecker::resolve_tc_import(path, &directory) {
-                    queue.push_back(PathBuf::from(path));
+            let (Stmt::Import(path) | Stmt::QualifiedImport(_, path)) = statement else {
+                continue;
+            };
+            if let Some(file) = TypeChecker::resolve_tc_import(path, &directory) {
+                if matches!(statement, Stmt::Import(_)) {
+                    queue.push_back(PathBuf::from(file));
+                } else {
+                    qualified.push_back(PathBuf::from(file));
                 }
             }
         }
@@ -1440,7 +1496,16 @@ impl Interpreter {
             *round
         });
         match self.run_query(&entry, &case) {
-            Ok(value) => value,
+            Ok(value) => {
+                // A query in a qualified module answers with the module's
+                // own `Query`, `Need` and result types.
+                let namespace = self.namespace_for_env(env);
+                if namespace.same_instance(&self.runtime_root) {
+                    value
+                } else {
+                    self.constructors_in(&namespace, value)
+                }
+            }
             Err(message) => {
                 let at = site.map(|site| format!("{site}: ")).unwrap_or_default();
                 let round = round
@@ -1448,6 +1513,50 @@ impl Interpreter {
                     .unwrap_or_default();
                 self.panic_or_ground_fail(format!("{at}query {entry}{round}: {message}"))
             }
+        }
+    }
+
+    /// `value` with each plain constructor as the constructor of that name
+    /// in `namespace`.
+    fn constructors_in(&self, namespace: &RuntimeNamespace, value: Value) -> Value {
+        let values = |interpreter: &Self, values: &[Value]| -> Vec<Value> {
+            values
+                .iter()
+                .map(|value| interpreter.constructors_in(namespace, value.clone()))
+                .collect()
+        };
+        match value {
+            Value::Constructor(name, arguments) => {
+                let arguments = values(self, &arguments);
+                self.runtime_constructor_value(namespace, name, arguments)
+            }
+            Value::NamedConstructor(name, fields) => {
+                let fields = fields
+                    .iter()
+                    .map(|(field, value)| {
+                        (
+                            field.clone(),
+                            self.constructors_in(namespace, value.clone()),
+                        )
+                    })
+                    .collect();
+                self.runtime_named_constructor_value(namespace, name, fields)
+            }
+            Value::List(items) => Value::List(values(self, &items)),
+            Value::Tuple(items) => Value::Tuple(values(self, &items)),
+            Value::Map(entries) => Value::Map(
+                entries
+                    .into_iter()
+                    .map(|(key, value)| (key, self.constructors_in(namespace, value)))
+                    .collect(),
+            ),
+            Value::Set(entries) => Value::Set(
+                entries
+                    .into_iter()
+                    .map(|(key, value)| (key, self.constructors_in(namespace, value)))
+                    .collect(),
+            ),
+            other => other,
         }
     }
 
@@ -1473,7 +1582,7 @@ impl Interpreter {
         let mut prepared = prepared.borrow_mut();
         let contract = prepared.contract().clone();
         let input = contract
-            .encode_partial_input(case)
+            .encode_partial_input(&declared_constructors(case))
             .map_err(|error| format!("the case at {}: {}", error.path, error.message))?;
         let envelope = CalculationInputEnvelope {
             futuruna: CalculationEnvelopeMetadata {

@@ -20103,8 +20103,14 @@ impl Interpreter {
             let mut module_env = interpreter.default_env();
             module_env.set_runtime_namespace(module_namespace.clone());
             let module_declaration_env = module_env.ensure_runtime_declaration_env();
-            let definitions = imported
-                .statements()
+            // A qualified module gets the needs prelude as a program of its
+            // own (`query::with_needs_prelude_for_imports`).
+            let module_dir = Self::imported_source_dir(&file_path);
+            let with_needs =
+                query::with_needs_prelude_for_imports(imported.statements(), Some(&module_dir));
+            let definitions = with_needs
+                .as_deref()
+                .unwrap_or(imported.statements())
                 .iter()
                 .filter(|statement| Self::is_runtime_import_statement(statement))
                 .cloned()
@@ -57708,6 +57714,11 @@ impl TypeChecker {
         child.imported.insert(source.clone());
         child.module_return_sources_in_progress = self.module_return_sources_in_progress.clone();
         child.module_return_sources_in_progress.insert(source);
+        // A qualified module is a program of its own: it gets the needs
+        // prelude when it, or a file it imports, asks a query.
+        let with_needs =
+            query::with_needs_prelude_for_imports(statements, child.source_dir.as_deref());
+        let statements = with_needs.as_deref().unwrap_or(statements);
         child.install_constructor_prepass(statements);
         child.collect_declarations(statements);
         child.prepare_rule_dispatch_metadata(statements);

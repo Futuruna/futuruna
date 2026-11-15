@@ -1,0 +1,13 @@
+-- A module imported under a name that asks a query sees the needs prelude
+-- the root would get, though the root itself asks none: its matches on
+-- `Query`, `NeedKind` and `Interview` are exhaustive and `interview` is there.
+-- expect-command: interp
+-- expect-stdout: complete 50
+-- expect-stdout: needs fact
+-- expect-stdout: 1
+
+@ import Tax from ./needs_prelude_in_qualified_import_lib
+
+@ print(Tax.answered(Tax.Household(income = 100, married = True)))
+@ print(Tax.answered(Tax.undecided(100)))
+@ print(show(Tax.rounds(Tax.undecided(100), Tax.Household(income = 100, married = True))))

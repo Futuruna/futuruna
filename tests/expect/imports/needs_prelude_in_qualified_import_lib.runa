@@ -1,0 +1,35 @@
+-- expect-skip: dependency-only fixture for needs_prelude_in_qualified_import_interp.runa: a qualified module that asks queries and matches on their types
+
+@ export
+# Household(income: Int, married: Bool)
+# Result(tax: Int)
+
+@ calculate
+| household_tax(h: Household) -> Result(tax = if h.married { h.income / 2 } else { h.income })
+
+> kind_name(k: NeedKind) -> String {
+    match k {
+        | FactNeed -> "fact"
+        | EntryNeed -> "entry"
+    }
+}
+
+@ export
+> answered(h: Household) -> String {
+    = q = query household_tax(h)
+    match q {
+        | Complete -> "complete " + show(q.result.tax)
+        | Needs -> "needs " + join(map(q.needs, |n| kind_name(n.kind)), ",")
+    }
+}
+
+@ export
+> rounds(h: Household, complete: Household) -> Int {
+    = asked = interview(|c| query household_tax(c), h, complete)
+    match asked {
+        | Interview -> length(asked.rounds)
+    }
+}
+
+@ export
+> undecided(income: Int) -> Household { Household(income = income, married = unknown) }
