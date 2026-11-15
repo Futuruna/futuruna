@@ -569,6 +569,12 @@ impl Parser {
     ) -> Result<Stmt, String> {
         let colon_position = self.pos;
         let colon = self.advance();
+        if self.peek_kind() == TokenKind::Op && self.peek().text.starts_with('-') {
+            return Err(format!(
+                "{}:{}: a rule's body follows `->`, not `:-`: write `| head -> body`",
+                colon.line, colon.col
+            ));
+        }
         // `->` after the type starts the clause's value, so the result type
         // is an atom (`Ore`, `List(Int)`, `(Int -> Int)`) with an optional `?`.
         let mut result = self.parse_type_atom()?;

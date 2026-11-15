@@ -460,7 +460,7 @@ fn conflicting_rule_results_across_imports_keep_the_imported_origin() {
     );
     fixture.write(
         "exempt.runa",
-        "| exception special tax(income: Int) -> \"exempt\" under income < 10\n",
+        "| exception special tax(income) -> \"exempt\" under income < 10\n",
     );
     let checked = fixture.run(&["check", "--frontend"]);
     assert_eq!(checked.status.code(), Some(1), "{checked:?}");
@@ -483,7 +483,7 @@ fn inline_module_rule_contracts_include_their_plain_imports() {
     );
     fixture.write(
         "exempt.runa",
-        "| exception special tax(income: Int) -> \"exempt\" under income < 10\n",
+        "| exception special tax(income) -> \"exempt\" under income < 10\n",
     );
     let checked = fixture.run(&["check", "--frontend"]);
     assert_eq!(checked.status.code(), Some(1), "{checked:?}");
@@ -503,7 +503,7 @@ fn alternate_import_paths_keep_each_inline_rule_namespace() {
     fixture.write("main.runa", "> module First {\n| tax(income: Int) -> \"ordinary\"\n@ import ./exempt\n}\n> module Second {\n| tax(income) -> 7\n@ import ././exempt\n}\n");
     fixture.write(
         "exempt.runa",
-        "| exception special tax(income: Int) -> \"exempt\" under income < 10\n",
+        "| exception special tax(income) -> \"exempt\" under income < 10\n",
     );
     let checked = fixture.run(&["check", "--frontend"]);
     assert_eq!(checked.status.code(), Some(1), "{checked:?}");

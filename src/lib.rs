@@ -68910,10 +68910,10 @@ starters first from mechanisms paths for node activation "{digest}" using values
 }
 
 # OtherCase(limit: Int) {
-    | shared(value) -> value + 1 under value > limit
+    | shared(value: Int) -> value + 1 under value > limit
 }
 
-| shared(value) -> value + 10 under value > 0
+| shared(value: Int) -> value + 10 under value > 0
 
 = case = Case(limit = 5)
 = allowed_hit = case.allowed(6)
@@ -69677,7 +69677,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 # SumCase(values: List(Int)) {
     | total(extra: Int) -> sum(values) + extra
 }
-| total(values) -> sum(values)
+| total(values: List(Int)) -> sum(values)
 | unsupported(values: List(String)) -> sum(values)
 "#;
         let statements = parse_test_program(source).expect("parse sum return fixture");
@@ -70737,7 +70737,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 > helper(value: Int) -> Int { value + 2 }
 # Marker = Marker | Wrapped(value: Int)
 > module Local {
-    | collision(value) -> value + 200
+    | collision(value: Int) -> value + 200
     > call_rule(value: Int) -> Int { collision(value) }
 }
 
@@ -70858,14 +70858,14 @@ starters first from mechanisms paths for node activation "{digest}" using values
 | parent_only(value: Int) -> value + 2000
 > module First {
     = offset = 10
-    | amount(value) -> value + offset
+    | amount(value: Int) -> value + offset
     | amount(left: Int, right: Int) -> left + right + 100
     | amounts(value: Int) -> [value, value + 1]
     | shadowed(value: Int) -> value + 50
     = shadowed = 73
 }
 > module Second {
-    | amount(value) -> value + 20
+    | amount(value: Int) -> value + 20
 }
 = direct = First.amount(2)
 = named = First.amount(value = 2)
@@ -72950,7 +72950,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
     #[test]
     fn typechecker_scoped_constructor_takes_owner_from_rule_head() {
         assert_scoped_constructor(
-            "| ask_label(Closed) -> \"closed\"\n| ask_label(e: AskYearEvent) -> \"ask\"",
+            "| ask_label(e: AskYearEvent): String\n| ask_label(Closed) -> \"closed\"\n| ask_label(e) -> \"ask\"",
             "AskYearEvent__Closed",
             "Closed",
         );
@@ -75487,7 +75487,7 @@ handle <- Left
         base +
         sum(values) +
         extra
-    | total(extra: Int,) -> 99
+    | total(extra,) -> 99
         under extra > 10
 }
 

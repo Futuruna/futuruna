@@ -1051,7 +1051,7 @@ EXTRA
                 0,
                 0,
                 "x",
-                "| exception extra clamp(x: Int) -> 1000 under x == 10",
+                "| exception extra clamp(x) -> 1000 under x == 10",
                 false,
             ),
         ] {
@@ -1165,7 +1165,7 @@ EXTRA
                 0,
                 0,
                 0,
-                "| exception extra clamp(x: Int) -> -1 under x == 10",
+                "| exception extra clamp(x) -> -1 under x == 10",
                 false,
             ),
         ] {

@@ -293,3 +293,16 @@ fn a_clause_matching_on_another_rule_family_reads_that_family_s_result() {
     );
     assert_eq!(run(source), "5");
 }
+
+#[test]
+fn a_repeated_head_name_keeps_the_meaning_it_had_with_types_on_every_clause() {
+    // 0.4.0 printed `same`, `other`, `differ` for this family written as
+    // `| pairing(a: Int, a: Int) -> ...` with types on every clause.
+    let source = "| pairing(a: Int, b: Int): String -> \"differ\"\n| pairing(a, a) -> \"same\" under a >= 0\n| pairing(a, b) -> \"other\" under a >= 0\n@ print(pairing(2, 2))\n@ print(pairing(2, 3))\n@ print(pairing(-1, -1))\n";
+    assert!(
+        check_errors(source).is_empty(),
+        "{:?}",
+        check_errors(source)
+    );
+    assert_eq!(run(source), "same\nother\ndiffer");
+}

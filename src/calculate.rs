@@ -8174,15 +8174,15 @@ mod calculation_execution_tests {
 # Output(first: Int, second: Int, count: Int, eligible: Bool)
 | amount(value: Int) -> value + 1000
 > module First {
-    | amount(value) -> value + 10
+    | amount(value: Int) -> value + 10
     | amounts(value: Int) -> [value, value + 1]
     | eligible(value: Int) -> True under value > 0
 }
 > module Second {
-    | amount(value) -> value + 20
+    | amount(value: Int) -> value + 20
 }
 > module Partial {
-    | amount(value) -> value + 30 under value >= 0
+    | amount(value: Int) -> value + 30 under value >= 0
 }
 @ calculate
 > calculate(input: Input) -> Output {
@@ -8247,7 +8247,7 @@ mod calculation_execution_tests {
 # Output(eligible: Bool, amount: Int)
 | parameter(value: Int) -> True under value > 0
 > module Policy {
-    | parameter(value) -> 7 under value > 0
+    | parameter(value: Int) -> 7 under value > 0
     | predicate(value: Int) -> True under value > 0
     > eligible(value: Int) -> Bool { predicate(value) }
     > amount(value: Int) -> Int { parameter(value) }
