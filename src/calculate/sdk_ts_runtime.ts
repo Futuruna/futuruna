@@ -803,8 +803,10 @@ export function needSchema<P extends string, K extends ElementKey>(
  * that fired, on the section it sits in, or on the entry or its section.
  */
 export type CalculationAssumption = {
-  /** The section it is written in; for one on a clause outside any section, the clause's rule. */
-  section: string;
+  /** The law section it is written in; absent when it stands outside any section. */
+  section?: string | undefined;
+  /** The rule, member or function it is written on; absent when it is written on its section. */
+  rule?: string | undefined;
   /** The binding the assumption is written as, when it is one. */
   binding?: string | undefined;
   /** Its value as the engine writes it: a record's fields as an object, at their names in the model. */
@@ -812,7 +814,12 @@ export type CalculationAssumption = {
 };
 
 export const CalculationAssumptionSchema: z.ZodType<CalculationAssumption> = z
-  .object({ section: z.string(), binding: z.string().optional(), value: z.unknown() })
+  .object({
+    section: z.string().optional(),
+    rule: z.string().optional(),
+    binding: z.string().optional(),
+    value: z.unknown(),
+  })
   .strict();
 
 /** A calculation's result and the assumptions it rests on, each once, in the order the model writes them. */

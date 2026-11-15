@@ -108,11 +108,13 @@ get their paths, evaluation propagates them with Kleene logic and bounded
 speculation, and the result is
 
 ```runa
-# Query(o, i) = Complete(result: o, unused: List(Path(i))) | Needs(needs: List(Need(i)))
+# Query(o, i) = Complete(result: o, unused: List(Path(i)), assumptions: List(QueryAssumption))
+             | Needs(needs: List(Need(i)))
 ```
 
-`Complete.unused` and `Needs.needs` are the JSON result's `unused_paths` and
-`needs`, at typed paths. `Need(i)` is the need of the partial-result schema:
+`Complete.unused`, `Complete.assumptions` and `Needs.needs` are the JSON
+result's `unused_paths`, `assumptions` and `needs`, at typed paths and as
+typed references. `Need(i)` is the need of the partial-result schema:
 its path, kind, label, question, help, unit, sources, and who waits for it
 (below). It is not a second definition: the Futuruna type and
 `runa schema --format partial-result` are generated from the one Rust

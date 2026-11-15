@@ -106,11 +106,12 @@ pub(crate) const SOURCE_MEMBERS: &[Member] = &[
 ];
 
 /// `QueryAssumption`: `CalculationAssumption`, an assumption a `Complete`
-/// result rests on: the section it is written in, and the binding it is
-/// written as (none for an inline value), each as a reference a test compares
-/// with `refof(...)`.
+/// result rests on: the law section it is written in, the rule it is written
+/// on, and the binding it is written as (each absent when it does not apply),
+/// as references a test compares with `refof(...)`.
 pub(crate) const ASSUMPTION_MEMBERS: &[Member] = &[
-    member("section", "ProgramReference", true),
+    member("section", "Option(ProgramReference)", false),
+    member("rule", "Option(ProgramReference)", false),
     member("binding", "Option(ProgramReference)", false),
 ];
 
@@ -133,7 +134,11 @@ pub fn needs_prelude_source() -> String {
          # NeedKind = FactNeed | EntryNeed\n",
     );
     source.push_str(&record_declaration("Need", "(i)", NEED_MEMBERS));
-    source.push_str(&record_declaration("QueryAssumption", "", ASSUMPTION_MEMBERS));
+    source.push_str(&record_declaration(
+        "QueryAssumption",
+        "",
+        ASSUMPTION_MEMBERS,
+    ));
     source.push_str(&record_declaration("NeedKey", "(i)", NEED_KEY_MEMBERS));
     source.push_str(&record_declaration("NeedSource", "", SOURCE_MEMBERS));
     source.push_str(&record_declaration("NeedWaiting", "", WAITING_MEMBERS));
@@ -691,16 +696,10 @@ fn reachability(files: &[ProgramFile], entries: &BTreeSet<&str>) -> Vec<Diagnost
             let Some(name) = declared_name(statement) else {
                 continue;
             };
-            let mut callees = BTreeSet::new();
-            walk_ast_stmt(statement, &mut |child| {
-                if let AstChild::Expr(expr) = child {
-                    if let ExprKind::Var(callee) = &expr.kind {
-                        if let Some(callee) = names.get(callee.as_str()) {
-                            callees.insert(*callee);
-                        }
-                    }
-                }
-            });
+            let callees = crate::references::statement_references(statement, &BTreeSet::new())
+                .into_iter()
+                .filter_map(|callee| names.get(callee.as_str()).copied())
+                .collect::<BTreeSet<_>>();
             if let Some(node) = nodes.get_mut(name) {
                 node.callees.extend(callees);
             }
@@ -1463,27 +1462,35 @@ impl Interpreter {
                                 assumptions
                                     .iter()
                                     .map(|assumption| {
+                                        let reference_to = |kind: &str, name: &Option<String>| {
+                                            optional(
+                                                name.as_deref().map(|name| reference(kind, name)),
+                                            )
+                                        };
                                         record(
                                             "QueryAssumption",
                                             "QueryAssumption",
                                             vec![
                                                 (
                                                     "section",
-                                                    reference(
+                                                    reference_to(
                                                         "ProgramSectionReference",
                                                         &assumption.section,
                                                     ),
                                                 ),
                                                 (
+                                                    "rule",
+                                                    reference_to(
+                                                        "ProgramSymbolReference",
+                                                        &assumption.rule,
+                                                    ),
+                                                ),
+                                                (
                                                     "binding",
-                                                    optional(assumption.binding.as_deref().map(
-                                                        |binding| {
-                                                            reference(
-                                                                "ProgramSymbolReference",
-                                                                binding,
-                                                            )
-                                                        },
-                                                    )),
+                                                    reference_to(
+                                                        "ProgramSymbolReference",
+                                                        &assumption.binding,
+                                                    ),
                                                 ),
                                             ],
                                         )

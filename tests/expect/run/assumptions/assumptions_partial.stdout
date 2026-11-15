@@ -12,6 +12,7 @@
         "assumptions": [
           {
             "binding": "closing_day",
+            "rule": "room",
             "section": "closing",
             "value": {
               "id": "CLOSING-DAY",

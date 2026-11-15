@@ -5105,7 +5105,7 @@ fn write_calculation_xlsx_output(
         .add_worksheet()
         .set_name("assumptions")
         .map_err(|error| error.to_string())?;
-    for (column, name) in ["case_id", "section", "binding", "value_json"]
+    for (column, name) in ["case_id", "section", "rule", "binding", "value_json"]
         .into_iter()
         .enumerate()
     {
@@ -5125,19 +5125,22 @@ fn write_calculation_xlsx_output(
         assumptions
             .write_string_with_format(row, 0, case_id, &text_format)
             .map_err(|error| error.to_string())?;
-        assumptions
-            .write_string_with_format(row, 1, &assumption.section, &text_format)
-            .map_err(|error| error.to_string())?;
-        if let Some(binding) = &assumption.binding {
-            assumptions
-                .write_string_with_format(row, 2, binding, &text_format)
-                .map_err(|error| error.to_string())?;
+        for (column, text) in [
+            (1, assumption.section.as_deref()),
+            (2, assumption.rule.as_deref()),
+            (3, assumption.binding.as_deref()),
+        ] {
+            if let Some(text) = text {
+                assumptions
+                    .write_string_with_format(row, column, text, &text_format)
+                    .map_err(|error| error.to_string())?;
+            }
         }
         assumptions
-            .write_string_with_format(row, 3, &value_json, &text_format)
+            .write_string_with_format(row, 4, &value_json, &text_format)
             .map_err(|error| error.to_string())?;
     }
-    for (column, width) in [18.0, 32.0, 40.0, 72.0].into_iter().enumerate() {
+    for (column, width) in [18.0, 32.0, 32.0, 40.0, 72.0].into_iter().enumerate() {
         assumptions
             .set_column_width(column as u16, width)
             .map_err(|error| error.to_string())?;

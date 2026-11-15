@@ -1,0 +1,55 @@
+-- A `Complete` query carries the assumptions its result rests on, as
+-- `runa call` does: a test names them with `refof`, by binding, rule and
+-- section, and the check rejects a name that does not exist.
+-- expect-command: interp
+-- expect-stdout: |open_rests_on_the_open_value| holds
+-- expect-stdout: |closed_rests_on_the_closing_day| holds
+-- expect-stdout: |section_assumption_names_no_rule| holds
+
+# AssumptionInfo(id: String)
+# LawRole(a) = Assumption(value: a)
+# impl MetaRole for LawRole {}
+
+= whole_kroner = AssumptionInfo(id = "WHOLE-KRONER")
+= open_value = AssumptionInfo(id = "OPEN-VALUE")
+= closing_day = AssumptionInfo(id = "CLOSING-DAY")
+# Account(value: Int, closed: Bool)
+# Result(room: Int)
+
+@ section closing {
+
+@ meta(Assumption(value = open_value))
+| room(closed: Bool, value: Int) -> 1000 - value
+@ meta(Assumption(value = closing_day))
+| exception closed room(closed: Bool, value: Int) -> 0 under closed
+
+}
+
+@ meta(Assumption(value = whole_kroner))
+@ section report {
+
+@ calculate
+| account_room(a: Account) -> Result(room = room(a.closed, a.value))
+
+}
+
+= open = query account_room(Account(value = 400, closed = False))
+| open_rests_on_the_open_value: open -> match open {
+    | Complete -> map(open.assumptions, |a| a.binding) == [Some(refof(open_value)), Some(refof(whole_kroner))]
+    | Needs -> False
+}
+
+= closed = query account_room(Account(value = unknown, closed = True))
+| closed_rests_on_the_closing_day: closed -> match closed {
+    | Complete -> any(closed.assumptions, |a| a.binding == Some(refof(closing_day)) and a.rule == Some(refof(room)) and a.section == Some(refof(section closing)))
+    | Needs -> False
+}
+
+| section_assumption_names_no_rule: open -> match open {
+    | Complete -> any(open.assumptions, |a| a.binding == Some(refof(whole_kroner)) and a.rule == None and a.section == Some(refof(section report)))
+    | Needs -> False
+}
+
+? open_rests_on_the_open_value
+? closed_rests_on_the_closing_day
+? section_assumption_names_no_rule

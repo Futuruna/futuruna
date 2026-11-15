@@ -15,6 +15,7 @@
       "assumptions": [
         {
           "section": "closing",
+          "rule": "room",
           "binding": "open_value",
           "value": {
             "id": "OPEN-VALUE",
@@ -41,6 +42,7 @@
       "assumptions": [
         {
           "section": "closing",
+          "rule": "room",
           "binding": "closing_day",
           "value": {
             "id": "CLOSING-DAY",
@@ -67,6 +69,7 @@
       "assumptions": [
         {
           "section": "closing",
+          "rule": "room",
           "binding": "closing_day",
           "value": {
             "id": "CLOSING-DAY",

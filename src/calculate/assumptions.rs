@@ -223,7 +223,8 @@ fn read_file(
             env,
             &path,
             source,
-            &section.name,
+            Some(&section.name),
+            None,
             &section.metas,
             section.line,
         );
@@ -237,14 +238,14 @@ fn read_file(
         if !matches!(item.kind, "rule" | "member" | "function") {
             continue;
         }
-        let label = item_meta.section.as_deref().unwrap_or(&item.name);
         let line = item_meta.metas.first().map_or(item.line, |meta| meta.line);
         let placed = place(
             interpreter,
             env,
             &path,
             source,
-            label,
+            item_meta.section.as_deref(),
+            Some(&item.name),
             &item_meta.metas,
             line,
         );
@@ -255,13 +256,16 @@ fn read_file(
     }
 }
 
-/// The assumptions among `metas`, written at `line` under `label`.
+/// The assumptions among `metas`, written at `line`, in `section` (if any)
+/// and on `rule` (if written on a rule, member or function).
+#[allow(clippy::too_many_arguments)]
 fn place(
     interpreter: &mut Interpreter,
     env: &Scope<'_>,
     path: &Rc<str>,
     source: &str,
-    label: &str,
+    section: Option<&str>,
+    rule: Option<&str>,
     metas: &[crate::annotations::MetaAnnotation],
     line: usize,
 ) -> Vec<PlacedAssumption> {
@@ -278,7 +282,8 @@ fn place(
             placed.push(PlacedAssumption {
                 place: (path.clone(), line, placed.len()),
                 assumption: Rc::new(CalculationAssumption {
-                    section: label.to_string(),
+                    section: section.map(str::to_string),
+                    rule: rule.map(str::to_string),
                     binding,
                     value,
                 }),

@@ -18,7 +18,7 @@
       },
       "assumptions": [
         {
-          "section": "levy_base",
+          "rule": "levy_base",
           "binding": "levy_base_rule",
           "value": {
             "id": "LEVY-BASE",

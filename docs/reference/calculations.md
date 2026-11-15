@@ -886,7 +886,8 @@ called `unknown` to `unknown_`.
 `case`. It returns
 
 ```text
-Query(o, i) = Complete(result: o, unused: List(Path(i))) | Needs(needs: List(Need(i)))
+Query(o, i) = Complete(result: o, unused: List(Path(i)), assumptions: List(QueryAssumption))
+            | Needs(needs: List(Need(i)))
 ```
 
 with what `runa call --partial` returns for the case: the entry is checked
@@ -896,6 +897,12 @@ only `query name(...)` is a query, and `runa check` rejects a query of a
 name that is not a calculation entry. No calculation may reach a `query` or
 an `unknown`: `runa check` reports one that any `@ calculate` entry can
 reach, with the call chain.
+
+A `Complete` carries the assumptions its result rests on, as `runa call`
+does: a **`QueryAssumption`** has `section`, `rule` and `binding`, each an
+`Option(ProgramReference)`, so a test states which assumption a case rests on
+with a checked name: `any(q.assumptions, |a| a.binding ==
+Some(refof(assumption_closing_day)))`.
 
 A **`Need(i)`** has the members of a need in the partial result: `kind`
 (`FactNeed` or `EntryNeed`), `path: Path(i)`, `keys: List(NeedKey(i))`,
@@ -1064,9 +1071,11 @@ Every result of `runa call` carries the assumptions it rests on, beside it:
 fired in the case (an `Assumption` written with `@ meta` on a clause or
 RuleScope member), of the sections those clauses sit in, and of the entry and
 its section; each once (by binding and value), in the order the model writes
-them (by file, then line), each with its `section` (for one on a clause
-outside any section, the clause's rule), its `binding` when it is written as
-one, and its `value` as plain JSON. A case with none leaves `assumptions` out;
+them (by file, then line), each with its `section` (the law section it is
+written in; absent outside any section), its `rule` (the rule, member or
+function it is written on; absent when it is written on its section), its
+`binding` when it is written as one, and its `value` as plain JSON. A case
+with none leaves `assumptions` out;
 a `Needs` result has none.
 
 ```json

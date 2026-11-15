@@ -74,6 +74,7 @@ mod ordinary_expressions;
 mod parser_hints;
 pub mod partial;
 pub mod query;
+mod references;
 mod runtime_diagnostics;
 mod runtime_guard_coverage;
 mod runtime_imports;
@@ -21780,48 +21781,6 @@ impl Interpreter {
         demand
     }
 
-    fn collect_runtime_references_from_stmt(
-        stmt: &Stmt,
-        qualified_modules: &BTreeSet<String>,
-    ) -> BTreeSet<String> {
-        let mut references = BTreeSet::new();
-        walk_ast_stmt(stmt, &mut |child| {
-            if let AstChild::Expr(expr) = child {
-                if let ExprKind::Var(name) = &expr.kind {
-                    references.insert(name.clone());
-                }
-                if let ExprKind::Field(base, member) = &expr.kind {
-                    if matches!(&base.kind, ExprKind::Var(module) if qualified_modules.contains(module))
-                    {
-                        references.insert(member.clone());
-                    }
-                }
-            }
-        });
-        references
-    }
-
-    fn collect_runtime_references_from_expr(
-        expr: &Expr,
-        qualified_modules: &BTreeSet<String>,
-    ) -> BTreeSet<String> {
-        let mut references = BTreeSet::new();
-        walk_ast_expr(expr, &mut |child| {
-            if let AstChild::Expr(expr) = child {
-                if let ExprKind::Var(name) = &expr.kind {
-                    references.insert(name.clone());
-                }
-                if let ExprKind::Field(base, member) = &expr.kind {
-                    if matches!(&base.kind, ExprKind::Var(module) if qualified_modules.contains(module))
-                    {
-                        references.insert(member.clone());
-                    }
-                }
-            }
-        });
-        references
-    }
-
     fn calculation_runtime_symbol_names(&self, stmt: &Stmt) -> Vec<String> {
         match stmt {
             Stmt::Defn(Defn::Fn { name, .. })
@@ -21875,12 +21834,11 @@ impl Interpreter {
             if let Stmt::Annot(name, args) = stmt {
                 if name == "export" && force_exported_bindings {
                     for argument in args {
-                        self.calculation_runtime_symbols.extend(
-                            Self::collect_runtime_references_from_expr(
+                        self.calculation_runtime_symbols
+                            .extend(references::expression_references(
                                 argument,
                                 &qualified_modules,
-                            ),
-                        );
+                            ));
                     }
                 }
                 pending_annotation = Some(name.clone());
@@ -21932,7 +21890,7 @@ impl Interpreter {
             let mut references = BTreeSet::new();
             if let Some(statements) = symbols.get(&name) {
                 for statement in statements {
-                    references.extend(Self::collect_runtime_references_from_stmt(
+                    references.extend(references::statement_references(
                         statement,
                         &qualified_modules,
                     ));
@@ -21940,10 +21898,7 @@ impl Interpreter {
             }
             if let Some((value, group_names)) = bindings.get(&name) {
                 required_bindings.extend(group_names.iter().cloned());
-                references.extend(Self::collect_runtime_references_from_expr(
-                    value,
-                    &qualified_modules,
-                ));
+                references.extend(references::expression_references(value, &qualified_modules));
             }
 
             for reference in references {

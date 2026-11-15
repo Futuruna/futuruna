@@ -1,0 +1,15 @@
+-- A rule's parameter named like a top-level binding that asks a query is the
+-- parameter: the calculation does not reach the query.
+-- expect-command: check
+-- expect-status: pass
+
+# Account(value: Int, closed: Bool)
+# Result(room: Int)
+
+| room(closed: Bool, value: Int) -> if closed { 0 } else { 1000 - value }
+> kroner(closed: Bool) -> Int { if closed { 0 } else { 1 } }
+
+@ calculate
+| account_room(a: Account) -> Result(room = room(a.closed, a.value) + kroner(a.closed) + (|closed| closed)(1) + match a { | Account(value, closed) -> if closed { 0 } else { value - value } })
+
+= closed = query account_room(Account(value = 400, closed = True))

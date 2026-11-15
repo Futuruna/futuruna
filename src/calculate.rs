@@ -567,9 +567,14 @@ pub struct CalculationResultCase {
 /// clause that fired or of its section, or of the entry or its section.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CalculationAssumption {
-    /// The section it is written in (for an assumption on a clause outside
-    /// any section, the clause's rule).
-    pub section: String,
+    /// The law section it is written in; absent when it stands outside any
+    /// section.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
+    /// The rule, member or function it is written on; absent when it is
+    /// written on its section.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rule: Option<String>,
     /// The binding the assumption is written as, when it is one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub binding: Option<String>,
@@ -7371,10 +7376,11 @@ fn assumptions_json_schema() -> JsonValue {
         "description": "The assumptions the result rests on: the `Assumption` attachments of the rule clauses that fired and of the sections they sit in, and of the entry and its section; each once, in the order the model writes them (by file, then line). Left out when there are none.",
         "items": {
             "type": "object",
-            "required": ["section", "value"],
+            "required": ["value"],
             "additionalProperties": false,
             "properties": {
-                "section": { "type": "string", "description": "The section the assumption is written in; for one on a clause outside any section, the clause's rule." },
+                "section": { "type": "string", "description": "The law section the assumption is written in; absent when it stands outside any section." },
+                "rule": { "type": "string", "description": "The rule, member or function the assumption is written on; absent when it is written on its section." },
                 "binding": { "type": "string", "description": "The binding the assumption is written as, when it is one." },
                 "value": { "description": "The assumption's value as plain JSON: a record's fields as an object." }
             }

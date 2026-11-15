@@ -1,0 +1,15 @@
+-- A name a rule reads that no parameter binds is the top-level binding: a
+-- calculation that reads a binding asking a query reaches it.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `query` in `asked`, reached from the calculation `account_room` through `room`
+
+# Account(value: Int, closed: Bool)
+# Result(room: Int)
+
+| room(closed: Bool, value: Int) -> match asked { | Complete -> 0 | Needs -> 1000 - value }
+
+@ calculate
+| account_room(a: Account) -> Result(room = room(a.closed, a.value))
+
+= asked = query account_room(Account(value = 400, closed = True))
