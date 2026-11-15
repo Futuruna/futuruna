@@ -46,6 +46,12 @@ pub enum CalculationTypeRef {
         /// the same JSON number.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         unit: Option<String>,
+        /// The named scalar type (`# Isin: String "..." where ...`) of a
+        /// `String` or `Int`; its description and checks are in the
+        /// contract's `scalars`. The value on the wire is the same JSON
+        /// string or number.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        scalar: Option<String>,
     },
     Named {
         name: String,
@@ -95,6 +101,31 @@ impl CalculationTypeRef {
             _ => None,
         }
     }
+
+    /// The named scalar type of this type: of the value itself, or of the
+    /// optional value or list items it holds.
+    pub fn scalar(&self) -> Option<&str> {
+        match self {
+            Self::Primitive { scalar, .. } => scalar.as_deref(),
+            Self::Optional { item } | Self::List { item } | Self::Set { item } => item.scalar(),
+            _ => None,
+        }
+    }
+}
+
+/// A named scalar type declared with `# Isin: String "..." where ...` and
+/// used by a type in the contract. A value belongs to it when every check
+/// holds; the engine runs the checks on every input value of the type.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationScalar {
+    pub name: String,
+    /// The primitive: `String` or `Int`.
+    pub of: String,
+    pub description: String,
+    /// The checks as written, in the order they run (`isin_shape`,
+    /// `length_between(4, 50)`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub checks: Vec<String>,
 }
 
 /// A unit of measure declared with `# unit Ore "DKK øre" = DKK / 100` and
@@ -230,6 +261,10 @@ pub struct CalculationContract {
     /// description each unit is declared with.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub units: Vec<CalculationUnit>,
+    /// The named scalar types the input and result types use, with their
+    /// descriptions and checks.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub scalars: Vec<CalculationScalar>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub metadata: Vec<CalculationMetadataReference>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -283,7 +318,14 @@ impl CalculationContract {
         &self,
         value: &JsonValue,
     ) -> Result<Value, Vec<CalculationValueError>> {
-        decode_value(value, &self.input, self, &BTreeMap::new(), "$", None)
+        decode_value(
+            value,
+            &self.input,
+            self,
+            &BTreeMap::new(),
+            "$",
+            PartialDecode::default(),
+        )
     }
 
     /// Decode a partial case: left-out fields are unknown values carrying
@@ -300,7 +342,10 @@ impl CalculationContract {
             self,
             &BTreeMap::new(),
             "$",
-            Some(&decoder),
+            PartialDecode {
+                partial: Some(&decoder),
+                scalars: None,
+            },
         )?;
         Ok((decoded, decoder.into_inner()))
     }
@@ -1045,6 +1090,18 @@ impl CalculationInputLayout {
     }
 }
 
+/// A named scalar type as the contract describes it.
+#[derive(Debug, Clone)]
+struct CatalogScalar {
+    primitive: String,
+    description: String,
+    /// The checks as written.
+    checks: Vec<String>,
+    /// The type's `@ field(...)`, as the default of every field that holds
+    /// it.
+    field_meta: Option<TypeFieldMeta>,
+}
+
 #[derive(Debug, Clone)]
 enum CatalogType {
     Adt {
@@ -1074,6 +1131,8 @@ pub(crate) struct TypeCatalog {
     units: BTreeMap<String, String>,
     /// The declared scale of a unit (`Ore` -> `DKK / 100`).
     unit_scales: BTreeMap<String, UnitScale>,
+    /// Named scalar types (`# Isin: String "..." where ...`).
+    scalars: BTreeMap<String, CatalogScalar>,
 }
 
 impl TypeCatalog {
@@ -1196,7 +1255,10 @@ impl TypeCatalog {
                 field_meta: Some(field_meta),
                 ..
             }) => Some(field_meta),
-            _ => None,
+            _ => self
+                .scalars
+                .get(name)
+                .and_then(|scalar| scalar.field_meta.as_ref()),
         }
     }
 
@@ -1279,6 +1341,26 @@ impl TypeCatalog {
                     if let Some(scale) = scale {
                         self.unit_scales.insert(name.clone(), scale.clone());
                     }
+                }
+                Stmt::TypeDecl(TypeDecl::Scalar {
+                    name,
+                    primitive,
+                    description,
+                    checks,
+                    field_meta,
+                }) => {
+                    self.scalars.insert(
+                        name.clone(),
+                        CatalogScalar {
+                            primitive: primitive.clone(),
+                            description: description.clone(),
+                            checks: checks.iter().map(|check| check.text.clone()).collect(),
+                            field_meta: field_meta.as_ref().map(|meta| TypeFieldMeta {
+                                type_default: Some(meta.clone()),
+                                members: Vec::new(),
+                            }),
+                        },
+                    );
                 }
                 Stmt::TypeDecl(TypeDecl::WhenType { name, .. }) => {
                     if checked {
@@ -2065,9 +2147,9 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
     };
     let mut contracts = Vec::new();
     for candidate in candidates {
-        let input = ty_to_contract_ref(&candidate.input, false, &catalog.units)
+        let input = ty_to_contract_ref(&candidate.input, false, &catalog)
             .expect("validated input type");
-        let output = ty_to_contract_ref(&candidate.output, false, &catalog.units)
+        let output = ty_to_contract_ref(&candidate.output, false, &catalog)
             .expect("validated output type");
         let mut reachable = BTreeSet::new();
         collect_reachable_type_names(&candidate.input, &catalog, &mut reachable);
@@ -2092,12 +2174,14 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
             input,
             output,
             units: Vec::new(),
+            scalars: Vec::new(),
             definitions,
             metadata,
             field_metadata: Vec::new(),
             schema_hash: String::new(),
         };
         contract.units = contract_units(&contract, &catalog.units, &catalog.unit_scales);
+        contract.scalars = contract_scalars(&contract, &catalog.scalars);
         match contract_field_metadata(&meta_index, &contract, &declared_field_meta) {
             Ok(field_metadata) => contract.field_metadata = field_metadata,
             Err(mut diagnostics) => metadata_diagnostics.append(&mut diagnostics),
@@ -2355,7 +2439,7 @@ fn is_canonical_exact_runtime_declaration(declaration: &TypeDecl) -> bool {
 fn ty_to_contract_ref(
     ty: &Ty,
     allow_parameters: bool,
-    units: &BTreeMap<String, String>,
+    catalog: &TypeCatalog,
 ) -> Result<CalculationTypeRef, String> {
     match ty {
         Ty::Name(name) => {
@@ -2363,11 +2447,19 @@ fn ty_to_contract_ref(
                 Ok(CalculationTypeRef::Primitive {
                     name: name.to_string(),
                     unit: None,
+                    scalar: None,
                 })
-            } else if units.contains_key(name) {
+            } else if catalog.units.contains_key(name) {
                 Ok(CalculationTypeRef::Primitive {
                     name: "Int".to_string(),
                     unit: Some(name.clone()),
+                    scalar: None,
+                })
+            } else if let Some(scalar) = catalog.scalars.get(name) {
+                Ok(CalculationTypeRef::Primitive {
+                    name: scalar.primitive.clone(),
+                    unit: None,
+                    scalar: Some(name.clone()),
                 })
             } else {
                 Ok(CalculationTypeRef::Named {
@@ -2382,7 +2474,7 @@ fn ty_to_contract_ref(
             };
             let arguments = arguments
                 .iter()
-                .map(|argument| ty_to_contract_ref(argument, allow_parameters, units))
+                .map(|argument| ty_to_contract_ref(argument, allow_parameters, catalog))
                 .collect::<Result<Vec<_>, _>>()?;
             match (name.as_str(), arguments.as_slice()) {
                 ("List", [item]) => Ok(CalculationTypeRef::List {
@@ -2405,7 +2497,7 @@ fn ty_to_contract_ref(
             }
         }
         Ty::Optional(item) => Ok(CalculationTypeRef::Optional {
-            item: Box::new(ty_to_contract_ref(item, allow_parameters, units)?),
+            item: Box::new(ty_to_contract_ref(item, allow_parameters, catalog)?),
         }),
         Ty::Var(name) if allow_parameters => {
             Ok(CalculationTypeRef::TypeParameter { name: name.clone() })
@@ -2440,7 +2532,11 @@ fn validate_type_inner(
     active: &mut BTreeSet<String>,
 ) -> Result<(), String> {
     match ty {
-        Ty::Name(name) if primitive_name(name).is_some() || catalog.units.contains_key(name) => {
+        Ty::Name(name)
+            if primitive_name(name).is_some()
+                || catalog.units.contains_key(name)
+                || catalog.scalars.contains_key(name) =>
+        {
             Ok(())
         }
         Ty::Name(name) => validate_named_type(name, &[], catalog, active),
@@ -2453,7 +2549,14 @@ fn validate_type_inner(
                     validate_type_inner(&arguments[0], catalog, active)
                 }
                 "Map" if arguments.len() == 2 => {
-                    if !matches!(&arguments[0], Ty::Name(name) if name == "String") {
+                    let string_key = |name: &str| {
+                        name == "String"
+                            || catalog
+                                .scalars
+                                .get(name)
+                                .is_some_and(|scalar| scalar.primitive == "String")
+                    };
+                    if !matches!(&arguments[0], Ty::Name(name) if string_key(name)) {
                         return Err(
                             "Map keys must be `String` in calculation contracts".to_string()
                         );
@@ -2591,6 +2694,11 @@ fn collect_named_reachable(
     catalog: &TypeCatalog,
     reachable: &mut BTreeSet<String>,
 ) {
+    if catalog.scalars.contains_key(name) {
+        // A named scalar's `@ field` describes the fields that hold it.
+        reachable.insert(name.to_string());
+        return;
+    }
     if !catalog.types.contains_key(name) || !reachable.insert(name.to_string()) {
         return;
     }
@@ -2632,7 +2740,7 @@ fn contract_definition(name: &str, catalog: &TypeCatalog) -> Option<CalculationT
                 .fields
                 .into_iter()
                 .filter_map(|field| {
-                    ty_to_contract_ref(&field.ty, true, &catalog.units)
+                    ty_to_contract_ref(&field.ty, true, catalog)
                         .ok()
                         .map(|ty| CalculationField {
                             name: field.name,
@@ -2954,46 +3062,61 @@ fn contract_type_at_path(contract: &CalculationContract, path: &str) -> Option<C
     Some(substitute_contract_type(&ty, &substitutions))
 }
 
+/// The names a selector reads from the primitives of the contract's types
+/// (a unit, a named scalar), in name order.
+fn contract_primitive_names(
+    contract: &CalculationContract,
+    select: fn(&CalculationTypeRef) -> Option<&String>,
+) -> BTreeSet<String> {
+    fn collect(
+        ty: &CalculationTypeRef,
+        select: fn(&CalculationTypeRef) -> Option<&String>,
+        used: &mut BTreeSet<String>,
+    ) {
+        match ty {
+            CalculationTypeRef::Primitive { .. } => {
+                if let Some(name) = select(ty) {
+                    used.insert(name.clone());
+                }
+            }
+            CalculationTypeRef::Named { arguments, .. } => {
+                for argument in arguments {
+                    collect(argument, select, used);
+                }
+            }
+            CalculationTypeRef::Optional { item }
+            | CalculationTypeRef::List { item }
+            | CalculationTypeRef::Set { item } => collect(item, select, used),
+            CalculationTypeRef::Map { key, value } => {
+                collect(key, select, used);
+                collect(value, select, used);
+            }
+            CalculationTypeRef::TypeParameter { .. } | CalculationTypeRef::Unit => {}
+        }
+    }
+    let mut used = BTreeSet::new();
+    collect(&contract.input, select, &mut used);
+    collect(&contract.output, select, &mut used);
+    for definition in &contract.definitions {
+        for variant in &definition.variants {
+            for field in &variant.fields {
+                collect(&field.ty, select, &mut used);
+            }
+        }
+    }
+    used
+}
+
 /// The declared units the contract's types use, in name order.
 fn contract_units(
     contract: &CalculationContract,
     declared: &BTreeMap<String, String>,
     scales: &BTreeMap<String, UnitScale>,
 ) -> Vec<CalculationUnit> {
-    fn collect(ty: &CalculationTypeRef, used: &mut BTreeSet<String>) {
-        match ty {
-            CalculationTypeRef::Primitive {
-                unit: Some(unit), ..
-            } => {
-                used.insert(unit.clone());
-            }
-            CalculationTypeRef::Named { arguments, .. } => {
-                for argument in arguments {
-                    collect(argument, used);
-                }
-            }
-            CalculationTypeRef::Optional { item }
-            | CalculationTypeRef::List { item }
-            | CalculationTypeRef::Set { item } => collect(item, used),
-            CalculationTypeRef::Map { key, value } => {
-                collect(key, used);
-                collect(value, used);
-            }
-            CalculationTypeRef::Primitive { unit: None, .. }
-            | CalculationTypeRef::TypeParameter { .. }
-            | CalculationTypeRef::Unit => {}
-        }
-    }
-    let mut used = BTreeSet::new();
-    collect(&contract.input, &mut used);
-    collect(&contract.output, &mut used);
-    for definition in &contract.definitions {
-        for variant in &definition.variants {
-            for field in &variant.fields {
-                collect(&field.ty, &mut used);
-            }
-        }
-    }
+    let used = contract_primitive_names(contract, |ty| match ty {
+        CalculationTypeRef::Primitive { unit, .. } => unit.as_ref(),
+        _ => None,
+    });
     used.into_iter()
         .filter_map(|name| {
             declared.get(&name).map(|description| CalculationUnit {
@@ -3002,6 +3125,27 @@ fn contract_units(
                     of: scale.of.clone(),
                     per: scale.per,
                 }),
+                name,
+            })
+        })
+        .collect()
+}
+
+/// The declared named scalar types the contract's types use, in name order.
+fn contract_scalars(
+    contract: &CalculationContract,
+    declared: &BTreeMap<String, CatalogScalar>,
+) -> Vec<CalculationScalar> {
+    let used = contract_primitive_names(contract, |ty| match ty {
+        CalculationTypeRef::Primitive { scalar, .. } => scalar.as_ref(),
+        _ => None,
+    });
+    used.into_iter()
+        .filter_map(|name| {
+            declared.get(&name).map(|scalar| CalculationScalar {
+                of: scalar.primitive.clone(),
+                description: scalar.description.clone(),
+                checks: scalar.checks.clone(),
                 name,
             })
         })
@@ -3420,6 +3564,9 @@ struct ResolvedFieldMeta {
     provided_by: Option<CalculationFieldProvider>,
     /// `key = True`: the field identifies an element of its type.
     key: bool,
+    /// `@ field(key = True)` and nothing else: it marks the key and takes
+    /// no part in metadata precedence, so the field keeps its type's.
+    key_only: bool,
 }
 
 impl ResolvedFieldMeta {
@@ -3582,9 +3729,17 @@ fn resolved_field_meta(
             ))),
         }
     };
-    let label = text("label")?.ok_or_else(|| {
-        Diagnostic::error(format!("`@ field` on `{}` has an empty label", binding))
-    })?;
+    let key_only = values.keys().all(|key| *key == "key");
+    let label = match text("label")? {
+        Some(label) => label,
+        None if key_only => String::new(),
+        None => {
+            return Err(Diagnostic::error(format!(
+                "`@ field` on `{}` has an empty label",
+                binding
+            )))
+        }
+    };
     let provided_by = match (text("entry")?, text("subject")?) {
         (Some(entry), Some(subject)) => Some(CalculationFieldProvider { entry, subject }),
         _ => None,
@@ -3626,6 +3781,7 @@ fn resolved_field_meta(
         sources,
         provided_by,
         key,
+        key_only,
     })
 }
 
@@ -3680,10 +3836,17 @@ fn declared_field_metadata_candidates(
             });
     };
     for (type_name, prefixes) in type_occurrence_paths {
-        let (Some(type_meta), Some(definition)) = (
-            declared.types.get(type_name),
-            contract.definition(type_name),
-        ) else {
+        let Some(type_meta) = declared.types.get(type_name) else {
+            continue;
+        };
+        let Some(definition) = contract.definition(type_name) else {
+            // A named scalar: its default describes every field that holds
+            // it.
+            if let Some(default) = &type_meta.type_default {
+                for prefix in prefixes.iter().filter(|prefix| targets.contains(*prefix)) {
+                    push(prefix.clone(), default, TYPE_DEFAULT_SPECIFICITY);
+                }
+            }
             continue;
         };
         if let Some(default) = &type_meta.type_default {
@@ -3694,7 +3857,9 @@ fn declared_field_metadata_candidates(
             }
         }
         let product = product_variant(definition).is_some();
-        for member in &type_meta.members {
+        // `@ field(key = True)` alone marks the key and leaves the field
+        // the metadata of its type.
+        for member in type_meta.members.iter().filter(|member| !member.meta.key_only) {
             for prefix in prefixes {
                 let base = if product {
                     prefix.clone()
@@ -4175,6 +4340,12 @@ fn collect_calculation_type_occurrence_paths(
             active,
             paths,
         ),
+        CalculationTypeRef::Primitive {
+            scalar: Some(scalar),
+            ..
+        } => {
+            paths.entry(scalar).or_default().insert(path.to_string());
+        }
         CalculationTypeRef::Named { name, arguments } => {
             let Some(definition) = contract.definition(&name) else {
                 return;
@@ -4542,7 +4713,32 @@ pub(crate) struct PartialDecoder {
     expanding: BTreeSet<String>,
 }
 
-type PartialDecode<'a> = Option<&'a RefCell<PartialDecoder>>;
+/// An input value at a position of a named scalar type, with its decoder
+/// path, for the checks the engine runs at the calculation boundary.
+#[derive(Debug, Clone)]
+pub(crate) struct ScalarInput {
+    pub(crate) path: String,
+    pub(crate) scalar: String,
+    pub(crate) value: Value,
+}
+
+/// What decoding a case keeps track of besides the value: the bookkeeping
+/// of a partial case, and the input values of named scalar types.
+#[derive(Clone, Copy, Default)]
+struct PartialDecode<'a> {
+    partial: Option<&'a RefCell<PartialDecoder>>,
+    scalars: Option<&'a RefCell<Vec<ScalarInput>>>,
+}
+
+fn scalar_input(decode: PartialDecode, path: &str, scalar: &Option<String>, value: &Value) {
+    if let (Some(scalars), Some(scalar)) = (decode.scalars, scalar) {
+        scalars.borrow_mut().push(ScalarInput {
+            path: path.to_string(),
+            scalar: scalar.clone(),
+            value: value.clone(),
+        });
+    }
+}
 
 /// A decoder path (`$.taxpayer.married`) relative to the case input.
 pub(crate) fn input_relative_path(path: &str) -> String {
@@ -4554,7 +4750,7 @@ pub(crate) fn input_relative_path(path: &str) -> String {
 }
 
 fn partial_provided(partial: PartialDecode, path: &str) {
-    if let Some(partial) = partial {
+    if let Some(partial) = partial.partial {
         partial
             .borrow_mut()
             .provided
@@ -4563,7 +4759,7 @@ fn partial_provided(partial: PartialDecode, path: &str) {
 }
 
 fn partial_container(partial: PartialDecode, value: Value, path: &str) -> Value {
-    if let Some(partial) = partial {
+    if let Some(partial) = partial.partial {
         if let Some(id) = partial::container_id(&value) {
             partial
                 .borrow_mut()
@@ -4629,7 +4825,14 @@ fn decode_missing(
     } else {
         Value::NamedConstructor(runtime_variant_name(definition, variant), fields.into())
     };
-    partial_container(Some(partial), value, path)
+    partial_container(
+        PartialDecode {
+            partial: Some(partial),
+            scalars: None,
+        },
+        value,
+        path,
+    )
 }
 
 fn decode_value(
@@ -4642,9 +4845,10 @@ fn decode_value(
 ) -> Result<Value, Vec<CalculationValueError>> {
     let ty = substitute_contract_type(ty, substitutions);
     match ty {
-        CalculationTypeRef::Primitive { name, .. } => {
+        CalculationTypeRef::Primitive { name, scalar, .. } => {
             let decoded = decode_primitive(value, &name, path).map_err(|error| vec![error])?;
             partial_provided(partial, path);
+            scalar_input(partial, path, &scalar, &decoded);
             Ok(decoded)
         }
         CalculationTypeRef::Unit => {
@@ -4710,6 +4914,16 @@ fn decode_value(
                 .ok_or_else(|| vec![value_error(path, "expected an object")])?;
             if object.is_empty() {
                 partial_provided(partial, path);
+            }
+            if let CalculationTypeRef::Primitive { scalar, .. } = key.as_ref() {
+                for name in object.keys() {
+                    scalar_input(
+                        partial,
+                        &field_path(path, name),
+                        scalar,
+                        &Value::Str(name.clone()),
+                    );
+                }
             }
             let decoded = collect_decoded(object.iter().map(|(name, value)| {
                 decode_value(
@@ -4892,7 +5106,7 @@ fn decode_named_fields(
     let mut result = Vec::new();
     for field in &variant.fields {
         let field_ty = substitute_contract_type(&field.ty, substitutions);
-        let field_value = match (object.get(&field.name), partial) {
+        let field_value = match (object.get(&field.name), partial.partial) {
             (Some(value), _) => value,
             // Left out of a partial case: not asked yet.
             (None, Some(partial)) => {
@@ -4955,7 +5169,7 @@ fn decode_variant(
             ),
         )]
     })?;
-    if partial.is_some() && object.is_empty() {
+    if partial.partial.is_some() && object.is_empty() {
         // `{}` for a sum type: which alternative applies is not known yet.
         return Ok(unknown_at(&field_path(path, "$variant")));
     }

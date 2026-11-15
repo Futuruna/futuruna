@@ -567,7 +567,7 @@ impl TypeChecker {
     ) -> Option<ConstructorElaboration> {
         let shared = self.shared_constructor_plan();
         let constructors = !shared.owners.is_empty() || self.constructor_scope_used.get();
-        if !constructors && !self.has_unit_conversions() {
+        if !constructors && !self.has_unit_conversions() && !self.has_scalar_conversions() {
             return None;
         }
         let mut elaboration = if constructors {
@@ -576,6 +576,7 @@ impl TypeChecker {
             ConstructorElaboration::default()
         };
         self.elaborate_unit_conversions(root, &mut elaboration);
+        self.elaborate_scalar_conversions(root, &mut elaboration);
         Some(elaboration)
     }
 
@@ -753,7 +754,7 @@ impl TypeChecker {
             let Ok(actual_ty) = parse_type_annotation(&actual) else {
                 return;
             };
-            if !Self::ordinary_argument_matches(&actual_ty, &expected, &mut BTreeMap::new()) {
+            if !self.ordinary_argument_matches(&actual_ty, &expected, &mut BTreeMap::new()) {
                 errors.push((
                     value.span,
                     format!(
@@ -1348,7 +1349,7 @@ impl ConstructorScopeWalk<'_> {
                 self.statements(body, &mut inner, None);
                 self.rule_scope = previous;
             }
-            TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } => {}
+            TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } | TypeDecl::Scalar { .. } => {}
         }
     }
 

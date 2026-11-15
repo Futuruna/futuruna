@@ -209,7 +209,7 @@ impl TypeChecker {
                         let Ok(actual_ty) = parse_type_annotation(&actual) else {
                             continue;
                         };
-                        if !Self::ordinary_argument_matches(
+                        if !self.ordinary_argument_matches(
                             &actual_ty,
                             expected,
                             &mut substitutions,
@@ -272,7 +272,7 @@ impl TypeChecker {
             let Ok(actual_ty) = parse_type_annotation(&actual) else {
                 continue;
             };
-            if Self::ordinary_argument_matches(&actual_ty, expected, &mut substitutions) {
+            if self.ordinary_argument_matches(&actual_ty, expected, &mut substitutions) {
                 continue;
             }
             self.error_at_expr(
@@ -369,7 +369,7 @@ impl TypeChecker {
             let Ok(actual_ty) = parse_type_annotation(&actual) else {
                 continue;
             };
-            if Self::ordinary_argument_matches(&actual_ty, expected, &mut substitutions) {
+            if self.ordinary_argument_matches(&actual_ty, expected, &mut substitutions) {
                 continue;
             }
             let parameter = parameter_names
@@ -420,7 +420,7 @@ impl TypeChecker {
             let Ok(actual_ty) = parse_type_annotation(&actual) else {
                 continue;
             };
-            if !Self::ordinary_argument_matches(&actual_ty, &expected, &mut substitutions) {
+            if !self.ordinary_argument_matches(&actual_ty, &expected, &mut substitutions) {
                 self.error_at_expr(
                     argument,
                     format!(
@@ -445,7 +445,7 @@ impl TypeChecker {
         let Ok(actual_ty) = parse_type_annotation(&actual) else {
             return;
         };
-        if !Self::ordinary_argument_matches(&actual_ty, declared, &mut BTreeMap::new()) {
+        if !self.ordinary_argument_matches(&actual_ty, declared, &mut BTreeMap::new()) {
             self.error_at_expr(
                 value,
                 format!(
@@ -461,6 +461,11 @@ impl TypeChecker {
         match (actual, expected) {
             (Ty::Name(actual), Ty::Name(expected)) if actual == "Int" && expected == "Float" => {
                 "; write a Float literal such as `25.0` or convert with `to_float`".to_string()
+            }
+            (Ty::Name(actual), Ty::Name(expected))
+                if self.scalar_primitive(expected).is_some() =>
+            {
+                self.scalar_mismatch_hint(actual, expected)
             }
             (Ty::Name(actual), Ty::Name(expected))
                 if actual == "Int" && self.is_unit_type(expected) =>
@@ -759,6 +764,7 @@ impl TypeChecker {
                 owner,
                 "Int" | "Float" | "Bool" | "String" | "Char" | "Unit" | "List" | "Map" | "Set"
             ) || self.is_unit_type(owner)
+                || self.scalar_primitive(owner).is_some()
             {
                 Some(false)
             } else {
@@ -954,7 +960,14 @@ impl TypeChecker {
         }
     }
 
+    /// Whether an argument of type `actual` fits a parameter of type
+    /// `expected`, binding the type variables of `expected`. A named scalar
+    /// fits its primitive (an `Isin` is a `String`), also inside containers;
+    /// a primitive does not fit a named scalar, and two named scalars do not
+    /// fit each other. A type variable bound by a named scalar and by its
+    /// primitive is the primitive.
     pub(super) fn ordinary_argument_matches(
+        &self,
         actual: &Ty,
         expected: &Ty,
         substitutions: &mut BTreeMap<String, Ty>,
@@ -962,27 +975,31 @@ impl TypeChecker {
         match (actual, expected) {
             // T? is the same constructor application as Option(T), including
             // contextual None and generic constraints shared across arguments.
-            (Ty::Optional(inner), _) => Self::ordinary_argument_matches(
+            (Ty::Optional(inner), _) => self.ordinary_argument_matches(
                 &Ty::App(Box::new(Ty::Name("Option".into())), vec![(**inner).clone()]),
                 expected,
                 substitutions,
             ),
-            (_, Ty::Optional(inner)) => Self::ordinary_argument_matches(
+            (_, Ty::Optional(inner)) => self.ordinary_argument_matches(
                 actual,
                 &Ty::App(Box::new(Ty::Name("Option".into())), vec![(**inner).clone()]),
                 substitutions,
             ),
             (Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner), _) => {
-                Self::ordinary_argument_matches(inner, expected, substitutions)
+                self.ordinary_argument_matches(inner, expected, substitutions)
             }
             (_, Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner)) => {
-                Self::ordinary_argument_matches(actual, inner, substitutions)
+                self.ordinary_argument_matches(actual, inner, substitutions)
             }
             (Ty::Hole | Ty::Var(_), _) | (_, Ty::Hole) => true,
             (_, Ty::Var(name)) if name == "_" => true,
             (_, Ty::Var(name)) => {
                 if let Some(known) = substitutions.get(name).cloned() {
-                    Self::ordinary_argument_matches(actual, &known, substitutions)
+                    if let Some(widened) = self.scalar_join_with_primitive(&known, actual) {
+                        substitutions.insert(name.clone(), widened);
+                        return true;
+                    }
+                    self.ordinary_argument_matches(actual, &known, substitutions)
                 } else {
                     substitutions.insert(name.clone(), actual.clone());
                     true
@@ -994,16 +1011,17 @@ impl TypeChecker {
                     |head: &Ty| matches!(head, Ty::Name(name) if name == "Pair" || name == "Tuple");
                 let same_tuple = aa.len() == 2 && pair_or_tuple(ac) && pair_or_tuple(ec);
                 aa.len() == ea.len()
-                    && (same_tuple || Self::ordinary_argument_matches(ac, ec, substitutions))
+                    && (same_tuple || self.ordinary_argument_matches(ac, ec, substitutions))
                     && aa
                         .iter()
                         .zip(ea)
-                        .all(|(a, e)| Self::ordinary_argument_matches(a, e, substitutions))
+                        .all(|(a, e)| self.ordinary_argument_matches(a, e, substitutions))
             }
             (Ty::Arrow(ai, ao), Ty::Arrow(ei, eo)) => {
-                Self::ordinary_argument_matches(ai, ei, substitutions)
-                    && Self::ordinary_argument_matches(ao, eo, substitutions)
+                self.ordinary_argument_matches(ai, ei, substitutions)
+                    && self.ordinary_argument_matches(ao, eo, substitutions)
             }
+            (Ty::Name(a), Ty::Name(e)) if self.scalar_primitive(a) == Some(e.as_str()) => true,
             // A nominal result may have unknown generic arguments in ordinary
             // inference. Absence of evidence does not establish a mismatch.
             (Ty::Name(a), Ty::App(e, _)) => matches!(e.as_ref(), Ty::Name(e) if a == e),
