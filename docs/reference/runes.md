@@ -278,9 +278,15 @@ type's says is an error; `runa fmt --migrate` removes it.
 
 A named scalar value is its primitive everywhere outside the checker: the
 interpreter, `runa call` JSON, `runa verify` and generated Rust (which declares
-`pub type Isin = String;`). `runa call` runs the checks on every input value of
-a named scalar type and reports a value that fails as an input error at its
-path; see [Calculations](calculations.md#named-scalar-types). See also
+`pub type Isin = String;`). `runa verify` assumes the checks of an invariant's
+free variable passed where a named scalar is declared, each check that
+translates to SMT; a counterexample names a check it could not assume
+(`` x may violate `nine`, which verify cannot express``). `Isin(p)` in a
+verified body is an obligation that the checks hold for `p`; where a check
+does not translate, the claim is unsupported, never proved. `runa call` and
+`runa template --input` run the checks on every input value of a named scalar
+type and report a value that fails as an input error at its path; see
+[Calculations](calculations.md#named-scalar-types). See also
 [the design](../rfcs/named-scalar-types-and-rule-result-types.md).
 
 ### Product types with rule members

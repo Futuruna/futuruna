@@ -1,0 +1,15 @@
+-- A check is the definition its name has in the file that declares the type:
+-- this file's own `isin_ok` accepts everything, yet `ShortIsin(text)` runs the
+-- imported one and stops on "short".
+-- expect-command: interp
+-- expect-status: fail
+-- expect-stdout: true
+-- expect-stderr: `"short"` is not a `ShortIsin`: `isin_ok` is false
+
+@ import ./cross_module_check_lib
+
+> isin_ok(text: String) -> Bool { True }
+> make(text: String) -> ShortIsin { ShortIsin(text) }
+
+@ print(show(isin_ok("short")))
+@ print(make("short"))

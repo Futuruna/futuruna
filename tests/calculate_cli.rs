@@ -25069,3 +25069,70 @@ fn schema_rejects_declared_field_metadata_that_is_not_ground_data() {
         "stderr:\n{stderr}"
     );
 }
+
+/// A reader of a template never sees a value the call will refuse:
+/// `runa template --input` runs the checks of named scalars as `runa call`
+/// does, at the same paths, and writes nothing. A placeholder is not a value
+/// yet and is not checked.
+#[test]
+fn template_runs_the_checks_of_named_scalars_as_call_does() {
+    let dir = temp_path("scalars");
+    std::fs::create_dir_all(&dir).unwrap();
+    let model = dir.join("book.calculate.runa");
+    std::fs::write(
+        &model,
+        "| isin_ok(text: String) -> string_length(text) == 12\n\
+         # Isin: String \"an ISIN\" where isin_ok\n\
+         # Holding(isin: Isin, count: Int)\n\
+         # Book(holdings: List(Holding), favourite: Isin?)\n\
+         @ calculate\n\
+         > total(input: Book) -> Int { sum(map(input.holdings, |h| h.count)) }\n",
+    )
+    .unwrap();
+    let model = model.to_str().unwrap();
+    let generated = run(&["template", model]);
+    assert!(generated.status.success(), "{generated:?}");
+    let mut envelope = parse_stdout(&generated);
+    let placeholder = envelope["cases"][0]["input"]["holdings"][0]["isin"].clone();
+    assert!(placeholder.is_object(), "{placeholder}");
+    let good = serde_json::json!({"holdings": [{"isin": "DK0060534915", "count": 2}, {"isin": placeholder, "count": 1}], "favourite": null});
+    let bad = serde_json::json!({"holdings": [{"isin": "DK0060534915", "count": 2}, {"isin": "DK006053491", "count": 3}], "favourite": "x"});
+    let input = dir.join("cases.json");
+    let output = dir.join("out.json");
+    let mut template = |cases: Value| {
+        envelope["cases"] = cases;
+        std::fs::write(&input, serde_json::to_vec(&envelope).unwrap()).unwrap();
+        std::fs::write(&output, b"previous").unwrap();
+        run(&[
+            "template",
+            model,
+            "--input",
+            input.to_str().unwrap(),
+            "--output",
+            output.to_str().unwrap(),
+        ])
+    };
+
+    let accepted =
+        template(serde_json::json!([{"case_id": "good", "input_status": "draft", "input": good}]));
+    assert!(accepted.status.success(), "{accepted:?}");
+    let written: Value = serde_json::from_slice(&std::fs::read(&output).unwrap()).unwrap();
+    assert_eq!(
+        written["cases"][0]["input"]["holdings"][0]["isin"],
+        "DK0060534915"
+    );
+    assert!(written["cases"][0]["input"]["holdings"][1]["isin"].is_object());
+
+    let refused =
+        template(serde_json::json!([{"case_id": "bad", "input_status": "draft", "input": bad}]));
+    assert_eq!(refused.status.code(), Some(1), "{refused:?}");
+    let stderr = String::from_utf8_lossy(&refused.stderr);
+    for expected in [
+        "case `bad` $.holdings[1].isin: `\"DK006053491\"` is not an `Isin`: `isin_ok` is false",
+        "case `bad` $.favourite: `\"x\"` is not an `Isin`: `isin_ok` is false",
+    ] {
+        assert!(stderr.contains(expected), "missing {expected}: {stderr}");
+    }
+    assert_eq!(std::fs::read(&output).unwrap(), b"previous");
+    std::fs::remove_dir_all(dir).unwrap();
+}

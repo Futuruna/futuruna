@@ -79,9 +79,9 @@ mod runtime_imports;
 mod runtime_stack;
 pub use runtime_guard_coverage::{RuntimeGuardedCallSet, RuntimeGuardedRuleCalls};
 pub use runtime_stack::interpreter_stack_bytes;
+mod scalar_types;
 pub mod semantic_interface;
 mod unit_types;
-mod scalar_types;
 pub use unit_types::{erase_unit_types, erase_unit_types_in_files};
 
 pub use danish::{register_source_origin, DANISH_NUMBER_PARSERS_RUST};
@@ -12536,9 +12536,7 @@ impl Parser {
     /// The rest of `# Name: Primitive "description" where check, ...` after
     /// the colon.
     fn parse_scalar_decl(&mut self, name: String) -> Result<Stmt, String> {
-        let usage = format!(
-            "# {name}: String \"what a value is\" where check, check(arguments)"
-        );
+        let usage = format!("# {name}: String \"what a value is\" where check, check(arguments)");
         let primitive = self.advance();
         if !(primitive.kind == TokenKind::Type
             && matches!(primitive.text.as_str(), "String" | "Int"))
@@ -34015,10 +34013,12 @@ impl TypeCheckArtifacts {
         &self.program
     }
 
-    /// The authored part of [`Self::program`]: its last `authored_len`
-    /// statements, without the prelude the checked program begins with.
-    pub fn authored_program(&self, authored_len: usize) -> &[Stmt] {
-        &self.program[self.program.len() - authored_len..]
+    /// The authored part of [`Self::program`]: what follows the first
+    /// `prelude_len` statements, the prelude the checked program begins
+    /// with. Elaboration may have added statements (the check functions of
+    /// a named scalar) after the authored ones; they are part of it.
+    pub fn authored_program(&self, prelude_len: usize) -> &[Stmt] {
+        &self.program[prelude_len..]
     }
 
     /// Exact guarded runtime calls. This carries no total-value proof authority.
@@ -52413,6 +52413,10 @@ impl TypeChecker {
                             && expected_type != &actual_type
                             && !(self.is_unit_type(expected_type)
                                 && Self::is_unitless_literal(value))
+                            // An `Isin` is a `String`; a literal takes the
+                            // named scalar its field expects.
+                            && self.scalar_primitive(&actual_type) != Some(expected_type.as_str())
+                            && !self.scalar_literal_fits(value, expected_type)
                         {
                             let hint = self.numeric_conversion_hint(
                                 &Ty::Name(actual_type.clone()),
@@ -63797,9 +63801,11 @@ impl TypeChecker {
                 .unit_types
                 .keys()
                 .map(|unit| (unit.clone(), "Int".to_string()))
-                .chain(tc.scalar_types.iter().map(|(name, scalar)| {
-                    (name.clone(), scalar.primitive.clone())
-                }))
+                .chain(
+                    tc.scalar_types
+                        .iter()
+                        .map(|(name, scalar)| (name.clone(), scalar.primitive.clone())),
+                )
                 .collect(),
             constructor_elaboration,
             program,
@@ -73454,6 +73460,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             TypeDecl::ImplBlock { .. } => "ImplBlock",
             TypeDecl::RuleScope { .. } => "RuleScope",
             TypeDecl::Unit { .. } => "Unit",
+            TypeDecl::Scalar { .. } => "Scalar",
         }
     }
 
@@ -73464,7 +73471,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             | TypeDecl::TraitDecl { .. }
             | TypeDecl::ImplBlock { .. }
             | TypeDecl::RuleScope { .. } => TypecheckerPassCoverage::VisitsExpressions,
-            TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } => {
+            TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } | TypeDecl::Scalar { .. } => {
                 TypecheckerPassCoverage::IntentionallyIgnored
             }
         }

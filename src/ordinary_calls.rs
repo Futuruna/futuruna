@@ -209,11 +209,8 @@ impl TypeChecker {
                         let Ok(actual_ty) = parse_type_annotation(&actual) else {
                             continue;
                         };
-                        if !self.ordinary_argument_matches(
-                            &actual_ty,
-                            expected,
-                            &mut substitutions,
-                        ) {
+                        if !self.ordinary_argument_matches(&actual_ty, expected, &mut substitutions)
+                        {
                             self.error_at_expr(
                                 argument,
                                 format!(
@@ -462,9 +459,7 @@ impl TypeChecker {
             (Ty::Name(actual), Ty::Name(expected)) if actual == "Int" && expected == "Float" => {
                 "; write a Float literal such as `25.0` or convert with `to_float`".to_string()
             }
-            (Ty::Name(actual), Ty::Name(expected))
-                if self.scalar_primitive(expected).is_some() =>
-            {
+            (Ty::Name(actual), Ty::Name(expected)) if self.scalar_primitive(expected).is_some() => {
                 self.scalar_mismatch_hint(actual, expected)
             }
             (Ty::Name(actual), Ty::Name(expected))

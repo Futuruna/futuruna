@@ -161,7 +161,9 @@ impl TypeChecker {
             if !same {
                 self.declaration_error(
                     &key,
-                    format!("named scalar `{name}` is declared twice, differently; declare it once"),
+                    format!(
+                        "named scalar `{name}` is declared twice, differently; declare it once"
+                    ),
                 );
             }
             return;
@@ -302,7 +304,9 @@ impl TypeChecker {
             }
             Ty::App(head, arguments) => {
                 self.widen_ty(head);
-                arguments.iter_mut().for_each(|argument| self.widen_ty(argument));
+                arguments
+                    .iter_mut()
+                    .for_each(|argument| self.widen_ty(argument));
             }
             Ty::Arrow(input, output) => {
                 self.widen_ty(input);
@@ -563,12 +567,18 @@ impl TypeChecker {
         let [argument] = args else {
             self.error_at_expr(
                 expr,
-                format!("`{name}(...)` takes one value, got {} arguments", args.len()),
+                format!(
+                    "`{name}(...)` takes one value, got {} arguments",
+                    args.len()
+                ),
             );
             return true;
         };
         if is_named_arg_expr(argument) {
-            self.error_at_expr(argument, format!("`{name}(...)` takes one value without a name"));
+            self.error_at_expr(
+                argument,
+                format!("`{name}(...)` takes one value without a name"),
+            );
             return true;
         }
         let Some(scalar) = scalar else {
@@ -593,7 +603,10 @@ impl TypeChecker {
         }
         if let Some(actual) = self.ordinary_expression_type(argument) {
             let message = if actual == name {
-                Some(format!("the value is already {} `{name}`; remove the conversion", article(name)))
+                Some(format!(
+                    "the value is already {} `{name}`; remove the conversion",
+                    article(name)
+                ))
             } else if self.scalar_primitive(&actual).is_some() {
                 Some(format!(
                     "`{name}(...)` makes {} `{name}` from a `{}`, got `{actual}`; convert between two named scalars through `{}(...)`, so that the step is visible",
@@ -636,7 +649,10 @@ impl TypeChecker {
         let scalar = self.scalar_types[&scalar_name].clone();
         self.check_expr(value, in_fn);
         if is_named_arg_expr(value) {
-            self.error_at_expr(value, "`parse` takes its arguments without names, as in `parse(Isin, text)`".to_string());
+            self.error_at_expr(
+                value,
+                "`parse` takes its arguments without names, as in `parse(Isin, text)`".to_string(),
+            );
             return true;
         }
         if let Some(actual) = self.ordinary_expression_type(value) {
@@ -655,7 +671,13 @@ impl TypeChecker {
         true
     }
 
-    fn record_scalar_conversion(&mut self, expr: &Expr, name: &str, scalar: &ScalarType, parse: bool) {
+    fn record_scalar_conversion(
+        &mut self,
+        expr: &Expr,
+        name: &str,
+        scalar: &ScalarType,
+        parse: bool,
+    ) {
         if expr.span.is_dummy() {
             self.error_at_expr(
                 expr,
@@ -687,7 +709,8 @@ impl TypeChecker {
         let key = || Ty::Var("k".into());
         let value = || Ty::Var("v".into());
         let item = || Ty::Var("a".into());
-        let app = |head: &str, arguments: Vec<Ty>| Ty::App(Box::new(Ty::Name(head.into())), arguments);
+        let app =
+            |head: &str, arguments: Vec<Ty>| Ty::App(Box::new(Ty::Name(head.into())), arguments);
         let signature = match (name, args.len()) {
             ("map_contains" | "map_get" | "map_remove", 2) => {
                 vec![app("Map", vec![key(), value()]), key()]
@@ -712,7 +735,9 @@ impl TypeChecker {
             return;
         }
         let mut substitutions = BTreeMap::new();
-        for (index, ((argument, actual), expected)) in args.iter().zip(&types).zip(&signature).enumerate() {
+        for (index, ((argument, actual), expected)) in
+            args.iter().zip(&types).zip(&signature).enumerate()
+        {
             let expected_now = substitute_type_variables(expected, &substitutions);
             if self.unit_literal_fits(argument, &expected_now) {
                 continue;
@@ -755,7 +780,12 @@ impl TypeChecker {
             let Some(field) = variants
                 .iter()
                 .find(|variant| variant.name == member.variant)
-                .and_then(|variant| variant.fields.iter().find(|field| field.name == member.field))
+                .and_then(|variant| {
+                    variant
+                        .fields
+                        .iter()
+                        .find(|field| field.name == member.field)
+                })
             else {
                 continue;
             };
@@ -843,7 +873,10 @@ impl TypeChecker {
     /// scalar with checks, which gets its check functions.
     pub(crate) fn has_scalar_conversions(&self) -> bool {
         !self.scalar_conversions.is_empty()
-            || self.scalar_types.values().any(|scalar| !scalar.checks.is_empty())
+            || self
+                .scalar_types
+                .values()
+                .any(|scalar| !scalar.checks.is_empty())
     }
 
     /// Write every checked `Isin(p)` and `parse(Isin, p)` as the checks it
@@ -943,7 +976,10 @@ fn check_definition(
     let first: (Vec<Stmt>, String) = match module {
         None => (root.to_vec(), root_dir.unwrap_or(".").to_string()),
         Some(path) => (
-            parse_source_module_file_cached(path).ok()?.statements().to_vec(),
+            parse_source_module_file_cached(path)
+                .ok()?
+                .statements()
+                .to_vec(),
             Interpreter::imported_source_dir(&path.to_string_lossy()),
         ),
     };
@@ -1010,7 +1046,10 @@ fn rename_definition(statement: &mut Stmt, name: &str) {
 /// Replace bound type variables.
 fn substitute_type_variables(ty: &Ty, substitutions: &BTreeMap<String, Ty>) -> Ty {
     match ty {
-        Ty::Var(name) => substitutions.get(name).cloned().unwrap_or_else(|| ty.clone()),
+        Ty::Var(name) => substitutions
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| ty.clone()),
         Ty::App(head, arguments) => Ty::App(
             Box::new(substitute_type_variables(head, substitutions)),
             arguments
@@ -1029,18 +1068,18 @@ impl ScalarLiteralEvaluator {
             return verdict.clone();
         }
         let (root, root_dir) = (&self.root, &self.root_dir);
-        let evaluator = self
-            .evaluators
-            .entry(scalar.module.clone())
-            .or_insert_with(|| match &scalar.module {
-                None => Some(MetaGroundEvaluator::new(root, root_dir.as_deref())),
-                Some(path) => parse_source_module_file_cached(path).ok().map(|module| {
-                    MetaGroundEvaluator::new(
-                        module.statements(),
-                        Some(&Interpreter::imported_source_dir(&path.to_string_lossy())),
-                    )
-                }),
-            });
+        let evaluator =
+            self.evaluators
+                .entry(scalar.module.clone())
+                .or_insert_with(|| match &scalar.module {
+                    None => Some(MetaGroundEvaluator::new(root, root_dir.as_deref())),
+                    Some(path) => parse_source_module_file_cached(path).ok().map(|module| {
+                        MetaGroundEvaluator::new(
+                            module.statements(),
+                            Some(&Interpreter::imported_source_dir(&path.to_string_lossy())),
+                        )
+                    }),
+                });
         let Some(evaluator) = evaluator.as_mut() else {
             let verdict = Verdict::Failed(scalar.checks[0].text.clone());
             self.verdicts.insert(key, verdict.clone());
@@ -1105,19 +1144,28 @@ impl ScalarConversion {
             ))
         };
         let join = |left: Expr, right: Expr| {
-            at(ExprKind::BinOp("+".to_string(), Box::new(left), Box::new(right)))
+            at(ExprKind::BinOp(
+                "+".to_string(),
+                Box::new(left),
+                Box::new(right),
+            ))
         };
         let quote = if self.primitive == "String" { "\"" } else { "" };
         let message = |check: &ScalarCheck| {
             let rest = not_a_scalar_message("\u{0}", &self.scalar, &check.text);
-            let (before, after) = rest.split_once('\u{0}').expect("the message shows the value");
+            let (before, after) = rest
+                .split_once('\u{0}')
+                .expect("the message shows the value");
             join(
                 join(text(format!("{before}{quote}")), variable()),
                 text(format!("{quote}{after}")),
             )
         };
         let holds = |index: usize| {
-            call(&scalar_check_function(&self.scalar, index), vec![variable()])
+            call(
+                &scalar_check_function(&self.scalar, index),
+                vec![variable()],
+            )
         };
         let trusted = Expr::new(
             ExprKind::App(

@@ -1,0 +1,28 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "6384b2997765faafa8f963cb3655c7ef06f9a4be0b47acf716f659e5da508646",
+    "entry": "call_boundary_path"
+  },
+  "cases": [
+    {
+      "case_id": "bad",
+      "input_status": "ready",
+      "input": {
+        "holdings": [
+          { "isin": "DK0060534915", "count": 2 },
+          { "isin": "DK0060534914", "count": 3 }
+        ],
+        "favourite": "DK006053491"
+      }
+    },
+    {
+      "case_id": "good",
+      "input_status": "ready",
+      "input": {
+        "holdings": [{ "isin": "DK0060534915", "count": 2 }],
+        "favourite": null
+      }
+    }
+  ]
+}

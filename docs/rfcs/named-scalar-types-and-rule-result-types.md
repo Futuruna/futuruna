@@ -498,8 +498,21 @@ Recorded while implementing Part 1 (Experimental in 0.5.0):
 - **Boundary errors are input errors.** A value that fails a check is a
   diagnostic with `scalar` and `check`, reported beside the case's decoding
   errors; the TypeScript SDK throws `CalculationError` of kind `input` with
-  `scalar`, `check` and the issue at the TypeScript path. `runa template`
-  carries a draft input over as it is; `runa call` refuses a failing value.
+  `scalar`, `check` and the issue at the TypeScript path.
+- **`runa template --input` runs the checks `runa call` runs.** A reader of a
+  template must never see a value the call will refuse, so a filled value of
+  a named scalar type that fails a check stops the template with the same
+  diagnostic at the same path. A value still a placeholder or left out is not
+  checked: it is not a value yet.
+- **What `runa verify` assumes and owes.** A free variable of an invariant
+  passed directly where a function or rule declares a parameter of a named
+  scalar type is an input of that type: each of its checks that translates to
+  SMT is assumed. A check that does not translate is not assumed, which is
+  sound, and a counterexample names it (`` x may violate `nine`, which verify
+  cannot express``). `Isin(p)` in a verified body is an obligation, as a zero
+  divisor is: the elaborated assertion is defined only where the check holds.
+  Where a check does not translate, the claim is reported unsupported, never
+  proved.
 
 ## Open questions
 

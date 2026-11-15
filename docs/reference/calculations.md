@@ -376,7 +376,9 @@ case's other input errors, and the case does not run:
 ```
 
 In a partial case a missing value is still a need; a present value that fails
-is an input error. Results are not checked: every value of a named scalar was
+is an input error. `runa template --input` runs the same checks on the values
+it carries over and refuses a value `runa call` would refuse, with the same
+message at the same path; a placeholder is not checked. Results are not checked: every value of a named scalar was
 checked where it was made. The type's `@ field` is the field metadata of every
 input field that holds it, unless the field or an exact path says otherwise.
 

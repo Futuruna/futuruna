@@ -1,0 +1,24 @@
+-- ISO 6166: the last digit is the Luhn check digit over the other eleven
+-- characters, each letter read as its two digits. Four real ISINs pass; each
+-- with its last digit changed fails `isin_check_digit` (not `isin_shape`).
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout-file: isin_check_digit.stdout
+
+@ import ./isin_lib
+
+> verdict(text: String) -> String {
+    match parse(Isin, text) {
+        Ok(isin) -> text + " ok"
+        Err(message) -> message
+    }
+}
+
+@ print(verdict("US0378331005"))
+@ print(verdict("DK0010274414"))
+@ print(verdict("DK0060534915"))
+@ print(verdict("IE00B4L5Y983"))
+@ print(verdict("US0378331006"))
+@ print(verdict("DK0010274415"))
+@ print(verdict("DK0060534914"))
+@ print(verdict("IE00B4L5Y984"))

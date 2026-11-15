@@ -1,7 +1,7 @@
 -- Every field metadata declaration names the field.
 -- expect-command: check
 -- expect-status: fail
--- expect-stderr: `@ field` needs a `label`
+-- expect-stderr: `@ field` needs a `label`, or only `key` (`@ field(key = True)`)
 
 # Input(
     @ field(help = "Before tax.")

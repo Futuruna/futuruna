@@ -346,8 +346,6 @@ impl MigrationProgram {
     }
 }
 
-/// `source` with `# impl Document for <type> {}` after the declaration of
-/// the record type `type`; `None` when the source does not declare it.
 /// What an `@ field` says apart from `key`, comparable across files.
 fn presentation(meta: &crate::FieldMetaDecl) -> Vec<(String, String)> {
     let mut entries: Vec<(String, String)> = meta
@@ -366,7 +364,10 @@ impl MigrationProgram {
     fn held_scalar<'a>(&self, ty: &'a crate::Ty) -> Option<&'a str> {
         use crate::Ty;
         match ty {
-            Ty::Name(name) => self.scalar_field_meta.contains_key(name).then_some(name.as_str()),
+            Ty::Name(name) => self
+                .scalar_field_meta
+                .contains_key(name)
+                .then_some(name.as_str()),
             Ty::Optional(inner) | Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) => {
                 self.held_scalar(inner)
             }
@@ -410,7 +411,10 @@ impl MigrationProgram {
                     .iter()
                     .find(|variant| variant.name == member.variant)
                     .and_then(|variant| {
-                        variant.fields.iter().find(|field| field.name == member.field)
+                        variant
+                            .fields
+                            .iter()
+                            .find(|field| field.name == member.field)
                     })
                     .and_then(|field| self.held_scalar(&field.ty))
                 else {
@@ -433,7 +437,10 @@ impl MigrationProgram {
                 else {
                     continue;
                 };
-                let line_start = chars[..at].iter().rposition(|c| *c == '\n').map_or(0, |i| i + 1);
+                let line_start = chars[..at]
+                    .iter()
+                    .rposition(|c| *c == '\n')
+                    .map_or(0, |i| i + 1);
                 let line_end = chars[end..]
                     .iter()
                     .position(|c| *c == '\n')
@@ -464,6 +471,8 @@ impl MigrationProgram {
     }
 }
 
+/// `source` with `# impl Document for <type> {}` after the declaration of
+/// the record type `type`; `None` when the source does not declare it.
 pub fn add_document_impl(source: &str, type_name: &str) -> Option<String> {
     let lines: Vec<&str> = source.lines().collect();
     if lines
@@ -1534,5 +1543,25 @@ Guide text.
             "{}",
             errors[0]
         );
+    }
+
+    #[test]
+    fn a_field_meta_repeating_its_scalars_is_removed() {
+        let types = "@ field(label = \"ISIN\", help = \"The code.\")\n# Isin: String \"an ISIN\"\n";
+        let source = "# Holding(\n    @ field(label = \"ISIN\", help = \"The code.\")\n    isin: Isin,\n    @ field(key = True, label = \"ISIN\", help = \"The code.\") id: Isin,\n    @ field(label = \"Old ISIN\") old: Isin?,\n    @ field(help = \"The code.\", label = \"ISIN\")\n    others: List(Isin),\n    count: Int\n)\n";
+        let mut program = MigrationProgram::default();
+        program.add_source(Path::new("types.runa"), types);
+        program.add_source(Path::new("model.runa"), source);
+        let (migrated, removed) = program
+            .remove_repeated_scalar_field_meta(Path::new("model.runa"), source)
+            .unwrap();
+        assert_eq!(removed, 3);
+        assert_eq!(
+            migrated,
+            "# Holding(\n    isin: Isin,\n    @ field(key = True) id: Isin,\n    @ field(label = \"Old ISIN\") old: Isin?,\n    others: List(Isin),\n    count: Int\n)\n"
+        );
+        assert!(program
+            .remove_repeated_scalar_field_meta(Path::new("model.runa"), &migrated)
+            .is_none());
     }
 }

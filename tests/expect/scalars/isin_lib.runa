@@ -1,0 +1,27 @@
+-- expect-skip: dependency-only fixture: an ISIN and its ISO 6166 checks
+-- An ISIN (ISO 6166) and its checks, imported by the scalar expectation cases.
+
+| isin_letter(c: String) -> index_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ", c) >= 0
+| isin_character(c: String) -> index_of("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", c) >= 0
+| isin_shape(text: String) -> string_length(text) == 12 && all(string_chars(substring(text, 0, 2)), |c| isin_letter(c)) && all(string_chars(text), |c| isin_character(c)) && index_of("0123456789", char_at(text, 11)) >= 0
+
+> isin_value(c: String) -> Int { index_of("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", c) }
+> isin_digits(text: String) -> String {
+    join(map(string_chars(substring(text, 0, 11)), |c| show_int(isin_value(c))), "")
+}
+> isin_luhn_sum(digits: String, i: Int, double: Bool) -> Int {
+    if i < 0 {
+        0
+    } else {
+        isin_luhn_term(isin_value(char_at(digits, i)), double) + isin_luhn_sum(digits, i - 1, not(double))
+    }
+}
+> isin_luhn_term(d: Int, double: Bool) -> Int {
+    if double { if d * 2 > 9 { d * 2 - 9 } else { d * 2 } } else { d }
+}
+> isin_check_digit(text: String) -> Bool {
+    (10 - isin_luhn_sum(isin_digits(text), string_length(isin_digits(text)) - 1, True) % 10) % 10 == isin_value(char_at(text, 11))
+}
+
+@ field(label = "ISIN")
+# Isin: String "International Securities Identification Number (ISO 6166)" where isin_shape, isin_check_digit

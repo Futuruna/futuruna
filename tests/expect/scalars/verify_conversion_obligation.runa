@@ -1,0 +1,27 @@
+-- `Month(n)` in a verified body is an obligation, as a zero divisor is: the
+-- checks must hold for `n`. Where they do, the claim is proved; where they
+-- may not, a counterexample shows it. Where a check does not translate
+-- (`nine` is recursive), the claim is reported unsupported, never proved.
+-- expect-command: verify
+-- expect-status: fail
+-- expect-stdout: COUNTEREXAMPLE found for |made_month|:
+-- expect-stdout: PROVED: |safe_month|
+-- expect-stdout: --- | made_nines ---
+-- expect-stdout:   ? SMT fallback skipped: recursive SMT function dependency involving `digit_sum`
+-- expect-stdout-not: PROVED: |made_nines|
+-- expect-stdout: Verification: 1 of 3 invariant(s) proved, 1 unsupported.
+
+| between(n: Int, low: Int, high: Int) -> n >= low && n <= high
+# Month: Int "a month of the year" where between(1, 12)
+
+| make_month(n: Int) -> Month(n)
+| made_month: make_month(n) -> Int(make_month(n)) >= 1
+| safe_month: n -> n < 1 || n > 12 || Int(make_month(n)) >= 1
+
+> digit_sum(n: Int) -> Int { if n < 10 { n } else { n % 10 + digit_sum(n / 10) } }
+| positive(n: Int) -> n > 0
+| nine(n: Int) -> digit_sum(n) % 9 == 0
+# Nines: Int "a positive multiple of nine" where positive, nine
+
+| make_nines(n: Int) -> Nines(n)
+| made_nines: n -> n < 1 || Int(make_nines(n)) > 0

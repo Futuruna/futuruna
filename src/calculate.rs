@@ -2186,10 +2186,10 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
     };
     let mut contracts = Vec::new();
     for candidate in candidates {
-        let input = ty_to_contract_ref(&candidate.input, false, &catalog)
-            .expect("validated input type");
-        let output = ty_to_contract_ref(&candidate.output, false, &catalog)
-            .expect("validated output type");
+        let input =
+            ty_to_contract_ref(&candidate.input, false, &catalog).expect("validated input type");
+        let output =
+            ty_to_contract_ref(&candidate.output, false, &catalog).expect("validated output type");
         let mut reachable = BTreeSet::new();
         collect_reachable_type_names(&candidate.input, &catalog, &mut reachable);
         collect_reachable_type_names(&candidate.output, &catalog, &mut reachable);
@@ -3898,7 +3898,11 @@ fn declared_field_metadata_candidates(
         let product = product_variant(definition).is_some();
         // `@ field(key = True)` alone marks the key and leaves the field
         // the metadata of its type.
-        for member in type_meta.members.iter().filter(|member| !member.meta.key_only) {
+        for member in type_meta
+            .members
+            .iter()
+            .filter(|member| !member.meta.key_only)
+        {
             for prefix in prefixes {
                 let base = if product {
                     prefix.clone()
@@ -6571,7 +6575,10 @@ impl CalculationWorker {
     ) -> Vec<CalculationCaseDiagnostic> {
         let mut diagnostics = Vec::new();
         for input in inputs {
-            let Some(scalar) = contract.scalars.iter().find(|scalar| scalar.name == input.scalar)
+            let Some(scalar) = contract
+                .scalars
+                .iter()
+                .find(|scalar| scalar.name == input.scalar)
             else {
                 continue;
             };
@@ -6926,6 +6933,54 @@ impl PreparedCalculation {
 
     pub fn contract(&self) -> &CalculationContract {
         &self.contract
+    }
+
+    /// Each input value of a named scalar type that fails a check, at its
+    /// path, as `runa call` reports it, without running the cases. A value
+    /// left out or still a template placeholder is not checked.
+    pub fn scalar_input_diagnostics(
+        &mut self,
+        envelope: &CalculationInputEnvelope,
+    ) -> Vec<CalculationCaseDiagnostic> {
+        if self.contract.scalars.is_empty() {
+            return Vec::new();
+        }
+        let elaboration = self.constructor_elaboration.clone();
+        with_constructor_elaboration(elaboration.as_ref(), || {
+            let Self {
+                contract,
+                stmts,
+                source_dir,
+                constructor_elaboration,
+                root_file,
+                worker,
+            } = self;
+            let worker = worker.get_or_insert_with(|| {
+                CalculationWorker::new(CalculationProgram::new(
+                    &contract.entry,
+                    stmts.clone(),
+                    source_dir.clone(),
+                    constructor_elaboration.clone(),
+                    root_file.clone(),
+                ))
+            });
+            let mut diagnostics = Vec::new();
+            for case in &envelope.cases {
+                if let Some(message) = &worker.initialization_error {
+                    diagnostics.push(CalculationCaseDiagnostic {
+                        case_id: case.case_id.clone(),
+                        path: "$".to_string(),
+                        message: message.clone(),
+                        scalar: None,
+                        check: None,
+                    });
+                    continue;
+                }
+                let (_, scalars) = contract.decode_case_with_scalars(&case.input, true);
+                diagnostics.extend(worker.scalar_diagnostics(contract, &case.case_id, scalars));
+            }
+            diagnostics
+        })
     }
 
     /// Decode, invoke, and encode a batch. Cases are isolated and retain input

@@ -647,6 +647,68 @@ test('a unit of measure is a branded number type in the SDK', options, async () 
   assert.equal(await usage.result(cli), 1200);
 });
 
+const scalarModel = `| isin_ok(text: String) -> string_length(text) == 12
+# Isin: String "an ISIN" where isin_ok
+# AccountId: String "an account id"
+# Holding(isin: Isin, account: AccountId, count: Int)
+# Book(holdings: List(Holding))
+@ calculate
+> first_isin(input: Book) -> Isin { head(input.holdings).isin }
+`;
+
+const scalarUsage = `import {
+  firstIsin, isin, accountId, IsinSchema,
+  type Book, type EngineTransport, type Isin, type AccountId,
+} from "./sdk/index.js";
+
+const account: AccountId = accountId("A-1");
+export const good: Book = { holdings: [{ isin: isin("DK0060534915"), account, count: 1 }] };
+// @ts-expect-error a bare string is not an Isin
+export const bare: Book = { holdings: [{ isin: "DK0060534915", account, count: 1 }] };
+// @ts-expect-error an AccountId is not an Isin
+export const swapped: Book = { holdings: [{ isin: account, account, count: 1 }] };
+export const asText: string = isin("DK0060534915");
+export const parsed: Isin = IsinSchema.parse("DK0060534915");
+export const bad: Book = {
+  holdings: [good.holdings[0]!, { isin: isin("DK006053491"), account, count: 2 }],
+};
+export const result = async (transport: EngineTransport, book: Book): Promise<Isin> => (await firstIsin(transport, book)).result;
+`;
+
+test('a named scalar is a branded type in the SDK, and a value the engine refuses is an input error at its path', options, async () => {
+  const dir = project('scalars');
+  writeFileSync(join(dir, 'book.calculate.runa'), scalarModel);
+  run(binary, ['sdk', 'ts', 'book.calculate.runa', '--out', 'sdk'], dir);
+  writeFileSync(join(dir, 'usage.ts'), scalarUsage);
+  compile(dir, ['sdk/index.ts', 'usage.ts']);
+  const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
+  assert.equal(sdk.isin('DK0060534915'), 'DK0060534915');
+  assert.throws(() => sdk.isin(12), RangeError);
+  assert.ok(!sdk.IsinSchema.safeParse(12).success);
+  const cli = {
+    async call(entry, document) {
+      writeFileSync(join(dir, 'call.json'), JSON.stringify(document));
+      // The engine exits non-zero when it refuses a case; its reply is still the document.
+      const p = spawnSync(binary, ['call', 'book.calculate.runa', '--entry', entry, '--input', 'call.json'], {
+        cwd: dir, encoding: 'utf8', timeout: 600000,
+      });
+      assert.ifError(p.error);
+      return p.stdout;
+    },
+    async callPartial() { throw new Error('not used'); },
+  };
+  const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
+  assert.equal(await usage.result(cli, usage.good), 'DK0060534915');
+  await assert.rejects(usage.result(cli, usage.bad), (error) => {
+    assert.equal(error.name, 'CalculationError');
+    assert.equal(error.kind, 'input');
+    assert.equal(error.scalar, 'Isin');
+    assert.equal(error.check, 'isin_ok');
+    assert.deepEqual(error.issues.map((issue) => issue.path), ['holdings[1].isin']);
+    return true;
+  });
+});
+
 test('partial values, dates, paths and explained calls are checked by the types', options, async () => {
   const dir = project('ledger');
   writeFileSync(join(dir, 'ledger.calculate.runa'), ledgerModel);

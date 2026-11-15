@@ -16,8 +16,8 @@
 use super::{
     calculation_type_occurrence_paths, definition_substitutions, joined_column_path,
     product_variant, substitute_contract_type, CalculationContract, CalculationField,
-    CalculationFieldMetadata, CalculationScalar, CalculationTypeDefinition, CalculationTypeRef, CalculationVariant,
-    CONTRACT_SCHEMA, INPUT_SCHEMA, OUTPUT_SCHEMA,
+    CalculationFieldMetadata, CalculationScalar, CalculationTypeDefinition, CalculationTypeRef,
+    CalculationVariant, CONTRACT_SCHEMA, INPUT_SCHEMA, OUTPUT_SCHEMA,
 };
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
@@ -445,10 +445,13 @@ impl<'a> Sdk<'a> {
                     Err(format!(
                         "{context}: a unit of measure on `{name}`, not `Int`"
                     ))
-                } else if let Some(scalar) = scalar.as_deref().filter(|scalar| {
-                    unit.is_some() || !self.scalars.contains_key(scalar)
-                }) {
-                    Err(format!("{context}: undeclared named scalar type `{scalar}`"))
+                } else if let Some(scalar) = scalar
+                    .as_deref()
+                    .filter(|scalar| unit.is_some() || !self.scalars.contains_key(scalar))
+                {
+                    Err(format!(
+                        "{context}: undeclared named scalar type `{scalar}`"
+                    ))
                 } else {
                     Ok(())
                 }
@@ -842,7 +845,11 @@ impl<'a> Sdk<'a> {
                 Side::Local => scalar.clone(),
                 Side::Qualified | Side::Partial => format!("types.{scalar}"),
             },
-            CalculationTypeRef::Primitive { name, unit: None, scalar: None } => match name.as_str() {
+            CalculationTypeRef::Primitive {
+                name,
+                unit: None,
+                scalar: None,
+            } => match name.as_str() {
                 "Int" | "Float" => "number",
                 "Bool" => "boolean",
                 _ => "string",
@@ -924,7 +931,11 @@ impl<'a> Sdk<'a> {
                 Side::Local => format!("{scalar}Schema"),
                 Side::Qualified | Side::Partial => format!("schema.{scalar}Schema"),
             },
-            CalculationTypeRef::Primitive { name, unit: None, scalar: None } => match name.as_str() {
+            CalculationTypeRef::Primitive {
+                name,
+                unit: None,
+                scalar: None,
+            } => match name.as_str() {
                 "Int" => "IntSchema",
                 "Float" => "FloatSchema",
                 "Char" => "CharSchema",
@@ -2357,7 +2368,11 @@ const RUNTIME: &str = include_str!("sdk_ts_runtime.ts");
 /// its `export` declarations.
 /// The TypeScript type of a named scalar's value on the wire.
 fn scalar_wire_type(scalar: &CalculationScalar) -> &'static str {
-    if scalar.of == "Int" { "number" } else { "string" }
+    if scalar.of == "Int" {
+        "number"
+    } else {
+        "string"
+    }
 }
 
 /// The TSDoc of a named scalar type: its description and its checks.

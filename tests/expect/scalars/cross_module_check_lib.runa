@@ -1,0 +1,4 @@
+-- expect-skip: dependency-only fixture: a named scalar whose check is this file's `isin_ok`
+-- The declaring file's `isin_ok`: twelve characters.
+| isin_ok(text: String) -> string_length(text) == 12
+# ShortIsin: String "an ISIN" where isin_ok

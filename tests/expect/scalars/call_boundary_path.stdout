@@ -1,0 +1,29 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.output.v1",
+    "schema_hash": "6384b2997765faafa8f963cb3655c7ef06f9a4be0b47acf716f659e5da508646",
+    "entry": "call_boundary_path"
+  },
+  "results": [
+    {
+      "case_id": "good",
+      "result": 2
+    }
+  ],
+  "diagnostics": [
+    {
+      "case_id": "bad",
+      "path": "$.holdings[1].isin",
+      "message": "`\"DK0060534914\"` is not an `Isin`: `isin_check_digit` is false",
+      "scalar": "Isin",
+      "check": "isin_check_digit"
+    },
+    {
+      "case_id": "bad",
+      "path": "$.favourite",
+      "message": "`\"DK006053491\"` is not an `Isin`: `isin_shape` is false",
+      "scalar": "Isin",
+      "check": "isin_shape"
+    }
+  ]
+}

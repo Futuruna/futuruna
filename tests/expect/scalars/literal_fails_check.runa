@@ -1,0 +1,8 @@
+-- A literal that takes a named scalar is checked by `runa check`.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `"DK0060534914"` is not an `Isin`: `isin_check_digit` is false
+
+@ import ./isin_lib
+
+= home: Isin = "DK0060534914"
