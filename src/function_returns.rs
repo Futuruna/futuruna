@@ -36,28 +36,7 @@ impl TypeChecker {
         }
         self.check_expr(body, Some(name));
         let Some(result) = result else { return };
-        let mut locals = ReturnLocals::default();
-        for (scope, types) in self.scopes.iter().zip(&self.var_types) {
-            for name in scope {
-                // Function declarations are also value names in the legacy
-                // scope table. Their signatures are resolved separately below.
-                if self.user_functions.contains(name)
-                    && !self
-                        .reference_symbols
-                        .get(name)
-                        .is_some_and(|symbols| symbols.contains(&ProgramSymbolKind::Binding))
-                    && !types.contains_key(name)
-                {
-                    locals.types.remove(name);
-                    continue;
-                }
-                locals.types.insert(
-                    name.clone(),
-                    CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE.to_string(),
-                );
-            }
-            locals.types.extend(types.clone());
-        }
+        let mut locals = self.enclosing_return_locals();
         for (index, param) in params.iter().enumerate() {
             let native_list = match param.ty.as_ref() {
                 Some(Ty::Shared(inner)) => inner.as_ref(),
@@ -94,14 +73,57 @@ impl TypeChecker {
             ),
             None => result.clone(),
         };
-        self.check_return_expression(name, &result, body, &locals);
+        self.check_return_expression(&format!("function `{name}`"), &result, body, &locals);
     }
 
-    fn return_type_mismatch(&mut self, name: &str, expected: &Ty, actual: &str, expr: &Expr) {
+    /// The names of the enclosing scopes, as a body's return check reads
+    /// them before its own parameters.
+    fn enclosing_return_locals<'a>(&self) -> ReturnLocals<'a> {
+        let mut locals = ReturnLocals::default();
+        for (scope, types) in self.scopes.iter().zip(&self.var_types) {
+            for name in scope {
+                // Function declarations are also value names in the legacy
+                // scope table. Their signatures are resolved separately below.
+                if self.user_functions.contains(name)
+                    && !self
+                        .reference_symbols
+                        .get(name)
+                        .is_some_and(|symbols| symbols.contains(&ProgramSymbolKind::Binding))
+                    && !types.contains_key(name)
+                {
+                    locals.types.remove(name);
+                    continue;
+                }
+                locals.types.insert(
+                    name.clone(),
+                    CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE.to_string(),
+                );
+            }
+            locals.types.extend(types.clone());
+        }
+        locals
+    }
+
+    /// Check a rule clause's value against its family's declared result
+    /// type, as a function body is checked against its `-> T`. `subject`
+    /// names the rule and its declaration in a mismatch.
+    pub(super) fn check_rule_clause_result(
+        &mut self,
+        subject: &str,
+        expected: &Ty,
+        value: &Expr,
+        head_locals: BTreeMap<String, String>,
+    ) {
+        let mut locals = self.enclosing_return_locals();
+        locals.types.extend(head_locals);
+        self.check_return_expression(subject, expected, value, &locals);
+    }
+
+    fn return_type_mismatch(&mut self, subject: &str, expected: &Ty, actual: &str, expr: &Expr) {
         self.error_at_expr(
             expr,
             format!(
-            "return type mismatch: function `{name}` expects `{}` but expression has `{actual}`",
+            "return type mismatch: {subject} expects `{}` but expression has `{actual}`",
             Self::canonical_explore_ty_name(expected),
         ),
         );

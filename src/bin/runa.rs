@@ -20870,9 +20870,11 @@ fn migration_root(file: &Path) -> PathBuf {
 }
 
 /// `runa fmt --migrate`: rewrite the retired comment directives of every
-/// file as annotations, then format it. A file the migration cannot rewrite
-/// is left unchanged and its reasons are listed.
+/// file as annotations, then format it, and write each rule family's types
+/// once, declaring its result type where that is mechanical. A file the
+/// migration cannot rewrite is left unchanged and its reasons are listed.
 fn migrate_targets(targets: &[String], check: bool) {
+    use futuruna::migrate::rule_types::migrate_rule_declarations;
     use futuruna::migrate::{add_document_impl, migrate_source, MigrationProgram};
     let mut files = Vec::new();
     for target in targets {
@@ -20887,6 +20889,7 @@ fn migrate_targets(targets: &[String], check: bool) {
     let mut programs: BTreeMap<PathBuf, MigrationProgram> = BTreeMap::new();
     let mut missing_impls: BTreeSet<(String, PathBuf)> = BTreeSet::new();
     let (mut migrated, mut failed) = (0usize, 0usize);
+    let (mut declared, mut types_once, mut not_declared, mut skipped) = (0, 0, 0, 0);
     for path in &files {
         let source = match std::fs::read_to_string(path) {
             Ok(source) => source,
@@ -20896,46 +20899,75 @@ fn migrate_targets(targets: &[String], check: bool) {
                 continue;
             }
         };
-        if !source
+        let mut current = source.clone();
+        if source
             .lines()
             .any(|line| line.trim_start().starts_with("--@"))
         {
+            let root = migration_root(Path::new(path));
+            let program = programs
+                .entry(root.clone())
+                .or_insert_with(|| MigrationProgram::scan(&root));
+            let result = match migrate_source(&source, program) {
+                Ok(result) => result,
+                Err(errors) => {
+                    for error in errors {
+                        eprintln!("{path}:{error}");
+                    }
+                    failed += 1;
+                    continue;
+                }
+            };
+            let formatted = match checked_format_runa_source(&result.source) {
+                Ok(formatted) => formatted,
+                Err(error) => {
+                    eprintln!(
+                        "{path}: the migrated file does not format: {error}; file unchanged"
+                    );
+                    failed += 1;
+                    continue;
+                }
+            };
+            for note in &result.notes {
+                eprintln!("{path}: {note}");
+            }
+            missing_impls.extend(program.missing_document_impls(
+                &result.document_constructors,
+                Path::new(path),
+                &source,
+            ));
+            current = formatted;
+        }
+        match migrate_rule_declarations(&current, path) {
+            Ok(rules) => {
+                for family in &rules.declared {
+                    eprintln!("{path}:{family}: declared");
+                }
+                for family in &rules.not_declared {
+                    eprintln!("{path}:{family}");
+                }
+                for family in &rules.skipped {
+                    eprintln!("{path}:{family}; not rewritten");
+                }
+                declared += rules.declared.len();
+                types_once += rules.types_once.len();
+                not_declared += rules.not_declared.len();
+                skipped += rules.skipped.len();
+                current = rules.source;
+            }
+            Err(error) => {
+                eprintln!("{path}: rule families not migrated: {error}");
+                failed += 1;
+                continue;
+            }
+        }
+        if current == source {
             continue;
         }
-        let root = migration_root(Path::new(path));
-        let program = programs
-            .entry(root.clone())
-            .or_insert_with(|| MigrationProgram::scan(&root));
-        let result = match migrate_source(&source, program) {
-            Ok(result) => result,
-            Err(errors) => {
-                for error in errors {
-                    eprintln!("{path}:{error}");
-                }
-                failed += 1;
-                continue;
-            }
-        };
-        let formatted = match checked_format_runa_source(&result.source) {
-            Ok(formatted) => formatted,
-            Err(error) => {
-                eprintln!("{path}: the migrated file does not format: {error}; file unchanged");
-                failed += 1;
-                continue;
-            }
-        };
-        for note in &result.notes {
-            eprintln!("{path}: {note}");
-        }
-        missing_impls.extend(program.missing_document_impls(
-            &result.document_constructors,
-            Path::new(path),
-            &source,
-        ));
         migrated += 1;
         if check {
             eprintln!("{path} needs migration");
-        } else if let Err(error) = std::fs::write(path, formatted) {
+        } else if let Err(error) = std::fs::write(path, current) {
             eprintln!("{path}: {error}");
             failed += 1;
         } else {
@@ -20964,6 +20996,9 @@ fn migrate_targets(targets: &[String], check: bool) {
             );
         }
     }
+    eprintln!(
+        "rule families: {declared} declared, {types_once} with their types written once, {not_declared} not declared, {skipped} not rewritten"
+    );
     eprintln!("{migrated} file(s) migrated, {failed} not migrated");
     if failed > 0 || (check && migrated > 0) {
         std::process::exit(1);

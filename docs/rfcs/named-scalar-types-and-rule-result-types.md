@@ -773,6 +773,33 @@ types the checker inferred.
   declared family (`findall(x, eligible(x))`) could take a declared enum or
   subset type as the domain to enumerate.
 
+## Decisions (Part 2, implementation in 0.5.0)
+
+- **`: R` is an atom.** The result type after `:` is a type atom with an
+  optional `?` (`Ore`, `List(Int)`, `YearParameters?`, `(Int -> Int)`): an
+  arrow after it starts the clause's value.
+- **Exceptions never write types.** An exception is never a declaring line,
+  so a type on one is an error wherever it stands, and `: R` after an
+  exception head is a parse error.
+- **Names are the declaration's once the family declares something.** The
+  name rule applies when the declaring line writes a parameter type or
+  `: R`. A relation with no types keeps its logic variables free
+  (`| ancestor(x, z) -> parent(x, y), ancestor(y, z)`).
+- **Elaboration in the parser.** The parser writes the declaring line's type
+  onto every later clause's name, so the checker, interpreter, solver,
+  Explore and generated Rust read the typed heads they read before. `: R` is
+  kept as an inert internal annotation that the checker and the runtime
+  read. The errors of this part are parse errors that name the declaring
+  line.
+- **Miss of a declared family.** `: Bool` answers False when no clause
+  applies, in calculations, `runa run` and generated Rust alike; every other
+  declared type stops with `no value rule matched`.
+- **Migration writes types once even without `: R`.** Where the checker does
+  not resolve one concrete type, where the family is a relation of facts and
+  goals, or where declaring would change what a miss does today, the later
+  lines still lose their types (otherwise the file would not parse) and the
+  family is reported as not declared, with the reason.
+
 ---
 
 # Units and named scalars

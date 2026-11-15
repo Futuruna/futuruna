@@ -77,6 +77,11 @@ mod runtime_diagnostics;
 mod runtime_guard_coverage;
 mod runtime_imports;
 mod runtime_stack;
+mod rule_declarations;
+pub use rule_declarations::{
+    declared_rule_result, declared_rule_results, with_legacy_rule_types, DeclaredRuleResult,
+    RULE_RESULT_TYPE_ANNOTATION,
+};
 pub use runtime_guard_coverage::{RuntimeGuardedCallSet, RuntimeGuardedRuleCalls};
 pub use runtime_stack::interpreter_stack_bytes;
 pub mod semantic_interface;
@@ -10276,6 +10281,11 @@ impl Parser {
             self.skip_semis();
         }
         if errors.is_empty() {
+            if let Err(error) = self.elaborate_rule_declarations(&mut stmts) {
+                errors.extend(error.lines().map(str::to_string));
+            }
+        }
+        if errors.is_empty() {
             Ok(stmts)
         } else {
             // Return all errors, but also include any successfully parsed statements
@@ -11935,6 +11945,7 @@ impl Parser {
             self.skip_semis();
         }
         self.expect(TokenKind::RBrace)?;
+        self.elaborate_rule_declarations(&mut body)?;
         Ok(Stmt::Defn(Defn::Module { name, body }))
     }
 
@@ -12049,6 +12060,7 @@ impl Parser {
                 self.skip_semis();
             }
             self.expect(TokenKind::RBrace)?;
+            self.elaborate_rule_declarations(&mut body)?;
             return Ok(Stmt::Rule(Rule::ReactiveScope { name, body }));
         }
 
@@ -12069,6 +12081,13 @@ impl Parser {
                 return Err(format!(
                     "{}:{}: an exception needs a named rule call after its label; use `| exception <label> rate(x) -> ...`",
                     head_start.line, head_start.col
+                ));
+            }
+            if self.peek_kind() == TokenKind::Colon {
+                let colon = self.peek();
+                return Err(format!(
+                    "{}:{}: exception `{label}` cannot declare a result type; an exception overrides a rule, and the family's type is declared on its first ordinary line: `| rate(year: Int): Ore -> ...`",
+                    colon.line, colon.col
                 ));
             }
             self.expect(TokenKind::Arrow)?;
@@ -12111,8 +12130,12 @@ impl Parser {
             self.pos = saved_pos;
         }
 
-        // | head [-> body] [under condition]
+        // | head [: R] [-> body] [under condition]
+        let pipe_position = self.pos - 1;
         let head = self.parse_expr()?;
+        if self.peek_kind() == TokenKind::Colon {
+            return self.parse_rule_declaration(pipe_position, head);
+        }
         if self.peek_kind() == TokenKind::Arrow {
             self.advance();
             let body_or_value = self.parse_rule_body_expression()?;
@@ -12335,6 +12358,7 @@ impl Parser {
                 self.skip_semis();
             }
             self.expect(TokenKind::RBrace)?;
+            self.elaborate_rule_declarations(&mut body)?;
             return Ok(Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }));
         }
 
@@ -14401,6 +14425,7 @@ impl Parser {
             self.skip_semis();
         }
         self.expect(TokenKind::RBrace)?;
+        self.elaborate_rule_declarations(&mut stmts)?;
         Ok(Expr::new(ExprKind::Block(stmts), self.span_since(&start)))
     }
 
@@ -16683,6 +16708,9 @@ struct RuntimeNamespaceState {
     rules: Vec<(String, Rc<Rule>, RuntimeDeclarationEnv)>,
     rules_by_name: HashMap<String, Vec<usize>>,
     rule_miss_fallbacks: HashMap<String, HashMap<usize, RuleMissFallback>>,
+    /// The miss of a family with a declared result type: `False` for `: Bool`,
+    /// an evaluation error for any other type, whatever its clauses are.
+    declared_rule_misses: HashMap<(String, usize), RuleMissFallback>,
     rule_dispatch_keys: BTreeSet<RuleDispatchKey>,
     rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
     rule_dispatch_return_issues: BTreeMap<RuleDispatchKey, String>,
@@ -16754,6 +16782,7 @@ impl RuntimeNamespaceState {
             rules: Vec::new(),
             rules_by_name: HashMap::new(),
             rule_miss_fallbacks: HashMap::new(),
+            declared_rule_misses: HashMap::new(),
             rule_dispatch_keys: BTreeSet::new(),
             rule_dispatch_return_types: BTreeMap::new(),
             rule_dispatch_return_issues: BTreeMap::new(),
@@ -17792,9 +17821,14 @@ impl Interpreter {
         Self::runtime_namespace_find(namespace, |state| {
             state.rule_dispatch_keys.contains(key).then(|| {
                 state
-                    .rule_miss_fallbacks
-                    .get(&key.name)
-                    .and_then(|by_arity| by_arity.get(&key.arity))
+                    .declared_rule_misses
+                    .get(&(key.name.clone(), key.arity))
+                    .or_else(|| {
+                        state
+                            .rule_miss_fallbacks
+                            .get(&key.name)
+                            .and_then(|by_arity| by_arity.get(&key.arity))
+                    })
                     .copied()
             })
         })
@@ -20806,6 +20840,14 @@ impl Interpreter {
                         declaration_env,
                     );
                 }
+                Stmt::Annot(..) => {
+                    if let Some(declared) = declared_rule_result(stmt) {
+                        namespace.state.borrow_mut().declared_rule_misses.insert(
+                            (declared.name, declared.arity),
+                            RuleMissFallback::of_declared_result(&declared.result),
+                        );
+                    }
+                }
                 Stmt::Rule(Rule::ReactiveScope { name, body }) => {
                     self.register_rule_scope_callable_declarations(&namespace, name, body);
                 }
@@ -22066,6 +22108,10 @@ impl Interpreter {
 
             match stmt {
                 Stmt::Annot(name, _) => {
+                    if name == RULE_RESULT_TYPE_ANNOTATION {
+                        // Read at declaration registration; annotates nothing.
+                        continue;
+                    }
                     if !is_known_annotation(name) {
                         return self.panic_or_ground_fail(unknown_annotation_message(name));
                     }
@@ -27804,9 +27850,18 @@ impl Interpreter {
         if boolean_family {
             return Value::Bool(false);
         }
-        let value_family = Self::rule_scope_matching_rules(definition, &family.name, family.arity)
+        let declared = definition
+            .body
             .iter()
-            .any(|rule| RuleMissFallback::of_rule(rule) == RuleMissFallback::NoValue);
+            .filter_map(declared_rule_result)
+            .find(|declared| declared.name == family.name && declared.arity == family.arity)
+            .map(|declared| RuleMissFallback::of_declared_result(&declared.result));
+        let value_family = match declared {
+            Some(fallback) => fallback == RuleMissFallback::NoValue,
+            None => Self::rule_scope_matching_rules(definition, &family.name, family.arity)
+                .iter()
+                .any(|rule| RuleMissFallback::of_rule(rule) == RuleMissFallback::NoValue),
+        };
         if value_family {
             self.panic_or_ground_fail(Self::value_rule_miss_message(family))
         } else {
@@ -32083,6 +32138,9 @@ pub struct TypeChecker {
     type_field_tys: BTreeMap<String, BTreeMap<String, Ty>>,
     /// Rule/function name -> inferred value return type name.
     rule_return_types: BTreeMap<String, String>,
+    /// Declared rule result types (`| rate(year: Int): Ore -> ...`) by scope,
+    /// name and arity; see `rule_declarations`.
+    declared_rule_results: BTreeMap<RuleDispatchKey, DeclaredRuleResult>,
     /// Canonical rule result types resolved by exact scope, name, and arity.
     rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
     /// Exact rule identities whose result type is conflicting or unresolved.
@@ -48883,6 +48941,7 @@ impl TypeChecker {
             type_field_types: BTreeMap::new(),
             type_field_tys: BTreeMap::new(),
             rule_return_types: BTreeMap::new(),
+            declared_rule_results: BTreeMap::new(),
             rule_dispatch_return_types: BTreeMap::new(),
             rule_dispatch_return_issues: BTreeMap::new(),
             rule_dispatch_type_return_types: BTreeMap::new(),
@@ -54138,8 +54197,9 @@ impl TypeChecker {
         let previous_scope = self
             .active_rule_scope_inference
             .replace(scope_name.to_string());
+        let declared = self.declared_scope_member_results(scope_name, body);
         self.rule_scope_member_return_types
-            .insert(scope_name.to_string(), BTreeMap::new());
+            .insert(scope_name.to_string(), declared.clone());
 
         let mut scope_locals = BTreeMap::new();
         for param in params {
@@ -54160,6 +54220,9 @@ impl TypeChecker {
                         let Some((member, _)) = Self::rule_name_arity(rule) else {
                             continue;
                         };
+                        if declared.contains_key(&member) {
+                            continue;
+                        }
                         let (head, value) = match rule {
                             Rule::Clause {
                                 head,
@@ -54232,6 +54295,8 @@ impl TypeChecker {
     }
 
     fn infer_rule_return_types(&mut self, stmts: &[Stmt]) {
+        // A declared family's type is its declaration, never a clause's.
+        let declared = self.note_declared_rule_results(stmts);
         let mut groups: BTreeMap<String, Vec<&Rule>> = BTreeMap::new();
         for stmt in stmts {
             if let Stmt::Rule(rule @ Rule::Clause { .. })
@@ -54239,7 +54304,9 @@ impl TypeChecker {
             | Stmt::Rule(rule @ Rule::Exception { .. }) = stmt
             {
                 if let Some((name, _)) = Self::rule_name_arity(rule) {
-                    groups.entry(name).or_default().push(rule);
+                    if !declared.contains(&name) {
+                        groups.entry(name).or_default().push(rule);
+                    }
                 }
             }
         }
@@ -56300,6 +56367,7 @@ impl TypeChecker {
         self.rule_dispatch_runtime_irrefutable_keys.clear();
         self.runtime_guarded_rule_calls = RuntimeGuardedRuleCalls::default();
         self.rule_dispatch_keys = groups.keys().cloned().collect();
+        let declared = self.note_declared_dispatch_results(&dispatch_statements);
 
         for (key, (_, rules)) in &groups {
             let mut parameter_types = vec![None; key.arity];
@@ -56340,6 +56408,15 @@ impl TypeChecker {
                 for (slot, argument) in parameter_name_candidates.iter_mut().zip(arguments) {
                     if let Some(name) = rule_dispatch_parameter(argument).name {
                         slot.insert(name);
+                    }
+                }
+            }
+            if let Some(declared) = declared.get(key) {
+                // A position every clause matches with a pattern still has
+                // the declaration's type.
+                for (slot, ty) in parameter_types.iter_mut().zip(&declared.parameter_types) {
+                    if let (None, Some(ty)) = (&slot, ty) {
+                        *slot = self.canonical_declared_parameter_type(ty);
                     }
                 }
             }
@@ -56440,6 +56517,17 @@ impl TypeChecker {
                 }
             }
         };
+        // A declared family's result is its declaration: it seeds its callers
+        // and is neither inferred nor merged from its clauses, which the
+        // checker judges against it.
+        for (key, declared) in &declared {
+            if groups.contains_key(key) {
+                self.rule_dispatch_return_types.insert(
+                    key.clone(),
+                    Self::canonical_explore_type_name(&declared.result),
+                );
+            }
+        }
         let mut dirty = vec![true; group_entries.len()];
         for _ in 0..groups.len().saturating_add(stmts.len()).saturating_add(1) {
             self.active_rule_scope_inference = None;
@@ -56453,6 +56541,9 @@ impl TypeChecker {
                     continue;
                 }
                 let (key, (captures, rules)) = group_entries[index];
+                if declared.contains_key(key) {
+                    continue;
+                }
                 self.active_rule_scope_inference = key.scope.clone();
                 let inferred = infer_group_provisionally(self, captures, rules);
                 let known = inferred.iter().flatten().collect::<Vec<_>>();
@@ -56479,7 +56570,10 @@ impl TypeChecker {
             let mut next = vec![false; group_entries.len()];
             for index in 0..group_entries.len() {
                 let (key, (captures, rules)) = group_entries[index];
-                if !dirty[index] || self.rule_dispatch_return_issues.contains_key(key) {
+                if !dirty[index]
+                    || self.rule_dispatch_return_issues.contains_key(key)
+                    || declared.contains_key(key)
+                {
                     continue;
                 }
                 self.active_rule_scope_inference = key.scope.clone();
@@ -56641,6 +56735,13 @@ impl TypeChecker {
                 } else {
                     self.rule_dispatch_runtime_boolean_miss_keys = safe_keys;
                 }
+            }
+        }
+        // A family declared `: Bool` answers False when no clause applies, as
+        // its declaration says; the runtime reads the declaration too.
+        for (key, declared) in &declared {
+            if groups.contains_key(key) && Self::canonical_explore_type_name(&declared.result) == "Bool" {
+                self.rule_dispatch_runtime_boolean_miss_keys.insert(key.clone());
             }
         }
         // The broad pass above exists only to seed recursive result sorts.
@@ -56928,11 +57029,23 @@ impl TypeChecker {
         let groups = self.explore_rules_by_arity.clone();
         self.explore_rule_return_types_by_arity.clear();
         self.explore_rule_return_issues.clear();
+        // A declared family's sort is its declaration; its clauses are
+        // checked against it, not merged into it.
+        let mut declared = BTreeSet::new();
+        for (key, ty) in self.declared_top_level_result_tys() {
+            if groups.contains_key(&key) {
+                self.explore_rule_return_types_by_arity.insert(key.clone(), ty);
+                declared.insert(key);
+            }
+        }
 
         self.inferring_exact_explore_rule_returns = true;
         for _ in 0..groups.len().saturating_add(1) {
             let mut changed = false;
             for (key, rules) in &groups {
+                if declared.contains(key) {
+                    continue;
+                }
                 let inferred = rules
                     .iter()
                     .map(|rule| match rule {
@@ -56976,6 +57089,9 @@ impl TypeChecker {
         // diagnostics must not depend on lexical ordering between two families.
         for ((name, arity), rules) in &groups {
             let key = (name.clone(), *arity);
+            if declared.contains(&key) {
+                continue;
+            }
             let expected = self
                 .explore_rule_return_types_by_arity
                 .get(&key)
@@ -61952,7 +62068,7 @@ impl TypeChecker {
             | Stmt::Depend(_, _)
             | Stmt::RustBlock(_) => {}
             Stmt::Annot(name, args) => {
-                if !is_known_annotation(name) {
+                if !is_known_annotation(name) && name != RULE_RESULT_TYPE_ANNOTATION {
                     self.error(unknown_annotation_message(name));
                 }
                 for a in args {
@@ -62742,10 +62858,14 @@ impl TypeChecker {
         let dir = self.source_dir.clone().unwrap_or_else(|| ".".to_string());
         let mut bases = BTreeSet::new();
         self.collect_rule_base_families(stmts, &dir, &mut bases, &mut BTreeSet::new());
+        let mut declared = BTreeMap::new();
+        let source = self.source_text.clone();
+        self.collect_declared_families(stmts, &source, &dir, &mut declared, &mut BTreeSet::new());
         self.check_rule_result_sequence(
             stmts,
             &dir,
             &bases,
+            &declared,
             &mut BTreeMap::new(),
             &mut BTreeSet::new(),
         );
@@ -62795,6 +62915,7 @@ impl TypeChecker {
         stmts: &[Stmt],
         dir: &str,
         bases: &BTreeSet<(String, usize)>,
+        declared: &BTreeMap<(String, usize), rule_declarations::DeclaredFamily>,
         known: &mut BTreeMap<(String, usize), Vec<String>>,
         visited: &mut BTreeSet<PathBuf>,
     ) {
@@ -62813,6 +62934,12 @@ impl TypeChecker {
                                 );
                             }
                         }
+                    }
+                    // A declared family's clauses are judged by its
+                    // declaration, not against each other.
+                    if let Some(family) = Self::rule_name_arity(rule).and_then(|key| declared.get(&key)) {
+                        self.check_declared_rule_clause(rule, family);
+                        continue;
                     }
                     if let Some(message) = self.rule_result_conflict(rule, known) {
                         let head = match rule {
@@ -62849,6 +62976,7 @@ impl TypeChecker {
                         module.statements(),
                         &imported_dir,
                         bases,
+                        declared,
                         known,
                         visited,
                     );

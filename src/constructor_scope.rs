@@ -552,6 +552,25 @@ impl TypeChecker {
                         }
                     }
                 }
+                Stmt::Annot(..) => {
+                    // A declaration types a position that every clause may
+                    // match with a pattern.
+                    let Some(declared) = declared_rule_result(statement) else {
+                        continue;
+                    };
+                    let entry = rules
+                        .entry((declared.name.clone(), declared.arity))
+                        .or_insert_with(|| vec![Vec::new(); declared.arity]);
+                    for (index, ty) in declared.parameter_types.iter().enumerate() {
+                        let Some(ty) = ty.as_deref().and_then(|ty| parse_type_annotation(ty).ok())
+                        else {
+                            continue;
+                        };
+                        if index < entry.len() && !entry[index].contains(&ty) {
+                            entry[index].push(ty);
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -1376,6 +1395,7 @@ impl ConstructorScopeWalk<'_> {
                 self.rule_head_argument(argument, &name, declared.unwrap_or_default(), &mut inner);
             }
         }
+        let mut declared = false;
         let result = key.as_ref().and_then(|name| {
             let arity = match &head.kind {
                 ExprKind::App(_, arguments) => arguments.len(),
@@ -1386,6 +1406,11 @@ impl ConstructorScopeWalk<'_> {
                 name: name.clone(),
                 arity,
             };
+            // A declared family's clauses take its declared result type.
+            if let Some(ty) = self.checker.declared_rule_result_type(&key) {
+                declared = true;
+                return Some(ty);
+            }
             self.checker
                 .explore_rule_dispatch_result_type(&key)
                 .and_then(|ty| parse_type_annotation(ty).ok())
@@ -1395,7 +1420,9 @@ impl ConstructorScopeWalk<'_> {
         match rule {
             Rule::Clause { body, .. } => {
                 if let Some(body) = body {
-                    self.expr(body, &Expect::none(), &inner);
+                    let goal = matches!(body.kind, ExprKind::Conjunction(_) | ExprKind::Disjunction(_));
+                    let expect = if declared && !goal { expect } else { Expect::none() };
+                    self.expr(body, &expect, &inner);
                 }
             }
             Rule::Default {

@@ -472,6 +472,33 @@ parameter annotation. Invalid guards still stop evaluation. This runtime
 fallback does not establish parameter types or authorize a proof: verification
 and exploration retain their separate checking requirements.
 
+### Declared result types (Experimental)
+```runa
+| days_in_month(year: Int, month: Int): Int -> 31
+| days_in_month(year, month) -> 30 under month == 4 || month == 6 || month == 9 || month == 11
+
+| fib(n: Int): Int
+| fib(0) -> 0
+| fib(1) -> 1
+| fib(n) -> fib(n - 1) + fib(n - 2)
+```
+
+A family's **declaring line** is its first line in source order, in the scope
+that holds its ordinary clauses. It alone writes the parameter types and,
+after `:`, the result type; a line with `: R` and no `->` declares a family
+whose first clause matches a pattern. Every later clause and every exception
+writes a name or a pattern at each position. A type on a later clause or an
+exception, a later name that differs from the declaring line's (in a family
+that declares a type), a second declaration and a declaration without a
+clause are errors that name the declaring line. Each clause is checked
+against `R`: a number takes `R`'s unit (`| loss(): Ore -> 0`), `None`, `[]`
+and a shared constructor take their type from `R`, and a fact or goal body
+requires `R = Bool`. A family declared `: Bool` answers `False` when no clause
+applies; a family of any other declared type stops with
+`no value rule matched`. A family without `: R` is inferred as before.
+`runa fmt --migrate` writes existing families' types once and declares their
+result types where that changes nothing.
+
 ### Named invariants (verification targets)
 ```runa
 | name: subject_expr -> predicate_expr
