@@ -156,9 +156,16 @@ A number written in the source (`0`, `-5`, `100 * 100`) has no unit of its own:
 it takes the unit its place requires. `amount > 0`, `amount + 100`, an `Ore`
 field given `0`, a function returning `0` for `-> Ore`,
 `if c { 0 } else { amount }`, a match arm `| None -> 0` beside an `Ore` arm,
-and `= amounts: List(Ore) = [0, 100]` need no conversion. A named value has the
+`= amounts: List(Ore) = [0, 100]` and `= least: Ore = if c { 0 } else { amount }`
+need no conversion. A named value has the
 unit it was given: `= counts = [0, 1]` is a `List(Int)`, so passing an element
 to an `Ore` parameter is an error.
+
+`concat([0], amounts)` has the type of `amounts`. In a program that declares
+units, `concat([0], xs)` with `xs` of unknown type (an untyped parameter, say)
+is an error: `[0]` could be a list of any unit, so nothing would check the
+result. Declare the type of `xs`, or write the numbers in their unit
+(`[Ore(0)]`). In a program without units, `[0]` is a `List(Int)`.
 
 The parameter of a callback given to `map`, `filter`, `foldl` and the other
 collection functions has the type of the collection's elements, so a mistake

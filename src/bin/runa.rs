@@ -28879,6 +28879,10 @@ impl<'a> LoweringCtx<'a> {
                             | (FirTy::Unknown | FirTy::Var(_), FirTy::List(element)) => {
                                 Some(FirTy::List(element.clone()))
                             }
+                            (FirTy::String, FirTy::String | FirTy::Unknown | FirTy::Var(_))
+                            | (FirTy::Unknown | FirTy::Var(_), FirTy::String) => {
+                                Some(FirTy::String)
+                            }
                             _ => None,
                         };
                         if let Some(ty) = list_ty {
@@ -52954,6 +52958,14 @@ fn __futuruna_install_error_hook() {
                                 coll, init, closure_params, body_code
                             );
                         }
+                    }
+                    // `concat` joins two strings as well as two lists.
+                    if builtin_visible
+                        && name == "concat"
+                        && args_str.len() == 2
+                        && (self.expr_is_string(&args[0]) || self.expr_is_string(&args[1]))
+                    {
+                        return format!("format!(\"{{}}{{}}\", {}, {})", args_str[0], args_str[1]);
                     }
                     // Builtin registry lookup — replaces 300+ lines of if-chain
 

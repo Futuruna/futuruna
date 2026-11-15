@@ -59156,6 +59156,23 @@ impl TypeChecker {
     }
 
     fn check_declared_binding_ty(&mut self, ty: &Ty, expr: &Expr) {
+        // Each branch has the declared type, as each branch of a function's
+        // body has its result type: a number written in one branch takes
+        // the unit of the binding (`= s: Micro = if c { 0 } else { amount }`).
+        match &expr.kind {
+            ExprKind::If(_, then_expr, else_expr) => {
+                self.check_declared_binding_ty(ty, then_expr);
+                self.check_declared_binding_ty(ty, else_expr);
+                return;
+            }
+            ExprKind::Block(stmts) => {
+                if let [Stmt::Expr(inner)] = stmts.as_slice() {
+                    self.check_declared_binding_ty(ty, inner);
+                    return;
+                }
+            }
+            _ => {}
+        }
         let Some(actual_ty) = self.obvious_expr_ty(expr) else {
             self.check_declared_binding_value(ty, expr);
             return;

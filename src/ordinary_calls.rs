@@ -583,18 +583,47 @@ impl TypeChecker {
     /// `concat` joins two lists of one element type, or two strings: two
     /// arguments of known types that do not join as branches would are an
     /// error. A list of numbers written in the source joins a list of a unit.
+    /// In a program that declares units, such a list beside an argument of
+    /// unknown type has no element type the checker can know (`[0]` could
+    /// be a list of any unit), so it is an error that asks for the type.
     pub(super) fn check_concat_arguments(&mut self, arguments: &[Expr]) {
         let [left, right] = arguments else {
             return;
         };
         let locals = self.ordinary_locals();
         let scope = self.active_rule_scope_inference.clone();
-        let joinable = |argument: &Expr| {
+        let known = |argument: &Expr| {
             self.infer_expr_type_name_with_locals_in_scope(argument, &locals, scope.as_deref())
                 .filter(|ty| Self::is_concrete_type_name(ty))
-                .filter(|ty| ty == "String" || Self::applied_type_argument(ty, "List", 0).is_some())
         };
-        let (Some(left_ty), Some(right_ty)) = (joinable(left), joinable(right)) else {
+        let (left_known, right_known) = (known(left), known(right));
+        if let Some(unit) = self.unit_types.keys().next().cloned() {
+            let number_list = |argument: &Expr| {
+                matches!(argument.kind, ExprKind::List(_))
+                    && Self::is_unitless_literal_value(argument)
+            };
+            for (numbers, other, other_known) in
+                [(left, right, &right_known), (right, left, &left_known)]
+            {
+                if number_list(numbers) && other_known.is_none() && !number_list(other) {
+                    let other_name = match &other.kind {
+                        ExprKind::Var(name) => format!("`{name}`"),
+                        _ => "the other argument".to_string(),
+                    };
+                    self.error_at_expr(
+                        other,
+                        format!(
+                            "the element type of this `concat` is unknown: a list of numbers written in the source takes the unit of the list beside it, and the type of {other_name} is not known; declare the type of {other_name}, or write the numbers in their unit, as in `[{unit}(0)]`"
+                        ),
+                    );
+                    return;
+                }
+            }
+        }
+        let joinable = |ty: Option<String>| {
+            ty.filter(|ty| ty == "String" || Self::applied_type_argument(ty, "List", 0).is_some())
+        };
+        let (Some(left_ty), Some(right_ty)) = (joinable(left_known), joinable(right_known)) else {
             return;
         };
         if self

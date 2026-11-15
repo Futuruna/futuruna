@@ -1,0 +1,10 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: ab
+-- expect-stdout: name=Ada
+
+-- `concat` joins two strings as well as two lists.
+> greeting(name: String) -> String { concat("name=", name) }
+= joined = concat("a", "b")
+@ print(joined)
+@ print(greeting("Ada"))
