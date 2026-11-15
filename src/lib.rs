@@ -750,7 +750,10 @@ pub fn replaced_prelude_types<'a>(
     declarations: impl IntoIterator<Item = &'a Stmt>,
 ) -> BTreeSet<String> {
     fn constructors(variants: &[Variant]) -> BTreeSet<&str> {
-        variants.iter().map(|variant| variant.name.as_str()).collect()
+        variants
+            .iter()
+            .map(|variant| variant.name.as_str())
+            .collect()
     }
     let prelude_types = prelude
         .iter()

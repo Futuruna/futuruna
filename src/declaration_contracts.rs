@@ -130,8 +130,10 @@ impl TypeChecker {
             "Int" | "Nat" | "Float" | "String" | "Bool" | "Char" | "Unit" => {
                 format!("`{name}` is a built-in type; give this type a different name")
             }
-            "Self" => "`Self` names the implementing type in a trait; give this type a different name"
-                .to_string(),
+            "Self" => {
+                "`Self` names the implementing type in a trait; give this type a different name"
+                    .to_string()
+            }
             _ => return,
         };
         self.declaration_error(&format!("type:{name}"), message);

@@ -32759,13 +32759,50 @@ impl RustCodegen {
     fn declared_rust_type_name(source_name: &str) -> String {
         const RUST_NAMES: &[&str] = &[
             // std::prelude::rust_2021
-            "AsMut", "AsRef", "Box", "Clone", "Copy", "Default", "DoubleEndedIterator",
-            "Drop", "Eq", "Err", "ExactSizeIterator", "Extend", "Fn", "FnMut", "FnOnce",
-            "From", "FromIterator", "Into", "IntoIterator", "Iterator", "None", "Ok",
-            "Option", "Ord", "PartialEq", "PartialOrd", "Result", "Send", "Sized", "Some",
-            "String", "Sync", "ToOwned", "ToString", "TryFrom", "TryInto", "Unpin", "Vec",
+            "AsMut",
+            "AsRef",
+            "Box",
+            "Clone",
+            "Copy",
+            "Default",
+            "DoubleEndedIterator",
+            "Drop",
+            "Eq",
+            "Err",
+            "ExactSizeIterator",
+            "Extend",
+            "Fn",
+            "FnMut",
+            "FnOnce",
+            "From",
+            "FromIterator",
+            "Into",
+            "IntoIterator",
+            "Iterator",
+            "None",
+            "Ok",
+            "Option",
+            "Ord",
+            "PartialEq",
+            "PartialOrd",
+            "Result",
+            "Send",
+            "Sized",
+            "Some",
+            "String",
+            "Sync",
+            "ToOwned",
+            "ToString",
+            "TryFrom",
+            "TryInto",
+            "Unpin",
+            "Vec",
             // the generated header's imports
-            "Arc", "BTreeMap", "HashMap", "HashSet", "Rc",
+            "Arc",
+            "BTreeMap",
+            "HashMap",
+            "HashSet",
+            "Rc",
         ];
         if RUST_NAMES.contains(&source_name) {
             format!("Futuruna{}", source_name)
@@ -33210,7 +33247,34 @@ impl RustCodegen {
                 Stmt::TypeDecl(TypeDecl::ADT { name, .. })
                 | Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. })
                 | Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) => Some(name.clone()),
-                _ => None,
+                // Declarations that name no type a prelude type could share.
+                Stmt::TypeDecl(
+                    TypeDecl::WhenType { .. }
+                    | TypeDecl::ImplBlock { .. }
+                    | TypeDecl::RuleScope { .. }
+                    | TypeDecl::Unit { .. },
+                )
+                | Stmt::PreludeBoundary
+                | Stmt::Defn(_)
+                | Stmt::Rule(_)
+                | Stmt::Use(_)
+                | Stmt::Import(_)
+                | Stmt::QualifiedImport(..)
+                | Stmt::HashImport(..)
+                | Stmt::Depend(..)
+                | Stmt::RustBlock(_)
+                | Stmt::Annot(..)
+                | Stmt::Bind(..)
+                | Stmt::MonadicBind(..)
+                | Stmt::For(..)
+                | Stmt::While(..)
+                | Stmt::Send(..)
+                | Stmt::StreamBind(..)
+                | Stmt::StreamSub(..)
+                | Stmt::Invariant { .. }
+                | Stmt::Prove { .. }
+                | Stmt::Explore(_)
+                | Stmt::Expr(_) => None,
             })
             .collect::<BTreeSet<_>>();
         let prelude_len = stmts
@@ -33230,7 +33294,35 @@ impl RustCodegen {
                     | Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) => {
                         imported_types.contains(name)
                     }
-                    _ => false,
+                    // The prelude's other statements are never replaced by an
+                    // import: they are kept.
+                    Stmt::Defn(_)
+                    | Stmt::TypeDecl(
+                        TypeDecl::WhenType { .. }
+                        | TypeDecl::ImplBlock { .. }
+                        | TypeDecl::RuleScope { .. }
+                        | TypeDecl::Unit { .. },
+                    )
+                    | Stmt::PreludeBoundary
+                    | Stmt::Rule(_)
+                    | Stmt::Use(_)
+                    | Stmt::Import(_)
+                    | Stmt::QualifiedImport(..)
+                    | Stmt::HashImport(..)
+                    | Stmt::Depend(..)
+                    | Stmt::RustBlock(_)
+                    | Stmt::Annot(..)
+                    | Stmt::Bind(..)
+                    | Stmt::MonadicBind(..)
+                    | Stmt::For(..)
+                    | Stmt::While(..)
+                    | Stmt::Send(..)
+                    | Stmt::StreamBind(..)
+                    | Stmt::StreamSub(..)
+                    | Stmt::Invariant { .. }
+                    | Stmt::Prove { .. }
+                    | Stmt::Explore(_)
+                    | Stmt::Expr(_) => false,
                 }
             {
                 continue;
