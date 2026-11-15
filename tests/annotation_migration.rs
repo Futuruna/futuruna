@@ -1,7 +1,9 @@
 //! `runa fmt --migrate` changes how a model is annotated, never what it
 //! computes: a migrated copy of tests/fixtures/annotation-migration gives the
 //! results the old-syntax model gave (expected.json, recorded before the
-//! comment directives were retired) and accepts the old contract hash.
+//! comment directives were retired) and accepts the old contract hash. The
+//! recording predates per-result assumptions (0.4.1); each case now also
+//! carries the assumption the fixture's section states.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -74,5 +76,21 @@ fn a_migrated_model_computes_what_it_computed() {
         "{}",
         String::from_utf8_lossy(&call.stderr)
     );
-    assert_eq!(String::from_utf8_lossy(&call.stdout), expected);
+    let mut actual: serde_json::Value =
+        serde_json::from_slice(&call.stdout).expect("runa call writes JSON");
+    let expected: serde_json::Value =
+        serde_json::from_str(&expected).expect("expected.json is JSON");
+    let results = actual["results"].as_array_mut().expect("a results list");
+    for case in results.iter_mut() {
+        let assumptions = case
+            .as_object_mut()
+            .expect("a case is an object")
+            .remove("assumptions")
+            .expect("each case carries the section's assumption");
+        assert_eq!(
+            assumptions[0]["value"]["id"], "WHOLE-KRONER",
+            "{assumptions}"
+        );
+    }
+    assert_eq!(actual, expected);
 }
