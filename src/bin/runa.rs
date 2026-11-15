@@ -2109,6 +2109,10 @@ fn run_calculation_command(
                     &calculate::compact::CompactCalculationContract::from_contract(contract),
                 )
                 .expect("compact contract is JSON"),
+                "result" => {
+                    serde_json::to_string_pretty(&calculate::case_result_json_schema(contract))
+                        .expect("result schema is JSON")
+                }
                 "partial-result" => {
                     serde_json::to_string_pretty(&calculate::partial_result_json_schema(contract))
                         .expect("partial result schema is JSON")
@@ -2118,7 +2122,7 @@ fn run_calculation_command(
                         .expect("explanation schema is JSON")
                 }
                 format => {
-                    eprintln!("error: unsupported schema format `{format}`; expected json, compact-json, partial-result or explanation");
+                    eprintln!("error: unsupported schema format `{format}`; expected json, compact-json, result, partial-result or explanation");
                     std::process::exit(1);
                 }
             };
@@ -5093,6 +5097,52 @@ fn write_calculation_xlsx_output(
             .map_err(|error| error.to_string())?;
     }
     result_values
+        .set_freeze_panes(1, 0)
+        .map_err(|error| error.to_string())?;
+
+    // One row per assumption a case's result rests on.
+    let assumptions = workbook
+        .add_worksheet()
+        .set_name("assumptions")
+        .map_err(|error| error.to_string())?;
+    for (column, name) in ["case_id", "section", "binding", "value_json"]
+        .into_iter()
+        .enumerate()
+    {
+        assumptions
+            .write_string_with_format(0, column as u16, name, &header)
+            .map_err(|error| error.to_string())?;
+    }
+    let rows = output.results.iter().flat_map(|result| {
+        result
+            .assumptions
+            .iter()
+            .map(move |assumption| (&result.case_id, assumption))
+    });
+    for (index, (case_id, assumption)) in rows.enumerate() {
+        let row = index as u32 + 1;
+        let value_json = serde_json::to_string(&assumption.value).expect("assumption JSON");
+        assumptions
+            .write_string_with_format(row, 0, case_id, &text_format)
+            .map_err(|error| error.to_string())?;
+        assumptions
+            .write_string_with_format(row, 1, &assumption.section, &text_format)
+            .map_err(|error| error.to_string())?;
+        if let Some(binding) = &assumption.binding {
+            assumptions
+                .write_string_with_format(row, 2, binding, &text_format)
+                .map_err(|error| error.to_string())?;
+        }
+        assumptions
+            .write_string_with_format(row, 3, &value_json, &text_format)
+            .map_err(|error| error.to_string())?;
+    }
+    for (column, width) in [18.0, 32.0, 40.0, 72.0].into_iter().enumerate() {
+        assumptions
+            .set_column_width(column as u16, width)
+            .map_err(|error| error.to_string())?;
+    }
+    assumptions
         .set_freeze_panes(1, 0)
         .map_err(|error| error.to_string())?;
 
@@ -57271,6 +57321,7 @@ mod tests {
             results: vec![calculate::CalculationResultCase {
                 case_id: "case-1".to_string(),
                 result: serde_json::Value::String(long_value.clone()),
+                assumptions: Vec::new(),
                 explanation: None,
             }],
             diagnostics: Vec::new(),

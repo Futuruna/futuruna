@@ -242,6 +242,7 @@ function fixturePartialEngine(hash) {
     const result = needs.length > 0
       ? { $variant: 'Needs', needs }
       : { $variant: 'Complete', result: { annual_income: income, taxable_income: income, annual_tax: income / 5 },
+        assumptions: [{ section: 'tax', binding: 'flat_rate', value: { id: 'FLAT', resolve_with: 'the rate table' } }],
         unused_paths: ['children[0].name'] };
     return { $futuruna: { schema: 'futuruna.calculate.partial-output.v1', schema_hash: hash, entry },
       results: [{ case_id: 'case-1', result }], diagnostics: [] };
@@ -275,7 +276,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
     async callPartial() { throw new Error('not used'); },
   };
   assert.deepEqual(await sdk.calculateTax(cli, usage.sample),
-    { annualIncome: 600000, taxableIncome: 600000, annualTax: 120000 });
+    { result: { annualIncome: 600000, taxableIncome: 600000, annualTax: 120000 }, assumptions: [] });
 
   // Ints beyond ±(2^53 − 1) are rejected before the engine runs, and in results.
   for (const monthlyIncome of [2 ** 53, -(2 ** 53), 2 ** 60, 1.5]) {
@@ -287,10 +288,10 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   assert.equal(engineCalls, 1);
   await assert.rejects(sdk.calculateTax(cli, { ...usage.sample, surprise: 1 }), (error) => error.kind === 'input');
   await assert.rejects(sdk.calculateTax(cli, { ...usage.sample, monthly_income: 1 }), (error) => error.kind === 'input');
-  const answering = (result, meta = {}) => ({
+  const answering = (result, meta = {}, assumptions = undefined) => ({
     async call(entry) {
       return { $futuruna: { schema: 'futuruna.calculate.output.v1', schema_hash: hash, entry, ...meta },
-        results: result === undefined ? [] : [{ case_id: 'case-1', result }],
+        results: result === undefined ? [] : [{ case_id: 'case-1', result, ...(assumptions && { assumptions }) }],
         diagnostics: result === undefined ? [{ case_id: 'case-1', path: '$.cases[0].input', message: 'boom' }] : [] };
     },
     async callPartial() { throw new Error('not used'); },
@@ -304,7 +305,13 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   await assert.rejects(sdk.calculateTax(answering({ annualIncome: 1, taxableIncome: 1, annualTax: 1 }), usage.sample),
     (error) => error.kind === 'output', 'results arrive in the engine\'s snake_case');
   assert.deepEqual(await sdk.calculateTax({ call: async () => ({ annual_income: 1, taxable_income: 1, annual_tax: 1 }) }, usage.sample),
-    { annualIncome: 1, taxableIncome: 1, annualTax: 1 }, 'a bare result has no envelope to check');
+    { result: { annualIncome: 1, taxableIncome: 1, annualTax: 1 }, assumptions: [] }, 'a bare result has no envelope to check');
+  // A result carries the assumptions it rests on as the engine writes them; a malformed one is an output error.
+  const flatRate = { section: 'tax', binding: 'flat_rate', value: { id: 'FLAT', resolve_with: 'the rate table' } };
+  assert.deepEqual(await sdk.calculateTax(answering({ annual_income: 1, taxable_income: 1, annual_tax: 1 }, {}, [flatRate]), usage.sample),
+    { result: { annualIncome: 1, taxableIncome: 1, annualTax: 1 }, assumptions: [flatRate] });
+  await assert.rejects(sdk.calculateTax(answering({ annual_income: 1, taxable_income: 1, annual_tax: 1 }, {}, [{ binding: 'flat_rate' }]), usage.sample),
+    (error) => error.kind === 'output');
 
   // The wire codec: snake_case fields, an enum as { $variant }, a date as { year, month, day }.
   const codec = sdk.calculateTaxEntry.input;
@@ -362,6 +369,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   assert.equal(second.$variant, 'Complete');
   assert.deepEqual(second.result, { annualIncome: 600000, taxableIncome: 600000, annualTax: 120000 });
   assert.deepEqual(second.unusedPaths, ['children[0].name']);
+  assert.deepEqual(second.assumptions, [flatRate], 'a Complete result carries its assumptions through the resolver loop');
   assert.equal(engine.calls.at(-1).$futuruna.schema_hash, hash);
   assert.deepEqual(engine.calls.at(-1).cases[0].input,
     { children: [{ name: 'Ada', age: 4 }], filing_status: { $variant: 'Married' }, monthly_income: 50000 });
@@ -476,6 +484,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   for (const depth of ['direct', 'full']) {
     const explained = await sdk.calculateTaxExplained(explaining, usage.sample, depth);
     assert.deepEqual(explained.result, { annualIncome: 600000, taxableIncome: 600000, annualTax: 120000 });
+    assert.deepEqual(explained.assumptions, []);
     assert.deepEqual(Object.keys(explained.explanation.values), ['annualIncome', 'annualTax', 'taxableIncome']);
     const inputs = Object.values(explained.explanation.values).flatMap((value) => value.from ?? [])
       .filter((item) => item.$variant === 'Input').map((item) => item.path);
@@ -501,8 +510,9 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   const explainedEntry = { ...dateEntry, output: sdk.recordCodec({ bookedOn: ['booked_on', sdk.isoDateCodec],
     paidOn: ['paid_on', sdk.isoDateCodec], kind: ['kind', sdk.enumCodec] }) };
   const document = { $futuruna: { schema: 'futuruna.calculate.output.v1', schema_hash: hash, entry: 'calculate_tax' },
-    results: [{ case_id: 'case-1', result: {}, explanation }], diagnostics: [] };
+    results: [{ case_id: 'case-1', result: {}, assumptions: [flatRate], explanation }], diagnostics: [] };
   const decoded = await sdk.explainEntry({ callExplained: async () => document }, explainedEntry, 'direct', passing, passing, {});
+  assert.deepEqual(decoded.assumptions, [flatRate]);
   assert.deepEqual(decoded.explanation.values, {
     bookedOn: { value: '2026-03-01', by: by('bookedOn'), fromOmitted: 2 },
     kind: { value: 'Deposit', by: { $variant: 'Rule', rule: 'kind_of', clause: 'default' },
@@ -560,7 +570,9 @@ test('generated SDKs validate a model\'s cases and expected results', modelOptio
       assert.deepEqual(sdk.toWire(codecs.input, tsInput), inputCase.input, `${inputFile} ${inputCase.case_id} round trip`);
       const call = sdk[valueName(entry)](transport, tsInput);
       if (result) {
-        assert.deepEqual(sdk.toWire(codecs.output, await call), result.result, `${inputFile} ${inputCase.case_id}`);
+        const calculated = await call;
+        assert.deepEqual(sdk.toWire(codecs.output, calculated.result), result.result, `${inputFile} ${inputCase.case_id}`);
+        assert.deepEqual(calculated.assumptions, result.assumptions ?? [], `${inputFile} ${inputCase.case_id} assumptions`);
         console.log(`${inputFile} ${inputCase.case_id}: input and ${expectedFile} result valid (${entry})`);
       } else {
         await assert.rejects(call, (error) => error.kind === 'diagnostics');
@@ -608,7 +620,7 @@ export const resolvers: HoldingValueResolvers = {
   quantityMicro: () => (need) => answer(need, micro(1)),
 };
 export const parsed: Ore = OreSchema.parse(1200);
-export const result = (transport: EngineTransport): Promise<Ore> => holdingValue(transport, holding);
+export const result = async (transport: EngineTransport): Promise<Ore> => (await holdingValue(transport, holding)).result;
 export const interview = (transport: EngineTransport) =>
   resolve((c: PartialHolding) => holdingValueQuery(transport, c), started, resolvers);
 `;

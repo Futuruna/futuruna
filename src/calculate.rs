@@ -14,6 +14,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
+mod assumptions;
 mod json;
 pub use json::parse_calculation_json;
 
@@ -497,9 +498,27 @@ pub struct CalculationInputEnvelope {
 pub struct CalculationResultCase {
     pub case_id: String,
     pub result: JsonValue,
+    /// The assumptions `result` rests on (empty for a partial case: a
+    /// `Complete` result carries its own).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub assumptions: Vec<CalculationAssumption>,
     /// Where every leaf of `result` came from (`runa call --explain`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub explanation: Option<JsonValue>,
+}
+
+/// An assumption a result rests on: an `Assumption` attachment of a rule
+/// clause that fired or of its section, or of the entry or its section.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CalculationAssumption {
+    /// The section it is written in (for an assumption on a clause outside
+    /// any section, the clause's rule).
+    pub section: String,
+    /// The binding the assumption is written as, when it is one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub binding: Option<String>,
+    /// Its value, as plain JSON: a record's fields as an object.
+    pub value: JsonValue,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -523,6 +542,9 @@ pub struct CalculationOutputEnvelope {
 pub enum CalculationPartialResult {
     Complete {
         result: JsonValue,
+        /// The assumptions the result rests on.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        assumptions: Vec<CalculationAssumption>,
         /// Provided input paths evaluation never read.
         unused_paths: Vec<String>,
     },
@@ -6059,8 +6081,12 @@ struct CalculationWorker {
     partial: Option<partial::PartialMode>,
     /// Set for explained cases (`runa call --explain`).
     explain: Option<explain::ExplainRenderer>,
-    /// The law sections of rule families, for needs.
+    /// Reads the law sections and assumptions of rules from the model's
+    /// files, for needs and every result's assumptions.
     sections: Option<explain::ExplainRenderer>,
+    /// The assumptions written in the model, read when the program was
+    /// initialized.
+    assumption_index: Rc<assumptions::AssumptionIndex>,
 }
 
 impl CalculationWorker {
@@ -6091,6 +6117,19 @@ impl CalculationWorker {
                 )
             });
         interpreter.seal_calculation_initialization();
+        let assumption_index = Rc::new(assumptions::AssumptionIndex::read(
+            &mut interpreter,
+            &base_env,
+            program.root_file.as_deref(),
+            &program.stmts,
+            &program.entry,
+        ));
+        let index = assumption_index.clone();
+        interpreter.assumptions_of = Some(Rc::new(
+            move |interpreter: &Interpreter, rule: &Rc<Rule>, name: &str| {
+                Rc::from(index.of_clause(interpreter, rule, name))
+            },
+        ));
         Self {
             program,
             interpreter,
@@ -6100,6 +6139,7 @@ impl CalculationWorker {
             partial: None,
             explain: None,
             sections: None,
+            assumption_index,
         }
     }
 
@@ -6152,6 +6192,7 @@ impl CalculationWorker {
         }
 
         self.interpreter.begin_calculation_case();
+        self.interpreter.begin_fired_clauses();
         if let Some(decoder) = &decoder {
             self.interpreter
                 .begin_partial_case(self.partial, &contract.entry);
@@ -6198,9 +6239,16 @@ impl CalculationWorker {
         self.needs_reinitialization = matches!(evaluated, Err(CalculationRuntimeFailure::Panicked))
             || self.interpreter.prepared_live_cell_changed();
         let explained = self.interpreter.finish_explained_case();
+        let fired = self.interpreter.finish_fired_clauses();
         if let Some(decoder) = decoder {
-            let outcome =
-                self.finish_partial(contract, case, evaluated, &decoder, explained.as_ref());
+            let outcome = self.finish_partial(
+                contract,
+                case,
+                evaluated,
+                &decoder,
+                explained.as_ref(),
+                &fired,
+            );
             self.interpreter.begin_partial_case(None, "");
             trace_calculation_case(&case.case_id, started);
             return outcome;
@@ -6216,10 +6264,15 @@ impl CalculationWorker {
                 });
             }
         };
+        let assumptions = self.case_assumptions(&fired);
         let explanation = match (self.explain.as_mut(), explained.as_ref()) {
-            (Some(renderer), Some(state)) => {
-                Some(renderer.explanation(&self.interpreter, state, &result, contract))
-            }
+            (Some(renderer), Some(state)) => Some(renderer.explanation(
+                &self.interpreter,
+                state,
+                &fired,
+                &result,
+                contract,
+            )),
             _ => None,
         };
         let result = match explanation {
@@ -6230,6 +6283,7 @@ impl CalculationWorker {
             Ok(result) => CalculationCaseOutcome::Result(CalculationResultCase {
                 case_id: case.case_id.clone(),
                 result,
+                assumptions,
                 explanation,
             }),
             Err(error) => CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
@@ -6242,6 +6296,30 @@ impl CalculationWorker {
         outcome
     }
 
+    /// The assumptions of a case's result: those of the clauses that fired
+    /// (a conditional one when its condition held), of their sections, and
+    /// of the entry; each once (by binding and value), in the order the
+    /// model writes them.
+    fn case_assumptions(&self, fired: &crate::explain::FiredClauses) -> Vec<CalculationAssumption> {
+        let mut placed: BTreeMap<&(Rc<str>, usize, usize), &CalculationAssumption> = BTreeMap::new();
+        let holding = (0..fired.len()).flat_map(|id| fired.holding(id as u32));
+        for assumption in holding.chain(self.assumption_index.entry()) {
+            placed
+                .entry(&assumption.place)
+                .or_insert(&assumption.assumption);
+        }
+        let mut found: Vec<CalculationAssumption> = Vec::new();
+        for assumption in placed.into_values() {
+            if !found
+                .iter()
+                .any(|seen| seen.binding == assumption.binding && seen.value == assumption.value)
+            {
+                found.push(assumption.clone());
+            }
+        }
+        found
+    }
+
     /// Turn a partial case's evaluation into `Complete` or `Needs`.
     fn finish_partial(
         &mut self,
@@ -6250,6 +6328,7 @@ impl CalculationWorker {
         evaluated: Result<Value, CalculationRuntimeFailure>,
         decoder: &PartialDecoder,
         explained: Option<&crate::explain::ExplainState>,
+        fired: &crate::explain::FiredClauses,
     ) -> CalculationCaseOutcome {
         let diagnostic = |path: String, message: String| {
             CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
@@ -6277,9 +6356,15 @@ impl CalculationWorker {
                 read_exact,
                 read_subtree,
             } => {
+                let assumptions = self.case_assumptions(fired);
                 if let (Some(renderer), Some(state)) = (self.explain.as_mut(), explained) {
-                    explanation =
-                        Some(renderer.explanation(&self.interpreter, state, &result, contract));
+                    explanation = Some(renderer.explanation(
+                        &self.interpreter,
+                        state,
+                        fired,
+                        &result,
+                        contract,
+                    ));
                 }
                 let result = match explanation {
                     Some(_) => crate::explain::strip_deep(&result),
@@ -6288,6 +6373,7 @@ impl CalculationWorker {
                 match contract.encode_output(&result) {
                     Ok(result) => CalculationPartialResult::Complete {
                         result,
+                        assumptions,
                         unused_paths: decoder
                             .provided
                             .iter()
@@ -6352,6 +6438,7 @@ impl CalculationWorker {
         CalculationCaseOutcome::Result(CalculationResultCase {
             case_id: case.case_id.clone(),
             result: serde_json::to_value(result).expect("partial result is JSON"),
+            assumptions: Vec::new(),
             explanation,
         })
     }
@@ -7050,6 +7137,47 @@ fn paragraph_json_schema() -> JsonValue {
     })
 }
 
+/// JSON Schema of the `assumptions` a result carries
+/// (`CalculationAssumption`).
+fn assumptions_json_schema() -> JsonValue {
+    serde_json::json!({
+        "type": "array",
+        "description": "The assumptions the result rests on: the `Assumption` attachments of the rule clauses that fired and of the sections they sit in, and of the entry and its section; each once, in the order the model writes them (by file, then line). Left out when there are none.",
+        "items": {
+            "type": "object",
+            "required": ["section", "value"],
+            "additionalProperties": false,
+            "properties": {
+                "section": { "type": "string", "description": "The section the assumption is written in; for one on a clause outside any section, the clause's rule." },
+                "binding": { "type": "string", "description": "The binding the assumption is written as, when it is one." },
+                "value": { "description": "The assumption's value as plain JSON: a record's fields as an object." }
+            }
+        }
+    })
+}
+
+/// JSON Schema of one case of a `runa call` output document's `results`
+/// (`futuruna.calculate.output.v1`). The calculation's own output type is
+/// the contract's `output`.
+pub fn case_result_json_schema(contract: &CalculationContract) -> JsonValue {
+    serde_json::json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": format!("Result of `{}`", contract.entry),
+        "description": "One case of a `runa call` output document: its result and the assumptions the result rests on. See docs/reference/calculations.md.",
+        "x-futuruna-output-schema": OUTPUT_SCHEMA,
+        "x-futuruna-schema-hash": contract.schema_hash,
+        "type": "object",
+        "required": ["case_id", "result"],
+        "additionalProperties": false,
+        "properties": {
+            "case_id": { "type": "string" },
+            "result": { "description": format!("The canonical JSON value of `{}`.", contract.output.display_name()) },
+            "assumptions": assumptions_json_schema(),
+            "explanation": { "description": "With `runa call --explain`: where every leaf of the result came from (`runa schema --format explanation`)." }
+        }
+    })
+}
+
 /// JSON Schema of one case's `result` in a partial output envelope
 /// (`futuruna.calculate.partial-output.v1`). The calculation's own output
 /// type is the contract's `output`.
@@ -7114,6 +7242,7 @@ pub fn partial_result_json_schema(contract: &CalculationContract) -> JsonValue {
                 "properties": {
                     "$variant": { "const": "Complete" },
                     "result": { "description": format!("The canonical JSON value of `{}`.", contract.output.display_name()) },
+                    "assumptions": assumptions_json_schema(),
                     "unused_paths": { "type": "array", "items": string }
                 }
             },

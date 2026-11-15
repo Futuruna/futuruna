@@ -9,6 +9,11 @@
 //! theirs. Nodes are interned per case, so a computation repeated with the
 //! same provenance adds no node.
 //!
+//! Every calculation case, explained or not, records the rule clauses that
+//! fired ([`FiredClauses`]): a result's assumptions are read from them, and
+//! an explanation's rule nodes name them. Recording costs one table lookup
+//! per clause that returns a value; no value is traced.
+//!
 //! Nothing is traced when the mode is off: no traced value exists, the
 //! interpreter's creation sites test one `Option`, and the sites that read
 //! values see through a trace with one more `match` arm. Every site that
@@ -89,8 +94,9 @@ impl Leaf {
 pub(crate) enum Node {
     /// Passed in at an input path.
     Input { path: Rc<str>, value: Leaf },
-    /// Returned by a rule clause; `from` is what the clause's body computed,
-    /// `because` what the guards that chose the clause were computed from.
+    /// Returned by a rule clause (its id in the case's [`FiredClauses`]);
+    /// `from` is what the clause's body computed, `because` what the guards
+    /// that chose the clause were computed from.
     Rule {
         clause: u32,
         from: Option<NodeId>,
@@ -101,12 +107,61 @@ pub(crate) enum Node {
     Computed { from: Box<[NodeId]> },
 }
 
-/// A rule clause that produced a value.
+/// An assumption written on a rule clause or the section around it: its
+/// place in the model (file, line, and its place among the values written
+/// there), and the condition it holds under (`@ meta(...) when ...`).
+#[derive(Debug, Clone)]
+pub(crate) struct PlacedAssumption {
+    pub(crate) place: (Rc<str>, usize, usize),
+    pub(crate) assumption: Rc<crate::calculate::CalculationAssumption>,
+    pub(crate) condition: Option<Expr>,
+}
+
+/// What a calculation finds a rule clause's assumptions with, by the clause
+/// and its rule's name; set by the calculation for each case.
+pub(crate) type AssumptionsOf = Rc<dyn Fn(&Interpreter, &Rc<Rule>, &str) -> Rc<[PlacedAssumption]>>;
+
+/// A rule clause that fired, with the assumptions written on it.
 #[derive(Debug, Clone)]
 pub(crate) struct ClauseRecord {
     pub(crate) rule: Rc<Rule>,
     pub(crate) scope: Option<String>,
     pub(crate) name: String,
+    pub(crate) assumptions: Rc<[PlacedAssumption]>,
+}
+
+/// The rule clauses that fired in one calculation case, each once; their
+/// ids are `0..` in the order they first fired.
+#[derive(Debug, Default)]
+pub struct FiredClauses {
+    clauses: Vec<ClauseRecord>,
+    ids: HashMap<usize, u32>,
+    /// `(clause, assumption)`: a conditional assumption of a clause whose
+    /// condition held on one of its firings.
+    held: HashSet<(u32, usize)>,
+}
+
+impl FiredClauses {
+    pub(crate) fn clause(&self, id: u32) -> &ClauseRecord {
+        &self.clauses[id as usize]
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.clauses.len()
+    }
+
+    /// The assumptions of a fired clause that hold: those without a
+    /// condition, and those whose condition held when it fired.
+    pub(crate) fn holding(&self, id: u32) -> impl Iterator<Item = &PlacedAssumption> {
+        self.clause(id)
+            .assumptions
+            .iter()
+            .enumerate()
+            .filter(move |(index, placed)| {
+                placed.condition.is_none() || self.held.contains(&(id, *index))
+            })
+            .map(|(_, placed)| placed)
+    }
 }
 
 /// The provenance graph of one case.
@@ -114,8 +169,6 @@ pub(crate) struct ClauseRecord {
 pub struct ExplainState {
     nodes: Vec<Node>,
     interned: HashMap<Node, NodeId>,
-    clauses: Vec<ClauseRecord>,
-    clause_ids: HashMap<usize, u32>,
     /// Per active builtin: whether it reads its callbacks' results whole.
     callback_whole: Vec<bool>,
     /// Per active rule dispatch, innermost last: the nodes of the guard
@@ -140,33 +193,8 @@ impl ExplainState {
         &self.nodes[id as usize]
     }
 
-    pub(crate) fn clause(&self, id: u32) -> &ClauseRecord {
-        &self.clauses[id as usize]
-    }
-
-    /// How many distinct rule clauses fired; their ids are `0..` in the
-    /// order they first fired.
-    pub(crate) fn clause_count(&self) -> usize {
-        self.clauses.len()
-    }
-
     pub(crate) fn node_count(&self) -> usize {
         self.nodes.len()
-    }
-
-    fn clause_id(&mut self, rule: &Rc<Rule>, family: &RuleDispatchKey) -> u32 {
-        let key = Rc::as_ptr(rule) as usize;
-        if let Some(id) = self.clause_ids.get(&key) {
-            return *id;
-        }
-        let id = u32::try_from(self.clauses.len()).expect("clause table fits u32");
-        self.clauses.push(ClauseRecord {
-            rule: rule.clone(),
-            scope: family.scope.clone(),
-            name: family.name.clone(),
-        });
-        self.clause_ids.insert(key, id);
-        id
     }
 
     /// The rules and inputs `id` was computed from: through computed nodes,
@@ -466,6 +494,19 @@ fn builtin_reads_callback_results(name: &str) -> bool {
 }
 
 impl Interpreter {
+    /// Start recording the rule clauses that fire in a calculation case.
+    pub(crate) fn begin_fired_clauses(&mut self) {
+        self.fired = Some(RefCell::new(FiredClauses::default()));
+    }
+
+    /// Stop recording, returning the clauses that fired.
+    pub(crate) fn finish_fired_clauses(&mut self) -> FiredClauses {
+        self.fired
+            .take()
+            .map(RefCell::into_inner)
+            .unwrap_or_default()
+    }
+
     /// Start an explained case: a fresh provenance graph.
     pub(crate) fn begin_explained_case(&mut self) {
         self.explain = Some(RefCell::new(ExplainState::default()));
@@ -680,21 +721,103 @@ impl Interpreter {
         }
     }
 
-    /// Tag the value a rule clause produced with the clause, and with the
-    /// guards its dispatch read to choose it.
-    pub(crate) fn explain_rule_result(
+    /// A clause that fired with an assumption under a condition not yet seen
+    /// to hold: its id, for [`Self::record_assumption_conditions`].
+    pub(crate) fn conditional_clause(&self, rule: &Rc<Rule>) -> Option<u32> {
+        let fired = self.fired.as_ref()?.borrow();
+        let clause = *fired.ids.get(&(Rc::as_ptr(rule) as usize))?;
+        fired
+            .clause(clause)
+            .assumptions
+            .iter()
+            .enumerate()
+            .any(|(index, placed)| {
+                placed.condition.is_some() && !fired.held.contains(&(clause, index))
+            })
+            .then_some(clause)
+    }
+
+    /// Evaluate the conditions of a fired clause's assumptions in the
+    /// clause's environment (its parameters bound). A condition that is not
+    /// `false` (true, or not known in a partial case) holds. Evaluating one
+    /// changes nothing a case reads: a partial case's reads are put back.
+    pub(crate) fn record_assumption_conditions(&mut self, clause: u32, env: &Env) {
+        let Some(assumptions) = self
+            .fired
+            .as_ref()
+            .map(|fired| fired.borrow().clause(clause).assumptions.clone())
+        else {
+            return;
+        };
+        for (index, placed) in assumptions.iter().enumerate() {
+            let Some(condition) = &placed.condition else {
+                continue;
+            };
+            let held = self
+                .fired
+                .as_ref()
+                .is_some_and(|fired| fired.borrow().held.contains(&(clause, index)));
+            if held {
+                continue;
+            }
+            // A partial case's reads and needs are set aside: the condition
+            // reads only values the clause already has.
+            let saved = self
+                .partial_mode
+                .is_some()
+                .then(|| std::mem::take(&mut *self.partial.borrow_mut()));
+            let value = self.eval(condition, env);
+            if let Some(saved) = saved {
+                *self.partial.borrow_mut() = saved;
+            }
+            if !matches!(untraced(&value), Value::Bool(false)) {
+                if let Some(fired) = &self.fired {
+                    fired.borrow_mut().held.insert((clause, index));
+                }
+            }
+        }
+    }
+
+    /// A rule clause returned `value`: record that it fired and, in an
+    /// explained case, tag the value with the clause and with the guards its
+    /// dispatch read to choose it.
+    pub(crate) fn rule_clause_fired(
         &self,
         rule: &Rc<Rule>,
         family: &RuleDispatchKey,
         value: Value,
     ) -> Value {
-        let Some(state) = &self.explain else {
+        let Some(fired) = &self.fired else {
             return value;
         };
         if matches!(value, Value::Unknown(_)) {
             return value;
         }
-        let clause = state.borrow_mut().clause_id(rule, family);
+        let key = Rc::as_ptr(rule) as usize;
+        let known = fired.borrow().ids.get(&key).copied();
+        let clause = match known {
+            Some(clause) => clause,
+            None => {
+                let assumptions = self
+                    .assumptions_of
+                    .as_ref()
+                    .map(|of| of(self, rule, &family.name))
+                    .unwrap_or_else(|| Rc::from(Vec::new()));
+                let mut fired = fired.borrow_mut();
+                let id = u32::try_from(fired.clauses.len()).expect("clause table fits u32");
+                fired.clauses.push(ClauseRecord {
+                    rule: rule.clone(),
+                    scope: family.scope.clone(),
+                    name: family.name.clone(),
+                    assumptions,
+                });
+                fired.ids.insert(key, id);
+                id
+            }
+        };
+        let Some(state) = &self.explain else {
+            return value;
+        };
         let because: Box<[NodeId]> = state
             .borrow()
             .guards

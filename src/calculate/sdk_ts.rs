@@ -1832,12 +1832,12 @@ impl<'a> Sdk<'a> {
                 &[
                     format!("Calculate {title}"),
                     String::new(),
-                    "Validates the case, encodes it for the engine, runs it through `transport.call`, checks the envelope's schema hash, and decodes and validates the result.".to_string(),
+                    "Validates the case, encodes it for the engine, runs it through `transport.call`, checks the envelope's schema hash, and decodes and validates the result; returns it with the assumptions it rests on.".to_string(),
                 ],
             );
             let _ = writeln!(
                 body,
-                "export function {values}(transport: EngineTransport, input: {input}): Promise<{output}> {{\n  return callEntry(transport, {values}Entry, {input_schema}, {output_schema}, input);\n}}\n"
+                "export function {values}(transport: EngineTransport, input: {input}): Promise<Calculated<{output}>> {{\n  return callEntry(transport, {values}Entry, {input_schema}, {output_schema}, input);\n}}\n"
             );
             write_doc(
                 &mut body,
@@ -2683,7 +2683,7 @@ mod tests {
         let client = &files["client.ts"];
         assert_contains(
             client,
-            "export function personTax(transport: EngineTransport, input: types.Person): Promise<number> {\n  return callEntry(transport, personTaxEntry, schema.PersonSchema, IntSchema, input);",
+            "export function personTax(transport: EngineTransport, input: types.Person): Promise<Calculated<number>> {\n  return callEntry(transport, personTaxEntry, schema.PersonSchema, IntSchema, input);",
         );
         assert_contains(
             client,
@@ -2948,7 +2948,7 @@ mod tests {
         assert_contains(partial, "      valueOre: schema.OreSchema.optional(),");
         assert_contains(
             &files["client.ts"],
-            "export function holdingValue(transport: EngineTransport, input: types.Holding): Promise<types.Ore> {\n  return callEntry(transport, holdingValueEntry, schema.HoldingSchema, schema.OreSchema, input);",
+            "export function holdingValue(transport: EngineTransport, input: types.Holding): Promise<Calculated<types.Ore>> {\n  return callEntry(transport, holdingValueEntry, schema.HoldingSchema, schema.OreSchema, input);",
         );
         let error = generate_typescript_sdk(
             &contracts("# unit Answer \"replies\"\n# In(n: Answer)\n@ calculate\n> f(input: In) -> Int { 0 }\n"),

@@ -1,0 +1,16 @@
+-- The condition of `@ meta(...) when` is checked like a rule guard: it must
+-- be a Bool over the clause's parameters.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: rule guard must return Bool, found Int
+
+# AssumptionInfo(id: String)
+# LawRole(a) = Assumption(value: a)
+# impl MetaRole for LawRole {}
+
+= base = AssumptionInfo(id = "BASE")
+
+@ meta(Assumption(value = base)) when excess + 1
+| levy_base(excess: Int) -> excess
+
+> main() -> Int { levy_base(1) }

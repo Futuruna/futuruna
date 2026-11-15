@@ -1,0 +1,35 @@
+-- A partial case that completes carries its assumptions in `Complete`, next
+-- to its result: the closed account's closing day, and the entry section's;
+-- the open value of the clause that did not fire is absent. A case that needs
+-- a fact has no result and no assumptions.
+-- expect-command: call
+-- expect-input: assumptions_partial.json
+-- expect-args: --partial
+-- expect-stdout-file: assumptions_partial.stdout
+
+# AssumptionInfo(id: String, statement: String)
+# LawRole(a) = Assumption(value: a)
+# impl MetaRole for LawRole {}
+
+= whole_kroner = AssumptionInfo(id = "WHOLE-KRONER", statement = "Amounts are whole kroner.")
+= open_value = AssumptionInfo(id = "OPEN-VALUE", statement = "The value of an open account is the custodian's year-end value.")
+= closing_day = AssumptionInfo(id = "CLOSING-DAY", statement = "The value on the closing day is the custodian's.")
+# Account(value: Int, closed: Bool)
+# Result(room: Int)
+
+@ section closing {
+
+@ meta(Assumption(value = open_value))
+| room(closed: Bool, value: Int) -> 1000 - value
+@ meta(Assumption(value = closing_day))
+| exception closed room(closed: Bool, value: Int) -> 0 under closed
+
+}
+
+@ meta(Assumption(value = whole_kroner))
+@ section report {
+
+@ calculate
+> assumptions_partial(a: Account) -> Result { Result(room = room(a.closed, a.value)) }
+
+}

@@ -34,6 +34,9 @@ pub(crate) struct MetaAnnotation {
     pub(crate) line: usize,
     /// The value as written.
     pub(crate) value: String,
+    /// `when <condition>`: on a rule clause or member, an `Assumption` that
+    /// holds only when the condition does, as written.
+    pub(crate) condition: Option<String>,
 }
 
 /// One `@ quote(<document>)` and its `----` block.
@@ -302,6 +305,8 @@ pub(crate) fn quote_argument(argument: &str) -> Result<(String, Option<String>),
 
 const CITE_PLACEMENT: &str =
     "stands directly above a rule clause (`| ...`), an exception, a RuleScope member or a function (`> ...`)";
+const META_WHEN_PLACEMENT: &str =
+    "`@ meta(...) when <condition>` stands on a rule clause or RuleScope member: the assumption is reported when the clause fires and the condition holds";
 const META_PLACEMENT: &str =
     "stands directly above a section, a data type, a binding, a rule clause, a RuleScope member or a function";
 
@@ -381,10 +386,16 @@ fn read_lexed(source: &str, lexed: Vec<LexedAnnotation>) -> Annotations {
             let mut metas = Vec::new();
             for annotation in &annotations[..annotations.len() - 1] {
                 match annotation.kind {
-                    "meta" => metas.push(MetaAnnotation {
-                        line: annotation.line,
-                        value: annotation.argument.clone(),
-                    }),
+                    "meta" => {
+                        if annotation.condition.is_some() {
+                            result.errors.push((annotation.line, META_WHEN_PLACEMENT.to_string()));
+                        }
+                        metas.push(MetaAnnotation {
+                            line: annotation.line,
+                            value: annotation.argument.clone(),
+                            condition: None,
+                        })
+                    }
                     "quote" => result.errors.push((
                         annotation.line,
                         "`@ quote(...)` stands directly above the `----` block it quotes, inside a section".to_string(),
@@ -551,10 +562,22 @@ fn read_lexed(source: &str, lexed: Vec<LexedAnnotation>) -> Annotations {
                     }
                 }
                 _ => {
-                    if item.is_some() {
+                    if let Some(item) = &item {
+                        let condition = annotation.condition.clone();
+                        if condition.is_some() {
+                            if !matches!(item.kind, "rule" | "member") {
+                                result.errors.push((annotation.line, META_WHEN_PLACEMENT.to_string()));
+                            } else if !annotation.argument.trim_start().starts_with("Assumption(") {
+                                result.errors.push((
+                                    annotation.line,
+                                    "`@ meta(...) when` qualifies an assumption only: write `@ meta(Assumption(value = ...)) when <condition>`".to_string(),
+                                ));
+                            }
+                        }
                         metas.push(MetaAnnotation {
                             line: annotation.line,
                             value: annotation.argument.clone(),
+                            condition,
                         });
                     } else {
                         result.errors.push((
@@ -1362,6 +1385,31 @@ pub(crate) fn line_diagnostics(source: &str, mut errors: Vec<(usize, String)>) -
             Diagnostic::error_at(Span::new(start, end.max(start + 1)), message)
         })
         .collect()
+}
+
+/// Parse the condition of `@ meta(...) when <condition>` written on `line`
+/// of `source`; its spans are its place in the source, so a type error
+/// points at it.
+pub(crate) fn parse_meta_condition(source: &str, line: usize, text: &str) -> Result<Expr, String> {
+    let mut offset = 0;
+    for (index, source_line) in source.split('\n').enumerate() {
+        if index + 1 == line {
+            offset += source_line
+                .rfind(text)
+                .map_or(0, |byte| source_line[..byte].chars().count());
+            break;
+        }
+        offset += source_line.chars().count() + 1;
+    }
+    let mut placed: String = source
+        .chars()
+        .take(offset)
+        .map(|c| if c == '\n' { '\n' } else { ' ' })
+        .collect();
+    placed.push_str(text);
+    Parser::new(Lexer::new(&placed).tokenize(), &placed)
+        .parse_expr()
+        .or_else(|_| Parser::new(Lexer::new(text).tokenize(), text).parse_expr())
 }
 
 #[cfg(test)]

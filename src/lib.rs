@@ -829,6 +829,8 @@ pub struct LexedAnnotation {
     pub argument: String,
     /// The declaration a `meta_for` describes: the name after `for`.
     pub target: Option<String>,
+    /// `@ meta(<value>) when <condition>`: the condition as written.
+    pub condition: Option<String>,
 }
 
 pub struct Lexer {
@@ -1003,6 +1005,7 @@ impl Lexer {
                 end_line: line,
                 argument: name,
                 target: None,
+                condition: None,
             });
             return Some(Ok(()));
         }
@@ -1088,6 +1091,31 @@ impl Lexer {
                 target = Some(name);
             }
         }
+        // `@ meta(<value>) when <condition>`: the rest of the line is the
+        // condition under which the value applies.
+        let mut condition = None;
+        if kind == "meta" && target.is_none() {
+            let rest: String = self.chars[self.pos..]
+                .iter()
+                .take_while(|c| **c != '\n')
+                .collect();
+            let after_when = rest
+                .trim_start()
+                .strip_prefix("when")
+                .filter(|after| after.starts_with(char::is_whitespace));
+            if let Some(after) = after_when {
+                let text = after.trim().to_string();
+                for _ in 0..rest.chars().count() {
+                    self.advance();
+                }
+                if text.is_empty() {
+                    return Some(Err(error(
+                        "`@ meta(...) when` takes a condition: `@ meta(Assumption(value = ...)) when <Bool expression>`".to_string(),
+                    )));
+                }
+                condition = Some(text);
+            }
+        }
         if !self.rest_of_line_is_blank() {
             self.skip_rest_of_line();
             return Some(Err(error(format!(
@@ -1102,6 +1130,7 @@ impl Lexer {
             end_line,
             argument: argument.trim().to_string(),
             target,
+            condition,
         });
         Some(Ok(()))
     }
@@ -1255,6 +1284,7 @@ impl Lexer {
                     end_line: line,
                     argument: String::new(),
                     target: None,
+                    condition: None,
                 });
                 continue;
             }
@@ -17209,6 +17239,10 @@ pub struct Interpreter {
     /// is cited in a law section: the value it returns is then that rule's,
     /// and a later read of it waits on the rule, not on the fact.
     pub(crate) partial_cited: Option<partial::CitedFrames>,
+    /// Set while a calculation case runs: the rule clauses that fired.
+    fired: Option<RefCell<explain::FiredClauses>>,
+    /// Set by a calculation: finds the assumptions written on a rule clause.
+    pub(crate) assumptions_of: Option<explain::AssumptionsOf>,
     /// Set while an explained case runs; see `explain`.
     explain: Option<RefCell<explain::ExplainState>>,
     /// The file each rule declared outside the root file came from, by the
@@ -17426,6 +17460,8 @@ impl Interpreter {
             partial_mode: None,
             partial: RefCell::new(partial::PartialState::default()),
             partial_cited: None,
+            fired: None,
+            assumptions_of: None,
             explain: None,
             rule_source_files: HashMap::new(),
             runtime_source_file: None,
@@ -28346,8 +28382,27 @@ impl Interpreter {
             break 'dispatch matched_false_clause.then_some(Value::Bool(false));
         };
         let result = match (result, produced_by) {
-            (Some(value), Some(index)) if self.explain.is_some() => {
-                Some(self.explain_rule_result(&dispatch.matching[index].0, family, value))
+            (Some(value), Some(index)) if self.fired.is_some() => {
+                let rule = dispatch.matching[index].0.clone();
+                let value = self.rule_clause_fired(&rule, family, value);
+                if let Some(clause) = self.conditional_clause(&rule) {
+                    let clause_env = self
+                        .runtime_rule_candidate_base_env(
+                            namespace,
+                            family,
+                            &dispatch.matching[index].1,
+                            env,
+                            dispatch,
+                        )
+                        .and_then(|base_env| {
+                            rule.head()
+                                .and_then(|head| self.match_rule_head(head, &arg_vals, &base_env))
+                        });
+                    if let Some(clause_env) = clause_env {
+                        self.record_assumption_conditions(clause, &clause_env);
+                    }
+                }
+                Some(value)
             }
             (result, _) => result,
         };
@@ -32178,6 +32233,9 @@ pub struct TypeChecker {
     import_diagnostic_anchor: Option<Span>,
     /// original source text (for error positions)
     pub source_text: String,
+    /// The `@ meta(...) when` conditions of `source_text`, by the line and
+    /// name of the clause they stand on; read once per source.
+    meta_conditions: Option<(String, Rc<HashMap<(usize, String), Vec<(usize, String)>>>)>,
     /// error context stack — breadcrumb trail for where we are in the program
     pub error_context: Vec<String>,
     /// Optional editor-only observation of one authored member expression.
@@ -48887,6 +48945,7 @@ impl TypeChecker {
             rule_contract_import_modules: BTreeMap::new(),
             import_diagnostic_anchor: None,
             source_text: String::new(),
+            meta_conditions: None,
             error_context: Vec::new(),
             editor_field_query: None,
         };
@@ -61762,6 +61821,7 @@ impl TypeChecker {
                 if let Some(c) = condition {
                     self.check_rule_guard(c, head);
                 }
+                self.check_meta_conditions(head);
                 self.pop_scope();
             }
             Stmt::Rule(Rule::Exception {
@@ -61783,6 +61843,7 @@ impl TypeChecker {
                 if let Some(c) = condition {
                     self.check_rule_guard(c, head);
                 }
+                self.check_meta_conditions(head);
                 self.pop_scope();
             }
             Stmt::Rule(Rule::Clause { head, body }) => {
@@ -61799,6 +61860,7 @@ impl TypeChecker {
                 if let Some(b) = body {
                     self.check_rule_body_expression(b, false);
                 }
+                self.check_meta_conditions(head);
                 self.pop_scope();
             }
             Stmt::Invariant {
@@ -62821,6 +62883,55 @@ impl TypeChecker {
             .collect::<BTreeMap<_, _>>();
         locals.extend(self.rule_head_local_types(head));
         locals
+    }
+
+    /// The conditions of `@ meta(Assumption(...)) when <condition>` on the
+    /// clause at `head`, checked like its guard: over its parameters, Bool.
+    fn check_meta_conditions(&mut self, head: &Expr) {
+        if !self.source_text.contains(") when ") {
+            return;
+        }
+        let ExprKind::App(function, _) = &head.kind else {
+            return;
+        };
+        let ExprKind::Var(name) = &function.kind else {
+            return;
+        };
+        let stale = self
+            .meta_conditions
+            .as_ref()
+            .is_none_or(|(source, _)| *source != self.source_text);
+        if stale {
+            let mut by_item: HashMap<(usize, String), Vec<(usize, String)>> = HashMap::new();
+            for item_meta in annotations::read(&self.source_text).item_metas {
+                for meta in item_meta.metas {
+                    if let Some(text) = meta.condition {
+                        by_item
+                            .entry((item_meta.item.line, item_meta.item.name.clone()))
+                            .or_default()
+                            .push((meta.line, text));
+                    }
+                }
+            }
+            self.meta_conditions = Some((self.source_text.clone(), Rc::new(by_item)));
+        }
+        let by_item = Rc::clone(&self.meta_conditions.as_ref().expect("read above").1);
+        if by_item.is_empty() {
+            return;
+        }
+        let (line, _) = char_offset_to_line_col(&self.source_text, head.span.start);
+        let Some(conditions) = by_item.get(&(line, name.clone())) else {
+            return;
+        };
+        for (meta_line, text) in conditions.iter().cloned() {
+            match annotations::parse_meta_condition(&self.source_text, meta_line, &text) {
+                Ok(condition) => self.check_rule_guard(&condition, head),
+                Err(message) => self.error_at_expr(
+                    head,
+                    format!("the condition of `@ meta(...) when {text}` does not parse: {message}"),
+                ),
+            }
+        }
     }
 
     fn check_rule_guard(&mut self, guard: &Expr, head: &Expr) {

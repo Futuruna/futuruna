@@ -1,0 +1,22 @@
+-- `@ meta(Assumption(...)) when <condition>` on a clause: the assumption is
+-- listed when the clause fires and the condition, over the clause's
+-- parameters, holds. One clause says what it computes once; the condition
+-- says when the result rests on the assumption. Here the levy base rests on
+-- how excesses add up only when there was an excess.
+-- expect-command: call
+-- expect-input: assumptions_when.json
+-- expect-stdout-file: assumptions_when.stdout
+
+# AssumptionInfo(id: String, statement: String)
+# LawRole(a) = Assumption(value: a)
+# impl MetaRole for LawRole {}
+
+= levy_base_rule = AssumptionInfo(id = "LEVY-BASE", statement = "The levy base is the largest excess of the year.")
+# Account(excess: Int)
+# Result(levy_base: Int)
+
+@ meta(Assumption(value = levy_base_rule)) when excess > 0
+| levy_base(excess: Int) -> excess
+
+@ calculate
+> assumptions_when(a: Account) -> Result { Result(levy_base = levy_base(a.excess)) }

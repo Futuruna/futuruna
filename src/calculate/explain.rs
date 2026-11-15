@@ -8,7 +8,7 @@
 
 use super::*;
 use crate::citations::{CitedParagraph, FileCitations};
-use crate::explain::{traced, ExplainState, Leaf, Node, NodeId};
+use crate::explain::{traced, ClauseRecord, ExplainState, FiredClauses, Leaf, Node, NodeId};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -371,15 +371,7 @@ struct FileIndex {
     citations: FileCitations,
     /// `(label, first code line, last code line)` of every section.
     spans: Vec<(String, usize, usize)>,
-    /// `(name, first line, last line)` of every rule, member or function
-    /// with `@ meta`.
-    item_spans: Vec<(String, usize, usize)>,
     sections: BTreeMap<String, Rc<SectionInfo>>,
-    /// The metadata attachments of every section.
-    anchor_attachments: BTreeMap<String, Vec<JsonValue>>,
-    /// The metadata attachments of every rule, member, function or other
-    /// item with `@ meta`.
-    item_attachments: BTreeMap<String, Vec<JsonValue>>,
     /// The first clause line of every rule family, by `(scope, name)`.
     families: HashMap<(Option<String>, String), usize>,
     /// The line where each top-level function's body starts.
@@ -399,8 +391,7 @@ impl ExplainRenderer {
     pub(super) fn new(options: ExplainOptions) -> Self {
         Self {
             options,
-            files: HashMap::new(),
-            acts: HashMap::new(),
+            ..Self::default()
         }
     }
 
@@ -435,21 +426,15 @@ impl ExplainRenderer {
         let annotations = crate::annotations::read(&source);
         let documents = crate::annotations::Documents::for_file(&source, module.statements(), path);
         let mut spans = Vec::new();
-        let mut item_spans = Vec::new();
         for span in &meta.spans {
-            let entry = (span.label.clone(), span.code_start_line, span.code_end_line);
             if annotations
                 .section(&span.label)
                 .is_some_and(|section| section.line == span.begin_marker_line)
             {
-                spans.push(entry);
-            } else {
-                item_spans.push(entry);
+                spans.push((span.label.clone(), span.code_start_line, span.code_end_line));
             }
         }
         let mut sections = BTreeMap::new();
-        let mut item_attachments: BTreeMap<String, Vec<JsonValue>> = BTreeMap::new();
-        let mut anchor_attachments: BTreeMap<String, Vec<JsonValue>> = BTreeMap::new();
         for anchor in &meta.anchors {
             let mut attachments = Vec::new();
             for reference in &anchor.references {
@@ -489,14 +474,8 @@ impl ExplainRenderer {
             });
             attachments.dedup();
             if anchor.kind != "section" {
-                item_attachments
-                    .entry(anchor.label.clone())
-                    .or_insert(attachments);
                 continue;
             }
-            anchor_attachments
-                .entry(anchor.label.clone())
-                .or_insert_with(|| attachments.clone());
             if sections.contains_key(&anchor.label) {
                 continue;
             }
@@ -560,22 +539,13 @@ impl ExplainRenderer {
             citations: crate::citations::file_citations_from(&annotations, &documents),
             source,
             spans,
-            item_spans,
             sections,
-            anchor_attachments,
-            item_attachments,
             families,
             functions,
         })
     }
 
-    fn clause_info(
-        &mut self,
-        interpreter: &Interpreter,
-        state: &ExplainState,
-        clause: u32,
-    ) -> ClauseInfo {
-        let record = state.clause(clause);
+    fn clause_info(&mut self, interpreter: &Interpreter, record: &ClauseRecord) -> ClauseInfo {
         let (kind, exception) = clause_kind(record.rule.as_ref());
         let mut info = ClauseInfo {
             rule: record.name.clone(),
@@ -651,10 +621,8 @@ impl ExplainRenderer {
     fn section(
         &mut self,
         interpreter: &Interpreter,
-        state: &ExplainState,
-        clause: u32,
+        record: &ClauseRecord,
     ) -> Option<(String, Rc<SectionInfo>)> {
-        let record = state.clause(clause);
         let file = interpreter
             .rule_source_file(&record.rule)
             .map(|file| file.to_string())
@@ -874,82 +842,13 @@ impl ExplainRenderer {
             .map(|file| file.to_string_lossy().into_owned())
     }
 
-    /// The section around the calculation entry and its anchor's metadata
-    /// attachments.
-    fn entry_attachments(
-        &mut self,
-        interpreter: &Interpreter,
-        entry: &str,
-    ) -> Option<(String, Vec<JsonValue>)> {
-        let located = [false, true].into_iter().find_map(|is_rule| {
-            self.frame_location(
-                interpreter,
-                &partial::CallFrame {
-                    name: Rc::from(entry),
-                    is_rule,
-                    clause: None,
-                },
-            )
-        });
-        let (index, line, _) = located?;
-        let innermost = |spans: &[(String, usize, usize)]| {
-            spans
-                .iter()
-                .filter(|(_, start, end)| *start <= line && line <= *end)
-                .max_by_key(|(_, start, _)| *start)
-                .cloned()
-        };
-        match (innermost(&index.item_spans), innermost(&index.spans)) {
-            (Some((label, item_start, _)), section)
-                if section
-                    .as_ref()
-                    .is_none_or(|(_, start, _)| *start <= item_start) =>
-            {
-                let attachments = index.item_attachments.get(&label)?.clone();
-                Some((label, attachments))
-            }
-            (_, Some((label, _, _))) => {
-                let attachments = index.anchor_attachments.get(&label)?.clone();
-                Some((label, attachments))
-            }
-            _ => None,
-        }
-    }
-
-    /// The `@ meta` attachments written on a clause or member, with the
-    /// section it stands in (else the rule's name).
-    fn clause_attachments(
-        &mut self,
-        interpreter: &Interpreter,
-        state: &ExplainState,
-        clause: u32,
-    ) -> Option<(String, Vec<JsonValue>)> {
-        let record = state.clause(clause);
-        let file = interpreter
-            .rule_source_file(&record.rule)
-            .map(|file| file.to_string())
-            .or_else(|| self.root_file_name())?;
-        let index = self.file(&file)?;
-        let (line, _) = char_offset_to_line_col(&index.source, record.rule.head()?.span.start);
-        let (name, _, _) = index
-            .item_spans
-            .iter()
-            .find(|(name, start, end)| *name == record.name && *start <= line && line <= *end)?;
-        let attachments = index.item_attachments.get(name)?.clone();
-        let label = index
-            .spans
-            .iter()
-            .filter(|(_, start, end)| *start <= line && line <= *end)
-            .max_by_key(|(_, start, _)| *start)
-            .map_or_else(|| name.clone(), |(label, _, _)| label.clone());
-        Some((label, attachments))
-    }
-
-    /// The explanation of one case's result.
+    /// The explanation of one case's result; `fired` holds the clauses its
+    /// rule nodes name.
     pub(super) fn explanation(
         &mut self,
         interpreter: &Interpreter,
         state: &ExplainState,
+        fired: &FiredClauses,
         result: &Value,
         contract: &CalculationContract,
     ) -> JsonValue {
@@ -966,6 +865,7 @@ impl ExplainRenderer {
             renderer: self,
             interpreter,
             state,
+            fired,
             clauses: HashMap::new(),
             sections: BTreeMap::new(),
             reached: Vec::new(),
@@ -1077,10 +977,6 @@ impl ExplainRenderer {
                 ),
             );
         }
-        let assumptions = case.assumptions(&contract.entry);
-        if !assumptions.is_empty() {
-            explanation.insert("assumptions".into(), JsonValue::Array(assumptions));
-        }
         let sections = std::mem::take(&mut case.sections);
         explanation.insert(
             "sections".into(),
@@ -1120,6 +1016,7 @@ struct CaseRenderer<'a> {
     renderer: &'a mut ExplainRenderer,
     interpreter: &'a Interpreter,
     state: &'a ExplainState,
+    fired: &'a FiredClauses,
     clauses: HashMap<u32, Rc<ClauseInfo>>,
     sections: BTreeMap<String, Rc<SectionInfo>>,
     /// Rule nodes referenced so far, for the full derivation.
@@ -1131,12 +1028,9 @@ impl CaseRenderer<'_> {
         if let Some(info) = self.clauses.get(&clause) {
             return info.clone();
         }
-        let info = Rc::new(
-            self.renderer
-                .clause_info(self.interpreter, self.state, clause),
-        );
-        if let Some((label, section)) = self.renderer.section(self.interpreter, self.state, clause)
-        {
+        let record = self.fired.clause(clause);
+        let info = Rc::new(self.renderer.clause_info(self.interpreter, record));
+        if let Some((label, section)) = self.renderer.section(self.interpreter, record) {
             self.sections.entry(label).or_insert(section);
         }
         self.clauses.insert(clause, info.clone());
@@ -1219,56 +1113,6 @@ impl CaseRenderer<'_> {
                     .collect(),
             )
         })
-    }
-
-    /// The `Assumption` attachments of the sections whose rule clauses
-    /// fired, in the order the clauses first fired, then those of the
-    /// entry's own section; each once.
-    fn assumptions(&mut self, entry: &str) -> Vec<JsonValue> {
-        let mut found: Vec<JsonValue> = Vec::new();
-        let add = |found: &mut Vec<JsonValue>, label: &str, attachments: &[JsonValue]| {
-            for attachment in attachments {
-                if attachment.get("role").and_then(JsonValue::as_str) != Some("Assumption") {
-                    continue;
-                }
-                let mut item = JsonMap::new();
-                item.insert("section".into(), JsonValue::from(label));
-                if let Some(binding) = attachment.get("binding") {
-                    item.insert("binding".into(), binding.clone());
-                }
-                item.insert(
-                    "value".into(),
-                    attachment.get("value").cloned().unwrap_or(JsonValue::Null),
-                );
-                let item = JsonValue::Object(item);
-                let known = found.iter().any(|seen| {
-                    seen.get("binding") == item.get("binding")
-                        && seen.get("value") == item.get("value")
-                });
-                if !known {
-                    found.push(item);
-                }
-            }
-        };
-        for clause in 0..self.state.clause_count() {
-            if let Some((label, section)) =
-                self.renderer
-                    .section(self.interpreter, self.state, clause as u32)
-            {
-                add(&mut found, &label, &section.attachments);
-            }
-            if let Some((label, attachments)) =
-                self.renderer
-                    .clause_attachments(self.interpreter, self.state, clause as u32)
-            {
-                add(&mut found, &label, &attachments);
-            }
-        }
-        if let Some((label, attachments)) = self.renderer.entry_attachments(self.interpreter, entry)
-        {
-            add(&mut found, &label, &attachments);
-        }
-        found
     }
 
     /// A contributor: a rule node or an input node, briefly.
@@ -1639,16 +1483,6 @@ pub fn explanation_json_schema(contract: &CalculationContract) -> JsonValue {
                             }
                         }
                     }
-                }
-            },
-            "assumptions": {
-                "type": "array",
-                "description": "The `Assumption` attachments of the sections whose rule clauses fired, and of the entry's own section, each once.",
-                "items": {
-                    "type": "object",
-                    "required": ["section", "value"],
-                    "additionalProperties": false,
-                    "properties": { "section": string, "binding": string, "value": {} }
                 }
             },
             "derivation": {

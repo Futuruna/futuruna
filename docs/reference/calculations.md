@@ -885,13 +885,9 @@ literal a `match` arm chose is computed from the matched value, so a `Bool`
 from `is_some(x)` is computed from what `x` holds (a `None` has nothing to
 show).
 
-`assumptions` lists the `Assumption` attachments of the sections whose rule
-clauses fired in the case, in the order they first fired, then those of the
-entry's own section, each once: a section of rules that never fired adds
-none. A function (`> f(...)`) firing does not count, so an assumption a model
-wants only under a condition sits in a section of rules that fire only then.
-An `Assumption` written with `@ meta` on a rule clause or RuleScope member is
-listed only when that clause fires.
+Assumptions are not part of the explanation: every case of `runa call`,
+explained or not, carries them beside its result (see
+[Assumptions](#assumptions)), and the explanation's reader finds them there.
 
 A rule clause names the paragraphs it implements with `@ cite` on the line
 above it, inside the section:
@@ -919,6 +915,64 @@ Explaining never changes a result: the `result` of every case is the one
 refused with `--partial=check`; with `--partial` a `Complete` result is
 explained and a `Needs` result is not. Explanations are an interpreter
 feature. The design is [Explanations](../rfcs/explanations.md).
+
+## Assumptions
+
+Every result of `runa call` carries the assumptions it rests on, beside it:
+`assumptions` next to `result` in each case, and in a `--partial` call inside
+`Complete`. They are the `Assumption` attachments of the rule clauses that
+fired in the case (an `Assumption` written with `@ meta` on a clause or
+RuleScope member), of the sections those clauses sit in, and of the entry and
+its section; each once (by binding and value), in the order the model writes
+them (by file, then line), each with its `section` (for one on a clause
+outside any section, the clause's rule), its `binding` when it is written as
+one, and its `value` as plain JSON. A case with none leaves `assumptions` out;
+a `Needs` result has none.
+
+```json
+{ "case_id": "closed",
+  "result": { "room": 0 },
+  "assumptions": [
+    { "section": "closing", "binding": "closing_day",
+      "value": { "id": "CLOSING-DAY", "statement": "The value on the closing day is the custodian's." } } ] }
+```
+
+So a model says each assumption once, on the rule it concerns, and a reader
+knows each listed assumption matters to this result: an `Assumption` on an
+exception is listed only when that exception applied; one on a section only
+when a rule clause of the section fired. A function (`> f(...)`) running does
+not count, since a function runs whenever it is called; write the assumption
+on a rule clause that fires exactly when it applies. A model need not list
+assumptions in its result type.
+
+When an assumption matters only for some values of a clause's parameters,
+write the condition on it instead of a second clause:
+
+```runa
+@ meta(Assumption(value = assumption_levy_base)) when excess_deposit_ore > 0
+| levy_base_ore(excess_deposit_ore: Ore) -> excess_deposit_ore
+```
+
+The assumption is listed when the clause fires and the condition holds on
+one of its firings. The condition is checked like the clause's guard (a
+`Bool` over its parameters, and in a RuleScope member over the scope's
+fields and members) and evaluated in the clause's environment when it
+fires; it changes nothing the case computes or reads, and in a partial case
+a condition that is not known yet holds. `when` qualifies only an
+`Assumption` value on a rule clause or RuleScope member: other metadata
+describes a declaration whatever its values, and a section or function does
+not fire, so `when` there is an error.
+
+Collecting them traces no value: every case records the rule clauses that
+fire, one table lookup per clause that returns a value. The assumptions are
+read once, when a worker has initialized the program: their values are the
+initialized program's bindings, and no file is scanned for metadata during
+a case.
+`runa schema --format
+result` prints the JSON Schema of a case, `--format partial-result` that of a
+partial result; a result workbook (`--output x.xlsx`) lists them on its
+`assumptions` sheet. The TypeScript SDK returns `{ result, assumptions }` from
+every call (`Calculated<R>`), and `Complete` carries `assumptions`.
 
 ## TypeScript SDK
 
@@ -1018,15 +1072,18 @@ For an entry `tax_report` with input `TaxCase`:
 
 - `taxReport(transport, input: TaxCase)` validates the input, encodes it,
   calls `transport.call`, checks the envelope (schema hash, entry and output
-  schema, where the document has an envelope), and decodes and validates the
-  result;
+  schema, where the document has an envelope), decodes and validates the
+  result, and returns it with its assumptions: `{ result, assumptions }`
+  (`Calculated<TaxReportOutcome>`; `assumptions` is `[]` when the engine
+  lists none, each a `CalculationAssumption` as the engine writes it);
 - `taxReportQuery(transport, input: PartialTaxCase)` does the same through
-  `transport.callPartial` and returns `Complete` with `result` and
-  `unusedPaths`, or `Needs` with `needs`;
+  `transport.callPartial` and returns `Complete` with `result`,
+  `assumptions` and `unusedPaths`, or `Needs` with `needs`;
 - `taxReportExplained(transport, input, depth?)` and
   `taxReportQueryExplained(transport, input, depth?)` do the same through
   `callExplained` and `callPartialExplained` (`--explain`, or
-  `--explain=full` for depth `"full"`) and return `{ result, explanation }`,
+  `--explain=full` for depth `"full"`) and return `{ result, assumptions,
+  explanation }` (a query: the `Complete` result and the explanation),
   typed by `Explanation`. They take an `ExplainingTransport`: passing a
   transport that cannot explain is a type error, not a runtime failure. The
   explanation speaks TypeScript too: its values
@@ -1036,7 +1093,7 @@ For an entry `tax_report` with input `TaxCase`:
   value, its ISO date, unless its parts came from different places, when each
   part is explained at `<date>.year`, `.month` and `.day`. The inputs and
   rules a clause's guards read (`because`) are at TypeScript paths as `from`
-  is, and `assumptions` come as the engine reports them.
+  is.
 
 A failure throws `CalculationError` with `kind` `input`, `output`, `envelope`
 or `diagnostics`, and the validation issues (at TypeScript paths) or the

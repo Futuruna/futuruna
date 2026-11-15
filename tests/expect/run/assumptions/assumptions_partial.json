@@ -1,0 +1,19 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "432c3e1d980fb9cec1c50bfe91223a3069c4a953f9443daf639bd70d3394432a",
+    "entry": "assumptions_partial"
+  },
+  "cases": [
+    {
+      "case_id": "closed-value-unknown",
+      "input_status": "ready",
+      "input": { "closed": true }
+    },
+    {
+      "case_id": "open-value-unknown",
+      "input_status": "ready",
+      "input": { "closed": false }
+    }
+  ]
+}

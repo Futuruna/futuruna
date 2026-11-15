@@ -1,0 +1,24 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.input.v2",
+    "schema_hash": "7ebcb4439e705bd4fcbdb5203e6a72b5d0447b74ea7c2056e2cfcd1256883754",
+    "entry": "assumptions_fired"
+  },
+  "cases": [
+    {
+      "case_id": "open",
+      "input_status": "ready",
+      "input": { "value": 400, "closed": false, "transferred": false }
+    },
+    {
+      "case_id": "closed",
+      "input_status": "ready",
+      "input": { "value": 400, "closed": true, "transferred": false }
+    },
+    {
+      "case_id": "closed-and-transferred",
+      "input_status": "ready",
+      "input": { "value": 400, "closed": true, "transferred": true }
+    }
+  ]
+}

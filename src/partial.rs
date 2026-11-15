@@ -1465,7 +1465,15 @@ impl Interpreter {
                     Candidate::NoMatch => {}
                     Candidate::FalseClause => matched_false_clause = true,
                     Candidate::Fires { value, paths } => {
-                        outcomes.push(self.explain_rule_result(&rule, family, value));
+                        outcomes.push(self.rule_clause_fired(&rule, family, value));
+                        if let Some(clause) = self.conditional_clause(&rule) {
+                            let clause_env = rule
+                                .head()
+                                .and_then(|head| self.match_rule_head(head, arguments, &base_env));
+                            if let Some(clause_env) = clause_env {
+                                self.record_assumption_conditions(clause, &clause_env);
+                            }
+                        }
                         if paths.is_empty() {
                             certain = true;
                             break 'tiers;

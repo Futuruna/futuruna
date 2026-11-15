@@ -1,0 +1,96 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.output.v1",
+    "schema_hash": "7ebcb4439e705bd4fcbdb5203e6a72b5d0447b74ea7c2056e2cfcd1256883754",
+    "entry": "assumptions_fired"
+  },
+  "results": [
+    {
+      "case_id": "open",
+      "result": {
+        "received": 0,
+        "room": 600,
+        "room_again": 600
+      },
+      "assumptions": [
+        {
+          "section": "closing",
+          "binding": "open_value",
+          "value": {
+            "id": "OPEN-VALUE",
+            "statement": "The value of an open account is the custodian's year-end value."
+          }
+        },
+        {
+          "section": "report",
+          "binding": "whole_kroner",
+          "value": {
+            "id": "WHOLE-KRONER",
+            "statement": "Amounts are whole kroner."
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "closed",
+      "result": {
+        "received": 0,
+        "room": 0,
+        "room_again": 0
+      },
+      "assumptions": [
+        {
+          "section": "closing",
+          "binding": "closing_day",
+          "value": {
+            "id": "CLOSING-DAY",
+            "statement": "The value on the closing day is the custodian's."
+          }
+        },
+        {
+          "section": "report",
+          "binding": "whole_kroner",
+          "value": {
+            "id": "WHOLE-KRONER",
+            "statement": "Amounts are whole kroner."
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "closed-and-transferred",
+      "result": {
+        "received": 400,
+        "room": 0,
+        "room_again": 0
+      },
+      "assumptions": [
+        {
+          "section": "closing",
+          "binding": "closing_day",
+          "value": {
+            "id": "CLOSING-DAY",
+            "statement": "The value on the closing day is the custodian's."
+          }
+        },
+        {
+          "section": "transfer",
+          "binding": "transfer_statement",
+          "value": {
+            "id": "TRANSFER",
+            "statement": "The giving institute's statement is complete."
+          }
+        },
+        {
+          "section": "report",
+          "binding": "whole_kroner",
+          "value": {
+            "id": "WHOLE-KRONER",
+            "statement": "Amounts are whole kroner."
+          }
+        }
+      ]
+    }
+  ],
+  "diagnostics": []
+}
