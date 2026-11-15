@@ -88,7 +88,7 @@ fn unsupported_effects_stop_all_cli_modes_before_prior_effects() {
 #[test]
 fn unchecked_unknown_effects_stop_execution_instead_of_returning_unit() {
     let source = "@ print(\"before\")\n@ log(\"audit trail\")\n@ print(\"after\")\n";
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Interpreter::unchecked();
     interpreter.suppress_output = true;
     let mut env = interpreter.default_env();
     let error = interpreter

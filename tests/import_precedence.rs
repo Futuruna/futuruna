@@ -157,7 +157,7 @@ fn cloned_and_repeated_prelude_injection_keeps_origin_distinct_from_authored_cop
         (repeated, "6\n6"),
         (authored, "6\n5"),
     ] {
-        let mut interpreter = Interpreter::new();
+        let mut interpreter = Interpreter::unchecked();
         interpreter.source_dir = Some(fixture.directory.to_string_lossy().into_owned());
         let mut environment = interpreter.default_env();
         interpreter.run_program(&program, &mut environment);

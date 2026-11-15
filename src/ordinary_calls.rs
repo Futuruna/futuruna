@@ -559,6 +559,42 @@ impl TypeChecker {
         );
     }
 
+    /// `concat` joins two lists of one element type, or two strings: two
+    /// arguments of known types that do not join as branches would are an
+    /// error. A list of numbers written in the source joins a list of a unit.
+    pub(super) fn check_concat_arguments(&mut self, arguments: &[Expr]) {
+        let [left, right] = arguments else {
+            return;
+        };
+        let locals = self.ordinary_locals();
+        let scope = self.active_rule_scope_inference.clone();
+        let joinable = |argument: &Expr| {
+            self.infer_expr_type_name_with_locals_in_scope(argument, &locals, scope.as_deref())
+                .filter(|ty| Self::is_concrete_type_name(ty))
+                .filter(|ty| ty == "String" || Self::applied_type_argument(ty, "List", 0).is_some())
+        };
+        let (Some(left_ty), Some(right_ty)) = (joinable(left), joinable(right)) else {
+            return;
+        };
+        if self
+            .merge_branch_types(
+                &left_ty,
+                Self::is_unitless_literal_value(left),
+                &right_ty,
+                Self::is_unitless_literal_value(right),
+            )
+            .is_some()
+        {
+            return;
+        }
+        self.error_at_expr(
+            right,
+            format!(
+                "`concat` joins two lists of one element type, or two strings; the first argument is `{left_ty}` but the second is `{right_ty}`"
+            ),
+        );
+    }
+
     /// `map(xs, |x| ...)`, `filter`, `foldl(xs, start, |total, x| ...)` and the
     /// other collection builtins call their callback with the collection's
     /// elements. Returns the callback's argument index and the types its

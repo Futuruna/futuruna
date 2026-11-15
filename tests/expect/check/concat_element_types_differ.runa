@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `concat` joins two lists of one element type, or two strings; the first argument is `List(Int)` but the second is `List(String)`
+-- expect-stderr: `concat` joins two lists of one element type, or two strings; the first argument is `String` but the second is `List(Int)`
+
+= numbers_and_words = concat([0], ["a"])
+= word_and_numbers = concat("a", [1])

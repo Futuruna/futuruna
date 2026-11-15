@@ -1,0 +1,8 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: return type mismatch: function `first_or_zero` expects `String` but expression has `Int`
+-- expect-stderr: return type mismatch: function `prefixed` expects `Int` but expression has `String`
+
+-- An argument of unknown type takes the type of the other one.
+> first_or_zero(xs) -> String { head(concat([0], xs)) }
+> prefixed(s) -> Int { concat("a", s) }

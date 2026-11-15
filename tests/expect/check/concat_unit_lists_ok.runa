@@ -1,0 +1,16 @@
+-- expect-command: check
+-- expect-status: pass
+
+# unit Micro "millionths of a share"
+= amount: Micro = 5
+= amounts: List(Micro) = [1, 2]
+= a: Micro = head(concat([0], amounts))
+= b: Micro = last(concat(amounts, [0]))
+= c: Micro = nth(concat([0], amounts), 1)
+= d: List(Micro) = tail(concat([0], amounts))
+= e: Micro = first(concat([0], amounts))
+= f: Micro = head([0, amount])
+> padded(xs: List(Micro)) -> List(Micro) { if length(xs) > 1 { [0] } else { xs } }
+= g: List(Micro) = padded(amounts)
+= i: List(Int) = concat([0], [1])
+@ print(show(Int(a + b + c + e + f)) + " " + show(length(d) + length(g) + length(i)))

@@ -11,7 +11,7 @@ fn next_state(mut state: u64) -> u64 {
 
 #[test]
 fn random_collection_builtins_advance_one_shared_sequence() {
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Interpreter::unchecked();
     let environment = Env::new();
 
     let first_state = next_state(INITIAL_STATE);

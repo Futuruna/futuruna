@@ -66,7 +66,7 @@ fn unchecked_hosts_receive_an_error_for_unknown_annotations() {
                 .any(|error| error.contains(&format!("unknown annotation `@ {name}`"))),
             "{name}: {diagnostics:?}"
         );
-        let mut interpreter = futuruna::Interpreter::new();
+        let mut interpreter = futuruna::Interpreter::unchecked();
         interpreter.suppress_output = true;
         let mut env = interpreter.default_env();
         let error = interpreter

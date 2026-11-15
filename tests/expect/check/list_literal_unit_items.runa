@@ -1,0 +1,15 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: list_literal_unit_items.runa:13:
+-- expect-stderr: list_literal_unit_items.runa:14:
+-- expect-stderr: list_literal_unit_items.runa:15:
+-- expect-stderr: binding expects `String` but expression has `Micro`
+
+-- A number written in the source takes the unit of the list item or branch
+-- beside it.
+# unit Micro "millionths of a share"
+= amount: Micro = 5
+= amounts: List(Micro) = [1, 2]
+= a: String = head([0, amount])
+= b: String = head([amount, 0])
+= c: String = head(if length(amounts) > 1 { [0] } else { amounts })

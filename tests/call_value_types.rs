@@ -133,7 +133,7 @@ fn unchecked_calls_to_non_functions_stop_at_the_call() {
     let statements = Parser::new(Lexer::new(source).tokenize(), source)
         .parse_program()
         .unwrap();
-    let mut runtime = Interpreter::new();
+    let mut runtime = Interpreter::unchecked();
     runtime.suppress_output = true;
     let mut env = runtime.default_env();
     let error = runtime

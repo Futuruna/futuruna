@@ -60,7 +60,7 @@ fn unchecked_missing_fields_stop_execution() {
         let statements = Parser::new(Lexer::new(&source).tokenize(), &source)
             .parse_program()
             .unwrap();
-        let mut interpreter = Interpreter::new();
+        let mut interpreter = Interpreter::unchecked();
         interpreter.suppress_output = true;
         let mut env = interpreter.default_env();
         let error = interpreter

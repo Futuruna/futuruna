@@ -17254,6 +17254,59 @@ pub struct Interpreter {
     /// see `seal_calculation_initialization`.
     initialized_rng_state: u64,
     initialized_live_scope_subscriptions: BTreeMap<String, Vec<(LiveStream, u64)>>,
+    /// Whose constructor names and imports this interpreter runs with.
+    constructor_names: ProgramConstructorNames,
+    /// Set while a public entry point has made `constructor_names` current,
+    /// so the entry points it calls do not make them current again.
+    constructor_names_entered: Rc<Cell<bool>>,
+}
+
+/// The constructor names and imports an interpreter runs its program with.
+///
+/// A checked program's shared constructors carry internal names, and its
+/// imports are read as elaboration rewrote them; both belong to that program
+/// (see `constructor_scope`). An interpreter for a program holds them itself,
+/// so checking or running another program on the same thread cannot change
+/// what it reads.
+enum ProgramConstructorNames {
+    /// The names current on this thread: the crate's own runs, which made
+    /// their program's names current themselves (a check in progress, or a
+    /// host inside [`with_constructor_elaboration`]).
+    Current,
+    /// Its program's own (`None`: a program that renames nothing). Every
+    /// public entry point makes them current while it runs.
+    Program(Option<Arc<ConstructorElaboration>>),
+}
+
+/// One outermost entry into an interpreter that holds its program's names.
+struct ProgramConstructorNamesEntry {
+    elaboration: Option<Arc<ConstructorElaboration>>,
+    entered: Rc<Cell<bool>>,
+}
+
+impl ProgramConstructorNamesEntry {
+    fn run<R>(self, run: impl FnOnce() -> R) -> R {
+        struct Leave(Rc<Cell<bool>>);
+        impl Drop for Leave {
+            fn drop(&mut self) {
+                self.0.set(false);
+            }
+        }
+        self.entered.set(true);
+        let _leave = Leave(self.entered);
+        with_constructor_elaboration(self.elaboration.as_ref(), run)
+    }
+}
+
+/// Run `$call` with the interpreter's program names current; see
+/// [`ProgramConstructorNames`].
+macro_rules! with_program_constructor_names {
+    ($interpreter:ident, $call:expr) => {
+        match $interpreter.enter_program_constructor_names() {
+            Some(entry) => entry.run(|| $call),
+            None => $call,
+        }
+    };
 }
 
 /// Unwinds from a handler clause that did not `resume` to its `| handle`.
@@ -17269,8 +17322,73 @@ impl Interpreter {
             .resize(self.handler_stack.len(), None);
     }
 
-    pub fn new() -> Self {
+    /// An interpreter for a program no check elaborated (parsed statements,
+    /// the REPL, a single expression): its constructors keep the names they
+    /// are written with, whatever program this thread checked last.
+    pub fn unchecked() -> Self {
+        Self::with_constructor_names(ProgramConstructorNames::Program(None))
+    }
+
+    /// An interpreter for the checked program `artifacts` describe: run
+    /// `artifacts.program()` with it. It holds the program's constructor
+    /// elaboration and rule dispatch metadata, and makes the elaboration
+    /// current whenever it evaluates, so a program checked or run later on
+    /// the same thread cannot change the names it reads.
+    ///
+    /// There is no interpreter that reads whichever names the thread has
+    /// current; every public one says whose names it runs with:
+    ///
+    /// ```compile_fail
+    /// let _ = futuruna::Interpreter::new();
+    /// ```
+    pub fn for_checked(artifacts: &TypeCheckArtifacts) -> Self {
+        let mut interpreter =
+            Self::for_constructor_elaboration(artifacts.constructor_elaboration.clone());
+        interpreter.install_rule_dispatch_metadata(artifacts);
+        interpreter
+    }
+
+    /// An interpreter for a checked program whose host kept only its
+    /// elaboration ([`TypeCheckArtifacts::constructor_elaboration`]; `None`
+    /// for a program that renames nothing), like [`Self::for_checked`].
+    pub fn for_constructor_elaboration(elaboration: Option<Arc<ConstructorElaboration>>) -> Self {
+        Self::with_constructor_names(ProgramConstructorNames::Program(elaboration))
+    }
+
+    /// `value` as its program writes it: a shared constructor under its
+    /// declared name. Formatting a [`Value`] directly reads the names current
+    /// on this thread, which another program may have made current.
+    pub fn display_value(&self, value: &Value) -> String {
+        with_program_constructor_names!(self, value.to_string())
+    }
+
+    /// An interpreter for the crate's own runs, which read the names current
+    /// on this thread: a check in progress, or a host running its program
+    /// inside [`with_constructor_elaboration`].
+    pub(crate) fn new() -> Self {
+        Self::with_constructor_names(ProgramConstructorNames::Current)
+    }
+
+    /// `None` inside an entry point already running, or for an interpreter
+    /// that reads the names current on this thread.
+    #[inline]
+    fn enter_program_constructor_names(&self) -> Option<ProgramConstructorNamesEntry> {
+        if self.constructor_names_entered.get() {
+            return None;
+        }
+        let ProgramConstructorNames::Program(elaboration) = &self.constructor_names else {
+            return None;
+        };
+        Some(ProgramConstructorNamesEntry {
+            elaboration: elaboration.clone(),
+            entered: self.constructor_names_entered.clone(),
+        })
+    }
+
+    fn with_constructor_names(constructor_names: ProgramConstructorNames) -> Self {
         Interpreter {
+            constructor_names,
+            constructor_names_entered: Rc::new(Cell::new(false)),
             runtime_root: RuntimeNamespace::root(),
             runtime_intrinsics: RuntimeNamespace::root(),
             runtime_qualified_modules: BTreeMap::new(),
@@ -18468,6 +18586,19 @@ impl Interpreter {
         step_limit: usize,
         collection_limit: usize,
     ) -> Option<Value> {
+        with_program_constructor_names!(
+            self,
+            self.try_eval_constant_entered(expression, env, step_limit, collection_limit)
+        )
+    }
+
+    fn try_eval_constant_entered(
+        &mut self,
+        expression: &Expr,
+        env: &Env,
+        step_limit: usize,
+        collection_limit: usize,
+    ) -> Option<Value> {
         self.with_constant_evaluation(step_limit, collection_limit, |interpreter| {
             interpreter.eval(expression, env)
         })
@@ -18478,6 +18609,14 @@ impl Interpreter {
     /// compile-time values; unavailable runtime bindings cannot become
     /// symbolic constants.
     pub fn eval_explicit_constant(
+        &mut self,
+        expression: &Expr,
+        env: &Env,
+    ) -> Result<Value, String> {
+        with_program_constructor_names!(self, self.eval_explicit_constant_entered(expression, env))
+    }
+
+    fn eval_explicit_constant_entered(
         &mut self,
         expression: &Expr,
         env: &Env,
@@ -18494,6 +18633,24 @@ impl Interpreter {
     /// execute initializers here; they publish their scope only on success.
     /// An effectful or incomplete module remains unavailable to the optimizer.
     pub fn try_prepare_constant_definition(
+        &mut self,
+        definition: &Defn,
+        env: &mut Env,
+        step_limit: usize,
+        collection_limit: usize,
+    ) -> Option<Value> {
+        with_program_constructor_names!(
+            self,
+            self.try_prepare_constant_definition_entered(
+                definition,
+                env,
+                step_limit,
+                collection_limit
+            )
+        )
+    }
+
+    fn try_prepare_constant_definition_entered(
         &mut self,
         definition: &Defn,
         env: &mut Env,
@@ -18883,6 +19040,17 @@ impl Interpreter {
         statements: &[Stmt],
         source_dir: Option<String>,
     ) {
+        with_program_constructor_names!(
+            self,
+            self.install_rule_dispatch_metadata_for_program_entered(statements, source_dir)
+        )
+    }
+
+    fn install_rule_dispatch_metadata_for_program_entered(
+        &mut self,
+        statements: &[Stmt],
+        source_dir: Option<String>,
+    ) {
         let (return_types, return_issues, boolean_miss_safe_keys) =
             TypeChecker::rule_dispatch_metadata_for_runtime(statements, source_dir);
         self.install_rule_dispatch_return_metadata(
@@ -18954,6 +19122,10 @@ impl Interpreter {
     }
 
     pub fn register_rule(&mut self, name: String, rule: Rule) {
+        with_program_constructor_names!(self, self.register_rule_entered(name, rule))
+    }
+
+    fn register_rule_entered(&mut self, name: String, rule: Rule) {
         let namespace = self.runtime_root.clone();
         // Standalone callers promise that the rule has no user-authored free
         // values. Give that contract a real root/builtin snapshot rather than
@@ -18966,6 +19138,10 @@ impl Interpreter {
 
     #[doc(hidden)]
     pub fn register_rule_with_env(&mut self, name: String, rule: Rule, env: &mut Env) {
+        with_program_constructor_names!(self, self.register_rule_with_env_entered(name, rule, env))
+    }
+
+    fn register_rule_with_env_entered(&mut self, name: String, rule: Rule, env: &mut Env) {
         let namespace = self.namespace_for_env(env);
         let declaration_env = env.ensure_runtime_declaration_env();
         self.refresh_runtime_declaration_env(&declaration_env, env);
@@ -18977,6 +19153,10 @@ impl Interpreter {
     /// right-hand sides, never while evaluating one.
     #[doc(hidden)]
     pub fn refresh_declaration_environment(&mut self, env: &mut Env) {
+        with_program_constructor_names!(self, self.refresh_declaration_environment_entered(env))
+    }
+
+    fn refresh_declaration_environment_entered(&mut self, env: &mut Env) {
         let declaration_env = env.ensure_runtime_declaration_env();
         self.refresh_runtime_declaration_env(&declaration_env, env);
     }
@@ -19829,6 +20009,10 @@ impl Interpreter {
     }
 
     pub fn default_env(&self) -> Env {
+        with_program_constructor_names!(self, self.default_env_entered())
+    }
+
+    fn default_env_entered(&self) -> Env {
         let mut env = Env::new()
             .with_runtime_namespace(self.runtime_root.clone())
             .with_runtime_declaration_env(RuntimeDeclarationEnv::new());
@@ -20171,6 +20355,10 @@ impl Interpreter {
     }
 
     pub fn register_type(&mut self, decl: &TypeDecl) {
+        with_program_constructor_names!(self, self.register_type_entered(decl))
+    }
+
+    fn register_type_entered(&mut self, decl: &TypeDecl) {
         let namespace = self.runtime_root.clone();
         // As with standalone rule registration, this API has an explicit
         // no-user-free-values contract but still owns a live builtin basis.
@@ -20182,6 +20370,10 @@ impl Interpreter {
 
     #[doc(hidden)]
     pub fn register_type_with_env(&mut self, decl: &TypeDecl, env: &mut Env) {
+        with_program_constructor_names!(self, self.register_type_with_env_entered(decl, env))
+    }
+
+    fn register_type_with_env_entered(&mut self, decl: &TypeDecl, env: &mut Env) {
         let namespace = self.namespace_for_env(env);
         let declaration_env = env.ensure_runtime_declaration_env();
         self.refresh_runtime_declaration_env(&declaration_env, env);
@@ -21584,6 +21776,18 @@ impl Interpreter {
         stmts: &[Stmt],
         env: &mut Env,
     ) -> Value {
+        with_program_constructor_names!(
+            self,
+            self.initialize_calculation_program_entered(entry, stmts, env)
+        )
+    }
+
+    fn initialize_calculation_program_entered(
+        &mut self,
+        entry: &str,
+        stmts: &[Stmt],
+        env: &mut Env,
+    ) -> Value {
         self.calculation_runtime_symbols.clear();
         self.calculation_runtime_symbols.insert(entry.to_string());
         self.calculation_runtime_bindings.clear();
@@ -21689,6 +21893,10 @@ impl Interpreter {
     }
 
     pub fn run_program(&mut self, stmts: &[Stmt], env: &mut Env) -> Value {
+        with_program_constructor_names!(self, self.run_program_entered(stmts, env))
+    }
+
+    fn run_program_entered(&mut self, stmts: &[Stmt], env: &mut Env) -> Value {
         self.run_program_internal(stmts, env, RuntimeInitializationMode::Ordinary, true)
     }
 
@@ -22436,6 +22644,10 @@ impl Interpreter {
     }
 
     pub fn eval_defn(&mut self, defn: &Defn, env: &mut Env) -> Value {
+        with_program_constructor_names!(self, self.eval_defn_entered(defn, env))
+    }
+
+    fn eval_defn_entered(&mut self, defn: &Defn, env: &mut Env) -> Value {
         self.invalidate_checked_exact_observer_memo();
         match defn {
             Defn::Fn {
@@ -22639,6 +22851,10 @@ impl Interpreter {
     }
 
     pub fn register_constructors(&self, decl: &TypeDecl, env: &mut Env) {
+        with_program_constructor_names!(self, self.register_constructors_entered(decl, env))
+    }
+
+    fn register_constructors_entered(&self, decl: &TypeDecl, env: &mut Env) {
         let namespace = self.namespace_for_env(env);
         match decl {
             TypeDecl::ADT { variants, .. } => {
@@ -23234,6 +23450,10 @@ impl Interpreter {
     }
 
     pub fn eval(&mut self, expr: &Expr, env: &Env) -> Value {
+        with_program_constructor_names!(self, self.eval_entered(expr, env))
+    }
+
+    fn eval_entered(&mut self, expr: &Expr, env: &Env) -> Value {
         if self.calculation_failed() {
             return Value::Unit;
         }
@@ -23746,6 +23966,10 @@ impl Interpreter {
     }
 
     pub fn apply(&mut self, func: Value, args: Vec<Value>, call_env: &Env) -> Value {
+        with_program_constructor_names!(self, self.apply_entered(func, args, call_env))
+    }
+
+    fn apply_entered(&mut self, func: Value, args: Vec<Value>, call_env: &Env) -> Value {
         if self.calculation_failed() {
             return Value::Unit;
         }
@@ -23878,6 +24102,10 @@ impl Interpreter {
     }
 
     pub fn eval_builtin(&mut self, name: &str, args: Vec<Value>, env: &Env) -> Value {
+        with_program_constructor_names!(self, self.eval_builtin_entered(name, args, env))
+    }
+
+    fn eval_builtin_entered(&mut self, name: &str, args: Vec<Value>, env: &Env) -> Value {
         let namespace = self.runtime_root.clone();
         self.eval_builtin_in_namespace(&namespace, name, args, env)
     }
@@ -26358,12 +26586,25 @@ impl Interpreter {
     /// Apply a function value (Closure or Builtin) to arguments.
     /// Convenience wrapper around `apply()` for use in stream builtins.
     pub fn apply_fn(&mut self, func: &Value, args: Vec<Value>, env: &Env) -> Value {
+        with_program_constructor_names!(self, self.apply_fn_entered(func, args, env))
+    }
+
+    fn apply_fn_entered(&mut self, func: &Value, args: Vec<Value>, env: &Env) -> Value {
         self.apply(func.clone(), args, env)
     }
 
     /// Check if a function call is an effect operation with an active handler.
     /// If so, evaluate the handler and return Some(result). Otherwise None.
     pub fn try_effect_dispatch(
+        &mut self,
+        fn_name: &str,
+        args: &[Expr],
+        env: &Env,
+    ) -> Option<Value> {
+        with_program_constructor_names!(self, self.try_effect_dispatch_entered(fn_name, args, env))
+    }
+
+    fn try_effect_dispatch_entered(
         &mut self,
         fn_name: &str,
         args: &[Expr],
@@ -26430,6 +26671,10 @@ impl Interpreter {
     }
 
     pub fn eval_effect(&mut self, name: &str, args: Vec<Value>) -> Value {
+        with_program_constructor_names!(self, self.eval_effect_entered(name, args))
+    }
+
+    fn eval_effect_entered(&mut self, name: &str, args: Vec<Value>) -> Value {
         if let Some(refused) = self.refuse_host_effect(name) {
             return refused;
         }
@@ -26515,6 +26760,28 @@ impl Interpreter {
         actor_env: &Env,
         msg: &Value,
     ) -> Value {
+        with_program_constructor_names!(
+            self,
+            self.dispatch_actor_message_entered(
+                actor_name,
+                current_state,
+                state_param,
+                handlers,
+                actor_env,
+                msg
+            )
+        )
+    }
+
+    fn dispatch_actor_message_entered(
+        &mut self,
+        actor_name: &str,
+        current_state: &Value,
+        state_param: &str,
+        handlers: &[Handler],
+        actor_env: &Env,
+        msg: &Value,
+    ) -> Value {
         for handler in handlers {
             let mut handler_env = actor_env.child();
             handler_env.set(state_param.to_string(), current_state.clone());
@@ -26543,6 +26810,10 @@ impl Interpreter {
     }
 
     pub fn eval_binop(&self, op: &str, l: Value, r: Value) -> Value {
+        with_program_constructor_names!(self, self.eval_binop_entered(op, l, r))
+    }
+
+    fn eval_binop_entered(&self, op: &str, l: Value, r: Value) -> Value {
         if matches!(l, Value::Traced(_)) || matches!(r, Value::Traced(_)) {
             return self.explain_binop(op, l, r);
         }
@@ -26731,6 +27002,19 @@ impl Interpreter {
         env: &Env,
         allow_bare_fielded_tag: bool,
     ) -> Value {
+        with_program_constructor_names!(
+            self,
+            self.eval_match_entered(val, arms, env, allow_bare_fielded_tag)
+        )
+    }
+
+    fn eval_match_entered(
+        &mut self,
+        val: Value,
+        arms: &[MatchArm],
+        env: &Env,
+        allow_bare_fielded_tag: bool,
+    ) -> Value {
         self.eval_match_with_selected_arm(val, arms, env, allow_bare_fielded_tag)
             .0
     }
@@ -26782,6 +27066,10 @@ impl Interpreter {
     }
 
     pub fn match_pattern(&self, pat: &Pat, val: &Value, env: &mut Env) -> bool {
+        with_program_constructor_names!(self, self.match_pattern_entered(pat, val, env))
+    }
+
+    fn match_pattern_entered(&self, pat: &Pat, val: &Value, env: &mut Env) -> bool {
         self.match_pattern_with_options(pat, val, env, false)
     }
 
@@ -27013,6 +27301,10 @@ impl Interpreter {
     }
 
     pub fn bind_pattern(&self, pat: &Pat, val: &Value, env: &mut Env) {
+        with_program_constructor_names!(self, self.bind_pattern_entered(pat, val, env))
+    }
+
+    fn bind_pattern_entered(&self, pat: &Pat, val: &Value, env: &mut Env) {
         if matches!(val, Value::Unknown(_)) {
             // Every part of an unknown value is unknown on the same paths.
             partial::bind_pattern_variables(pat, val, env);
@@ -27589,6 +27881,10 @@ impl Interpreter {
     /// Within each priority tier, rules are tried in source order and the first
     /// applicable rule wins.
     pub fn try_rule_call(&mut self, fn_name: &str, args: &[Expr], env: &Env) -> Option<Value> {
+        with_program_constructor_names!(self, self.try_rule_call_entered(fn_name, args, env))
+    }
+
+    fn try_rule_call_entered(&mut self, fn_name: &str, args: &[Expr], env: &Env) -> Option<Value> {
         let namespace = self.namespace_for_env(env);
         self.try_rule_call_in_namespace(&namespace, fn_name, args, env)
     }
@@ -29845,6 +30141,10 @@ impl Interpreter {
     /// the provided argument values into the environment.
     /// Legacy helper — used by code paths that don't need ground-term matching.
     pub fn bind_rule_params(&self, head: &Expr, args: &[Value], env: &mut Env) {
+        with_program_constructor_names!(self, self.bind_rule_params_entered(head, args, env))
+    }
+
+    fn bind_rule_params_entered(&self, head: &Expr, args: &[Value], env: &mut Env) {
         if let ExprKind::App(_, params) = &head.kind {
             for (param, val) in params.iter().zip(args.iter()) {
                 let param = Self::typed_rule_arg_parts(param)
@@ -53111,21 +53411,18 @@ impl TypeChecker {
         match &expr.kind {
             ExprKind::Lit(literal) => Some(Self::obvious_literal_ty(literal).to_string()),
             ExprKind::Unit => Some("()".to_string()),
-            ExprKind::List(items) => {
-                let mut item_type = None;
-                for item in items {
-                    let inferred = self.infer_expr_type_name_with_locals_in_scope(
+            ExprKind::List(items) => self
+                .join_same_typed(items.iter().map(|item| {
+                    (
                         item,
-                        locals,
-                        active_rule_scope,
-                    )?;
-                    if item_type.as_ref().is_some_and(|known| known != &inferred) {
-                        return None;
-                    }
-                    item_type = Some(inferred);
-                }
-                item_type.map(|inner| format!("List({})", inner))
-            }
+                        self.infer_expr_type_name_with_locals_in_scope(
+                            item,
+                            locals,
+                            active_rule_scope,
+                        ),
+                    )
+                }))
+                .map(|inner| format!("List({inner})")),
             ExprKind::Tuple(items) => {
                 let item_types = items
                     .iter()
@@ -53301,6 +53598,23 @@ impl TypeChecker {
                         )?;
                         return Self::applied_type_argument(&collection_type, "List", 0);
                     }
+                    // `first` is the stream operator; on a list it is `head`.
+                    if name == "first"
+                        && args.len() == 1
+                        && !locals.contains_key(name)
+                        && !self.functions.contains_key(name)
+                    {
+                        let collection_type = self.infer_expr_type_name_with_locals_in_scope(
+                            &args[0],
+                            locals,
+                            active_rule_scope,
+                        )?;
+                        return ["List", "Stream", "Subject"]
+                            .into_iter()
+                            .find_map(|constructor| {
+                                Self::applied_type_argument(&collection_type, constructor, 0)
+                            });
+                    }
                     if name == "find" && args.len() == 2 {
                         let collection_type = self.infer_expr_type_name_with_locals_in_scope(
                             &args[0],
@@ -53311,21 +53625,19 @@ impl TypeChecker {
                             Self::applied_type_argument(&collection_type, "List", 0)?;
                         return Some(format!("Option({element_type})"));
                     }
+                    // Two lists of one element type, or two strings: both
+                    // arguments have the result's type.
                     if name == "concat" && !args.is_empty() {
-                        let mut result = self.infer_expr_type_name_with_locals_in_scope(
-                            &args[0],
-                            locals,
-                            active_rule_scope,
-                        )?;
-                        for argument in &args[1..] {
-                            let next = self.infer_expr_type_name_with_locals_in_scope(
+                        return self.join_same_typed(args.iter().map(|argument| {
+                            (
                                 argument,
-                                locals,
-                                active_rule_scope,
-                            )?;
-                            result = Self::merge_inferred_type_names(&result, &next)?;
-                        }
-                        return Some(result);
+                                self.infer_expr_type_name_with_locals_in_scope(
+                                    argument,
+                                    locals,
+                                    active_rule_scope,
+                                ),
+                            )
+                        }));
                     }
                     if matches!(name.as_str(), "all" | "any") && args.len() == 2 {
                         return Some("Bool".to_string());
@@ -53529,9 +53841,9 @@ impl TypeChecker {
                 match (then_ty, else_ty) {
                     (Some(then_ty), Some(else_ty)) => self.merge_branch_types(
                         &then_ty,
-                        Self::is_unitless_literal(then_expr),
+                        Self::is_unitless_literal_value(then_expr),
                         &else_ty,
-                        Self::is_unitless_literal(else_expr),
+                        Self::is_unitless_literal_value(else_expr),
                     ),
                     (Some(then_ty), None) if Self::is_polymorphic_empty_list_expr(else_expr) => {
                         Some(then_ty)
@@ -53568,7 +53880,7 @@ impl TypeChecker {
                         }
                         None => return None,
                     };
-                    let arm_is_literal = Self::is_unitless_literal(&arm.body);
+                    let arm_is_literal = Self::is_unitless_literal_value(&arm.body);
                     let merged = match result_type {
                         Some(known) => self.merge_branch_types(
                             &known,
@@ -53658,9 +53970,9 @@ impl TypeChecker {
             ) {
                 (Some(then_type), Some(else_type)) => self.merge_branch_types(
                     &then_type,
-                    Self::is_unitless_literal(then_expr),
+                    Self::is_unitless_literal_value(then_expr),
                     &else_type,
-                    Self::is_unitless_literal(else_expr),
+                    Self::is_unitless_literal_value(else_expr),
                 ),
                 (Some(known), None) | (None, Some(known)) => Some(known),
                 (None, None) => None,
@@ -53696,7 +54008,7 @@ impl TypeChecker {
                     else {
                         continue;
                     };
-                    let arm_is_literal = Self::is_unitless_literal(&arm.body);
+                    let arm_is_literal = Self::is_unitless_literal_value(&arm.body);
                     candidate = Some(match candidate {
                         Some((known, known_is_literal)) => (
                             self.merge_branch_types(
@@ -61945,6 +62257,9 @@ impl TypeChecker {
                         {
                             self.check_collection_predicate(name, args);
                         }
+                        if name == "concat" && actual_arity == 2 && !self.var_defined(name) {
+                            self.check_concat_arguments(args);
+                        }
                         if name == "not" && actual_arity == 1 && !self.var_defined(name) {
                             self.check_not_argument(&args[0]);
                         }
@@ -62134,7 +62449,7 @@ impl TypeChecker {
                     }
                     self.check_expr(&arm.body, _in_fn);
                     if let Some(arm_type) = self.infer_expr_type_name(&arm.body) {
-                        let arm_is_literal = Self::is_unitless_literal(&arm.body);
+                        let arm_is_literal = Self::is_unitless_literal_value(&arm.body);
                         if let Some(expected) = first_arm_type.take() {
                             if let Some(merged) = self.merge_branch_types(
                                 &expected,
@@ -63270,10 +63585,9 @@ fn eval_source_inner(source: &str, use_prelude: bool) -> Result<String, String> 
             }
 
             // Interpret
-            let mut interp = Interpreter::new();
-            interp.install_rule_dispatch_metadata(&artifacts);
+            let mut interp = Interpreter::for_checked(&artifacts);
             let mut env = interp.default_env();
-            let result = interp.run_program(&stmts, &mut env);
+            let result = interp.run_program(artifacts.program(), &mut env);
 
             // Collect output
             let mut output = interp.output.join("\n");
@@ -63289,7 +63603,7 @@ fn eval_source_inner(source: &str, use_prelude: bool) -> Result<String, String> 
                     if !output.is_empty() {
                         output.push('\n');
                     }
-                    output.push_str(&format!("=> {}", result));
+                    output.push_str(&format!("=> {}", interp.display_value(&result)));
                 }
             }
             Ok(output)

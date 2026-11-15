@@ -216,6 +216,20 @@ impl TypeChecker {
         }
     }
 
+    /// A number written in the source ([`Self::is_unitless_literal`]), or a
+    /// list of only such numbers (`[0, 1]`): it takes the unit of the place
+    /// it stands in, or of the branch or list item beside it.
+    pub(super) fn is_unitless_literal_value(expr: &Expr) -> bool {
+        match &expr.kind {
+            ExprKind::List(items) => {
+                !items.is_empty() && items.iter().all(Self::is_unitless_literal)
+            }
+            ExprKind::Block(stmts) => matches!(stmts.as_slice(),
+                [Stmt::Expr(inner)] if Self::is_unitless_literal_value(inner)),
+            _ => Self::is_unitless_literal(expr),
+        }
+    }
+
     fn unit_of<'a>(&self, type_name: Option<&'a str>) -> Option<&'a str> {
         type_name.filter(|name| self.is_unit_type(name))
     }
@@ -938,7 +952,8 @@ impl TypeChecker {
     }
 
     /// The type of a branching expression whose branches are a unit and a
-    /// number written in the source (`if c { 0 } else { amount }`).
+    /// number written in the source (`if c { 0 } else { amount }`), or a list
+    /// of a unit and a list of such numbers (`if c { [0] } else { amounts }`).
     fn merge_unit_branch(
         &self,
         known: &str,
@@ -952,7 +967,10 @@ impl TypeChecker {
         if next == "Int" && next_is_literal && self.is_unit_type(known) {
             return Some(known.to_string());
         }
-        None
+        let known_item = Self::applied_type_argument(known, "List", 0)?;
+        let next_item = Self::applied_type_argument(next, "List", 0)?;
+        self.merge_unit_branch(&known_item, known_is_literal, &next_item, next_is_literal)
+            .map(|item| format!("List({item})"))
     }
 
     /// Join the types of two branches (`if` branches, `match` arms): equal
@@ -968,6 +986,37 @@ impl TypeChecker {
     ) -> Option<String> {
         Self::merge_inferred_type_names(known, next)
             .or_else(|| self.merge_unit_branch(known, known_is_literal, next, next_is_literal))
+    }
+
+    /// The one type of expressions that must all have it: the items of a
+    /// list, the arguments of `concat`. Each comes with its inferred type,
+    /// `None` when unknown. They are joined as branches are; one of unknown
+    /// type takes the others'. When only numbers written in the source are
+    /// known, they are `Int` in a program that declares no unit; with units
+    /// they could be any unit beside an unknown one, and the type is unknown.
+    /// `None` when two disagree.
+    pub(super) fn join_same_typed<'a>(
+        &self,
+        members: impl IntoIterator<Item = (&'a Expr, Option<String>)>,
+    ) -> Option<String> {
+        let mut joined: Option<(String, bool)> = None;
+        let mut unknown = false;
+        for (expr, ty) in members {
+            let Some(ty) = ty else {
+                unknown = true;
+                continue;
+            };
+            let literal = Self::is_unitless_literal_value(expr);
+            joined = Some(match joined {
+                Some((known, known_literal)) => (
+                    self.merge_branch_types(&known, known_literal, &ty, literal)?,
+                    known_literal && literal,
+                ),
+                None => (ty, literal),
+            });
+        }
+        let (ty, literal) = joined?;
+        (!literal || !unknown || self.unit_types.is_empty()).then_some(ty)
     }
 
     /// A type as its runtime representation, with every unit an `Int`. The

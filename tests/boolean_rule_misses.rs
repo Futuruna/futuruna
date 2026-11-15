@@ -46,7 +46,8 @@ fn boolean_misses_do_not_change_other_arities_or_partial_integer_rules() {
         artifacts.diagnostics
     );
     for install_checked in [false, true] {
-        let mut interpreter = Interpreter::new();
+        let mut interpreter =
+            Interpreter::for_constructor_elaboration(artifacts.constructor_elaboration.clone());
         if install_checked {
             interpreter.install_rule_dispatch_metadata(&artifacts);
         } else {

@@ -5774,6 +5774,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
             let mut cg = RustCodegen::new();
             cg.install_canonical_rule_metadata(&type_check);
             cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
+            cg.constructor_elaboration = type_check.constructor_elaboration.clone();
             // Set source directory for @ import resolution
             cg.source_dir = source_dir_for(filename);
             let code = cg.emit_program(&stmts);
@@ -6076,6 +6077,7 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool, target: WasmTarge
             cg.wasm_mode = true;
             cg.install_canonical_rule_metadata(&type_check);
             cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
+            cg.constructor_elaboration = type_check.constructor_elaboration.clone();
             cg.source_dir = source_dir_for(filename);
             let code = cg.emit_program(&stmts);
 
@@ -6874,8 +6876,7 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
             let stmts = artifacts.program().clone();
 
             // Evaluate
-            let mut interp = Interpreter::new();
-            interp.install_rule_dispatch_metadata(&artifacts);
+            let mut interp = Interpreter::for_checked(&artifacts);
             // Set source directory for @ import resolution
             interp.source_dir = source_dir_for(filename);
             let mut env = interp.default_env();
@@ -11092,9 +11093,8 @@ fn run_test_file_child(filename: &str, use_prelude: bool) {
     let source_dir = Path::new(filename)
         .parent()
         .map(|parent| parent.to_string_lossy().to_string());
-    let mut interp = Interpreter::new();
+    let mut interp = Interpreter::for_checked(&artifacts);
     interp.source_dir = source_dir;
-    interp.install_rule_dispatch_metadata(&artifacts);
     let mut env = interp.default_env();
     interp.run_program(&stmts, &mut env);
 }
@@ -11526,7 +11526,7 @@ fn run_stress_gen(count: usize, seed: Option<u64>, save_failures: Option<&str>) 
         };
 
         // Phase 2: Interpret
-        let mut interp = Interpreter::new();
+        let mut interp = Interpreter::unchecked();
         interp.suppress_output = true;
         let mut env = interp.default_env();
         // Set a step limit to prevent infinite loops
@@ -11552,7 +11552,7 @@ fn run_stress_gen(count: usize, seed: Option<u64>, save_failures: Option<&str>) 
         }
 
         // Phase 4: Run interpreter a SECOND time to verify determinism
-        let mut interp2 = Interpreter::new();
+        let mut interp2 = Interpreter::unchecked();
         interp2.suppress_output = true;
         let mut env2 = interp2.default_env();
         interp2.step_limit = 100_000;
@@ -11947,7 +11947,7 @@ fn run_benchmarks() {
         };
 
         // Warm up
-        let mut interp = Interpreter::new();
+        let mut interp = Interpreter::unchecked();
         interp.suppress_output = true;
         let mut env = interp.default_env();
         interp.run_program(&stmts, &mut env);
@@ -11955,7 +11955,7 @@ fn run_benchmarks() {
         // Bench (3 runs, take median)
         let mut times = Vec::new();
         for _ in 0..5 {
-            let mut interp = Interpreter::new();
+            let mut interp = Interpreter::unchecked();
             interp.suppress_output = true;
             let mut env = interp.default_env();
             let start = Instant::now();
@@ -12053,7 +12053,7 @@ fn run_benchmarks() {
                     let tokens = lexer.tokenize();
                     let mut parser = Parser::new(tokens, &source);
                     if let Ok(stmts) = parser.parse_program() {
-                        let mut interp = Interpreter::new();
+                        let mut interp = Interpreter::unchecked();
                         interp.suppress_output = true;
                         let mut env = interp.default_env();
                         interp.run_program(&stmts, &mut env);
@@ -12250,7 +12250,7 @@ fn run_from_rust_verify(path: &str) {
             std::process::exit(1);
         }
     };
-    let mut interp = Interpreter::new();
+    let mut interp = Interpreter::unchecked();
     interp.suppress_output = true;
     let mut env = interp.default_env();
     interp.run_program(&stmts, &mut env);
@@ -12507,7 +12507,7 @@ fn run_from_rust_tests(path: &str) {
             }
         };
 
-        let mut interp = Interpreter::new();
+        let mut interp = Interpreter::unchecked();
         interp.suppress_output = true;
         let mut env = interp.default_env();
         // Don't load stdlib — transpiled code uses builtins from default_env,
@@ -13156,7 +13156,7 @@ fn run_repl() {
     println!("Runes: > define  | rule  # type  @ annotate  = bind");
     println!("Type :quit to exit, :env to show bindings\n");
 
-    let mut interp = Interpreter::new();
+    let mut interp = Interpreter::unchecked();
     let mut env = interp.default_env();
     // Load standard prelude into REPL environment
     let prelude = parse_prelude();
@@ -17801,10 +17801,9 @@ fn initialized_calculation_interpreter(
         .filter(|statement| !matches!(statement, Stmt::Prove { .. }))
         .cloned()
         .collect::<Vec<_>>();
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Interpreter::for_checked(artifacts);
     interpreter.deny_host_effects("`runa audit`");
     interpreter.source_dir = source_dir_for(filename);
-    interpreter.install_rule_dispatch_metadata(artifacts);
     let mut env = interpreter.default_env();
     interpreter.initialize_calculation_program(entry, &runtime_stmts, &mut env);
     interpreter
@@ -18056,7 +18055,8 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool, json: bool) -> 
     }
     let clause_report = (!json).then(|| audit_clause_report(&stmts, &frontend, filename, source));
     let source_dir = source_dir_for(filename);
-    let mut interp = Interpreter::new();
+    let mut interp =
+        Interpreter::for_constructor_elaboration(frontend.constructor_elaboration.clone());
     interp.deny_host_effects("`runa audit`");
     interp.source_dir = source_dir.clone();
     interp.install_rule_dispatch_metadata_for_program(&stmts, source_dir);
@@ -20077,6 +20077,7 @@ fn check_source(
             let stmts = type_check.program().clone();
             let mut cg = RustCodegen::new();
             cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
+            cg.constructor_elaboration = type_check.constructor_elaboration.clone();
             cg.source_dir = source_dir_for(filename);
             let codegen_start = Instant::now();
             let code = cg.emit_program(&stmts);
@@ -20678,6 +20679,7 @@ fn emit_rust_source(source: &str, filename: &str, use_prelude: bool) {
             let stmts = type_check.program().clone();
             let mut cg = RustCodegen::new();
             cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
+            cg.constructor_elaboration = type_check.constructor_elaboration.clone();
             // Set source directory for @ import resolution
             cg.source_dir = source_dir_for(filename);
             let code = cg.emit_program(&stmts);
@@ -26841,6 +26843,8 @@ struct RustCodegen {
     /// Pure ground metadata bindings validated during calculation-contract extraction.
     /// Check/build codegen may omit members that executable code cannot reach.
     compile_time_metadata_bindings: BTreeSet<String>,
+    /// The checked program's constructor elaboration, for comptime evaluation.
+    constructor_elaboration: Option<std::sync::Arc<ConstructorElaboration>>,
     /// Emit getter calls for top-level bindings when direct local names are out of scope
     allow_global_getter_refs: bool,
     /// Stream bindings currently being exposed through generated getter functions
@@ -32095,6 +32099,7 @@ impl RustCodegen {
             int_arithmetic_mode: RustCodegenIntArithmeticMode::LanguageDefault,
             lib_static_names: BTreeSet::new(),
             compile_time_metadata_bindings: BTreeSet::new(),
+            constructor_elaboration: None,
             allow_global_getter_refs: false,
             getter_stream_bindings: BTreeSet::new(),
             binary_global_env_fns: BTreeSet::new(),
@@ -36703,7 +36708,8 @@ fn __futuruna_install_error_hook() {
 
         // Comptime pass: evaluate @ comptime bindings using the interpreter
         {
-            let mut comptime_interp = Interpreter::new();
+            let mut comptime_interp =
+                Interpreter::for_constructor_elaboration(self.constructor_elaboration.clone());
             comptime_interp.suppress_output = true;
             // Use the authored import graph rather than the already-expanded
             // emission list. The outer compiler gate already validated it;
@@ -64171,10 +64177,9 @@ assert_with_message(true, message())
             diags
         );
 
-        let mut interp = Interpreter::new();
+        let mut interp = Interpreter::for_checked(&artifacts);
         interp.suppress_output = true;
         interp.source_dir = source_dir;
-        interp.install_rule_dispatch_metadata(&artifacts);
         let mut env = interp.default_env();
         interp.run_program(&stmts, &mut env);
         interp.output.join("\n")
@@ -64611,7 +64616,7 @@ fn main() {{
         );
 
         let panic_payload = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let mut interp = Interpreter::new();
+            let mut interp = Interpreter::unchecked();
             interp.suppress_output = true;
             let mut env = interp.default_env();
             interp.run_program(&stmts, &mut env);
@@ -70098,7 +70103,7 @@ routes <- "b"
                 explore_native_classifier_int_literal_v2(ordinal),
             )
             .expect("decode bounded Unit/Bool tuple");
-            let value = Interpreter::new().eval(&decoded, &Env::new());
+            let value = Interpreter::unchecked().eval(&decoded, &Env::new());
             let Value::Tuple(elements) = value else {
                 panic!("finite tuple decoder returned a non-tuple value")
             };

@@ -88,9 +88,13 @@ in a program that declares other types. The checked artifacts own them
 elaboration current on the running thread, never a process-wide table. A
 successful check makes its program's elaboration current on its thread; a
 prepared calculation runs every batch, and every worker thread of a batch,
-under its own program's elaboration. So a host holding several programs in
-one process or thread (WebAssembly models, a server, tests) runs each with its
-own names, whichever was checked last.
+under its own program's elaboration, and an interpreter made for a checked
+program (`Interpreter::for_checked(&artifacts)`) holds that program's
+elaboration and makes it current whenever it evaluates or displays a value.
+An interpreter for a program no check elaborated (`Interpreter::unchecked()`)
+reads no program's names. So a host holding several programs in one process
+or thread (WebAssembly models, a server, tests) runs each with its own names,
+whichever was checked last.
 
 A program without shared names and without `Type.Constructor` is not
 elaborated; its outputs and schema hashes are unchanged.

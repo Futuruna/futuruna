@@ -1,0 +1,6 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: return type mismatch: function `opening` expects `String` but expression has `Int`
+
+-- `first` of a list is its first element, as `head` is.
+> opening(balances: List(Int)) -> String { first(balances) }

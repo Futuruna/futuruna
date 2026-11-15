@@ -237,7 +237,7 @@ fn constant_candidates_restore_guards_and_do_not_publish_failed_modules() {
     }
 
     let fixture = Fixture::new("", None);
-    let mut interpreter = Interpreter::new();
+    let mut interpreter = Interpreter::unchecked();
     let mut env = interpreter.default_env();
     env.set("writer".into(), Value::Builtin("append_file".into()));
     interpreter.step_limit = 17;

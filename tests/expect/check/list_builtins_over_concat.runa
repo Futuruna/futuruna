@@ -1,0 +1,25 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: list_builtins_over_concat.runa:17:
+-- expect-stderr: list_builtins_over_concat.runa:18:
+-- expect-stderr: list_builtins_over_concat.runa:19:
+-- expect-stderr: list_builtins_over_concat.runa:20:
+-- expect-stderr: list_builtins_over_concat.runa:21:
+-- expect-stderr: list_builtins_over_concat.runa:22:
+-- expect-stderr: list_builtins_over_concat.runa:23:
+-- expect-stderr: list_builtins_over_concat.runa:24:
+-- expect-stderr: list_builtins_over_concat.runa:25:
+-- expect-stderr: 9 type errors
+
+-- Every list builtin keeps the element type of the joined list.
+# unit Micro "millionths of a share"
+= amounts: List(Micro) = [1, 2]
+= a: String = head(concat([0], amounts))
+= b: String = last(concat(amounts, [0]))
+= c: String = nth(concat([0], amounts), 1)
+= d: String = head(tail(concat([0], amounts)))
+= e: String = head(reverse(concat([0], amounts)))
+= f: String = head(take(concat([0], amounts), 1))
+= g: String = head(skip(concat([0], amounts), 1))
+= h: String = first(concat([0], amounts))
+= i: String = first(amounts)
