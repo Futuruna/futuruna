@@ -1,0 +1,12 @@
+-- A literal a rule family returns as its declared named scalar is checked
+-- like any literal of the type.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: is not a `CountryCode`
+
+# CountryCode: String "ISO 3166 alpha-2 country code" where two_upper
+
+| two_upper(text: String) -> string_length(text) == 2 && text == to_upper(text)
+
+| country(listed: Bool): CountryCode -> "DK"
+| exception foreign country(listed) -> "dk" under listed

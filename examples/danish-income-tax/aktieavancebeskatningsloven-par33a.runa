@@ -72,9 +72,9 @@ Stk. 4. Stk. 1-3 gælder ikke de i § 33 nævnte tilfælde.
     | undtaget_efter_stk4() -> input.afgrænsning == AblPar33Tilfælde
     | reglen_finder_anvendelse() -> opgørelse_gyldig() && statusskifte_efter_stk2() && undtaget_efter_stk4() == Falskt
     | afståelsesbeskatningsregel() -> hvis reglen_finder_anvendelse() { aktieavance_par33a_beskatningsregel_for_status(input.status_før) } ellers { AblPar33AIngenAlmindeligBeskatning }
-    | afståelsessum_efter_stk1_kroner() -> 0
+    | afståelsessum_efter_stk1_kroner(): Int -> 0
     | exception abl_par33a_stk1_afståelse_til_handelsværdi afståelsessum_efter_stk1_kroner() -> input.handelsværdi_på_statusskiftet_kroner under reglen_finder_anvendelse()
-    | anskaffelsessum_efter_stk1_kroner() -> 0
+    | anskaffelsessum_efter_stk1_kroner(): Int -> 0
     | exception abl_par33a_stk1_genanskaffelse_til_handelsværdi anskaffelsessum_efter_stk1_kroner() -> input.handelsværdi_på_statusskiftet_kroner under reglen_finder_anvendelse()
     | nettogevinst_kroner() -> hvis reglen_finder_anvendelse() { afståelsessum_efter_stk1_kroner() - input.hidtidig_anskaffelsessum_kroner } ellers { 0 }
     | opgjort_bruttogevinst_kroner() -> penge_positivt_beløb(nettogevinst_kroner())

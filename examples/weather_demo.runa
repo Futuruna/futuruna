@@ -18,7 +18,7 @@
 -- ============================================================================
 
 -- Base rule: default advice
-| advise(w) -> Alert("Nice day in " + show(w.city), Mild)
+| advise(w): Alert -> Alert("Nice day in " + show(w.city), Mild)
 
 -- Rain override
 | advise(w) -> Alert("Bring an umbrella in " + show(w.city), Moderate) under w.condition == Rainy

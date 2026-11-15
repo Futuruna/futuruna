@@ -70,7 +70,7 @@ Arbejdsmarkedsbidragsloven § 2, stk. 1:
     | fakta_gyldige() -> fakta.identifikation != "" && fakta.indkomstår > 0 && fakta.tilgodehavende_feriemidler_kroner >= 0 && fakta.regulering_kroner >= 0
     | samlet_udbetaling_kroner() -> fakta.tilgodehavende_feriemidler_kroner + fakta.regulering_kroner
     | hidrører_fra_stk1_1_pkt() -> fakta.optjeningsgrundlag == Pbl14BFerieMedLøn || fakta.optjeningsgrundlag == Pbl14BFeriegodtgørelseIFeriekortordningUdenFeriekasse
-    | skattepligtig_efter_stk1_1_pkt() -> fakta_gyldige() && hidrører_fra_stk1_1_pkt()
+    | skattepligtig_efter_stk1_1_pkt(): Bool -> fakta_gyldige() && hidrører_fra_stk1_1_pkt()
     | exception pbl14b_stk2_garantifond_fritagelse skattepligtig_efter_stk1_1_pkt() -> Falskt under fakta.oprindelse == Pbl14BLønmodtagernesGarantifondEfterPar8B
     | fritaget_efter_stk1_2_pkt() -> fakta_gyldige() && fakta.optjeningsgrundlag == Pbl14BØvrigUdbetalingEfterFeriemiddellovensPar15
     | fritaget_efter_stk2() -> fakta_gyldige() && fakta.oprindelse == Pbl14BLønmodtagernesGarantifondEfterPar8B

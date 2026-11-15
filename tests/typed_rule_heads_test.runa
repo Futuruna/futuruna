@@ -9,16 +9,16 @@
 | positiv(x: Int) -> x > 0
 | myndig(p: Person) -> p.alder >= 18
 
-| regent_i_udlandet(s: Samtykke) -> Ugyldig
-| regent_i_udlandet(s: Samtykke) -> Gyldig under s == Givet
+| regent_i_udlandet(s: Samtykke): Afgorelse -> Ugyldig
+| regent_i_udlandet(s) -> Gyldig under s == Givet
 
-| exception manglende_samtykke udlandsophold(s: Samtykke) -> Ugyldig under s == IkkeGivet
 | udlandsophold(s: Samtykke) -> Gyldig
+| exception manglende_samtykke udlandsophold(s) -> Ugyldig under s == IkkeGivet
 
 | parent("alice", "bob")
 | parent("bob", "charlie")
 | ancestor(a: String, b: String) -> parent(a, b)
-| ancestor(a: String, b: String) -> parent(a, mid), ancestor(mid, b)
+| ancestor(a, b) -> parent(a, mid), ancestor(mid, b)
 
 = positiv_ok = positiv(12)
 = myndig_ok = myndig(Person("Ada", 37))

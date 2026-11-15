@@ -1,5 +1,5 @@
 | balance("bob", -5)
-| surcharge(-1) -> 100
+| surcharge(-1): Int -> 100
 | surcharge(n) -> 0
 | tags("ann", [1, 2])
 | fraction(-1.5)
@@ -7,8 +7,9 @@
 | matrix([[1, -2], [3]])
 # Basket(items: List(Int))
 | accepted(Basket([-1, 2]))
+| sum_pair(basket: Basket): Int
 | sum_pair(Basket([left, right])) -> left + right
-| sum_pair(other: Basket) -> 0
+| sum_pair(basket) -> 0
 | empty_basket(Basket([]))
 
 assert(balance("bob", -5))

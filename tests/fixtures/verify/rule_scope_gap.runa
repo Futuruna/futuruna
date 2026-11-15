@@ -2,12 +2,12 @@
 -- of another scope that covers every input.
 
 # Share(own: Int) {
-    | tax() -> own under own > 0
+    | tax(): Int -> own under own > 0
     | exception negative tax() -> 0 - own under own < 0
 }
 
 # Flat(own: Int) {
-    | tax() -> 1 under own >= 0
+    | tax(): Int -> 1 under own >= 0
     | tax() -> 2 under own < 0
 }
 

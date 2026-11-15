@@ -45,7 +45,7 @@
 
 -- === CONJUNCTION: simple multi-goal rules ===
 
-| has_children(p) -> parent(p, "bob")
+| has_children(p): Bool -> parent(p, "bob")
 | has_children(p) -> parent(p, "charlie")
 | has_children(p) -> parent(p, "diana")
 

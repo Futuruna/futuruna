@@ -2,5 +2,5 @@
 -- checked for gaps.
 
 -- `x > 0` alone leaves x <= 0, but the Float guard may cover it.
-| mixed(x: Int, t: Float) -> 1 under x > 0
-| mixed(x: Int, t: Float) -> 2 under t > 1.5
+| mixed(x: Int, t: Float): Int -> 1 under x > 0
+| mixed(x, t) -> 2 under t > 1.5

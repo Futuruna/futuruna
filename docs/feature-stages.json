@@ -148,6 +148,17 @@
       ]
     },
     {
+      "id": "rule-result-types",
+      "kind": "language",
+      "name": "Declared rule result types (`| rate(year: Int): Ore -> 0`)",
+      "stage": "experimental",
+      "notes": "No compatibility guarantee: the declaring-line syntax, the bodiless declaration, error texts and the `runa fmt --migrate` reports may change.",
+      "docs": [
+        "docs/reference/runes.md",
+        "docs/rfcs/named-scalar-types-and-rule-result-types.md"
+      ]
+    },
+    {
       "id": "rust-interop",
       "kind": "integration",
       "name": "Rust interop and Rust-facing library integration behavior",

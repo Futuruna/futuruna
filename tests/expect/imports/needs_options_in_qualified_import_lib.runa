@@ -10,9 +10,9 @@
 
 @ section closing {
 
-| room(closed: Bool, value: Int) -> 1000 - value
+| room(closed: Bool, value: Int): Int -> 1000 - value
 @ meta(Assumption(value = AssumptionInfo(id = "CLOSING-DAY")))
-| exception closed room(closed: Bool, value: Int) -> 0 under closed
+| exception closed room(closed, value) -> 0 under closed
 
 }
 

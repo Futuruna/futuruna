@@ -77,10 +77,15 @@ mod parser_hints;
 pub mod partial;
 pub mod query;
 mod references;
+mod rule_declarations;
 mod runtime_diagnostics;
 mod runtime_guard_coverage;
 mod runtime_imports;
 mod runtime_stack;
+pub use rule_declarations::{
+    declared_rule_result, declared_rule_results, with_legacy_rule_types, DeclaredRuleResult,
+    RULE_RESULT_TYPE_ANNOTATION,
+};
 pub use runtime_guard_coverage::{RuntimeGuardedCallSet, RuntimeGuardedRuleCalls};
 pub use runtime_stack::interpreter_stack_bytes;
 mod scalar_types;
@@ -4827,7 +4832,7 @@ mod meta_comment_tests {
 # KommunalPar5DelårsInput(kortere_periode_end_et_år: Boolsk)
 # KommunalPar5DelårsResultat(skat_kroner: Heltal)
 | kommunal_par5_delårsskat(input: KommunalPar5DelårsInput) -> 0
-| exception kommunal_par5_helårsomregnet kommunal_par5_delårsskat(input: KommunalPar5DelårsInput) -> 49315 under input.kortere_periode_end_et_år
+| exception kommunal_par5_helårsomregnet kommunal_par5_delårsskat(input) -> 49315 under input.kortere_periode_end_et_år
 = kommunal_par5_fixture = kommunal_par5_delårsskat(KommunalPar5DelårsInput(Sandt))
 
 }
@@ -4979,7 +4984,7 @@ Guide.
 
 | conditional(value: Int) -> True under value > 0
 | exception_only(value: Int) -> True under value > 100
-| exception positive exception_only(value: Int) -> True under value > 0
+| exception positive exception_only(value) -> True under value > 0
 
 = boolean_meta = BoolMeta(
     conditional = conditional(0),
@@ -10476,6 +10481,17 @@ impl Parser {
             self.skip_semis();
         }
         if errors.is_empty() {
+            if let Err(error) = self.elaborate_rule_declarations(&mut stmts) {
+                errors.extend(error.lines().map(str::to_string));
+            } else {
+                rule_declarations::type_imported_exceptions(
+                    &mut stmts,
+                    self.source_path.as_deref(),
+                    &self.import_dir(),
+                );
+            }
+        }
+        if errors.is_empty() {
             Ok(stmts)
         } else {
             // Return all errors, but also include any successfully parsed statements
@@ -12136,6 +12152,7 @@ impl Parser {
             self.skip_semis();
         }
         self.expect(TokenKind::RBrace)?;
+        self.elaborate_rule_declarations(&mut body)?;
         Ok(Stmt::Defn(Defn::Module { name, body }))
     }
 
@@ -12250,6 +12267,7 @@ impl Parser {
                 self.skip_semis();
             }
             self.expect(TokenKind::RBrace)?;
+            self.elaborate_rule_declarations(&mut body)?;
             return Ok(Stmt::Rule(Rule::ReactiveScope { name, body }));
         }
 
@@ -12270,6 +12288,13 @@ impl Parser {
                 return Err(format!(
                     "{}:{}: an exception needs a named rule call after its label; use `| exception <label> rate(x) -> ...`",
                     head_start.line, head_start.col
+                ));
+            }
+            if self.peek_kind() == TokenKind::Colon {
+                let colon = self.peek();
+                return Err(format!(
+                    "{}:{}: exception `{label}` cannot declare a result type; an exception overrides a rule, and the family's type is declared on its first ordinary line: `| rate(year: Int): Ore -> ...`",
+                    colon.line, colon.col
                 ));
             }
             self.expect(TokenKind::Arrow)?;
@@ -12312,8 +12337,12 @@ impl Parser {
             self.pos = saved_pos;
         }
 
-        // | head [-> body] [under condition]
+        // | head [: R] [-> body] [under condition]
+        let pipe_position = self.pos - 1;
         let head = self.parse_expr()?;
+        if self.peek_kind() == TokenKind::Colon {
+            return self.parse_rule_declaration(pipe_position, head);
+        }
         if self.peek_kind() == TokenKind::Arrow {
             self.advance();
             let body_or_value = self.parse_rule_body_expression()?;
@@ -12542,6 +12571,7 @@ impl Parser {
                 self.skip_semis();
             }
             self.expect(TokenKind::RBrace)?;
+            self.elaborate_rule_declarations(&mut body)?;
             return Ok(Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }));
         }
 
@@ -14737,6 +14767,7 @@ impl Parser {
             self.skip_semis();
         }
         self.expect(TokenKind::RBrace)?;
+        self.elaborate_rule_declarations(&mut stmts)?;
         Ok(Expr::new(ExprKind::Block(stmts), self.span_since(&start)))
     }
 
@@ -17039,6 +17070,9 @@ struct RuntimeNamespaceState {
     rules: Vec<(String, Rc<Rule>, RuntimeDeclarationEnv)>,
     rules_by_name: HashMap<String, Vec<usize>>,
     rule_miss_fallbacks: HashMap<String, HashMap<usize, RuleMissFallback>>,
+    /// The miss of a family with a declared result type: `False` for `: Bool`,
+    /// an evaluation error for any other type, whatever its clauses are.
+    declared_rule_misses: HashMap<(String, usize), RuleMissFallback>,
     rule_dispatch_keys: BTreeSet<RuleDispatchKey>,
     rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
     rule_dispatch_return_issues: BTreeMap<RuleDispatchKey, String>,
@@ -17112,6 +17146,7 @@ impl RuntimeNamespaceState {
             rules: Vec::new(),
             rules_by_name: HashMap::new(),
             rule_miss_fallbacks: HashMap::new(),
+            declared_rule_misses: HashMap::new(),
             rule_dispatch_keys: BTreeSet::new(),
             rule_dispatch_return_types: BTreeMap::new(),
             rule_dispatch_return_issues: BTreeMap::new(),
@@ -18155,9 +18190,14 @@ impl Interpreter {
         Self::runtime_namespace_find(namespace, |state| {
             state.rule_dispatch_keys.contains(key).then(|| {
                 state
-                    .rule_miss_fallbacks
-                    .get(&key.name)
-                    .and_then(|by_arity| by_arity.get(&key.arity))
+                    .declared_rule_misses
+                    .get(&(key.name.clone(), key.arity))
+                    .or_else(|| {
+                        state
+                            .rule_miss_fallbacks
+                            .get(&key.name)
+                            .and_then(|by_arity| by_arity.get(&key.arity))
+                    })
                     .copied()
             })
         })
@@ -21190,6 +21230,14 @@ impl Interpreter {
                         declaration_env,
                     );
                 }
+                Stmt::Annot(..) => {
+                    if let Some(declared) = declared_rule_result(stmt) {
+                        namespace.state.borrow_mut().declared_rule_misses.insert(
+                            (declared.name, declared.arity),
+                            RuleMissFallback::of_declared_result(&declared.result),
+                        );
+                    }
+                }
                 Stmt::Rule(Rule::ReactiveScope { name, body }) => {
                     self.register_rule_scope_callable_declarations(&namespace, name, body);
                 }
@@ -22406,6 +22454,10 @@ impl Interpreter {
 
             match stmt {
                 Stmt::Annot(name, _) => {
+                    if name == RULE_RESULT_TYPE_ANNOTATION {
+                        // Read at declaration registration; annotates nothing.
+                        continue;
+                    }
                     if !is_known_annotation(name) {
                         return self.panic_or_ground_fail(unknown_annotation_message(name));
                     }
@@ -28195,9 +28247,18 @@ impl Interpreter {
         if boolean_family {
             return Value::Bool(false);
         }
-        let value_family = Self::rule_scope_matching_rules(definition, &family.name, family.arity)
+        let declared = definition
+            .body
             .iter()
-            .any(|rule| RuleMissFallback::of_rule(rule) == RuleMissFallback::NoValue);
+            .filter_map(declared_rule_result)
+            .find(|declared| declared.name == family.name && declared.arity == family.arity)
+            .map(|declared| RuleMissFallback::of_declared_result(&declared.result));
+        let value_family = match declared {
+            Some(fallback) => fallback == RuleMissFallback::NoValue,
+            None => Self::rule_scope_matching_rules(definition, &family.name, family.arity)
+                .iter()
+                .any(|rule| RuleMissFallback::of_rule(rule) == RuleMissFallback::NoValue),
+        };
         if value_family {
             self.panic_or_ground_fail(Self::value_rule_miss_message(family))
         } else {
@@ -32517,6 +32578,9 @@ pub struct TypeChecker {
     type_field_tys: BTreeMap<String, BTreeMap<String, Ty>>,
     /// Rule/function name -> inferred value return type name.
     rule_return_types: BTreeMap<String, String>,
+    /// Declared rule result types (`| rate(year: Int): Ore -> ...`) by scope,
+    /// name and arity; see `rule_declarations`.
+    declared_rule_results: BTreeMap<RuleDispatchKey, DeclaredRuleResult>,
     /// Canonical rule result types resolved by exact scope, name, and arity.
     rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
     /// Exact rule identities whose result type is conflicting or unresolved.
@@ -49341,6 +49405,7 @@ impl TypeChecker {
             type_field_types: BTreeMap::new(),
             type_field_tys: BTreeMap::new(),
             rule_return_types: BTreeMap::new(),
+            declared_rule_results: BTreeMap::new(),
             rule_dispatch_return_types: BTreeMap::new(),
             rule_dispatch_return_issues: BTreeMap::new(),
             rule_dispatch_type_return_types: BTreeMap::new(),
@@ -54700,8 +54765,9 @@ impl TypeChecker {
         let previous_scope = self
             .active_rule_scope_inference
             .replace(scope_name.to_string());
+        let declared = self.declared_scope_member_results(scope_name, body);
         self.rule_scope_member_return_types
-            .insert(scope_name.to_string(), BTreeMap::new());
+            .insert(scope_name.to_string(), declared.clone());
 
         let mut scope_locals = BTreeMap::new();
         for param in params {
@@ -54722,6 +54788,9 @@ impl TypeChecker {
                         let Some((member, _)) = Self::rule_name_arity(rule) else {
                             continue;
                         };
+                        if declared.contains_key(&member) {
+                            continue;
+                        }
                         let (head, value) = match rule {
                             Rule::Clause {
                                 head,
@@ -54794,6 +54863,8 @@ impl TypeChecker {
     }
 
     fn infer_rule_return_types(&mut self, stmts: &[Stmt]) {
+        // A declared family's type is its declaration, never a clause's.
+        let declared = self.note_declared_rule_results(stmts);
         let mut groups: BTreeMap<String, Vec<&Rule>> = BTreeMap::new();
         for stmt in stmts {
             if let Stmt::Rule(rule @ Rule::Clause { .. })
@@ -54801,7 +54872,9 @@ impl TypeChecker {
             | Stmt::Rule(rule @ Rule::Exception { .. }) = stmt
             {
                 if let Some((name, _)) = Self::rule_name_arity(rule) {
-                    groups.entry(name).or_default().push(rule);
+                    if !declared.contains(&name) {
+                        groups.entry(name).or_default().push(rule);
+                    }
                 }
             }
         }
@@ -56867,6 +56940,7 @@ impl TypeChecker {
         self.rule_dispatch_runtime_irrefutable_keys.clear();
         self.runtime_guarded_rule_calls = RuntimeGuardedRuleCalls::default();
         self.rule_dispatch_keys = groups.keys().cloned().collect();
+        let declared = self.note_declared_dispatch_results(&dispatch_statements);
 
         for (key, (_, rules)) in &groups {
             let mut parameter_types = vec![None; key.arity];
@@ -56907,6 +56981,15 @@ impl TypeChecker {
                 for (slot, argument) in parameter_name_candidates.iter_mut().zip(arguments) {
                     if let Some(name) = rule_dispatch_parameter(argument).name {
                         slot.insert(name);
+                    }
+                }
+            }
+            if let Some(declared) = declared.get(key) {
+                // A position every clause matches with a pattern still has
+                // the declaration's type.
+                for (slot, ty) in parameter_types.iter_mut().zip(&declared.parameter_types) {
+                    if let (None, Some(ty)) = (&slot, ty) {
+                        *slot = self.canonical_declared_parameter_type(ty);
                     }
                 }
             }
@@ -57007,6 +57090,17 @@ impl TypeChecker {
                 }
             }
         };
+        // A declared family's result is its declaration: it seeds its callers
+        // and is neither inferred nor merged from its clauses, which the
+        // checker judges against it.
+        for (key, declared) in &declared {
+            if groups.contains_key(key) {
+                self.rule_dispatch_return_types.insert(
+                    key.clone(),
+                    Self::canonical_explore_type_name(&declared.result),
+                );
+            }
+        }
         let mut dirty = vec![true; group_entries.len()];
         for _ in 0..groups.len().saturating_add(stmts.len()).saturating_add(1) {
             self.active_rule_scope_inference = None;
@@ -57020,6 +57114,9 @@ impl TypeChecker {
                     continue;
                 }
                 let (key, (captures, rules)) = group_entries[index];
+                if declared.contains_key(key) {
+                    continue;
+                }
                 self.active_rule_scope_inference = key.scope.clone();
                 let inferred = infer_group_provisionally(self, captures, rules);
                 let known = inferred.iter().flatten().collect::<Vec<_>>();
@@ -57046,7 +57143,10 @@ impl TypeChecker {
             let mut next = vec![false; group_entries.len()];
             for index in 0..group_entries.len() {
                 let (key, (captures, rules)) = group_entries[index];
-                if !dirty[index] || self.rule_dispatch_return_issues.contains_key(key) {
+                if !dirty[index]
+                    || self.rule_dispatch_return_issues.contains_key(key)
+                    || declared.contains_key(key)
+                {
                     continue;
                 }
                 self.active_rule_scope_inference = key.scope.clone();
@@ -57208,6 +57308,16 @@ impl TypeChecker {
                 } else {
                     self.rule_dispatch_runtime_boolean_miss_keys = safe_keys;
                 }
+            }
+        }
+        // A family declared `: Bool` answers False when no clause applies, as
+        // its declaration says; the runtime reads the declaration too.
+        for (key, declared) in &declared {
+            if groups.contains_key(key)
+                && Self::canonical_explore_type_name(&declared.result) == "Bool"
+            {
+                self.rule_dispatch_runtime_boolean_miss_keys
+                    .insert(key.clone());
             }
         }
         // The broad pass above exists only to seed recursive result sorts.
@@ -57495,11 +57605,24 @@ impl TypeChecker {
         let groups = self.explore_rules_by_arity.clone();
         self.explore_rule_return_types_by_arity.clear();
         self.explore_rule_return_issues.clear();
+        // A declared family's sort is its declaration; its clauses are
+        // checked against it, not merged into it.
+        let mut declared = BTreeSet::new();
+        for (key, ty) in self.declared_top_level_result_tys() {
+            if groups.contains_key(&key) {
+                self.explore_rule_return_types_by_arity
+                    .insert(key.clone(), ty);
+                declared.insert(key);
+            }
+        }
 
         self.inferring_exact_explore_rule_returns = true;
         for _ in 0..groups.len().saturating_add(1) {
             let mut changed = false;
             for (key, rules) in &groups {
+                if declared.contains(key) {
+                    continue;
+                }
                 let inferred = rules
                     .iter()
                     .map(|rule| match rule {
@@ -57543,6 +57666,9 @@ impl TypeChecker {
         // diagnostics must not depend on lexical ordering between two families.
         for ((name, arity), rules) in &groups {
             let key = (name.clone(), *arity);
+            if declared.contains(&key) {
+                continue;
+            }
             let expected = self
                 .explore_rule_return_types_by_arity
                 .get(&key)
@@ -62613,7 +62739,7 @@ impl TypeChecker {
             | Stmt::Depend(_, _)
             | Stmt::RustBlock(_) => {}
             Stmt::Annot(name, args) => {
-                if !is_known_annotation(name) {
+                if !is_known_annotation(name) && name != RULE_RESULT_TYPE_ANNOTATION {
                     self.error(unknown_annotation_message(name));
                 }
                 for a in args {
@@ -63428,10 +63554,14 @@ impl TypeChecker {
         let dir = self.source_dir.clone().unwrap_or_else(|| ".".to_string());
         let mut bases = BTreeSet::new();
         self.collect_rule_base_families(stmts, &dir, &mut bases, &mut BTreeSet::new());
+        let mut declared = BTreeMap::new();
+        let source = self.source_text.clone();
+        self.collect_declared_families(stmts, &source, &dir, &mut declared, &mut BTreeSet::new());
         self.check_rule_result_sequence(
             stmts,
             &dir,
             &bases,
+            &declared,
             &mut BTreeMap::new(),
             &mut BTreeSet::new(),
         );
@@ -63481,6 +63611,7 @@ impl TypeChecker {
         stmts: &[Stmt],
         dir: &str,
         bases: &BTreeSet<(String, usize)>,
+        declared: &BTreeMap<(String, usize), rule_declarations::DeclaredFamily>,
         known: &mut BTreeMap<(String, usize), Vec<String>>,
         visited: &mut BTreeSet<PathBuf>,
     ) {
@@ -63499,6 +63630,14 @@ impl TypeChecker {
                                 );
                             }
                         }
+                    }
+                    // A declared family's clauses are judged by its
+                    // declaration, not against each other.
+                    if let Some(family) =
+                        Self::rule_name_arity(rule).and_then(|key| declared.get(&key))
+                    {
+                        self.check_declared_rule_clause(rule, family);
+                        continue;
                     }
                     if let Some(message) = self.rule_result_conflict(rule, known) {
                         let head = match rule {
@@ -63535,6 +63674,7 @@ impl TypeChecker {
                         module.statements(),
                         &imported_dir,
                         bases,
+                        declared,
                         known,
                         visited,
                     );
@@ -66214,8 +66354,8 @@ __FINDS__
     fn checked_resolution_rule_family_uses_authoritative_tier_order() {
         let source = r#"
 | choose(value: Int) -> 0
-| choose(value: Int) -> 1 under value > 0
-| exception high choose(value: Int) -> 2 under value > 10
+| choose(value) -> 1 under value > 0
+| exception high choose(value) -> 2 under value > 10
 "#;
         let artifacts = explore_artifacts_for_source(source);
         assert!(
@@ -69328,7 +69468,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let source = r#"
 | condition(value: Int) -> True under value > 0
 | exception_only(value: Int) -> True under value > 100
-| exception positive exception_only(value: Int) -> True under value > 0
+| exception positive exception_only(value) -> True under value > 0
 
 | mixed(value: Int) -> True under value > 0
 | mixed(left: Int, right: Int) -> left + right under left > 0
@@ -69475,7 +69615,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 # Case(limit: Int) {
     | allowed(value: Int) -> True under value > 0
     | exception_allowed(value: Int) -> True under value > 100
-    | exception above_limit exception_allowed(value: Int) -> True under value > 0
+    | exception above_limit exception_allowed(value) -> True under value > 0
     | wrapper(value: Int) -> allowed(value)
     | memo_allowed() -> True under False
     | zero_wrapper() -> memo_allowed()
@@ -69927,7 +70067,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let source = r#"
 | conditional(value: Int) -> True under value > 0
 | exception_only(value: Int) -> True under value > 100
-| exception positive exception_only(value: Int) -> True under value > 0
+| exception positive exception_only(value) -> True under value > 0
 
 @ print(show(conditional(0)))
 @ print(show(exception_only(0)))
@@ -69977,7 +70117,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 # Coverage = Covered | NotCovered
 
 | is_covered(status: Coverage) -> False
-| exception covered is_covered(status: Coverage) -> True under status == Covered
+| exception covered is_covered(status) -> True under status == Covered
 
 = covered = is_covered(Covered)
 = not_covered = is_covered(NotCovered)
@@ -70126,8 +70266,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
     fn interpreted_same_tier_rule_priority_is_top_down() {
         let source = r#"
 | choose(value: Int) -> 0
-| exception high choose(value: Int) -> 2 under value > 10
-| exception positive choose(value: Int) -> 1 under value > 0
+| exception high choose(value) -> 2 under value > 10
+| exception positive choose(value) -> 1 under value > 0
 
 # Decision(value: Int) {
     | result() -> 0
@@ -70164,8 +70304,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let source = r#"
 # Decision(base: Int) {
     | result(value: Int) -> base
-    | result(value: Int) -> 7 under value > 7
-    | exception above_eight result(value: Int) -> 8 under value > 8
+    | result(value) -> 7 under value > 7
+    | exception above_eight result(value) -> 8 under value > 8
 }
 
 | allowed(value: Int) -> value > 0
@@ -70508,8 +70648,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
 @ export
 | answer(value: Int) -> value
 @ export
+| label(value: String): String
 | label("x") -> "ok"
-| label(value: String) -> ""
+| label(value) -> ""
 | private_value() -> 7
 @ export
 | partial(0) -> 7
@@ -70613,7 +70754,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 | overloaded(value: Int) -> value + 1
 
 | conflicting(value: Int) -> value
-| conflicting(value: Int) -> True under value > 0
+| conflicting(value) -> True under value > 0
 
 | unresolved(value: Int) -> []
 "#;
@@ -71014,7 +71155,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         .expect("write leaf rule module");
         std::fs::write(
             temp_dir.join("middle.runa"),
-            "@ import ./leaf\n| exception positive imported_condition(value: Int) -> True under value > 0\n",
+            "@ import ./leaf\n| exception positive imported_condition(value) -> True under value > 0\n",
         )
         .expect("write middle rule module");
         let source = r#"
@@ -71937,7 +72078,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 }
 
 | add_item(state: FoldState, item: Int) -> FoldStep(state, item).result()
-| exception double_second add_item(state: FoldState, item: Int) -> FoldStep(state, item + item).result() under item == 2
+| exception double_second add_item(state, item) -> FoldStep(state, item + item).result() under item == 2
 
 # FoldCase(values: List(Int)) {
     | final_state() -> foldl(values, FoldState(total = 0), add_item)
@@ -72043,7 +72184,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 # OuterResult(valid: Bool, blocked: Bool, deductible: Bool, status: Status)
 
 | classify(status: Status) -> Ordinary
-| exception special classify(status: Status) -> Special under status == Special
+| exception special classify(status) -> Special under status == Special
 
 # Inner(input: Input) {
     | input_valid() -> input.value >= 0
@@ -73523,7 +73664,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
     #[test]
     fn typechecker_scoped_constructor_takes_owner_from_rule_head() {
         assert_scoped_constructor(
-            "| ask_label(Closed) -> \"closed\"\n| ask_label(e: AskYearEvent) -> \"ask\"",
+            "| ask_label(e: AskYearEvent): String\n| ask_label(Closed) -> \"closed\"\n| ask_label(e) -> \"ask\"",
             "AskYearEvent__Closed",
             "Closed",
         );
@@ -76061,7 +76202,7 @@ handle <- Left
         base +
         sum(values) +
         extra
-    | total(extra: Int,) -> 99
+    | total(extra,) -> 99
         under extra > 10
 }
 

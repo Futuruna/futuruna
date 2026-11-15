@@ -49,7 +49,7 @@ førstkommende hverdag kl. 9.00.
 # SkattekontrollovOplysningsfristSag(input: SkattekontrollovOplysningsfristInput) {
     | ordinær_frist_yyyymmdd() -> skattekontrollov_oplysningsfrist_ordinær_yyyymmdd(input.indkomstår, input.kilde)
     | par13_udskyder_frist() -> input.fristdag_dagen_før_eller_på_lørdag_søndag_helligdag
-    | frist_efter_par13_yyyymmdd() -> ordinær_frist_yyyymmdd()
+    | frist_efter_par13_yyyymmdd(): Int -> ordinær_frist_yyyymmdd()
     | exception par13_førstkommende_hverdag frist_efter_par13_yyyymmdd() -> input.førstkommende_hverdag_yyyymmdd under par13_udskyder_frist() && input.førstkommende_hverdag_yyyymmdd > ordinær_frist_yyyymmdd()
     | rettidigt() -> input.handling_yyyymmdd > 0 && input.handling_yyyymmdd <= frist_efter_par13_yyyymmdd()
     | resultat() -> SkattekontrollovOplysningsfristResultat(

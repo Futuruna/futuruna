@@ -1,6 +1,6 @@
 -- expect-command: check
 -- expect-status: fail
--- expect-stderr: constructor `Closed` belongs to `Event` and `AskYearEvent`; the clauses of rule `label` take `Event` and `AskYearEvent` here, so write `Event.Closed` or `AskYearEvent.Closed`
+-- expect-stderr: the first parameter of `label` writes the type `AskYearEvent`; types are written once, on the family's declaring line (line 7); write only the name here
 # Event = Trade(id: String, amount: Int) | Closed
 # AskYearEvent = Trade(id: String, amount: Int, year: Int) | Closed
 

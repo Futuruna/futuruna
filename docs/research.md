@@ -247,8 +247,8 @@ Futuruna keeps them together:
 # Person(income: Int, age: Int)
 
 | tax_rate(person: Person) -> 20
-| tax_rate(person: Person) -> 40 under person.income > 500000
-| exception allowance tax_rate(person: Person) -> 0 under person.income < 50000
+| tax_rate(person) -> 40 under person.income > 500000
+| exception allowance tax_rate(person) -> 0 under person.income < 50000
 
 > tax_due(person: Person) -> Int {
     person.income * tax_rate(person) / 100

@@ -133,9 +133,9 @@ som kan sidestilles med lønmodtagerudgifter efter § 9, stk. 1.
     kontingentperiodeundtagelser = [],
     kildetilknytninger = []
 )
-| ligningslov9g_lovversion_for(indkomstår: Heltal) -> Ll9GLovUdenKildedækning
-| exception ligningslov9g_lbk42_for_2023_til_2025 ligningslov9g_lovversion_for(indkomstår: Heltal) -> Ll9GLbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
-| exception ligningslov9g_lbk1500_for_2026 ligningslov9g_lovversion_for(indkomstår: Heltal) -> Ll9GLbk1500Af2025 under indkomstår == 2026
+| ligningslov9g_lovversion_for(indkomstår: Heltal): Ligningslov9GLovversion -> Ll9GLovUdenKildedækning
+| exception ligningslov9g_lbk42_for_2023_til_2025 ligningslov9g_lovversion_for(indkomstår) -> Ll9GLbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
+| exception ligningslov9g_lbk1500_for_2026 ligningslov9g_lovversion_for(indkomstår) -> Ll9GLbk1500Af2025 under indkomstår == 2026
 | ligningslov9g_skatteår_understøttet(indkomstår: Heltal) -> ligningslov9g_lovversion_for(indkomstår) != Ll9GLovUdenKildedækning
 | ligningslov9g_årets_første_dato(indkomstår: Heltal) -> Dato(år = indkomstår, måned = 1, dag = 1)
 | ligningslov9g_årets_sidste_dato(indkomstår: Heltal) -> Dato(år = indkomstår, måned = 12, dag = 31)

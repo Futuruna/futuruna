@@ -1051,14 +1051,14 @@ EXTRA
                 0,
                 0,
                 "x",
-                "| exception extra clamp(x: Int) -> 1000 under x == 10",
+                "| exception extra clamp(x) -> 1000 under x == 10",
                 false,
             ),
         ] {
             for (form, clamp) in [
                 (
                     "rules",
-                    "| clamp(x: Int) -> DEFAULT\n| exception clamp_side clamp(x: Int) -> VALUE under x OP BOUND",
+                    "| clamp(x: Int) -> DEFAULT\n| exception clamp_side clamp(x) -> VALUE under x OP BOUND",
                 ),
                 (
                     "if-rule",
@@ -1143,7 +1143,7 @@ EXTRA
     fn cover_checked_clamp_preserves_rounded_income_difference_only_for_exact_identity() {
         let template = r#"
 | clamp(x: Int) -> DEFAULT
-| exception clamp_side clamp(x: Int) -> x under x > BOUND
+| exception clamp_side clamp(x) -> x under x > BOUND
 EXTRA
 > tax(x: Int) -> Int { clamp(x * 8 / 100) * 100 }
 ? explore clamp_identity {
@@ -1165,7 +1165,7 @@ EXTRA
                 0,
                 0,
                 0,
-                "| exception extra clamp(x: Int) -> -1 under x == 10",
+                "| exception extra clamp(x) -> -1 under x == 10",
                 false,
             ),
         ] {
@@ -1290,7 +1290,7 @@ DEFINITION
 }
 "#;
         let definitions = [
-            "| positive(x: Int) -> 0\n| exception positive_case positive(x: Int) -> x under x > 0",
+            "| positive(x: Int) -> 0\n| exception positive_case positive(x) -> x under x > 0",
             "> positive(x: Int) -> Int { if x > 0 { x } else { 0 } }",
         ];
         for definition in definitions {

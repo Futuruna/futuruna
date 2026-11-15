@@ -384,16 +384,16 @@ kr. i indkomståret 2024.
     ølogi = UdenØlogifradrag,
     dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse
 )
-| ligningslov9a_lovversion_for(indkomstår: Heltal) -> Ll9ALovUdenKildedækning
-| exception ligningslov9a_lbk42_for_2023_til_2025 ligningslov9a_lovversion_for(indkomstår: Heltal) -> Ll9ALbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
-| exception ligningslov9a_lbk1500_for_2026 ligningslov9a_lovversion_for(indkomstår: Heltal) -> Ll9ALbk1500Af2025 under indkomstår == 2026
-| ligningslov9a_satsversion_for(indkomstår: Heltal) -> Ll9ASatsUdenKildedækning
-| exception ligningslov9a_skm2022_613_for_2023 ligningslov9a_satsversion_for(indkomstår: Heltal) -> Ll9ASkm2022_613Sktst under indkomstår == 2023
-| exception ligningslov9a_skm2023_613_for_2024 ligningslov9a_satsversion_for(indkomstår: Heltal) -> Ll9ASkm2023_613Sktst under indkomstår == 2024
-| exception ligningslov9a_skm2024_643_for_2025 ligningslov9a_satsversion_for(indkomstår: Heltal) -> Ll9ASkm2024_643Sktst under indkomstår == 2025
-| exception ligningslov9a_skm2025_725_for_2026 ligningslov9a_satsversion_for(indkomstår: Heltal) -> Ll9ASkm2025_725Sktst under indkomstår == 2026
-| ligningslov9a_reguleringstal_for(indkomstår: Heltal) -> None
-| exception ligningslov9a_reguleringstal_2023_til_2026 ligningslov9a_reguleringstal_for(indkomstår: Heltal) -> Some(par20_reguleringstal_resultat(indkomstår)) under indkomstår >= 2023 && indkomstår <= 2026
+| ligningslov9a_lovversion_for(indkomstår: Heltal): Ligningslov9ALovversion -> Ll9ALovUdenKildedækning
+| exception ligningslov9a_lbk42_for_2023_til_2025 ligningslov9a_lovversion_for(indkomstår) -> Ll9ALbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
+| exception ligningslov9a_lbk1500_for_2026 ligningslov9a_lovversion_for(indkomstår) -> Ll9ALbk1500Af2025 under indkomstår == 2026
+| ligningslov9a_satsversion_for(indkomstår: Heltal): Ligningslov9ASatsversion -> Ll9ASatsUdenKildedækning
+| exception ligningslov9a_skm2022_613_for_2023 ligningslov9a_satsversion_for(indkomstår) -> Ll9ASkm2022_613Sktst under indkomstår == 2023
+| exception ligningslov9a_skm2023_613_for_2024 ligningslov9a_satsversion_for(indkomstår) -> Ll9ASkm2023_613Sktst under indkomstår == 2024
+| exception ligningslov9a_skm2024_643_for_2025 ligningslov9a_satsversion_for(indkomstår) -> Ll9ASkm2024_643Sktst under indkomstår == 2025
+| exception ligningslov9a_skm2025_725_for_2026 ligningslov9a_satsversion_for(indkomstår) -> Ll9ASkm2025_725Sktst under indkomstår == 2026
+| ligningslov9a_reguleringstal_for(indkomstår: Heltal): Par20ReguleringstalResultat? -> None
+| exception ligningslov9a_reguleringstal_2023_til_2026 ligningslov9a_reguleringstal_for(indkomstår) -> Some(par20_reguleringstal_resultat(indkomstår)) under indkomstår >= 2023 && indkomstår <= 2026
 | ligningslov9a_skatteår_understøttet(indkomstår: Heltal) -> ligningslov9a_lovversion_for(indkomstår) != Ll9ALovUdenKildedækning && ligningslov9a_satsversion_for(indkomstår) != Ll9ASatsUdenKildedækning && match ligningslov9a_reguleringstal_for(indkomstår) {
     | Some(_) -> Sandt
     | None -> Falskt

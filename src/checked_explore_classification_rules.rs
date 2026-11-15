@@ -451,11 +451,9 @@ mod tests {
 
     #[test]
     fn checked_rule_dispatch_normalization_is_name_independent_and_order_sensitive() {
-        let original =
-            graph("| q(x: Int) -> 0\n| q(x: Int) -> 7 under x > 7\n| q(x: Int) -> 8 under x > 8");
-        let renamed = graph("| q(value: Int) -> 0\n| q(value: Int) -> 7 under value > 7\n| q(value: Int) -> 8 under value > 8");
-        let reversed =
-            graph("| q(x: Int) -> 0\n| q(x: Int) -> 8 under x > 8\n| q(x: Int) -> 7 under x > 7");
+        let original = graph("| q(x: Int) -> 0\n| q(x) -> 7 under x > 7\n| q(x) -> 8 under x > 8");
+        let renamed = graph("| q(value: Int) -> 0\n| q(value) -> 7 under value > 7\n| q(value) -> 8 under value > 8");
+        let reversed = graph("| q(x: Int) -> 0\n| q(x) -> 8 under x > 8\n| q(x) -> 7 under x > 7");
         assert!(original
             .lane_manifest()
             .iter()

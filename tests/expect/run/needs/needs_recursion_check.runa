@@ -10,8 +10,8 @@
 # Household(income: Int, married: Bool, filing: Filing, spouse: Spouse?, accounts: List(Account), phone: String, n: Int)
 # Result(tax: Int)
 
-| countdown(n: Int) -> 0
-| exception step countdown(n: Int) -> countdown(n - 1) under n > 0
+| countdown(n: Int): Int -> 0
+| exception step countdown(n) -> countdown(n - 1) under n > 0
 
 @ calculate
 | household_tax(h: Household) -> Result(tax = countdown(h.n))

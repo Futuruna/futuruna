@@ -142,17 +142,17 @@ Opfyldningsfradrag (§ 18) 46.000 60.300 63.200
     | _ -> pbl_årsparametre_uden_kildedækning(indkomstår = indkomstår, kilde = PblIngenSamletKildedækning)
 }
 
-| pbl_årsparametre(indkomstår: Heltal) -> pbl_årsparametre_uden_kildedækning(indkomstår = indkomstår, kilde = PblIngenSamletKildedækning)
-| exception pbl_2009_har_ufuldstændig_tidsserie pbl_årsparametre(indkomstår: Heltal) -> pbl_årsparametre_2009_ufuldstændige() under indkomstår == 2009
-| exception pbl_2010_til_2017_har_kildedækning pbl_årsparametre(indkomstår: Heltal) -> pbl_årsparametre_2010_til_2017(indkomstår) under indkomstår >= 2010 && indkomstår <= 2017
-| exception pbl_2018_til_2024_har_kildedækning pbl_årsparametre(indkomstår: Heltal) -> pbl_årsparametre_2018_til_2024(indkomstår) under indkomstår >= 2018 && indkomstår <= 2024
-| exception pbl_2025_til_2026_har_kildedækning pbl_årsparametre(indkomstår: Heltal) -> pbl_årsparametre_2025_til_2026(indkomstår) under indkomstår >= 2025 && indkomstår <= 2026
+| pbl_årsparametre(indkomstår: Heltal): Pbl16Og18Årsparametre -> pbl_årsparametre_uden_kildedækning(indkomstår = indkomstår, kilde = PblIngenSamletKildedækning)
+| exception pbl_2009_har_ufuldstændig_tidsserie pbl_årsparametre(indkomstår) -> pbl_årsparametre_2009_ufuldstændige() under indkomstår == 2009
+| exception pbl_2010_til_2017_har_kildedækning pbl_årsparametre(indkomstår) -> pbl_årsparametre_2010_til_2017(indkomstår) under indkomstår >= 2010 && indkomstår <= 2017
+| exception pbl_2018_til_2024_har_kildedækning pbl_årsparametre(indkomstår) -> pbl_årsparametre_2018_til_2024(indkomstår) under indkomstår >= 2018 && indkomstår <= 2024
+| exception pbl_2025_til_2026_har_kildedækning pbl_årsparametre(indkomstår) -> pbl_årsparametre_2025_til_2026(indkomstår) under indkomstår >= 2025 && indkomstår <= 2026
 
-| pbl_årsparametre_rate_grundbeløb_kroner(parametre: Pbl16Og18Årsparametre) -> 0
-| exception pbl_rateovergang_2010_til_2011 pbl_årsparametre_rate_grundbeløb_kroner(parametre: Pbl16Og18Årsparametre) -> 100000 under parametre.understøttet && parametre.indkomstår <= 2011
-| exception pbl_rategrundbeløb_fra_2012 pbl_årsparametre_rate_grundbeløb_kroner(parametre: Pbl16Og18Årsparametre) -> 50000 under parametre.understøttet && parametre.indkomstår >= 2012
-| pbl_årsparametre_kapital_grundbeløb_kroner(parametre: Pbl16Og18Årsparametre) -> 0
-| exception pbl_kapitalgrundbeløb_til_og_med_2012 pbl_årsparametre_kapital_grundbeløb_kroner(parametre: Pbl16Og18Årsparametre) -> 46000 under parametre.understøttet && parametre.indkomstår <= 2012
+| pbl_årsparametre_rate_grundbeløb_kroner(parametre: Pbl16Og18Årsparametre): Int -> 0
+| exception pbl_rateovergang_2010_til_2011 pbl_årsparametre_rate_grundbeløb_kroner(parametre) -> 100000 under parametre.understøttet && parametre.indkomstår <= 2011
+| exception pbl_rategrundbeløb_fra_2012 pbl_årsparametre_rate_grundbeløb_kroner(parametre) -> 50000 under parametre.understøttet && parametre.indkomstår >= 2012
+| pbl_årsparametre_kapital_grundbeløb_kroner(parametre: Pbl16Og18Årsparametre): Int -> 0
+| exception pbl_kapitalgrundbeløb_til_og_med_2012 pbl_årsparametre_kapital_grundbeløb_kroner(parametre) -> 46000 under parametre.understøttet && parametre.indkomstår <= 2012
 | pbl_årsparametre_forventet_reguleret_kroner(indkomstår: Heltal, grundbeløb_kroner: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
     grundbeløb_2010_niveau_kroner = grundbeløb_kroner,
     reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår)

@@ -21343,10 +21343,13 @@ fn migration_root(file: &Path) -> PathBuf {
 /// `runa fmt --migrate`: rewrite the retired comment directives of every
 /// file as annotations, then format it; rewrite string `entry`/`subject`
 /// field metadata as `refof`/`pathof`, rename `unknown`, reserved in 0.5,
-/// to `unknown_`, and remove each field-level `@ field` that says what its
-/// named scalar's `@ field` says. A file the migration cannot rewrite is left
-/// unchanged and its reasons are listed; so is metadata it cannot rewrite.
+/// to `unknown_`, remove each field-level `@ field` that says what its named
+/// scalar's `@ field` says, and write each rule family's types once,
+/// declaring its result type where that is mechanical. A file the migration
+/// cannot rewrite is left unchanged and its reasons are listed; so is
+/// metadata it cannot rewrite.
 fn migrate_targets(targets: &[String], check: bool) {
+    use futuruna::migrate::rule_types::migrate_rule_declarations;
     use futuruna::migrate::{add_document_impl, migrate_needs, migrate_source, MigrationProgram};
     let mut files = Vec::new();
     for target in targets {
@@ -21361,6 +21364,7 @@ fn migrate_targets(targets: &[String], check: bool) {
     let mut programs: BTreeMap<PathBuf, MigrationProgram> = BTreeMap::new();
     let mut missing_impls: BTreeSet<(String, PathBuf)> = BTreeSet::new();
     let (mut migrated, mut failed) = (0usize, 0usize);
+    let (mut declared, mut types_once, mut not_declared, mut skipped) = (0, 0, 0, 0);
     for path in &files {
         let source = match std::fs::read_to_string(path) {
             Ok(source) => source,
@@ -21405,10 +21409,10 @@ fn migrate_targets(targets: &[String], check: bool) {
             .as_ref()
             .map(|result| result.notes.clone())
             .unwrap_or_default();
-        let mut migrated_source = needs.source.clone();
+        let mut current = needs.source.clone();
         let repeated = program.remove_repeated_scalar_field_meta(Path::new(path), &needs.source);
         let removed_meta = if let Some((rewritten, removed)) = repeated {
-            migrated_source = rewritten;
+            current = rewritten;
             notes.push(format!(
                 "removed {removed} `@ field` that said what the field's named scalar type says"
             ));
@@ -21417,21 +21421,43 @@ fn migrate_targets(targets: &[String], check: bool) {
             false
         };
         // The directive rewrite and the `@ field` removal move code; the 0.5
-        // rewrites replace single tokens and keep the file's layout.
-        let formatted = if result.is_some() || removed_meta {
-            match checked_format_runa_source(&migrated_source) {
+        // token rewrites keep the file's layout.
+        if result.is_some() || removed_meta {
+            current = match checked_format_runa_source(&current) {
                 Ok(formatted) => formatted,
                 Err(error) => {
                     eprintln!("{path}: the migrated file does not format: {error}; file unchanged");
                     failed += 1;
                     continue;
                 }
+            };
+        }
+        match migrate_rule_declarations(&current, path) {
+            Ok(rules) => {
+                for family in &rules.declared {
+                    eprintln!("{path}:{family}: declared");
+                }
+                for family in &rules.not_declared {
+                    eprintln!("{path}:{family}");
+                }
+                for family in &rules.skipped {
+                    eprintln!("{path}:{family}; not rewritten");
+                }
+                declared += rules.declared.len();
+                types_once += rules.types_once.len();
+                not_declared += rules.not_declared.len();
+                skipped += rules.skipped.len();
+                current = rules.source;
             }
-        } else if migrated_source != source {
-            migrated_source
-        } else {
+            Err(error) => {
+                eprintln!("{path}: rule families not migrated: {error}");
+                failed += 1;
+                continue;
+            }
+        }
+        if current == source {
             continue;
-        };
+        }
         for note in &notes {
             eprintln!("{path}: {note}");
         }
@@ -21448,7 +21474,7 @@ fn migrate_targets(targets: &[String], check: bool) {
         migrated += 1;
         if check {
             eprintln!("{path} needs migration");
-        } else if let Err(error) = std::fs::write(path, formatted) {
+        } else if let Err(error) = std::fs::write(path, current) {
             eprintln!("{path}: {error}");
             failed += 1;
         } else {
@@ -21477,6 +21503,9 @@ fn migrate_targets(targets: &[String], check: bool) {
             );
         }
     }
+    eprintln!(
+        "rule families: {declared} declared, {types_once} with their types written once, {not_declared} not declared, {skipped} not rewritten"
+    );
     eprintln!("{migrated} file(s) migrated, {failed} not migrated");
     if failed > 0 || (check && migrated > 0) {
         std::process::exit(1);
@@ -64753,7 +64782,7 @@ assert_with_message(true, message())
         let source = r#"
 | conditional(value: Int) -> True under value > 0
 | exception_only(value: Int) -> True under value > 100
-| exception positive exception_only(value: Int) -> True under value > 0
+| exception positive exception_only(value) -> True under value > 0
 
 @ print(show(conditional(1)))
 @ print(show(conditional(0)))
@@ -65964,7 +65993,7 @@ fn main() {{
 # Desired = Shared | DesiredOnly
 # Other = Shared | OtherOnly
 | is_shared(value: Desired) -> Falskt
-| exception shared_case is_shared(value: Desired) -> Sandt under value == Shared
+| exception shared_case is_shared(value) -> Sandt under value == Shared
 "#;
         let (mut cg, stmts) = scan_with_codegen(source);
         let rules: Vec<&Rule> = stmts
@@ -66005,7 +66034,7 @@ fn main() {{
 # Desired = Shared | DesiredOnly
 # Other = Shared | OtherOnly
 | choose(flag: Bool) -> DesiredOnly
-| exception shared_case choose(flag: Bool) -> Shared under flag
+| exception shared_case choose(flag) -> Shared under flag
 "#;
         let (mut cg, stmts) = scan_with_codegen(source);
         let rules: Vec<&Rule> = stmts
@@ -66072,8 +66101,8 @@ fn main() {{
     fn compiled_same_tier_rule_priority_is_top_down() {
         let source = r#"
 | choose(value: Int) -> 0
-| exception high choose(value: Int) -> 2 under value > 10
-| exception positive choose(value: Int) -> 1 under value > 0
+| exception high choose(value) -> 2 under value > 10
+| exception positive choose(value) -> 1 under value > 0
 
 # Decision(value: Int) {
     | result() -> 0
@@ -66576,7 +66605,7 @@ fn main() {{
 }
 
 | add_item(state: FoldState, item: Int) -> FoldStep(state, item).result()
-| exception double_second add_item(state: FoldState, item: Int) -> FoldStep(state, item + item).result() under item == 2
+| exception double_second add_item(state, item) -> FoldStep(state, item + item).result() under item == 2
 
 # FoldCase(values: List(Int)) {
     | final_state() -> foldl(values, FoldState(total = 0), add_item)
@@ -68201,16 +68230,17 @@ readings <- "score"
             r#"
 > private_offset() -> Int { 100 }
 | private_adjust(value: Int) -> value + private_offset() under value > 0
-| private_adjust(value: Int) -> 0
+| private_adjust(value) -> 0
 | route(left: Int, right: Int) -> private_adjust(left) + right under left > 0
-| route(left: Int, right: Int) -> 0
+| route(left, right) -> 0
 @ export route
 
 | tagged("remote")
 @ export tagged
 
+| label(value: String): String
 | label("remote") -> "found"
-| label(value: String) -> ""
+| label(value) -> ""
 @ export label
 
 @ export
@@ -68228,7 +68258,7 @@ readings <- "score"
 | private_adjust(value: Int, extra: Int) -> value + extra + 1000 under value > 0
 = root_delta = 1
 | route(value: Int) -> value + root_delta under value > 0
-| route(value: Int) -> 0
+| route(value) -> 0
 > private_offset() -> Int { 1 }
 
 @ print(show(route(4)))
@@ -68471,8 +68501,9 @@ readings <- "score"
             temp_dir.join("dep.runa"),
             r#"
 @ export
+| label(value: String): String
 | label("x") -> "ok"
-| label(value: String) -> ""
+| label(value) -> ""
 
 @ export
 > borrowed(value: String) -> Int { length(value) }
@@ -69201,7 +69232,7 @@ Q.append_shared(value = 3, values = shared_values)
 @ export
 # Policy(offset: Int, bonus: Int) {
     | score(value: Int) -> value + offset + bonus under value > 0
-    | score(value: Int) -> 0
+    | score(value) -> 0
 }
 
 @ export
@@ -69217,7 +69248,7 @@ Q.append_shared(value = 3, values = shared_values)
             r#"
 # Policy(offset: Int) {
     | score(value: Int) -> value + offset under value > 0
-    | score(value: Int) -> 0
+    | score(value) -> 0
 }
 @ import Remote from ./dep
 

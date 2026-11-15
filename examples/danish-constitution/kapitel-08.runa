@@ -48,7 +48,7 @@ henvendelse.
         | AndenFrihedsberøvelsesgrund -> Falskt
     }
 
-    | opfylder_par71_stk1_og_2() -> har_lovhjemmel
+    | opfylder_par71_stk1_og_2(): Bool -> har_lovhjemmel
     | exception dansk_borger_og_beskyttet_grund opfylder_par71_stk1_og_2() -> Falskt under personkreds == DanskBorger && grund_er_beskyttet_efter_stk1()
 }
 
@@ -67,7 +67,7 @@ henvendelse.
 }
 
 # Fremstillingssag(sted: Rigsdel, forløb: Anholdelsesforløb, grønlandsk_fravigelse_hjemlet_ved_lov: Boolsk, stedlige_forhold_gør_fravigelse_påkrævet: Boolsk) {
-    | opfylder_par71_stk3() -> forløb.opfylder_hovedreglen_i_par71_stk3()
+    | opfylder_par71_stk3(): Bool -> forløb.opfylder_hovedreglen_i_par71_stk3()
     | exception grønlandsk_lovfravigelse opfylder_par71_stk3() -> forløb.tidsangivelser_er_konsistente() under sted == Grønland && grønlandsk_fravigelse_hjemlet_ved_lov && stedlige_forhold_gør_fravigelse_påkrævet
 }
 
@@ -122,7 +122,7 @@ retskendelse.
         | BrudPåPostTelegrafEllerTelefonhemmeligheden -> Sandt
     }
 
-    | opfylder_par72() -> indgreb_er_omfattet() && retskendelse_foreligger
+    | opfylder_par72(): Bool -> indgreb_er_omfattet() && retskendelse_foreligger
     | exception særegen_lovundtagelse opfylder_par72() -> indgreb_er_omfattet() under særegen_undtagelse_hjemlet_ved_lov
 }
 
@@ -341,7 +341,7 @@ skilles.
 
 # Opløbssituation(den_væbnede_magt_angribes: Boolsk, forgæves_opfordringer_til_at_skilles: Heltal, opfordret_i_kongens_og_lovens_navn: Boolsk) {
     | opfordringsantal_er_konsistent() -> forgæves_opfordringer_til_at_skilles >= 0
-    | den_væbnede_magt_kan_skride_ind_efter_par80() -> opfordringsantal_er_konsistent() && forgæves_opfordringer_til_at_skilles >= opfordringer_før_magtanvendelse && opfordret_i_kongens_og_lovens_navn
+    | den_væbnede_magt_kan_skride_ind_efter_par80(): Bool -> opfordringsantal_er_konsistent() && forgæves_opfordringer_til_at_skilles >= opfordringer_før_magtanvendelse && opfordret_i_kongens_og_lovens_navn
     | exception angrebet den_væbnede_magt_kan_skride_ind_efter_par80() -> opfordringsantal_er_konsistent() under den_væbnede_magt_angribes
 }
 

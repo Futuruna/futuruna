@@ -1,0 +1,20 @@
+-- An importer's exception joins a rule family an imported file declares
+-- with its types and result type, writing the names only; the importer's
+-- own `label` is renamed apart from the module's, and the module's calls
+-- still reach its own.
+-- expect-command: interp
+-- expect-stdout: 0
+-- expect-stdout: 1
+-- expect-stdout: module 1
+-- expect-stdout: root 1
+
+@ import ./import_scope_rule_result_type_lib
+
+| exception big fee(amount) -> 1 under amount > 3
+
+> label(n: Int) -> String { "root " + show(n) }
+
+@ print(show(fee(2)))
+@ print(show(fee(5)))
+@ print(described(5))
+@ print(label(fee(5)))

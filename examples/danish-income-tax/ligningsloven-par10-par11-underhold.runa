@@ -160,11 +160,11 @@ tilsvarende anvendelse.
 # Ligningslov10Og11Årsresultat(indkomstår: Heltal, input: Ligningslov10Og11Årsinput, resultater: List(Ligningslov10Og11BidragResultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, løbende_børnebidragsmåneder_entydige: Boolsk, alle_input_gyldige: Boolsk, samlet_ligningsmæssigt_fradrag_kroner: Heltal, samlet_personlig_indkomst_kroner: Heltal, kan_sammensættes: Boolsk)
 
 | ligningslov10_11_tomt_årsinput() -> Ligningslov10Og11Årsinput(bidrag = [])
-| ligningslov10_11_skatteår_understøttet(indkomstår: Heltal) -> Falskt
-| exception ligningslov10_11_2023_understøttet ligningslov10_11_skatteår_understøttet(indkomstår: Heltal) -> Sandt under indkomstår == 2023
-| exception ligningslov10_11_2024_understøttet ligningslov10_11_skatteår_understøttet(indkomstår: Heltal) -> Sandt under indkomstår == 2024
-| exception ligningslov10_11_2025_understøttet ligningslov10_11_skatteår_understøttet(indkomstår: Heltal) -> Sandt under indkomstår == 2025
-| exception ligningslov10_11_2026_understøttet ligningslov10_11_skatteår_understøttet(indkomstår: Heltal) -> Sandt under indkomstår == 2026
+| ligningslov10_11_skatteår_understøttet(indkomstår: Heltal): Bool -> Falskt
+| exception ligningslov10_11_2023_understøttet ligningslov10_11_skatteår_understøttet(indkomstår) -> Sandt under indkomstår == 2023
+| exception ligningslov10_11_2024_understøttet ligningslov10_11_skatteår_understøttet(indkomstår) -> Sandt under indkomstår == 2024
+| exception ligningslov10_11_2025_understøttet ligningslov10_11_skatteår_understøttet(indkomstår) -> Sandt under indkomstår == 2025
+| exception ligningslov10_11_2026_understøttet ligningslov10_11_skatteår_understøttet(indkomstår) -> Sandt under indkomstår == 2026
 | ligningslov10_11_bidragsyder(rolle: Ligningslov10Og11Bidragsrolle) -> match rolle {
     | Bidragsyder(_) -> Sandt
     | Bidragsmodtager -> Falskt
@@ -269,8 +269,8 @@ tilsvarende anvendelse.
     | ÆgtefælleEllerTidligereÆgtefælle(_) -> 30
     | Barn(barn) -> ligningslov10_11_dage_før_og_med_18_år_i_måneden(barn, fakta.forfaldsdato)
 }
-| ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår: Heltal) -> 0
-| ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår: Heltal) -> 0
+| ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår: Heltal): Int -> 0
+| ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår: Heltal): Int -> 0
 | ligningslov10_11_normalbidrag_pr_måned_kroner(indkomstår: Heltal) -> ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår) + ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår)
 | ligningslov10_11_bidragsbetingelser_opfyldt(fakta: Ligningslov10Og11BidragFakta) -> {
     = fælles_betingelser = ligningslov10_11_retsgrundlag_omfattet(fakta) && ligningslov10_11_fastsættelse_dokumenteret(fakta.fastsættelse) && ligningslov10_11_betaling_forfalden_og_betalt(fakta) && ligningslov10_11_restancerækkefølge_opfyldt(fakta.restancestatus)
@@ -566,13 +566,13 @@ tillæg på 192 kr. om måneden.
 @ meta(ligningsloven_normalbidrag_metadata)
 @ section ligningsloven_par10_par11_normalbidrag {
 
-| exception ligningslov10_11_2023_normalbidrag_grundbeløb ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår: Heltal) -> 1328 under indkomstår == 2023
-| exception ligningslov10_11_2024_normalbidrag_grundbeløb ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår: Heltal) -> 1370 under indkomstår == 2024
-| exception ligningslov10_11_2025_normalbidrag_grundbeløb ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår: Heltal) -> 1419 under indkomstår == 2025
-| exception ligningslov10_11_2026_normalbidrag_grundbeløb ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår: Heltal) -> 1483 under indkomstår == 2026
-| exception ligningslov10_11_2023_normalbidrag_tillæg ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår: Heltal) -> 172 under indkomstår == 2023
-| exception ligningslov10_11_2024_normalbidrag_tillæg ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår: Heltal) -> 178 under indkomstår == 2024
-| exception ligningslov10_11_2025_normalbidrag_tillæg ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår: Heltal) -> 184 under indkomstår == 2025
-| exception ligningslov10_11_2026_normalbidrag_tillæg ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår: Heltal) -> 192 under indkomstår == 2026
+| exception ligningslov10_11_2023_normalbidrag_grundbeløb ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår) -> 1328 under indkomstår == 2023
+| exception ligningslov10_11_2024_normalbidrag_grundbeløb ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår) -> 1370 under indkomstår == 2024
+| exception ligningslov10_11_2025_normalbidrag_grundbeløb ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår) -> 1419 under indkomstår == 2025
+| exception ligningslov10_11_2026_normalbidrag_grundbeløb ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår) -> 1483 under indkomstår == 2026
+| exception ligningslov10_11_2023_normalbidrag_tillæg ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår) -> 172 under indkomstår == 2023
+| exception ligningslov10_11_2024_normalbidrag_tillæg ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår) -> 178 under indkomstår == 2024
+| exception ligningslov10_11_2025_normalbidrag_tillæg ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår) -> 184 under indkomstår == 2025
+| exception ligningslov10_11_2026_normalbidrag_tillæg ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår) -> 192 under indkomstår == 2026
 
 }

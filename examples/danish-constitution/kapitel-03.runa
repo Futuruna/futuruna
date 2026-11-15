@@ -99,8 +99,8 @@ fornødent til embedsforretningernes uforstyrrede førelse.
 
 | minister_kan_forblive(m: Mistillid) -> m == IkkeUdtalt
 
-| ministeriet_skal_begære_afsked(nyvalg_udskrives: Boolsk) -> Sandt
-| exception nyvalg ministeriet_skal_begære_afsked(nyvalg_udskrives: Boolsk) -> Falskt under nyvalg_udskrives
+| ministeriet_skal_begære_afsked(nyvalg_udskrives: Boolsk): Bool -> Sandt
+| exception nyvalg ministeriet_skal_begære_afsked(nyvalg_udskrives) -> Falskt under nyvalg_udskrives
 
 | statsministerens_reaktion_opfylder_par15(reaktion: ReaktionPåStatsministermistillid) -> match reaktion {
     | BegærerMinisterietsAfsked -> Sandt

@@ -801,7 +801,7 @@ fn clause_audit_runs_with_keys_on_shared_constructors() {
         "# Event = Trade(@ field(label = \"Id\", key = True) id: String, amount: Int) | Fee(@ field(label = \"Id\", key = True) id: String)\n\
          # AskEvent = Trade(@ field(label = \"Id\", key = True) id: String, amount: Int) | Fee(@ field(label = \"Id\", key = True) id: String)\n\
          | sign(amount: Int) -> 1 under amount > 0\n\
-         | sign(amount: Int) -> 0 under amount <= 0\n\
+         | sign(amount) -> 0 under amount <= 0\n\
          # Input(events: List(AskEvent), amount: Int)\n\
          @ calculate(\"Keyed shared constructors\")\n\
          > count(input: Input) -> Int { length(input.events) + sign(input.amount) }\n",

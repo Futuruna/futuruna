@@ -95,8 +95,8 @@ a result for every input, provide an unguarded fallback that is justified by
 the model:
 
 ```runa
-| rate(age: Int) -> 25
-| exception youth rate(age: Int) -> 10 under age < 18
+| rate(age: Int): Int -> 25
+| exception youth rate(age) -> 10 under age < 18
 ```
 
 The exception needs a label (`youth`) before the rule head, and it overrides

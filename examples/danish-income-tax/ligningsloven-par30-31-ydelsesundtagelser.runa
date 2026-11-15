@@ -308,19 +308,19 @@ I § 31, stk. 3, indsættes som nr. 5:
 # Ligningslov30Og31Lovversion = Ll30Og31Lbk42Af2023 | Ll30Og31Lbk1500Af2025 | Ll30Og31LovversionUdenKildedækning
 # Ligningslov31Befordringssatsversion = Ll31Bek1449Af2022 | Ll31Bek1312Af2023 | Ll31Bek1189Af2024 | Ll31Bek1333Af2025 | Ll31BefordringssatsUdenKildedækning
 
-| ligningslov30_og_31_lovversion_for(indkomstår: Heltal) -> Ll30Og31LovversionUdenKildedækning
-| exception ligningslov30_og_31_lbk42_for_2023_til_2025 ligningslov30_og_31_lovversion_for(indkomstår: Heltal) -> Ll30Og31Lbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
-| exception ligningslov30_og_31_lbk1500_for_2026 ligningslov30_og_31_lovversion_for(indkomstår: Heltal) -> Ll30Og31Lbk1500Af2025 under indkomstår == 2026
-| ligningslov31_befordringssatsversion_for(indkomstår: Heltal) -> Ll31BefordringssatsUdenKildedækning
-| exception ligningslov31_bek1449_for_2023 ligningslov31_befordringssatsversion_for(indkomstår: Heltal) -> Ll31Bek1449Af2022 under indkomstår == 2023
-| exception ligningslov31_bek1312_for_2024 ligningslov31_befordringssatsversion_for(indkomstår: Heltal) -> Ll31Bek1312Af2023 under indkomstår == 2024
-| exception ligningslov31_bek1189_for_2025 ligningslov31_befordringssatsversion_for(indkomstår: Heltal) -> Ll31Bek1189Af2024 under indkomstår == 2025
-| exception ligningslov31_bek1333_for_2026 ligningslov31_befordringssatsversion_for(indkomstår: Heltal) -> Ll31Bek1333Af2025 under indkomstår == 2026
+| ligningslov30_og_31_lovversion_for(indkomstår: Heltal): Ligningslov30Og31Lovversion -> Ll30Og31LovversionUdenKildedækning
+| exception ligningslov30_og_31_lbk42_for_2023_til_2025 ligningslov30_og_31_lovversion_for(indkomstår) -> Ll30Og31Lbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
+| exception ligningslov30_og_31_lbk1500_for_2026 ligningslov30_og_31_lovversion_for(indkomstår) -> Ll30Og31Lbk1500Af2025 under indkomstår == 2026
+| ligningslov31_befordringssatsversion_for(indkomstår: Heltal): Ligningslov31Befordringssatsversion -> Ll31BefordringssatsUdenKildedækning
+| exception ligningslov31_bek1449_for_2023 ligningslov31_befordringssatsversion_for(indkomstår) -> Ll31Bek1449Af2022 under indkomstår == 2023
+| exception ligningslov31_bek1312_for_2024 ligningslov31_befordringssatsversion_for(indkomstår) -> Ll31Bek1312Af2023 under indkomstår == 2024
+| exception ligningslov31_bek1189_for_2025 ligningslov31_befordringssatsversion_for(indkomstår) -> Ll31Bek1189Af2024 under indkomstår == 2025
+| exception ligningslov31_bek1333_for_2026 ligningslov31_befordringssatsversion_for(indkomstår) -> Ll31Bek1333Af2025 under indkomstår == 2026
 | ligningslov30_og_31_skatteår_understøttet(indkomstår: Heltal) -> ligningslov30_og_31_lovversion_for(indkomstår) != Ll30Og31LovversionUdenKildedækning && ligningslov31_befordringssatsversion_for(indkomstår) != Ll31BefordringssatsUdenKildedækning && ligningslov9a_skatteår_understøttet(indkomstår)
-| ligningslov31_befordring_øre_pr_kilometer(indkomstår: Heltal) -> 0
-| exception ligningslov31_befordringssats_2023 ligningslov31_befordring_øre_pr_kilometer(indkomstår: Heltal) -> 219 under indkomstår == 2023
-| exception ligningslov31_befordringssats_2024_og_2025 ligningslov31_befordring_øre_pr_kilometer(indkomstår: Heltal) -> 223 under indkomstår == 2024 || indkomstår == 2025
-| exception ligningslov31_befordringssats_2026 ligningslov31_befordring_øre_pr_kilometer(indkomstår: Heltal) -> 228 under indkomstår == 2026
+| ligningslov31_befordring_øre_pr_kilometer(indkomstår: Heltal): Int -> 0
+| exception ligningslov31_befordringssats_2023 ligningslov31_befordring_øre_pr_kilometer(indkomstår) -> 219 under indkomstår == 2023
+| exception ligningslov31_befordringssats_2024_og_2025 ligningslov31_befordring_øre_pr_kilometer(indkomstår) -> 223 under indkomstår == 2024 || indkomstår == 2025
+| exception ligningslov31_befordringssats_2026 ligningslov31_befordring_øre_pr_kilometer(indkomstår) -> 228 under indkomstår == 2026
 | ligningslov31_yderrelation_omfattet(relation: Ligningslov30Og31Yderrelation) -> relation == Ll30Og31Arbejdsgiver || relation == Ll30Og31AftaleOmPersonligtArbejde || relation == Ll30Og31KollektivtOrgan || relation == Ll30Og31Fagforening || relation == Ll30Og31Arbejdsløshedskasse || relation == Ll30Og31PensionskasseEllerLignende || relation == Ll30Og31ArbejdsgivernesUddannelsesbidrag
 | ligningslov31_mulige_måltidsdage(fulde_døgn: Heltal, påbegyndte_timer: Heltal) -> fulde_døgn + hvis påbegyndte_timer > 0 { 1 } ellers { 0 }
 | ligningslov31_ydelsesart_input_gyldig(art: Ligningslov31Uddannelsesydelsesart) -> match art {
@@ -372,11 +372,11 @@ I § 31, stk. 3, indsættes som nr. 5:
     | Ll30Og31BehandlingsydelseEfterPar30(fakta) -> ligningslov30_betingelser_opfyldt(relation, fakta)
     | Ll30Og31UddannelsesydelseEfterPar31(fakta) -> ligningslov31_betingelser_opfyldt(indkomstår, relation, beløb_kroner, fakta)
 }
-| ligningslov30_og_31_anvendt_hjemmel(undtagelse: Ligningslov30Og31Undtagelse, betingelser_opfyldt: Boolsk) -> Ll30Og31IngenAnvendtUndtagelse
-| exception ligningslov30_undtager_behandlingsydelse ligningslov30_og_31_anvendt_hjemmel(undtagelse: Ligningslov30Og31Undtagelse, betingelser_opfyldt: Boolsk) -> Ll30Og31UndtagelseEfterPar30 under betingelser_opfyldt && match undtagelse { | Ll30Og31BehandlingsydelseEfterPar30(_) -> Sandt | _ -> Falskt }
-| exception ligningslov31_undtager_uddannelsesydelse ligningslov30_og_31_anvendt_hjemmel(undtagelse: Ligningslov30Og31Undtagelse, betingelser_opfyldt: Boolsk) -> Ll30Og31UndtagelseEfterPar31 under betingelser_opfyldt && match undtagelse { | Ll30Og31UddannelsesydelseEfterPar31(_) -> Sandt | _ -> Falskt }
-| ligningslov30_og_31_skattefri_beløb_kroner(beløb_kroner: Heltal, input_gyldigt: Boolsk, betingelser_opfyldt: Boolsk) -> 0
-| exception ligningslov30_eller_31_gør_ydelsen_skattefri ligningslov30_og_31_skattefri_beløb_kroner(beløb_kroner: Heltal, input_gyldigt: Boolsk, betingelser_opfyldt: Boolsk) -> beløb_kroner under input_gyldigt && betingelser_opfyldt
+| ligningslov30_og_31_anvendt_hjemmel(undtagelse: Ligningslov30Og31Undtagelse, betingelser_opfyldt: Boolsk): Ligningslov30Og31Undtagelseshjemmel -> Ll30Og31IngenAnvendtUndtagelse
+| exception ligningslov30_undtager_behandlingsydelse ligningslov30_og_31_anvendt_hjemmel(undtagelse, betingelser_opfyldt) -> Ll30Og31UndtagelseEfterPar30 under betingelser_opfyldt && match undtagelse { | Ll30Og31BehandlingsydelseEfterPar30(_) -> Sandt | _ -> Falskt }
+| exception ligningslov31_undtager_uddannelsesydelse ligningslov30_og_31_anvendt_hjemmel(undtagelse, betingelser_opfyldt) -> Ll30Og31UndtagelseEfterPar31 under betingelser_opfyldt && match undtagelse { | Ll30Og31UddannelsesydelseEfterPar31(_) -> Sandt | _ -> Falskt }
+| ligningslov30_og_31_skattefri_beløb_kroner(beløb_kroner: Heltal, input_gyldigt: Boolsk, betingelser_opfyldt: Boolsk): Int -> 0
+| exception ligningslov30_eller_31_gør_ydelsen_skattefri ligningslov30_og_31_skattefri_beløb_kroner(beløb_kroner, input_gyldigt, betingelser_opfyldt) -> beløb_kroner under input_gyldigt && betingelser_opfyldt
 | ligningslov30_og_31_undtagelsesresultat(indkomstår: Heltal, relation: Ligningslov30Og31Yderrelation, beløb_kroner: Heltal, undtagelse: Ligningslov30Og31Undtagelse) -> {
     = input_gyldigt = ligningslov30_og_31_skatteår_understøttet(indkomstår) && beløb_kroner >= 0 && ligningslov30_og_31_undtagelse_input_gyldig(undtagelse)
     = yderrelation_omfattet = ligningslov30_og_31_yderrelation_omfattet(relation, undtagelse)

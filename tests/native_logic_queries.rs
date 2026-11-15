@@ -133,7 +133,7 @@ fn incomplete_queries_fail_without_printing_partial_results() {
         ),
         (
             "typed_recursive",
-            "| edge(1, 2)\n| edge(2, 1)\n| reach(x: Int, y: Int) -> edge(x, y)\n| reach(x: Int, y: Int) -> edge(x, z), reach(z, y)\n@ print(show(findall(y, reach(1, y))))\n",
+            "| edge(1, 2)\n| edge(2, 1)\n| reach(x: Int, y: Int) -> edge(x, y)\n| reach(x, y) -> edge(x, z), reach(z, y)\n@ print(show(findall(y, reach(1, y))))\n",
         ),
         (
             "unbound",

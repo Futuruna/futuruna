@@ -109,8 +109,8 @@ different results, with a witness input:
 
 ```runa
 | band(x: Int) -> 0
-| band(x: Int) -> 70 under x > 7
-| band(x: Int) -> 80 under x > 8
+| band(x) -> 70 under x > 7
+| band(x) -> 80 under x > 8
 ```
 
 ```bash
@@ -181,11 +181,11 @@ Claims about a finite state machine quantify over every state and event:
 # Event = Submit | Pay | Ship | Cancel
 
 | next(s: State, e: Event) -> s
-| next(s: State, e: Event) -> Submitted under s == Draft && e == Submit
-| next(s: State, e: Event) -> Paid under s == Submitted && e == Pay
-| next(s: State, e: Event) -> Shipped under s == Paid && e == Ship
-| next(s: State, e: Event) -> Cancelled under e == Cancel && (s == Draft || s == Submitted)
-| exception refund_window next(s: State, e: Event) -> Cancelled under s == Paid && e == Cancel
+| next(s, e) -> Submitted under s == Draft && e == Submit
+| next(s, e) -> Paid under s == Submitted && e == Pay
+| next(s, e) -> Shipped under s == Paid && e == Ship
+| next(s, e) -> Cancelled under e == Cancel && (s == Draft || s == Submitted)
+| exception refund_window next(s, e) -> Cancelled under s == Paid && e == Cancel
 
 | shipped_is_final: next(Shipped, e) -> next(Shipped, e) == Shipped
 | cancel_always_cancels: next(s, Cancel) -> next(s, Cancel) == Cancelled

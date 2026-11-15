@@ -36,9 +36,9 @@ foreninger m.v., der er hjemmehørende her i landet:
 # Selskabsskattelov1Stk1Nr1Input(selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform, hjemmehørende_i_danmark: Boolsk)
 # Selskabsskattelov1Stk1Nr1Resultat(kilde: Selskabsskattelov1Stk1Nr1Kilde, selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform, selskabsform_omfattet_af_nr1: Boolsk, hjemmehørende_i_danmark: Boolsk, skattepligtig_efter_par1_stk1_nr1: Boolsk)
 
-| selskabsskattelov1_stk1_nr1_selskabsform_omfattet(selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform) -> Falskt
-| exception sel1_stk1_nr1_aktieselskab selskabsskattelov1_stk1_nr1_selskabsform_omfattet(selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform) -> Sandt under selskabsform == Sel1Stk1Nr1IndregistreretAktieselskab
-| exception sel1_stk1_nr1_anpartsselskab selskabsskattelov1_stk1_nr1_selskabsform_omfattet(selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform) -> Sandt under selskabsform == Sel1Stk1Nr1IndregistreretAnpartsselskab
+| selskabsskattelov1_stk1_nr1_selskabsform_omfattet(selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform): Bool -> Falskt
+| exception sel1_stk1_nr1_aktieselskab selskabsskattelov1_stk1_nr1_selskabsform_omfattet(selskabsform) -> Sandt under selskabsform == Sel1Stk1Nr1IndregistreretAktieselskab
+| exception sel1_stk1_nr1_anpartsselskab selskabsskattelov1_stk1_nr1_selskabsform_omfattet(selskabsform) -> Sandt under selskabsform == Sel1Stk1Nr1IndregistreretAnpartsselskab
 
 # Selskabsskattelov1Stk1Nr1Sag(input: Selskabsskattelov1Stk1Nr1Input) {
     | kilde() -> SelskabsskattelovenLbk279Af2025Par1Stk1Nr1
@@ -92,13 +92,13 @@ anvendes til almenvelgørende eller på anden måde almennyttige formål.
 # Selskabsskattelov1Stk1Nr6IndkomstInput(nr6_resultat: Selskabsskattelov1Stk1Nr6Resultat, indkomst_art: Selskabsskattelov1Stk1Nr6IndkomstArt, beløb_kroner: Heltal)
 # Selskabsskattelov1Stk1Nr6IndkomstResultat(skattepligtig_efter_par1_stk1_nr6: Boolsk, indkomst_omfattet_af_nr6: Boolsk, skattepligtig_indkomst_kroner: Heltal)
 
-| selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed: Selskabsskattelov1Stk1Nr6Enhed) -> Falskt
-| exception ssl1_stk1_nr6_anden_forening selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed: Selskabsskattelov1Stk1Nr6Enhed) -> Sandt under enhed == Ssl1Stk1Nr6AndenForening
-| exception ssl1_stk1_nr6_korporation selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed: Selskabsskattelov1Stk1Nr6Enhed) -> Sandt under enhed == Ssl1Stk1Nr6Korporation
-| exception ssl1_stk1_nr6_stiftelse selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed: Selskabsskattelov1Stk1Nr6Enhed) -> Sandt under enhed == Ssl1Stk1Nr6Stiftelse
-| exception ssl1_stk1_nr6_legat selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed: Selskabsskattelov1Stk1Nr6Enhed) -> Sandt under enhed == Ssl1Stk1Nr6Legat
-| exception ssl1_stk1_nr6_selvejende_institution selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed: Selskabsskattelov1Stk1Nr6Enhed) -> Sandt under enhed == Ssl1Stk1Nr6SelvejendeInstitution
-| exception ssl1_stk1_nr6_investeringsforening selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed: Selskabsskattelov1Stk1Nr6Enhed) -> Sandt under enhed == Ssl1Stk1Nr6Investeringsforening
+| selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed: Selskabsskattelov1Stk1Nr6Enhed): Bool -> Falskt
+| exception ssl1_stk1_nr6_anden_forening selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed) -> Sandt under enhed == Ssl1Stk1Nr6AndenForening
+| exception ssl1_stk1_nr6_korporation selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed) -> Sandt under enhed == Ssl1Stk1Nr6Korporation
+| exception ssl1_stk1_nr6_stiftelse selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed) -> Sandt under enhed == Ssl1Stk1Nr6Stiftelse
+| exception ssl1_stk1_nr6_legat selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed) -> Sandt under enhed == Ssl1Stk1Nr6Legat
+| exception ssl1_stk1_nr6_selvejende_institution selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed) -> Sandt under enhed == Ssl1Stk1Nr6SelvejendeInstitution
+| exception ssl1_stk1_nr6_investeringsforening selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed) -> Sandt under enhed == Ssl1Stk1Nr6Investeringsforening
 
 # Selskabsskattelov1Stk1Nr6Sag(input: Selskabsskattelov1Stk1Nr6Input) {
     | kilde() -> SelskabsskattelovenLbk279Af2025Par1Stk1Nr6
@@ -120,14 +120,14 @@ anvendes til almenvelgørende eller på anden måde almennyttige formål.
 | selskabsskattelov1_stk1_nr6_sag(input: Selskabsskattelov1Stk1Nr6Input) -> Selskabsskattelov1Stk1Nr6Sag(input)
 | selskabsskattelov1_stk1_nr6_resultat(input: Selskabsskattelov1Stk1Nr6Input) -> selskabsskattelov1_stk1_nr6_sag(input).resultat()
 
-| selskabsskattelov1_stk1_nr6_indkomstart_omfattet(art: Selskabsskattelov1Stk1Nr6IndkomstArt) -> Falskt
-| exception ssl1_stk1_nr6_erhverv selskabsskattelov1_stk1_nr6_indkomstart_omfattet(art: Selskabsskattelov1Stk1Nr6IndkomstArt) -> Sandt under art == Ssl1Stk1Nr6ErhvervsmæssigVirksomhed
-| exception ssl1_stk1_nr6_formuegode selskabsskattelov1_stk1_nr6_indkomstart_omfattet(art: Selskabsskattelov1Stk1Nr6IndkomstArt) -> Sandt under art == Ssl1Stk1Nr6FormuegodeMedErhvervstilknytning
-| exception ssl1_stk1_nr6_par2_indkomst selskabsskattelov1_stk1_nr6_indkomstart_omfattet(art: Selskabsskattelov1Stk1Nr6IndkomstArt) -> Sandt under art == Ssl1Stk1Nr6Par2UdbytteRenteRoyaltyKursgevinst
+| selskabsskattelov1_stk1_nr6_indkomstart_omfattet(art: Selskabsskattelov1Stk1Nr6IndkomstArt): Bool -> Falskt
+| exception ssl1_stk1_nr6_erhverv selskabsskattelov1_stk1_nr6_indkomstart_omfattet(art) -> Sandt under art == Ssl1Stk1Nr6ErhvervsmæssigVirksomhed
+| exception ssl1_stk1_nr6_formuegode selskabsskattelov1_stk1_nr6_indkomstart_omfattet(art) -> Sandt under art == Ssl1Stk1Nr6FormuegodeMedErhvervstilknytning
+| exception ssl1_stk1_nr6_par2_indkomst selskabsskattelov1_stk1_nr6_indkomstart_omfattet(art) -> Sandt under art == Ssl1Stk1Nr6Par2UdbytteRenteRoyaltyKursgevinst
 
 # Selskabsskattelov1Stk1Nr6IndkomstSag(input: Selskabsskattelov1Stk1Nr6IndkomstInput) {
     | indkomst_omfattet_af_nr6() -> selskabsskattelov1_stk1_nr6_indkomstart_omfattet(input.indkomst_art)
-    | skattepligtig_indkomst_kroner() -> 0
+    | skattepligtig_indkomst_kroner(): Int -> 0
     | exception ssl1_stk1_nr6_skattepligtig_indkomst skattepligtig_indkomst_kroner() -> input.beløb_kroner under input.nr6_resultat.skattepligtig_efter_par1_stk1_nr6 && indkomst_omfattet_af_nr6()
     | resultat() -> Selskabsskattelov1Stk1Nr6IndkomstResultat(
         skattepligtig_efter_par1_stk1_nr6 = input.nr6_resultat.skattepligtig_efter_par1_stk1_nr6,
@@ -228,20 +228,20 @@ efter 1. pkt. med tillæg af 3 procentpoint (tillægsselskabsskatten).
 # SelskabsskattelovPar17Stk1SatsKilde = SelskabsskattelovenLbk1241Af2022 | SelskabsskattelovenLbk279Af2025
 # SelskabsskattelovPar17Stk1SatsResultat(skatteår: Heltal, kilde: SelskabsskattelovPar17Stk1SatsKilde, selskabsskat_basispoint: Heltal, tillægsselskabsskat_basispoint: Heltal, cfc_sats_basispoint: Heltal)
 
-| selskabsskattelov_par17_stk1_sats_kilde_opslag(skatteår: Heltal) -> Some(SelskabsskattelovenLbk1241Af2022) under skatteår >= 2023 && skatteår < 2025
-| selskabsskattelov_par17_stk1_sats_kilde_opslag(skatteår: Heltal) -> Some(SelskabsskattelovenLbk279Af2025) under skatteår >= 2025
+| selskabsskattelov_par17_stk1_sats_kilde_opslag(skatteår: Heltal): SelskabsskattelovPar17Stk1SatsKilde? -> Some(SelskabsskattelovenLbk1241Af2022) under skatteår >= 2023 && skatteår < 2025
+| selskabsskattelov_par17_stk1_sats_kilde_opslag(skatteår) -> Some(SelskabsskattelovenLbk279Af2025) under skatteår >= 2025
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
-| selskabsskattelov_par17_stk1_sats_kilde_opslag(skatteår: Heltal) -> None
+| selskabsskattelov_par17_stk1_sats_kilde_opslag(skatteår) -> None
 | selskabsskattelov_par17_stk1_sats_kilde(skatteår: Heltal) -> head(match selskabsskattelov_par17_stk1_sats_kilde_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
-| selskabsskattelov_par17_stk1_selskabsskat_basispoint_opslag(skatteår: Heltal) -> Some(2200) under skatteår >= 2023
+| selskabsskattelov_par17_stk1_selskabsskat_basispoint_opslag(skatteår: Heltal): Int? -> Some(2200) under skatteår >= 2023
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
-| selskabsskattelov_par17_stk1_selskabsskat_basispoint_opslag(skatteår: Heltal) -> None
+| selskabsskattelov_par17_stk1_selskabsskat_basispoint_opslag(skatteår) -> None
 | selskabsskattelov_par17_stk1_selskabsskat_basispoint(skatteår: Heltal) -> head(match selskabsskattelov_par17_stk1_selskabsskat_basispoint_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
-| selskabsskattelov_par17_stk1_tillægsselskabsskat_basispoint_opslag(skatteår: Heltal) -> Some(300) under skatteår >= 2023
+| selskabsskattelov_par17_stk1_tillægsselskabsskat_basispoint_opslag(skatteår: Heltal): Int? -> Some(300) under skatteår >= 2023
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
-| selskabsskattelov_par17_stk1_tillægsselskabsskat_basispoint_opslag(skatteår: Heltal) -> None
+| selskabsskattelov_par17_stk1_tillægsselskabsskat_basispoint_opslag(skatteår) -> None
 | selskabsskattelov_par17_stk1_tillægsselskabsskat_basispoint(skatteår: Heltal) -> head(match selskabsskattelov_par17_stk1_tillægsselskabsskat_basispoint_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
-| selskabsskattelov_par17_stk1_sats_resultat_opslag(skatteår: Heltal) -> Some(SelskabsskattelovPar17Stk1SatsResultat(
+| selskabsskattelov_par17_stk1_sats_resultat_opslag(skatteår: Heltal): SelskabsskattelovPar17Stk1SatsResultat? -> Some(SelskabsskattelovPar17Stk1SatsResultat(
     skatteår = skatteår,
     kilde = selskabsskattelov_par17_stk1_sats_kilde(skatteår),
     selskabsskat_basispoint = selskabsskattelov_par17_stk1_selskabsskat_basispoint(skatteår),
@@ -249,7 +249,7 @@ efter 1. pkt. med tillæg af 3 procentpoint (tillægsselskabsskatten).
     cfc_sats_basispoint = selskabsskattelov_par17_stk1_selskabsskat_basispoint(skatteår)
 )) under skatteår >= 2023
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
-| selskabsskattelov_par17_stk1_sats_resultat_opslag(skatteår: Heltal) -> None
+| selskabsskattelov_par17_stk1_sats_resultat_opslag(skatteår) -> None
 | selskabsskattelov_par17_stk1_sats_resultat(skatteår: Heltal) -> head(match selskabsskattelov_par17_stk1_sats_resultat_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
 | selskabsskattelov_par17_stk1_sats_basispoint(skatteår: Heltal) -> selskabsskattelov_par17_stk1_sats_resultat(skatteår).selskabsskat_basispoint
 

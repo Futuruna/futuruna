@@ -66,10 +66,10 @@ tension below.
 # HusholdningBørneUngeydelseInput(skatteår: Heltal, barn_0_til_2_antal: Heltal, barn_3_til_6_antal: Heltal, barn_7_til_14_antal: Heltal, ung_15_til_17_antal: Heltal, første_modtager_mellemskatgrundlag_kroner: Heltal, anden_modtager_mellemskatgrundlag_kroner: Heltal)
 # HusholdningBørneUngeydelseResultat(brutto_ydelse_kroner: Heltal, første_modtager: BørneUngeydelseResultat, anden_modtager: BørneUngeydelseResultat, samlet_ydelse_efter_aftrapning_kroner: Heltal)
 
-| børneungeydelse_årlig_sats_kroner(skatteår: Heltal, aldersgruppe: BørneUngeydelseAldersgruppe) -> 21480 under skatteår == 2026 && aldersgruppe == Barn0Til2
-| børneungeydelse_årlig_sats_kroner(skatteår: Heltal, aldersgruppe: BørneUngeydelseAldersgruppe) -> 16992 under skatteår == 2026 && aldersgruppe == Barn3Til6
-| børneungeydelse_årlig_sats_kroner(skatteår: Heltal, aldersgruppe: BørneUngeydelseAldersgruppe) -> 13368 under skatteår == 2026 && aldersgruppe == Barn7Til14
-| børneungeydelse_årlig_sats_kroner(skatteår: Heltal, aldersgruppe: BørneUngeydelseAldersgruppe) -> 13368 under skatteår == 2026 && aldersgruppe == Ung15Til17
+| børneungeydelse_årlig_sats_kroner(skatteår: Heltal, aldersgruppe: BørneUngeydelseAldersgruppe): Int -> 21480 under skatteår == 2026 && aldersgruppe == Barn0Til2
+| børneungeydelse_årlig_sats_kroner(skatteår, aldersgruppe) -> 16992 under skatteår == 2026 && aldersgruppe == Barn3Til6
+| børneungeydelse_årlig_sats_kroner(skatteår, aldersgruppe) -> 13368 under skatteår == 2026 && aldersgruppe == Barn7Til14
+| børneungeydelse_årlig_sats_kroner(skatteår, aldersgruppe) -> 13368 under skatteår == 2026 && aldersgruppe == Ung15Til17
 | børneungeydelse_aftrapningsgrænse_kroner(skatteår: Heltal) -> 961100 under skatteår == 2026
 | børneungeydelse_aftrapning_basispoint() -> 200
 | børneungeydelse_delår_bruger_par14_omregnet_mellemskatgrundlag() -> Sandt

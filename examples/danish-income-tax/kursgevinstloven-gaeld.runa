@@ -500,7 +500,7 @@ selskabskapital medregnes ikke ved opgørelsen af den skattepligtige indkomst.
         | KglPar22Stk3Indfrielse(fakta) -> fakta.indfrielses_eller_opsigelsesdato.år == input.indkomstår
         | KglPar22AÅrsbeskatning(fakta) -> input.indkomstår >= fakta.stiftelsesfakta.stiftelsesdato.år
     }
-    | behandling_uden_validering() -> KglGældBehandlesEfterPar20
+    | behandling_uden_validering(): KursgevinstlovGældBehandling -> KglGældBehandlesEfterPar20
     | exception kgl_gæld_behandling_par19 behandling_uden_validering() -> KglGældBehandlesEfterPar19 under par19_anvendes()
     | exception kgl_gæld_behandling_par21_stk1 behandling_uden_validering() -> KglGældBehandlesEfterPar21Stk1 under par21_stk1_anvendes()
     | exception kgl_gæld_behandling_par21_stk2 behandling_uden_validering() -> KglGældBehandlesEfterPar21Stk2 under par21_stk2_anvendes()

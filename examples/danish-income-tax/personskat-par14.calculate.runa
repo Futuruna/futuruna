@@ -431,8 +431,8 @@ https://info.skat.dk/data.aspx?oid=1977389
 | personskat_par14_skattepligtigt_resultatgrundlag_kroner(resultat: LønmodtagerBreakdown) -> penge_positivt_beløb(resultat.almindelig_skattepligtig_indkomst_kroner)
 | personskat_par14_positiv_aktieindkomst_kroner(forhold: LønmodtagerSkatteforhold) -> penge_positivt_beløb(forhold.aktieindkomst_kroner)
 | personskat_par14_positiv_cfc_indkomst_kroner(forhold: LønmodtagerSkatteforhold) -> penge_positivt_beløb(forhold.cfc_indkomst_kroner)
-| personskat_par14_par8_grundlag_kroner(input: LønmodtagerInput) -> personskat_par14_skattepligtigt_grundlag_kroner(input) under input.skatteår < 2026
-| exception personskat_par14_toptopskat_personligt_grundlag personskat_par14_par8_grundlag_kroner(input: LønmodtagerInput) -> personskat_par14_personligt_grundlag_kroner(input) under input.skatteår >= 2026
+| personskat_par14_par8_grundlag_kroner(input: LønmodtagerInput): Int -> personskat_par14_skattepligtigt_grundlag_kroner(input) under input.skatteår < 2026
+| exception personskat_par14_toptopskat_personligt_grundlag personskat_par14_par8_grundlag_kroner(input) -> personskat_par14_personligt_grundlag_kroner(input) under input.skatteår >= 2026
 | personskat_par14_skattekomponent(art: Par14Skattekomponentart, helårsskat_øre: Heltal, delårsgrundlag_kroner: Heltal, helårsgrundlag_kroner: Heltal) -> par14_skattekomponent_resultat(Par14SkattekomponentInput(
     art = art,
     helårsskat_øre = helårsskat_øre,

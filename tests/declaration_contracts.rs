@@ -82,10 +82,10 @@ fn exception_without_a_base_rule_is_rejected_at_its_head() {
         "overrides rule `rate` with 2 arguments",
         2,
     );
-    assert!(diagnostics(
-        "| rate(x: Int) -> 25\n| exception youth rate(x: Int) -> 10 under x < 18\n"
-    )
-    .is_empty());
+    assert!(
+        diagnostics("| rate(x: Int) -> 25\n| exception youth rate(x) -> 10 under x < 18\n")
+            .is_empty()
+    );
 }
 
 #[test]

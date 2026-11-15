@@ -83,17 +83,17 @@ Indkomstår       pct.
     | HusdyrNormalhandelsværdi(normalhandelsværdi_kroner) -> penge_positivt_beløb(normalhandelsværdi_kroner)
     | HusdyrHandelsværdi(_, _, _) -> penge_største_beløb(husdyr_par2_normalhandelsværdi_kroner(værdiansættelse), husdyr_par2_handelsværdi_efter_moms_kroner(værdiansættelse))
 }
-| husdyr_par2_nedskrivningssats_basispoint(indkomstår: Heltal) -> 0
-| exception husdyr_par2_indkomstår_2000 husdyr_par2_nedskrivningssats_basispoint(indkomstår: Heltal) -> 2800 under indkomstår == 2000
-| exception husdyr_par2_indkomstår_2001 husdyr_par2_nedskrivningssats_basispoint(indkomstår: Heltal) -> 2400 under indkomstår == 2001
-| exception husdyr_par2_indkomstår_2002 husdyr_par2_nedskrivningssats_basispoint(indkomstår: Heltal) -> 2000 under indkomstår == 2002
-| exception husdyr_par2_fra_2003 husdyr_par2_nedskrivningssats_basispoint(indkomstår: Heltal) -> 1500 under indkomstår >= 2003
+| husdyr_par2_nedskrivningssats_basispoint(indkomstår: Heltal): Int -> 0
+| exception husdyr_par2_indkomstår_2000 husdyr_par2_nedskrivningssats_basispoint(indkomstår) -> 2800 under indkomstår == 2000
+| exception husdyr_par2_indkomstår_2001 husdyr_par2_nedskrivningssats_basispoint(indkomstår) -> 2400 under indkomstår == 2001
+| exception husdyr_par2_indkomstår_2002 husdyr_par2_nedskrivningssats_basispoint(indkomstår) -> 2000 under indkomstår == 2002
+| exception husdyr_par2_fra_2003 husdyr_par2_nedskrivningssats_basispoint(indkomstår) -> 1500 under indkomstår >= 2003
 | husdyr_par2_højeste_nedskrivning_kroner(input: HusdyrPar2Input) -> penge_beløb_gange_basispoint_kroner(
     husdyr_par2_opgjort_besætningsværdi_kroner(input.værdiansættelse),
     husdyr_par2_nedskrivningssats_basispoint(input.indkomstår)
 )
-| husdyr_par2_anvendt_nedskrivning_kroner(input: HusdyrPar2Input) -> 0
-| exception husdyr_par2_landbruger_kan_nedskrive husdyr_par2_anvendt_nedskrivning_kroner(input: HusdyrPar2Input) -> penge_mindste_beløb(
+| husdyr_par2_anvendt_nedskrivning_kroner(input: HusdyrPar2Input): Int -> 0
+| exception husdyr_par2_landbruger_kan_nedskrive husdyr_par2_anvendt_nedskrivning_kroner(input) -> penge_mindste_beløb(
     penge_positivt_beløb(input.ønsket_nedskrivning_kroner),
     husdyr_par2_højeste_nedskrivning_kroner(input)
 ) under husdyr_par2_skatteyder_omfattet(input.skatteyder)
@@ -383,8 +383,8 @@ indkomstopgørelsen for indkomståret 1981.
     | HusdyrPar8OrdinærtForskelsgrundlag(normalhandelsværdi_kroner, normalpris_kroner) -> penge_positivt_beløb(penge_positivt_beløb(normalhandelsværdi_kroner) - penge_positivt_beløb(normalpris_kroner))
     | HusdyrPar8MinisterfastsatForskelsbeløb(beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
 }
-| husdyr_par8_c_fradrag_anmodet_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> 0
-| exception husdyr_par8_c_fradrag_kvæg_svin_får husdyr_par8_c_fradrag_anmodet_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> penge_positivt_beløb(input.c_fradrag_fordelt_til_gruppen_kroner) under husdyr_par8_reduktionsgruppe_omfattet(input.gruppe)
+| husdyr_par8_c_fradrag_anmodet_for_gruppe_kroner(input: HusdyrPar8GruppeInput): Int -> 0
+| exception husdyr_par8_c_fradrag_kvæg_svin_får husdyr_par8_c_fradrag_anmodet_for_gruppe_kroner(input) -> penge_positivt_beløb(input.c_fradrag_fordelt_til_gruppen_kroner) under husdyr_par8_reduktionsgruppe_omfattet(input.gruppe)
 | husdyr_par8_c_fradrag_modregnet_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> penge_mindste_beløb(
     husdyr_par8_c_fradrag_anmodet_for_gruppe_kroner(input),
     husdyr_par8_forskelsbeløb_for_gruppe_kroner(input)
@@ -421,8 +421,8 @@ indkomstopgørelsen for indkomståret 1981.
 }
 | husdyr_par8_resterende_efter_ansættelsesændring_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> husdyr_par8_resterende_før_ansættelsesændring_for_gruppe_kroner(input) - husdyr_par8_nedsættelse_modregnet_for_gruppe_kroner(input) + husdyr_par8_forhøjelse_til_resterende_for_gruppe_kroner(input)
 
-| husdyr_par8_a_fradrag_1981_for_gruppe_kroner(indkomstår: Heltal, input: HusdyrPar8GruppeInput) -> 0
-| exception husdyr_par8_a_fradrag_kvæg_svin_får husdyr_par8_a_fradrag_1981_for_gruppe_kroner(indkomstår: Heltal, input: HusdyrPar8GruppeInput) -> penge_mindste_beløb(
+| husdyr_par8_a_fradrag_1981_for_gruppe_kroner(indkomstår: Heltal, input: HusdyrPar8GruppeInput): Int -> 0
+| exception husdyr_par8_a_fradrag_kvæg_svin_får husdyr_par8_a_fradrag_1981_for_gruppe_kroner(indkomstår, input) -> penge_mindste_beløb(
     husdyr_par8_resterende_efter_ansættelsesændring_for_gruppe_kroner(input),
     husdyr_par8_forskelsbeløb_for_gruppe_kroner(input) / 10
 ) under indkomstår == 1981 && husdyr_par8_reduktionsgruppe_omfattet(input.gruppe)
@@ -435,56 +435,56 @@ indkomstopgørelsen for indkomståret 1981.
     | HusdyrPar8IkkeIndkomstår1981 -> 0
     | HusdyrPar8Indkomstår1981(_, _, ønsket_b_fradrag_kroner) -> hvis input.indkomstår == 1981 { penge_positivt_beløb(ønsket_b_fradrag_kroner) } ellers { 0 }
 }
-| husdyr_par8_b_fordelingsgrundlag_for_gruppe_kroner(indkomstår: Heltal, input: HusdyrPar8GruppeInput) -> 0
-| exception husdyr_par8_b_fordelingsgruppe_kvæg_svin_får husdyr_par8_b_fordelingsgrundlag_for_gruppe_kroner(indkomstår: Heltal, input: HusdyrPar8GruppeInput) -> husdyr_par8_resterende_efter_a_fradrag_for_gruppe_kroner(indkomstår, input) under indkomstår == 1981 && husdyr_par8_reduktionsgruppe_omfattet(input.gruppe)
+| husdyr_par8_b_fordelingsgrundlag_for_gruppe_kroner(indkomstår: Heltal, input: HusdyrPar8GruppeInput): Int -> 0
+| exception husdyr_par8_b_fordelingsgruppe_kvæg_svin_får husdyr_par8_b_fordelingsgrundlag_for_gruppe_kroner(indkomstår, input) -> husdyr_par8_resterende_efter_a_fradrag_for_gruppe_kroner(indkomstår, input) under indkomstår == 1981 && husdyr_par8_reduktionsgruppe_omfattet(input.gruppe)
 | husdyr_par8_b_fordelingsgrundlag_kroner(input: HusdyrPar8Input) -> foldl(
     input.grupper,
     0,
     |sum, gruppe| sum + husdyr_par8_b_fordelingsgrundlag_for_gruppe_kroner(input.indkomstår, gruppe)
 )
-| husdyr_par8_b_fradrag_valgt_før_fordeling_kroner(input: HusdyrPar8Input) -> 0
-| exception husdyr_par8_b_fradrag_valgt_1981 husdyr_par8_b_fradrag_valgt_før_fordeling_kroner(input: HusdyrPar8Input) -> penge_mindste_beløb(
+| husdyr_par8_b_fradrag_valgt_før_fordeling_kroner(input: HusdyrPar8Input): Int -> 0
+| exception husdyr_par8_b_fradrag_valgt_1981 husdyr_par8_b_fradrag_valgt_før_fordeling_kroner(input) -> penge_mindste_beløb(
     penge_mindste_beløb(husdyr_par8_ønsket_b_fradrag_1981_kroner(input), husdyr_par8_b_fradragsramme_1981_kroner(input)),
     husdyr_par8_b_fordelingsgrundlag_kroner(input)
 ) under input.indkomstår == 1981 && husdyr_par8_rettighedshaver_omfattet(input.rettighedshaver)
-| husdyr_par8_b_fradrag_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> 0
-| exception husdyr_par8_b_fradrag_forholdsmæssigt husdyr_par8_b_fradrag_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_b_fradrag_valgt_før_fordeling_kroner(input) * husdyr_par8_b_fordelingsgrundlag_for_gruppe_kroner(input.indkomstår, gruppe) / husdyr_par8_b_fordelingsgrundlag_kroner(input) under input.indkomstår == 1981 && husdyr_par8_reduktionsgruppe_omfattet(gruppe.gruppe) && husdyr_par8_b_fordelingsgrundlag_kroner(input) > 0
+| husdyr_par8_b_fradrag_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput): Int -> 0
+| exception husdyr_par8_b_fradrag_forholdsmæssigt husdyr_par8_b_fradrag_for_gruppe_kroner(input, gruppe) -> husdyr_par8_b_fradrag_valgt_før_fordeling_kroner(input) * husdyr_par8_b_fordelingsgrundlag_for_gruppe_kroner(input.indkomstår, gruppe) / husdyr_par8_b_fordelingsgrundlag_kroner(input) under input.indkomstår == 1981 && husdyr_par8_reduktionsgruppe_omfattet(gruppe.gruppe) && husdyr_par8_b_fordelingsgrundlag_kroner(input) > 0
 | husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_resterende_efter_a_fradrag_for_gruppe_kroner(input.indkomstår, gruppe) - husdyr_par8_b_fradrag_for_gruppe_kroner(input, gruppe)
 
-| husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 0
-| exception husdyr_par8_basisantal_5 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 5 under antal >= 5 && antal < 10
-| exception husdyr_par8_basisantal_10 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 10 under antal >= 10 && antal < 15
-| exception husdyr_par8_basisantal_15 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 15 under antal >= 15 && antal < 20
-| exception husdyr_par8_basisantal_20 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 20 under antal >= 20 && antal < 25
-| exception husdyr_par8_basisantal_25 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 25 under antal >= 25 && antal < 30
-| exception husdyr_par8_basisantal_30 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 30 under antal >= 30 && antal < 40
-| exception husdyr_par8_basisantal_40 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 40 under antal >= 40 && antal < 50
-| exception husdyr_par8_basisantal_50 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 50 under antal >= 50 && antal < 60
-| exception husdyr_par8_basisantal_60 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 60 under antal >= 60 && antal < 80
-| exception husdyr_par8_basisantal_80 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 80 under antal >= 80 && antal < 100
-| exception husdyr_par8_basisantal_100 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 100 under antal >= 100 && antal < 120
-| exception husdyr_par8_basisantal_120 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 120 under antal >= 120 && antal < 140
-| exception husdyr_par8_basisantal_140 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 140 under antal >= 140 && antal < 160
-| exception husdyr_par8_basisantal_160 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 160 under antal >= 160 && antal < 200
-| exception husdyr_par8_basisantal_200 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 200 under antal >= 200 && antal < 240
-| exception husdyr_par8_basisantal_240 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 240 under antal >= 240 && antal < 280
-| exception husdyr_par8_basisantal_280 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 280 under antal >= 280 && antal < 320
-| exception husdyr_par8_basisantal_320 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 320 under antal >= 320 && antal < 360
-| exception husdyr_par8_basisantal_fra_360 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> antal / 40 * 40 under antal >= 360
-| husdyr_par8_fuldt_fradrag_bek4_stk4_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> 0
-| exception husdyr_par8_bek4_stk4_basis_under_5_eller_forskelsbeløb_højst_5000 husdyr_par8_fuldt_fradrag_bek4_stk4_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe) under input.indkomstår == 1981 && husdyr_par8_reduktionsgruppe_omfattet(gruppe.gruppe) && husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe) > 0 && (gruppe.basisantal_1980 < 5 || husdyr_par8_forskelsbeløb_efter_c_fradrag_kroner(gruppe) <= 5000)
-| husdyr_par8_ordinært_reduktionsfradrag_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> 0
-| exception husdyr_par8_bek4_stk1_til_stk3_nedrundet_basisantal_reduceret husdyr_par8_ordinært_reduktionsfradrag_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> penge_mindste_beløb(
+| husdyr_par8_basisantal_nedrundet(antal: Heltal): Int -> 0
+| exception husdyr_par8_basisantal_5 husdyr_par8_basisantal_nedrundet(antal) -> 5 under antal >= 5 && antal < 10
+| exception husdyr_par8_basisantal_10 husdyr_par8_basisantal_nedrundet(antal) -> 10 under antal >= 10 && antal < 15
+| exception husdyr_par8_basisantal_15 husdyr_par8_basisantal_nedrundet(antal) -> 15 under antal >= 15 && antal < 20
+| exception husdyr_par8_basisantal_20 husdyr_par8_basisantal_nedrundet(antal) -> 20 under antal >= 20 && antal < 25
+| exception husdyr_par8_basisantal_25 husdyr_par8_basisantal_nedrundet(antal) -> 25 under antal >= 25 && antal < 30
+| exception husdyr_par8_basisantal_30 husdyr_par8_basisantal_nedrundet(antal) -> 30 under antal >= 30 && antal < 40
+| exception husdyr_par8_basisantal_40 husdyr_par8_basisantal_nedrundet(antal) -> 40 under antal >= 40 && antal < 50
+| exception husdyr_par8_basisantal_50 husdyr_par8_basisantal_nedrundet(antal) -> 50 under antal >= 50 && antal < 60
+| exception husdyr_par8_basisantal_60 husdyr_par8_basisantal_nedrundet(antal) -> 60 under antal >= 60 && antal < 80
+| exception husdyr_par8_basisantal_80 husdyr_par8_basisantal_nedrundet(antal) -> 80 under antal >= 80 && antal < 100
+| exception husdyr_par8_basisantal_100 husdyr_par8_basisantal_nedrundet(antal) -> 100 under antal >= 100 && antal < 120
+| exception husdyr_par8_basisantal_120 husdyr_par8_basisantal_nedrundet(antal) -> 120 under antal >= 120 && antal < 140
+| exception husdyr_par8_basisantal_140 husdyr_par8_basisantal_nedrundet(antal) -> 140 under antal >= 140 && antal < 160
+| exception husdyr_par8_basisantal_160 husdyr_par8_basisantal_nedrundet(antal) -> 160 under antal >= 160 && antal < 200
+| exception husdyr_par8_basisantal_200 husdyr_par8_basisantal_nedrundet(antal) -> 200 under antal >= 200 && antal < 240
+| exception husdyr_par8_basisantal_240 husdyr_par8_basisantal_nedrundet(antal) -> 240 under antal >= 240 && antal < 280
+| exception husdyr_par8_basisantal_280 husdyr_par8_basisantal_nedrundet(antal) -> 280 under antal >= 280 && antal < 320
+| exception husdyr_par8_basisantal_320 husdyr_par8_basisantal_nedrundet(antal) -> 320 under antal >= 320 && antal < 360
+| exception husdyr_par8_basisantal_fra_360 husdyr_par8_basisantal_nedrundet(antal) -> antal / 40 * 40 under antal >= 360
+| husdyr_par8_fuldt_fradrag_bek4_stk4_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput): Int -> 0
+| exception husdyr_par8_bek4_stk4_basis_under_5_eller_forskelsbeløb_højst_5000 husdyr_par8_fuldt_fradrag_bek4_stk4_for_gruppe_kroner(input, gruppe) -> husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe) under input.indkomstår == 1981 && husdyr_par8_reduktionsgruppe_omfattet(gruppe.gruppe) && husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe) > 0 && (gruppe.basisantal_1980 < 5 || husdyr_par8_forskelsbeløb_efter_c_fradrag_kroner(gruppe) <= 5000)
+| husdyr_par8_ordinært_reduktionsfradrag_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput): Int -> 0
+| exception husdyr_par8_bek4_stk1_til_stk3_nedrundet_basisantal_reduceret husdyr_par8_ordinært_reduktionsfradrag_for_gruppe_kroner(input, gruppe) -> penge_mindste_beløb(
     husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe),
     husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe) / husdyr_par8_basisantal_nedrundet(gruppe.basisantal_1980) * (husdyr_par8_basisantal_nedrundet(gruppe.basisantal_forrige_indkomstår) - husdyr_par8_basisantal_nedrundet(gruppe.basisantal_aktuelt_indkomstår))
 ) under husdyr_par8_reduktionsgruppe_omfattet(gruppe.gruppe) && husdyr_par8_fuldt_fradrag_bek4_stk4_for_gruppe_kroner(input, gruppe) == 0 && husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe) > 5000 && husdyr_par8_basisantal_nedrundet(gruppe.basisantal_1980) > 0 && husdyr_par8_basisantal_nedrundet(gruppe.basisantal_aktuelt_indkomstår) < husdyr_par8_basisantal_nedrundet(gruppe.basisantal_forrige_indkomstår) && husdyr_par8_basisantal_nedrundet(gruppe.basisantal_aktuelt_indkomstår) < husdyr_par8_basisantal_nedrundet(gruppe.basisantal_1980)
 | husdyr_par8_resterende_efter_bek4_stk4_og_ordinært_fradrag_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe) - husdyr_par8_fuldt_fradrag_bek4_stk4_for_gruppe_kroner(input, gruppe) - husdyr_par8_ordinært_reduktionsfradrag_for_gruppe_kroner(input, gruppe)
-| husdyr_par8_restsaldo_fradrag_bek4_stk5_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> 0
-| exception husdyr_par8_bek4_stk5_restsaldo_højst_5000 husdyr_par8_restsaldo_fradrag_bek4_stk5_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_resterende_efter_bek4_stk4_og_ordinært_fradrag_kroner(input, gruppe) under husdyr_par8_reduktionsgruppe_omfattet(gruppe.gruppe) && husdyr_par8_resterende_efter_bek4_stk4_og_ordinært_fradrag_kroner(input, gruppe) > 0 && husdyr_par8_resterende_efter_bek4_stk4_og_ordinært_fradrag_kroner(input, gruppe) <= 5000
+| husdyr_par8_restsaldo_fradrag_bek4_stk5_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput): Int -> 0
+| exception husdyr_par8_bek4_stk5_restsaldo_højst_5000 husdyr_par8_restsaldo_fradrag_bek4_stk5_for_gruppe_kroner(input, gruppe) -> husdyr_par8_resterende_efter_bek4_stk4_og_ordinært_fradrag_kroner(input, gruppe) under husdyr_par8_reduktionsgruppe_omfattet(gruppe.gruppe) && husdyr_par8_resterende_efter_bek4_stk4_og_ordinært_fradrag_kroner(input, gruppe) > 0 && husdyr_par8_resterende_efter_bek4_stk4_og_ordinært_fradrag_kroner(input, gruppe) <= 5000
 | husdyr_par8_reduktionsfradrag_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_fuldt_fradrag_bek4_stk4_for_gruppe_kroner(input, gruppe) + husdyr_par8_ordinært_reduktionsfradrag_for_gruppe_kroner(input, gruppe) + husdyr_par8_restsaldo_fradrag_bek4_stk5_for_gruppe_kroner(input, gruppe)
 | husdyr_par8_tilbageregulering_udløst(gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_basisantal_nedrundet(gruppe.højeste_antal_i_to_følgende_indkomstår) > husdyr_par8_basisantal_nedrundet(gruppe.reguleringstal_ved_begyndelsen_af_reduktionsåret)
-| husdyr_par8_tilbageregulering_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> 0
-| exception husdyr_par8_bek5_genforøgelse_i_to_følgende_år husdyr_par8_tilbageregulering_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_ordinært_reduktionsfradrag_for_gruppe_kroner(input, gruppe) under husdyr_par8_tilbageregulering_udløst(gruppe)
+| husdyr_par8_tilbageregulering_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput): Int -> 0
+| exception husdyr_par8_bek5_genforøgelse_i_to_følgende_år husdyr_par8_tilbageregulering_for_gruppe_kroner(input, gruppe) -> husdyr_par8_ordinært_reduktionsfradrag_for_gruppe_kroner(input, gruppe) under husdyr_par8_tilbageregulering_udløst(gruppe)
 
 | husdyr_par8_gruppe_resultat(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> HusdyrPar8GruppeResultat(
     gruppe = gruppe.gruppe,
@@ -509,8 +509,8 @@ indkomstopgørelsen for indkomståret 1981.
     resterende_forskelsbeløb_kroner = husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe) - husdyr_par8_reduktionsfradrag_for_gruppe_kroner(input, gruppe) + husdyr_par8_tilbageregulering_for_gruppe_kroner(input, gruppe)
 )
 
-| husdyr_par8_gruppe_resultater(input: HusdyrPar8Input) -> []
-| exception husdyr_par8_omfattet_grupper husdyr_par8_gruppe_resultater(input: HusdyrPar8Input) -> map(input.grupper, |gruppe: HusdyrPar8GruppeInput| husdyr_par8_gruppe_resultat(input, gruppe)) under husdyr_par8_rettighedshaver_omfattet(input.rettighedshaver)
+| husdyr_par8_gruppe_resultater(input: HusdyrPar8Input): List(HusdyrPar8GruppeResultat) -> []
+| exception husdyr_par8_omfattet_grupper husdyr_par8_gruppe_resultater(input) -> map(input.grupper, |gruppe: HusdyrPar8GruppeInput| husdyr_par8_gruppe_resultat(input, gruppe)) under husdyr_par8_rettighedshaver_omfattet(input.rettighedshaver)
 | husdyr_par8_sum_oprindeligt_forskelsbeløb_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.oprindeligt_forskelsbeløb_kroner)
 | husdyr_par8_sum_c_fradrag_modregnet_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.c_fradrag_modregnet_kroner)
 | husdyr_par8_sum_overskydende_c_fradrag_kroner(grupper: List(HusdyrPar8GruppeInput)) -> foldl(grupper, 0, |sum, gruppe| sum + husdyr_par8_overskydende_c_fradrag_for_gruppe_kroner(gruppe))
@@ -567,8 +567,8 @@ indkomstopgørelsen for indkomståret 1981.
 
 | husdyr_par8_succession_omfattet(hjemmel: HusdyrPar8SuccessionHjemmel) -> hjemmel == HusdyrPar8Dødsboskattelov36 || hjemmel == HusdyrPar8Kildeskattelov33C
 | husdyr_par8_succession_andel_basispoint(input: HusdyrPar8SuccessionInput) -> penge_mindste_beløb(penge_positivt_beløb(input.overtaget_andel_basispoint), 10000)
-| husdyr_par8_succession_forskelsbeløb_kroner(input: HusdyrPar8SuccessionInput) -> 0
-| exception husdyr_par8_stk10_succession husdyr_par8_succession_forskelsbeløb_kroner(input: HusdyrPar8SuccessionInput) -> penge_beløb_gange_basispoint_kroner(
+| husdyr_par8_succession_forskelsbeløb_kroner(input: HusdyrPar8SuccessionInput): Int -> 0
+| exception husdyr_par8_stk10_succession husdyr_par8_succession_forskelsbeløb_kroner(input) -> penge_beløb_gange_basispoint_kroner(
     penge_positivt_beløb(input.resterende_forskelsbeløb_kroner),
     husdyr_par8_succession_andel_basispoint(input)
 ) under husdyr_par8_succession_omfattet(input.hjemmel)

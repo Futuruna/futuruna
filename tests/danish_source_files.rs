@@ -85,7 +85,7 @@ const DANISH_LIBRARY: &str = "@ sprog da
 > tæl(x: Heltal) -> Heltal { x + 1000 }
 > fradrag(beløb: Heltal, par: Heltal) -> Heltal { hvis beløb > 100 { beløb - par } ellers { 0 } }
 | afgørelse(s: Sag) -> Afvist
-| afgørelse(s: Sag) -> Godkendt under s.beløb > 10
+| afgørelse(s) -> Godkendt under s.beløb > 10
 = grænse = 50
 ";
 

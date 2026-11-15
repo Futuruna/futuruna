@@ -19,12 +19,12 @@
 ) {
     | amount(
         extra: Int,
-    ) ->
+    ): Int ->
         base +
         sum(values) +
         extra
     | amount(
-        extra: Int,
+        extra,
     ) -> 99
         under extra > 10
 }

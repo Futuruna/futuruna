@@ -82,7 +82,7 @@
 -- ============================================================================
 
 -- Base: a step with balanced atoms is safe
-| safety(s) -> "safe"
+| safety(s): String -> "safe"
 
 -- High atom counts need supervision
 | safety(s) -> "supervised" under s.atoms_in > 7

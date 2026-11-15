@@ -54,7 +54,7 @@ fn fixtures() -> Vec<(Fixture, &'static str, &'static str)> {
             "@ import ./dependency\n> fee(x: Int) -> Int { x + 1 }\n@ print(show(fee(5)))\n@ print(show(imported_total(5)))\n| local_fee: 0 -> fee(5) == 6 && imported_total(5) == 500\n",
         ), "6\n500", "local_fee"),
         (Fixture::new(
-            "| rate(i: Int) -> 1\n| rate(i: Int) -> 2 under i > 10\n",
+            "| rate(i: Int) -> 1\n| rate(i) -> 2 under i > 10\n",
             "@ import ./dependency\n| rate(i: Int) -> 3 under i > 5\n@ print(show(rate(20)))\n| earlier_imported_guard: 0 -> rate(20) == 2\n",
         ), "2", "earlier_imported_guard"),
     ]

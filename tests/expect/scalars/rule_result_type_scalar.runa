@@ -1,0 +1,16 @@
+-- A rule family may declare a named scalar as its result type: each value
+-- is checked against the type, a literal by `runa check`, so `| code`
+-- returns an `Isin` a reader can rely on.
+-- expect-command: interp
+-- expect-stdout: US0378331005
+-- expect-stdout: DK0010274414
+
+@ import ./isin_lib
+
+| code(listed: Bool): Isin -> Isin("US0378331005")
+| exception danish code(listed) -> Isin("DK0010274414") under listed
+
+> text(i: Isin) -> String { i }
+
+@ print(text(code(False)))
+@ print(text(code(True)))

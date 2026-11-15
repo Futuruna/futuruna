@@ -201,9 +201,9 @@ indkomstskatteloven (1999:1229).
 # AmblPar2Nr5SvenskPersonstatus = AmblNr5SvenskGrænsegænger(hjemmehørende_i_sverige: AmblPar2Nr5Betingelse, arbejder_og_beskattes_i_danmark: AmblPar2Nr5Betingelse, dansk_nettoindkomst_kroner: Heltal, samlet_nettoindkomst_kroner: Heltal) | AmblNr5SvenskTilflytter(hjemmehørende_i_danmark: AmblPar2Nr5Betingelse, deltog_og_bidrog_umiddelbart_før: AmblPar2Nr5Betingelse) | AmblNr5SvenskPersonIkkeOmfattet | AmblNr5SvenskPersonstatusUafklaret
 # AmblPar2Nr5Sverigefakta(ordning: AmblPar2Nr5SvenskOrdning, personstatus: AmblPar2Nr5SvenskPersonstatus, beløbsrammer: AmblPar2Nr5Beløbsrammer)
 
-| ambl_par2_nr5_sverige_aftaleversion_for(indkomstår: Heltal) -> AmblNr5SverigeUdenKildedækning
-| exception ambl_nr5_sverige_aftale_2003 ambl_par2_nr5_sverige_aftaleversion_for(indkomstår: Heltal) -> AmblNr5SverigeAftale2003 under indkomstår >= 2023 && indkomstår <= 2024
-| exception ambl_nr5_sverige_aftale_2024 ambl_par2_nr5_sverige_aftaleversion_for(indkomstår: Heltal) -> AmblNr5SverigeAftale2024 under indkomstår >= 2025 && indkomstår <= 2026
+| ambl_par2_nr5_sverige_aftaleversion_for(indkomstår: Heltal): AmblPar2Nr5SverigeAftaleversion -> AmblNr5SverigeUdenKildedækning
+| exception ambl_nr5_sverige_aftale_2003 ambl_par2_nr5_sverige_aftaleversion_for(indkomstår) -> AmblNr5SverigeAftale2003 under indkomstår >= 2023 && indkomstår <= 2024
+| exception ambl_nr5_sverige_aftale_2024 ambl_par2_nr5_sverige_aftaleversion_for(indkomstår) -> AmblNr5SverigeAftale2024 under indkomstår >= 2025 && indkomstår <= 2026
 | ambl_par2_nr5_svensk_ordning_input_gyldig(ordning: AmblPar2Nr5SvenskOrdning) -> match ordning {
     | AmblNr5SvenskOrdningKapitel28(dokumentreference) -> dokumentreference != ""
     | AmblNr5SvenskOrdningKapitel58(dokumentreference) -> dokumentreference != ""

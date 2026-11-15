@@ -1,14 +1,14 @@
 @ import ./rule_dispatch_middle
 
-| exception local_above_eight imported_band(amount: Int) -> 80 under amount > 8
+| exception local_above_eight imported_band(amount) -> 80 under amount > 8
 
-| ordered_band(amount: Int) -> 0
-| ordered_band(amount: Int) -> 70 under amount > 7
-| ordered_band(amount: Int) -> 80 under amount > 8
+| ordered_band(amount: Int): Int -> 0
+| ordered_band(amount) -> 70 under amount > 7
+| ordered_band(amount) -> 80 under amount > 8
 
-| reverse_ordered_band(amount: Int) -> 0
-| reverse_ordered_band(amount: Int) -> 80 under amount > 8
-| reverse_ordered_band(amount: Int) -> 70 under amount > 7
+| reverse_ordered_band(amount: Int): Int -> 0
+| reverse_ordered_band(amount) -> 80 under amount > 8
+| reverse_ordered_band(amount) -> 70 under amount > 7
 
 | overloaded_result() -> True
 | overloaded_result(value: Int) -> value + 1
@@ -18,10 +18,10 @@
 | unresolved_result(value: Int) -> []
 
 # OrderedCase(base: Int) {
-    | band(amount: Int) -> base
-    | band(amount: Int) -> 70 under amount > 7
-    | band(amount: Int) -> 80 under amount > 8
-    | exception special_base band(amount: Int) -> 99 under base == 99
+    | band(amount: Int): Int -> base
+    | band(amount) -> 70 under amount > 7
+    | band(amount) -> 80 under amount > 8
+    | exception special_base band(amount) -> 99 under base == 99
 }
 
 # HigherOrderCase(value: Int) {
@@ -31,14 +31,17 @@
 # Filing = Digital | Paper(Int)
 # FilingRecord(code: Int, active: Bool)
 
+| filing_value(filing: Filing): Int
 | filing_value(Paper(code)) -> code
-| filing_value(filing: Filing) -> 1
+| filing_value(filing) -> 1
 
+| filing_record_value(record: FilingRecord): Int
 | filing_record_value(FilingRecord(code = code, active = True)) -> code
-| filing_record_value(record: FilingRecord) -> 0
+| filing_record_value(record) -> 0
 
+| literal_value(amount: Int): Int
 | literal_value(8) -> 80
-| literal_value(amount: Int) -> 0
+| literal_value(amount) -> 0
 
 | block_value(amount: Int) -> {
     = adjusted = amount + 1
@@ -53,8 +56,8 @@
 
 | partial_value(amount: Int) -> 1 under amount > 0
 
-| recursive_value(amount: Int) -> recursive_value(amount) under amount > 0
-| recursive_value(amount: Int) -> 0
+| recursive_value(amount: Int): Int -> recursive_value(amount) under amount > 0
+| recursive_value(amount) -> 0
 
 = imported_six = imported_band(amount = 6)
 = imported_eight = imported_band(amount = 8)

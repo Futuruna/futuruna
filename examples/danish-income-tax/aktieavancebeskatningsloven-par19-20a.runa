@@ -161,7 +161,7 @@ Stk. 2. For de investeringsinstitutter, der har mindre end otte deltagere, er de
     | medarbejderselskabsundtagelse_finder_anvendelse() -> input_gyldigt() && match input.virksomhedsgrundlag { | AblPar19VirksomhedKunMedInvesteringIVærdipapirer(data) -> aktieavance_par19_medarbejderselskabsundtagelse(data.medarbejderselskabsgrundlag) | _ -> Falskt }
     | tilbagekøbsinvesteringsselskab() -> tilbagekøbsbetingelser_opfyldt() && datterselskabsundtagelse_finder_anvendelse() == Falskt
     | kollektivt_investeringsselskab() -> kollektiv_investering_mindst_8_deltagere() && aktivmasse_resultat().andre_aktiver_højst_15_pct && medarbejderselskabsundtagelse_finder_anvendelse() == Falskt
-    | status() -> AblPar19IkkeInvesteringsselskab
+    | status(): AktieavancePar19Status -> AblPar19IkkeInvesteringsselskab
     | exception abl_par19_kollektivt_investeringsselskab status() -> AblPar19KollektivtInvesteringsselskab under input_gyldigt() && institutsundtagelse_finder_anvendelse() == Falskt && kollektivt_investeringsselskab() && tilbagekøbsinvesteringsselskab() == Falskt
     | exception abl_par19_tilbagekøbsinvesteringsselskab status() -> AblPar19TilbagekøbsInvesteringsselskab under input_gyldigt() && institutsundtagelse_finder_anvendelse() == Falskt && tilbagekøbsinvesteringsselskab()
     | exception abl_par19_ucits_investeringsselskab status() -> AblPar19UcitsInvesteringsselskab under input_gyldigt() && input.virksomhedsgrundlag == AblPar19UcitsEfterDirektiv2009_65_EF && institutsundtagelse_finder_anvendelse() == Falskt
@@ -215,7 +215,7 @@ Stk. 2. For de investeringsinstitutter, der har mindre end otte deltagere, er de
     | par20_stk1_finder_anvendelse() -> input_gyldigt() && skattepligtsresultat().omfattet_af_par6 && input.aktivgrundlag == AblPar20AkkumulerendeInvesteringsforeningsbevis
     | par20_stk2_finder_anvendelse() -> input_gyldigt() && skattepligtsresultat().omfattet_af_par7 && input.aktivgrundlag == AblPar20AkkumulerendeInvesteringsforeningsbevis
     | par20a_finder_anvendelse() -> input_gyldigt() && skattepligtsresultat().omfattet_af_par6 && match input.aktivgrundlag { | AblPar20AMinimumsbevis(_, _) -> Sandt | _ -> Falskt }
-    | regelspor() -> AblUdenForPar19ATil20ARegelspor
+    | regelspor(): AktieavancePar19ATil20ARegelspor -> AblUdenForPar19ATil20ARegelspor
     | exception abl_par19a_regelspor regelspor() -> AblPar19ARegelspor under par19a_finder_anvendelse()
     | exception abl_par20_stk1_regelspor regelspor() -> AblPar20Stk1Regelspor under par20_stk1_finder_anvendelse()
     | exception abl_par20_stk2_regelspor regelspor() -> AblPar20Stk2Regelspor under par20_stk2_finder_anvendelse()

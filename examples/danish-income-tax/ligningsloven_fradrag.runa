@@ -106,10 +106,10 @@ udgifter.
     | afskåret_efter_stk2() -> input.foreningsindkomst_opgjort_som_procent_af_formue
     | udgift_omfattet_af_stk1() -> udgiftsart_nævnt_i_stk1() && afholdt_i_indkomståret() && input.afholdt_i_forbindelse_med_skattepligtiges_erhverv && input.formål_at_opnå_salg_af_varer_eller_tjenesteydelser && afskåret_efter_stk2() == Falskt
     | begrænset_som_repræsentation_efter_stk4() -> udgift_omfattet_af_stk1() && input.udgiftsart == Ll8Stk1Repræsentation
-    | fradragssats_basispoint() -> 10000
+    | fradragssats_basispoint(): Int -> 10000
     | exception repræsentation_fradrages_med_femogtyve_procent fradragssats_basispoint() -> 2500 under begrænset_som_repræsentation_efter_stk4()
     | afholdt_udgift_kroner() -> penge_positivt_beløb(input.afholdt_udgift_kroner)
-    | fradrag_i_skattepligtig_indkomst_kroner() -> 0
+    | fradrag_i_skattepligtig_indkomst_kroner(): Int -> 0
     | exception stk1_erhvervsmæssig_salgsudgift_fradrages fradrag_i_skattepligtig_indkomst_kroner() -> penge_beløb_gange_basispoint_kroner(afholdt_udgift_kroner(), fradragssats_basispoint()) under udgift_omfattet_af_stk1()
     | ikke_fradraget_kroner() -> afholdt_udgift_kroner() - fradrag_i_skattepligtig_indkomst_kroner()
     | resultat() -> Ligningslov8Stk1Resultat(
@@ -210,10 +210,10 @@ deles med 100.000.
 # Ligningslov8BResultat(indkomstår: Heltal, afholdelsesår: Heltal, udgiftsart: Ligningslov8BUdgiftsart, omfattet_af_stk1: Boolsk, omfattet_af_stk2: Boolsk, henvist_til_afskrivningsloven_efter_stk3: Boolsk, afholdt_før_erhvervsstart: Boolsk, afventer_fastlagt_erhvervspåbegyndelsesår: Boolsk, råstofudgift_over_tredive_procent_af_overskud: Boolsk, fradragsstartår: Heltal, lineær_afskrivning_påkrævet_eller_valgt: Boolsk, stk4_loft_kroner: Heltal, udgift_under_stk4_loft_kroner: Heltal, udgift_over_stk4_loft_kroner: Heltal, forhøjet_fradragsgrundlag_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, henvist_til_afskrivningsloven_kroner: Heltal)
 
 | ligningslov8b_afrund_op_til_hundrede_tusinde_kroner(beløb_kroner: Heltal) -> hvis beløb_kroner > 0 { (beløb_kroner + 99999) / 100000 * 100000 } ellers { 0 }
-| ligningslov8b_stk4_loft_kroner(afholdelsesår: Heltal, reguleringstal_tiendedele: Heltal) -> 0
-| exception ligningslov8b_loft_2020 ligningslov8b_stk4_loft_kroner(afholdelsesår: Heltal, reguleringstal_tiendedele: Heltal) -> 845000000 under afholdelsesår == 2020
-| exception ligningslov8b_loft_2021_2022 ligningslov8b_stk4_loft_kroner(afholdelsesår: Heltal, reguleringstal_tiendedele: Heltal) -> 910000000 under afholdelsesår == 2021 || afholdelsesår == 2022
-| exception ligningslov8b_reguleret_loft_fra_2026 ligningslov8b_stk4_loft_kroner(afholdelsesår: Heltal, reguleringstal_tiendedele: Heltal) -> ligningslov8b_afrund_op_til_hundrede_tusinde_kroner(793000000 * reguleringstal_tiendedele / 1000) under afholdelsesår >= 2026 && reguleringstal_tiendedele > 0
+| ligningslov8b_stk4_loft_kroner(afholdelsesår: Heltal, reguleringstal_tiendedele: Heltal): Int -> 0
+| exception ligningslov8b_loft_2020 ligningslov8b_stk4_loft_kroner(afholdelsesår, reguleringstal_tiendedele) -> 845000000 under afholdelsesår == 2020
+| exception ligningslov8b_loft_2021_2022 ligningslov8b_stk4_loft_kroner(afholdelsesår, reguleringstal_tiendedele) -> 910000000 under afholdelsesår == 2021 || afholdelsesår == 2022
+| exception ligningslov8b_reguleret_loft_fra_2026 ligningslov8b_stk4_loft_kroner(afholdelsesår, reguleringstal_tiendedele) -> ligningslov8b_afrund_op_til_hundrede_tusinde_kroner(793000000 * reguleringstal_tiendedele / 1000) under afholdelsesår >= 2026 && reguleringstal_tiendedele > 0
 
 # Ligningslov8BSag(input: Ligningslov8BInput) {
     | afholdt_udgift_kroner() -> penge_positivt_beløb(input.afholdt_udgift_kroner)
@@ -238,11 +238,11 @@ deles med 100.000.
     | stk2_overskud_efter_lovens_korrektioner_kroner() -> penge_positivt_beløb(stk2_overskud_før_nulgrænse_kroner())
     | stk2_tredive_procent_af_overskud_kroner() -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(stk2_overskud_efter_lovens_korrektioner_kroner()), 3000)
     | råstofudgift_over_tredive_procent_af_overskud() -> omfattet_af_stk2() && afholdt_udgift_kroner() > stk2_tredive_procent_af_overskud_kroner()
-    | fradragsstartår() -> input.afholdelsesår
+    | fradragsstartår(): Int -> input.afholdelsesår
     | exception stk1_udgift_venter_til_kendt_erhvervsstart fradragsstartår() -> kendt_erhvervspåbegyndelsesår() under omfattet_af_stk1() && afholdt_før_erhvervsstart() && kendt_erhvervspåbegyndelsesår() > 0 && stk1_må_fradrages_fra_afholdelsesåret() == Falskt
     | exception stk2_udgift_venter_til_kendt_erhvervsstart fradragsstartår() -> kendt_erhvervspåbegyndelsesår() under omfattet_af_stk2() && afholdt_før_erhvervsstart() && kendt_erhvervspåbegyndelsesår() > 0 && input.told_skat_tillader_fradrag_før_erhvervsstart == Falskt
     | exception udgift_afventer_endnu_ukendt_erhvervsstart fradragsstartår() -> 0 under afventer_fastlagt_erhvervspåbegyndelsesår()
-    | lineær_afskrivning_påkrævet_eller_valgt() -> Falskt
+    | lineær_afskrivning_påkrævet_eller_valgt(): Bool -> Falskt
     | exception stk1_vælger_lineær_afskrivning lineær_afskrivning_påkrævet_eller_valgt() -> Sandt under omfattet_af_stk1() && input.valg == Ll8BLineærAfskrivningOverFemÅr
     | exception stk2_før_start_afskrives_lineært lineær_afskrivning_påkrævet_eller_valgt() -> Sandt under omfattet_af_stk2() && afholdt_før_erhvervsstart() && input.told_skat_tillader_fradrag_før_erhvervsstart == Falskt
     | exception stk2_før_start_med_tilladelse_vælger_lineær_afskrivning lineær_afskrivning_påkrævet_eller_valgt() -> Sandt under omfattet_af_stk2() && afholdt_før_erhvervsstart() && input.told_skat_tillader_fradrag_før_erhvervsstart && input.valg == Ll8BLineærAfskrivningOverFemÅr
@@ -250,10 +250,10 @@ deles med 100.000.
     | stk4_loft_kroner() -> ligningslov8b_stk4_loft_kroner(input.afholdelsesår, input.reguleringstal_tiendedele)
     | tidligere_stk4_udgifter_under_koncernloft_kroner() -> penge_positivt_beløb(input.tidligere_stk4_udgifter_under_koncernloft_kroner)
     | resterende_stk4_loft_kroner() -> penge_positivt_beløb(stk4_loft_kroner() - tidligere_stk4_udgifter_under_koncernloft_kroner())
-    | udgift_under_stk4_loft_kroner() -> afholdt_udgift_kroner()
+    | udgift_under_stk4_loft_kroner(): Int -> afholdt_udgift_kroner()
     | exception stk4_loft_fordeler_udgiften udgift_under_stk4_loft_kroner() -> penge_mindste_beløb(afholdt_udgift_kroner(), resterende_stk4_loft_kroner()) under omfattet_af_stk1() && stk4_loft_kroner() > 0
     | udgift_over_stk4_loft_kroner() -> afholdt_udgift_kroner() - udgift_under_stk4_loft_kroner()
-    | stk4_grundsats_basispoint() -> 10000
+    | stk4_grundsats_basispoint(): Int -> 10000
     | exception stk4_2018_2019_sats stk4_grundsats_basispoint() -> 10150 under input.afholdelsesår == 2018 || input.afholdelsesår == 2019
     | exception stk4_2020_sats stk4_grundsats_basispoint() -> 10300 under input.afholdelsesår == 2020
     | exception stk4_2021_2022_sats stk4_grundsats_basispoint() -> 10500 under input.afholdelsesår == 2021 || input.afholdelsesår == 2022
@@ -261,24 +261,24 @@ deles med 100.000.
     | exception stk4_2026_sats stk4_grundsats_basispoint() -> 11400 under input.afholdelsesår == 2026
     | exception stk4_2027_sats stk4_grundsats_basispoint() -> 11600 under input.afholdelsesår == 2027
     | exception stk4_fra_2028_sats stk4_grundsats_basispoint() -> 12000 under input.afholdelsesår >= 2028
-    | stk4_ekstra_sats_under_loft_basispoint() -> 0
+    | stk4_ekstra_sats_under_loft_basispoint(): Int -> 0
     | exception stk4_2020_ekstra_sats stk4_ekstra_sats_under_loft_basispoint() -> 2700 under input.afholdelsesår == 2020
     | exception stk4_2021_2022_ekstra_sats stk4_ekstra_sats_under_loft_basispoint() -> 2500 under input.afholdelsesår == 2021 || input.afholdelsesår == 2022
-    | stk4_over_loft_sats_basispoint() -> stk4_grundsats_basispoint()
+    | stk4_over_loft_sats_basispoint(): Int -> stk4_grundsats_basispoint()
     | exception stk4_fra_2026_over_loft_110_procent stk4_over_loft_sats_basispoint() -> 11000 under input.afholdelsesår >= 2026
     | forhøjet_stk1_fradragsgrundlag_kroner() -> penge_beløb_gange_basispoint_kroner(udgift_under_stk4_loft_kroner(), stk4_grundsats_basispoint() + stk4_ekstra_sats_under_loft_basispoint()) + penge_beløb_gange_basispoint_kroner(udgift_over_stk4_loft_kroner(), stk4_over_loft_sats_basispoint())
-    | forhøjet_fradragsgrundlag_kroner() -> afholdt_udgift_kroner()
+    | forhøjet_fradragsgrundlag_kroner(): Int -> afholdt_udgift_kroner()
     | exception stk1_forhøjes_efter_stk4 forhøjet_fradragsgrundlag_kroner() -> forhøjet_stk1_fradragsgrundlag_kroner() under omfattet_af_stk1()
     | indkomstår_i_femårsperiode() -> input.indkomstår >= fradragsstartår() && input.indkomstår <= fradragsstartår() + 4
-    | lineært_årsfradrag_kroner() -> 0
+    | lineært_årsfradrag_kroner(): Int -> 0
     | exception første_fire_lineære_år lineært_årsfradrag_kroner() -> forhøjet_fradragsgrundlag_kroner() / 5 under indkomstår_i_femårsperiode() && input.indkomstår < fradragsstartår() + 4
     | exception sidste_lineære_år_bevarer_resten lineært_årsfradrag_kroner() -> forhøjet_fradragsgrundlag_kroner() - forhøjet_fradragsgrundlag_kroner() / 5 * 4 under indkomstår_i_femårsperiode() && input.indkomstår == fradragsstartår() + 4
-    | straksfradrag_i_indkomståret_kroner() -> 0
+    | straksfradrag_i_indkomståret_kroner(): Int -> 0
     | exception straksfradrag_i_startåret straksfradrag_i_indkomståret_kroner() -> forhøjet_fradragsgrundlag_kroner() under input.indkomstår == fradragsstartår()
-    | fradrag_i_skattepligtig_indkomst_kroner() -> 0
+    | fradrag_i_skattepligtig_indkomst_kroner(): Int -> 0
     | exception omfattet_lineær_udgift_fradrages fradrag_i_skattepligtig_indkomst_kroner() -> lineært_årsfradrag_kroner() under (omfattet_af_stk1() || omfattet_af_stk2()) && lineær_afskrivning_påkrævet_eller_valgt()
     | exception omfattet_straksudgift_fradrages fradrag_i_skattepligtig_indkomst_kroner() -> straksfradrag_i_indkomståret_kroner() under (omfattet_af_stk1() || omfattet_af_stk2()) && lineær_afskrivning_påkrævet_eller_valgt() == Falskt
-    | henvist_til_afskrivningsloven_kroner() -> 0
+    | henvist_til_afskrivningsloven_kroner(): Int -> 0
     | exception stk3_henviser_anskaffelsen_til_afskrivningsloven henvist_til_afskrivningsloven_kroner() -> afholdt_udgift_kroner() under henvist_til_afskrivningsloven_efter_stk3()
     | resultat() -> Ligningslov8BResultat(
         indkomstår = input.indkomstår,
@@ -408,7 +408,7 @@ om skattemæssige afskrivninger mv.
     | stk3_eller_stk4_straksfradrag() -> afholdt_i_indkomståret() && (omfattet_af_stk3() || omfattet_af_stk4())
     | straksfradrag_tilladt() -> straksfradrag_for_lille_ejerudgift() || straksfradrag_for_genplantning() || stk1_terminal_hændelse() || stk2_terminal_hændelse() || lejeophør_udløser_restfradrag() || stk3_eller_stk4_straksfradrag()
     | ordinært_tyve_procent_fradrag_kroner() -> penge_beløb_gange_basispoint_kroner(afholdt_udgift_kroner(), 2000)
-    | højeste_fradrag_i_indkomståret_kroner() -> 0
+    | højeste_fradrag_i_indkomståret_kroner(): Int -> 0
     | exception stk1_stk2_ordinært_tyve_procent_fradrag højeste_fradrag_i_indkomståret_kroner() -> penge_mindste_beløb(ordinært_tyve_procent_fradrag_kroner(), resterende_før_årets_fradrag_kroner()) under omfattet_af_stk1_eller_stk2() && input.indkomstår >= input.afholdelsesår && straksfradrag_tilladt() == Falskt
     | exception straksfradrag_omfatter_resten højeste_fradrag_i_indkomståret_kroner() -> resterende_før_årets_fradrag_kroner() under straksfradrag_tilladt()
     | valgt_fradrag_kroner() -> penge_positivt_beløb(input.valgt_fradrag_kroner)
@@ -416,7 +416,7 @@ om skattemæssige afskrivninger mv.
     | fradrag_i_skattepligtig_indkomst_kroner() -> penge_mindste_beløb(valgt_fradrag_kroner(), højeste_fradrag_i_indkomståret_kroner())
     | resterende_ikke_fradraget_kroner() -> resterende_før_årets_fradrag_kroner() - fradrag_i_skattepligtig_indkomst_kroner()
     | fradrag_udelukket_fra_ejendommens_anskaffelsessum() -> fradrag_i_skattepligtig_indkomst_kroner() > 0
-    | henvist_til_afskrivningsloven_kroner() -> 0
+    | henvist_til_afskrivningsloven_kroner(): Int -> 0
     | exception stk8_henviser_aktivudgift_til_afskrivningsloven henvist_til_afskrivningsloven_kroner() -> afholdt_udgift_kroner() under henvist_til_afskrivningsloven()
     | resultat() -> Ligningslov8KResultat(
         indkomstår = input.indkomstår,
@@ -474,7 +474,7 @@ anden anvendelse efter kapitel 9 i lov om friplejeboliger.
     | indbetalt_i_indkomståret() -> input.indbetalingsår == input.indkomstår
     | omfattet_af_stk1() -> input.omfattet_af_lov_om_friplejeboliger && indbetalt_i_indkomståret() && input.indbetalingsgrundlag == Ll8LHuslejeindtægterOverstigerBygningsudgifter
     | omfattet_af_stk2() -> input.omfattet_af_lov_om_friplejeboliger && indbetalt_i_indkomståret() && (input.indbetalingsgrundlag == Ll8LSalgAfFriplejeboligEllerServiceareal || input.indbetalingsgrundlag == Ll8LAndenAnvendelseAfFriplejeboligEllerServiceareal)
-    | fradrag_i_skattepligtig_indkomst_kroner() -> 0
+    | fradrag_i_skattepligtig_indkomst_kroner(): Int -> 0
     | exception landsbyggefondsindbetaling_fradrages fradrag_i_skattepligtig_indkomst_kroner() -> penge_positivt_beløb(input.indbetalt_til_landsbyggefonden_kroner) under omfattet_af_stk1() || omfattet_af_stk2()
     | resultat() -> Ligningslov8LResultat(
         indkomstår = input.indkomstår,
@@ -548,22 +548,22 @@ af bidrag efter stk. 4.
 
 # Ligningslov8MSag(input: Ligningslov8MInput) {
     | arbejdsmarkedsbidrag_vedrører_indkomståret() -> input.arbejdsmarkedsbidrag.bidrag_vedrører_indkomstår == input.indkomstår
-    | arbejdsmarkedsbidrag_omfattet_af_stk1() -> Falskt
+    | arbejdsmarkedsbidrag_omfattet_af_stk1(): Bool -> Falskt
     | exception ambl_par2_stk1_nr2_og_par4_par5 arbejdsmarkedsbidrag_omfattet_af_stk1() -> Sandt under arbejdsmarkedsbidrag_vedrører_indkomståret() && (input.arbejdsmarkedsbidrag.hjemmel == Ll8MAmblPar2Stk1Nr2 || input.arbejdsmarkedsbidrag.hjemmel == Ll8MAmblPar4 || input.arbejdsmarkedsbidrag.hjemmel == Ll8MAmblPar5)
     | exception ambl_par2_stk1_nr1_uden_indeholdelsespligt arbejdsmarkedsbidrag_omfattet_af_stk1() -> Sandt under arbejdsmarkedsbidrag_vedrører_indkomståret() && input.arbejdsmarkedsbidrag.hjemmel == Ll8MAmblPar2Stk1Nr1 && input.arbejdsmarkedsbidrag.arbejdsgiver_indeholdelsespligtig == Falskt
-    | arbejdsmarkedsbidrag_fradrag_kroner() -> 0
+    | arbejdsmarkedsbidrag_fradrag_kroner(): Int -> 0
     | exception arbejdsmarkedsbidrag_fradrages arbejdsmarkedsbidrag_fradrag_kroner() -> penge_positivt_beløb(input.arbejdsmarkedsbidrag.bidrag_kroner) under arbejdsmarkedsbidrag_omfattet_af_stk1()
     | udenlandsk_socialt_bidrag_vedrører_indkomståret() -> input.udenlandsk_socialt_bidrag.bidrag_vedrører_indkomstår == input.indkomstår
     | udenlandsk_socialt_bidrag_fælles_betingelser() -> udenlandsk_socialt_bidrag_vedrører_indkomståret() && input.kildeskattepligt == Ll8MKildeskattelovPar1 && input.udenlandsk_socialt_bidrag.obligatorisk && input.udenlandsk_socialt_bidrag.ikke_hjemmehørende_i_fremmed_stat_grønland_eller_færøerne_efter_dbo
     | udenlandsk_socialt_bidrag_omfattet_af_stk2() -> udenlandsk_socialt_bidrag_fælles_betingelser() && input.udenlandsk_socialt_bidrag.omfattet_af_eu_socialsikringsforordning
     | udenlandsk_socialt_bidrag_omfattet_af_stk3() -> udenlandsk_socialt_bidrag_fælles_betingelser() && input.udenlandsk_socialt_bidrag.omfattet_af_mellemfolkelig_aftale_som_danmark_har_tiltrådt
     | udenlandsk_socialt_bidrag_omfattet() -> udenlandsk_socialt_bidrag_omfattet_af_stk2() || udenlandsk_socialt_bidrag_omfattet_af_stk3()
-    | udenlandsk_socialt_bidrag_fradrag_kroner() -> 0
+    | udenlandsk_socialt_bidrag_fradrag_kroner(): Int -> 0
     | exception obligatorisk_udenlandsk_socialt_bidrag_fradrages udenlandsk_socialt_bidrag_fradrag_kroner() -> penge_positivt_beløb(input.udenlandsk_socialt_bidrag.bidrag_kroner) under udenlandsk_socialt_bidrag_omfattet()
     | udenlandsk_arbejdsgiverbidrag_vedrører_indkomståret() -> input.udenlandsk_arbejdsgiverbidrag.bidrag_vedrører_indkomstår == input.indkomstår
     | begrænset_skattepligt_omfattet_af_stk4() -> input.kildeskattepligt == Ll8MKildeskattelovPar2Stk1Nr1 || input.kildeskattepligt == Ll8MKildeskattelovPar2Stk1Nr3
     | udenlandsk_arbejdsgiverbidrag_omfattet_af_stk4() -> udenlandsk_arbejdsgiverbidrag_vedrører_indkomståret() && begrænset_skattepligt_omfattet_af_stk4() && input.udenlandsk_arbejdsgiverbidrag.obligatorisk && input.udenlandsk_arbejdsgiverbidrag.omfattet_af_eu_socialsikringsforordning && input.udenlandsk_arbejdsgiverbidrag.aftale_om_at_bidrag_påhviler_lønmodtageren
-    | udenlandsk_arbejdsgiverbidrag_fradrag_kroner() -> 0
+    | udenlandsk_arbejdsgiverbidrag_fradrag_kroner(): Int -> 0
     | exception udenlandsk_arbejdsgiverbidrag_fradrages udenlandsk_arbejdsgiverbidrag_fradrag_kroner() -> penge_positivt_beløb(input.udenlandsk_arbejdsgiverbidrag.bidrag_kroner) under udenlandsk_arbejdsgiverbidrag_omfattet_af_stk4()
     | samlet_fradrag_kroner() -> arbejdsmarkedsbidrag_fradrag_kroner() + udenlandsk_socialt_bidrag_fradrag_kroner() + udenlandsk_arbejdsgiverbidrag_fradrag_kroner()
     | skatteministeren_bemyndiget_efter_stk5() -> Sandt
@@ -653,7 +653,7 @@ udstedt til.
     | grundlæggende_fradragsret() -> omfattet_af_stk1() || omfattet_af_stk2()
     | befordring_omfattet_af_stk3() -> input.udgiftsart == Ll8NArbejdsgiverbetaltBefordringEfterPar9CStk7 && input.erhvervsmæssig
     | stk3_loft_finder_anvendelse() -> grundlæggende_fradragsret() && (input.personen_beskattes_af_udgiften_eller_arbejdsmarkedsbidragspligtig_ydelse || input.ikke_skattepligtig_person_ville_være_arbejdsmarkedsbidragspligtig || stk5_aktieret_omfattet() || befordring_omfattet_af_stk3())
-    | reguleret_grundbeløb_kroner() -> 0
+    | reguleret_grundbeløb_kroner(): Int -> 0
     | exception stk3_grundbeløb_reguleres_efter_par20 reguleret_grundbeløb_kroner() -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
         grundbeløb_2010_niveau_kroner = 6339800,
         reguleringstal_tiendedele = par20_reguleringstal_tiendedele(input.indkomstår)
@@ -662,7 +662,7 @@ udstedt til.
     | fordelt_grundbeløb_kroner() -> penge_beløb_gange_basispoint_kroner(reguleret_grundbeløb_kroner(), grundbeløbsandel_basispoint())
     | samlede_omfattede_udgifter_før_denne_kroner() -> penge_positivt_beløb(input.samlede_omfattede_udgifter_før_denne_kroner)
     | resterende_loft_før_udgiften_kroner() -> penge_positivt_beløb(fordelt_grundbeløb_kroner() - samlede_omfattede_udgifter_før_denne_kroner())
-    | fradrag_i_skattepligtig_indkomst_kroner() -> 0
+    | fradrag_i_skattepligtig_indkomst_kroner(): Int -> 0
     | exception stk1_stk2_udgift_uden_loft_fradrages_fuldt fradrag_i_skattepligtig_indkomst_kroner() -> udgift_kroner() under grundlæggende_fradragsret() && stk3_loft_finder_anvendelse() == Falskt
     | exception stk3_begrænser_omfattet_udgift fradrag_i_skattepligtig_indkomst_kroner() -> penge_mindste_beløb(udgift_kroner(), resterende_loft_før_udgiften_kroner()) under grundlæggende_fradragsret() && stk3_loft_finder_anvendelse()
     | afskåret_efter_stk3_kroner() -> hvis grundlæggende_fradragsret() { udgift_kroner() - fradrag_i_skattepligtig_indkomst_kroner() } ellers { 0 }
@@ -759,9 +759,9 @@ Stk. 3. § 3, nr. 2, og §§ 4 og 5 træder i kraft den 1. januar 2026.
     | resterende_tidligere_beskattet_bruttobeløb_efter_årets_tilbagebetaling_kroner() -> resterende_tidligere_beskattet_bruttobeløb_før_årets_tilbagebetaling_kroner() - fradragsrelevant_tilbagebetaling_kroner()
     | dobbeltfradrag_afskåret() -> input.samme_beløb_tidligere_fradraget_i_udbetalingsåret && fradragsrelevant_tilbagebetaling_kroner() > 0
     | fradragsberettiget() -> ydelse_omfattet() && input.ydelsen_var_skattepligtig_ved_udbetaling && fradragsrelevant_tilbagebetaling_kroner() > 0 && dobbeltfradrag_afskåret() == Falskt
-    | fradrag_i_personlig_indkomst_kroner() -> 0
+    | fradrag_i_personlig_indkomst_kroner(): Int -> 0
     | exception faktisk_tilbagebetaling_af_skattepligtig_omfattet_ydelse fradrag_i_personlig_indkomst_kroner() -> fradragsrelevant_tilbagebetaling_kroner() under fradragsberettiget()
-    | kilde() -> Ll8OLbk1500Før2026
+    | kilde(): Ligningslov8OKilde -> Ll8OLbk1500Før2026
     | exception lov198_fra_2026 kilde() -> Ll8OLov198Fra2026 under fra_2026()
     | resultat() -> Ligningslov8OResultat(
         indkomstår = input.indkomstår,
@@ -1080,15 +1080,15 @@ stk. 5.
 # Ligningslov9BSatser(indkomstår: Heltal, lovversion: Ligningslov9BLovversion, satsversion: Ligningslov9BSatsversion, skatteår_understøttet: Boolsk, bil_motorcykel_høj_øre_pr_km: Heltal, bil_motorcykel_lav_øre_pr_km: Heltal, cykel_knallert_scooter_elløbehjul_øre_pr_km: Heltal, høj_sats_kilometerloft: Heltal)
 # Ligningslov9BResultat(indkomstår: Heltal, lovversion: Ligningslov9BLovversion, satsversion: Ligningslov9BSatsversion, skatteår_understøttet: Boolsk, ny_60_dages_periode: Boolsk, stk3_formodning_anvendt: Boolsk, erhvervsmæssig_befordring: Boolsk, erhvervsmæssige_kilometer: Heltal, godtgørelses_høj_sats_kilometer: Heltal, godtgørelses_lav_sats_kilometer: Heltal, direkte_fradrags_høj_sats_kilometer: Heltal, direkte_fradrags_lav_sats_kilometer: Heltal, maksimal_skattefri_godtgørelse_kroner: Heltal, satsbaseret_direkte_fradrag_før_bro_tunnel_kroner: Heltal, administrative_godtgørelsesbetingelser_opfyldt: Boolsk, skattefri_godtgørelse_kroner: Heltal, godtgørelse_personlig_indkomst_kroner: Heltal, kundeopsøgende_flere_arbejdsgivere: Boolsk, direkte_fradragsberettiget_efter_par9b: Boolsk, fradrag_i_personlig_indkomst_kroner: Heltal, henvises_til_par9c: Boolsk)
 
-| ll9b_lovversion_for(indkomstår: Heltal) -> Ll9BLovUdenKildedækning
-| exception ll9b_lbk42_for_2023_til_2025 ll9b_lovversion_for(indkomstår: Heltal) -> Ll9BLbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
-| exception ll9b_lbk1500_for_2026 ll9b_lovversion_for(indkomstår: Heltal) -> Ll9BLbk1500Af2025 under indkomstår == 2026
+| ll9b_lovversion_for(indkomstår: Heltal): Ligningslov9BLovversion -> Ll9BLovUdenKildedækning
+| exception ll9b_lbk42_for_2023_til_2025 ll9b_lovversion_for(indkomstår) -> Ll9BLbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
+| exception ll9b_lbk1500_for_2026 ll9b_lovversion_for(indkomstår) -> Ll9BLbk1500Af2025 under indkomstår == 2026
 
-| ll9b_satsversion_for(indkomstår: Heltal) -> Ll9BSatsUdenKildedækning
-| exception ll9b_bek1449_for_2023 ll9b_satsversion_for(indkomstår: Heltal) -> Ll9BBek1449Af2022 under indkomstår == 2023
-| exception ll9b_bek1312_for_2024 ll9b_satsversion_for(indkomstår: Heltal) -> Ll9BBek1312Af2023 under indkomstår == 2024
-| exception ll9b_bek1189_for_2025 ll9b_satsversion_for(indkomstår: Heltal) -> Ll9BBek1189Af2024 under indkomstår == 2025
-| exception ll9b_bek1333_for_2026 ll9b_satsversion_for(indkomstår: Heltal) -> Ll9BBek1333Af2025 under indkomstår == 2026
+| ll9b_satsversion_for(indkomstår: Heltal): Ligningslov9BSatsversion -> Ll9BSatsUdenKildedækning
+| exception ll9b_bek1449_for_2023 ll9b_satsversion_for(indkomstår) -> Ll9BBek1449Af2022 under indkomstår == 2023
+| exception ll9b_bek1312_for_2024 ll9b_satsversion_for(indkomstår) -> Ll9BBek1312Af2023 under indkomstår == 2024
+| exception ll9b_bek1189_for_2025 ll9b_satsversion_for(indkomstår) -> Ll9BBek1189Af2024 under indkomstår == 2025
+| exception ll9b_bek1333_for_2026 ll9b_satsversion_for(indkomstår) -> Ll9BBek1333Af2025 under indkomstår == 2026
 
 | ll9b_skatteår_understøttet(indkomstår: Heltal) -> ll9b_lovversion_for(indkomstår) != Ll9BLovUdenKildedækning && ll9b_satsversion_for(indkomstår) != Ll9BSatsUdenKildedækning
 | ll9b_satspakke(indkomstår: Heltal, bil_motorcykel_høj_øre_pr_km: Heltal, bil_motorcykel_lav_øre_pr_km: Heltal, cykel_knallert_scooter_elløbehjul_øre_pr_km: Heltal, høj_sats_kilometerloft: Heltal) -> Ligningslov9BSatser(
@@ -1101,43 +1101,43 @@ stk. 5.
     cykel_knallert_scooter_elløbehjul_øre_pr_km = cykel_knallert_scooter_elløbehjul_øre_pr_km,
     høj_sats_kilometerloft = høj_sats_kilometerloft
 )
-| ll9b_satser_for(indkomstår: Heltal) -> ll9b_satspakke(
+| ll9b_satser_for(indkomstår: Heltal): Ligningslov9BSatser -> ll9b_satspakke(
     indkomstår = indkomstår,
     bil_motorcykel_høj_øre_pr_km = 0,
     bil_motorcykel_lav_øre_pr_km = 0,
     cykel_knallert_scooter_elløbehjul_øre_pr_km = 0,
     høj_sats_kilometerloft = 0
 )
-| exception ll9b_satser_2023 ll9b_satser_for(indkomstår: Heltal) -> ll9b_satspakke(
+| exception ll9b_satser_2023 ll9b_satser_for(indkomstår) -> ll9b_satspakke(
     indkomstår = indkomstår,
     bil_motorcykel_høj_øre_pr_km = 373,
     bil_motorcykel_lav_øre_pr_km = 219,
     cykel_knallert_scooter_elløbehjul_øre_pr_km = 61,
     høj_sats_kilometerloft = 20000
 ) under indkomstår == 2023
-| exception ll9b_satser_2024 ll9b_satser_for(indkomstår: Heltal) -> ll9b_satspakke(
+| exception ll9b_satser_2024 ll9b_satser_for(indkomstår) -> ll9b_satspakke(
     indkomstår = indkomstår,
     bil_motorcykel_høj_øre_pr_km = 379,
     bil_motorcykel_lav_øre_pr_km = 223,
     cykel_knallert_scooter_elløbehjul_øre_pr_km = 62,
     høj_sats_kilometerloft = 20000
 ) under indkomstår == 2024
-| exception ll9b_satser_2025 ll9b_satser_for(indkomstår: Heltal) -> ll9b_satspakke(
+| exception ll9b_satser_2025 ll9b_satser_for(indkomstår) -> ll9b_satspakke(
     indkomstår = indkomstår,
     bil_motorcykel_høj_øre_pr_km = 381,
     bil_motorcykel_lav_øre_pr_km = 223,
     cykel_knallert_scooter_elløbehjul_øre_pr_km = 63,
     høj_sats_kilometerloft = 20000
 ) under indkomstår == 2025
-| exception ll9b_satser_2026 ll9b_satser_for(indkomstår: Heltal) -> ll9b_satspakke(
+| exception ll9b_satser_2026 ll9b_satser_for(indkomstår) -> ll9b_satspakke(
     indkomstår = indkomstår,
     bil_motorcykel_høj_øre_pr_km = 394,
     bil_motorcykel_lav_øre_pr_km = 228,
     cykel_knallert_scooter_elløbehjul_øre_pr_km = 64,
     høj_sats_kilometerloft = 20000
 ) under indkomstår == 2026
-| ll9b_øre_afrundet_til_kroner(øre: Heltal) -> 0
-| exception ll9b_positive_øre_afrundes ll9b_øre_afrundet_til_kroner(øre: Heltal) -> (øre + 50) / 100 under øre > 0
+| ll9b_øre_afrundet_til_kroner(øre: Heltal): Int -> 0
+| exception ll9b_positive_øre_afrundes ll9b_øre_afrundet_til_kroner(øre) -> (øre + 50) / 100 under øre > 0
 
 # Ligningslov9BSag(input: Ligningslov9BInput) {
     | satser() -> ll9b_satser_for(input.indkomstår)
@@ -1152,7 +1152,7 @@ stk. 5.
     | hjem_arbejdsplads_erhvervsmæssig() -> inden_for_60_dage() || ny_60_dages_periode() || stk3_formodning_anvendt()
     | erhvervsmæssig_befordring() -> skatteår_understøttet() && (input.befordring.art == Ll9BMellemArbejdspladser || input.befordring.art == Ll9BIndenForSammeArbejdsplads || input.befordring.art == Ll9BHjemOgArbejdsplads && hjem_arbejdsplads_erhvervsmæssig())
     | kilometer_i_sagen() -> ligningslov_positivt_beløb(input.befordring.kilometer_i_sagen)
-    | erhvervsmæssige_kilometer() -> 0
+    | erhvervsmæssige_kilometer(): Int -> 0
     | exception befordring_omfattet_af_stk1 erhvervsmæssige_kilometer() -> kilometer_i_sagen() under erhvervsmæssig_befordring()
     | tidligere_kilometer_hos_godtgørende_arbejdsgiver() -> ligningslov_positivt_beløb(input.befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret)
     | tidligere_kilometer_til_direkte_fradrag() -> ligningslov_positivt_beløb(input.befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_til_direkte_fradrag_i_indkomståret)
@@ -1162,11 +1162,11 @@ stk. 5.
     | godtgørelses_lav_sats_kilometer() -> erhvervsmæssige_kilometer() - godtgørelses_høj_sats_kilometer()
     | direkte_fradrags_høj_sats_kilometer() -> ligningslov_mindste_beløb(erhvervsmæssige_kilometer(), resterende_høj_sats_kilometer_til_direkte_fradrag())
     | direkte_fradrags_lav_sats_kilometer() -> erhvervsmæssige_kilometer() - direkte_fradrags_høj_sats_kilometer()
-    | kilometergodtgørelse_øre() -> 0
+    | kilometergodtgørelse_øre(): Int -> 0
     | exception egen_bil_høj_og_lav_sats kilometergodtgørelse_øre() -> godtgørelses_høj_sats_kilometer() * satser().bil_motorcykel_høj_øre_pr_km + godtgørelses_lav_sats_kilometer() * satser().bil_motorcykel_lav_øre_pr_km under input.køretøj == Ll9BEgenBil
     | exception egen_motorcykel_høj_og_lav_sats kilometergodtgørelse_øre() -> godtgørelses_høj_sats_kilometer() * satser().bil_motorcykel_høj_øre_pr_km + godtgørelses_lav_sats_kilometer() * satser().bil_motorcykel_lav_øre_pr_km under input.køretøj == Ll9BEgenMotorcykel
     | exception cykel_knallert_scooter_elløbehjul_sats kilometergodtgørelse_øre() -> erhvervsmæssige_kilometer() * satser().cykel_knallert_scooter_elløbehjul_øre_pr_km under input.køretøj == Ll9BEgenCykelKnallertScooterEllerElløbehjul
-    | direkte_fradrag_øre() -> 0
+    | direkte_fradrag_øre(): Int -> 0
     | exception egen_bil_direkte_fradrag_høj_og_lav_sats direkte_fradrag_øre() -> direkte_fradrags_høj_sats_kilometer() * satser().bil_motorcykel_høj_øre_pr_km + direkte_fradrags_lav_sats_kilometer() * satser().bil_motorcykel_lav_øre_pr_km under input.køretøj == Ll9BEgenBil
     | exception egen_motorcykel_direkte_fradrag_høj_og_lav_sats direkte_fradrag_øre() -> direkte_fradrags_høj_sats_kilometer() * satser().bil_motorcykel_høj_øre_pr_km + direkte_fradrags_lav_sats_kilometer() * satser().bil_motorcykel_lav_øre_pr_km under input.køretøj == Ll9BEgenMotorcykel
     | exception cykel_knallert_scooter_elløbehjul_direkte_fradrag_sats direkte_fradrag_øre() -> erhvervsmæssige_kilometer() * satser().cykel_knallert_scooter_elløbehjul_øre_pr_km under input.køretøj == Ll9BEgenCykelKnallertScooterEllerElløbehjul
@@ -1176,16 +1176,16 @@ stk. 5.
     | godtgørelsesmodtager_omfattet() -> input.fradragsforhold.personrolle == Ll9BLønmodtager || input.fradragsforhold.personrolle == Ll9BBestyrelsesmedlemEllerMedhjælper
     | eget_køretøj_benyttet() -> input.køretøj != Ll9BIkkeEgetKøretøj
     | godtgørelsesform_tilladt() -> input.godtgørelsesforhold.form == Ll9BKilometerafregnet || input.godtgørelsesforhold.form == Ll9BAcontoRettidigtAfregnet
-    | firmabil_betingelse_opfyldt() -> Falskt
+    | firmabil_betingelse_opfyldt(): Bool -> Falskt
     | exception ingen_firmabil_stillet_til_rådighed firmabil_betingelse_opfyldt() -> Sandt under input.godtgørelsesforhold.firmabil_stillet_til_rådighed == Falskt
     | exception fuldt_vederlag_for_anden_arbejdsgivers_kørsel firmabil_betingelse_opfyldt() -> Sandt under input.godtgørelsesforhold.fuldt_vederlag_betalt_for_firmabilskørsel_for_anden_arbejdsgiver
     | exception dokumenteret_eget_køretøj_fra_2025 firmabil_betingelse_opfyldt() -> Sandt under input.indkomstår >= 2025 && input.godtgørelsesforhold.dokumenteret_kørsel_i_eget_køretøj
     | administrative_godtgørelsesbetingelser_opfyldt() -> erhvervsmæssig_befordring() && godtgørelsesmodtager_omfattet() && eget_køretøj_benyttet() && godtgørelsesform_tilladt() && input.godtgørelsesforhold.arbejdsgiver_har_kontrolleret_kilometer && input.godtgørelsesforhold.bogføringsbilag_opfylder_par6 && input.godtgørelsesforhold.modregnet_i_forud_aftalt_bruttoløn == Falskt && firmabil_betingelse_opfyldt()
     | godtgørelse_valgt_medregnet_i_indkomsten() -> input.godtgørelsesforhold.eventuel_godtgørelse_valgt_medregnet_i_indkomsten && udbetalt_godtgørelse_kroner() > 0
-    | skattefri_godtgørelse_kroner() -> 0
+    | skattefri_godtgørelse_kroner(): Int -> 0
     | exception godtgørelse_inden_for_sats skattefri_godtgørelse_kroner() -> udbetalt_godtgørelse_kroner() under administrative_godtgørelsesbetingelser_opfyldt() && udbetalt_godtgørelse_kroner() <= maksimal_skattefri_godtgørelse_kroner() && godtgørelse_valgt_medregnet_i_indkomsten() == Falskt
     | exception overskydende_beløb_behandlet_som_løn skattefri_godtgørelse_kroner() -> maksimal_skattefri_godtgørelse_kroner() under administrative_godtgørelsesbetingelser_opfyldt() && udbetalt_godtgørelse_kroner() > maksimal_skattefri_godtgørelse_kroner() && input.godtgørelsesforhold.overskydende_beløb_behandlet_som_løn_ved_endelig_opgørelse && godtgørelse_valgt_medregnet_i_indkomsten() == Falskt
-    | godtgørelse_personlig_indkomst_kroner() -> 0
+    | godtgørelse_personlig_indkomst_kroner(): Int -> 0
     | exception understøttet_skatteår_klassificerer_godtgørelse godtgørelse_personlig_indkomst_kroner() -> udbetalt_godtgørelse_kroner() - skattefri_godtgørelse_kroner() under skatteår_understøttet()
     | kundeopsøgende_flere_arbejdsgivere() -> input.fradragsforhold.personrolle == Ll9BLønmodtager && input.fradragsforhold.kundeopsøgende_aktivitet && input.fradragsforhold.antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang >= 2
     | ikke_lønmodtager_med_direkte_fradragsadgang() -> input.fradragsforhold.personrolle == Ll9BSelvstændig || input.fradragsforhold.personrolle == Ll9BHonorarmodtager || input.fradragsforhold.personrolle == Ll9BBestyrelsesmedlemEllerMedhjælper || input.fradragsforhold.personrolle == Ll9BAndenIkkeLønmodtagerMedIndtægtsgivendeArbejde
@@ -1194,7 +1194,7 @@ stk. 5.
     | direkte_fradragsgrundlag_opfyldt() -> erhvervsmæssig_befordring() && input.udgifter.har_afholdt_befordringsudgifter && personrolle_har_direkte_fradragsadgang() && ingen_skattefri_dobbeltkompensation()
     | faktiske_udgifter_kroner() -> ligningslov_positivt_beløb(input.udgifter.dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner) + ligningslov_positivt_beløb(input.udgifter.dokumenterede_bro_tunnel_udgifter_kroner)
     | satsbaseret_fradrag_kroner() -> satsbaseret_direkte_fradrag_før_bro_tunnel_kroner() + ligningslov_positivt_beløb(input.udgifter.dokumenterede_bro_tunnel_udgifter_kroner)
-    | fradrag_i_personlig_indkomst_kroner() -> 0
+    | fradrag_i_personlig_indkomst_kroner(): Int -> 0
     | exception ikke_lønmodtager_faktiske_udgifter fradrag_i_personlig_indkomst_kroner() -> faktiske_udgifter_kroner() under direkte_fradragsgrundlag_opfyldt() && ikke_lønmodtager_med_direkte_fradragsadgang() && input.fradragsforhold.metode == Ll9BFaktiskeUdgifter
     | exception ikke_lønmodtager_skatteraadets_satser fradrag_i_personlig_indkomst_kroner() -> satsbaseret_fradrag_kroner() under direkte_fradragsgrundlag_opfyldt() && ikke_lønmodtager_med_direkte_fradragsadgang() && input.fradragsforhold.metode == Ll9BSkatteraadetsKilometersatser
     | exception kundeopsøgende_lønmodtager_skatteraadets_satser fradrag_i_personlig_indkomst_kroner() -> satsbaseret_fradrag_kroner() under direkte_fradragsgrundlag_opfyldt() && kundeopsøgende_flere_arbejdsgivere()
@@ -1720,7 +1720,7 @@ for den befordring, som har dannet grundlag for rabatten eller godtgørelsen.
 | ll9d_ingen_normaludgift() -> Ll9dEgetBefordringsmiddelNårOffentligBefordringIkkeKanAnvendes(årlige_kilometer = 0)
 | ll9d_ingen_faktisk_udgift() -> Ll9dDokumenteredeFaktiskeBefordringsudgifter(beløb_kroner = 0)
 | ll9d_skatteår_understøttet(skatteår: Heltal) -> skatteår >= 2023 && skatteår <= 2026
-| ll9d_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9DSatser(
+| ll9d_satser_for_opslag(skatteår: Heltal): Ligningslov9DSatser? -> Some(Ligningslov9DSatser(
     skatteår = 2023,
     normalfradrag_øre_pr_km = 219,
     erhverv_høj_øre_pr_km = 373,
@@ -1729,7 +1729,7 @@ for den befordring, som har dannet grundlag for rabatten eller godtgørelsen.
     normalfradrag_kilde = Ll9dSkatteraadetBek1449Af2022Par1Par4,
     erhvervssats_kilde = Ll9dSkatteraadetBek1449Af2022Par1Par4
 )) under skatteår == 2023
-| ll9d_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9DSatser(
+| ll9d_satser_for_opslag(skatteår) -> Some(Ligningslov9DSatser(
     skatteår = 2024,
     normalfradrag_øre_pr_km = 223,
     erhverv_høj_øre_pr_km = 379,
@@ -1738,7 +1738,7 @@ for den befordring, som har dannet grundlag for rabatten eller godtgørelsen.
     normalfradrag_kilde = Ll9dSkatteraadetBek1312Af2023Par1Par4,
     erhvervssats_kilde = Ll9dSkatteraadetBek1312Af2023Par1Par4
 )) under skatteår == 2024
-| ll9d_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9DSatser(
+| ll9d_satser_for_opslag(skatteår) -> Some(Ligningslov9DSatser(
     skatteår = 2025,
     normalfradrag_øre_pr_km = 223,
     erhverv_høj_øre_pr_km = 381,
@@ -1747,7 +1747,7 @@ for den befordring, som har dannet grundlag for rabatten eller godtgørelsen.
     normalfradrag_kilde = Ll9dSkatteraadetBek1189Af2024Par1Par4,
     erhvervssats_kilde = Ll9dSkatteraadetBek1189Af2024Par1Par4
 )) under skatteår == 2025
-| ll9d_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9DSatser(
+| ll9d_satser_for_opslag(skatteår) -> Some(Ligningslov9DSatser(
     skatteår = 2026,
     normalfradrag_øre_pr_km = 317,
     erhverv_høj_øre_pr_km = 394,
@@ -1757,10 +1757,10 @@ for den befordring, som har dannet grundlag for rabatten eller godtgørelsen.
     erhvervssats_kilde = Ll9dSkatteraadetBek1333Af2025Par1Par4
 )) under skatteår == 2026
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
-| ll9d_satser_for_opslag(skatteår: Heltal) -> None
+| ll9d_satser_for_opslag(skatteår) -> None
 | ll9d_satser_for(skatteår: Heltal) -> head(match ll9d_satser_for_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
-| ll9d_øre_afrundet_til_kroner(øre: Heltal) -> 0
-| exception ll9d_positive_øre_afrundes ll9d_øre_afrundet_til_kroner(øre: Heltal) -> (øre + 50) / 100 under øre > 0
+| ll9d_øre_afrundet_til_kroner(øre: Heltal): Int -> 0
+| exception ll9d_positive_øre_afrundes ll9d_øre_afrundet_til_kroner(øre) -> (øre + 50) / 100 under øre > 0
 | ll9d_normaludgiftsgrundlag_gyldigt(grundlag: Ligningslov9DNormaludgiftsgrundlag) -> match grundlag {
     | Ll9dBilligsteOffentligeBefordringsmiddel(årlig_udgift_kroner) -> årlig_udgift_kroner >= 0
     | Ll9dEgetBefordringsmiddelNårOffentligBefordringIkkeKanAnvendes(årlige_kilometer) -> årlige_kilometer >= 0
@@ -1798,9 +1798,9 @@ for den befordring, som har dannet grundlag for rabatten eller godtgørelsen.
     }
 } ellers { Falskt }
 | ll9d_kvalifikation_godtgjort(input: Ligningslov9DInput) -> input.kvalifikationsgrundlag != Par9DKvalifikationIkkeGodtgjort
-| ll9d_omfattet(input: Ligningslov9DInput) -> Falskt
-| exception ll9d_arbejdsplads_med_godtgjort_kvalifikation ll9d_omfattet(input: Ligningslov9DInput) -> Sandt under ll9d_input_gyldigt(input) && input.befordringsformål == Par9DArbejdsplads && ll9d_kvalifikation_godtgjort(input)
-| exception ll9d_su_uddannelsessted_med_godtgjort_kvalifikation ll9d_omfattet(input: Ligningslov9DInput) -> Sandt under ll9d_input_gyldigt(input) && input.skatteår >= 2026 && input.befordringsformål == Par9DUddannelsesstedForSuModtagerIYderkommuneEllerPåOmfattetØ && ll9d_kvalifikation_godtgjort(input)
+| ll9d_omfattet(input: Ligningslov9DInput): Bool -> Falskt
+| exception ll9d_arbejdsplads_med_godtgjort_kvalifikation ll9d_omfattet(input) -> Sandt under ll9d_input_gyldigt(input) && input.befordringsformål == Par9DArbejdsplads && ll9d_kvalifikation_godtgjort(input)
+| exception ll9d_su_uddannelsessted_med_godtgjort_kvalifikation ll9d_omfattet(input) -> Sandt under ll9d_input_gyldigt(input) && input.skatteår >= 2026 && input.befordringsformål == Par9DUddannelsesstedForSuModtagerIYderkommuneEllerPåOmfattetØ && ll9d_kvalifikation_godtgjort(input)
 | ll9d_normal_befordringsudgift_kroner(input: Ligningslov9DInput) -> match input.normaludgiftsgrundlag {
     | Ll9dBilligsteOffentligeBefordringsmiddel(årlig_udgift_kroner) -> ligningslov_positivt_beløb(årlig_udgift_kroner)
     | Ll9dEgetBefordringsmiddelNårOffentligBefordringIkkeKanAnvendes(årlige_kilometer) -> ll9d_øre_afrundet_til_kroner(ligningslov_positivt_beløb(årlige_kilometer) * ll9d_satser_for(input.skatteår).normalfradrag_øre_pr_km)
@@ -1820,8 +1820,8 @@ for den befordring, som har dannet grundlag for rabatten eller godtgørelsen.
 | ll9d_faktisk_udgift_over_normal_kroner(input: Ligningslov9DInput) -> ligningslov_positivt_beløb(ll9d_faktisk_befordringsudgift_kroner(input) - ll9d_normal_befordringsudgift_kroner(input))
 | ll9d_fradrag_før_skattefrit_tilskud_kroner(input: Ligningslov9DInput) -> ll9d_normal_befordringsudgift_over_2000_kroner(input) + ll9d_faktisk_udgift_over_normal_kroner(input)
 | ll9d_fradragsbetingelser_opfyldt(input: Ligningslov9DInput, betalingsforhold: Ligningslov9DBetalingsforhold) -> ll9d_omfattet(input) && ll9d_betalingsforhold_gyldigt(input, betalingsforhold) && ll9d_betalingsforhold_er_egenbetaling(betalingsforhold) && ll9d_egen_afholdt_faktisk_befordringsudgift_kroner(input, betalingsforhold) > 0
-| ll9d_fradrag_kroner(input: Ligningslov9DInput, betalingsforhold: Ligningslov9DBetalingsforhold) -> 0
-| exception ll9d_omfattet_egenbetalt_fradrag ll9d_fradrag_kroner(input: Ligningslov9DInput, betalingsforhold: Ligningslov9DBetalingsforhold) -> ligningslov_mindste_beløb(ll9d_fradrag_før_skattefrit_tilskud_kroner(input), ll9d_egen_afholdt_faktisk_befordringsudgift_kroner(input, betalingsforhold)) under ll9d_fradragsbetingelser_opfyldt(input, betalingsforhold)
+| ll9d_fradrag_kroner(input: Ligningslov9DInput, betalingsforhold: Ligningslov9DBetalingsforhold): Int -> 0
+| exception ll9d_omfattet_egenbetalt_fradrag ll9d_fradrag_kroner(input, betalingsforhold) -> ligningslov_mindste_beløb(ll9d_fradrag_før_skattefrit_tilskud_kroner(input), ll9d_egen_afholdt_faktisk_befordringsudgift_kroner(input, betalingsforhold)) under ll9d_fradragsbetingelser_opfyldt(input, betalingsforhold)
 | ll9d_afskærer_par9c_stk1_8(input: Ligningslov9DInput, betalingsforhold: Ligningslov9DBetalingsforhold) -> ll9d_fradragsbetingelser_opfyldt(input, betalingsforhold) && input.befordringsformål == Par9DArbejdsplads
 | ll9d_afskærer_par9c_stk10(input: Ligningslov9DInput, betalingsforhold: Ligningslov9DBetalingsforhold) -> ll9d_fradragsbetingelser_opfyldt(input, betalingsforhold) && input.befordringsformål == Par9DUddannelsesstedForSuModtagerIYderkommuneEllerPåOmfattetØ
 | ll9d_normal_befordringsudgift_kilde(input: Ligningslov9DInput) -> match input.normaludgiftsgrundlag {
@@ -1871,9 +1871,9 @@ for den befordring, som har dannet grundlag for rabatten eller godtgørelsen.
     faktisk_befordringsudgift_kilde = Ll9dLigningslovLbk1500Af2025Par9D
 )
 | ll9d_ikke_omfattet_resultat() -> ll9d_ikke_omfattet_resultat_for(2026)
-| ll9c_øre_afrundet_til_kroner(øre: Heltal) -> 0
-| exception ll9c_positive_øre_afrundes ll9c_øre_afrundet_til_kroner(øre: Heltal) -> (øre + 50) / 100 under øre > 0
-| ll9c_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9CSatser(
+| ll9c_øre_afrundet_til_kroner(øre: Heltal): Int -> 0
+| exception ll9c_positive_øre_afrundes ll9c_øre_afrundet_til_kroner(øre) -> (øre + 50) / 100 under øre > 0
+| ll9c_satser_for_opslag(skatteår: Heltal): Ligningslov9CSatser? -> Some(Ligningslov9CSatser(
     skatteår = 2023,
     almindelig_op_til_120_øre_pr_km = 219,
     almindelig_over_120_øre_pr_km = 110,
@@ -1887,7 +1887,7 @@ for den befordring, som har dannet grundlag for rabatten eller godtgørelsen.
     yderkommune_satskilder = [SkatteraadetBek1449Af2022Par1Til3],
     lavindkomst_satskilder = [LigningslovLbk1500Af2025Par9C, SkatteraadetBek1449Af2022Par1Til3, SkatteministerietPsl20Beloebsgraenser2023_2024]
 )) under skatteår == 2023
-| ll9c_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9CSatser(
+| ll9c_satser_for_opslag(skatteår) -> Some(Ligningslov9CSatser(
     skatteår = 2024,
     almindelig_op_til_120_øre_pr_km = 223,
     almindelig_over_120_øre_pr_km = 112,
@@ -1901,7 +1901,7 @@ for den befordring, som har dannet grundlag for rabatten eller godtgørelsen.
     yderkommune_satskilder = [SkatteraadetBek1312Af2023Par1Til3, LigningslovLov109Af2024Par1Nr7Til9],
     lavindkomst_satskilder = [LigningslovLbk1500Af2025Par9C, SkatteraadetBek1312Af2023Par1Til3, SkatteministerietPsl20Beloebsgraenser2023_2024]
 )) under skatteår == 2024
-| ll9c_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9CSatser(
+| ll9c_satser_for_opslag(skatteår) -> Some(Ligningslov9CSatser(
     skatteår = 2025,
     almindelig_op_til_120_øre_pr_km = 223,
     almindelig_over_120_øre_pr_km = 112,
@@ -1915,7 +1915,7 @@ for den befordring, som har dannet grundlag for rabatten eller godtgørelsen.
     yderkommune_satskilder = [SkatteraadetBek1189Af2024Par1Til3, LigningslovLov109Af2024Par1Nr7Til9],
     lavindkomst_satskilder = [LigningslovLbk1500Af2025Par9C, SkatteraadetBek1189Af2024Par1Til3, SkatteministerietPsl20Beloebsgraenser2024_2025]
 )) under skatteår == 2025
-| ll9c_satser_for_opslag(skatteår: Heltal) -> Some(Ligningslov9CSatser(
+| ll9c_satser_for_opslag(skatteår) -> Some(Ligningslov9CSatser(
     skatteår = 2026,
     almindelig_op_til_120_øre_pr_km = 317,
     almindelig_over_120_øre_pr_km = 159,
@@ -1930,25 +1930,25 @@ for den befordring, som har dannet grundlag for rabatten eller godtgørelsen.
     lavindkomst_satskilder = [LigningslovLbk1500Af2025Par9C, SkatteraadetBek1333Af2025Par1Til3, Lov616Af2026Par1, SkatteministerietPsl20Beloebsgraenser2025_2026]
 )) under skatteår == 2026
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
-| ll9c_satser_for_opslag(skatteår: Heltal) -> None
+| ll9c_satser_for_opslag(skatteår) -> None
 | ll9c_satser_for(skatteår: Heltal) -> head(match ll9c_satser_for_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
 | ll9c_arbejdsplads_befordringsfradrag_berettiget(input: Ligningslov9CInput) -> input.befordringsformål == IndtægtsgivendeArbejdsplads && input.modtaget_skattefri_befordringsgodtgørelse_for_strækning == Falskt && input.par9d.afskærer_par9c_stk1_8 == Falskt && input.fradrag_udelukket_folketingshverv_m_v == Falskt
 | ll9c_su_uddannelsessted_befordringsfradrag_berettiget(input: Ligningslov9CInput) -> input.skatteår >= 2026 && input.befordringsformål == SuUddannelsessted && input.bopæl_i_yderkommune_eller_lille_ø == Sandt && input.modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning == Falskt && input.par9d.afskærer_par9c_stk10 == Falskt
 | ll9c_ordinært_befordringsfradrag_berettiget(input: Ligningslov9CInput) -> ll9c_arbejdsplads_befordringsfradrag_berettiget(input) || ll9c_su_uddannelsessted_befordringsfradrag_berettiget(input)
-| ll9c_bropassagefradrag_berettiget(input: Ligningslov9CInput) -> ll9c_ordinært_befordringsfradrag_berettiget(input)
-| exception ll9c_par9d_afskærer_ikke_bropassage ll9c_bropassagefradrag_berettiget(input: Ligningslov9CInput) -> Sandt under input.befordringsformål == IndtægtsgivendeArbejdsplads && input.par9d.afskærer_par9c_stk1_8 == Sandt
+| ll9c_bropassagefradrag_berettiget(input: Ligningslov9CInput): Bool -> ll9c_ordinært_befordringsfradrag_berettiget(input)
+| exception ll9c_par9d_afskærer_ikke_bropassage ll9c_bropassagefradrag_berettiget(input) -> Sandt under input.befordringsformål == IndtægtsgivendeArbejdsplads && input.par9d.afskærer_par9c_stk1_8 == Sandt
 | ll9c_daglige_fradragsberettigede_kilometer(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(input.daglige_befordringskilometer - 24)
 | ll9c_op_til_120_kilometer_pr_dag(input: Ligningslov9CInput) -> ligningslov_mindste_beløb(ll9c_daglige_fradragsberettigede_kilometer(input), 96)
 | ll9c_over_120_kilometer_pr_dag(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(input.daglige_befordringskilometer - 120)
-| ll9c_op_til_120_øre_pr_km(input: Ligningslov9CInput) -> ll9c_satser_for(input.skatteår).almindelig_op_til_120_øre_pr_km
-| exception ll9c_yderkommune_op_til_120_sats ll9c_op_til_120_øre_pr_km(input: Ligningslov9CInput) -> ll9c_satser_for(input.skatteår).yderkommune_op_til_120_øre_pr_km under input.bopæl_i_yderkommune_eller_lille_ø == Sandt
-| ll9c_over_120_øre_pr_km(input: Ligningslov9CInput) -> ll9c_satser_for(input.skatteår).almindelig_over_120_øre_pr_km
-| exception ll9c_yderkommune_over_120_sats ll9c_over_120_øre_pr_km(input: Ligningslov9CInput) -> ll9c_satser_for(input.skatteår).yderkommune_over_120_øre_pr_km under input.bopæl_i_yderkommune_eller_lille_ø == Sandt
+| ll9c_op_til_120_øre_pr_km(input: Ligningslov9CInput): Int -> ll9c_satser_for(input.skatteår).almindelig_op_til_120_øre_pr_km
+| exception ll9c_yderkommune_op_til_120_sats ll9c_op_til_120_øre_pr_km(input) -> ll9c_satser_for(input.skatteår).yderkommune_op_til_120_øre_pr_km under input.bopæl_i_yderkommune_eller_lille_ø == Sandt
+| ll9c_over_120_øre_pr_km(input: Ligningslov9CInput): Int -> ll9c_satser_for(input.skatteår).almindelig_over_120_øre_pr_km
+| exception ll9c_yderkommune_over_120_sats ll9c_over_120_øre_pr_km(input) -> ll9c_satser_for(input.skatteår).yderkommune_over_120_øre_pr_km under input.bopæl_i_yderkommune_eller_lille_ø == Sandt
 | ll9c_dagligt_afstandsfradrag_øre(input: Ligningslov9CInput) -> ll9c_op_til_120_kilometer_pr_dag(input) * ll9c_op_til_120_øre_pr_km(input) + ll9c_over_120_kilometer_pr_dag(input) * ll9c_over_120_øre_pr_km(input)
-| ll9c_afstandsfradrag_kroner(input: Ligningslov9CInput) -> 0
-| exception ll9c_ordinær_afstand_giver_fradrag ll9c_afstandsfradrag_kroner(input: Ligningslov9CInput) -> ll9c_øre_afrundet_til_kroner(ll9c_dagligt_afstandsfradrag_øre(input) * ligningslov_positivt_beløb(input.arbejdsdage)) under ll9c_ordinært_befordringsfradrag_berettiget(input)
-| ll9c_brofradrag_kroner(input: Ligningslov9CInput) -> 0
-| exception ll9c_dokumenterede_brofradrag ll9c_brofradrag_kroner(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(input.broer.storebælt_bil_motorcykel_passager) * 110 + ligningslov_positivt_beløb(input.broer.storebælt_kollektiv_passager) * 15 + ligningslov_positivt_beløb(input.broer.øresund_bil_motorcykel_passager) * 50 + ligningslov_positivt_beløb(input.broer.øresund_kollektiv_passager) * 8 under ll9c_bropassagefradrag_berettiget(input) && input.broer.dokumenteret_og_afholdt_af_skattepligtige == Sandt
+| ll9c_afstandsfradrag_kroner(input: Ligningslov9CInput): Int -> 0
+| exception ll9c_ordinær_afstand_giver_fradrag ll9c_afstandsfradrag_kroner(input) -> ll9c_øre_afrundet_til_kroner(ll9c_dagligt_afstandsfradrag_øre(input) * ligningslov_positivt_beløb(input.arbejdsdage)) under ll9c_ordinært_befordringsfradrag_berettiget(input)
+| ll9c_brofradrag_kroner(input: Ligningslov9CInput): Int -> 0
+| exception ll9c_dokumenterede_brofradrag ll9c_brofradrag_kroner(input) -> ligningslov_positivt_beløb(input.broer.storebælt_bil_motorcykel_passager) * 110 + ligningslov_positivt_beløb(input.broer.storebælt_kollektiv_passager) * 15 + ligningslov_positivt_beløb(input.broer.øresund_bil_motorcykel_passager) * 50 + ligningslov_positivt_beløb(input.broer.øresund_kollektiv_passager) * 8 under ll9c_bropassagefradrag_berettiget(input) && input.broer.dokumenteret_og_afholdt_af_skattepligtige == Sandt
 | ll9c_grundfradrag_før_lavindkomsttillæg_kroner(input: Ligningslov9CInput) -> ll9c_afstandsfradrag_kroner(input) + ll9c_særlig_transportfradrag_kroner(input) + ll9c_brofradrag_kroner(input)
 | ll9c_lavindkomst_overskydende_indkomst_kroner(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(input.aftrapningsindkomst_kroner - ll9c_satser_for(input.skatteår).lavindkomst_indkomstgrænse_kroner)
 | ll9c_lavindkomst_aftrapningstrin_1000(input: Ligningslov9CInput) -> ll9c_lavindkomst_overskydende_indkomst_kroner(input) / 1000
@@ -1967,10 +1967,10 @@ for den befordring, som har dannet grundlag for rabatten eller godtgørelsen.
         maksimum_kroner
     )
 }
-| ll9c_lavindkomst_tillæg_kroner(input: Ligningslov9CInput) -> 0
-| exception ll9c_ordinært_lavindkomsttillæg ll9c_lavindkomst_tillæg_kroner(input: Ligningslov9CInput) -> ll9c_lavindkomst_tillæg_for_årsgrundlag_kroner(input.skatteår, input.aftrapningsindkomst_kroner, ll9c_grundfradrag_før_lavindkomsttillæg_kroner(input)) under ll9c_ordinært_befordringsfradrag_berettiget(input)
-| ll9c_fri_befordring_skattepligtig_værdi_kroner(input: Ligningslov9CInput) -> 0
-| exception ll9c_fri_befordring_medregnes_som_værdi ll9c_fri_befordring_skattepligtig_værdi_kroner(input: Ligningslov9CInput) -> ll9c_afstandsfradrag_kroner(input) under ll9c_arbejdsplads_befordringsfradrag_berettiget(input) && input.fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen == Sandt
+| ll9c_lavindkomst_tillæg_kroner(input: Ligningslov9CInput): Int -> 0
+| exception ll9c_ordinært_lavindkomsttillæg ll9c_lavindkomst_tillæg_kroner(input) -> ll9c_lavindkomst_tillæg_for_årsgrundlag_kroner(input.skatteår, input.aftrapningsindkomst_kroner, ll9c_grundfradrag_før_lavindkomsttillæg_kroner(input)) under ll9c_ordinært_befordringsfradrag_berettiget(input)
+| ll9c_fri_befordring_skattepligtig_værdi_kroner(input: Ligningslov9CInput): Int -> 0
+| exception ll9c_fri_befordring_medregnes_som_værdi ll9c_fri_befordring_skattepligtig_værdi_kroner(input) -> ll9c_afstandsfradrag_kroner(input) under ll9c_arbejdsplads_befordringsfradrag_berettiget(input) && input.fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen == Sandt
 | ll9c_befordringsfradrag_resultat(input: Ligningslov9CInput) -> Ligningslov9CResultat(
     berettiget_til_ordinært_fradrag = ll9c_ordinært_befordringsfradrag_berettiget(input),
     daglige_fradragsberettigede_kilometer = ll9c_daglige_fradragsberettigede_kilometer(input),
@@ -2240,10 +2240,10 @@ I disse tilfælde foretages begrænsningen i fradraget fortrinsvis i fradraget f
 -- ensartede rejsedage; den fulde billetudgift er et kildefaktum, ikke et fradrag.
 -- Stk. 3's yderkommunetillæg gælder over 24 km, ikke stk. 2's bundgrænse.
 | ll9c_særlig_transport_berettiget(input: Ligningslov9CInput) -> ll9c_ordinært_befordringsfradrag_berettiget(input) && input.arbejdsdage > 0 && input.særlig_transport.geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten
-| ll9c_særlig_transport_resterende_bundgrænse_øre(input: Ligningslov9CInput) -> 0
-| exception ll9c_resterende_daglig_bundgrænse ll9c_særlig_transport_resterende_bundgrænse_øre(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(24 - ligningslov_positivt_beløb(input.daglige_befordringskilometer)) * ll9c_satser_for(input.skatteår).almindelig_op_til_120_øre_pr_km * input.arbejdsdage under ll9c_særlig_transport_berettiget(input)
-| ll9c_særlig_transportfradrag_øre(input: Ligningslov9CInput) -> 0
-| exception ll9c_færge_fly_lignende_faktisk_udgift ll9c_særlig_transportfradrag_øre(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(ligningslov_positivt_beløb(input.særlig_transport.faktisk_dokumenteret_udgift_kroner) * 100 - ll9c_særlig_transport_resterende_bundgrænse_øre(input)) under ll9c_særlig_transport_berettiget(input)
+| ll9c_særlig_transport_resterende_bundgrænse_øre(input: Ligningslov9CInput): Int -> 0
+| exception ll9c_resterende_daglig_bundgrænse ll9c_særlig_transport_resterende_bundgrænse_øre(input) -> ligningslov_positivt_beløb(24 - ligningslov_positivt_beløb(input.daglige_befordringskilometer)) * ll9c_satser_for(input.skatteår).almindelig_op_til_120_øre_pr_km * input.arbejdsdage under ll9c_særlig_transport_berettiget(input)
+| ll9c_særlig_transportfradrag_øre(input: Ligningslov9CInput): Int -> 0
+| exception ll9c_færge_fly_lignende_faktisk_udgift ll9c_særlig_transportfradrag_øre(input) -> ligningslov_positivt_beløb(ligningslov_positivt_beløb(input.særlig_transport.faktisk_dokumenteret_udgift_kroner) * 100 - ll9c_særlig_transport_resterende_bundgrænse_øre(input)) under ll9c_særlig_transport_berettiget(input)
 | ll9c_særlig_transportfradrag_kroner(input: Ligningslov9CInput) -> ll9c_øre_afrundet_til_kroner(ll9c_særlig_transportfradrag_øre(input))
 
 }
@@ -2318,83 +2318,83 @@ Beskæftigelsesfradrag, § 9 J, stk. 2
 | ligningslov_basispoint_afrundet_til_hel_procent(sats_basispoint: Heltal) -> penge_basispoint_afrundet_til_hel_procent(sats_basispoint)
 | ligningslov_beløb_gange_basispoint_afrundet_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> penge_beløb_gange_basispoint_afrundet_kroner(beløb_kroner, sats_basispoint)
 
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår: Heltal): Ligningslov9JParametre? -> Some(Ligningslov9JParametre(
     skatteår = 2012,
     beskæftigelsesfradrag_basispoint = 440,
     beskæftigelsesfradrag_maks_kroner = 14100
 )) under skatteår == 2012
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår) -> Some(Ligningslov9JParametre(
     skatteår = 2013,
     beskæftigelsesfradrag_basispoint = 695,
     beskæftigelsesfradrag_maks_kroner = 22300
 )) under skatteår == 2013
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår) -> Some(Ligningslov9JParametre(
     skatteår = 2014,
     beskæftigelsesfradrag_basispoint = 765,
     beskæftigelsesfradrag_maks_kroner = 25000
 )) under skatteår == 2014
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår) -> Some(Ligningslov9JParametre(
     skatteår = 2015,
     beskæftigelsesfradrag_basispoint = 805,
     beskæftigelsesfradrag_maks_kroner = 26800
 )) under skatteår == 2015
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår) -> Some(Ligningslov9JParametre(
     skatteår = 2016,
     beskæftigelsesfradrag_basispoint = 830,
     beskæftigelsesfradrag_maks_kroner = 28000
 )) under skatteår == 2016
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår) -> Some(Ligningslov9JParametre(
     skatteår = 2017,
     beskæftigelsesfradrag_basispoint = 875,
     beskæftigelsesfradrag_maks_kroner = 30000
 )) under skatteår == 2017
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår) -> Some(Ligningslov9JParametre(
     skatteår = 2018,
     beskæftigelsesfradrag_basispoint = 950,
     beskæftigelsesfradrag_maks_kroner = 34300
 )) under skatteår == 2018
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår) -> Some(Ligningslov9JParametre(
     skatteår = 2019,
     beskæftigelsesfradrag_basispoint = 1010,
     beskæftigelsesfradrag_maks_kroner = 37200
 )) under skatteår == 2019
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår) -> Some(Ligningslov9JParametre(
     skatteår = 2020,
     beskæftigelsesfradrag_basispoint = 1050,
     beskæftigelsesfradrag_maks_kroner = 39400
 )) under skatteår == 2020
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår) -> Some(Ligningslov9JParametre(
     skatteår = 2021,
     beskæftigelsesfradrag_basispoint = 1060,
     beskæftigelsesfradrag_maks_kroner = 40600
 )) under skatteår == 2021
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår) -> Some(Ligningslov9JParametre(
     skatteår = 2022,
     beskæftigelsesfradrag_basispoint = 1065,
     beskæftigelsesfradrag_maks_kroner = 43500
 )) under skatteår == 2022
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår) -> Some(Ligningslov9JParametre(
     skatteår = 2023,
     beskæftigelsesfradrag_basispoint = 1065,
     beskæftigelsesfradrag_maks_kroner = 45600
 )) under skatteår == 2023
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår) -> Some(Ligningslov9JParametre(
     skatteår = 2024,
     beskæftigelsesfradrag_basispoint = 1065,
     beskæftigelsesfradrag_maks_kroner = 45100
 )) under skatteår == 2024
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår) -> Some(Ligningslov9JParametre(
     skatteår = 2025,
     beskæftigelsesfradrag_basispoint = 1230,
     beskæftigelsesfradrag_maks_kroner = 55600
 )) under skatteår == 2025
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9JParametre(
+| ll9j_parametre_for_opslag(skatteår) -> Some(Ligningslov9JParametre(
     skatteår = 2026,
     beskæftigelsesfradrag_basispoint = 1275,
     beskæftigelsesfradrag_maks_kroner = 63300
 )) under skatteår == 2026
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
-| ll9j_parametre_for_opslag(skatteår: Heltal) -> None
+| ll9j_parametre_for_opslag(skatteår) -> None
 | ll9j_parametre_for(skatteår: Heltal) -> head(match ll9j_parametre_for_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
 | ll9j_almindeligt_beskæftigelsesfradrag_berettiget(input: Ligningslov9JInput) -> input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt
 -- Administrativ helkroneprojektion: SKATs årsberegner 2025 og forskudsberegner
@@ -2404,8 +2404,8 @@ Beskæftigelsesfradrag, § 9 J, stk. 2
 -- Samme projektion i ældre år er en modelantagelse, ikke historisk verificeret
 -- praksis eller en påstand om, at loven ændrede afrunding i 2025.
 | ll9j_beregnet_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> penge_beløb_gange_basispoint_via_øre_oprundet_kroner(ligningslov_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner), ll9j_parametre_for(input.skatteår).beskæftigelsesfradrag_basispoint)
-| ll9j_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> 0
-| exception ll9j_almindelig_lønmodtager ll9j_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> ligningslov_mindste_beløb(ll9j_beregnet_beskæftigelsesfradrag_kroner(input), ll9j_parametre_for(input.skatteår).beskæftigelsesfradrag_maks_kroner) under ll9j_almindeligt_beskæftigelsesfradrag_berettiget(input)
+| ll9j_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput): Int -> 0
+| exception ll9j_almindelig_lønmodtager ll9j_beskæftigelsesfradrag_kroner(input) -> ligningslov_mindste_beløb(ll9j_beregnet_beskæftigelsesfradrag_kroner(input), ll9j_parametre_for(input.skatteår).beskæftigelsesfradrag_maks_kroner) under ll9j_almindeligt_beskæftigelsesfradrag_berettiget(input)
 
 = ll9j_2025_500000_fixture = ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(
     skatteår = 2025,
@@ -2487,69 +2487,69 @@ Jobfradrag, § 9 K
 # LigningslovLønmodtagerFradragInput(skatteår: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver: Boolsk)
 
 | ll9k_gælder_for_skatteår(skatteår: Heltal) -> skatteår >= 2018
-| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
+| ll9k_parametre_for_opslag(skatteår: Heltal): Ligningslov9KParametre? -> Some(Ligningslov9KParametre(
     skatteår = 2018,
     jobfradrag_basispoint = 250,
     jobfradrag_indkomstgrænse_kroner = 187500,
     jobfradrag_maks_kroner = 1400
 )) under skatteår == 2018
-| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
+| ll9k_parametre_for_opslag(skatteår) -> Some(Ligningslov9KParametre(
     skatteår = 2019,
     jobfradrag_basispoint = 375,
     jobfradrag_indkomstgrænse_kroner = 191600,
     jobfradrag_maks_kroner = 2100
 )) under skatteår == 2019
-| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
+| ll9k_parametre_for_opslag(skatteår) -> Some(Ligningslov9KParametre(
     skatteår = 2020,
     jobfradrag_basispoint = 450,
     jobfradrag_indkomstgrænse_kroner = 195800,
     jobfradrag_maks_kroner = 2600
 )) under skatteår == 2020
-| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
+| ll9k_parametre_for_opslag(skatteår) -> Some(Ligningslov9KParametre(
     skatteår = 2021,
     jobfradrag_basispoint = 450,
     jobfradrag_indkomstgrænse_kroner = 200300,
     jobfradrag_maks_kroner = 2600
 )) under skatteår == 2021
-| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
+| ll9k_parametre_for_opslag(skatteår) -> Some(Ligningslov9KParametre(
     skatteår = 2022,
     jobfradrag_basispoint = 450,
     jobfradrag_indkomstgrænse_kroner = 202700,
     jobfradrag_maks_kroner = 2700
 )) under skatteår == 2022
-| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
+| ll9k_parametre_for_opslag(skatteår) -> Some(Ligningslov9KParametre(
     skatteår = 2023,
     jobfradrag_basispoint = 450,
     jobfradrag_indkomstgrænse_kroner = 208700,
     jobfradrag_maks_kroner = 2700
 )) under skatteår == 2023
-| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
+| ll9k_parametre_for_opslag(skatteår) -> Some(Ligningslov9KParametre(
     skatteår = 2024,
     jobfradrag_basispoint = 450,
     jobfradrag_indkomstgrænse_kroner = 216100,
     jobfradrag_maks_kroner = 2800
 )) under skatteår == 2024
-| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
+| ll9k_parametre_for_opslag(skatteår) -> Some(Ligningslov9KParametre(
     skatteår = 2025,
     jobfradrag_basispoint = 450,
     jobfradrag_indkomstgrænse_kroner = 224500,
     jobfradrag_maks_kroner = 2900
 )) under skatteår == 2025
-| ll9k_parametre_for_opslag(skatteår: Heltal) -> Some(Ligningslov9KParametre(
+| ll9k_parametre_for_opslag(skatteår) -> Some(Ligningslov9KParametre(
     skatteår = 2026,
     jobfradrag_basispoint = 450,
     jobfradrag_indkomstgrænse_kroner = 235200,
     jobfradrag_maks_kroner = 3100
 )) under skatteår == 2026
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
-| ll9k_parametre_for_opslag(skatteår: Heltal) -> None
+| ll9k_parametre_for_opslag(skatteår) -> None
 | ll9k_parametre_for(skatteår: Heltal) -> head(match ll9k_parametre_for_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
 | ll9k_almindeligt_jobfradrag_berettiget(input: Ligningslov9KInput) -> input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt && ll9k_gælder_for_skatteår(input.skatteår)
 | ll9k_jobfradrag_grundlag_kroner(input: Ligningslov9KInput) -> ligningslov_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner - ll9k_parametre_for(input.skatteår).jobfradrag_indkomstgrænse_kroner)
 -- Samme dokumenterede helkroneprojektion og historiske forbehold som § 9 J.
 | ll9k_beregnet_jobfradrag_kroner(input: Ligningslov9KInput) -> penge_beløb_gange_basispoint_via_øre_oprundet_kroner(ll9k_jobfradrag_grundlag_kroner(input), ll9k_parametre_for(input.skatteår).jobfradrag_basispoint)
-| ll9k_jobfradrag_kroner(input: Ligningslov9KInput) -> 0
-| exception ll9k_almindelig_lønmodtager ll9k_jobfradrag_kroner(input: Ligningslov9KInput) -> ligningslov_mindste_beløb(ll9k_beregnet_jobfradrag_kroner(input), ll9k_parametre_for(input.skatteår).jobfradrag_maks_kroner) under ll9k_almindeligt_jobfradrag_berettiget(input)
+| ll9k_jobfradrag_kroner(input: Ligningslov9KInput): Int -> 0
+| exception ll9k_almindelig_lønmodtager ll9k_jobfradrag_kroner(input) -> ligningslov_mindste_beløb(ll9k_beregnet_jobfradrag_kroner(input), ll9k_parametre_for(input.skatteår).jobfradrag_maks_kroner) under ll9k_almindeligt_jobfradrag_berettiget(input)
 
 | ll_lønmodtager_9j_input(input: LigningslovLønmodtagerFradragInput) -> Ligningslov9JInput(
     skatteår = input.skatteår,
@@ -2731,7 +2731,7 @@ indkomstår.
     )
 }
 | ll9l_maksimalt_grundlag_2010_niveau_kroner() -> 63900
-| ll9l_maksimalt_grundlag_kroner_opslag(skatteår: Heltal) -> match par20_reguleringstal_tiendedele_for_skatteår_opslag(skatteår) {
+| ll9l_maksimalt_grundlag_kroner_opslag(skatteår: Heltal): Int? -> match par20_reguleringstal_tiendedele_for_skatteår_opslag(skatteår) {
     | Some(reguleringstal) -> Some(par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
         grundbeløb_2010_niveau_kroner = ll9l_maksimalt_grundlag_2010_niveau_kroner(),
         reguleringstal_tiendedele = reguleringstal
@@ -2739,22 +2739,22 @@ indkomstår.
     | None -> None
 } under ll9l_gælder_for_skatteår(skatteår)
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
-| ll9l_maksimalt_grundlag_kroner_opslag(skatteår: Heltal) -> None
+| ll9l_maksimalt_grundlag_kroner_opslag(skatteår) -> None
 | ll9l_maksimalt_grundlag_kroner(skatteår: Heltal) -> head(match ll9l_maksimalt_grundlag_kroner_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
-| ll9l_ordinær_sats_basispoint_opslag(skatteår: Heltal) -> Some(800) under skatteår >= 2018 && skatteår <= 2019
-| ll9l_ordinær_sats_basispoint_opslag(skatteår: Heltal) -> Some(1200) under skatteår >= 2020
+| ll9l_ordinær_sats_basispoint_opslag(skatteår: Heltal): Int? -> Some(800) under skatteår >= 2018 && skatteår <= 2019
+| ll9l_ordinær_sats_basispoint_opslag(skatteår) -> Some(1200) under skatteår >= 2020
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
-| ll9l_ordinær_sats_basispoint_opslag(skatteår: Heltal) -> None
+| ll9l_ordinær_sats_basispoint_opslag(skatteår) -> None
 | ll9l_ordinær_sats_basispoint(skatteår: Heltal) -> head(match ll9l_ordinær_sats_basispoint_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
-| ll9l_folkepensionsnær_sats_basispoint_opslag(skatteår: Heltal) -> Some(2000) under skatteår == 2018
-| ll9l_folkepensionsnær_sats_basispoint_opslag(skatteår: Heltal) -> Some(2200) under skatteår == 2019
-| ll9l_folkepensionsnær_sats_basispoint_opslag(skatteår: Heltal) -> Some(3200) under skatteår >= 2020
+| ll9l_folkepensionsnær_sats_basispoint_opslag(skatteår: Heltal): Int? -> Some(2000) under skatteår == 2018
+| ll9l_folkepensionsnær_sats_basispoint_opslag(skatteår) -> Some(2200) under skatteår == 2019
+| ll9l_folkepensionsnær_sats_basispoint_opslag(skatteår) -> Some(3200) under skatteår >= 2020
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
-| ll9l_folkepensionsnær_sats_basispoint_opslag(skatteår: Heltal) -> None
+| ll9l_folkepensionsnær_sats_basispoint_opslag(skatteår) -> None
 | ll9l_folkepensionsnær_sats_basispoint(skatteår: Heltal) -> head(match ll9l_folkepensionsnær_sats_basispoint_opslag(skatteår) { | Some(værdi) -> [værdi] | None -> [] })
-| ll9l_sats_basispoint(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus) -> ll9l_ordinær_sats_basispoint(skatteår)
-| exception ll9l_fra15år_før_folkepension ll9l_sats_basispoint(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus) -> ll9l_folkepensionsnær_sats_basispoint(skatteår) under status == Ll9lFra15ÅrFørFolkepension
-| ll9l_parametre_for_opslag(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus) -> match ll9l_maksimalt_grundlag_kroner_opslag(skatteår) {
+| ll9l_sats_basispoint(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus): Int -> ll9l_ordinær_sats_basispoint(skatteår)
+| exception ll9l_fra15år_før_folkepension ll9l_sats_basispoint(skatteår, status) -> ll9l_folkepensionsnær_sats_basispoint(skatteår) under status == Ll9lFra15ÅrFørFolkepension
+| ll9l_parametre_for_opslag(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus): Ligningslov9LParametre? -> match ll9l_maksimalt_grundlag_kroner_opslag(skatteår) {
     | Some(maksimum) -> Some(Ligningslov9LParametre(
         skatteår = skatteår,
         pensionsfradrag_basispoint = ll9l_sats_basispoint(skatteår, status),
@@ -2763,19 +2763,19 @@ indkomstår.
     | None -> None
 } under ll9l_gælder_for_skatteår(skatteår)
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
-| ll9l_parametre_for_opslag(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus) -> None
+| ll9l_parametre_for_opslag(skatteår, status) -> None
 | ll9l_parametre_for(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus) -> head(match ll9l_parametre_for_opslag(skatteår, status) { | Some(værdi) -> [værdi] | None -> [] })
 | ll9l_pensionsindbetalinger_før_udbetalinger_kroner(input: Ligningslov9LInput) -> ligningslov_positivt_beløb(input.pbl18_fradragsberettiget_indbetaling_kroner) + ligningslov_positivt_beløb(input.pbl19_rate_ophørende_bortseelsesret_efter_am_kroner) + ligningslov_positivt_beløb(input.pbl19_øvrige_indbetalinger_efter_am_kroner)
-| ll9l_modregningspligtig_udbetaling_kroner(input: Ligningslov9LInput) -> 0
-| exception ll9l_modregner_pbl20_udbetaling ll9l_modregningspligtig_udbetaling_kroner(input: Ligningslov9LInput) -> ligningslov_positivt_beløb(input.pbl20_indkomstskattepligtig_udbetaling_kroner) under input.pbl20_udbetaling_status == Ll9lModregningspligtigPbl20Udbetaling
+| ll9l_modregningspligtig_udbetaling_kroner(input: Ligningslov9LInput): Int -> 0
+| exception ll9l_modregner_pbl20_udbetaling ll9l_modregningspligtig_udbetaling_kroner(input) -> ligningslov_positivt_beløb(input.pbl20_indkomstskattepligtig_udbetaling_kroner) under input.pbl20_udbetaling_status == Ll9lModregningspligtigPbl20Udbetaling
 | ll9l_nettopensionsindbetalinger_kroner(input: Ligningslov9LInput) -> ligningslov_positivt_beløb(ll9l_pensionsindbetalinger_før_udbetalinger_kroner(input) - ll9l_modregningspligtig_udbetaling_kroner(input))
 | ll9l_fradragsgrundlag_kroner(input: Ligningslov9LInput) -> ligningslov_mindste_beløb(ll9l_nettopensionsindbetalinger_kroner(input), ll9l_parametre_for(input.skatteår, ll9l_pensionsalder_resultat(input.skatteår, input.fødselsdato).pensionsalder_status).maksimalt_grundlag_kroner)
-| ll9l_ekstra_pensionsfradrag_kroner(input: Ligningslov9LInput) -> 0
+| ll9l_ekstra_pensionsfradrag_kroner(input: Ligningslov9LInput): Int -> 0
 -- Oprund det samlede, modregnede og loftsbegrænsede fradrag én gang.
 -- SKATs observerede 2025/2026-praksis: skatdk-pensionsfradrag-ekstern.md.
 -- Alle § 9 L-satser giver eksakte øre ved hele kronegrundlag. Samme
 -- konvention i ældre år er en modelantagelse, ikke en lovændring i 2025.
-| exception ll9l_gældende_skatteår_og_gyldig_fødselsdato ll9l_ekstra_pensionsfradrag_kroner(input: Ligningslov9LInput) -> penge_beløb_gange_basispoint_via_øre_oprundet_kroner(ll9l_fradragsgrundlag_kroner(input), ll9l_parametre_for(input.skatteår, ll9l_pensionsalder_resultat(input.skatteår, input.fødselsdato).pensionsalder_status).pensionsfradrag_basispoint) under ll9l_pensionsalder_resultat(input.skatteår, input.fødselsdato).input_gyldigt
+| exception ll9l_gældende_skatteår_og_gyldig_fødselsdato ll9l_ekstra_pensionsfradrag_kroner(input) -> penge_beløb_gange_basispoint_via_øre_oprundet_kroner(ll9l_fradragsgrundlag_kroner(input), ll9l_parametre_for(input.skatteår, ll9l_pensionsalder_resultat(input.skatteår, input.fødselsdato).pensionsalder_status).pensionsfradrag_basispoint) under ll9l_pensionsalder_resultat(input.skatteår, input.fødselsdato).input_gyldigt
 | ll9j_9k_9l_9j_input(input: Ligningslov9J9K9LInput) -> Ligningslov9JInput(
     skatteår = input.skatteår,
     arbejdsmarkedsbidragsgrundlag_kroner = input.arbejdsmarkedsbidragsgrundlag_kroner,
@@ -2874,7 +2874,7 @@ og 6. pkt., finder tilsvarende anvendelse.
     | erhvervsandel_basispoint() -> penge_mindste_beløb(penge_positivt_beløb(input.erhvervsandel_basispoint), 10000)
     | fordeling_kan_anvendes() -> input.fordelingsgrundlag == Ll14BoligdelensEjendomsværdiModKontantAnskaffelsessum || (input.fordelingsgrundlag == Ll14FordelingEfterEabl4EllerAfskrivningslov45 && input.fordeling_fortsat_retvisende)
     | erhvervsmæssig_benyttelse_væsentlig() -> fordeling_kan_anvendes() && erhvervsandel_basispoint() >= 1000
-    | fradragsandel_basispoint() -> 0
+    | fradragsandel_basispoint(): Int -> 0
     | exception stk1_udgift_uden_stk2_begrænsning_fradrages_fuldt fradragsandel_basispoint() -> 10000 under stk1_udgift_omfattet() && stk2_begrænsning_finder_anvendelse() == Falskt
     | exception stk3_fradrager_den_væsentlige_erhvervsandel fradragsandel_basispoint() -> erhvervsandel_basispoint() under stk1_udgift_omfattet() && stk2_begrænsning_finder_anvendelse() && stk3_kan_undtage_stk2_begrænsningen() && erhvervsmæssig_benyttelse_væsentlig()
     | anvendt_beløb_kroner() -> penge_positivt_beløb(input.anvendt_beløb_kroner)
@@ -2932,11 +2932,11 @@ stk. 2.
 # Ligningslov14FResultat(indkomstår: Heltal, bidragsform: Ligningslov14FBidragsform, betingelser_opfyldt: Boolsk, bidragsværdi_kroner: Heltal, dobbeltfradrag_efter_par12_stk2_afskåret: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal)
 
 # Ligningslov14FSag(input: Ligningslov14FInput) {
-    | bidragsværdi_kroner() -> penge_positivt_beløb(input.kontant_bidrag_kroner)
+    | bidragsværdi_kroner(): Int -> penge_positivt_beløb(input.kontant_bidrag_kroner)
     | exception gældsforpligtelse_værdiansættes_til_kursværdi bidragsværdi_kroner() -> penge_positivt_beløb(input.fordringens_kursværdi_ved_stiftelsen_kroner) under input.bidragsform == Ll14FGældsforpligtelseOverForFonden
     | dobbeltfradrag_efter_par12_stk2_afskåret() -> input.samme_bidrag_fradraget_efter_par12_stk2 && bidragsværdi_kroner() > 0
     | betingelser_opfyldt() -> input.fondens_formål_betrygger_eller_forbedrer_ansatte_tidligere_ansatte_eller_pårørendes_kår && input.fonden_udbetaler_pensionslignende_ydelser == Falskt && input.bestyrelsesflertal_valgt_af_og_blandt_omfattede_ansatte && dobbeltfradrag_efter_par12_stk2_afskåret() == Falskt
-    | fradrag_i_skattepligtig_indkomst_kroner() -> 0
+    | fradrag_i_skattepligtig_indkomst_kroner(): Int -> 0
     | exception arbejdsgiverbidrag_til_medarbejderfond_fradrages fradrag_i_skattepligtig_indkomst_kroner() -> bidragsværdi_kroner() under betingelser_opfyldt()
     | resultat() -> Ligningslov14FResultat(
         indkomstår = input.indkomstår,
@@ -3012,14 +3012,14 @@ personer i en sammenhængende periode på mindst 4 måneder.
 
 | ll15p_lejer_lignende(rolle: Ligningslov15PRolle) -> rolle == Ll15PLejer || rolle == Ll15PAndelshaver
 | ll15p_ejer(rolle: Ligningslov15PRolle) -> rolle == Ll15PEjer
-| ll15p_ejer_betingelse_opfyldt(rolle: Ligningslov15PRolle, ejer_ejendom_omfattet_af_ejendomsskattelov3: Boolsk) -> Sandt
-| exception ll15p_ejer_kræver_ejendomsskattelov3 ll15p_ejer_betingelse_opfyldt(rolle: Ligningslov15PRolle, ejer_ejendom_omfattet_af_ejendomsskattelov3: Boolsk) -> ejer_ejendom_omfattet_af_ejendomsskattelov3 under ll15p_ejer(rolle)
-| ll15p_bundfradragskilde(rolle: Ligningslov15PRolle) -> Ll15PLejeEllerBoligafgift
-| exception ll15p_ejer_bundfradrag_fra_ejendomsværdi ll15p_bundfradragskilde(rolle: Ligningslov15PRolle) -> Ll15PEjendomsværdi under ll15p_ejer(rolle)
+| ll15p_ejer_betingelse_opfyldt(rolle: Ligningslov15PRolle, ejer_ejendom_omfattet_af_ejendomsskattelov3: Boolsk): Bool -> Sandt
+| exception ll15p_ejer_kræver_ejendomsskattelov3 ll15p_ejer_betingelse_opfyldt(rolle, ejer_ejendom_omfattet_af_ejendomsskattelov3) -> ejer_ejendom_omfattet_af_ejendomsskattelov3 under ll15p_ejer(rolle)
+| ll15p_bundfradragskilde(rolle: Ligningslov15PRolle): Ligningslov15PBundfradragskilde -> Ll15PLejeEllerBoligafgift
+| exception ll15p_ejer_bundfradrag_fra_ejendomsværdi ll15p_bundfradragskilde(rolle) -> Ll15PEjendomsværdi under ll15p_ejer(rolle)
 | ll15p_lejer_bundfradrag_kroner(årlig_leje_eller_boligafgift_kroner: Heltal) -> ligningslov_positivt_beløb(årlig_leje_eller_boligafgift_kroner) * 2 / 3
 | ll15p_ejer_bundfradrag_kroner(ejendomsværdi_kroner: Heltal) -> ligningslov_største_beløb(ligningslov_positivt_beløb(ejendomsværdi_kroner) / 75, 24000)
-| ll15p_forholdsmæssigt_bundfradrag_kroner(fuldt_bundfradrag_kroner: Heltal, lejet_eller_ejet_dage: Heltal, indkomstårets_dage: Heltal) -> 0
-| exception ll15p_forholdsmæssig_rådighedsperiode ll15p_forholdsmæssigt_bundfradrag_kroner(fuldt_bundfradrag_kroner: Heltal, lejet_eller_ejet_dage: Heltal, indkomstårets_dage: Heltal) -> fuldt_bundfradrag_kroner * ligningslov_mindste_beløb(lejet_eller_ejet_dage, indkomstårets_dage) / indkomstårets_dage under fuldt_bundfradrag_kroner > 0 && lejet_eller_ejet_dage > 0 && indkomstårets_dage > 0
+| ll15p_forholdsmæssigt_bundfradrag_kroner(fuldt_bundfradrag_kroner: Heltal, lejet_eller_ejet_dage: Heltal, indkomstårets_dage: Heltal): Int -> 0
+| exception ll15p_forholdsmæssig_rådighedsperiode ll15p_forholdsmæssigt_bundfradrag_kroner(fuldt_bundfradrag_kroner, lejet_eller_ejet_dage, indkomstårets_dage) -> fuldt_bundfradrag_kroner * ligningslov_mindste_beløb(lejet_eller_ejet_dage, indkomstårets_dage) / indkomstårets_dage under fuldt_bundfradrag_kroner > 0 && lejet_eller_ejet_dage > 0 && indkomstårets_dage > 0
 
 # Ligningslov15PSag(input: Ligningslov15PInput) {
     | bruttolejeindtægt_kroner() -> ligningslov_positivt_beløb(input.bruttolejeindtægt_kroner)
@@ -3027,14 +3027,14 @@ personer i en sammenhængende periode på mindst 4 måneder.
     | skematisk_anvendelig() -> input.metode == Ll15PSkematiskBundfradrag && grundbetingelser_opfyldt()
     | regnskabsmæssig_anvendelig() -> input.metode == Ll15PRegnskabsmæssigeUdgifter && grundbetingelser_opfyldt()
     | bundfradragskilde() -> ll15p_bundfradragskilde(input.rolle)
-    | fuldt_bundfradrag_kroner() -> ll15p_lejer_bundfradrag_kroner(input.årlig_leje_eller_boligafgift_kroner)
+    | fuldt_bundfradrag_kroner(): Int -> ll15p_lejer_bundfradrag_kroner(input.årlig_leje_eller_boligafgift_kroner)
     | exception ll15p_ejer_fuldt_bundfradrag fuldt_bundfradrag_kroner() -> ll15p_ejer_bundfradrag_kroner(input.ejendomsværdi_kroner) under ll15p_ejer(input.rolle)
     | lejet_eller_ejet_dage() -> ligningslov_mindste_beløb(ligningslov_positivt_beløb(input.lejet_eller_ejet_dage), ligningslov_positivt_beløb(input.indkomstårets_dage))
     | udlejningsdage() -> ligningslov_mindste_beløb(ligningslov_positivt_beløb(input.udlejningsdage), ligningslov_positivt_beløb(input.indkomstårets_dage))
     | forholdsmæssigt_bundfradrag_kroner() -> ll15p_forholdsmæssigt_bundfradrag_kroner(fuldt_bundfradrag_kroner(), lejet_eller_ejet_dage(), input.indkomstårets_dage)
-    | bundfradrag_anvendt_kroner() -> 0
+    | bundfradrag_anvendt_kroner(): Int -> 0
     | exception ll15p_skematisk_bundfradrag bundfradrag_anvendt_kroner() -> ligningslov_mindste_beløb(forholdsmæssigt_bundfradrag_kroner(), bruttolejeindtægt_kroner()) under skematisk_anvendelig()
-    | faktiske_udgifter_fradrag_kroner() -> 0
+    | faktiske_udgifter_fradrag_kroner(): Int -> 0
     | exception ll15p_regnskabsmæssige_udgifter faktiske_udgifter_fradrag_kroner() -> ligningslov_mindste_beløb(ligningslov_positivt_beløb(input.faktiske_udgifter_kroner), bruttolejeindtægt_kroner()) under regnskabsmæssig_anvendelig()
     | fradrag_i_indkomstopgørelse_kroner() -> bundfradrag_anvendt_kroner() + faktiske_udgifter_fradrag_kroner()
     | skattepligtig_indkomst_kroner() -> ligningslov_positivt_beløb(bruttolejeindtægt_kroner() - fradrag_i_indkomstopgørelse_kroner())
@@ -3254,14 +3254,14 @@ Kilde: https://info.skat.dk/data.aspx?oid=2285016
 
 | ll15q_udlejningsform_omfattet(form: Ligningslov15QUdlejningsform) -> form == Ll15QVærelserIHelårsbolig || form == Ll15QHeleBoligenDelAfÅret
 | ll15q_helårsbolig_omfattet(status: Ligningslov15QBoligstatus) -> status == Ll15QHelårsbolig
-| ll15q_ejer_ejendom_betingelse_opfyldt(rolle: Ligningslov15QBoligrolle, ejer_ejendom_omfattet_af_ejendomsskattelov3: Boolsk) -> Sandt
-| exception ll15q_ejer_kræver_ejendomsskattelov3 ll15q_ejer_ejendom_betingelse_opfyldt(rolle: Ligningslov15QBoligrolle, ejer_ejendom_omfattet_af_ejendomsskattelov3: Boolsk) -> ejer_ejendom_omfattet_af_ejendomsskattelov3 under rolle == Ll15QEjer
-| ll15q_højt_bundfradrag_berettiget(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal) -> Falskt
-| exception ll15q_indberettet_højt_bundfradrag ll15q_højt_bundfradrag_berettiget(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal) -> Sandt under status == Ll15QIndberettetEfterSkatteindberetningslov43
-| exception ll15q_udvekslet_højt_bundfradrag ll15q_højt_bundfradrag_berettiget(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal) -> Sandt under status == Ll15QOplysningerModtagetVedUdveksling
-| exception ll15q_platform_2023_til_2025_højt_bundfradrag ll15q_højt_bundfradrag_berettiget(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal) -> Sandt under status == Ll15QPlatformIndberetningspligtigUdenModtagelse && skatteår >= 2023 && skatteår <= 2025
-| ll15q_bundfradrag_2010_niveau_kroner(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal) -> 10000
-| exception ll15q_højt_bundfradrag_2010_niveau ll15q_bundfradrag_2010_niveau_kroner(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal) -> 25550 under ll15q_højt_bundfradrag_berettiget(status, skatteår)
+| ll15q_ejer_ejendom_betingelse_opfyldt(rolle: Ligningslov15QBoligrolle, ejer_ejendom_omfattet_af_ejendomsskattelov3: Boolsk): Bool -> Sandt
+| exception ll15q_ejer_kræver_ejendomsskattelov3 ll15q_ejer_ejendom_betingelse_opfyldt(rolle, ejer_ejendom_omfattet_af_ejendomsskattelov3) -> ejer_ejendom_omfattet_af_ejendomsskattelov3 under rolle == Ll15QEjer
+| ll15q_højt_bundfradrag_berettiget(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal): Bool -> Falskt
+| exception ll15q_indberettet_højt_bundfradrag ll15q_højt_bundfradrag_berettiget(status, skatteår) -> Sandt under status == Ll15QIndberettetEfterSkatteindberetningslov43
+| exception ll15q_udvekslet_højt_bundfradrag ll15q_højt_bundfradrag_berettiget(status, skatteår) -> Sandt under status == Ll15QOplysningerModtagetVedUdveksling
+| exception ll15q_platform_2023_til_2025_højt_bundfradrag ll15q_højt_bundfradrag_berettiget(status, skatteår) -> Sandt under status == Ll15QPlatformIndberetningspligtigUdenModtagelse && skatteår >= 2023 && skatteår <= 2025
+| ll15q_bundfradrag_2010_niveau_kroner(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal): Int -> 10000
+| exception ll15q_højt_bundfradrag_2010_niveau ll15q_bundfradrag_2010_niveau_kroner(status, skatteår) -> 25550 under ll15q_højt_bundfradrag_berettiget(status, skatteår)
 | ll15q_reguleret_bundfradrag_kroner(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
     grundbeløb_2010_niveau_kroner = ll15q_bundfradrag_2010_niveau_kroner(status, skatteår),
     reguleringstal_tiendedele = par20_reguleringstal_tiendedele(skatteår)
@@ -3273,14 +3273,14 @@ Kilde: https://info.skat.dk/data.aspx?oid=2285016
     indkomstårets_dage = 365,
     loftvalg = Ll15QStk4BevarPar15QAndel
 )
-| ll15q_forholdsmæssig_hel_procent_basispoint(udlejningsdage: Heltal, indkomstårets_dage: Heltal) -> 0
-| exception ll15q_dage_forholdsmæssig_procent ll15q_forholdsmæssig_hel_procent_basispoint(udlejningsdage: Heltal, indkomstårets_dage: Heltal) -> ligningslov_mindste_beløb(ligningslov_basispoint_afrundet_til_hel_procent(udlejningsdage * 10000 / indkomstårets_dage), 10000) under udlejningsdage > 0 && indkomstårets_dage > 0
+| ll15q_forholdsmæssig_hel_procent_basispoint(udlejningsdage: Heltal, indkomstårets_dage: Heltal): Int -> 0
+| exception ll15q_dage_forholdsmæssig_procent ll15q_forholdsmæssig_hel_procent_basispoint(udlejningsdage, indkomstårets_dage) -> ligningslov_mindste_beløb(ligningslov_basispoint_afrundet_til_hel_procent(udlejningsdage * 10000 / indkomstårets_dage), 10000) under udlejningsdage > 0 && indkomstårets_dage > 0
 
 # Ligningslov15QStk4SamordningSag(samordning: Ligningslov15QStk4Samordning, par15q_fuldt_bundfradrag_kroner: Heltal) {
     | anvendes() -> samordning.anvender_både_par15q_og_par15p
-    | par15q_andel_basispoint() -> 10000
+    | par15q_andel_basispoint(): Int -> 10000
     | exception ll15q_stk4_forholdsmæssig_q_andel par15q_andel_basispoint() -> ll15q_forholdsmæssig_hel_procent_basispoint(samordning.par15q_udlejningsdage, samordning.indkomstårets_dage) under anvendes()
-    | par15p_andel_basispoint() -> 0
+    | par15p_andel_basispoint(): Int -> 0
     | exception ll15q_stk4_forholdsmæssig_p_andel par15p_andel_basispoint() -> ll15q_forholdsmæssig_hel_procent_basispoint(samordning.par15p_resultat.udlejningsdage, samordning.indkomstårets_dage) under anvendes()
     | par15q_forholdsmæssigt_bundfradrag_kroner() -> penge_beløb_gange_basispoint_kroner(par15q_fuldt_bundfradrag_kroner, par15q_andel_basispoint())
     | par15p_fuldt_bundfradrag_kroner() -> ligningslov_positivt_beløb(samordning.par15p_resultat.fuldt_bundfradrag_kroner)
@@ -3288,9 +3288,9 @@ Kilde: https://info.skat.dk/data.aspx?oid=2285016
     | højeste_fulde_bundfradrag_kroner() -> ligningslov_største_beløb(par15q_fuldt_bundfradrag_kroner, par15p_fuldt_bundfradrag_kroner())
     | samlet_forholdsmæssigt_bundfradrag_kroner() -> par15q_forholdsmæssigt_bundfradrag_kroner() + par15p_forholdsmæssigt_bundfradrag_kroner()
     | loft_aktiveret() -> anvendes() && samlet_forholdsmæssigt_bundfradrag_kroner() > højeste_fulde_bundfradrag_kroner()
-    | par15q_bundfradrag_efter_stk4_kroner() -> par15q_forholdsmæssigt_bundfradrag_kroner()
+    | par15q_bundfradrag_efter_stk4_kroner(): Int -> par15q_forholdsmæssigt_bundfradrag_kroner()
     | exception ll15q_stk4_par15p_prioriteres par15q_bundfradrag_efter_stk4_kroner() -> ligningslov_positivt_beløb(højeste_fulde_bundfradrag_kroner() - par15p_forholdsmæssigt_bundfradrag_kroner()) under loft_aktiveret() && samordning.loftvalg == Ll15QStk4PrioriterPar15P
-    | samlet_bundfradrag_efter_stk4_loft_kroner() -> samlet_forholdsmæssigt_bundfradrag_kroner()
+    | samlet_bundfradrag_efter_stk4_loft_kroner(): Int -> samlet_forholdsmæssigt_bundfradrag_kroner()
     | exception ll15q_stk4_samlet_loft samlet_bundfradrag_efter_stk4_loft_kroner() -> højeste_fulde_bundfradrag_kroner() under loft_aktiveret()
     | resultat() -> Ligningslov15QStk4Resultat(
         anvendes = anvendes(),
@@ -3319,12 +3319,12 @@ Kilde: https://info.skat.dk/data.aspx?oid=2285016
     | reguleret_bundfradrag_kroner() -> ll15q_reguleret_bundfradrag_kroner(input.indberetningsstatus, input.skatteår)
     | stk4() -> ligningslov15q_stk4_resultat(input.stk4_samordning, reguleret_bundfradrag_kroner())
     | stk4_bundfradrag_kroner() -> stk4().par15q_bundfradrag_efter_stk4_kroner
-    | bundfradrag_anvendt_kroner() -> 0
+    | bundfradrag_anvendt_kroner(): Int -> 0
     | exception ll15q_stk1_bundfradrag bundfradrag_anvendt_kroner() -> ligningslov_mindste_beløb(stk4_bundfradrag_kroner(), bruttolejeindtægt_kroner()) under stk1_anvendelig()
     | leje_efter_bundfradrag_kroner() -> ligningslov_positivt_beløb(bruttolejeindtægt_kroner() - bundfradrag_anvendt_kroner())
-    | fradrag_af_overskydende_leje_kroner() -> 0
+    | fradrag_af_overskydende_leje_kroner(): Int -> 0
     | exception ll15q_stk1_40pct_af_overskydende_leje fradrag_af_overskydende_leje_kroner() -> ligningslov_beløb_gange_basispoint_afrundet_kroner(leje_efter_bundfradrag_kroner(), 4000) under stk1_anvendelig()
-    | faktiske_udgifter_fradrag_kroner() -> 0
+    | faktiske_udgifter_fradrag_kroner(): Int -> 0
     | exception ll15q_stk3_faktiske_udgifter faktiske_udgifter_fradrag_kroner() -> ligningslov_mindste_beløb(ligningslov_positivt_beløb(input.faktiske_udgifter_kroner), bruttolejeindtægt_kroner()) under stk3_anvendelig()
     | fradrag_i_indkomstopgørelse_kroner() -> bundfradrag_anvendt_kroner() + fradrag_af_overskydende_leje_kroner() + faktiske_udgifter_fradrag_kroner()
     | overskud_efter_ligningslov15q_kroner() -> ligningslov_positivt_beløb(bruttolejeindtægt_kroner() - fradrag_i_indkomstopgørelse_kroner())
@@ -3587,20 +3587,20 @@ i stk. 1, 2, 4 og 5. § 30, stk. 2, finder tilsvarende anvendelse.
     | misbrugsbehandling_eller_medicinudgift() -> input.udgiftsart == Ll30ABehandlingAfMedicinmisbrug || input.udgiftsart == Ll30ABehandlingAfAlkoholmisbrug || input.udgiftsart == Ll30ABehandlingAfAndetRusmiddelmisbrug || input.udgiftsart == Ll30AMedicinudgiftVedMisbrugsbehandling
     | er_medicinudgift() -> input.udgiftsart == Ll30AMedicinudgiftVedMisbrugsbehandling
     | medicinforhold_stemmer_med_udgiftsart() -> hvis er_medicinudgift() { input.medicinforhold != Ll30AIngenMedicinudgift } ellers { input.medicinforhold == Ll30AIngenMedicinudgift }
-    | seksmånedersgrænse_opfyldt() -> Sandt
+    | seksmånedersgrænse_opfyldt(): Bool -> Sandt
     | exception medicinudgift_efter_seksmånedersperioden_afskæres seksmånedersgrænse_opfyldt() -> Falskt under er_medicinudgift() && input.medicinforhold == Ll30AMedicinudgiftEfterSeksMånedersperioden
     | lægeerklæringskrav_opfyldt() -> misbrugsbehandling_eller_medicinudgift() == Falskt || input.skriftlig_lægeerklæring_om_behandlingsbehov
     | forsikringsmæssig_direkte_ydelse_opfyldt() -> input.selvstændige_har_valgt_forsikringsordning == Falskt || input.person_kan_ikke_forsikres_af_forsikringsmæssige_grunde == Falskt || input.tilsvarende_forsikring_tegnet_for_medarbejderne && input.ydelse_svarer_til_medarbejderforsikringens_ydelser
     | behandlingsydelse_omfattet() -> behandlingsydelse_efter_stk2_første_punktum() && medicinforhold_stemmer_med_udgiftsart() && seksmånedersgrænse_opfyldt() && lægeerklæringskrav_opfyldt() && forsikringsmæssig_direkte_ydelse_opfyldt()
     | forsikringspræmie_omfattet() -> input.udgiftsart == Ll30AForsikringspræmieTilOmfattetBehandling && input.selvstændige_har_valgt_forsikringsordning && (input.har_eventuelle_medarbejdere == Falskt || input.tilsvarende_forsikring_tegnet_for_medarbejderne) && input.forsikringsbetingelser_kræver_lægeerklæring
     | afholdt_udgift_kroner() -> penge_positivt_beløb(input.afholdt_udgift_kroner)
-    | ikke_fradragsberettiget_præmieandel_kroner() -> 0
+    | ikke_fradragsberettiget_præmieandel_kroner(): Int -> 0
     | exception præmieandel_for_medicin_efter_seks_måneder_afskæres ikke_fradragsberettiget_præmieandel_kroner() -> penge_mindste_beløb(penge_positivt_beløb(input.præmieandel_for_medicin_ud_over_seks_måneder_kroner), afholdt_udgift_kroner()) under input.udgiftsart == Ll30AForsikringspræmieTilOmfattetBehandling
     | fradragsrelevant_beløb_kroner() -> afholdt_udgift_kroner() - ikke_fradragsberettiget_præmieandel_kroner()
     | fælles_betingelser_opfyldt() -> afholdt_i_indkomståret() && person_omfattet() && personalepolitisk_betingelse_opfyldt() && input.generelt_anciennitetskrav_opfyldt
-    | fradrag_i_skattepligtig_indkomst_kroner() -> 0
+    | fradrag_i_skattepligtig_indkomst_kroner(): Int -> 0
     | exception behandling_eller_forsikringspræmie_fradrages fradrag_i_skattepligtig_indkomst_kroner() -> fradragsrelevant_beløb_kroner() under fælles_betingelser_opfyldt() && (behandlingsydelse_omfattet() || forsikringspræmie_omfattet())
-    | ægtefælleydelse_ikke_medregnet_i_skattepligtig_indkomst_kroner() -> 0
+    | ægtefælleydelse_ikke_medregnet_i_skattepligtig_indkomst_kroner(): Int -> 0
     | exception medarbejdende_ægtefælles_ydelse_er_skattefri ægtefælleydelse_ikke_medregnet_i_skattepligtig_indkomst_kroner() -> fradrag_i_skattepligtig_indkomst_kroner() under medarbejdende_ægtefælle_omfattet()
     | resultat() -> Ligningslov30AResultat(
         indkomstår = input.indkomstår,

@@ -15,7 +15,7 @@ fn non_boolean_rule_guards_fail_at_declaration_without_a_call() {
     for guard in ["person.income", "\"yes\"", "[1]", "[]", "()"] {
         for rule in [
             format!("| tax(person: Person) -> person.income / 4 under {guard}"),
-            format!("| tax(person: Person) -> person.income / 4\n| exception special tax(person: Person) -> 0 under {guard}"),
+            format!("| tax(person: Person) -> person.income / 4\n| exception special tax(person) -> 0 under {guard}"),
         ] {
             let source = format!("# Person(income: Int)\n{rule}\n");
             let errors = diagnostics(&source);
@@ -27,12 +27,12 @@ fn non_boolean_rule_guards_fail_at_declaration_without_a_call() {
 #[test]
 fn conflicting_rule_results_fail_before_the_family_is_called() {
     for source in [
-        "| tax(income: Int) -> income / 4\n| tax(income: Int) -> \"exempt\" under income < 10\n",
-        "| tax(income: Int) -> income / 4\n| exception exempt tax(income: Int) -> \"exempt\" under income < 10\n",
+        "| tax(income: Int) -> income / 4\n| tax(income) -> \"exempt\" under income < 10\n",
+        "| tax(income: Int) -> income / 4\n| exception exempt tax(income) -> \"exempt\" under income < 10\n",
         "# Case(income: Int) {\n    | tax() -> income / 4\n    | tax() -> \"exempt\" under income < 10\n}\n",
-        "> module Local {\n| tax(income: Int) -> income / 4\n| tax(income: Int) -> \"exempt\" under income < 10\n}\n",
+        "> module Local {\n| tax(income: Int) -> income / 4\n| tax(income) -> \"exempt\" under income < 10\n}\n",
         "| tax(income) -> income\n| tax(0) -> 0\n| tax(1) -> \"exempt\"\n",
-        "| tax(income: Int) -> [income]\n| tax(income: Int) -> [\"exempt\"] under income < 10\n",
+        "| tax(income: Int) -> [income]\n| tax(income) -> [\"exempt\"] under income < 10\n",
     ] {
         let errors = diagnostics(source);
         assert!(errors.iter().any(|error| error.contains("tax") && error.contains("Int") && error.contains("String")), "{source}: {errors:?}");
@@ -47,7 +47,7 @@ fn result_contracts_distinguish_arities_scopes_and_exception_rules() {
 # Numeric(value: Int) { | result() -> value }
 # Textual(value: String) { | result() -> value }
 | approved(value: Int) -> False
-| exception positive approved(value: Int) -> True under value > 0
+| exception positive approved(value) -> True under value > 0
 @ print(show(answer(42)))
 @ print(answer("a", "b"))
 @ print(show(Numeric(value = 7).result()))
@@ -77,7 +77,7 @@ fn independent_inline_modules_and_partial_collection_types_remain_valid() {
 > module Numeric { | answer() -> 7 }
 > module Textual { | answer() -> "okay" }
 | values(n: Int) -> [] under n == 0
-| values(n: Int) -> [n]
+| values(n) -> [n]
 | generic(value: a) -> value
 @ print(show(Numeric.answer()))
 @ print(Textual.answer())
@@ -107,15 +107,32 @@ fn cli_rejects_rule_contract_errors_before_execution_or_native_generation() {
     let path = root.join("invalid.runa");
     for (source, expected) in [
         ("| tax(income: Int) -> income / 4 under income\n", "Bool"),
-        ("| tax(income: Int) -> income / 4\n| tax(income: Int) -> \"exempt\" under income < 10\n", "conflicting return types"),
+        (
+            "| tax(income: Int) -> income / 4\n| tax(income) -> \"exempt\" under income < 10\n",
+            "conflicting return types",
+        ),
     ] {
         std::fs::write(&path, format!("{source}@ print(\"must not run\")\n")).unwrap();
-        for args in [&[][..], &["check", "--frontend"], &["check"], &["emit"], &["run"]] {
-            let output = Command::new(env!("CARGO_BIN_EXE_runa")).args(args).arg(&path)
-                .current_dir(&root).env("NO_COLOR", "1").output().unwrap();
+        for args in [
+            &[][..],
+            &["check", "--frontend"],
+            &["check"],
+            &["emit"],
+            &["run"],
+        ] {
+            let output = Command::new(env!("CARGO_BIN_EXE_runa"))
+                .args(args)
+                .arg(&path)
+                .current_dir(&root)
+                .env("NO_COLOR", "1")
+                .output()
+                .unwrap();
             assert_eq!(output.status.code(), Some(1), "{args:?}: {output:?}");
             assert!(output.stdout.is_empty(), "{args:?}: {output:?}");
-            assert!(String::from_utf8_lossy(&output.stderr).contains(expected), "{args:?}: {output:?}");
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains(expected),
+                "{args:?}: {output:?}"
+            );
         }
     }
     std::fs::remove_file(path).unwrap();

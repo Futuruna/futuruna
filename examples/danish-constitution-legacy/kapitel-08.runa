@@ -192,7 +192,7 @@ DISKRIMINATIONS-UDVIDELSE (§ 70 → § 71):
 
 | bolig_ukrænkelig() -> Sandt
 
-| husundersøgelse_krav() -> "retskendelse"
+| husundersøgelse_krav(): String -> "retskendelse"
 | undtagelse særlov husundersøgelse_krav() -> "særlov" under særlov_eksisterer()
 
 | særlov_eksisterer() -> Falskt
@@ -320,7 +320,7 @@ FEM BESKYTTELSESLAG (unikt i grundloven):
 § 74. Alle indskrænkninger i den fri og lige adgang til erhverv, som ikke er begrundede i det almene vel, skal hæves ved lov.
 ----
 
-| fri_erhvervsadgang() -> Sandt
+| fri_erhvervsadgang(): Bool -> Sandt
 | undtagelse almenvel_begrænsning fri_erhvervsadgang() -> Falskt under begrænset_af_almenvel()
 
 | begrænset_af_almenvel() -> Falskt

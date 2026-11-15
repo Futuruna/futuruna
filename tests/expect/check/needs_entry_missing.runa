@@ -33,8 +33,8 @@
 
 | spouse_income(s: Spouse) -> s.income
 
-| threshold(h: Household) -> 100
-| exception transferred threshold(h: Household) -> 200 - h.spouse_share_income under h.spouse_share_income < 100
+| threshold(h: Household): Int -> 100
+| exception transferred threshold(h) -> 200 - h.spouse_share_income under h.spouse_share_income < 100
 
 @ meta(household_meta)
 @ calculate

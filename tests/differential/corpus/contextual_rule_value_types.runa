@@ -2,7 +2,7 @@
 | empty(input: Input) -> input.value == None
 | reversed(input: Input) -> None != input.value
 # Scope(values: Map(String, Int)) {
-    | result() -> values
+    | result(): Map(String, Int) -> values
     | exception add result() -> map_insert(values, "k", 2) under True
 }
 @ print(show(empty(Input(None))))

@@ -29,7 +29,7 @@
 | personal_allowance() -> 999
 
 # TaxCase(person: Person, rates: TaxRates) {
-    | personal_allowance() -> rates.child_allowance under person.age < 18
+    | personal_allowance(): Int -> rates.child_allowance under person.age < 18
     | personal_allowance() -> rates.personal_allowance
 
     | taxable_income() -> person.gross_income - personal_allowance()
@@ -44,7 +44,7 @@
     | summary_total() -> summary().total
     | summary_source_copy() -> summary_copy().source
 
-    | filing_status() -> "resident"
+    | filing_status(): String -> "resident"
     | exception nonresident filing_status() -> "nonresident" under person.lives_in_denmark == False
     | status_copy() -> filing_status()
 

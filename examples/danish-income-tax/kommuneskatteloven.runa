@@ -147,17 +147,17 @@ I tvivlstilfælde træffer skatteministeren den endelige administrative afgørel
 -- Bopæl i en anden kommune (institutionsreglen) og samtidig bopæl i flere
 -- kommuner er begge bopæl. Ophold gælder kun "i mangel af bopæl", og stk. 2
 -- kun for den, der "hverken har bopæl eller ophold i nogen kommune".
-| kommunal_par2_skattekommune_grundlag(input: KommunalSkattekommuneInput) -> SkattekommuneHjemstedRestregel
-| exception kommunal_par2_bopæl_femte_september kommunal_par2_skattekommune_grundlag(input: KommunalSkattekommuneInput) -> SkattekommuneBopælFemteSeptember under input.har_bopæl_femte_september && input.tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv == Falskt && input.samtidig_bopæl_i_to_eller_flere_kommuner == Falskt
-| exception kommunal_par2_ophold_uden_bopæl kommunal_par2_skattekommune_grundlag(input: KommunalSkattekommuneInput) -> SkattekommuneOpholdFemteSeptember under input.har_bopæl_femte_september == Falskt && input.samtidig_bopæl_i_to_eller_flere_kommuner == Falskt && input.har_ophold_femte_september && input.tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv == Falskt
-| exception kommunal_par2_anden_bopæl_ved_institution kommunal_par2_skattekommune_grundlag(input: KommunalSkattekommuneInput) -> SkattekommuneAndenBopælVedInstitutionMv under input.tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv && input.har_anden_bopælskommune
-| exception kommunal_par2_hovedbopæl_ved_flere_bopæle kommunal_par2_skattekommune_grundlag(input: KommunalSkattekommuneInput) -> SkattekommuneHovedbopæl under input.samtidig_bopæl_i_to_eller_flere_kommuner && input.tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv == Falskt
-| exception kommunal_par2_dansk_skib_hjemsted kommunal_par2_skattekommune_grundlag(input: KommunalSkattekommuneInput) -> SkattekommuneDanskSkibHjemsted under input.tjeneste_eller_varigt_ophold_på_dansk_skib && input.har_bopæl_femte_september == Falskt && input.har_anden_bopælskommune == Falskt && input.samtidig_bopæl_i_to_eller_flere_kommuner == Falskt && input.har_ophold_femte_september == Falskt
-| kommunal_par2_skattekommune(input: KommunalSkattekommuneInput) -> input.hjemstedskommune
-| exception kommunal_par2_bopælskommune kommunal_par2_skattekommune(input: KommunalSkattekommuneInput) -> input.bopælskommune_femte_september under kommunal_par2_skattekommune_grundlag(input) == SkattekommuneBopælFemteSeptember
-| exception kommunal_par2_opholdskommune kommunal_par2_skattekommune(input: KommunalSkattekommuneInput) -> input.opholdskommune_femte_september under kommunal_par2_skattekommune_grundlag(input) == SkattekommuneOpholdFemteSeptember
-| exception kommunal_par2_anden_bopælskommune kommunal_par2_skattekommune(input: KommunalSkattekommuneInput) -> input.anden_bopælskommune under kommunal_par2_skattekommune_grundlag(input) == SkattekommuneAndenBopælVedInstitutionMv
-| exception kommunal_par2_hovedbopælskommune kommunal_par2_skattekommune(input: KommunalSkattekommuneInput) -> input.hovedbopælskommune under kommunal_par2_skattekommune_grundlag(input) == SkattekommuneHovedbopæl
+| kommunal_par2_skattekommune_grundlag(input: KommunalSkattekommuneInput): KommunalSkattekommuneGrundlag -> SkattekommuneHjemstedRestregel
+| exception kommunal_par2_bopæl_femte_september kommunal_par2_skattekommune_grundlag(input) -> SkattekommuneBopælFemteSeptember under input.har_bopæl_femte_september && input.tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv == Falskt && input.samtidig_bopæl_i_to_eller_flere_kommuner == Falskt
+| exception kommunal_par2_ophold_uden_bopæl kommunal_par2_skattekommune_grundlag(input) -> SkattekommuneOpholdFemteSeptember under input.har_bopæl_femte_september == Falskt && input.samtidig_bopæl_i_to_eller_flere_kommuner == Falskt && input.har_ophold_femte_september && input.tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv == Falskt
+| exception kommunal_par2_anden_bopæl_ved_institution kommunal_par2_skattekommune_grundlag(input) -> SkattekommuneAndenBopælVedInstitutionMv under input.tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv && input.har_anden_bopælskommune
+| exception kommunal_par2_hovedbopæl_ved_flere_bopæle kommunal_par2_skattekommune_grundlag(input) -> SkattekommuneHovedbopæl under input.samtidig_bopæl_i_to_eller_flere_kommuner && input.tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv == Falskt
+| exception kommunal_par2_dansk_skib_hjemsted kommunal_par2_skattekommune_grundlag(input) -> SkattekommuneDanskSkibHjemsted under input.tjeneste_eller_varigt_ophold_på_dansk_skib && input.har_bopæl_femte_september == Falskt && input.har_anden_bopælskommune == Falskt && input.samtidig_bopæl_i_to_eller_flere_kommuner == Falskt && input.har_ophold_femte_september == Falskt
+| kommunal_par2_skattekommune(input: KommunalSkattekommuneInput): Kommune -> input.hjemstedskommune
+| exception kommunal_par2_bopælskommune kommunal_par2_skattekommune(input) -> input.bopælskommune_femte_september under kommunal_par2_skattekommune_grundlag(input) == SkattekommuneBopælFemteSeptember
+| exception kommunal_par2_opholdskommune kommunal_par2_skattekommune(input) -> input.opholdskommune_femte_september under kommunal_par2_skattekommune_grundlag(input) == SkattekommuneOpholdFemteSeptember
+| exception kommunal_par2_anden_bopælskommune kommunal_par2_skattekommune(input) -> input.anden_bopælskommune under kommunal_par2_skattekommune_grundlag(input) == SkattekommuneAndenBopælVedInstitutionMv
+| exception kommunal_par2_hovedbopælskommune kommunal_par2_skattekommune(input) -> input.hovedbopælskommune under kommunal_par2_skattekommune_grundlag(input) == SkattekommuneHovedbopæl
 | kommunal_par2_skattekommune_resultat(input: KommunalSkattekommuneInput) -> KommunalSkattekommuneResultat(
     skattekommune = kommunal_par2_skattekommune(input),
     grundlag = kommunal_par2_skattekommune_grundlag(input),
@@ -165,8 +165,8 @@ I tvivlstilfælde træffer skatteministeren den endelige administrative afgørel
 )
 
 | kommunal_par2_udrejse_kirkeskat_medregnes(input: KommunalPar2UdrejseInput) -> input.omfattet_af_kildeskattelov_par1_nr4 && input.folkekirkemedlem && input.dokumenteret_udlandskirkebidrag_mindst_kirkeskat == Falskt
-| kommunal_par2_udrejse_skattebeløb_kroner(input: KommunalPar2UdrejseInput) -> 0
-| exception kommunal_par2_udrejse_københavn_skat kommunal_par2_udrejse_skattebeløb_kroner(input: KommunalPar2UdrejseInput) -> input.københavn_kommunal_indkomstskat_kroner + hvis kommunal_par2_udrejse_kirkeskat_medregnes(input) { input.københavn_kirkeskat_kroner } ellers { 0 } under input.omfattet_af_kildeskattelov_par1_nr4
+| kommunal_par2_udrejse_skattebeløb_kroner(input: KommunalPar2UdrejseInput): Int -> 0
+| exception kommunal_par2_udrejse_københavn_skat kommunal_par2_udrejse_skattebeløb_kroner(input) -> input.københavn_kommunal_indkomstskat_kroner + hvis kommunal_par2_udrejse_kirkeskat_medregnes(input) { input.københavn_kirkeskat_kroner } ellers { 0 } under input.omfattet_af_kildeskattelov_par1_nr4
 | kommunal_par2_udrejse_resultat(input: KommunalPar2UdrejseInput) -> KommunalPar2UdrejseResultat(
     tilfalder_statskassen = input.omfattet_af_kildeskattelov_par1_nr4,
     kirkeskat_medregnes = kommunal_par2_udrejse_kirkeskat_medregnes(input),
@@ -216,8 +216,8 @@ beløb, der tilkommer en andelsberettiget kommune.
 
 | kommunal_par3_månedens_kvartal(måned: Heltal) -> hvis måned <= 3 { 1 } ellers { hvis måned <= 6 { 2 } ellers { hvis måned <= 9 { 3 } ellers { 4 } } }
 | kommunal_par3_flyttedag_første_i_kvartal(input: KommunalPar3FlytteperiodeInput) -> input.fraflytningsdag == 1 && (input.fraflytningsmåned == 1 || input.fraflytningsmåned == 4 || input.fraflytningsmåned == 7 || input.fraflytningsmåned == 10)
-| kommunal_par3_startkvartal(input: KommunalPar3FlytteperiodeInput) -> kommunal_par3_månedens_kvartal(input.fraflytningsmåned) + 1
-| exception kommunal_par3_første_kvartalsdag_tæller_fra_flyttedag kommunal_par3_startkvartal(input: KommunalPar3FlytteperiodeInput) -> kommunal_par3_månedens_kvartal(input.fraflytningsmåned) under kommunal_par3_flyttedag_første_i_kvartal(input)
+| kommunal_par3_startkvartal(input: KommunalPar3FlytteperiodeInput): Int -> kommunal_par3_månedens_kvartal(input.fraflytningsmåned) + 1
+| exception kommunal_par3_første_kvartalsdag_tæller_fra_flyttedag kommunal_par3_startkvartal(input) -> kommunal_par3_månedens_kvartal(input.fraflytningsmåned) under kommunal_par3_flyttedag_første_i_kvartal(input)
 | kommunal_par3_fordelingskvartaler(input: KommunalPar3FlytteperiodeInput) -> penge_positivt_beløb(input.tilflytningsbopæl_slutkvartal - kommunal_par3_startkvartal(input) + 1)
 | kommunal_par3_flytteperiode_resultat(input: KommunalPar3FlytteperiodeInput) -> KommunalPar3FlytteperiodeResultat(
     flytning_første_dag_i_kvartal = kommunal_par3_flyttedag_første_i_kvartal(input),
@@ -227,8 +227,8 @@ beløb, der tilkommer en andelsberettiget kommune.
 )
 
 | kommunal_par3_tilflytningskommune_har_andel(input: KommunalPar3TilflytningsandelInput) -> input.fraflytter_skattekommune && input.bopæl_i_tilflytningskommune_bevaret_mindst_3_måneder && input.administrativt_undladt == Falskt
-| kommunal_par3_tilflytningsandel_kroner(input: KommunalPar3TilflytningsandelInput) -> 0
-| exception kommunal_par3_forholdsmæssig_andel kommunal_par3_tilflytningsandel_kroner(input: KommunalPar3TilflytningsandelInput) -> input.kommunal_indkomstskat_kroner * kommunal_par3_fordelingskvartaler(input.periode) / 4 under kommunal_par3_tilflytningskommune_har_andel(input)
+| kommunal_par3_tilflytningsandel_kroner(input: KommunalPar3TilflytningsandelInput): Int -> 0
+| exception kommunal_par3_forholdsmæssig_andel kommunal_par3_tilflytningsandel_kroner(input) -> input.kommunal_indkomstskat_kroner * kommunal_par3_fordelingskvartaler(input.periode) / 4 under kommunal_par3_tilflytningskommune_har_andel(input)
 | kommunal_par3_tilflytningsandel_resultat(input: KommunalPar3TilflytningsandelInput) -> KommunalPar3TilflytningsandelResultat(
     skattekommune = input.skattekommune,
     tilflytningskommune = input.tilflytningskommune,
@@ -264,12 +264,12 @@ indkomstskatten til staten.
 # KommunalPar5DelårInput(omfatter_kortere_periode_end_år: Boolsk, omregning: Par14OmregningInput, valg: Par14ValgResultat, kommunal_helårsskat_kroner: Heltal, kommunal_skat_som_helårsskattepligtig_kroner: Heltal, stk2_indkomstfordeling: Par14Stk2Indkomstfordeling)
 # KommunalPar5DelårResultat(input_gyldigt: Boolsk, omfatter_kortere_periode_end_år: Boolsk, tilsvarende_par14_skattekomponent: Par14SkattekomponentResultat, kommunal_indkomstskat_efter_delår_kroner: Heltal)
 # KommunalPar5DelårSag(input: KommunalPar5DelårInput) {
-    | valgt_helårsskat_øre() -> input.kommunal_skat_som_helårsskattepligtig_kroner * 100
+    | valgt_helårsskat_øre(): Int -> input.kommunal_skat_som_helårsskattepligtig_kroner * 100
     | exception kommunal_par5_stk1_stk3_helårsskat valgt_helårsskat_øre() -> input.kommunal_helårsskat_kroner * 100 under input.omfatter_kortere_periode_end_år && input.valg.input_gyldigt && input.valg.helårsomregning_skal_ske
-    | valgt_delårsgrundlag_kroner() -> 1
+    | valgt_delårsgrundlag_kroner(): Int -> 1
     | exception kommunal_par5_stk1_stk3_delårsgrundlag valgt_delårsgrundlag_kroner() -> input.omregning.delårs_skattepligtig_indkomst_kroner under input.omfatter_kortere_periode_end_år && input.valg.input_gyldigt && input.valg.helårsomregning_skal_ske
     | exception kommunal_par5_stk2_delårsgrundlag valgt_delårsgrundlag_kroner() -> input.stk2_indkomstfordeling.indkomst_i_skattepligtsperioden_kroner under input.omfatter_kortere_periode_end_år && input.valg.input_gyldigt && input.valg.helårsomregning_skal_ske == Falskt
-    | valgt_helårsgrundlag_kroner() -> 1
+    | valgt_helårsgrundlag_kroner(): Int -> 1
     | exception kommunal_par5_stk1_stk3_helårsgrundlag valgt_helårsgrundlag_kroner() -> par14_helårsindkomst(input.omregning).skattepligtig_indkomst_kroner under input.omfatter_kortere_periode_end_år && input.valg.input_gyldigt && input.valg.helårsomregning_skal_ske
     | exception kommunal_par5_stk2_helårsgrundlag valgt_helårsgrundlag_kroner() -> input.stk2_indkomstfordeling.faktisk_helårsindkomst_kroner under input.omfatter_kortere_periode_end_år && input.valg.input_gyldigt && input.valg.helårsomregning_skal_ske == Falskt
     | tilsvarende_par14_skattekomponent() -> par14_skattekomponent_resultat(Par14SkattekomponentInput(
@@ -278,9 +278,9 @@ indkomstskatten til staten.
         delårsgrundlag_kroner = valgt_delårsgrundlag_kroner(),
         helårsgrundlag_kroner = valgt_helårsgrundlag_kroner()
     ))
-    | input_gyldigt() -> input.kommunal_skat_som_helårsskattepligtig_kroner >= 0
+    | input_gyldigt(): Bool -> input.kommunal_skat_som_helårsskattepligtig_kroner >= 0
     | exception kommunal_par5_gyldigt_delår input_gyldigt() -> input.valg.input_gyldigt && par14_omregningsinput_gyldigt(input.omregning) && tilsvarende_par14_skattekomponent().input_gyldigt under input.omfatter_kortere_periode_end_år
-    | kommunal_indkomstskat_efter_delår_kroner() -> 0
+    | kommunal_indkomstskat_efter_delår_kroner(): Int -> 0
     | exception kommunal_par5_helår kommunal_indkomstskat_efter_delår_kroner() -> input.kommunal_skat_som_helårsskattepligtig_kroner under input_gyldigt() && input.omfatter_kortere_periode_end_år == Falskt
     | exception kommunal_par5_stk3_kortere_periode kommunal_indkomstskat_efter_delår_kroner() -> tilsvarende_par14_skattekomponent().delårsskat_øre / 100 under input_gyldigt() && input.omfatter_kortere_periode_end_år
     | resultat() -> KommunalPar5DelårResultat(
@@ -442,10 +442,10 @@ afskrivningslovens § 40 C, stk. 8-10.
 
 | kommunal_par16_omfattes_af_efterregulering(input: KommunalPar16EfterreguleringInput) -> kommunal_par7_par16_stk1_til_4_gælder(input.budgetvalg)
 | kommunal_par16_endelig_skat_inkl_ændringer_kroner(input: KommunalPar16EfterreguleringInput) -> input.slutskat_kommunal_indkomstskat_og_kirkeskat_kroner + input.tilgang_ændrede_skatteansættelser_kroner - input.afgang_ændrede_skatteansættelser_kroner
-| kommunal_par16_efterreguleringsbeløb_før_par16a_kroner(input: KommunalPar16EfterreguleringInput) -> 0
-| exception kommunal_par16_eget_skoen_opgør_før_par16a kommunal_par16_efterreguleringsbeløb_før_par16a_kroner(input: KommunalPar16EfterreguleringInput) -> kommunal_par16_endelig_skat_inkl_ændringer_kroner(input) - input.udbetalt_efter_par15_kroner under kommunal_par16_omfattes_af_efterregulering(input)
-| kommunal_par16_anvendt_korrektionsbeløb_efter_par16a_kroner(input: KommunalPar16EfterreguleringInput) -> 0
-| kommunal_par16_efterreguleringsbeløb_kroner(input: KommunalPar16EfterreguleringInput) -> kommunal_par16_efterreguleringsbeløb_før_par16a_kroner(input)
+| kommunal_par16_efterreguleringsbeløb_før_par16a_kroner(input: KommunalPar16EfterreguleringInput): Int -> 0
+| exception kommunal_par16_eget_skoen_opgør_før_par16a kommunal_par16_efterreguleringsbeløb_før_par16a_kroner(input) -> kommunal_par16_endelig_skat_inkl_ændringer_kroner(input) - input.udbetalt_efter_par15_kroner under kommunal_par16_omfattes_af_efterregulering(input)
+| kommunal_par16_anvendt_korrektionsbeløb_efter_par16a_kroner(input: KommunalPar16EfterreguleringInput): Int -> 0
+| kommunal_par16_efterreguleringsbeløb_kroner(input: KommunalPar16EfterreguleringInput): Int -> kommunal_par16_efterreguleringsbeløb_før_par16a_kroner(input)
 | kommunal_par16_afregningsår(input: KommunalPar16EfterreguleringInput) -> input.kalenderår + 3
 | kommunal_par16_tredjedel_kroner(input: KommunalPar16EfterreguleringInput) -> kommunal_par16_efterreguleringsbeløb_kroner(input) / 3
 | kommunal_par16_efterregulering_resultat(input: KommunalPar16EfterreguleringInput) -> KommunalPar16EfterreguleringResultat(
@@ -521,17 +521,17 @@ Stk. 2. Loven har virkning fra og med tilskudsåret 2026.
 
 # KommunalPar16aSag(input: KommunalPar16aInput) {
     | omfattet() -> input.nationalt.kalenderår >= 2026 && input.budgetvalg == KommunalEgetSkøn
-    | stk1_beløb_kroner() -> 0
+    | stk1_beløb_kroner(): Int -> 0
     | exception eget_skoen_opgør_stk1 stk1_beløb_kroner() -> input.kommune.kommunal_indkomstskat_efter_par16_stk1_kroner + input.kommune.tilskuds_og_udligningsbeløb_til_efterregulering_kroner - input.kommune.indtægt_ved_statsgaranteret_udskrivningsgrundlag_kroner - input.kommune.statsgaranterede_tilskuds_og_udligningsbeløb_kroner under omfattet()
-    | ramme_regulering_basispoint() -> 0
+    | ramme_regulering_basispoint(): Int -> 0
     | exception ramme_reguleres_fra_2027 ramme_regulering_basispoint() -> penge_mindste_beløb(input.nationalt.udvikling_i_statsgaranteret_udskrivningsgrundlag_basispoint, 500) under input.nationalt.kalenderår >= 2027
-    | korrektionsramme_kroner() -> 0
+    | korrektionsramme_kroner(): Int -> 0
     | exception første_ramme_2026 korrektionsramme_kroner() -> 1500000000 under input.nationalt.kalenderår == 2026
     | exception årligt_reguleret_ramme korrektionsramme_kroner() -> input.nationalt.forrige_års_korrektionsramme_kroner + penge_beløb_gange_basispoint_kroner(input.nationalt.forrige_års_korrektionsramme_kroner, ramme_regulering_basispoint()) under input.nationalt.kalenderår >= 2027
-    | samlet_korrektionsbeløb_kroner() -> 0
+    | samlet_korrektionsbeløb_kroner(): Int -> 0
     | exception national_ramme_overskredet samlet_korrektionsbeløb_kroner() -> input.nationalt.samlede_stk1_beløb_kroner - korrektionsramme_kroner() under input.nationalt.kalenderår >= 2026 && input.nationalt.samlede_stk1_beløb_kroner > korrektionsramme_kroner()
     | kommunens_positive_stk1_beløb_kroner() -> penge_positivt_beløb(stk1_beløb_kroner())
-    | kommunens_korrektionsbeløb_kroner() -> 0
+    | kommunens_korrektionsbeløb_kroner(): Int -> 0
     | exception positiv_kommune_bærer_forholdsmæssig_korrektion kommunens_korrektionsbeløb_kroner() -> samlet_korrektionsbeløb_kroner() * kommunens_positive_stk1_beløb_kroner() / input.nationalt.samlede_positive_stk1_beløb_kroner under omfattet() && kommunens_positive_stk1_beløb_kroner() > 0 && samlet_korrektionsbeløb_kroner() > 0 && input.nationalt.samlede_positive_stk1_beløb_kroner > 0
     | resultat() -> KommunalPar16aResultat(
         omfattet = omfattet(),
@@ -548,8 +548,8 @@ Stk. 2. Loven har virkning fra og med tilskudsåret 2026.
 
 | kommunal_par16a_sag(input: KommunalPar16aInput) -> KommunalPar16aSag(input)
 | kommunal_par16a_resultat(input: KommunalPar16aInput) -> kommunal_par16a_sag(input).resultat()
-| exception kommunal_par16a_korrektion_anvendes kommunal_par16_anvendt_korrektionsbeløb_efter_par16a_kroner(input: KommunalPar16EfterreguleringInput) -> penge_positivt_beløb(input.korrektionsbeløb_efter_par16a_kroner) under kommunal_par16_omfattes_af_efterregulering(input) && input.kalenderår >= 2026
-| exception kommunal_par16a_korrektion_fratrækkes kommunal_par16_efterreguleringsbeløb_kroner(input: KommunalPar16EfterreguleringInput) -> kommunal_par16_efterreguleringsbeløb_før_par16a_kroner(input) - kommunal_par16_anvendt_korrektionsbeløb_efter_par16a_kroner(input) under kommunal_par16_anvendt_korrektionsbeløb_efter_par16a_kroner(input) > 0
+| exception kommunal_par16a_korrektion_anvendes kommunal_par16_anvendt_korrektionsbeløb_efter_par16a_kroner(input) -> penge_positivt_beløb(input.korrektionsbeløb_efter_par16a_kroner) under kommunal_par16_omfattes_af_efterregulering(input) && input.kalenderår >= 2026
+| exception kommunal_par16a_korrektion_fratrækkes kommunal_par16_efterreguleringsbeløb_kroner(input) -> kommunal_par16_efterreguleringsbeløb_før_par16a_kroner(input) - kommunal_par16_anvendt_korrektionsbeløb_efter_par16a_kroner(input) under kommunal_par16_anvendt_korrektionsbeløb_efter_par16a_kroner(input) > 0
 
 }
 
@@ -560,9 +560,9 @@ Stk. 2. Loven har virkning fra og med tilskudsåret 2026.
 | kommunal_par16_stk3_overskydende_del_kroner(input: KommunalPar16Stk3TillægInput) -> penge_positivt_beløb(kommunal_par16_stk3_samlet_efterregulering_abs_kroner(input) - kommunal_par16_stk3_tærskel_3pct_kroner(input))
 | kommunal_par16_stk3_tillægssats_basispoint(input: KommunalPar16Stk3TillægInput) -> input.nationalbank_diskonto_basispoint * 3
 | kommunal_par16_stk3_tillæg_abs_kroner(input: KommunalPar16Stk3TillægInput) -> penge_beløb_gange_basispoint_kroner(kommunal_par16_stk3_overskydende_del_kroner(input), kommunal_par16_stk3_tillægssats_basispoint(input))
-| kommunal_par16_stk3_tillæg_med_fortegn_kroner(input: KommunalPar16Stk3TillægInput) -> 0
-| exception kommunal_par16_stk3_positivt_tillæg kommunal_par16_stk3_tillæg_med_fortegn_kroner(input: KommunalPar16Stk3TillægInput) -> kommunal_par16_stk3_tillæg_abs_kroner(input) under kommunal_par16_stk3_samlet_efterregulering_kroner(input) > 0
-| exception kommunal_par16_stk3_negativt_tillæg kommunal_par16_stk3_tillæg_med_fortegn_kroner(input: KommunalPar16Stk3TillægInput) -> 0 - kommunal_par16_stk3_tillæg_abs_kroner(input) under kommunal_par16_stk3_samlet_efterregulering_kroner(input) < 0
+| kommunal_par16_stk3_tillæg_med_fortegn_kroner(input: KommunalPar16Stk3TillægInput): Int -> 0
+| exception kommunal_par16_stk3_positivt_tillæg kommunal_par16_stk3_tillæg_med_fortegn_kroner(input) -> kommunal_par16_stk3_tillæg_abs_kroner(input) under kommunal_par16_stk3_samlet_efterregulering_kroner(input) > 0
+| exception kommunal_par16_stk3_negativt_tillæg kommunal_par16_stk3_tillæg_med_fortegn_kroner(input) -> 0 - kommunal_par16_stk3_tillæg_abs_kroner(input) under kommunal_par16_stk3_samlet_efterregulering_kroner(input) < 0
 | kommunal_par16_stk3_samlet_med_tillæg_kroner(input: KommunalPar16Stk3TillægInput) -> kommunal_par16_stk3_samlet_efterregulering_kroner(input) + kommunal_par16_stk3_tillæg_med_fortegn_kroner(input)
 | kommunal_par16_stk3_tillæg_resultat(input: KommunalPar16Stk3TillægInput) -> KommunalPar16Stk3TillægResultat(
     samlet_efterreguleringsbeløb_kroner = kommunal_par16_stk3_samlet_efterregulering_kroner(input),

@@ -147,7 +147,7 @@
 § 67. Borgerne har ret til at forene sig i samfund for at dyrke Gud på den måde, der stemmer med deres overbevisning, dog at intet læres eller foretages, som strider mod sædeligheden eller den offentlige orden.
 ----
 
-| religionsfrihed() -> Sandt
+| religionsfrihed(): Bool -> Sandt
 | undtagelse sædelighed religionsfrihed() -> Falskt under strider_mod_sædelighed()
 | undtagelse offentlig_orden religionsfrihed() -> Falskt under strider_mod_offentlig_orden()
 
@@ -357,7 +357,7 @@
 -- Undtagelsen er en META-REGEL, ikke en forfatningsmæssig TEKST.
 | er_kongen_undtaget_fra_paragraf_70() -> Sandt
 
-| paragraf_70_gælder() -> Sandt
+| paragraf_70_gælder(): Bool -> Sandt
 | undtagelse paragraf_6 paragraf_70_gælder() -> Falskt under er_kongen()
 
 @ skriv("--- § 70: Ligestillingsklausulen ---")

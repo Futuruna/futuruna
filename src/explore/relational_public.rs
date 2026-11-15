@@ -3854,7 +3854,7 @@ mod regional_stream_acceptance_tests {
 
     const THREE_CHUNK_SOURCE_EVENT_RESIDUAL: &str = r#"
 | source_event_rate(value: Int) -> 0
-| exception threshold source_event_rate(value: Int) -> 1 under value >= 680
+| exception threshold source_event_rate(value) -> 1 under value >= 680
 
 > three_chunk_observer(state: Int, context: Unit) -> Int {
     if state < 690 { 0 } else { 1 }
@@ -7385,7 +7385,7 @@ mod regional_stream_acceptance_tests {
 # Step(income: Int, distance: Int)
 | coefficient() -> 3
 | net(s: Starter, c: Step) -> s.income * coefficient() + s.distance * 2
-| exception extra net(s: Starter, c: Step) -> s.income * coefficient() + s.distance * 2 + 10 under GUARD
+| exception extra net(s, c) -> s.income * coefficient() + s.distance * 2 + 10 under GUARD
 | advance(s: Starter, c: Step) -> Starter(s.income + c.income, s.distance + c.distance)
 > observe(s: Starter, c: Step) -> Int { net(s, c) }
 ? explore rule_product {
@@ -7417,10 +7417,10 @@ mod regional_stream_acceptance_tests {
     fn checked_rule_dispatch_false_clauses_backtrack_but_false_defaults_return() {
         let source = r#"
 | flag(x: Int) -> False
-| flag(x: Int) -> x % 5 == 0
-| flag(x: Int) -> False under x == 20
-| exception first flag(x: Int) -> False under x == 0
-| exception second flag(x: Int) -> False under x == 10
+| flag(x) -> x % 5 == 0
+| flag(x) -> False under x == 20
+| exception first flag(x) -> False under x == 0
+| exception second flag(x) -> False under x == 10
 > observe(s: Int, c: Unit) -> Int { s }
 ? explore rule_backtracking {
     from {

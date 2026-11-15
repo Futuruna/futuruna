@@ -68,10 +68,10 @@ efter reglerne i §§ 6 A eller 6 C.
 # EblPar11Stk2NyGenanbringelsesresultat = EblPar11Stk2UdenNytGenanbringelsesresultat | EblPar11Stk2MedNytGenanbringelsesresultat(resultat: EblGenanbringelsesResultat)
 # EblPar11Stk2Resultat(kontekst: EblPar11Stk2Kontekst, valg: EblPar11Stk2Valg, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, nuværende_ejendoms_fortjeneste_undtaget_efter_stk1: Boolsk, stk2_anvendt: Boolsk, tidligere_aktivt_anskaffelsessumsnedslag_for_afstået_del_kroner: Heltal, tidligere_reguleret_fortjeneste_for_afstået_del_kroner: Heltal, anskaffelsessumsnedslag_bortfalder_kroner: Heltal, ny_genanbringelsesresultat: EblPar11Stk2NyGenanbringelsesresultat, genanbragt_på_ny_kroner: Heltal, nyt_aktivt_anskaffelsessumsnedslag_kroner: Heltal, skattepligtig_tidligere_genanbragt_fortjeneste_i_afståelsesåret_kroner: Heltal)
 
-| ebl_par11_stk1_undtaget(afståelse: EjendomsavancebeskatningslovAfståelse) -> Falskt
-| exception ebl_ekspropriationserstatning_undtages ebl_par11_stk1_undtaget(afståelse: EjendomsavancebeskatningslovAfståelse) -> Sandt under afståelse == EblEkspropriationserstatning
-| exception ebl_ekspropriationslignende_salg_undtages ebl_par11_stk1_undtaget(afståelse: EjendomsavancebeskatningslovAfståelse) -> Sandt under afståelse == EblEkspropriationslignendeSalg
-| exception ebl_forurenet_jord_undtages ebl_par11_stk1_undtaget(afståelse: EjendomsavancebeskatningslovAfståelse) -> Sandt under afståelse == EblForurenetJordPar34Afhændelse
+| ebl_par11_stk1_undtaget(afståelse: EjendomsavancebeskatningslovAfståelse): Bool -> Falskt
+| exception ebl_ekspropriationserstatning_undtages ebl_par11_stk1_undtaget(afståelse) -> Sandt under afståelse == EblEkspropriationserstatning
+| exception ebl_ekspropriationslignende_salg_undtages ebl_par11_stk1_undtaget(afståelse) -> Sandt under afståelse == EblEkspropriationslignendeSalg
+| exception ebl_forurenet_jord_undtages ebl_par11_stk1_undtaget(afståelse) -> Sandt under afståelse == EblForurenetJordPar34Afhændelse
 
 | ebl_par11_stk2_har_nyt_genanbringelsesvalg(valg: EblPar11Stk2Valg) -> match valg {
     | EblPar11Stk2IngenNyGenanbringelse -> Falskt

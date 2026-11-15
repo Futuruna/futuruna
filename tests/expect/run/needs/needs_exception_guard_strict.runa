@@ -10,8 +10,8 @@
 # Household(income: Int, married: Bool, filing: Filing, spouse: Spouse?, accounts: List(Account), phone: String, n: Int)
 # Result(tax: Int)
 
-| base_tax(h: Household) -> h.income / 4
-| exception married_relief base_tax(h: Household) -> h.income / 5 under h.married
+| base_tax(h: Household): Int -> h.income / 4
+| exception married_relief base_tax(h) -> h.income / 5 under h.married
 
 @ calculate
 | household_tax(h: Household) -> Result(tax = base_tax(h))

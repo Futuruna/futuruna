@@ -12,10 +12,10 @@
 # Afregningsomfang = AfregningEget | AfregningStats
 # AfregningsResultat(omfang: Afregningsomfang, gælder: Boolsk)
 
-| afregningsomfang(valg: Budgetvalg) -> AfregningEget under valg == EgetSkøn
+| afregningsomfang(valg: Budgetvalg): Afregningsomfang -> AfregningEget under valg == EgetSkøn
 -- Explicit fallback preserves the two-variant result without requiring guard
 -- exhaustiveness analysis in this named-argument syntax regression.
-| afregningsomfang(valg: Budgetvalg) -> AfregningStats
+| afregningsomfang(valg) -> AfregningStats
 | afregningsresultat(valg: Budgetvalg) -> AfregningsResultat(
     omfang = afregningsomfang(valg),
     gælder = valg == EgetSkøn

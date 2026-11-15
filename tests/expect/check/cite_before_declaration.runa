@@ -1,0 +1,9 @@
+-- A bodiless declaration has no clause to cite: the citation stands above a clause.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ cite(§ 1)` stands above a bodiless declaration, but a declaration has no clause to cite; move it above the clause it supports
+
+@ cite(§ 1)
+| fib(n: Int): Int
+| fib(0) -> 0
+| fib(n) -> n

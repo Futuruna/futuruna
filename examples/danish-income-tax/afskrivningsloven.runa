@@ -527,12 +527,12 @@ tilbehør tages ud af virksomhedsordningen.
 | afskrivningslov4_behandles_som_salg(input: Afskrivningslov4Input) -> afskrivningslov4_benyttelsesændring_er_salg(input.benyttelsesændring) || afskrivningslov4_virksomhedsordningsoverførsel_omfattet(input)
 | afskrivningslov4_behandles_som_køb(input: Afskrivningslov4Input) -> afskrivningslov4_benyttelsesændring_er_køb(input.benyttelsesændring) && afskrivningslov4_virksomhedsordningsoverførsel_omfattet(input) == Falskt
 | afskrivningslov4_ladestander_værdi_nul(input: Afskrivningslov4Input) -> input.aktivart == Al4Ladestander && afskrivningslov4_behandles_som_salg(input) && input.fri_elbil_eller_pluginhybrid_beskattet_måneder >= 6
-| afskrivningslov4_anvendt_handelsværdi_kroner(input: Afskrivningslov4Input) -> penge_positivt_beløb(input.handelsværdi_kroner)
-| exception al4_ladestander_nulværdi afskrivningslov4_anvendt_handelsværdi_kroner(input: Afskrivningslov4Input) -> 0 under afskrivningslov4_ladestander_værdi_nul(input)
-| afskrivningslov4_salgssum_kroner(input: Afskrivningslov4Input) -> 0
-| exception al4_fiktivt_salg afskrivningslov4_salgssum_kroner(input: Afskrivningslov4Input) -> afskrivningslov4_anvendt_handelsværdi_kroner(input) under afskrivningslov4_behandles_som_salg(input)
-| afskrivningslov4_købesum_kroner(input: Afskrivningslov4Input) -> 0
-| exception al4_fiktivt_køb afskrivningslov4_købesum_kroner(input: Afskrivningslov4Input) -> afskrivningslov4_anvendt_handelsværdi_kroner(input) under afskrivningslov4_behandles_som_køb(input)
+| afskrivningslov4_anvendt_handelsværdi_kroner(input: Afskrivningslov4Input): Int -> penge_positivt_beløb(input.handelsværdi_kroner)
+| exception al4_ladestander_nulværdi afskrivningslov4_anvendt_handelsværdi_kroner(input) -> 0 under afskrivningslov4_ladestander_værdi_nul(input)
+| afskrivningslov4_salgssum_kroner(input: Afskrivningslov4Input): Int -> 0
+| exception al4_fiktivt_salg afskrivningslov4_salgssum_kroner(input) -> afskrivningslov4_anvendt_handelsværdi_kroner(input) under afskrivningslov4_behandles_som_salg(input)
+| afskrivningslov4_købesum_kroner(input: Afskrivningslov4Input): Int -> 0
+| exception al4_fiktivt_køb afskrivningslov4_købesum_kroner(input) -> afskrivningslov4_anvendt_handelsværdi_kroner(input) under afskrivningslov4_behandles_som_køb(input)
 | afskrivningslov4_resultat(input: Afskrivningslov4Input) -> Afskrivningslov4Resultat(
     skatteyder = input.skatteyder,
     aktivart = input.aktivart,
@@ -583,22 +583,22 @@ Småaktivgrænse (§ 11)                      16.200 kr.  16.900 kr.
 # AfskrivningslovÅrsparametre(indkomstår: Heltal, kilde: AfskrivningslovÅrsparameterKilde, småsaldigrænse_kroner: Heltal, småaktivgrænse_kroner: Heltal, blandet_småaktivgrænse_kroner: Heltal, dok_og_bedding_minimum_kroner: Heltal, forskningsloft_kroner: Heltal, højeste_ordinære_sats_basispoint: Heltal, par5b_højeste_sats_basispoint: Heltal, par5b_nybygget_førsteårs_sats_basispoint: Heltal, par5c_stk1_højeste_sats_basispoint: Heltal, par5c_stk2_højeste_sats_basispoint: Heltal, forskning_sats_under_loft_basispoint: Heltal, forskning_sats_over_loft_basispoint: Heltal)
 
 | afskrivningslov_årsparametre_understøttet(indkomstår: Heltal) -> indkomstår >= 2023 && indkomstår <= 2026
-| afskrivningslov_årsparameter_kilde_opslag(indkomstår: Heltal) -> Some(AlSkatteministerietSatser2023_2024) under indkomstår >= 2023 && indkomstår <= 2024
-| afskrivningslov_årsparameter_kilde_opslag(indkomstår: Heltal) -> Some(AlSkatteministerietSatser2025_2026) under indkomstår >= 2025 && indkomstår <= 2026
+| afskrivningslov_årsparameter_kilde_opslag(indkomstår: Heltal): AfskrivningslovÅrsparameterKilde? -> Some(AlSkatteministerietSatser2023_2024) under indkomstår >= 2023 && indkomstår <= 2024
+| afskrivningslov_årsparameter_kilde_opslag(indkomstår) -> Some(AlSkatteministerietSatser2025_2026) under indkomstår >= 2025 && indkomstår <= 2026
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
-| afskrivningslov_årsparameter_kilde_opslag(indkomstår: Heltal) -> None
+| afskrivningslov_årsparameter_kilde_opslag(indkomstår) -> None
 | afskrivningslov_årsparameter_kilde(indkomstår: Heltal) -> head(match afskrivningslov_årsparameter_kilde_opslag(indkomstår) { | Some(værdi) -> [værdi] | None -> [] })
 | afskrivningslov_reguleret_årsgrænse_kroner(indkomstår: Heltal, grundbeløb_2010_niveau_kroner: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
     grundbeløb_2010_niveau_kroner = grundbeløb_2010_niveau_kroner,
     reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår)
 ))
-| afskrivningslov_forskningsloft_kroner(indkomstår: Heltal) -> 0
-| exception afskrivningslov_forskningsloft_2026 afskrivningslov_forskningsloft_kroner(indkomstår: Heltal) -> 1088800000 under indkomstår == 2026
-| afskrivningslov_forskning_sats_under_loft_basispoint(indkomstår: Heltal) -> 10800
-| exception afskrivningslov_forskning_under_loft_2026 afskrivningslov_forskning_sats_under_loft_basispoint(indkomstår: Heltal) -> 11400 under indkomstår == 2026
-| afskrivningslov_forskning_sats_over_loft_basispoint(indkomstår: Heltal) -> 10800
-| exception afskrivningslov_forskning_over_loft_2026 afskrivningslov_forskning_sats_over_loft_basispoint(indkomstår: Heltal) -> 11000 under indkomstår == 2026
-| afskrivningslov_årsparametre_opslag(indkomstår: Heltal) -> Some(AfskrivningslovÅrsparametre(
+| afskrivningslov_forskningsloft_kroner(indkomstår: Heltal): Int -> 0
+| exception afskrivningslov_forskningsloft_2026 afskrivningslov_forskningsloft_kroner(indkomstår) -> 1088800000 under indkomstår == 2026
+| afskrivningslov_forskning_sats_under_loft_basispoint(indkomstår: Heltal): Int -> 10800
+| exception afskrivningslov_forskning_under_loft_2026 afskrivningslov_forskning_sats_under_loft_basispoint(indkomstår) -> 11400 under indkomstår == 2026
+| afskrivningslov_forskning_sats_over_loft_basispoint(indkomstår: Heltal): Int -> 10800
+| exception afskrivningslov_forskning_over_loft_2026 afskrivningslov_forskning_sats_over_loft_basispoint(indkomstår) -> 11000 under indkomstår == 2026
+| afskrivningslov_årsparametre_opslag(indkomstår: Heltal): AfskrivningslovÅrsparametre? -> Some(AfskrivningslovÅrsparametre(
     indkomstår = indkomstår,
     kilde = afskrivningslov_årsparameter_kilde(indkomstår),
     småsaldigrænse_kroner = afskrivningslov_reguleret_årsgrænse_kroner(indkomstår, 26200),
@@ -615,7 +615,7 @@ Småaktivgrænse (§ 11)                      16.200 kr.  16.900 kr.
     forskning_sats_over_loft_basispoint = afskrivningslov_forskning_sats_over_loft_basispoint(indkomstår)
 )) under afskrivningslov_årsparametre_understøttet(indkomstår)
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
-| afskrivningslov_årsparametre_opslag(indkomstår: Heltal) -> None
+| afskrivningslov_årsparametre_opslag(indkomstår) -> None
 | afskrivningslov_årsparametre(indkomstår: Heltal) -> head(match afskrivningslov_årsparametre_opslag(indkomstår) { | Some(værdi) -> [værdi] | None -> [] })
 
 }
@@ -730,12 +730,12 @@ tilladelsen.
     | Al5OrdinærAfskrivning(sats_basispoint) -> afskrivningslov5_omfattet(input, parametre) && afskrivningslov5_årsparametre_matcher(input, parametre) && sats_basispoint >= 0 && sats_basispoint <= parametre.højeste_ordinære_sats_basispoint
     | Al5FuldRestsaldo -> afskrivningslov5_omfattet(input, parametre) && afskrivningslov5_årsparametre_matcher(input, parametre) && penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre)) > 0 && penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre)) <= parametre.småsaldigrænse_kroner
 }
-| afskrivningslov5_fradrag_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> 0
-| exception al5_ordinær_saldoafskrivning afskrivningslov5_fradrag_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> penge_beløb_gange_basispoint_kroner(
+| afskrivningslov5_fradrag_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre): Int -> 0
+| exception al5_ordinær_saldoafskrivning afskrivningslov5_fradrag_kroner(input, parametre) -> penge_beløb_gange_basispoint_kroner(
     penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre)),
     afskrivningslov5_valgt_ordinær_sats_basispoint(input.valg)
 ) under afskrivningslov5_valg_gyldigt(input, parametre) && afskrivningslov5_valgt_ordinær_sats_basispoint(input.valg) > 0
-| exception al5_fuld_småsaldofradrag afskrivningslov5_fradrag_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre)) under afskrivningslov5_valg_gyldigt(input, parametre) && input.valg == Al5FuldRestsaldo
+| exception al5_fuld_småsaldofradrag afskrivningslov5_fradrag_kroner(input, parametre) -> penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre)) under afskrivningslov5_valg_gyldigt(input, parametre) && input.valg == Al5FuldRestsaldo
 | afskrivningslov5_resultat(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov5Resultat(
     indkomstår = input.indkomstår,
     skatteyder = afskrivningslov5_skatteyder(input),
@@ -756,19 +756,19 @@ tilladelsen.
 | afskrivningslov5_udlejningsår_efter_anskaffelsen(input: Afskrivningslov5UdlejningsaktivInput) -> input.indkomstår - input.anskaffelsesår
 | afskrivningslov5_tidligt_udlejningssalg(input: Afskrivningslov5UdlejningsaktivInput) -> afskrivningslov5_udlejningsudskydelse_gælder(input) && input.solgt_i_indkomståret && afskrivningslov5_udlejningsår_efter_anskaffelsen(input) >= 0 && afskrivningslov5_udlejningsår_efter_anskaffelsen(input) <= 1
 | afskrivningslov5_andet_indkomstårs_afskrivning_gyldig(input: Afskrivningslov5UdlejningsaktivInput) -> afskrivningslov5_udlejningsudskydelse_gælder(input) && afskrivningslov5_udlejningsår_efter_anskaffelsen(input) >= 1 && afskrivningslov5_tidligt_udlejningssalg(input) == Falskt && input.valgt_særskilt_afskrivning_basispoint >= 0 && input.valgt_særskilt_afskrivning_basispoint <= 5000
-| afskrivningslov5_andet_indkomstårs_afskrivning_kroner(input: Afskrivningslov5UdlejningsaktivInput) -> 0
-| exception al5_udlejningsaktiv_andetårsgrundlag afskrivningslov5_andet_indkomstårs_afskrivning_kroner(input: Afskrivningslov5UdlejningsaktivInput) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.anskaffelsessum_kroner), input.valgt_særskilt_afskrivning_basispoint) under afskrivningslov5_andet_indkomstårs_afskrivning_gyldig(input)
+| afskrivningslov5_andet_indkomstårs_afskrivning_kroner(input: Afskrivningslov5UdlejningsaktivInput): Int -> 0
+| exception al5_udlejningsaktiv_andetårsgrundlag afskrivningslov5_andet_indkomstårs_afskrivning_kroner(input) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.anskaffelsessum_kroner), input.valgt_særskilt_afskrivning_basispoint) under afskrivningslov5_andet_indkomstårs_afskrivning_gyldig(input)
 | afskrivningslov5_udlejningsafskrivning_gyldig(input: Afskrivningslov5UdlejningsaktivInput) -> afskrivningslov5_andet_indkomstårs_afskrivning_gyldig(input) && afskrivningslov5_udlejningsår_efter_anskaffelsen(input) == 1
-| afskrivningslov5_udlejningsafskrivning_kroner(input: Afskrivningslov5UdlejningsaktivInput) -> 0
-| exception al5_udlejningsaktiv_andetårsafskrivning afskrivningslov5_udlejningsafskrivning_kroner(input: Afskrivningslov5UdlejningsaktivInput) -> afskrivningslov5_andet_indkomstårs_afskrivning_kroner(input) under afskrivningslov5_udlejningsafskrivning_gyldig(input)
+| afskrivningslov5_udlejningsafskrivning_kroner(input: Afskrivningslov5UdlejningsaktivInput): Int -> 0
+| exception al5_udlejningsaktiv_andetårsafskrivning afskrivningslov5_udlejningsafskrivning_kroner(input) -> afskrivningslov5_andet_indkomstårs_afskrivning_kroner(input) under afskrivningslov5_udlejningsafskrivning_gyldig(input)
 | afskrivningslov5_udlejnings_uafskrevet_anskaffelsessum_kroner(input: Afskrivningslov5UdlejningsaktivInput) -> penge_positivt_beløb(input.anskaffelsessum_kroner) - afskrivningslov5_andet_indkomstårs_afskrivning_kroner(input)
-| afskrivningslov5_udlejning_til_saldo_kroner(input: Afskrivningslov5UdlejningsaktivInput) -> 0
-| exception al5_udlejningstilladelse_normal_saldo afskrivningslov5_udlejning_til_saldo_kroner(input: Afskrivningslov5UdlejningsaktivInput) -> penge_positivt_beløb(input.anskaffelsessum_kroner) under afskrivningslov5_udlejningsaktiv_omfattet(input) && afskrivningslov5_udlejningstilladelse_gældende(input) && afskrivningslov5_udlejningsår_efter_anskaffelsen(input) == 0
-| exception al5_udlejningsrest_til_saldo_tredje_år afskrivningslov5_udlejning_til_saldo_kroner(input: Afskrivningslov5UdlejningsaktivInput) -> afskrivningslov5_udlejnings_uafskrevet_anskaffelsessum_kroner(input) under afskrivningslov5_udlejningsudskydelse_gælder(input) && afskrivningslov5_udlejningsår_efter_anskaffelsen(input) == 2 && input.solgt_i_indkomståret == Falskt
-| afskrivningslov5_udlejningssalg_fortjeneste_kroner(input: Afskrivningslov5UdlejningsaktivInput) -> 0
-| exception al5_tidligt_udlejningssalg_fortjeneste afskrivningslov5_udlejningssalg_fortjeneste_kroner(input: Afskrivningslov5UdlejningsaktivInput) -> penge_positivt_beløb(penge_positivt_beløb(input.salgssum_kroner) - penge_positivt_beløb(input.anskaffelsessum_kroner)) under afskrivningslov5_tidligt_udlejningssalg(input)
-| afskrivningslov5_udlejningssalg_tab_kroner(input: Afskrivningslov5UdlejningsaktivInput) -> 0
-| exception al5_tidligt_udlejningssalg_tab afskrivningslov5_udlejningssalg_tab_kroner(input: Afskrivningslov5UdlejningsaktivInput) -> penge_positivt_beløb(penge_positivt_beløb(input.anskaffelsessum_kroner) - penge_positivt_beløb(input.salgssum_kroner)) under afskrivningslov5_tidligt_udlejningssalg(input)
+| afskrivningslov5_udlejning_til_saldo_kroner(input: Afskrivningslov5UdlejningsaktivInput): Int -> 0
+| exception al5_udlejningstilladelse_normal_saldo afskrivningslov5_udlejning_til_saldo_kroner(input) -> penge_positivt_beløb(input.anskaffelsessum_kroner) under afskrivningslov5_udlejningsaktiv_omfattet(input) && afskrivningslov5_udlejningstilladelse_gældende(input) && afskrivningslov5_udlejningsår_efter_anskaffelsen(input) == 0
+| exception al5_udlejningsrest_til_saldo_tredje_år afskrivningslov5_udlejning_til_saldo_kroner(input) -> afskrivningslov5_udlejnings_uafskrevet_anskaffelsessum_kroner(input) under afskrivningslov5_udlejningsudskydelse_gælder(input) && afskrivningslov5_udlejningsår_efter_anskaffelsen(input) == 2 && input.solgt_i_indkomståret == Falskt
+| afskrivningslov5_udlejningssalg_fortjeneste_kroner(input: Afskrivningslov5UdlejningsaktivInput): Int -> 0
+| exception al5_tidligt_udlejningssalg_fortjeneste afskrivningslov5_udlejningssalg_fortjeneste_kroner(input) -> penge_positivt_beløb(penge_positivt_beløb(input.salgssum_kroner) - penge_positivt_beløb(input.anskaffelsessum_kroner)) under afskrivningslov5_tidligt_udlejningssalg(input)
+| afskrivningslov5_udlejningssalg_tab_kroner(input: Afskrivningslov5UdlejningsaktivInput): Int -> 0
+| exception al5_tidligt_udlejningssalg_tab afskrivningslov5_udlejningssalg_tab_kroner(input) -> penge_positivt_beløb(penge_positivt_beløb(input.anskaffelsessum_kroner) - penge_positivt_beløb(input.salgssum_kroner)) under afskrivningslov5_tidligt_udlejningssalg(input)
 | afskrivningslov5_udlejningsaktiv_resultat(input: Afskrivningslov5UdlejningsaktivInput) -> Afskrivningslov5UdlejningsaktivResultat(
     anskaffelsesår = input.anskaffelsesår,
     indkomstår = input.indkomstår,
@@ -827,10 +827,10 @@ efter § 5.
 | afskrivningslov5a_saldoformindskelse_kroner(input: Afskrivningslov5AInput) -> penge_mindste_beløb(afskrivningslov5a_uafskrevet_anskaffelsessum_kroner(input), penge_positivt_beløb(input.saldoværdi_primo_kroner))
 | afskrivningslov5a_fradragsberettiget_tab_kroner(input: Afskrivningslov5AInput) -> penge_positivt_beløb(afskrivningslov5a_saldoformindskelse_kroner(input) - penge_positivt_beløb(input.salgssum_kroner))
 | afskrivningslov5a_tabsvalg_gyldigt(input: Afskrivningslov5AInput) -> input.vælger_tabsfradrag && afskrivningslov5a_omfattet_af_modellen(input) && afskrivningslov5a_fradragsberettiget_tab_kroner(input) > 0
-| afskrivningslov5a_fradrag_kroner(input: Afskrivningslov5AInput) -> 0
-| exception al5a_valgt_tab afskrivningslov5a_fradrag_kroner(input: Afskrivningslov5AInput) -> afskrivningslov5a_fradragsberettiget_tab_kroner(input) under afskrivningslov5a_tabsvalg_gyldigt(input)
-| afskrivningslov5a_saldoværdi_efter_formindskelse_kroner(input: Afskrivningslov5AInput) -> input.saldoværdi_primo_kroner
-| exception al5a_uafskrevet_del_fjernes_fra_saldo afskrivningslov5a_saldoværdi_efter_formindskelse_kroner(input: Afskrivningslov5AInput) -> input.saldoværdi_primo_kroner - afskrivningslov5a_saldoformindskelse_kroner(input) under afskrivningslov5a_tabsvalg_gyldigt(input)
+| afskrivningslov5a_fradrag_kroner(input: Afskrivningslov5AInput): Int -> 0
+| exception al5a_valgt_tab afskrivningslov5a_fradrag_kroner(input) -> afskrivningslov5a_fradragsberettiget_tab_kroner(input) under afskrivningslov5a_tabsvalg_gyldigt(input)
+| afskrivningslov5a_saldoværdi_efter_formindskelse_kroner(input: Afskrivningslov5AInput): Int -> input.saldoværdi_primo_kroner
+| exception al5a_uafskrevet_del_fjernes_fra_saldo afskrivningslov5a_saldoværdi_efter_formindskelse_kroner(input) -> input.saldoværdi_primo_kroner - afskrivningslov5a_saldoformindskelse_kroner(input) under afskrivningslov5a_tabsvalg_gyldigt(input)
 | afskrivningslov5a_resultat(input: Afskrivningslov5AInput) -> Afskrivningslov5AResultat(
     indkomstår = input.indkomstår,
     skatteyder = afskrivningslov5a_aktiv_resultat(input).skatteyder,
@@ -903,13 +903,13 @@ tilsvarende anvendelse, når skibe omfattet af stk. 1 og 2 bliver omfattet af §
 | afskrivningslov5b_alene_nr1_eller_nr2(input: Afskrivningslov5BInput) -> afskrivningslov5b_skatteydergrundlag_matcher(input) && input.bareboat_udlejet_eller_erhvervet_til_bareboat == Falskt
 | afskrivningslov5b_saldoværdi_før_afskrivning_kroner(input: Afskrivningslov5BInput) -> input.saldoværdi_primo_kroner + penge_positivt_beløb(input.øvrige_anskaffelsessummer_i_året_kroner) + penge_positivt_beløb(input.forbedringsudgifter_i_året_kroner) - penge_positivt_beløb(input.salgssummer_i_året_kroner)
 | afskrivningslov5b_saldovalg_gyldigt(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov5b_omfattet(input) && input.indkomstår == parametre.indkomstår && input.valgt_saldosats_basispoint >= 0 && input.valgt_saldosats_basispoint <= parametre.par5b_højeste_sats_basispoint
-| afskrivningslov5b_saldoafskrivning_kroner(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre) -> 0
-| exception al5b_saldoafskrivning afskrivningslov5b_saldoafskrivning_kroner(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(afskrivningslov5b_saldoværdi_før_afskrivning_kroner(input)), input.valgt_saldosats_basispoint) under afskrivningslov5b_saldovalg_gyldigt(input, parametre)
+| afskrivningslov5b_saldoafskrivning_kroner(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre): Int -> 0
+| exception al5b_saldoafskrivning afskrivningslov5b_saldoafskrivning_kroner(input, parametre) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(afskrivningslov5b_saldoværdi_før_afskrivning_kroner(input)), input.valgt_saldosats_basispoint) under afskrivningslov5b_saldovalg_gyldigt(input, parametre)
 | afskrivningslov5b_nybygget_førsteårsvalg_gyldigt(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov5b_omfattet(input) && input.indkomstår == parametre.indkomstår && afskrivningslov5b_alene_nr1_eller_nr2(input) && input.nybygget_skib && input.første_afskrivningsår && input.undergivet_tonnageskat == Falskt && input.nybygget_førsteårs_anskaffelsessum_kroner > 0 && input.valgt_nybygget_førsteårs_sats_basispoint >= 0 && input.valgt_nybygget_førsteårs_sats_basispoint <= parametre.par5b_nybygget_førsteårs_sats_basispoint
-| afskrivningslov5b_nybygget_førsteårsafskrivning_kroner(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre) -> 0
-| exception al5b_nybygget_førsteårsafskrivning afskrivningslov5b_nybygget_førsteårsafskrivning_kroner(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.nybygget_førsteårs_anskaffelsessum_kroner), input.valgt_nybygget_førsteårs_sats_basispoint) under afskrivningslov5b_nybygget_førsteårsvalg_gyldigt(input, parametre)
-| afskrivningslov5b_nybygget_rest_til_næste_år_kroner(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre) -> 0
-| exception al5b_nybygget_rest_til_næste_saldo afskrivningslov5b_nybygget_rest_til_næste_år_kroner(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre) -> penge_positivt_beløb(input.nybygget_førsteårs_anskaffelsessum_kroner) - afskrivningslov5b_nybygget_førsteårsafskrivning_kroner(input, parametre) under afskrivningslov5b_nybygget_førsteårsvalg_gyldigt(input, parametre)
+| afskrivningslov5b_nybygget_førsteårsafskrivning_kroner(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre): Int -> 0
+| exception al5b_nybygget_førsteårsafskrivning afskrivningslov5b_nybygget_førsteårsafskrivning_kroner(input, parametre) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.nybygget_førsteårs_anskaffelsessum_kroner), input.valgt_nybygget_førsteårs_sats_basispoint) under afskrivningslov5b_nybygget_førsteårsvalg_gyldigt(input, parametre)
+| afskrivningslov5b_nybygget_rest_til_næste_år_kroner(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre): Int -> 0
+| exception al5b_nybygget_rest_til_næste_saldo afskrivningslov5b_nybygget_rest_til_næste_år_kroner(input, parametre) -> penge_positivt_beløb(input.nybygget_førsteårs_anskaffelsessum_kroner) - afskrivningslov5b_nybygget_førsteårsafskrivning_kroner(input, parametre) under afskrivningslov5b_nybygget_førsteårsvalg_gyldigt(input, parametre)
 | afskrivningslov5b_resultat(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov5BResultat(
     indkomstår = input.indkomstår,
     skatteyder = afskrivningslov5b_aktiv_resultat(input).skatteyder,
@@ -927,8 +927,8 @@ tilsvarende anvendelse, når skibe omfattet af stk. 1 og 2 bliver omfattet af §
     saldoværdi_til_næste_indkomstår_kroner = afskrivningslov5b_saldoværdi_før_afskrivning_kroner(input) - afskrivningslov5b_saldoafskrivning_kroner(input, parametre) + afskrivningslov5b_nybygget_rest_til_næste_år_kroner(input, parametre)
 )
 | afskrivningslov5b_saldooverførsel_gyldig(input: Afskrivningslov5BSaldooverførselInput) -> input.eksisterende_kildesaldo_kroner >= 0 && input.regnskabsmæssig_værdi_berørte_skibe_kroner > 0 && input.regnskabsmæssig_værdi_øvrige_aktiver_kroner >= 0
-| afskrivningslov5b_overført_saldoværdi_kroner(input: Afskrivningslov5BSaldooverførselInput) -> 0
-| exception al5b_forholdsmæssig_saldooverførsel afskrivningslov5b_overført_saldoværdi_kroner(input: Afskrivningslov5BSaldooverførselInput) -> (input.eksisterende_kildesaldo_kroner * input.regnskabsmæssig_værdi_berørte_skibe_kroner + (input.regnskabsmæssig_værdi_berørte_skibe_kroner + input.regnskabsmæssig_værdi_øvrige_aktiver_kroner) / 2) / (input.regnskabsmæssig_værdi_berørte_skibe_kroner + input.regnskabsmæssig_værdi_øvrige_aktiver_kroner) under afskrivningslov5b_saldooverførsel_gyldig(input)
+| afskrivningslov5b_overført_saldoværdi_kroner(input: Afskrivningslov5BSaldooverførselInput): Int -> 0
+| exception al5b_forholdsmæssig_saldooverførsel afskrivningslov5b_overført_saldoværdi_kroner(input) -> (input.eksisterende_kildesaldo_kroner * input.regnskabsmæssig_værdi_berørte_skibe_kroner + (input.regnskabsmæssig_værdi_berørte_skibe_kroner + input.regnskabsmæssig_værdi_øvrige_aktiver_kroner) / 2) / (input.regnskabsmæssig_værdi_berørte_skibe_kroner + input.regnskabsmæssig_værdi_øvrige_aktiver_kroner) under afskrivningslov5b_saldooverførsel_gyldig(input)
 | afskrivningslov5b_saldooverførsel_resultat(input: Afskrivningslov5BSaldooverførselInput) -> Afskrivningslov5BSaldooverførselResultat(
     retning = input.retning,
     grundlag_gyldigt = afskrivningslov5b_saldooverførsel_gyldig(input),
@@ -1032,9 +1032,9 @@ senere.
     | Al5COrdinærAfskrivning(sats_basispoint) -> afskrivningslov5c_omfattet(input) && input.indkomstår == parametre.indkomstår && sats_basispoint >= 0 && sats_basispoint <= afskrivningslov5c_højeste_sats_basispoint(input.saldoart, parametre)
     | Al5CFuldRestsaldo -> afskrivningslov5c_omfattet(input) && input.indkomstår == parametre.indkomstår && afskrivningslov5c_saldoværdi_før_afskrivning_kroner(input) > 0 && afskrivningslov5c_saldoværdi_før_afskrivning_kroner(input) <= parametre.småsaldigrænse_kroner
 }
-| afskrivningslov5c_fradrag_kroner(input: Afskrivningslov5CInput, parametre: AfskrivningslovÅrsparametre) -> 0
-| exception al5c_ordinær_saldoafskrivning afskrivningslov5c_fradrag_kroner(input: Afskrivningslov5CInput, parametre: AfskrivningslovÅrsparametre) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(afskrivningslov5c_saldoværdi_før_afskrivning_kroner(input)), afskrivningslov5c_valgt_sats_basispoint(input.valg)) under afskrivningslov5c_valg_gyldigt(input, parametre) && afskrivningslov5c_valgt_sats_basispoint(input.valg) > 0
-| exception al5c_fuld_småsaldofradrag afskrivningslov5c_fradrag_kroner(input: Afskrivningslov5CInput, parametre: AfskrivningslovÅrsparametre) -> penge_positivt_beløb(afskrivningslov5c_saldoværdi_før_afskrivning_kroner(input)) under afskrivningslov5c_valg_gyldigt(input, parametre) && input.valg == Al5CFuldRestsaldo
+| afskrivningslov5c_fradrag_kroner(input: Afskrivningslov5CInput, parametre: AfskrivningslovÅrsparametre): Int -> 0
+| exception al5c_ordinær_saldoafskrivning afskrivningslov5c_fradrag_kroner(input, parametre) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(afskrivningslov5c_saldoværdi_før_afskrivning_kroner(input)), afskrivningslov5c_valgt_sats_basispoint(input.valg)) under afskrivningslov5c_valg_gyldigt(input, parametre) && afskrivningslov5c_valgt_sats_basispoint(input.valg) > 0
+| exception al5c_fuld_småsaldofradrag afskrivningslov5c_fradrag_kroner(input, parametre) -> penge_positivt_beløb(afskrivningslov5c_saldoværdi_før_afskrivning_kroner(input)) under afskrivningslov5c_valg_gyldigt(input, parametre) && input.valg == Al5CFuldRestsaldo
 | afskrivningslov5c_resultat(input: Afskrivningslov5CInput, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov5CResultat(
     indkomstår = input.indkomstår,
     skatteyder = afskrivningslov5c_aktiv_resultat(input).skatteyder,
@@ -1209,8 +1209,8 @@ saldoværdi behandles fra og med indkomståret 2031 efter § 5.
     | AlForhøjetIngenAfskrivning -> Sandt
     | AlForhøjetOrdinærAfskrivning(sats_basispoint) -> sats_basispoint >= 0 && sats_basispoint <= 2500
 }
-| afskrivningslov_forhøjet_fradrag_kroner(input: AfskrivningslovForhøjetSaldoInput) -> 0
-| exception al_forhøjet_saldoafskrivning afskrivningslov_forhøjet_fradrag_kroner(input: AfskrivningslovForhøjetSaldoInput) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(afskrivningslov_forhøjet_saldoværdi_før_afskrivning_kroner(input)), afskrivningslov_forhøjet_valgt_sats_basispoint(input.valg)) under afskrivningslov_forhøjet_valg_gyldigt(input) && afskrivningslov_forhøjet_valgt_sats_basispoint(input.valg) > 0
+| afskrivningslov_forhøjet_fradrag_kroner(input: AfskrivningslovForhøjetSaldoInput): Int -> 0
+| exception al_forhøjet_saldoafskrivning afskrivningslov_forhøjet_fradrag_kroner(input) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(afskrivningslov_forhøjet_saldoværdi_før_afskrivning_kroner(input)), afskrivningslov_forhøjet_valgt_sats_basispoint(input.valg)) under afskrivningslov_forhøjet_valg_gyldigt(input) && afskrivningslov_forhøjet_valgt_sats_basispoint(input.valg) > 0
 | afskrivningslov_forhøjet_sammenlægges(input: AfskrivningslovForhøjetSaldoInput) -> afskrivningslov_forhøjet_saldo_aktiv_i_år(input.saldoordning, input.indkomstår) && input.indkomstår == afskrivningslov_forhøjet_sammenlægningsår(input.saldoordning)
 | afskrivningslov_forhøjet_saldo_resultat(input: AfskrivningslovForhøjetSaldoInput) -> AfskrivningslovForhøjetSaldoResultat(
     indkomstår = input.indkomstår,
@@ -1362,10 +1362,10 @@ indkomstår, hvori leveringen finder sted, jf. dog § 9.
     | Al6Småaktiv -> penge_positivt_beløb(input.aktivgrundlag.anskaffelsessum_kroner)
     | Al6ForsøgsOgForskningsaktiv -> penge_beløb_gange_basispoint_kroner(afskrivningslov6_forskningsudgift_under_loft_kroner(input, parametre), parametre.forskning_sats_under_loft_basispoint) + penge_beløb_gange_basispoint_kroner(afskrivningslov6_forskningsudgift_over_loft_kroner(input, parametre), parametre.forskning_sats_over_loft_basispoint)
 }
-| afskrivningslov6_fradrag_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> 0
-| exception al6_valgt_straksafskrivning afskrivningslov6_fradrag_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_beregnet_fradrag_kroner(input, parametre) under afskrivningslov6_valg_gyldigt(input, parametre)
-| afskrivningslov6_anskaffelsessum_fradraget_senest_i_indkomståret_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> 0
-| exception al6_valgt_anskaffelsessum_fuldt_fradraget afskrivningslov6_anskaffelsessum_fradraget_senest_i_indkomståret_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> penge_positivt_beløb(input.aktivgrundlag.anskaffelsessum_kroner) under input.valg != Al6IngenStraksafskrivning && afskrivningslov6_valg_hjemmel_opfyldt(input, parametre) && input.indkomstår >= afskrivningslov6_første_mulige_fradragsår(input, parametre)
+| afskrivningslov6_fradrag_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre): Int -> 0
+| exception al6_valgt_straksafskrivning afskrivningslov6_fradrag_kroner(input, parametre) -> afskrivningslov6_beregnet_fradrag_kroner(input, parametre) under afskrivningslov6_valg_gyldigt(input, parametre)
+| afskrivningslov6_anskaffelsessum_fradraget_senest_i_indkomståret_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre): Int -> 0
+| exception al6_valgt_anskaffelsessum_fuldt_fradraget afskrivningslov6_anskaffelsessum_fradraget_senest_i_indkomståret_kroner(input, parametre) -> penge_positivt_beløb(input.aktivgrundlag.anskaffelsessum_kroner) under input.valg != Al6IngenStraksafskrivning && afskrivningslov6_valg_hjemmel_opfyldt(input, parametre) && input.indkomstår >= afskrivningslov6_første_mulige_fradragsår(input, parametre)
 | afskrivningslov6_resultat(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov6Resultat(
     indkomstår = input.indkomstår,
     anskaffelsesår = afskrivningslov6_anskaffelsesår(input),
@@ -1392,9 +1392,9 @@ indkomstår, hvori leveringen finder sted, jf. dog § 9.
 | afskrivningslov6_salg_omfattet_af_stk2(input: Afskrivningslov6SalgInput) -> input.leveret_i_indkomståret && afskrivningslov6_salg_straksafskrivningsresultat(input).omfattet_af_stk3 == Falskt && afskrivningslov6_salg_straksafskrivningsresultat(input).valg != Al6IngenStraksafskrivning && afskrivningslov6_salg_straksafskrivningsresultat(input).anskaffelsessum_fradraget_senest_i_indkomståret_kroner > 0 && afskrivningslov6_salg_straksafskrivningsresultat(input).ufradraget_anskaffelsessum_kroner == 0
 | afskrivningslov6_salg_omfattet_af_stk4(input: Afskrivningslov6SalgInput) -> input.leveret_i_indkomståret && afskrivningslov6_salg_straksafskrivningsresultat(input).omfattet_af_stk3 && afskrivningslov6_salg_straksafskrivningsresultat(input).valg_hjemmel_opfyldt && afskrivningslov6_salg_straksafskrivningsresultat(input).valg != Al6IngenStraksafskrivning
 | afskrivningslov6_salg_behandles_efter_par9(input: Afskrivningslov6SalgInput) -> input.virksomhed_sælges_eller_ophører_i_indkomståret && (afskrivningslov6_salg_omfattet_af_stk2(input) || afskrivningslov6_salg_omfattet_af_stk4(input))
-| afskrivningslov6_salg_netto_beløb_kroner(input: Afskrivningslov6SalgInput) -> 0
-| exception al6_stk2_salgssum afskrivningslov6_salg_netto_beløb_kroner(input: Afskrivningslov6SalgInput) -> penge_positivt_beløb(input.salgssum_kroner) under afskrivningslov6_salg_omfattet_af_stk2(input) && afskrivningslov6_salg_behandles_efter_par9(input) == Falskt
-| exception al6_stk4_salgssum_efter_ufradraget_anskaffelsessum afskrivningslov6_salg_netto_beløb_kroner(input: Afskrivningslov6SalgInput) -> penge_positivt_beløb(input.salgssum_kroner) - afskrivningslov6_salg_straksafskrivningsresultat(input).ufradraget_anskaffelsessum_kroner under afskrivningslov6_salg_omfattet_af_stk4(input) && afskrivningslov6_salg_behandles_efter_par9(input) == Falskt
+| afskrivningslov6_salg_netto_beløb_kroner(input: Afskrivningslov6SalgInput): Int -> 0
+| exception al6_stk2_salgssum afskrivningslov6_salg_netto_beløb_kroner(input) -> penge_positivt_beløb(input.salgssum_kroner) under afskrivningslov6_salg_omfattet_af_stk2(input) && afskrivningslov6_salg_behandles_efter_par9(input) == Falskt
+| exception al6_stk4_salgssum_efter_ufradraget_anskaffelsessum afskrivningslov6_salg_netto_beløb_kroner(input) -> penge_positivt_beløb(input.salgssum_kroner) - afskrivningslov6_salg_straksafskrivningsresultat(input).ufradraget_anskaffelsessum_kroner under afskrivningslov6_salg_omfattet_af_stk4(input) && afskrivningslov6_salg_behandles_efter_par9(input) == Falskt
 | afskrivningslov6_salg_resultat(input: Afskrivningslov6SalgInput) -> Afskrivningslov6SalgResultat(
     indkomstår = afskrivningslov6_salg_straksafskrivningsresultat(input).indkomstår,
     skatteyder = afskrivningslov6_salg_straksafskrivningsresultat(input).skatteyder,
@@ -1436,10 +1436,10 @@ aktivet i den stand, det var i ved skadens indtræden.
 
 | afskrivningslov7_aktiv_resultat(input: Afskrivningslov7Input) -> afskrivningslov_par1_par2_resultat(input.aktiv_input)
 | afskrivningslov7_omfattet(input: Afskrivningslov7Input) -> afskrivningslov7_aktiv_resultat(input).omfattet_af_kapitel2 && afskrivningslov7_aktiv_resultat(input).udelukkende_erhvervsmæssigt_benyttet && input.udgifter_sætter_aktivet_i_stand_som_ved_skaden
-| afskrivningslov7_reparationsfradrag_kroner(input: Afskrivningslov7Input) -> 0
-| exception al7_reparation_over_erstatning afskrivningslov7_reparationsfradrag_kroner(input: Afskrivningslov7Input) -> penge_positivt_beløb(input.reparationsudgifter_kroner - input.forsikrings_eller_erstatningssum_kroner) under afskrivningslov7_omfattet(input)
-| afskrivningslov7_saldoreduktion_kroner(input: Afskrivningslov7Input) -> 0
-| exception al7_erstatning_over_reparation afskrivningslov7_saldoreduktion_kroner(input: Afskrivningslov7Input) -> penge_positivt_beløb(input.forsikrings_eller_erstatningssum_kroner - input.reparationsudgifter_kroner) under afskrivningslov7_omfattet(input)
+| afskrivningslov7_reparationsfradrag_kroner(input: Afskrivningslov7Input): Int -> 0
+| exception al7_reparation_over_erstatning afskrivningslov7_reparationsfradrag_kroner(input) -> penge_positivt_beløb(input.reparationsudgifter_kroner - input.forsikrings_eller_erstatningssum_kroner) under afskrivningslov7_omfattet(input)
+| afskrivningslov7_saldoreduktion_kroner(input: Afskrivningslov7Input): Int -> 0
+| exception al7_erstatning_over_reparation afskrivningslov7_saldoreduktion_kroner(input) -> penge_positivt_beløb(input.forsikrings_eller_erstatningssum_kroner - input.reparationsudgifter_kroner) under afskrivningslov7_omfattet(input)
 | afskrivningslov7_resultat(input: Afskrivningslov7Input) -> Afskrivningslov7Resultat(
     indkomstår = input.indkomstår,
     skatteyder = afskrivningslov7_aktiv_resultat(input).skatteyder,
@@ -1508,14 +1508,14 @@ stilles sikkerhed for skattebetalingen.
     | Al8IngenFristforlængelse -> Falskt
     | Al8ForlængetFrist(til_indkomstår, bestillingsaftale, kan_udligne, leverandørforhold, ikke_forudset_eller_afværgelig, sikkerhed_påkrævet, sikkerhed_stillet) -> til_indkomstår > input.negativ_saldo_opståelsesår + 1 && bestillingsaftale && kan_udligne && leverandørforhold && ikke_forudset_eller_afværgelig && (sikkerhed_påkrævet == Falskt || sikkerhed_stillet)
 }
-| afskrivningslov8_seneste_udligningsår(input: Afskrivningslov8Input) -> input.negativ_saldo_opståelsesår + 1
-| exception al8_forlænget_udligningsfrist afskrivningslov8_seneste_udligningsår(input: Afskrivningslov8Input) -> match input.fristforlængelse { | Al8ForlængetFrist(til_indkomstår, _, _, _, _, _, _) -> til_indkomstår | _ -> input.negativ_saldo_opståelsesår + 1 } under afskrivningslov8_fristforlængelse_gyldig(input)
-| afskrivningslov8_indtægtsføring_i_opståelsesåret_kroner(input: Afskrivningslov8Input) -> 0
-| exception al8_frivillig_indtægtsføring_i_opståelsesåret afskrivningslov8_indtægtsføring_i_opståelsesåret_kroner(input: Afskrivningslov8Input) -> afskrivningslov8_negativ_saldo_kroner(input.saldi_før_udligning, input.opgørelsesvalg) under input.indkomstår == input.negativ_saldo_opståelsesår && input.medregnes_i_opståelsesåret
-| afskrivningslov8_indtægtsføring_ved_frist_kroner(input: Afskrivningslov8Input) -> 0
-| exception al8_pligtig_indtægtsføring_ved_frist afskrivningslov8_indtægtsføring_ved_frist_kroner(input: Afskrivningslov8Input) -> afskrivningslov8_negativ_saldo_kroner(afskrivningslov8_saldi_efter_udligning(input.saldi_før_udligning, input.udlignende_anskaffelser), input.opgørelsesvalg) under input.medregnes_i_opståelsesåret == Falskt && input.indkomstår >= afskrivningslov8_seneste_udligningsår(input)
-| afskrivningslov8_fremført_negativ_saldo_kroner(input: Afskrivningslov8Input) -> 0
-| exception al8_negativ_saldo_fremføres afskrivningslov8_fremført_negativ_saldo_kroner(input: Afskrivningslov8Input) -> afskrivningslov8_negativ_saldo_kroner(afskrivningslov8_saldi_efter_udligning(input.saldi_før_udligning, input.udlignende_anskaffelser), input.opgørelsesvalg) under input.medregnes_i_opståelsesåret == Falskt && input.indkomstår < afskrivningslov8_seneste_udligningsår(input)
+| afskrivningslov8_seneste_udligningsår(input: Afskrivningslov8Input): Int -> input.negativ_saldo_opståelsesår + 1
+| exception al8_forlænget_udligningsfrist afskrivningslov8_seneste_udligningsår(input) -> match input.fristforlængelse { | Al8ForlængetFrist(til_indkomstår, _, _, _, _, _, _) -> til_indkomstår | _ -> input.negativ_saldo_opståelsesår + 1 } under afskrivningslov8_fristforlængelse_gyldig(input)
+| afskrivningslov8_indtægtsføring_i_opståelsesåret_kroner(input: Afskrivningslov8Input): Int -> 0
+| exception al8_frivillig_indtægtsføring_i_opståelsesåret afskrivningslov8_indtægtsføring_i_opståelsesåret_kroner(input) -> afskrivningslov8_negativ_saldo_kroner(input.saldi_før_udligning, input.opgørelsesvalg) under input.indkomstår == input.negativ_saldo_opståelsesår && input.medregnes_i_opståelsesåret
+| afskrivningslov8_indtægtsføring_ved_frist_kroner(input: Afskrivningslov8Input): Int -> 0
+| exception al8_pligtig_indtægtsføring_ved_frist afskrivningslov8_indtægtsføring_ved_frist_kroner(input) -> afskrivningslov8_negativ_saldo_kroner(afskrivningslov8_saldi_efter_udligning(input.saldi_før_udligning, input.udlignende_anskaffelser), input.opgørelsesvalg) under input.medregnes_i_opståelsesåret == Falskt && input.indkomstår >= afskrivningslov8_seneste_udligningsår(input)
+| afskrivningslov8_fremført_negativ_saldo_kroner(input: Afskrivningslov8Input): Int -> 0
+| exception al8_negativ_saldo_fremføres afskrivningslov8_fremført_negativ_saldo_kroner(input) -> afskrivningslov8_negativ_saldo_kroner(afskrivningslov8_saldi_efter_udligning(input.saldi_før_udligning, input.udlignende_anskaffelser), input.opgørelsesvalg) under input.medregnes_i_opståelsesåret == Falskt && input.indkomstår < afskrivningslov8_seneste_udligningsår(input)
 | afskrivningslov8_resultat(input: Afskrivningslov8Input) -> Afskrivningslov8Resultat(
     skatteyder = input.skatteyder,
     negativ_saldo_opståelsesår = input.negativ_saldo_opståelsesår,
@@ -1629,12 +1629,12 @@ for det indkomstår, hvori salget finder sted.
     tab_udskudt_til_sidste_aktiv_kroner = if input.virksomhed_solgt_eller_ophørt { afskrivningslov9_udskudt_tab_kroner(input) } else { 0 },
     positiv_saldo_videreført_kroner = if input.virksomhed_solgt_eller_ophørt { afskrivningslov9_udskudt_tab_kroner(input) } else { 0 }
 )
-| afskrivningslov9_efterfølgende_saldo_nedbragt_kroner(input: Afskrivningslov9EfterfølgendeSalgInput) -> 0
-| exception al9_stk2_salg_nedbringer_saldo afskrivningslov9_efterfølgende_saldo_nedbragt_kroner(input: Afskrivningslov9EfterfølgendeSalgInput) -> penge_mindste_beløb(penge_positivt_beløb(input.videreført_positiv_saldo_primo_kroner), penge_positivt_beløb(input.salgssum_kroner)) under input.salg_omfattet_af_stk2
-| afskrivningslov9_efterfølgende_skattepligtigt_kroner(input: Afskrivningslov9EfterfølgendeSalgInput) -> penge_positivt_beløb(input.salgssum_kroner)
-| exception al9_stk2_kun_saldooverskud_skattepligtigt afskrivningslov9_efterfølgende_skattepligtigt_kroner(input: Afskrivningslov9EfterfølgendeSalgInput) -> penge_positivt_beløb(penge_positivt_beløb(input.salgssum_kroner) - penge_positivt_beløb(input.videreført_positiv_saldo_primo_kroner)) under input.salg_omfattet_af_stk2
-| afskrivningslov9_efterfølgende_endeligt_tab_kroner(input: Afskrivningslov9EfterfølgendeSalgInput) -> 0
-| exception al9_sidste_aktiv_udløser_resttab afskrivningslov9_efterfølgende_endeligt_tab_kroner(input: Afskrivningslov9EfterfølgendeSalgInput) -> penge_positivt_beløb(penge_positivt_beløb(input.videreført_positiv_saldo_primo_kroner) - penge_positivt_beløb(input.salgssum_kroner)) under input.salg_omfattet_af_stk2 && input.sidste_driftsmiddel_eller_skib_solgt
+| afskrivningslov9_efterfølgende_saldo_nedbragt_kroner(input: Afskrivningslov9EfterfølgendeSalgInput): Int -> 0
+| exception al9_stk2_salg_nedbringer_saldo afskrivningslov9_efterfølgende_saldo_nedbragt_kroner(input) -> penge_mindste_beløb(penge_positivt_beløb(input.videreført_positiv_saldo_primo_kroner), penge_positivt_beløb(input.salgssum_kroner)) under input.salg_omfattet_af_stk2
+| afskrivningslov9_efterfølgende_skattepligtigt_kroner(input: Afskrivningslov9EfterfølgendeSalgInput): Int -> penge_positivt_beløb(input.salgssum_kroner)
+| exception al9_stk2_kun_saldooverskud_skattepligtigt afskrivningslov9_efterfølgende_skattepligtigt_kroner(input) -> penge_positivt_beløb(penge_positivt_beløb(input.salgssum_kroner) - penge_positivt_beløb(input.videreført_positiv_saldo_primo_kroner)) under input.salg_omfattet_af_stk2
+| afskrivningslov9_efterfølgende_endeligt_tab_kroner(input: Afskrivningslov9EfterfølgendeSalgInput): Int -> 0
+| exception al9_sidste_aktiv_udløser_resttab afskrivningslov9_efterfølgende_endeligt_tab_kroner(input) -> penge_positivt_beløb(penge_positivt_beløb(input.videreført_positiv_saldo_primo_kroner) - penge_positivt_beløb(input.salgssum_kroner)) under input.salg_omfattet_af_stk2 && input.sidste_driftsmiddel_eller_skib_solgt
 | afskrivningslov9_efterfølgende_salg_resultat(input: Afskrivningslov9EfterfølgendeSalgInput) -> Afskrivningslov9EfterfølgendeSalgResultat(
     indkomstår = input.indkomstår,
     skatteyder = input.skatteyder,
@@ -1677,8 +1677,8 @@ også behandles efter de nævnte regler.
 | afskrivningslov10_aktiv_omfattet(input: Afskrivningslov10Input) -> input.beregnet_til_bygning_og_reparation_af_skibe && input.aktivart != Al10AndetAktiv && input.erhvervsmæssig_anvendelsesandel_basispoint == 10000
 | afskrivningslov10_minimum_opfyldt(input: Afskrivningslov10Input, parametre: AfskrivningslovÅrsparametre) -> input.indkomstår == parametre.indkomstår && penge_positivt_beløb(input.samlet_anskaffelsessum_i_indkomståret_kroner) >= parametre.dok_og_bedding_minimum_kroner
 | afskrivningslov10_valg_gyldigt(input: Afskrivningslov10Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov10_aktiv_omfattet(input) && afskrivningslov10_minimum_opfyldt(input, parametre) && input.vælger_par5_til_par9 && input.fortjeneste_mv_behandles_efter_par5_til_par9
-| afskrivningslov10_til_par5_saldo_kroner(input: Afskrivningslov10Input, parametre: AfskrivningslovÅrsparametre) -> 0
-| exception al10_dok_bedding_til_par5_saldo afskrivningslov10_til_par5_saldo_kroner(input: Afskrivningslov10Input, parametre: AfskrivningslovÅrsparametre) -> penge_positivt_beløb(input.samlet_anskaffelsessum_i_indkomståret_kroner) under afskrivningslov10_valg_gyldigt(input, parametre)
+| afskrivningslov10_til_par5_saldo_kroner(input: Afskrivningslov10Input, parametre: AfskrivningslovÅrsparametre): Int -> 0
+| exception al10_dok_bedding_til_par5_saldo afskrivningslov10_til_par5_saldo_kroner(input, parametre) -> penge_positivt_beløb(input.samlet_anskaffelsessum_i_indkomståret_kroner) under afskrivningslov10_valg_gyldigt(input, parametre)
 | afskrivningslov10_resultat(input: Afskrivningslov10Input, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov10Resultat(
     indkomstår = input.indkomstår,
     skatteyder = input.skatteyder,
@@ -1745,10 +1745,10 @@ tilsvarende anvendelse.
 | afskrivningslov11_aktiv_resultat(input: Afskrivningslov11Input) -> afskrivningslov_par1_par2_resultat(input.aktiv_input)
 | afskrivningslov_benyttelse_gyldig(benyttelse: AfskrivningslovBenyttelse) -> benyttelse.samlet_benyttelse_enheder > 0 && benyttelse.erhvervsmæssig_benyttelse_enheder >= 0 && benyttelse.erhvervsmæssig_benyttelse_enheder <= benyttelse.samlet_benyttelse_enheder
 | afskrivningslov_benyttelse_er_blandet(benyttelse: AfskrivningslovBenyttelse) -> afskrivningslov_benyttelse_gyldig(benyttelse) && benyttelse.erhvervsmæssig_benyttelse_enheder > 0 && benyttelse.erhvervsmæssig_benyttelse_enheder < benyttelse.samlet_benyttelse_enheder
-| afskrivningslov_benyttelse_erhvervsandel_basispoint(benyttelse: AfskrivningslovBenyttelse) -> 0
-| exception al_benyttelse_gyldig_andel afskrivningslov_benyttelse_erhvervsandel_basispoint(benyttelse: AfskrivningslovBenyttelse) -> benyttelse.erhvervsmæssig_benyttelse_enheder * 10000 / benyttelse.samlet_benyttelse_enheder under afskrivningslov_benyttelse_gyldig(benyttelse)
-| afskrivningslov_beløb_gange_forhold_afrundet_kroner(beløb_kroner: Heltal, tæller: Heltal, nævner: Heltal) -> 0
-| exception al_positivt_gyldigt_forhold afskrivningslov_beløb_gange_forhold_afrundet_kroner(beløb_kroner: Heltal, tæller: Heltal, nævner: Heltal) -> (penge_positivt_beløb(beløb_kroner) * tæller + nævner / 2) / nævner under beløb_kroner > 0 && tæller > 0 && nævner > 0 && tæller <= nævner
+| afskrivningslov_benyttelse_erhvervsandel_basispoint(benyttelse: AfskrivningslovBenyttelse): Int -> 0
+| exception al_benyttelse_gyldig_andel afskrivningslov_benyttelse_erhvervsandel_basispoint(benyttelse) -> benyttelse.erhvervsmæssig_benyttelse_enheder * 10000 / benyttelse.samlet_benyttelse_enheder under afskrivningslov_benyttelse_gyldig(benyttelse)
+| afskrivningslov_beløb_gange_forhold_afrundet_kroner(beløb_kroner: Heltal, tæller: Heltal, nævner: Heltal): Int -> 0
+| exception al_positivt_gyldigt_forhold afskrivningslov_beløb_gange_forhold_afrundet_kroner(beløb_kroner, tæller, nævner) -> (penge_positivt_beløb(beløb_kroner) * tæller + nævner / 2) / nævner under beløb_kroner > 0 && tæller > 0 && nævner > 0 && tæller <= nævner
 | afskrivningslov_beløb_efter_benyttelse_kroner(beløb_kroner: Heltal, benyttelse: AfskrivningslovBenyttelse) -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(beløb_kroner, benyttelse.erhvervsmæssig_benyttelse_enheder, benyttelse.samlet_benyttelse_enheder)
 | afskrivningslov11_aktiv_resultat_matcher_benyttelse(input: Afskrivningslov11Input) -> afskrivningslov11_aktiv_resultat(input).erhvervsmæssig_anvendelsesandel_basispoint == afskrivningslov_benyttelse_erhvervsandel_basispoint(input.årets_benyttelse)
 | afskrivningslov11_omfattet(input: Afskrivningslov11Input) -> afskrivningslov11_aktiv_resultat(input).omfattet_af_kapitel2 && afskrivningslov_benyttelse_er_blandet(input.årets_benyttelse) && afskrivningslov11_aktiv_resultat_matcher_benyttelse(input)
@@ -1768,9 +1768,9 @@ tilsvarende anvendelse.
     | Al11OrdinærAfskrivning(sats_basispoint) -> afskrivningslov11_omfattet(input) && afskrivningslov11_årsparametre_matcher(input, parametre) && sats_basispoint >= 0 && sats_basispoint <= afskrivningslov11_højeste_sats_basispoint(input.afskrivningskategori, parametre)
     | Al11FuldRestfradrag -> afskrivningslov11_omfattet(input) && afskrivningslov11_årsparametre_matcher(input, parametre) && afskrivningslov11_afskrivningsgrundlag_kroner(input) > 0 && afskrivningslov11_afskrivningsgrundlag_kroner(input) <= parametre.blandet_småaktivgrænse_kroner
 }
-| afskrivningslov11_beregnet_afskrivning_kroner(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre) -> 0
-| exception al11_ordinær_beregnet_afskrivning afskrivningslov11_beregnet_afskrivning_kroner(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre) -> penge_beløb_gange_basispoint_kroner(afskrivningslov11_afskrivningsgrundlag_kroner(input), afskrivningslov11_valgt_sats_basispoint(input.valg)) under afskrivningslov11_valg_gyldigt(input, parametre) && afskrivningslov11_valgt_sats_basispoint(input.valg) > 0
-| exception al11_fuldt_restfradrag afskrivningslov11_beregnet_afskrivning_kroner(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov11_afskrivningsgrundlag_kroner(input) under afskrivningslov11_valg_gyldigt(input, parametre) && input.valg == Al11FuldRestfradrag
+| afskrivningslov11_beregnet_afskrivning_kroner(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre): Int -> 0
+| exception al11_ordinær_beregnet_afskrivning afskrivningslov11_beregnet_afskrivning_kroner(input, parametre) -> penge_beløb_gange_basispoint_kroner(afskrivningslov11_afskrivningsgrundlag_kroner(input), afskrivningslov11_valgt_sats_basispoint(input.valg)) under afskrivningslov11_valg_gyldigt(input, parametre) && afskrivningslov11_valgt_sats_basispoint(input.valg) > 0
+| exception al11_fuldt_restfradrag afskrivningslov11_beregnet_afskrivning_kroner(input, parametre) -> afskrivningslov11_afskrivningsgrundlag_kroner(input) under afskrivningslov11_valg_gyldigt(input, parametre) && input.valg == Al11FuldRestfradrag
 | afskrivningslov11_fradrag_kroner(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov_beløb_efter_benyttelse_kroner(afskrivningslov11_beregnet_afskrivning_kroner(input, parametre), input.årets_benyttelse)
 | afskrivningslov11_årsopgørelse(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov11Årsopgørelse(
     indkomstår = input.indkomstår,
@@ -1856,18 +1856,18 @@ Hvis afhændelsen sker med tab, kan der trækkes en tilsvarende del af tabet fra
     | Al12TidligereÅr(årsopgørelser) -> foldl(årsopgørelser, 0, |sum, årsopgørelse| sum + årsopgørelse.benyttelse.samlet_benyttelse_enheder)
     | Al12SammeIndkomstår(benyttelse) -> benyttelse.samlet_benyttelse_enheder
 }
-| afskrivningslov12_erhvervsandel_basispoint(grundlag: Afskrivningslov12Benyttelsesgrundlag) -> 0
-| exception al12_gyldigt_benyttelsesgrundlag afskrivningslov12_erhvervsandel_basispoint(grundlag: Afskrivningslov12Benyttelsesgrundlag) -> afskrivningslov12_erhvervsmæssig_benyttelse_enheder(grundlag) * 10000 / afskrivningslov12_samlet_benyttelse_enheder(grundlag) under afskrivningslov12_benyttelsesgrundlag_gyldigt(grundlag)
+| afskrivningslov12_erhvervsandel_basispoint(grundlag: Afskrivningslov12Benyttelsesgrundlag): Int -> 0
+| exception al12_gyldigt_benyttelsesgrundlag afskrivningslov12_erhvervsandel_basispoint(grundlag) -> afskrivningslov12_erhvervsmæssig_benyttelse_enheder(grundlag) * 10000 / afskrivningslov12_samlet_benyttelse_enheder(grundlag) under afskrivningslov12_benyttelsesgrundlag_gyldigt(grundlag)
 | afskrivningslov12_omfattet(input: Afskrivningslov12Input) -> afskrivningslov12_aktiv_resultat(input).omfattet_af_kapitel2 && afskrivningslov12_benyttelsesgrundlag_gyldigt(input.benyttelsesgrundlag)
 | afskrivningslov12_uafskrevet_beløb_primo_kroner(input: Afskrivningslov12Input) -> penge_positivt_beløb(penge_positivt_beløb(input.anskaffelsessum_kroner) + penge_positivt_beløb(input.forbedringsudgifter_før_salgsåret_kroner) - afskrivningslov12_beregnede_afskrivninger_kroner(input.benyttelsesgrundlag))
 | afskrivningslov12_skattemæssig_restværdi_i_salgsåret_kroner(input: Afskrivningslov12Input) -> afskrivningslov12_uafskrevet_beløb_primo_kroner(input) + penge_positivt_beløb(input.forbedringsudgifter_i_salgsåret_kroner)
 | afskrivningslov12_fortjeneste_før_andel_kroner(input: Afskrivningslov12Input) -> penge_positivt_beløb(penge_positivt_beløb(input.salgssum_kroner) - afskrivningslov12_skattemæssig_restværdi_i_salgsåret_kroner(input))
 | afskrivningslov12_tab_før_andel_kroner(input: Afskrivningslov12Input) -> penge_positivt_beløb(afskrivningslov12_skattemæssig_restværdi_i_salgsåret_kroner(input) - penge_positivt_beløb(input.salgssum_kroner))
 | afskrivningslov12_beløb_efter_erhvervsandel_kroner(input: Afskrivningslov12Input, beløb_kroner: Heltal) -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(beløb_kroner, afskrivningslov12_erhvervsmæssig_benyttelse_enheder(input.benyttelsesgrundlag), afskrivningslov12_samlet_benyttelse_enheder(input.benyttelsesgrundlag))
-| afskrivningslov12_skattepligtig_fortjeneste_kroner(input: Afskrivningslov12Input) -> 0
-| exception al12_fortjeneste_efter_erhvervsandel afskrivningslov12_skattepligtig_fortjeneste_kroner(input: Afskrivningslov12Input) -> afskrivningslov12_beløb_efter_erhvervsandel_kroner(input, afskrivningslov12_fortjeneste_før_andel_kroner(input)) under afskrivningslov12_omfattet(input)
-| afskrivningslov12_fradragsberettiget_tab_kroner(input: Afskrivningslov12Input) -> 0
-| exception al12_tab_efter_erhvervsandel afskrivningslov12_fradragsberettiget_tab_kroner(input: Afskrivningslov12Input) -> afskrivningslov12_beløb_efter_erhvervsandel_kroner(input, afskrivningslov12_tab_før_andel_kroner(input)) under afskrivningslov12_omfattet(input)
+| afskrivningslov12_skattepligtig_fortjeneste_kroner(input: Afskrivningslov12Input): Int -> 0
+| exception al12_fortjeneste_efter_erhvervsandel afskrivningslov12_skattepligtig_fortjeneste_kroner(input) -> afskrivningslov12_beløb_efter_erhvervsandel_kroner(input, afskrivningslov12_fortjeneste_før_andel_kroner(input)) under afskrivningslov12_omfattet(input)
+| afskrivningslov12_fradragsberettiget_tab_kroner(input: Afskrivningslov12Input): Int -> 0
+| exception al12_tab_efter_erhvervsandel afskrivningslov12_fradragsberettiget_tab_kroner(input) -> afskrivningslov12_beløb_efter_erhvervsandel_kroner(input, afskrivningslov12_tab_før_andel_kroner(input)) under afskrivningslov12_omfattet(input)
 | afskrivningslov12_resultat(input: Afskrivningslov12Input) -> Afskrivningslov12Resultat(
     indkomstår = input.indkomstår,
     skatteyder = afskrivningslov12_aktiv_resultat(input).skatteyder,
@@ -1928,10 +1928,10 @@ den skattepligtige indkomst.
 | afskrivningslov13_beregnede_afskrivninger_kroner(årsopgørelser: List(Afskrivningslov11Årsopgørelse)) -> foldl(årsopgørelser, 0, |sum, årsopgørelse| sum + årsopgørelse.beregnet_afskrivning_før_erhvervsandel_kroner)
 | afskrivningslov13_foretagne_afskrivninger_kroner(årsopgørelser: List(Afskrivningslov11Årsopgørelse)) -> foldl(årsopgørelser, 0, |sum, årsopgørelse| sum + årsopgørelse.fradraget_afskrivning_kroner)
 | afskrivningslov13_reparation_omfattet(input: Afskrivningslov13ReparationInput) -> afskrivningslov13_reparation_aktiv_resultat(input).omfattet_af_kapitel2 && afskrivningslov_benyttelse_er_blandet(input.årets_benyttelse) && afskrivningslov13_tidligere_årsopgørelser_gyldige(input.tidligere_årsopgørelser)
-| afskrivningslov13_reparationsoverskud_fradrag_kroner(input: Afskrivningslov13ReparationInput) -> 0
-| exception al13_reparationsudgift_over_erstatning afskrivningslov13_reparationsoverskud_fradrag_kroner(input: Afskrivningslov13ReparationInput) -> afskrivningslov_beløb_efter_benyttelse_kroner(penge_positivt_beløb(input.reparationsudgifter_kroner - input.forsikrings_eller_erstatningssum_kroner), input.årets_benyttelse) under afskrivningslov13_reparation_omfattet(input) && input.reparationsudgifter_kroner > input.forsikrings_eller_erstatningssum_kroner
-| afskrivningslov13_forsikringsoverskud_skattepligtigt_kroner(input: Afskrivningslov13ReparationInput) -> 0
-| exception al13_erstatning_over_reparationsudgift afskrivningslov13_forsikringsoverskud_skattepligtigt_kroner(input: Afskrivningslov13ReparationInput) -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(
+| afskrivningslov13_reparationsoverskud_fradrag_kroner(input: Afskrivningslov13ReparationInput): Int -> 0
+| exception al13_reparationsudgift_over_erstatning afskrivningslov13_reparationsoverskud_fradrag_kroner(input) -> afskrivningslov_beløb_efter_benyttelse_kroner(penge_positivt_beløb(input.reparationsudgifter_kroner - input.forsikrings_eller_erstatningssum_kroner), input.årets_benyttelse) under afskrivningslov13_reparation_omfattet(input) && input.reparationsudgifter_kroner > input.forsikrings_eller_erstatningssum_kroner
+| afskrivningslov13_forsikringsoverskud_skattepligtigt_kroner(input: Afskrivningslov13ReparationInput): Int -> 0
+| exception al13_erstatning_over_reparationsudgift afskrivningslov13_forsikringsoverskud_skattepligtigt_kroner(input) -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(
     penge_positivt_beløb(input.forsikrings_eller_erstatningssum_kroner - input.reparationsudgifter_kroner),
     afskrivningslov13_foretagne_afskrivninger_kroner(input.tidligere_årsopgørelser),
     afskrivningslov13_beregnede_afskrivninger_kroner(input.tidligere_årsopgørelser)
@@ -2114,7 +2114,7 @@ i den bygning, hvori ejerlejligheden findes.
     | omfattet_af_stk1() -> input.anvendelse == Al15TjenerUdelukkendeBygning && bygning_resultat().omfattet_af_par14 && input.har_kunnet_afskrives_efter_stk2_eller_stk3 == Falskt && udelukket_efter_stk4() == Falskt
     | omfattet_af_stk2() -> omfattet_af_stk1() == Falskt && udelukkende_erhvervsmæssigt_benyttet() && udelukket_efter_stk4() == Falskt
     | omfattet_af_stk3() -> omfattet_af_stk1() == Falskt && blandet_benyttet() && udelukket_efter_stk4() == Falskt
-    | behandling() -> Al15IkkeAfskrivningsberettiget
+    | behandling(): Afskrivningslov15Behandling -> Al15IkkeAfskrivningsberettiget
     | exception al15_installation_som_bygning behandling() -> Al15SomBygning under omfattet_af_stk1()
     | exception al15_særskilt_erhvervsinstallation behandling() -> Al15SærskiltUdelukkendeErhverv under omfattet_af_stk2()
     | exception al15_særskilt_blandet_installation behandling() -> Al15SærskiltBlandet under omfattet_af_stk3()
@@ -2184,7 +2184,7 @@ og ombygningen eller forbedringen benyttes erhvervsmæssigt.
         | Al16Anskaffelse -> input.aktiv_identifikation != "" && aktiv_omfattet_af_kapitel3() && input.erhvervet_eller_opført && input.benyttes_erhvervsmæssigt
         | Al16OmbygningEllerForbedring -> input.aktiv_identifikation != "" && aktiv_omfattet_af_kapitel3() && input.udgift_afholdt && input.benyttes_erhvervsmæssigt
     }
-    | afskrivningsberettiget_fra_indkomstår() -> 0
+    | afskrivningsberettiget_fra_indkomstår(): Int -> 0
     | exception al16_betingelser_fastlægger_første_år afskrivningsberettiget_fra_indkomstår() -> input.indkomstår under betingelser_opfyldt()
     | resultat() -> Afskrivningslov16Resultat(
         aktiv_identifikation = input.aktiv_identifikation,
@@ -2295,15 +2295,15 @@ først erhvervede ideelle andel for den først afståede.
     | egen_levetid_udløser_forhøjelse() -> hvis erhvervet_før_2023() { input.antaget_levetid_år > 0 && input.antaget_levetid_år <= 25 } ellers { input.antaget_levetid_år > 0 && input.antaget_levetid_år <= 33 }
     | accessorisk_forhøjelse_gælder() -> afskrivningslov17_aktiv_er_accessorisk_bygning(par16_resultat().aktiv) && afskrivningslov17_accessorisk_hovedbygnings_levetid_år(input.accessorisk_hovedbygning) > 0 && input.accessorisk_hovedbygning != Al17IngenAccessoriskHovedbygning
     | forhøjet_sats_gælder() -> egen_levetid_udløser_forhøjelse() || accessorisk_forhøjelse_gælder()
-    | forhøjelseslevetid_år() -> 0
+    | forhøjelseslevetid_år(): Int -> 0
     | exception al17_egen_levetid_forhøjer_sats forhøjelseslevetid_år() -> input.antaget_levetid_år under egen_levetid_udløser_forhøjelse()
     | exception al17_accessorisk_hovedbygnings_levetid forhøjelseslevetid_år() -> afskrivningslov17_accessorisk_hovedbygnings_levetid_år(input.accessorisk_hovedbygning) under egen_levetid_udløser_forhøjelse() == Falskt && accessorisk_forhøjelse_gælder()
     | gammel_stk3_forhøjelse_gælder() -> erhvervet_før_2023() && (egen_levetid_udløser_forhøjelse() || (input.accessorisk_hovedbygning != Al17IngenAccessoriskHovedbygning && afskrivningslov17_accessorisk_hovedbygnings_anskaffelsesår(input.accessorisk_hovedbygning) < 2023 && match input.accessorisk_hovedbygning { | Al17HovedbygningEfterStk3(_, _) -> Sandt | _ -> Falskt }))
     | ordinær_højeste_sats_basispoint() -> hvis erhvervet_før_2023() { 400 } ellers { 300 }
-    | højeste_sats_basispoint() -> ordinær_højeste_sats_basispoint()
+    | højeste_sats_basispoint(): Int -> ordinær_højeste_sats_basispoint()
     | exception al17_stk2_lige_store_årlige_beløb højeste_sats_basispoint() -> 10000 / forhøjelseslevetid_år() under forhøjet_sats_gælder() && gammel_stk3_forhøjelse_gælder() == Falskt
     | exception al17_stk3_tre_procent_plus_levetid højeste_sats_basispoint() -> 300 + 10000 / forhøjelseslevetid_år() under forhøjet_sats_gælder() && gammel_stk3_forhøjelse_gælder()
-    | højeste_før_historik_kroner() -> penge_beløb_gange_basispoint_kroner(afskrivningsgrundlag_kroner(), ordinær_højeste_sats_basispoint())
+    | højeste_før_historik_kroner(): Int -> penge_beløb_gange_basispoint_kroner(afskrivningsgrundlag_kroner(), ordinær_højeste_sats_basispoint())
     | exception al17_stk2_højeste_beløb højeste_før_historik_kroner() -> afskrivningsgrundlag_kroner() / forhøjelseslevetid_år() under forhøjet_sats_gælder() && gammel_stk3_forhøjelse_gælder() == Falskt
     | exception al17_stk3_højeste_beløb højeste_før_historik_kroner() -> penge_beløb_gange_basispoint_kroner(afskrivningsgrundlag_kroner(), 300) + afskrivningsgrundlag_kroner() / forhøjelseslevetid_år() under forhøjet_sats_gælder() && gammel_stk3_forhøjelse_gælder()
     | resterende_før_året_kroner() -> penge_positivt_beløb(afskrivningsgrundlag_kroner() - afskrivningslov17_tidligere_beregnede_afskrivninger_kroner(input.tidligere_årsopgørelser))
@@ -2314,7 +2314,7 @@ først erhvervede ideelle andel for den først afståede.
         | Al17IngenAfskrivning -> kan_afskrives_i_indkomståret()
         | Al17ValgtAfskrivning(beløb_kroner) -> kan_afskrives_i_indkomståret() && beløb_kroner >= 0 && beløb_kroner <= højeste_afskrivning_kroner()
     }
-    | beregnet_afskrivning_kroner() -> 0
+    | beregnet_afskrivning_kroner(): Int -> 0
     | exception al17_gyldigt_valgt_afskrivningsbeløb beregnet_afskrivning_kroner() -> afskrivningslov17_valgt_beregnet_afskrivning_kroner(input.valg) under valg_gyldigt()
     | fradrag_kroner() -> hvis afskrivningslov_kapitel3_aktiv_er_blandet_installation(par16_resultat().aktiv) { afskrivningslov_beløb_efter_benyttelse_kroner(beregnet_afskrivning_kroner(), afskrivningslov_kapitel3_aktiv_benyttelse(par16_resultat().aktiv)) } ellers { beregnet_afskrivning_kroner() }
     | samlede_beregnede_afskrivninger_kroner() -> afskrivningslov17_tidligere_beregnede_afskrivninger_kroner(input.tidligere_årsopgørelser) + beregnet_afskrivning_kroner()
@@ -2441,16 +2441,16 @@ stk. 2.
     | forbedringsudgift_omfattet() -> input.udgiften_er_tilbygning == Falskt || input.tilbygning_er_naturlig_del
     | resterende_fem_procent_grænse_kroner() -> penge_positivt_beløb(fem_procent_grænse_kroner() - vedligeholdelse_kroner())
     | kan_straksfradrage() -> aktivets_par16_resultat().aktiv_omfattet_af_kapitel3 && afskrivningslov18_aktiv_kan_straksfradrages(aktivets_par16_resultat().aktiv) && input.indkomstår != aktivets_anskaffelsesår() && par20_resultat().indkomstår == input.indkomstår && par20_resultat().aktiv == aktivets_par16_resultat().aktiv && par20_resultat().kan_afskrives_i_indkomståret && afskrivningslov18_fordeling_gyldig(aktivets_par16_resultat().aktiv, input.fordeling) && forbedringsudgift_omfattet()
-    | højeste_straksfradrag_før_fordeling_kroner() -> 0
+    | højeste_straksfradrag_før_fordeling_kroner(): Int -> 0
     | exception al18_fem_procent_efter_vedligeholdelse højeste_straksfradrag_før_fordeling_kroner() -> penge_mindste_beløb(forbedringsudgift_efter_forsikring_kroner(), resterende_fem_procent_grænse_kroner()) under kan_straksfradrage()
     | valg_gyldigt() -> match input.valg {
         | Al18IntetStraksfradrag -> Sandt
         | Al18ValgtStraksfradrag(beløb_kroner) -> kan_straksfradrage() && beløb_kroner >= 0 && beløb_kroner <= højeste_straksfradrag_før_fordeling_kroner()
     }
-    | straksfradrag_før_fordeling_kroner() -> 0
+    | straksfradrag_før_fordeling_kroner(): Int -> 0
     | exception al18_gyldigt_valgt_straksfradrag straksfradrag_før_fordeling_kroner() -> afskrivningslov18_valgt_straksfradrag_før_fordeling_kroner(input.valg) under valg_gyldigt()
     | straksfradrag_kroner() -> afskrivningslov18_beløb_efter_fordeling_kroner(straksfradrag_før_fordeling_kroner(), input.fordeling)
-    | rest_før_fordeling_kroner() -> 0
+    | rest_før_fordeling_kroner(): Int -> 0
     | exception al18_omfattet_forbedringsrest rest_før_fordeling_kroner() -> penge_positivt_beløb(forbedringsudgift_efter_forsikring_kroner() - straksfradrag_før_fordeling_kroner()) under aktivets_par16_resultat().aktiv_omfattet_af_kapitel3 && forbedringsudgift_omfattet() && afskrivningslov18_fordeling_gyldig(aktivets_par16_resultat().aktiv, input.fordeling)
     | rest_til_særskilt_afskrivning_kroner() -> match input.fordeling {
         | Al18BlandetInstallation(_) -> rest_før_fordeling_kroner()
@@ -2636,7 +2636,7 @@ efter stk. 1.
     | etageareal_efter_ejerbolig_kvadratmeter() -> penge_positivt_beløb(samlet_etageareal_kvadratmeter() - ejerbolig_etageareal_kvadratmeter())
     | afskrivningsberettiget_etageareal_kvadratmeter() -> penge_positivt_beløb(input.afskrivningsberettiget_etageareal_kvadratmeter)
     | etageareal_gyldigt() -> etageareal_efter_ejerbolig_kvadratmeter() > 0 && afskrivningsberettiget_etageareal_kvadratmeter() <= etageareal_efter_ejerbolig_kvadratmeter()
-    | afskrivningsberettiget_etageareal_basispoint() -> 0
+    | afskrivningsberettiget_etageareal_basispoint(): Int -> 0
     | exception al19_gyldigt_etageareal_forhold afskrivningsberettiget_etageareal_basispoint() -> afskrivningsberettiget_etageareal_kvadratmeter() * 10000 / etageareal_efter_ejerbolig_kvadratmeter() under etageareal_gyldigt()
     | under_25_procent() -> afskrivningsberettiget_etageareal_basispoint() > 0 && afskrivningsberettiget_etageareal_basispoint() < 2500
     | mindst_300_kvadratmeter_opfyldt() -> afskrivningsberettiget_etageareal_kvadratmeter() >= 300
@@ -3052,13 +3052,13 @@ efter § 39, stk. 1 og 2, foretagne afskrivninger.
     | salgssum_gyldig() -> salgssum_resultat().input_gyldigt && afskrivningslov45_kontantværdikilde_matcher_kapitel3_aktiv(input.samlet_salgssum, værdi().aktiv, værdi().aktiv_identifikation)
     | omfattet_af_par21() -> input.salg_gennemført && værdi().grundlag_gyldigt && salgssum_gyldig()
     | samlet_salgssum_kroner() -> hvis salgssum_gyldig() { salgssum_resultat().kontantværdi_kroner } ellers { 0 }
-    | salgssum_til_par21_kroner() -> samlet_salgssum_kroner()
+    | salgssum_til_par21_kroner(): Int -> samlet_salgssum_kroner()
     | exception al21_par19_forholdsmæssig_salgssum salgssum_til_par21_kroner() -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(samlet_salgssum_kroner(), værdi().afskrivningsberettiget_anskaffelsesgrundlag_kroner, værdi().samlede_anskaffelses_og_forbedringsudgifter_kroner) under omfattet_af_par21() && match værdi().grundlag { | Al21Par19Grundlag(_, _) -> Sandt | _ -> Falskt }
     | rå_fortjeneste_kroner() -> hvis omfattet_af_par21() { penge_positivt_beløb(salgssum_til_par21_kroner() - værdi().nedskrevet_værdi_kroner) } ellers { 0 }
     | rå_tab_kroner() -> hvis omfattet_af_par21() { penge_positivt_beløb(værdi().nedskrevet_værdi_kroner - salgssum_til_par21_kroner()) } ellers { 0 }
-    | forholdsmæssig_fortjeneste_kroner() -> rå_fortjeneste_kroner()
+    | forholdsmæssig_fortjeneste_kroner(): Int -> rå_fortjeneste_kroner()
     | exception al21_stk4_blandet_fortjeneste forholdsmæssig_fortjeneste_kroner() -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(rå_fortjeneste_kroner(), værdi().samlede_foretagne_afskrivninger_kroner, værdi().samlede_beregnede_afskrivninger_kroner) under værdi().blandet_installation_efter_par15_stk3 && værdi().samlede_beregnede_afskrivninger_kroner > 0
-    | forholdsmæssigt_tab_kroner() -> rå_tab_kroner()
+    | forholdsmæssigt_tab_kroner(): Int -> rå_tab_kroner()
     | exception al21_stk4_blandet_tab forholdsmæssigt_tab_kroner() -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(rå_tab_kroner(), værdi().samlede_foretagne_afskrivninger_kroner, værdi().samlede_beregnede_afskrivninger_kroner) under værdi().blandet_installation_efter_par15_stk3 && værdi().samlede_beregnede_afskrivninger_kroner > 0
     | beregnede_genvundne_afskrivninger_før_par24_kroner() -> penge_mindste_beløb(værdi().samlede_foretagne_afskrivninger_kroner, forholdsmæssig_fortjeneste_kroner())
     | beregnet_tab_før_par24_og_kontrol_kroner() -> forholdsmæssigt_tab_kroner()
@@ -3147,7 +3147,7 @@ eventuelle salgssum for bygninger, installationer eller materialer m.v.
     | omfattet_af_par22() -> værdi().grundlag_gyldigt && begivenhed_matcher_aktiv()
     | salgssum_kroner() -> penge_positivt_beløb(input.salgssum_for_bygning_installation_eller_materialer_kroner)
     | tab_før_blandet_forhold_kroner() -> hvis omfattet_af_par22() { penge_positivt_beløb(værdi().nedskrevet_værdi_kroner - salgssum_kroner()) } ellers { 0 }
-    | beregnet_nedrivningstab_kroner() -> tab_før_blandet_forhold_kroner()
+    | beregnet_nedrivningstab_kroner(): Int -> tab_før_blandet_forhold_kroner()
     | exception al22_stk1_blandet_installation beregnet_nedrivningstab_kroner() -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(tab_før_blandet_forhold_kroner(), værdi().samlede_foretagne_afskrivninger_kroner, værdi().samlede_beregnede_afskrivninger_kroner) under værdi().blandet_installation_efter_par15_stk3 && værdi().samlede_beregnede_afskrivninger_kroner > 0
     | femårs_ejertid_opfyldt() -> input.ejertid_før_nedrivning_år >= 5
     | femårs_afskrivningsberettiget_anvendelse_opfyldt() -> input.afskrivningsberettiget_anvendelse_i_ejertiden_år >= 5
@@ -3937,7 +3937,7 @@ virksomhed overstiger grundbeløbet.
 
 # Afskrivningslov29Resultat(aftale: AfskrivningslovForskudsAftale, par28_resultat: Afskrivningslov28Resultat, grundbeløb_resultat: Afskrivningslov29GrundbeløbResultat, bestillings_eller_planlægningsår: Heltal, planlagte_aktiver_gyldige: Boolsk, identifikationer_entydige: Boolsk, levering_eller_færdiggørelse_i_første_til_fjerde_år: Boolsk, samlet_aftalt_eller_beregnet_anskaffelsessum_for_skatteyder_og_virksomhed_kroner: Heltal, grundbeløb_matcher_indkomståret: Boolsk, grundbeløb_oversteget: Boolsk, omfattet_af_par29: Boolsk)
 
-| afskrivningslov29_grundbeløb_resultat_opslag(indkomstår: Heltal) -> Some(Afskrivningslov29GrundbeløbResultat(
+| afskrivningslov29_grundbeløb_resultat_opslag(indkomstår: Heltal): Afskrivningslov29GrundbeløbResultat? -> Some(Afskrivningslov29GrundbeløbResultat(
     indkomstår = indkomstår,
     grundbeløb_2010_niveau_kroner = 1406800,
     reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår),
@@ -3947,7 +3947,7 @@ virksomhed overstiger grundbeløbet.
     ))
 )) under indkomstår >= 2009 && indkomstår <= 2026
 -- Intet opslag uden for kildedomænet; den strikte værdifunktion kræver en værdi.
-| afskrivningslov29_grundbeløb_resultat_opslag(indkomstår: Heltal) -> None
+| afskrivningslov29_grundbeløb_resultat_opslag(indkomstår) -> None
 | afskrivningslov29_grundbeløb_resultat(indkomstår: Heltal) -> head(match afskrivningslov29_grundbeløb_resultat_opslag(indkomstår) { | Some(værdi) -> [værdi] | None -> [] })
 | afskrivningslov29_planlagte_identifikationer(aftale: AfskrivningslovForskudsAftale) -> map(aftale.planlagte_aktiver, |aktiv: AfskrivningslovForskudsPlanlagtAktiv| aktiv.identifikation)
 | afskrivningslov29_identifikationer_entydige(aftale: AfskrivningslovForskudsAftale) -> length(afskrivningslov29_planlagte_identifikationer(aftale)) == length(distinct(afskrivningslov29_planlagte_identifikationer(aftale)))
@@ -5605,15 +5605,15 @@ eller andele af kvoter for de først afståede.
     | anskaffelsessummer_i_året_kroner() -> foldl(input.bevægelser_i_året, 0, |sum, bevægelse| sum + afskrivningslov40c_anskaffelsessum_kroner(bevægelse))
     | afståelsessummer_i_året_kroner() -> foldl(input.bevægelser_i_året, 0, |sum, bevægelse| sum + afskrivningslov40c_afståelsessum_kroner(bevægelse))
     | afståelsesårets_nyanskaffelser_kroner() -> foldl(input.bevægelser_i_året, 0, |sum, bevægelse| sum + afskrivningslov40c_afståelsesårets_nyanskaffelse_kroner(bevægelse))
-    | saldoværdi_ultimo_før_regulering_kroner() -> 0
+    | saldoværdi_ultimo_før_regulering_kroner(): Int -> 0
     | exception al40c_saldo_opgøres saldoværdi_ultimo_før_regulering_kroner() -> input.saldo_primo_kroner + anskaffelsessummer_i_året_kroner() - afståelsessummer_i_året_kroner() under omfattet_af_par40c()
-    | positiv_saldo_uden_fradrag_kroner() -> 0
+    | positiv_saldo_uden_fradrag_kroner(): Int -> 0
     | exception al40c_positiv_saldo_hverken_fradrages_eller_afskrives positiv_saldo_uden_fradrag_kroner() -> saldoværdi_ultimo_før_regulering_kroner() under omfattet_af_par40c() && afskrivningslov40c_årlig_saldoopgørelse(input.begivenhed) && saldoværdi_ultimo_før_regulering_kroner() > 0
-    | negativ_saldo_indtægtsført_kroner() -> 0
+    | negativ_saldo_indtægtsført_kroner(): Int -> 0
     | exception al40c_negativ_saldo_indtægtsføres negativ_saldo_indtægtsført_kroner() -> 0 - saldoværdi_ultimo_før_regulering_kroner() under omfattet_af_par40c() && afskrivningslov40c_årlig_saldoopgørelse(input.begivenhed) && saldoværdi_ultimo_før_regulering_kroner() < 0
-    | saldo_efter_regulering_kroner() -> 0
+    | saldo_efter_regulering_kroner(): Int -> 0
     | exception al40c_positiv_saldo_videreføres saldo_efter_regulering_kroner() -> saldoværdi_ultimo_før_regulering_kroner() under omfattet_af_par40c() && afskrivningslov40c_årlig_saldoopgørelse(input.begivenhed) && saldoværdi_ultimo_før_regulering_kroner() > 0
-    | afståelsesår_resultat_kroner() -> 0
+    | afståelsesår_resultat_kroner(): Int -> 0
     | exception al40c_sidste_aktiv_resultat afståelsesår_resultat_kroner() -> afståelsessummer_i_året_kroner() - (input.saldo_primo_kroner + afståelsesårets_nyanskaffelser_kroner()) under omfattet_af_par40c() && afskrivningslov40c_afståelsesår(input.begivenhed)
     | afståelsesår_fortjeneste_kroner() -> penge_positivt_beløb(afståelsesår_resultat_kroner())
     | afståelsesår_tab_kroner() -> penge_positivt_beløb(0 - afståelsesår_resultat_kroner())
@@ -5858,12 +5858,12 @@ eller andele af kvoter for de først afståede.
     | rest_efter_egen_slutskat_kroner() -> tilgængelig_acontoskat_kroner() - fradrag_i_egen_slutskat_kroner()
     | succession_stk10() -> input_gyldigt() && afskrivningslov40c_nyt_acontoskattebeløb(input.grundlag) && afskrivningslov40c_acontoskat_succession(input.overdragelse)
     | ægtefælles_slutskat_før_kroner() -> hvis input_gyldigt() { input.ægtefælles_slutskat_mv_kroner } ellers { 0 }
-    | fradrag_i_ægtefælles_slutskat_kroner() -> 0
+    | fradrag_i_ægtefælles_slutskat_kroner(): Int -> 0
     | exception al40c_stk10_ægtefælles_slutskat fradrag_i_ægtefælles_slutskat_kroner() -> penge_mindste_beløb(rest_efter_egen_slutskat_kroner(), ægtefælles_slutskat_før_kroner()) under succession_stk10() && input.gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen
     | ægtefælles_slutskat_efter_kroner() -> ægtefælles_slutskat_før_kroner() - fradrag_i_ægtefælles_slutskat_kroner()
-    | kontant_udbetaling_kroner() -> 0
+    | kontant_udbetaling_kroner(): Int -> 0
     | exception al40c_stk9_resterende_udbetales_kontant kontant_udbetaling_kroner() -> rest_efter_egen_slutskat_kroner() under input_gyldigt() && afskrivningslov40c_nyt_acontoskattebeløb(input.grundlag) && succession_stk10() == Falskt
-    | fremført_til_følgende_indkomstår_kroner() -> 0
+    | fremført_til_følgende_indkomstår_kroner(): Int -> 0
     | exception al40c_stk10_resterende_fremføres fremført_til_følgende_indkomstår_kroner() -> rest_efter_egen_slutskat_kroner() - fradrag_i_ægtefælles_slutskat_kroner() under input_gyldigt() && (succession_stk10() || afskrivningslov40c_nyt_acontoskattebeløb(input.grundlag) == Falskt)
     | kredit_til_egen_kildeskat_slutopgørelse_kroner() -> hvis input_gyldigt() && afskrivningslov40c_nyt_acontoskattebeløb(input.grundlag) && succession_stk10() == Falskt { tilgængelig_acontoskat_kroner() } ellers { fradrag_i_egen_slutskat_kroner() }
     | kredit_til_ægtefælles_kildeskat_slutopgørelse_kroner() -> fradrag_i_ægtefælles_slutskat_kroner()
@@ -6719,7 +6719,7 @@ udsmykning for at være solgt.
         | Al5OrdinærAfskrivning(sats_basispoint) -> omfattet_af_par44b() && sats_basispoint >= 0 && sats_basispoint <= input.årsparametre.højeste_ordinære_sats_basispoint
         | Al5FuldRestsaldo -> omfattet_af_par44b() && positiv_saldo_kroner() > 0 && positiv_saldo_kroner() <= input.årsparametre.småsaldigrænse_kroner
     }
-    | afskrivning_kroner() -> 0
+    | afskrivning_kroner(): Int -> 0
     | exception al44b_kapitel2_ordinær_saldoafskrivning afskrivning_kroner() -> penge_beløb_gange_basispoint_kroner(positiv_saldo_kroner(), valgt_sats_basispoint()) under valg_gyldigt() && valgt_sats_basispoint() > 0
     | exception al44b_kapitel2_fuld_småsaldofradrag afskrivning_kroner() -> positiv_saldo_kroner() under valg_gyldigt() && input.valg == Al5FuldRestsaldo
     | negativ_saldo_kroner() -> hvis omfattet_af_par44b() { afskrivningslov_negativt_saldobeløb_kroner(saldoværdi_før_afskrivning_kroner()) } ellers { 0 }

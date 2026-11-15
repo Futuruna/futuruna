@@ -331,7 +331,7 @@ medregnes til denne værdi.
     | overført_til_privatøkonomien_fra_indkomstårets_begyndelse_kroner() -> virksomhedsskattelov8_overført_fra_indkomstårets_begyndelse_kroner(input.fradragsposter.overførsler_til_privatøkonomien)
     | nærtstående_boligforskelle_til_fradrag_kroner() -> virksomhedsskattelov8_nærtstående_boligforskelle_kroner(nærtstående_boligkorrektioner())
     | afkastgrundlag_før_validering_kroner() -> samlede_aktiver_kroner() - gæld_til_kursværdi_kroner() - input.fradragsposter.afsat_efter_par4_kroner - input.fradragsposter.afsat_efter_par10_stk1_kroner - input.fradragsposter.indestående_på_mellemregningskonto_efter_par4a_kroner - input.fradragsposter.tidligere_indkomstårs_beløb_omfattet_af_par4b_stk1_kroner - overført_til_privatøkonomien_fra_indkomstårets_begyndelse_kroner() - nærtstående_boligforskelle_til_fradrag_kroner()
-    | afkastgrundlag_kroner() -> 0
+    | afkastgrundlag_kroner(): Int -> 0
     | exception vsl8_gyldigt_afkastgrundlag afkastgrundlag_kroner() -> afkastgrundlag_før_validering_kroner() under input_gyldigt()
     | resultat() -> Virksomhedsskattelov8Resultat(
         input = input,
@@ -441,19 +441,19 @@ derefter til nærmeste hele procentsats. Satsen kan ikke være mindre end 0 pct.
     | Vsl9Maj -> "05"
     | Vsl9Juni -> "06"
 }
-| virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 0
-| exception vsl9_statbank_2025_januar virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 5026 under indkomstår == 2025 && måned == Vsl9Januar
-| exception vsl9_statbank_2025_februar virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4849 under indkomstår == 2025 && måned == Vsl9Februar
-| exception vsl9_statbank_2025_marts virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4686 under indkomstår == 2025 && måned == Vsl9Marts
-| exception vsl9_statbank_2025_april virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4550 under indkomstår == 2025 && måned == Vsl9April
-| exception vsl9_statbank_2025_maj virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4393 under indkomstår == 2025 && måned == Vsl9Maj
-| exception vsl9_statbank_2025_juni virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4178 under indkomstår == 2025 && måned == Vsl9Juni
-| exception vsl9_statbank_2026_januar virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4173 under indkomstår == 2026 && måned == Vsl9Januar
-| exception vsl9_statbank_2026_februar virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4149 under indkomstår == 2026 && måned == Vsl9Februar
-| exception vsl9_statbank_2026_marts virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4124 under indkomstår == 2026 && måned == Vsl9Marts
-| exception vsl9_statbank_2026_april virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4159 under indkomstår == 2026 && måned == Vsl9April
-| exception vsl9_statbank_2026_maj virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4209 under indkomstår == 2026 && måned == Vsl9Maj
-| exception vsl9_statbank_2026_juni virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4293 under indkomstår == 2026 && måned == Vsl9Juni
+| virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned): Int -> 0
+| exception vsl9_statbank_2025_januar virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned) -> 5026 under indkomstår == 2025 && måned == Vsl9Januar
+| exception vsl9_statbank_2025_februar virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned) -> 4849 under indkomstår == 2025 && måned == Vsl9Februar
+| exception vsl9_statbank_2025_marts virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned) -> 4686 under indkomstår == 2025 && måned == Vsl9Marts
+| exception vsl9_statbank_2025_april virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned) -> 4550 under indkomstår == 2025 && måned == Vsl9April
+| exception vsl9_statbank_2025_maj virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned) -> 4393 under indkomstår == 2025 && måned == Vsl9Maj
+| exception vsl9_statbank_2025_juni virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned) -> 4178 under indkomstår == 2025 && måned == Vsl9Juni
+| exception vsl9_statbank_2026_januar virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned) -> 4173 under indkomstår == 2026 && måned == Vsl9Januar
+| exception vsl9_statbank_2026_februar virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned) -> 4149 under indkomstår == 2026 && måned == Vsl9Februar
+| exception vsl9_statbank_2026_marts virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned) -> 4124 under indkomstår == 2026 && måned == Vsl9Marts
+| exception vsl9_statbank_2026_april virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned) -> 4159 under indkomstår == 2026 && måned == Vsl9April
+| exception vsl9_statbank_2026_maj virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned) -> 4209 under indkomstår == 2026 && måned == Vsl9Maj
+| exception vsl9_statbank_2026_juni virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned) -> 4293 under indkomstår == 2026 && måned == Vsl9Juni
 | virksomhedsskattelov9_månedsrente(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> Virksomhedsskattelov9Månedsrente(
     indkomstår = indkomstår,
     statistikperiode = hvis virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned) > 0 { vis(indkomstår) + "M" + virksomhedsskattelov9_månedskode(måned) } ellers { "" },
@@ -468,13 +468,13 @@ derefter til nærmeste hele procentsats. Satsen kan ikke være mindre end 0 pct.
 | virksomhedsskattelov9_sats_efter_nedsættelse_basispoint(månedsrenter: List(Virksomhedsskattelov9Månedsrente)) -> penge_positivt_beløb(virksomhedsskattelov9_simpelt_gennemsnit_en_decimal_basispoint(månedsrenter) - 200)
 | virksomhedsskattelov9_afkastsats_basispoint(månedsrenter: List(Virksomhedsskattelov9Månedsrente)) -> penge_basispoint_nedrundet_til_hel_procent(virksomhedsskattelov9_sats_efter_nedsættelse_basispoint(månedsrenter))
 | virksomhedsskattelov9a_rentekorrektionssats_basispoint(månedsrenter: List(Virksomhedsskattelov9Månedsrente)) -> penge_basispoint_afrundet_op_til_hel_procent(virksomhedsskattelov9_simpelt_gennemsnit_en_decimal_basispoint(månedsrenter))
-| virksomhedsskattelov9_offentliggørelsesstatus(indkomstår: Heltal) -> Vsl9IndkomstårIkkeKildebelagt
-| exception vsl9_skatteministeriet_2025_offentliggjort virksomhedsskattelov9_offentliggørelsesstatus(indkomstår: Heltal) -> Vsl9OffentliggjortAfSkatteministeriet(
+| virksomhedsskattelov9_offentliggørelsesstatus(indkomstår: Heltal): Virksomhedsskattelov9Offentliggørelsesstatus -> Vsl9IndkomstårIkkeKildebelagt
+| exception vsl9_skatteministeriet_2025_offentliggjort virksomhedsskattelov9_offentliggørelsesstatus(indkomstår) -> Vsl9OffentliggjortAfSkatteministeriet(
     afkastsats_basispoint = 200,
     rentekorrektionssats_basispoint = 500,
     kilde_url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/virksomhedsskatteloven"
 ) under indkomstår == 2025
-| exception vsl9_skatteministeriet_2026_afventer virksomhedsskattelov9_offentliggørelsesstatus(indkomstår: Heltal) -> Vsl9AfventerSkatteministerietsOffentliggørelse(
+| exception vsl9_skatteministeriet_2026_afventer virksomhedsskattelov9_offentliggørelsesstatus(indkomstår) -> Vsl9AfventerSkatteministerietsOffentliggørelse(
     kilde_url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/virksomhedsskatteloven"
 ) under indkomstår == 2026
 | virksomhedsskattelov9_offentliggjort_sammenligning_mulig(status: Virksomhedsskattelov9Offentliggørelsesstatus) -> match status {
@@ -581,7 +581,7 @@ Stk. 8. I kapitalafkastgrundlaget efter stk. 5 indgår ikke fast ejendom, der st
     | positiv_personlig_nettoindkomst_selvstændig_kroner() -> penge_positivt_beløb(input.positiv_personlig_nettoindkomst_selvstændig_kroner)
     | negativ_nettokapitalindkomst_abs_kroner() -> penge_positivt_beløb(input.negativ_nettokapitalindkomst_abs_kroner)
     | loft_efter_stk3_kroner() -> penge_største_beløb(positiv_personlig_nettoindkomst_selvstændig_kroner(), negativ_nettokapitalindkomst_abs_kroner())
-    | kapitalafkast_kroner() -> 0
+    | kapitalafkast_kroner(): Int -> 0
     | exception vsl22a_selvstændig_valgt_og_loftet kapitalafkast_kroner() -> penge_mindste_beløb(beregnet_kapitalafkast_før_loft_kroner(), loft_efter_stk3_kroner()) under omfattet_af_stk1()
     | personlig_indkomst_fradrag_kroner() -> kapitalafkast_kroner()
     | kapitalindkomst_tillæg_kroner() -> kapitalafkast_kroner()
@@ -718,7 +718,7 @@ Stk. 8. I kapitalafkastgrundlaget efter stk. 5 indgår ikke fast ejendom, der st
     | varekreditorer_kroner() -> foldl(grundlag.varekreditorer, 0, |sum: Heltal, varekreditor: Virksomhedsskattelov22AVarekreditor| sum + varekreditor.værdi_kroner)
     | arbejdskapital_efter_stk7_kroner() -> penge_positivt_beløb(arbejdskapitalaktiver_kroner() - varekreditorer_kroner())
     | afkastgrundlag_før_validering_kroner() -> direkte_afkastgrundlag_kroner() + arbejdskapital_efter_stk7_kroner()
-    | afkastgrundlag_kroner() -> 0
+    | afkastgrundlag_kroner(): Int -> 0
     | exception vsl22a_gyldigt_persongrundlag afkastgrundlag_kroner() -> afkastgrundlag_før_validering_kroner() under input_gyldigt()
     | resultat() -> Virksomhedsskattelov22APersongrundlagResultat(
         grundlag = grundlag,
@@ -980,9 +980,9 @@ konjunkturudligningsordningen.
 # Virksomhedsskattelov22BHenlæggelseInput(par22a_resultat: Virksomhedsskattelov22AResultat, grundlag: Virksomhedsskattelov22BHenlæggelsesgrundlag, ønsket_henlæggelse_kroner: Heltal, indtægtsfører_henlæggelser_efter_stk4_7_eller_8: Boolsk, konto: VirksomhedsskattelovUdligningskontoInput)
 # Virksomhedsskattelov22BHenlæggelseResultat(indkomstår: Heltal, anvender_par22a: Boolsk, reguleret_overskud_kroner: Heltal, højst_25_pct_kroner: Heltal, ønsket_henlæggelse_kroner: Heltal, henlæggelse_før_kontobetingelse_kroner: Heltal, mindst_5000_kroner: Boolsk, ingen_indtægtsføring_i_henlæggelsesåret: Boolsk, konjunkturudligningsskat_basispoint: Heltal, konjunkturudligningsskat_før_kontobetingelse_kroner: Heltal, påkrævet_kontoindskud_kroner: Heltal, konto_resultat: VirksomhedsskattelovUdligningskontoResultat, kan_foretage_henlæggelse: Boolsk, henlæggelse_kroner: Heltal, konjunkturudligningsskat_kroner: Heltal, kontoindskud_kroner: Heltal, skattepligtig_indkomst_fradrag_kroner: Heltal, personlig_indkomst_fradrag_kroner: Heltal, virksomhedsskattelov_par21_22_tilsvarende: Boolsk)
 
-| virksomhedsskattelov_udligningskonto_institution_tilladt(institution: VirksomhedsskattelovUdligningskontoInstitution) -> Falskt
-| exception dansk_pengeinstitut virksomhedsskattelov_udligningskonto_institution_tilladt(institution: VirksomhedsskattelovUdligningskontoInstitution) -> Sandt under institution == VslDanskTilladtPengeinstitut
-| exception eu_eoes_filial virksomhedsskattelov_udligningskonto_institution_tilladt(institution: VirksomhedsskattelovUdligningskontoInstitution) -> Sandt under institution == VslEuEoesKreditinstitutMedDanskFilial
+| virksomhedsskattelov_udligningskonto_institution_tilladt(institution: VirksomhedsskattelovUdligningskontoInstitution): Bool -> Falskt
+| exception dansk_pengeinstitut virksomhedsskattelov_udligningskonto_institution_tilladt(institution) -> Sandt under institution == VslDanskTilladtPengeinstitut
+| exception eu_eoes_filial virksomhedsskattelov_udligningskonto_institution_tilladt(institution) -> Sandt under institution == VslEuEoesKreditinstitutMedDanskFilial
 
 # VirksomhedsskattelovUdligningskontoSag(input: VirksomhedsskattelovUdligningskontoInput, forventet_betegnelse: VirksomhedsskattelovUdligningskontoBetegnelse, henlæggelsesår: Heltal, påkrævet_indskud_kroner: Heltal) {
     | institution_tilladt() -> virksomhedsskattelov_udligningskonto_institution_tilladt(input.institution)
@@ -1024,7 +1024,7 @@ konjunkturudligningsordningen.
     | påkrævet_kontoindskud_kroner() -> henlæggelse_før_kontobetingelse_kroner() - konjunkturudligningsskat_før_kontobetingelse_kroner()
     | konto_resultat() -> virksomhedsskattelov_udligningskonto_resultat(input.konto, VslKonjunkturudligningskonto, indkomstår(), påkrævet_kontoindskud_kroner())
     | kan_foretage_henlæggelse() -> anvender_par22a() && mindst_5000_kroner() && ingen_indtægtsføring_i_henlæggelsesåret() && konto_resultat().betingelser_opfyldt
-    | henlæggelse_kroner() -> 0
+    | henlæggelse_kroner(): Int -> 0
     | exception par22b_stk1_til_3_betingelser_opfyldt henlæggelse_kroner() -> henlæggelse_før_kontobetingelse_kroner() under kan_foretage_henlæggelse()
     | konjunkturudligningsskat_kroner() -> penge_beløb_gange_basispoint_kroner(henlæggelse_kroner(), konjunkturudligningsskat_basispoint())
     | kontoindskud_kroner() -> henlæggelse_kroner() - konjunkturudligningsskat_kroner()
@@ -1080,11 +1080,11 @@ konjunkturudligningsordningen.
 | virksomhedsskattelov_udligningshenlæggelse_gyldig(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse) -> henlæggelse.oprindelig_henlæggelse_kroner >= 0 && henlæggelse.tidligere_indtægtsført_kroner >= 0 && henlæggelse.tidligere_indtægtsført_kroner <= henlæggelse.oprindelig_henlæggelse_kroner && henlæggelse.oprindelig_udligningsskat_kroner >= 0 && henlæggelse.oprindelig_udligningsskat_kroner <= henlæggelse.oprindelig_henlæggelse_kroner && henlæggelse.tidligere_modregnet_udligningsskat_kroner >= 0 && henlæggelse.tidligere_modregnet_udligningsskat_kroner <= henlæggelse.oprindelig_udligningsskat_kroner
 | virksomhedsskattelov_udligningshenlæggelse_sorteringsnøgle(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse) -> henlæggelse.henlæggelsesår
 | virksomhedsskattelov_udligningshenlæggelse_tiårsfrist_udløbet(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse, indkomstår: Heltal) -> indkomstår >= henlæggelse.henlæggelsesår + 10 && virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse) > 0
-| virksomhedsskattelov_udlignings_konkursregel_gælder(ordning: VirksomhedsskattelovUdligningsordning) -> ordning == VslPar22BKonjunkturudligning
-| virksomhedsskattelov_udlignings_skattepligtsophørsregel_gælder(ordning: VirksomhedsskattelovUdligningsordning) -> ordning == VslPar22BKonjunkturudligning
-| virksomhedsskattelov_udligningsskat_for_indtægtsføring_kroner(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse, indtægtsført_kroner: Heltal) -> 0
-| exception udligning_delvis_indtægtsføring virksomhedsskattelov_udligningsskat_for_indtægtsføring_kroner(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse, indtægtsført_kroner: Heltal) -> penge_mindste_beløb(virksomhedsskattelov_udligningsskat_rest_kroner(henlæggelse), indtægtsført_kroner * henlæggelse.oprindelig_udligningsskat_kroner / henlæggelse.oprindelig_henlæggelse_kroner) under indtægtsført_kroner > 0 && indtægtsført_kroner < virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse) && henlæggelse.oprindelig_henlæggelse_kroner > 0
-| exception udligning_sidste_rest virksomhedsskattelov_udligningsskat_for_indtægtsføring_kroner(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse, indtægtsført_kroner: Heltal) -> virksomhedsskattelov_udligningsskat_rest_kroner(henlæggelse) under indtægtsført_kroner > 0 && indtægtsført_kroner >= virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse)
+| virksomhedsskattelov_udlignings_konkursregel_gælder(ordning: VirksomhedsskattelovUdligningsordning): Bool -> ordning == VslPar22BKonjunkturudligning
+| virksomhedsskattelov_udlignings_skattepligtsophørsregel_gælder(ordning: VirksomhedsskattelovUdligningsordning): Bool -> ordning == VslPar22BKonjunkturudligning
+| virksomhedsskattelov_udligningsskat_for_indtægtsføring_kroner(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse, indtægtsført_kroner: Heltal): Int -> 0
+| exception udligning_delvis_indtægtsføring virksomhedsskattelov_udligningsskat_for_indtægtsføring_kroner(henlæggelse, indtægtsført_kroner) -> penge_mindste_beløb(virksomhedsskattelov_udligningsskat_rest_kroner(henlæggelse), indtægtsført_kroner * henlæggelse.oprindelig_udligningsskat_kroner / henlæggelse.oprindelig_henlæggelse_kroner) under indtægtsført_kroner > 0 && indtægtsført_kroner < virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse) && henlæggelse.oprindelig_henlæggelse_kroner > 0
+| exception udligning_sidste_rest virksomhedsskattelov_udligningsskat_for_indtægtsføring_kroner(henlæggelse, indtægtsført_kroner) -> virksomhedsskattelov_udligningsskat_rest_kroner(henlæggelse) under indtægtsført_kroner > 0 && indtægtsført_kroner >= virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse)
 
 # VirksomhedsskattelovUdligningsFifoTrinSag(tilstand: VirksomhedsskattelovUdligningsFifoTilstand, henlæggelse: VirksomhedsskattelovUdligningshenlæggelse) {
     | rest_henlæggelse_før_kroner() -> virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse)
@@ -1127,12 +1127,12 @@ konjunkturudligningsordningen.
     | rest_efter_egen_slutskat_kroner() -> tilgængelig_udligningsskat_kroner() - fradrag_i_egen_slutskat_kroner()
     | succession_stk6() -> ordning == VslPar22BKonjunkturudligning && input.konto_overtaget_ved_succession
     | ægtefælles_slutskat_før_kroner() -> penge_positivt_beløb(input.ægtefælles_slutskat_kroner)
-    | fradrag_i_ægtefælles_slutskat_kroner() -> 0
+    | fradrag_i_ægtefælles_slutskat_kroner(): Int -> 0
     | exception par22b_stk6_gift_samlevende fradrag_i_ægtefælles_slutskat_kroner() -> penge_mindste_beløb(rest_efter_egen_slutskat_kroner(), ægtefælles_slutskat_før_kroner()) under succession_stk6() && input.gift_og_samlevende_ved_årets_udløb
     | ægtefælles_slutskat_efter_kroner() -> ægtefælles_slutskat_før_kroner() - fradrag_i_ægtefælles_slutskat_kroner()
-    | kontant_udbetaling_kroner() -> 0
+    | kontant_udbetaling_kroner(): Int -> 0
     | exception par22b_stk5_overskydende_kontant kontant_udbetaling_kroner() -> rest_efter_egen_slutskat_kroner() under succession_stk6() == Falskt
-    | fremført_til_følgende_indkomstår_kroner() -> 0
+    | fremført_til_følgende_indkomstår_kroner(): Int -> 0
     | exception par22b_stk6_resterende_fremføres fremført_til_følgende_indkomstår_kroner() -> rest_efter_egen_slutskat_kroner() - fradrag_i_ægtefælles_slutskat_kroner() under succession_stk6()
     | resultat() -> VirksomhedsskattelovUdligningsSkatResultat(
         tilgængelig_udligningsskat_kroner = tilgængelig_udligningsskat_kroner(),
@@ -1157,7 +1157,7 @@ konjunkturudligningsordningen.
     | ældste_rest_henlæggelsesår() -> foldl(sorterede_henlæggelser(), input.indkomstår, |ældste: Heltal, henlæggelse: VirksomhedsskattelovUdligningshenlæggelse| hvis virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse) > 0 && henlæggelse.henlæggelsesår < ældste { henlæggelse.henlæggelsesår } ellers { ældste })
     | tiårsfrist_indtægtsføring_kroner() -> foldl(sorterede_henlæggelser(), 0, |sum: Heltal, henlæggelse: VirksomhedsskattelovUdligningshenlæggelse| sum + hvis virksomhedsskattelov_udligningshenlæggelse_tiårsfrist_udløbet(henlæggelse, input.indkomstår) { virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse) } ellers { 0 })
     | underskud_før_indtægtsføring_kroner() -> penge_positivt_beløb(0 - input.hændelser.personlig_indkomst_fra_selvstændig_erhvervsvirksomhed_før_henlæggelsesfradrag_og_efter_kapitalafkast_kroner)
-    | underskud_indtægtsføring_kroner() -> 0
+    | underskud_indtægtsføring_kroner(): Int -> 0
     | exception par22b_stk7_underskud underskud_indtægtsføring_kroner() -> penge_mindste_beløb(underskud_før_indtægtsføring_kroner(), samlet_rest_henlæggelse_før_kroner()) under input.ordning == VslPar22BKonjunkturudligning
     | frivillig_indtægtsføring_tilladt() -> input.hændelser.ønsket_frivillig_indtægtsføring_kroner > 0 && input.hændelser.frivillig_hævning_oplysningsfrist_resultat.indkomstår == input.indkomstår && input.hændelser.frivillig_hævning_oplysningsfrist_resultat.rettidigt && input.hændelser.mindst_tre_måneder_fra_indskud && ældste_rest_henlæggelsesår() < input.indkomstår
     | skattepligtsophør_indtægtsføring() -> virksomhedsskattelov_udlignings_skattepligtsophørsregel_gælder(input.ordning) && (input.hændelser.ophører_skattepligt_for_fast_driftssted || input.hændelser.ophører_fuld_skattepligt_eller_dbo_hjemsted && input.hændelser.fortsat_skattepligtig_for_fast_driftssted == Falskt)
@@ -1165,13 +1165,13 @@ konjunkturudligningsordningen.
     | overgang_til_virksomhedsordningen() -> input.ordning == VslPar22BKonjunkturudligning && input.hændelser.ophører_med_kapitalafkastordningen && input.hændelser.overgår_til_virksomhedsordningen && konkursindtægtsføring() == Falskt && skattepligtsophør_indtægtsføring() == Falskt
     | ophør_uden_virksomhedsordning() -> input.ordning == VslPar22BKonjunkturudligning && input.hændelser.ophører_med_kapitalafkastordningen && overgang_til_virksomhedsordningen() == Falskt
     | fuld_indtægtsføring_påkrævet() -> ophør_uden_virksomhedsordning() || konkursindtægtsføring() || skattepligtsophør_indtægtsføring()
-    | ønsket_frivillig_indtægtsføring_kroner() -> 0
+    | ønsket_frivillig_indtægtsføring_kroner(): Int -> 0
     | exception lovlig_frivillig_hævning ønsket_frivillig_indtægtsføring_kroner() -> penge_positivt_beløb(input.hændelser.ønsket_frivillig_indtægtsføring_kroner) under frivillig_indtægtsføring_tilladt() || overgang_til_virksomhedsordningen()
     | obligatorisk_indtægtsføring_kroner() -> penge_største_beløb(tiårsfrist_indtægtsføring_kroner(), underskud_indtægtsføring_kroner())
-    | indtægtsføringsmål_før_portefølje_kroner() -> penge_mindste_beløb(samlet_rest_henlæggelse_før_kroner(), penge_største_beløb(obligatorisk_indtægtsføring_kroner(), ønsket_frivillig_indtægtsføring_kroner()))
+    | indtægtsføringsmål_før_portefølje_kroner(): Int -> penge_mindste_beløb(samlet_rest_henlæggelse_før_kroner(), penge_største_beløb(obligatorisk_indtægtsføring_kroner(), ønsket_frivillig_indtægtsføring_kroner()))
     | exception terminal_fuld_indtægtsføring indtægtsføringsmål_før_portefølje_kroner() -> samlet_rest_henlæggelse_før_kroner() under fuld_indtægtsføring_påkrævet()
     | exception overgang_flytter_resten indtægtsføringsmål_før_portefølje_kroner() -> penge_mindste_beløb(samlet_rest_henlæggelse_før_kroner(), ønsket_frivillig_indtægtsføring_kroner()) under overgang_til_virksomhedsordningen()
-    | indtægtsføringsmål_kroner() -> 0
+    | indtægtsføringsmål_kroner(): Int -> 0
     | exception gyldig_udligningsportefølje indtægtsføringsmål_kroner() -> indtægtsføringsmål_før_portefølje_kroner() under gyldig_portefølje()
     | fifo_resultat() -> foldl(sorterede_henlæggelser(), VirksomhedsskattelovUdligningsFifoTilstand(
         indkomstår = input.indkomstår,
@@ -1186,9 +1186,9 @@ konjunkturudligningsordningen.
     | konto_hævet_kroner() -> fifo_resultat().samlet_konto_hævet_kroner
     | samlet_rest_henlæggelse_efter_indtægtsføring_kroner() -> samlet_rest_henlæggelse_før_kroner() - indtægtsført_henlæggelse_kroner()
     | samlet_rest_udligningsskat_efter_indtægtsføring_kroner() -> samlet_rest_udligningsskat_før_kroner() - udligningsskat_til_modregning_kroner()
-    | overført_henlæggelse_til_virksomhedsordningen_kroner() -> 0
+    | overført_henlæggelse_til_virksomhedsordningen_kroner(): Int -> 0
     | exception par22b_stk8_overfører_resthenlæggelse overført_henlæggelse_til_virksomhedsordningen_kroner() -> samlet_rest_henlæggelse_efter_indtægtsføring_kroner() under overgang_til_virksomhedsordningen()
-    | overført_foreløbig_skat_til_virksomhedsordningen_kroner() -> 0
+    | overført_foreløbig_skat_til_virksomhedsordningen_kroner(): Int -> 0
     | exception par22b_stk8_overfører_restskat overført_foreløbig_skat_til_virksomhedsordningen_kroner() -> samlet_rest_udligningsskat_efter_indtægtsføring_kroner() under overgang_til_virksomhedsordningen()
     | overført_til_konto_for_opsparet_overskud_kroner() -> overført_henlæggelse_til_virksomhedsordningen_kroner() - overført_foreløbig_skat_til_virksomhedsordningen_kroner()
     | samlet_rest_henlæggelse_efter_kroner() -> samlet_rest_henlæggelse_efter_indtægtsføring_kroner() - overført_henlæggelse_til_virksomhedsordningen_kroner()
@@ -1300,7 +1300,7 @@ Stk. 4. Grundbeløbene i stk. 1 og 2 reguleres efter personskattelovens § 20.
     | påkrævet_kontoindskud_kroner() -> henlæggelse_før_kontobetingelse_kroner() - indkomstudligningsskat_før_kontobetingelse_kroner()
     | konto_resultat() -> virksomhedsskattelov_udligningskonto_resultat(input.konto, VslIndkomstudligningskonto, input.indkomstår, påkrævet_kontoindskud_kroner())
     | kan_foretage_henlæggelse() -> kunstnerisk_arbejde_berettiget() && mindst_5000_kroner() && konto_resultat().betingelser_opfyldt
-    | henlæggelse_kroner() -> 0
+    | henlæggelse_kroner(): Int -> 0
     | exception par22d_stk1_stk2_stk4_betingelser_opfyldt henlæggelse_kroner() -> henlæggelse_før_kontobetingelse_kroner() under kan_foretage_henlæggelse()
     | indkomstudligningsskat_kroner() -> penge_beløb_gange_basispoint_kroner(henlæggelse_kroner(), indkomstudligningsskat_basispoint())
     | kontoindskud_kroner() -> henlæggelse_kroner() - indkomstudligningsskat_kroner()
@@ -1347,8 +1347,8 @@ Stk. 4. Grundbeløbene i stk. 1 og 2 reguleres efter personskattelovens § 20.
     oprindelig_udligningsskat_kroner = resultat.indkomstudligningsskat_kroner,
     tidligere_modregnet_udligningsskat_kroner = 0
 )
-| exception par22d_stk2_skattepligtsophør virksomhedsskattelov_udlignings_skattepligtsophørsregel_gælder(ordning: VirksomhedsskattelovUdligningsordning) -> Sandt under ordning == VslPar22DIndkomstudligning
-| exception par22d_stk3_konkurs virksomhedsskattelov_udlignings_konkursregel_gælder(ordning: VirksomhedsskattelovUdligningsordning) -> Sandt under ordning == VslPar22DIndkomstudligning
+| exception par22d_stk2_skattepligtsophør virksomhedsskattelov_udlignings_skattepligtsophørsregel_gælder(ordning) -> Sandt under ordning == VslPar22DIndkomstudligning
+| exception par22d_stk3_konkurs virksomhedsskattelov_udlignings_konkursregel_gælder(ordning) -> Sandt under ordning == VslPar22DIndkomstudligning
 | virksomhedsskattelov22d_indtægtsføring_resultat(input: VirksomhedsskattelovUdligningsIndtægtsføringInput) -> virksomhedsskattelov_udlignings_indtægtsføring_resultat(input) under input.ordning == VslPar22DIndkomstudligning
 
 }
@@ -1427,7 +1427,7 @@ vederlag, den skattepligtige betaler for aktierne eller anparterne.
     | ansatte_ejer_eller_stemmebetingelse_opfyldt() -> (input.ansatte_samlet_ejerandel_basispoint >= 2500 || input.ansatte_samlet_stemmeværdi_basispoint > 5000) && input.ingen_ansat_råder_over_mere_end_50_pct_stemmer
     | ejerbetingelse_opfyldt() -> ejer_eller_stemmebetingelse_opfyldt() || ansatte_ejer_eller_stemmebetingelse_opfyldt()
     | betingelser_opfyldt() -> input.fuld_skattepligt_og_hjemmehørende && vederlag_over_beløbsgrænse() && ejerbetingelse_opfyldt() && input.selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering && input.aktier_ikke_omfattet_af_abl19b_eller_19c && input.ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto && input.ejet_i_mindre_end_11_år
-    | kapitalafkastgrundlag_kroner() -> 0
+    | kapitalafkastgrundlag_kroner(): Int -> 0
     | exception vsl22c_betingelser_opfyldt_kapitalafkastgrundlag kapitalafkastgrundlag_kroner() -> kontantomregnet_vederlag_kroner() under betingelser_opfyldt()
     | kapitalafkastsats_basispoint() -> penge_positivt_beløb(input.kapitalafkastsats_basispoint)
     | ejerperiode_hele_måneder() -> penge_positivt_beløb(input.ejerperiode_hele_måneder)
@@ -1454,9 +1454,9 @@ vederlag, den skattepligtige betaler for aktierne eller anparterne.
 # Virksomhedsskattelov22CKildeInput(indkomstår: Heltal, vælger_kapitalafkastordning: Boolsk, fuld_skattepligt_og_hjemmehørende: Boolsk, kontantomregnet_vederlag_kroner: Heltal, ejerandel_basispoint: Heltal, stemmeværdi_basispoint: Heltal, ansatte_samlet_ejerandel_basispoint: Heltal, ansatte_samlet_stemmeværdi_basispoint: Heltal, ingen_ansat_råder_over_mere_end_50_pct_stemmer: Boolsk, selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering: Boolsk, aktier_ikke_omfattet_af_abl19b_eller_19c: Boolsk, ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto: Boolsk, ejet_i_mindre_end_11_år: Boolsk, ejerperiode_hele_måneder: Heltal)
 # Virksomhedsskattelov22CKildeResultat(input: Virksomhedsskattelov22CKildeInput, par9_og_9a_resultat: Virksomhedsskattelov9Og9AResultat, reguleret_beløbsgrænse_kroner: Heltal, par22c_input: Virksomhedsskattelov22CInput, par22c_resultat: Virksomhedsskattelov22CResultat, input_gyldigt: Boolsk, ordningen_anvendes: Boolsk, kapitalafkast_kroner: Heltal, personlig_indkomst_fradrag_kroner: Heltal, kapitalindkomst_tillæg_kroner: Heltal)
 
-| virksomhedsskattelov22c_reguleret_beløbsgrænse_kroner(indkomstår: Heltal) -> 0
-| exception vsl22c_skatteministeriet_2025_beløbsgrænse virksomhedsskattelov22c_reguleret_beløbsgrænse_kroner(indkomstår: Heltal) -> 821400 under indkomstår == 2025
-| exception vsl22c_skatteministeriet_2026_beløbsgrænse virksomhedsskattelov22c_reguleret_beløbsgrænse_kroner(indkomstår: Heltal) -> 860900 under indkomstår == 2026
+| virksomhedsskattelov22c_reguleret_beløbsgrænse_kroner(indkomstår: Heltal): Int -> 0
+| exception vsl22c_skatteministeriet_2025_beløbsgrænse virksomhedsskattelov22c_reguleret_beløbsgrænse_kroner(indkomstår) -> 821400 under indkomstår == 2025
+| exception vsl22c_skatteministeriet_2026_beløbsgrænse virksomhedsskattelov22c_reguleret_beløbsgrænse_kroner(indkomstår) -> 860900 under indkomstår == 2026
 | virksomhedsskattelov22c_basispoint_input_gyldigt(basispoint: Heltal) -> basispoint >= 0 && basispoint <= 10000
 
 # Virksomhedsskattelov22CKildeSag(input: Virksomhedsskattelov22CKildeInput) {
@@ -1549,9 +1549,9 @@ stk. 1.
 # Virksomhedsskattelov23ABundetInput(kilde: Virksomhedsskattelov23AKapitalafkastkilde, ønsket_medregnet_personlig_indkomst_kroner: Heltal)
 # Virksomhedsskattelov23ABundetResultat(input: Virksomhedsskattelov23ABundetInput, kilderesultat: Virksomhedsskattelov23AKapitalafkastkildeResultat, indkomstår: Heltal, kapitalafkast_kroner: Heltal, reguleret_grundbeløb_kroner: Heltal, par23a_input: Virksomhedsskattelov23AInput, par23a_resultat: Virksomhedsskattelov23AResultat, input_gyldigt: Boolsk)
 
-| virksomhedsskattelov23a_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> 0
-| exception vsl23a_skatteministeriet_2025_grundbeløb virksomhedsskattelov23a_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> 60300 under indkomstår == 2025
-| exception vsl23a_skatteministeriet_2026_grundbeløb virksomhedsskattelov23a_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> 63200 under indkomstår == 2026
+| virksomhedsskattelov23a_reguleret_grundbeløb_kroner(indkomstår: Heltal): Int -> 0
+| exception vsl23a_skatteministeriet_2025_grundbeløb virksomhedsskattelov23a_reguleret_grundbeløb_kroner(indkomstår) -> 60300 under indkomstår == 2025
+| exception vsl23a_skatteministeriet_2026_grundbeløb virksomhedsskattelov23a_reguleret_grundbeløb_kroner(indkomstår) -> 63200 under indkomstår == 2026
 | virksomhedsskattelov23a_kilderesultat(kilde: Virksomhedsskattelov23AKapitalafkastkilde) -> match kilde {
     | Vsl23AKapitalafkastEfterPar7(input) -> Vsl23APar7KildeResultat(resultat = virksomhedsskattelov7_kilde_resultat(input))
     | Vsl23AKapitalafkastEfterPar22A(input) -> Vsl23APar22AKildeResultat(resultat = virksomhedsskattelov22a_kilde_resultat(input))
@@ -1650,14 +1650,14 @@ indkomstår.
     | stk1_afkastgrundlag_loft_kroner() -> penge_beløb_gange_basispoint_kroner(stk1_afkastgrundlag_loftgrundlag_kroner(), rentekorrektionssats_basispoint())
     | stk1_nettofinansieringsloft_kroner() -> penge_positivt_beløb(input.nettofinansieringsudgifter_efter_kursgevinstlov_kroner)
     | stk1_rentekorrektion_før_nettofinansieringsloft_kroner() -> penge_mindste_beløb(stk1_rentekorrektion_før_loft_kroner(), stk1_afkastgrundlag_loft_kroner())
-    | stk1_rentekorrektion_kroner() -> 0
+    | stk1_rentekorrektion_kroner(): Int -> 0
     | exception vsl11_stk1_negativ_indskudskonto_og_afkastgrundlag stk1_rentekorrektion_kroner() -> penge_mindste_beløb(stk1_rentekorrektion_før_nettofinansieringsloft_kroner(), stk1_nettofinansieringsloft_kroner()) under stk1_negativ_indskudskonto() && stk1_negativt_afkastgrundlag() && stk1_nettofinansieringsloft_kroner() > 0
     | stk2_hævningsgrundlag_kroner() -> penge_positivt_beløb(input.overført_efter_par5_stk1_nr5_og_stk2_kroner)
     | stk2_indskudsloftgrundlag_kroner() -> penge_positivt_beløb(input.indskud_efter_par3_stk1_kroner)
     | stk2_hævning_og_indskud() -> stk2_hævningsgrundlag_kroner() > 0 && stk2_indskudsloftgrundlag_kroner() > 0
     | stk2_rentekorrektion_før_loft_kroner() -> penge_beløb_gange_basispoint_kroner(stk2_hævningsgrundlag_kroner(), rentekorrektionssats_basispoint())
     | stk2_indskudsloft_kroner() -> penge_beløb_gange_basispoint_kroner(stk2_indskudsloftgrundlag_kroner(), rentekorrektionssats_basispoint())
-    | stk2_rentekorrektion_kroner() -> 0
+    | stk2_rentekorrektion_kroner(): Int -> 0
     | exception vsl11_stk2_hævning_og_indskud stk2_rentekorrektion_kroner() -> penge_mindste_beløb(stk2_rentekorrektion_før_loft_kroner(), stk2_indskudsloft_kroner()) under stk2_hævning_og_indskud()
     | samlet_rentekorrektion_kroner() -> stk1_rentekorrektion_kroner() + stk2_rentekorrektion_kroner()
     | personlig_indkomst_tillæg_kroner() -> samlet_rentekorrektion_kroner()

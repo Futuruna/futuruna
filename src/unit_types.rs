@@ -1553,7 +1553,18 @@ fn rewrite_stmt(stmt: &mut Stmt, rewrite: &mut impl ProgramRewrite) {
                 rewrite_stmts(block, rewrite);
             }
         }
-        Stmt::Annot(_, arguments) => {
+        Stmt::Annot(name, arguments) => {
+            if name == crate::RULE_RESULT_TYPE_ANNOTATION {
+                // The declared result and parameter types are type names.
+                for argument in arguments.iter_mut().skip(2) {
+                    if let ExprKind::Lit(Literal::Str(type_name)) = &mut argument.kind {
+                        if !type_name.is_empty() {
+                            rewrite.typed_annotation(type_name);
+                        }
+                    }
+                }
+                return;
+            }
             for argument in arguments {
                 rewrite_expr(argument, rewrite);
             }

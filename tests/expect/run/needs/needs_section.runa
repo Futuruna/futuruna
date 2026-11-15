@@ -25,9 +25,9 @@
 ----
 
 @ cite(§ 1)
-| taxed(o: Owner) -> o.income / 4
+| taxed(o: Owner): Int -> o.income / 4
 @ cite(§ 2)
-| exception not_liable taxed(o: Owner) -> 0 under not(checked(o.fully_liable))
+| exception not_liable taxed(o) -> 0 under not(checked(o.fully_liable))
 
 }
 

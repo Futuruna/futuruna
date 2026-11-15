@@ -473,25 +473,25 @@ kr. (normalbidragets grundbeløb).
 @ meta(børnebidragsloven_par19_satser_metadata)
 @ section børnebidragsloven_par19_satser {
 
-| børnebidragslov19_satsår_understøttet(år: Heltal) -> Falskt
-| exception børnebidragslov19_satsår_2023 børnebidragslov19_satsår_understøttet(år: Heltal) -> Sandt under år == 2023
-| exception børnebidragslov19_satsår_2024 børnebidragslov19_satsår_understøttet(år: Heltal) -> Sandt under år == 2024
-| exception børnebidragslov19_satsår_2025 børnebidragslov19_satsår_understøttet(år: Heltal) -> Sandt under år == 2025
-| exception børnebidragslov19_satsår_2026 børnebidragslov19_satsår_understøttet(år: Heltal) -> Sandt under år == 2026
-| børnebidragslov19_fødselsbidrag_sats_kroner(år: Heltal) -> 0
-| exception børnebidragslov19_fødselsbidrag_2023 børnebidragslov19_fødselsbidrag_sats_kroner(år: Heltal) -> 913 under år == 2023
-| exception børnebidragslov19_fødselsbidrag_2024 børnebidragslov19_fødselsbidrag_sats_kroner(år: Heltal) -> 942 under år == 2024
-| exception børnebidragslov19_fødselsbidrag_2025 børnebidragslov19_fødselsbidrag_sats_kroner(år: Heltal) -> 976 under år == 2025
-| exception børnebidragslov19_fødselsbidrag_2026 børnebidragslov19_fødselsbidrag_sats_kroner(år: Heltal) -> 1020 under år == 2026
-| børnebidragslov19_barselsbidrag_månedssats_kroner(år: Heltal) -> 0
-| exception børnebidragslov19_barselsbidrag_2023 børnebidragslov19_barselsbidrag_månedssats_kroner(år: Heltal) -> 1589 under år == 2023
-| exception børnebidragslov19_barselsbidrag_2024 børnebidragslov19_barselsbidrag_månedssats_kroner(år: Heltal) -> 1640 under år == 2024
-| exception børnebidragslov19_barselsbidrag_2025 børnebidragslov19_barselsbidrag_månedssats_kroner(år: Heltal) -> 1699 under år == 2025
-| exception børnebidragslov19_barselsbidrag_2026 børnebidragslov19_barselsbidrag_månedssats_kroner(år: Heltal) -> 1775 under år == 2026
-| børnebidragslov19_navngivningsbidrag_sats_kroner(år: Heltal) -> 0
-| exception børnebidragslov19_navngivningsbidrag_2023 børnebidragslov19_navngivningsbidrag_sats_kroner(år: Heltal) -> 1328 under år == 2023
-| exception børnebidragslov19_navngivningsbidrag_2024 børnebidragslov19_navngivningsbidrag_sats_kroner(år: Heltal) -> 1370 under år == 2024
-| exception børnebidragslov19_navngivningsbidrag_2025 børnebidragslov19_navngivningsbidrag_sats_kroner(år: Heltal) -> 1419 under år == 2025
-| exception børnebidragslov19_navngivningsbidrag_2026 børnebidragslov19_navngivningsbidrag_sats_kroner(år: Heltal) -> 1483 under år == 2026
+| børnebidragslov19_satsår_understøttet(år: Heltal): Bool -> Falskt
+| exception børnebidragslov19_satsår_2023 børnebidragslov19_satsår_understøttet(år) -> Sandt under år == 2023
+| exception børnebidragslov19_satsår_2024 børnebidragslov19_satsår_understøttet(år) -> Sandt under år == 2024
+| exception børnebidragslov19_satsår_2025 børnebidragslov19_satsår_understøttet(år) -> Sandt under år == 2025
+| exception børnebidragslov19_satsår_2026 børnebidragslov19_satsår_understøttet(år) -> Sandt under år == 2026
+| børnebidragslov19_fødselsbidrag_sats_kroner(år: Heltal): Int -> 0
+| exception børnebidragslov19_fødselsbidrag_2023 børnebidragslov19_fødselsbidrag_sats_kroner(år) -> 913 under år == 2023
+| exception børnebidragslov19_fødselsbidrag_2024 børnebidragslov19_fødselsbidrag_sats_kroner(år) -> 942 under år == 2024
+| exception børnebidragslov19_fødselsbidrag_2025 børnebidragslov19_fødselsbidrag_sats_kroner(år) -> 976 under år == 2025
+| exception børnebidragslov19_fødselsbidrag_2026 børnebidragslov19_fødselsbidrag_sats_kroner(år) -> 1020 under år == 2026
+| børnebidragslov19_barselsbidrag_månedssats_kroner(år: Heltal): Int -> 0
+| exception børnebidragslov19_barselsbidrag_2023 børnebidragslov19_barselsbidrag_månedssats_kroner(år) -> 1589 under år == 2023
+| exception børnebidragslov19_barselsbidrag_2024 børnebidragslov19_barselsbidrag_månedssats_kroner(år) -> 1640 under år == 2024
+| exception børnebidragslov19_barselsbidrag_2025 børnebidragslov19_barselsbidrag_månedssats_kroner(år) -> 1699 under år == 2025
+| exception børnebidragslov19_barselsbidrag_2026 børnebidragslov19_barselsbidrag_månedssats_kroner(år) -> 1775 under år == 2026
+| børnebidragslov19_navngivningsbidrag_sats_kroner(år: Heltal): Int -> 0
+| exception børnebidragslov19_navngivningsbidrag_2023 børnebidragslov19_navngivningsbidrag_sats_kroner(år) -> 1328 under år == 2023
+| exception børnebidragslov19_navngivningsbidrag_2024 børnebidragslov19_navngivningsbidrag_sats_kroner(år) -> 1370 under år == 2024
+| exception børnebidragslov19_navngivningsbidrag_2025 børnebidragslov19_navngivningsbidrag_sats_kroner(år) -> 1419 under år == 2025
+| exception børnebidragslov19_navngivningsbidrag_2026 børnebidragslov19_navngivningsbidrag_sats_kroner(år) -> 1483 under år == 2026
 
 }

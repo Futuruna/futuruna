@@ -39,7 +39,7 @@ C, § 20, stk. 2, §§ 21 og 22, kapitel 6 og 7, §§ 37-39 B og 44-46.
 # AktieavancePar6Par7Resultat(grundlag: AktieavancePar6Par7Skattepligtsgrundlag, regelspor: AktieavancePar6Par7Regelspor, omfattet_af_par6: Boolsk, omfattet_af_par7: Boolsk, livsforsikringsselskab: Boolsk)
 
 # AktieavancePar6Par7Sag(grundlag: AktieavancePar6Par7Skattepligtsgrundlag) {
-    | regelspor() -> AblUdenForPar6OgPar7Regelspor
+    | regelspor(): AktieavancePar6Par7Regelspor -> AblUdenForPar6OgPar7Regelspor
     | exception abl_par6_efter_selskabsskatteloven regelspor() -> AblPar6Regelspor under grundlag == AblPar6EfterSelskabsskatteloven
     | exception abl_par6_livsforsikringsselskab_efter_selskabsskatteloven regelspor() -> AblPar6Regelspor under grundlag == AblPar6LivsforsikringsselskabEfterSelskabsskatteloven
     | exception abl_par6_efter_fondsbeskatningsloven regelspor() -> AblPar6Regelspor under grundlag == AblPar6EfterFondsbeskatningsloven

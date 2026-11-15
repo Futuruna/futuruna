@@ -351,14 +351,14 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 }
 | aktieavance_investerings_ejerpost_grundinput_gyldigt(ejerpost: AktieavanceInvesteringsEjerpost, klassifikation: AktieavanceInvesteringsEjerpostKlassifikation, indkomstår: Heltal) -> klassifikation.input_gyldigt && klassifikation.indkomstår == indkomstår && aktieavance_investerings_ejerandel_gyldig(aktieavance_investerings_ejerpost_ejerandel(ejerpost)) && aktieavance_investerings_ejerpost_markedsværdi_kroner(ejerpost) >= 0
 | aktieavance_investerings_ejerpost_medregnes_direkte(ejerpost: AktieavanceInvesteringsEjerpost, klassifikation: AktieavanceInvesteringsEjerpostKlassifikation, indkomstår: Heltal) -> aktieavance_investerings_ejerpost_grundinput_gyldigt(ejerpost, klassifikation, indkomstår) && (klassifikation.aktiebaseret == Falskt || aktieavance_investerings_ejerandel_mindst_25_pct(aktieavance_investerings_ejerpost_ejerandel(ejerpost)) == Falskt)
-| aktieavance_investerings_ejerpost_summering_fra_klassifikation(ejerpost: AktieavanceInvesteringsEjerpost, klassifikation: AktieavanceInvesteringsEjerpostKlassifikation, indkomstår: Heltal) -> AktieavanceInvesteringsaktivsummering(
+| aktieavance_investerings_ejerpost_summering_fra_klassifikation(ejerpost: AktieavanceInvesteringsEjerpost, klassifikation: AktieavanceInvesteringsEjerpostKlassifikation, indkomstår: Heltal): AktieavanceInvesteringsaktivsummering -> AktieavanceInvesteringsaktivsummering(
     input_gyldigt = aktieavance_investerings_ejerpost_grundinput_gyldigt(ejerpost, klassifikation, indkomstår),
     medregnet_aktivmasse_kroner = hvis aktieavance_investerings_ejerpost_medregnes_direkte(ejerpost, klassifikation, indkomstår) { aktieavance_investerings_ejerpost_markedsværdi_kroner(ejerpost) } ellers { 0 },
     kvalificerende_aktiver_kroner = hvis aktieavance_investerings_ejerpost_medregnes_direkte(ejerpost, klassifikation, indkomstår) && klassifikation.aktiebaseret { aktieavance_investerings_ejerpost_markedsværdi_kroner(ejerpost) } ellers { 0 },
     øvrige_værdipapirer_kroner = hvis aktieavance_investerings_ejerpost_medregnes_direkte(ejerpost, klassifikation, indkomstår) && klassifikation.aktiebaseret == Falskt { aktieavance_investerings_ejerpost_markedsværdi_kroner(ejerpost) } ellers { 0 },
     andre_aktiver_kroner = 0
 )
-| exception aktieavance_investerings_ejerpost_lookthrough aktieavance_investerings_ejerpost_summering_fra_klassifikation(ejerpost: AktieavanceInvesteringsEjerpost, klassifikation: AktieavanceInvesteringsEjerpostKlassifikation, indkomstår: Heltal) -> aktieavance_investeringsaktiv_summering_kræver_positiv_aktivmasse(aktieavance_investeringsaktiv_summering_gange_ejerandel(aktieavance_investeringsaktiv_summering_fra_aktivmasse_resultat(klassifikation.aktivmasse_resultat), aktieavance_investerings_ejerpost_ejerandel(ejerpost))) under aktieavance_investerings_ejerpost_grundinput_gyldigt(ejerpost, klassifikation, indkomstår) && klassifikation.aktiebaseret && aktieavance_investerings_ejerandel_mindst_25_pct(aktieavance_investerings_ejerpost_ejerandel(ejerpost))
+| exception aktieavance_investerings_ejerpost_lookthrough aktieavance_investerings_ejerpost_summering_fra_klassifikation(ejerpost, klassifikation, indkomstår) -> aktieavance_investeringsaktiv_summering_kræver_positiv_aktivmasse(aktieavance_investeringsaktiv_summering_gange_ejerandel(aktieavance_investeringsaktiv_summering_fra_aktivmasse_resultat(klassifikation.aktivmasse_resultat), aktieavance_investerings_ejerpost_ejerandel(ejerpost))) under aktieavance_investerings_ejerpost_grundinput_gyldigt(ejerpost, klassifikation, indkomstår) && klassifikation.aktiebaseret && aktieavance_investerings_ejerandel_mindst_25_pct(aktieavance_investerings_ejerpost_ejerandel(ejerpost))
 | aktieavance_investerings_ejerpost_summering(ejerpost: AktieavanceInvesteringsEjerpost, indkomstår: Heltal) -> aktieavance_investerings_ejerpost_summering_fra_klassifikation(ejerpost, aktieavance_investerings_ejerpost_klassifikation(ejerpost), indkomstår)
 | aktieavance_investeringsaktivmasse_summering(input: AktieavanceInvesteringsaktivmasse) -> foldl(input.ejerposter, aktieavance_investeringsaktiv_direkte_summering(input.direkte_aktiver), |opsamling: AktieavanceInvesteringsaktivsummering, ejerpost: AktieavanceInvesteringsEjerpost| aktieavance_investeringsaktiv_summering_læg_sammen(opsamling, aktieavance_investerings_ejerpost_summering(ejerpost, input.indkomstår)))
 | aktieavance_investeringsaktivmasse_resultat_fra_summering(input: AktieavanceInvesteringsaktivmasse, summering: AktieavanceInvesteringsaktivsummering) -> AktieavanceInvesteringsaktivmasseResultat(
@@ -393,7 +393,7 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
     | skift_til_par19c_på_grund_af_anbringelser() -> meddelelse_rettidig() && anbringelsesbetingelser_efter_stk2_opfyldt() == Falskt
     | skift_til_par19c_på_grund_af_oplysninger() -> aktiebaseret_efter_par19b_stk2() && oplysninger_rettidige_efter_stk6() == Falskt
     | skal_offentliggøre_manglende_overholdelse() -> meddelelse_rettidig() && anbringelsesbetingelser_efter_stk2_opfyldt() == Falskt
-    | effektiv_status() -> AblObligationsbaseretInvesteringsselskabEfterPar19C
+    | effektiv_status(): AktieavancePar19BPar19CStatus -> AblObligationsbaseretInvesteringsselskabEfterPar19C
     | exception abl_par19b_effektiv_status effektiv_status() -> AblAktiebaseretInvesteringsselskabEfterPar19B under aktiebaseret_efter_par19b_stk2() && oplysninger_rettidige_efter_stk6()
     | resultat() -> AktieavancePar19BPar19CResultat(
         input = input,
@@ -422,7 +422,7 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
     | oplysninger_rettidige_efter_par21_stk5() -> input_gyldigt() && aktieavance_par21_oplysninger_rettidige(input.oplysninger)
     | skiftet_skattemæssig_status() -> input_gyldigt() && aktivmasse_resultat().kvalificerende_andel_mindst_50_pct == Falskt
     | skal_offentliggøre_manglende_overholdelse() -> skiftet_skattemæssig_status()
-    | effektiv_status() -> AblObligationsbaseretMinimumsinstitutEfterPar22
+    | effektiv_status(): AktieavancePar21Par22Status -> AblObligationsbaseretMinimumsinstitutEfterPar22
     | exception abl_par21_effektiv_status effektiv_status() -> AblAktiebaseretMinimumsinstitutEfterPar21 under input_gyldigt() && aktivmasse_resultat().kvalificerende_andel_mindst_50_pct
     | resultat() -> AktieavancePar21Par22Resultat(
         input = input,

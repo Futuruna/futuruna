@@ -32,7 +32,7 @@
 ? eve_no_children -> { @ print("eve has 0 children: PROVED") } else { @ print("eve has 0 children: FAILED") }
 
 -- Value-returning facts
-| capital("Denmark") -> "Copenhagen"
+| capital("Denmark"): String -> "Copenhagen"
 | capital("France") -> "Paris"
 | capital("Germany") -> "Berlin"
 | capital(country) -> ""

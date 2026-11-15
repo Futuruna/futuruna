@@ -111,7 +111,7 @@
 -- ============================================================================
 
 -- Base: any state is low risk
-| risk(s) -> "low"
+| risk(s): String -> "low"
 
 -- Yellow is medium risk (drivers may run it)
 | risk(s) -> "medium" under s.ns_light == Yellow

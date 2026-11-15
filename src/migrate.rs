@@ -24,6 +24,8 @@
 //! Quoted text with no `[sources/...]` document is not a quote of a saved
 //! file: it stays a `----` block comment, above the section.
 
+pub mod rule_types;
+
 use crate::annotations::quote_argument;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};

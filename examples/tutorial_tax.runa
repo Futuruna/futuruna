@@ -30,7 +30,7 @@ at least two children pays 20%.
 
 @ export
 # TaxCase(person: Person) {
-    | rate_percent() -> 25
+    | rate_percent(): Int -> 25
     | exception two_children rate_percent() -> 20 under length(person.children) >= 2
     | tax_due() -> person.annual_income * rate_percent() / 100
 }

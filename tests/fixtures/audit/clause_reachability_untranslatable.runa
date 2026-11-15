@@ -1,8 +1,8 @@
 -- Clause reachability: a guard outside the SMT subset is not analyzed.
 
-| advisory(t: Float) -> "all clear"
-| advisory(t: Float) -> "heat warning" under t > 35.0
+| advisory(t: Float): String -> "all clear"
+| advisory(t) -> "heat warning" under t > 35.0
 
-| level(x: Int) -> 0
-| level(x: Int) -> 1 under x > 10
-| level(x: Int) -> 2 under x > 20
+| level(x: Int): Int -> 0
+| level(x) -> 1 under x > 10
+| level(x) -> 2 under x > 20
