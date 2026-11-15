@@ -1,6 +1,6 @@
 // Read-only presentation of saved conditional-model output. No tax evaluation,
 // PDF import, network, source-fact inference, or modification of evidence.
-import { amount, integer, list, readSavedOutput, record, requireThat, textValue, unit, variant, visible } from './resultat-visning.mjs';
+import { amount, assumptionLines, caseRecord, integer, list, readSavedOutput, record, requireThat, textValue, unit, variant, visible } from './resultat-visning.mjs';
 export { parseReportOutput } from './resultat-visning.mjs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,8 +33,7 @@ export function renderReportOutput(envelope) {
     `Kontrakt fra filen: ${metadata.schema_hash} (ikke kontrolleret mod den aktuelle model).`,
   ];
   for (const row of envelope.results) {
-    record(row, ['case_id', 'result'], 'Sag');
-    textValue(row.case_id, 'Sagsnavn');
+    caseRecord(row);
     requireThat(!ids.has(row.case_id), 'Gentaget sagsnavn i resultater.');
     ids.add(row.case_id);
     const result = row.result;
@@ -95,6 +94,7 @@ export function renderReportOutput(envelope) {
     }
     lines.push('Forbehold og uafklarede forhold:');
     for (const caveat of result.uafklaret) { textValue(caveat, 'Forbehold'); lines.push(`  - ${visible(caveat)}`); }
+    lines.push(...assumptionLines(row));
   }
   if (envelope.diagnostics.length > 0) lines.push('', 'SAGER UDEN BEREGNINGSRESULTAT:');
   for (const diagnostic of envelope.diagnostics) {

@@ -1,7 +1,7 @@
 // Read-only summary of canonical model output, not a second tax calculator.
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { amount, integer, list, readSavedOutput, record, requireThat, textValue, variant, visible } from './resultat-visning.mjs';
+import { amount, assumptionLines, caseRecord, integer, list, readSavedOutput, record, requireThat, textValue, variant, visible } from './resultat-visning.mjs';
 
 // Deliberately version the supported outer shape. A new top-level warning must
 // not be silently discarded. A source-shape test guards this list against drift.
@@ -160,7 +160,7 @@ export function renderPersonskatOutput(envelope) {
   const details = [];
   let needsAttention = envelope.diagnostics.length > 0;
   for (const row of envelope.results) {
-    record(row, ['case_id', 'result'], 'Sag'); textValue(row.case_id, 'Sagsnavn');
+    caseRecord(row);
     requireThat(!ids.has(row.case_id), 'Gentaget sagsnavn i resultater.'); ids.add(row.case_id);
     const r = row.result;
     record(r, partyear ? partyearResultFields : resultFields, 'Personskatresultat');
@@ -224,6 +224,7 @@ export function renderPersonskatOutput(envelope) {
     }
     details.push('Alle forbehold fra den yderste vurdering:');
     for (const caveat of r.vurdering.forbehold) details.push(`  - ${visible(caveat)}`);
+    details.push(...assumptionLines(row));
   }
   if (envelope.diagnostics.length > 0) details.push('', 'SAGER UDEN BEREGNINGSRESULTAT:');
   for (const diagnostic of envelope.diagnostics) {
