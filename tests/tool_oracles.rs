@@ -140,8 +140,8 @@ const UNFORMATTED_PROGRAMS: [(&str, &str); 2] = [
         "rules_and_exceptions",
         "# Applicant(student: Bool, waiver: Bool)\n\
          |   fee(a: Applicant)   ->   100\n\
-         | fee(a: Applicant) -> 40   under a.student\n\
-         |   exception waived fee(a: Applicant) -> 0 under a.waiver\n\
+         | fee(a) -> 40   under a.student\n\
+         |   exception waived fee(a) -> 0 under a.waiver\n\
          >   invoice(a: Applicant) -> String {\n\
          \x20       \"Fee: \" +   show(fee(a))\n\
          }\n\

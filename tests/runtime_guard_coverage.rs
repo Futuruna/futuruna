@@ -76,10 +76,10 @@ fn gaps_changing_expressions_and_refutable_heads_receive_no_certificate() {
         "# Branch(input: Int, other: Int) { | value() -> 1 under input < 0\n| exception other value() -> 2 under other >= 0 }\n",
         "> probe() -> Int { 1 }\n# Branch(input: Int) { | value() -> 1 under probe() < 0\n| exception other value() -> 2 under probe() >= 0 }\n",
         "# Branch(input: Int) { | value(0) -> 1 under input < 0\n| exception other value(0) -> 2 under input >= 0 }\n",
-        "# Branch(input: Int) { | value(x: Int, x: Int) -> 1 under input < 0\n| exception other value(x: Int, x: Int) -> 2 under input >= 0 }\n",
+        "# Branch(input: Int) { | value(x: Int, x: Int) -> 1 under input < 0\n| exception other value(x, x) -> 2 under input >= 0 }\n",
         "# Branch(input: Int) { | value() -> 1 under input / 0 < 0\n| exception other value() -> 2 under input / 0 >= 0 }\n",
         "# Branch(input: Int) { | value(input) -> 1 under input < 0\n| exception other value(input) -> 2 under input >= 0 }\n",
-        "# Branch(input: Int) { | value(input: Int) -> 1 under input < 0\n| exception other value(other: Int) -> 2 under input >= 0 }\n",
+        "# Branch(input: Int) { | value(input: Int) -> 1 under input < 0\n| exception other value(other) -> 2 under input >= 0 }\n",
     ] {
         let checked = artifacts(source);
         assert!(!checked.rule_dispatch_runtime_irrefutable_keys.iter().any(|key| key.scope.as_deref() == Some("Branch") && key.name == "value"), "{source}");
@@ -125,9 +125,9 @@ fn erased_type_wrappers_cannot_authorize_guard_coverage() {
 #[test]
 fn enumeration_coverage_requires_every_nullary_member_of_the_same_owner() {
     for source in [
-        "# Choice = First | Second | Third\n| value(x: Choice) -> 1 under x == First\n| value(x: Choice) -> 2 under x == Second\n",
-        "# Choice = First | Second(Int)\n| value(x: Choice) -> 1 under x == First\n| value(x: Choice) -> 2 under x == Second(1)\n",
-        "# Choice = First | Second\n| value(x: Choice, other: Choice) -> 1 under x == First\n| value(x: Choice, other: Choice) -> 2 under other == Second\n",
+        "# Choice = First | Second | Third\n| value(x: Choice) -> 1 under x == First\n| value(x) -> 2 under x == Second\n",
+        "# Choice = First | Second(Int)\n| value(x: Choice) -> 1 under x == First\n| value(x) -> 2 under x == Second(1)\n",
+        "# Choice = First | Second\n| value(x: Choice, other: Choice) -> 1 under x == First\n| value(x, other) -> 2 under other == Second\n",
     ] {
         let checked = artifacts(source);
         assert!(!checked.rule_dispatch_runtime_irrefutable_keys.iter().any(|key| key.scope.is_none() && key.name == "value"), "{source}");

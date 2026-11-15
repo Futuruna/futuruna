@@ -73,11 +73,11 @@ mod ordinary_declarations;
 mod ordinary_expressions;
 mod parser_hints;
 pub mod partial;
+mod rule_declarations;
 mod runtime_diagnostics;
 mod runtime_guard_coverage;
 mod runtime_imports;
 mod runtime_stack;
-mod rule_declarations;
 pub use rule_declarations::{
     declared_rule_result, declared_rule_results, with_legacy_rule_types, DeclaredRuleResult,
     RULE_RESULT_TYPE_ANNOTATION,
@@ -4815,7 +4815,7 @@ mod meta_comment_tests {
 # KommunalPar5DelårsInput(kortere_periode_end_et_år: Boolsk)
 # KommunalPar5DelårsResultat(skat_kroner: Heltal)
 | kommunal_par5_delårsskat(input: KommunalPar5DelårsInput) -> 0
-| exception kommunal_par5_helårsomregnet kommunal_par5_delårsskat(input: KommunalPar5DelårsInput) -> 49315 under input.kortere_periode_end_et_år
+| exception kommunal_par5_helårsomregnet kommunal_par5_delårsskat(input) -> 49315 under input.kortere_periode_end_et_år
 = kommunal_par5_fixture = kommunal_par5_delårsskat(KommunalPar5DelårsInput(Sandt))
 
 }
@@ -4967,7 +4967,7 @@ Guide.
 
 | conditional(value: Int) -> True under value > 0
 | exception_only(value: Int) -> True under value > 100
-| exception positive exception_only(value: Int) -> True under value > 0
+| exception positive exception_only(value) -> True under value > 0
 
 = boolean_meta = BoolMeta(
     conditional = conditional(0),
@@ -10283,6 +10283,12 @@ impl Parser {
         if errors.is_empty() {
             if let Err(error) = self.elaborate_rule_declarations(&mut stmts) {
                 errors.extend(error.lines().map(str::to_string));
+            } else {
+                rule_declarations::type_imported_exceptions(
+                    &mut stmts,
+                    self.source_path.as_deref(),
+                    &self.import_dir(),
+                );
             }
         }
         if errors.is_empty() {
@@ -56740,8 +56746,11 @@ impl TypeChecker {
         // A family declared `: Bool` answers False when no clause applies, as
         // its declaration says; the runtime reads the declaration too.
         for (key, declared) in &declared {
-            if groups.contains_key(key) && Self::canonical_explore_type_name(&declared.result) == "Bool" {
-                self.rule_dispatch_runtime_boolean_miss_keys.insert(key.clone());
+            if groups.contains_key(key)
+                && Self::canonical_explore_type_name(&declared.result) == "Bool"
+            {
+                self.rule_dispatch_runtime_boolean_miss_keys
+                    .insert(key.clone());
             }
         }
         // The broad pass above exists only to seed recursive result sorts.
@@ -57034,7 +57043,8 @@ impl TypeChecker {
         let mut declared = BTreeSet::new();
         for (key, ty) in self.declared_top_level_result_tys() {
             if groups.contains_key(&key) {
-                self.explore_rule_return_types_by_arity.insert(key.clone(), ty);
+                self.explore_rule_return_types_by_arity
+                    .insert(key.clone(), ty);
                 declared.insert(key);
             }
         }
@@ -62937,7 +62947,9 @@ impl TypeChecker {
                     }
                     // A declared family's clauses are judged by its
                     // declaration, not against each other.
-                    if let Some(family) = Self::rule_name_arity(rule).and_then(|key| declared.get(&key)) {
+                    if let Some(family) =
+                        Self::rule_name_arity(rule).and_then(|key| declared.get(&key))
+                    {
                         self.check_declared_rule_clause(rule, family);
                         continue;
                     }
@@ -65628,8 +65640,8 @@ __FINDS__
     fn checked_resolution_rule_family_uses_authoritative_tier_order() {
         let source = r#"
 | choose(value: Int) -> 0
-| choose(value: Int) -> 1 under value > 0
-| exception high choose(value: Int) -> 2 under value > 10
+| choose(value) -> 1 under value > 0
+| exception high choose(value) -> 2 under value > 10
 "#;
         let artifacts = explore_artifacts_for_source(source);
         assert!(
@@ -68742,7 +68754,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let source = r#"
 | condition(value: Int) -> True under value > 0
 | exception_only(value: Int) -> True under value > 100
-| exception positive exception_only(value: Int) -> True under value > 0
+| exception positive exception_only(value) -> True under value > 0
 
 | mixed(value: Int) -> True under value > 0
 | mixed(left: Int, right: Int) -> left + right under left > 0
@@ -68889,7 +68901,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 # Case(limit: Int) {
     | allowed(value: Int) -> True under value > 0
     | exception_allowed(value: Int) -> True under value > 100
-    | exception above_limit exception_allowed(value: Int) -> True under value > 0
+    | exception above_limit exception_allowed(value) -> True under value > 0
     | wrapper(value: Int) -> allowed(value)
     | memo_allowed() -> True under False
     | zero_wrapper() -> memo_allowed()
@@ -68898,10 +68910,10 @@ starters first from mechanisms paths for node activation "{digest}" using values
 }
 
 # OtherCase(limit: Int) {
-    | shared(value: Int) -> value + 1 under value > limit
+    | shared(value) -> value + 1 under value > limit
 }
 
-| shared(value: Int) -> value + 10 under value > 0
+| shared(value) -> value + 10 under value > 0
 
 = case = Case(limit = 5)
 = allowed_hit = case.allowed(6)
@@ -69341,7 +69353,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let source = r#"
 | conditional(value: Int) -> True under value > 0
 | exception_only(value: Int) -> True under value > 100
-| exception positive exception_only(value: Int) -> True under value > 0
+| exception positive exception_only(value) -> True under value > 0
 
 @ print(show(conditional(0)))
 @ print(show(exception_only(0)))
@@ -69391,7 +69403,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 # Coverage = Covered | NotCovered
 
 | is_covered(status: Coverage) -> False
-| exception covered is_covered(status: Coverage) -> True under status == Covered
+| exception covered is_covered(status) -> True under status == Covered
 
 = covered = is_covered(Covered)
 = not_covered = is_covered(NotCovered)
@@ -69540,8 +69552,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
     fn interpreted_same_tier_rule_priority_is_top_down() {
         let source = r#"
 | choose(value: Int) -> 0
-| exception high choose(value: Int) -> 2 under value > 10
-| exception positive choose(value: Int) -> 1 under value > 0
+| exception high choose(value) -> 2 under value > 10
+| exception positive choose(value) -> 1 under value > 0
 
 # Decision(value: Int) {
     | result() -> 0
@@ -69578,8 +69590,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let source = r#"
 # Decision(base: Int) {
     | result(value: Int) -> base
-    | result(value: Int) -> 7 under value > 7
-    | exception above_eight result(value: Int) -> 8 under value > 8
+    | result(value) -> 7 under value > 7
+    | exception above_eight result(value) -> 8 under value > 8
 }
 
 | allowed(value: Int) -> value > 0
@@ -69665,7 +69677,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 # SumCase(values: List(Int)) {
     | total(extra: Int) -> sum(values) + extra
 }
-| total(values: List(Int)) -> sum(values)
+| total(values) -> sum(values)
 | unsupported(values: List(String)) -> sum(values)
 "#;
         let statements = parse_test_program(source).expect("parse sum return fixture");
@@ -69922,8 +69934,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
 @ export
 | answer(value: Int) -> value
 @ export
+| label(value: String): String
 | label("x") -> "ok"
-| label(value: String) -> ""
+| label(value) -> ""
 | private_value() -> 7
 @ export
 | partial(0) -> 7
@@ -70027,7 +70040,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 | overloaded(value: Int) -> value + 1
 
 | conflicting(value: Int) -> value
-| conflicting(value: Int) -> True under value > 0
+| conflicting(value) -> True under value > 0
 
 | unresolved(value: Int) -> []
 "#;
@@ -70428,7 +70441,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         .expect("write leaf rule module");
         std::fs::write(
             temp_dir.join("middle.runa"),
-            "@ import ./leaf\n| exception positive imported_condition(value: Int) -> True under value > 0\n",
+            "@ import ./leaf\n| exception positive imported_condition(value) -> True under value > 0\n",
         )
         .expect("write middle rule module");
         let source = r#"
@@ -70724,7 +70737,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 > helper(value: Int) -> Int { value + 2 }
 # Marker = Marker | Wrapped(value: Int)
 > module Local {
-    | collision(value: Int) -> value + 200
+    | collision(value) -> value + 200
     > call_rule(value: Int) -> Int { collision(value) }
 }
 
@@ -70845,14 +70858,14 @@ starters first from mechanisms paths for node activation "{digest}" using values
 | parent_only(value: Int) -> value + 2000
 > module First {
     = offset = 10
-    | amount(value: Int) -> value + offset
+    | amount(value) -> value + offset
     | amount(left: Int, right: Int) -> left + right + 100
     | amounts(value: Int) -> [value, value + 1]
     | shadowed(value: Int) -> value + 50
     = shadowed = 73
 }
 > module Second {
-    | amount(value: Int) -> value + 20
+    | amount(value) -> value + 20
 }
 = direct = First.amount(2)
 = named = First.amount(value = 2)
@@ -71351,7 +71364,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 }
 
 | add_item(state: FoldState, item: Int) -> FoldStep(state, item).result()
-| exception double_second add_item(state: FoldState, item: Int) -> FoldStep(state, item + item).result() under item == 2
+| exception double_second add_item(state, item) -> FoldStep(state, item + item).result() under item == 2
 
 # FoldCase(values: List(Int)) {
     | final_state() -> foldl(values, FoldState(total = 0), add_item)
@@ -71457,7 +71470,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 # OuterResult(valid: Bool, blocked: Bool, deductible: Bool, status: Status)
 
 | classify(status: Status) -> Ordinary
-| exception special classify(status: Status) -> Special under status == Special
+| exception special classify(status) -> Special under status == Special
 
 # Inner(input: Input) {
     | input_valid() -> input.value >= 0

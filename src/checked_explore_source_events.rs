@@ -2518,7 +2518,7 @@ mod tests {
     fn checked_explore_source_event_output_budget_reserves_one_terminal_residual() {
         let source = r#"
 | bounded_rate(value: Int) -> 0
-| exception thresholds bounded_rate(value: Int) -> 1 under value >= 2 && value >= 4 && value >= 6
+| exception thresholds bounded_rate(value) -> 1 under value >= 2 && value >= 4 && value >= 6
 
 ? explore bounded_outputs {
     from {
@@ -2556,7 +2556,7 @@ mod tests {
     fn checked_explore_source_event_extracts_exception_threshold_and_survives_ownership() {
         let source = r#"
 | source_event_rate(value: Int) -> 0
-| exception threshold source_event_rate(value: Int) -> 1 under value >= 680
+| exception threshold source_event_rate(value) -> 1 under value >= 680
 
 ? explore source_event_boundary {
     from {
@@ -2637,7 +2637,7 @@ mod tests {
 }
 
 | mini_tax_band(state: MiniTaxState) -> 0
-| exception threshold mini_tax_band(state: MiniTaxState) -> 1 under mini_tax_gross(state) >= 68000
+| exception threshold mini_tax_band(state) -> 1 under mini_tax_gross(state) >= 68000
 
 ? explore mini_tax_value_paths {
     from {
@@ -2715,7 +2715,7 @@ mod tests {
 }
 
 | canonical_band(box: CanonicalOuter) -> 0
-| exception boundary canonical_band(box: CanonicalOuter) -> 1 under canonical_value(adjustment = 0, box = box) >= 680
+| exception boundary canonical_band(box) -> 1 under canonical_value(adjustment = 0, box = box) >= 680
 
 ? explore canonical_structured_boundary {
     from {
@@ -2741,7 +2741,7 @@ mod tests {
 }
 
 | renamed_band(subject: CanonicalOuter) -> 0
-| exception renamed_boundary renamed_band(subject: CanonicalOuter) -> 1 under renamed_value(subject = subject, delta = 0) >= 680
+| exception renamed_boundary renamed_band(subject) -> 1 under renamed_value(subject = subject, delta = 0) >= 680
 
 ? explore renamed_structured_boundary {
     from {
@@ -2763,7 +2763,7 @@ mod tests {
     fn checked_explore_source_event_retains_nonlinear_condition_as_residual_without_cut() {
         let source = r#"
 | nonlinear_rate(value: Int) -> 0
-| exception threshold nonlinear_rate(value: Int) -> 1 under value * value >= 680
+| exception threshold nonlinear_rate(value) -> 1 under value * value >= 680
 
 ? explore nonlinear_boundary {
     from {
@@ -2816,7 +2816,7 @@ mod tests {
         let baseline = event_identity(
             r#"
 | named_boundary(value: Int, offset: Int) -> 0
-| exception threshold named_boundary(value: Int, offset: Int) -> 1 under value + offset >= 680
+| exception threshold named_boundary(value, offset) -> 1 under value + offset >= 680
 
 ? explore canonical_query {
     from {
@@ -2831,7 +2831,7 @@ mod tests {
         let reordered_and_renamed = event_identity(
             r#"
 | renamed_boundary(amount: Int, shift: Int) -> 0
-| exception renamed_threshold renamed_boundary(amount: Int, shift: Int) -> 1 under amount + shift >= 680
+| exception renamed_threshold renamed_boundary(amount, shift) -> 1 under amount + shift >= 680
 
 ? explore renamed_query {
     from {
@@ -2912,7 +2912,7 @@ mod tests {
         let inventory = checked_inventory(
             r#"
 | two_nonlinear_atoms(value: Int) -> 0
-| exception thresholds two_nonlinear_atoms(value: Int) -> 1 under value * value >= 10 && (value + 1) * (value + 1) >= 20
+| exception thresholds two_nonlinear_atoms(value) -> 1 under value * value >= 10 && (value + 1) * (value + 1) >= 20
 
 ? explore two_nonlinear_boundaries {
     from {
@@ -2942,7 +2942,7 @@ mod tests {
         let inventory = checked_inventory(
             r#"
 | zeroed_boundary(value: Int) -> 0
-| exception threshold zeroed_boundary(value: Int) -> 1 under value * 0 >= 1
+| exception threshold zeroed_boundary(value) -> 1 under value * 0 >= 1
 
 ? explore zeroed_source_boundary {
     from {
@@ -2964,7 +2964,7 @@ mod tests {
             let source = format!(
                 r#"
 | nested_boundary(value: Int) -> 0
-| exception threshold nested_boundary(value: Int) -> 1 under value >= 680
+| exception threshold nested_boundary(value) -> 1 under value >= 680
 
 > add_named(left: Int, right: Int) -> Int {{ left + right }}
 
@@ -3000,7 +3000,7 @@ mod tests {
                 "multiple axes",
                 r#"
 | combined_axes(left: Int, right: Int) -> 0
-| exception threshold combined_axes(left: Int, right: Int) -> 1 under left + right >= 3
+| exception threshold combined_axes(left, right) -> 1 under left + right >= 3
 
 ? explore multiple_source_axes {
     from {
@@ -3022,7 +3022,7 @@ mod tests {
 # NonlinearState(profile: NonlinearProfile)
 
 | nonlinear_structured_band(state: NonlinearState) -> 0
-| exception threshold nonlinear_structured_band(state: NonlinearState) -> 1 under state.profile.gross >= 4
+| exception threshold nonlinear_structured_band(state) -> 1 under state.profile.gross >= 4
 
 ? explore nonlinear_structured_source {
     from {
@@ -3051,7 +3051,7 @@ mod tests {
 }
 
 | nonlinear_block_band(state: BlockState) -> 0
-| exception threshold nonlinear_block_band(state: BlockState) -> 1 under nonlinear_block_income(state) >= 4
+| exception threshold nonlinear_block_band(state) -> 1 under nonlinear_block_income(state) >= 4
 
 ? explore nonlinear_block_source {
     from {
@@ -3073,7 +3073,7 @@ mod tests {
 > recursive_income(state: RecursiveState) -> Int { recursive_income(state) }
 
 | recursive_callable_band(state: RecursiveState) -> 0
-| exception threshold recursive_callable_band(state: RecursiveState) -> 1 under recursive_income(state) >= 4
+| exception threshold recursive_callable_band(state) -> 1 under recursive_income(state) >= 4
 
 ? explore recursive_callable_source {
     from {
@@ -3092,7 +3092,7 @@ mod tests {
                 r#"
 # ScopedBoundary(base: Int) {
     | rate(value: Int) -> base
-    | exception threshold rate(value: Int) -> 1 under value >= 2
+    | exception threshold rate(value) -> 1 under value >= 2
 }
 
 ? explore scoped_source_boundary {
@@ -3110,7 +3110,7 @@ mod tests {
                 "recursive family",
                 r#"
 | recursive_boundary(value: Int) -> 0
-| exception recursive recursive_boundary(value: Int) -> 1 under recursive_boundary(value) == 1
+| exception recursive recursive_boundary(value) -> 1 under recursive_boundary(value) == 1
 
 ? explore recursive_source_boundary {
     from {
@@ -3127,7 +3127,7 @@ mod tests {
                 "integer overflow",
                 r#"
 | overflowing_boundary(value: Int) -> 0
-| exception threshold overflowing_boundary(value: Int) -> 1 under value + 9223372036854775807 >= 0
+| exception threshold overflowing_boundary(value) -> 1 under value + 9223372036854775807 >= 0
 
 ? explore overflowing_source_boundary {
     from {

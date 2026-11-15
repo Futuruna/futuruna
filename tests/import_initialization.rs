@@ -235,7 +235,7 @@ fn maintained_qualified_initializer_corpus_agrees_in_both_execution_modes() {
 #[test]
 fn late_plain_imports_keep_rule_misses_and_guard_priority() {
     let fixture = Fixture::new(&[
-        ("dependency.runa", "| known(1)\n| rate(x: Int) -> 1\n| rate(x: Int) -> 2 under x > 10\n"),
+        ("dependency.runa", "| known(1)\n| rate(x: Int) -> 1\n| rate(x) -> 2 under x > 10\n"),
         ("main.runa", "| rate(x: Int) -> 3 under x > 5\n@ import ./dependency\n@ print(show(known(2)))\n@ print(show(findall(x, known(x))))\n@ print(show(rate(20)))\n"),
     ]);
     fixture.agrees("false\n[1]\n2");

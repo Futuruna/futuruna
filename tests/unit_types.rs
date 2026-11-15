@@ -91,7 +91,7 @@ fn rule_families_and_folds_take_the_unit_of_their_values() {
     accepted(
         "# Holding(amount: Ore)\n\
          | fee(x: Ore) -> 0 under x < 100\n\
-         | fee(x: Ore) -> x / 10\n\
+         | fee(x) -> x / 10\n\
          > charged(x: Ore) -> Ore { fee(x) + x }\n\
          > total(holdings: List(Holding)) -> Ore { foldl(holdings, 0, |sum, h| sum + h.amount) }\n",
     );
@@ -148,7 +148,7 @@ fn branches_take_the_unit_of_their_unit_arm() {
          > doubled(price: Ore?) -> Ore { 2 * match price {\n    | Some(p) -> p\n    | None -> 0\n} }\n\
          > floor(a: Ore) -> Ore { if a < 0 { 0 } else { a } }\n\
          | kept_ore(closed: Bool, carried_ore: Ore) -> carried_ore\n\
-         | exception lost kept_ore(closed: Bool, carried_ore: Ore) -> 0 under closed\n",
+         | exception lost kept_ore(closed, carried_ore) -> 0 under closed\n",
     );
     rejected(
         "> mixed(price: Ore?, q: Micro) -> Ore {\n    match price {\n        | Some(p) -> p\n        | None -> q\n    }\n}\n",
@@ -261,7 +261,7 @@ const RUNNABLE: &str = "# unit Ore \"DKK øre\"
 }
 
 | fee(x: Ore) -> 0 under x < 1000
-| fee(x: Ore) -> x / 100
+| fee(x) -> x / 100
 
 > kept(x: Ore) -> Ore { x - x / 10 }
 
@@ -757,7 +757,7 @@ fn the_clause_audit_and_verify_see_units_as_int() {
         "-- library-hygiene: importable\n\
          # unit Ore \"DKK øre\"\n\
          | bracket(amount: Ore) -> 0 under amount < 10000\n\
-         | bracket(amount: Ore) -> 1 under amount >= 10000\n\
+         | bracket(amount) -> 1 under amount >= 10000\n\
          # ShareTax(own_ore: Ore) {\n    \
              | tax_ore() -> own_ore / 4 under own_ore > 0\n    \
              | exception negative_share_income tax_ore() -> own_ore / 4 under own_ore < 0\n\
@@ -769,7 +769,7 @@ fn the_clause_audit_and_verify_see_units_as_int() {
         dir.join("tax.calculate.runa"),
         "@ import ./money\n\
          | band(x: Ore) -> 1 under x >= 0\n\
-         | band(x: Ore) -> 2 under x < 0\n\
+         | band(x) -> 2 under x < 0\n\
          # Input(own_ore: Ore)\n\
          # Output(tax_ore: Ore, band: Int, bracket: Int)\n\
          @ calculate(\"Units in the clause audit\")\n\

@@ -964,9 +964,9 @@ mod tests {
         let trace = raw_checked_interpreter_mechanism_trace_after_parse(
             r#"
 | cascade(value: Int) -> False
-| cascade(value: Int) -> True
-| cascade(value: Int) -> True
-| cascade(value: Int) -> True under False
+| cascade(value) -> True
+| cascade(value) -> True
+| cascade(value) -> True under False
 | exception literal_miss cascade(99) -> True
 
 > observe_cascade(state: Int, context: Unit) -> Bool {
@@ -1074,7 +1074,7 @@ mod tests {
         let trace = raw_checked_interpreter_mechanism_trace(
             r#"
 | never_applies(value: Int) -> False
-| never_applies(value: Int) -> True under False
+| never_applies(value) -> True under False
 | exception literal_miss never_applies(99) -> True
 
 > observe_miss(state: Int, context: Unit) -> Bool {

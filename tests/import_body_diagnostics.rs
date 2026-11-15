@@ -500,7 +500,7 @@ fn inline_module_rule_contracts_include_their_plain_imports() {
 #[test]
 fn alternate_import_paths_keep_each_inline_rule_namespace() {
     let mut fixture = Fixture::new();
-    fixture.write("main.runa", "> module First {\n| tax(income: Int) -> \"ordinary\"\n@ import ./exempt\n}\n> module Second {\n| tax(income: Int) -> 7\n@ import ././exempt\n}\n");
+    fixture.write("main.runa", "> module First {\n| tax(income: Int) -> \"ordinary\"\n@ import ./exempt\n}\n> module Second {\n| tax(income) -> 7\n@ import ././exempt\n}\n");
     fixture.write(
         "exempt.runa",
         "| exception special tax(income: Int) -> \"exempt\" under income < 10\n",

@@ -758,7 +758,7 @@ fn partial_value_rule_rejects_while_an_irrefutable_fallback_certifies() {
 
     let total = r#"
 | endpoint_test_total_value(value: Int) -> 9 under value > 0
-| endpoint_test_total_value(value: Int) -> 0
+| endpoint_test_total_value(value) -> 0
 
 > endpoint_test_total_rule_observer(state: Int, context: Unit) -> Int {
     endpoint_test_total_value(state)
@@ -784,7 +784,7 @@ fn finite_nullary_constructor_guards_close_exact_dispatch_domain() {
 # EndpointTestProfile(age: EndpointTestAge)
 
 | endpoint_test_age_amount(status: EndpointTestAge) -> 1 under status == EndpointTestAdult
-| endpoint_test_age_amount(status: EndpointTestAge) -> 2 under status == EndpointTestChild
+| endpoint_test_age_amount(status) -> 2 under status == EndpointTestChild
 
 > endpoint_test_age_observer(state: EndpointTestProfile, context: Unit) -> Int {
     endpoint_test_age_amount(state.age)
@@ -839,7 +839,7 @@ fn missing_nullary_constructor_guard_retains_partial_dispatch() {
 fn complementary_modulo_guards_close_the_ordered_dispatch_residual() {
     let source = r#"
 | endpoint_test_modulo_partition(value: Int) -> 0 under value % 100 == 0
-| endpoint_test_modulo_partition(value: Int) -> 1 under value % 100 != 0
+| endpoint_test_modulo_partition(value) -> 1 under value % 100 != 0
 
 > endpoint_test_modulo_partition_observer(state: Int, context: Unit) -> Int {
     endpoint_test_modulo_partition(state)
@@ -863,7 +863,7 @@ fn complementary_modulo_guards_close_the_ordered_dispatch_residual() {
 fn reversed_complementary_inequality_guards_close_the_ordered_dispatch_residual() {
     let source = r#"
 | endpoint_test_order_partition(value: Int) -> 0 under value <= 0
-| endpoint_test_order_partition(value: Int) -> 1 under 0 < value
+| endpoint_test_order_partition(value) -> 1 under 0 < value
 
 > endpoint_test_order_partition_observer(state: Int, context: Unit) -> Int {
     endpoint_test_order_partition(state)
@@ -887,7 +887,7 @@ fn reversed_complementary_inequality_guards_close_the_ordered_dispatch_residual(
 fn non_covering_modulo_guards_leave_a_partial_dispatch_residual() {
     let source = r#"
 | endpoint_test_incomplete_modulo(value: Int) -> 0 under value % 100 == 0
-| endpoint_test_incomplete_modulo(value: Int) -> 1 under value % 100 == 1
+| endpoint_test_incomplete_modulo(value) -> 1 under value % 100 == 1
 
 > endpoint_test_incomplete_modulo_observer(state: Int, context: Unit) -> Int {
     endpoint_test_incomplete_modulo(state)
@@ -918,7 +918,7 @@ fn reversed_string_concatenation_guards_do_not_form_a_complementary_partition() 
 # EndpointConcatTriple(x: String, y: String, z: String)
 
 | endpoint_test_concat_partition(value: EndpointConcatTriple) -> 1 under value.x + value.y == value.z
-| endpoint_test_concat_partition(value: EndpointConcatTriple) -> 2 under value.y + value.x != value.z
+| endpoint_test_concat_partition(value) -> 2 under value.y + value.x != value.z
 
 > endpoint_test_concat_partition_observer(state: EndpointConcatTriple, context: Unit) -> Int {
     endpoint_test_concat_partition(state)
@@ -947,7 +947,7 @@ fn reversed_string_concatenation_guards_do_not_form_a_complementary_partition() 
 fn nan_order_guards_do_not_masquerade_as_a_complementary_partition() {
     let source = r#"
 | endpoint_test_nan_split(x: Float, y: Float) -> 1 under x <= y
-| endpoint_test_nan_split(x: Float, y: Float) -> 2 under x > y
+| endpoint_test_nan_split(x, y) -> 2 under x > y
 
 > endpoint_test_nan_split_observer(state: Int, context: Unit) -> Int {
     endpoint_test_nan_split(0.0 / 0.0, 0.0)

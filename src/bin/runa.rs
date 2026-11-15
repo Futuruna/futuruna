@@ -20921,9 +20921,7 @@ fn migrate_targets(targets: &[String], check: bool) {
             let formatted = match checked_format_runa_source(&result.source) {
                 Ok(formatted) => formatted,
                 Err(error) => {
-                    eprintln!(
-                        "{path}: the migrated file does not format: {error}; file unchanged"
-                    );
+                    eprintln!("{path}: the migrated file does not format: {error}; file unchanged");
                     failed += 1;
                     continue;
                 }
@@ -64310,7 +64308,7 @@ assert_with_message(true, message())
         let source = r#"
 | conditional(value: Int) -> True under value > 0
 | exception_only(value: Int) -> True under value > 100
-| exception positive exception_only(value: Int) -> True under value > 0
+| exception positive exception_only(value) -> True under value > 0
 
 @ print(show(conditional(1)))
 @ print(show(conditional(0)))
@@ -65521,7 +65519,7 @@ fn main() {{
 # Desired = Shared | DesiredOnly
 # Other = Shared | OtherOnly
 | is_shared(value: Desired) -> Falskt
-| exception shared_case is_shared(value: Desired) -> Sandt under value == Shared
+| exception shared_case is_shared(value) -> Sandt under value == Shared
 "#;
         let (mut cg, stmts) = scan_with_codegen(source);
         let rules: Vec<&Rule> = stmts
@@ -65562,7 +65560,7 @@ fn main() {{
 # Desired = Shared | DesiredOnly
 # Other = Shared | OtherOnly
 | choose(flag: Bool) -> DesiredOnly
-| exception shared_case choose(flag: Bool) -> Shared under flag
+| exception shared_case choose(flag) -> Shared under flag
 "#;
         let (mut cg, stmts) = scan_with_codegen(source);
         let rules: Vec<&Rule> = stmts
@@ -65629,8 +65627,8 @@ fn main() {{
     fn compiled_same_tier_rule_priority_is_top_down() {
         let source = r#"
 | choose(value: Int) -> 0
-| exception high choose(value: Int) -> 2 under value > 10
-| exception positive choose(value: Int) -> 1 under value > 0
+| exception high choose(value) -> 2 under value > 10
+| exception positive choose(value) -> 1 under value > 0
 
 # Decision(value: Int) {
     | result() -> 0
@@ -66133,7 +66131,7 @@ fn main() {{
 }
 
 | add_item(state: FoldState, item: Int) -> FoldStep(state, item).result()
-| exception double_second add_item(state: FoldState, item: Int) -> FoldStep(state, item + item).result() under item == 2
+| exception double_second add_item(state, item) -> FoldStep(state, item + item).result() under item == 2
 
 # FoldCase(values: List(Int)) {
     | final_state() -> foldl(values, FoldState(total = 0), add_item)
@@ -67758,16 +67756,17 @@ readings <- "score"
             r#"
 > private_offset() -> Int { 100 }
 | private_adjust(value: Int) -> value + private_offset() under value > 0
-| private_adjust(value: Int) -> 0
+| private_adjust(value) -> 0
 | route(left: Int, right: Int) -> private_adjust(left) + right under left > 0
-| route(left: Int, right: Int) -> 0
+| route(left, right) -> 0
 @ export route
 
 | tagged("remote")
 @ export tagged
 
+| label(value: String): String
 | label("remote") -> "found"
-| label(value: String) -> ""
+| label(value) -> ""
 @ export label
 
 @ export
@@ -67785,7 +67784,7 @@ readings <- "score"
 | private_adjust(value: Int, extra: Int) -> value + extra + 1000 under value > 0
 = root_delta = 1
 | route(value: Int) -> value + root_delta under value > 0
-| route(value: Int) -> 0
+| route(value) -> 0
 > private_offset() -> Int { 1 }
 
 @ print(show(route(4)))
@@ -68028,8 +68027,9 @@ readings <- "score"
             temp_dir.join("dep.runa"),
             r#"
 @ export
+| label(value: String): String
 | label("x") -> "ok"
-| label(value: String) -> ""
+| label(value) -> ""
 
 @ export
 > borrowed(value: String) -> Int { length(value) }
@@ -68758,7 +68758,7 @@ Q.append_shared(value = 3, values = shared_values)
 @ export
 # Policy(offset: Int, bonus: Int) {
     | score(value: Int) -> value + offset + bonus under value > 0
-    | score(value: Int) -> 0
+    | score(value) -> 0
 }
 
 @ export
@@ -68774,7 +68774,7 @@ Q.append_shared(value = 3, values = shared_values)
             r#"
 # Policy(offset: Int) {
     | score(value: Int) -> value + offset under value > 0
-    | score(value: Int) -> 0
+    | score(value) -> 0
 }
 @ import Remote from ./dep
 

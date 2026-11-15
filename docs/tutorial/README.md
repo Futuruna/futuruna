@@ -33,7 +33,7 @@ takes precedence over the default rule.
 # Person(annual_income: Int, children: List(Child))
 
 | tax_due(person: Person) -> person.annual_income / 4
-| exception two_children tax_due(person: Person) -> person.annual_income / 5 under length(person.children) >= 2
+| exception two_children tax_due(person) -> person.annual_income / 5 under length(person.children) >= 2
 
 = parent = Person(
     annual_income = 500000,

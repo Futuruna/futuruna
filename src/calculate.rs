@@ -7398,7 +7398,7 @@ mod calculation_execution_tests {
 # Result(tax: Int)
 
 | base_tax(h: Household) -> h.income / 4
-| exception relief base_tax(h: Household) -> h.income / 5 under h.income > 100 && h.married
+| exception relief base_tax(h) -> h.income / 5 under h.income > 100 && h.married
 
 @ calculate
 | household_tax(h: Household) -> Result(tax = base_tax(h))
@@ -8174,15 +8174,15 @@ mod calculation_execution_tests {
 # Output(first: Int, second: Int, count: Int, eligible: Bool)
 | amount(value: Int) -> value + 1000
 > module First {
-    | amount(value: Int) -> value + 10
+    | amount(value) -> value + 10
     | amounts(value: Int) -> [value, value + 1]
     | eligible(value: Int) -> True under value > 0
 }
 > module Second {
-    | amount(value: Int) -> value + 20
+    | amount(value) -> value + 20
 }
 > module Partial {
-    | amount(value: Int) -> value + 30 under value >= 0
+    | amount(value) -> value + 30 under value >= 0
 }
 @ calculate
 > calculate(input: Input) -> Output {
@@ -8247,7 +8247,7 @@ mod calculation_execution_tests {
 # Output(eligible: Bool, amount: Int)
 | parameter(value: Int) -> True under value > 0
 > module Policy {
-    | parameter(value: Int) -> 7 under value > 0
+    | parameter(value) -> 7 under value > 0
     | predicate(value: Int) -> True under value > 0
     > eligible(value: Int) -> Bool { predicate(value) }
     > amount(value: Int) -> Int { parameter(value) }
@@ -8584,7 +8584,7 @@ mod calculation_execution_tests {
 
 | conditional(value: Int) -> True under value > 0
 | exception_only(value: Int) -> True under value > 100
-| exception positive exception_only(value: Int) -> True under value > 0
+| exception positive exception_only(value) -> True under value > 0
 
 @ calculate("Boolean miss calculation")
 | calculate_boolean_misses(input: BoolInput) -> BoolResult(
@@ -8951,7 +8951,7 @@ mod calculation_execution_tests {
 # Total(net: Int, tax: Int, kind: Kind)
 
 | line_tax(l: Line, rate_bp: Int) -> l.amount * rate_bp / 10000
-| exception reduced line_tax(l: Line, rate_bp: Int) -> l.amount * rate_bp / 20000 under l.kind == Reduced
+| exception reduced line_tax(l, rate_bp) -> l.amount * rate_bp / 20000 under l.kind == Reduced
 
 @ calculate
 | total(c: Case) -> Total(net = foldl(c.lines, 0, |acc, l| acc + l.amount), tax = foldl(c.lines, 0, |acc, l| acc + line_tax(l, c.rate_bp)), kind = head(c.lines).kind)

@@ -1420,8 +1420,15 @@ impl ConstructorScopeWalk<'_> {
         match rule {
             Rule::Clause { body, .. } => {
                 if let Some(body) = body {
-                    let goal = matches!(body.kind, ExprKind::Conjunction(_) | ExprKind::Disjunction(_));
-                    let expect = if declared && !goal { expect } else { Expect::none() };
+                    let goal = matches!(
+                        body.kind,
+                        ExprKind::Conjunction(_) | ExprKind::Disjunction(_)
+                    );
+                    let expect = if declared && !goal {
+                        expect
+                    } else {
+                        Expect::none()
+                    };
                     self.expr(body, &expect, &inner);
                 }
             }

@@ -1992,11 +1992,11 @@ fn calculation_inline_module_list_rule_cannot_become_a_successful_zero() {
 # Output(first: Int, second: Int, count: Int)
 | amount(value: Int) -> value + 1000
 > module First {
-    | amount(value: Int) -> value + 10
+    | amount(value) -> value + 10
     | amounts(value: Int) -> [value, value + 1] under value >= 0
 }
 > module Second {
-    | amount(value: Int) -> value + 20
+    | amount(value) -> value + 20
 }
 @ calculate
 > calculate(input: Input) -> Output {
