@@ -1,0 +1,19 @@
+-- A binding in a body or a parameter hides a function of its name in its
+-- scope: calling it when it holds no function is a check error naming the
+-- hidden function. It is lexical, so it gets no top-level binding warning.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: value `rate` is not callable: here `rate` is a parameter or local binding of type `Int`, which hides the function or rule `rate`
+-- expect-stderr: local_called_as_function.runa:16:
+-- expect-stderr: value `bump` is not callable: here `bump` is a parameter or local binding of type `Int`, which hides the function or rule `bump`
+-- expect-stderr: local_called_as_function.runa:19:
+-- expect-stderr-not: the binding `rate`
+-- expect-stderr-not: the binding `bump`
+
+> rate(x: Int) -> Int { x * 3 }
+> uses(y: Int) -> Int {
+    = rate = y
+    rate(rate)
+}
+> bump(x: Int) -> Int { x + 1 }
+> bumped(bump: Int) -> Int { bump(bump) }

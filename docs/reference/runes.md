@@ -659,11 +659,13 @@ bindings is rejected with the complete initialization path.
 
 ### A binding named like a function or rule
 
-A binding may take the name of a function or rule, as a result bound under
-its rule's name (`= tax = tax(case)`). The name then reads the binding, and
-a call of the name still calls the function or rule, unless the binding
-holds a function: that binding takes the calls after it. Bindings in a body
-and parameters behave the same way. Every command that checks the program
+A top-level binding may take the name of a function or rule, as a result
+bound under its rule's name (`= tax = tax(case)`). The name then reads the
+binding, and a call of the name still calls the function or rule, unless the
+binding holds a function: that binding takes the calls after it. Bindings in
+a body and parameters are different: they hide a function or rule of their
+name in their scope, so a call of the name calls them, and calling one that
+holds no function is a check error naming the hidden function. Every command that checks the program
 prints a warning for each such top-level binding, naming the function or
 rule and where it is declared; the warning does not fail the command.
 

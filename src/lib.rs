@@ -16596,6 +16596,21 @@ impl Env {
         }
     }
 
+    /// Whether the nearest binder of `name` is the outermost frame, the
+    /// top level, rather than a parameter or a binding in a body.
+    fn top_level_binding(&self, name: &str) -> bool {
+        let mut frame = self;
+        loop {
+            if frame.bindings.contains_key(name) {
+                return frame.parent.is_none();
+            }
+            match &frame.parent {
+                Some(parent) => frame = parent,
+                None => return false,
+            }
+        }
+    }
+
     pub fn get(&self, name: &str) -> Option<&Value> {
         if self.unavailable_constants.contains(name) {
             return None;
@@ -23521,20 +23536,23 @@ impl Interpreter {
                     ));
                 }
             }
-            // A value binding does not hide a function at a call, as it does
-            // not hide a rule: `closed(…)` calls the function `closed` while
-            // `closed` reads the binding. A binding holding a function does
-            // take the call (above).
-            let hidden_by_value = env.get(function_name).is_some_and(|value| {
-                !matches!(
-                    value,
-                    Value::Closure { .. }
-                        | Value::Builtin(_)
-                        | Value::NamespacedBuiltin { .. }
-                        | Value::Constructor(..)
-                        | Value::NamespacedConstructor { .. }
-                )
-            });
+            // A top-level value binding does not hide a function at a call,
+            // as it does not hide a rule: `closed(…)` calls the function
+            // `closed` while `closed` reads the binding. A binding holding a
+            // function does take the call (above). A parameter or a binding
+            // in a body is the nearest binder: the call means it (the checker
+            // reports it when it holds no function).
+            let hidden_by_value = env.top_level_binding(function_name)
+                && env.get(function_name).is_some_and(|value| {
+                    !matches!(
+                        value,
+                        Value::Closure { .. }
+                            | Value::Builtin(_)
+                            | Value::NamespacedBuiltin { .. }
+                            | Value::Constructor(..)
+                            | Value::NamespacedConstructor { .. }
+                    )
+                });
             if has_named_args(arguments) || hidden_by_value {
                 if let Some((owner, definition, declaration_env)) =
                     self.runtime_function(&namespace, function_name)

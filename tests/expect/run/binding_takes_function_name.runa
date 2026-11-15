@@ -5,36 +5,24 @@
 -- expect-stdout: value=4
 -- expect-stdout: call=6
 -- expect-stdout: rule=8
--- expect-stdout: local=12
 -- expect-stdout: lambda=42
--- expect-stdout: param=2
--- expect-stderr: the binding `closed` takes the name of the function `closed` declared at line 20: `closed` reads this binding, while a call `closed(…)` calls the function
--- expect-stderr: the binding `doubled` takes the name of the rule `doubled` declared at line 21: `doubled` reads this binding, while a call `doubled(…)` calls the rule
--- expect-stderr: the binding `scale` takes the name of the function `scale` declared at line 23: after it, a call `scale(…)` calls this binding, not the function
--- expect-stderr-not: the binding `rate`
--- expect-stderr-not: the binding `bump`
+-- expect-stderr: the binding `closed` takes the name of the function `closed` declared at line 17: `closed` reads this binding, while a call `closed(…)` calls the function
+-- expect-stderr: the binding `doubled` takes the name of the rule `doubled` declared at line 18: `doubled` reads this binding, while a call `doubled(…)` calls the rule
+-- expect-stderr: the binding `scale` takes the name of the function `scale` declared at line 19: after it, a call `scale(…)` calls this binding, not the function
 
--- Bindings in a body and parameters are lexical: they are not reported, and
--- a call of their name still calls the function.
+-- Bindings in a body and parameters are lexical: they hide a function or
+-- rule of their name in their scope, so calling one that holds no function
+-- is a check error (tests/expect/check/local_called_as_function.runa).
 
 > closed(x: Int) -> Int { x + 1 }
 | doubled(x: Int) -> x * 2
-> rate(x: Int) -> Int { x * 3 }
 > scale(x: Int) -> Int { x * 10 }
-> bump(x: Int) -> Int { x + 1 }
 
 = closed = closed(3)
 = doubled = doubled(4)
-> uses(y: Int) -> Int {
-    = rate = y
-    rate(rate)
-}
 = scale = |x: Int| x + 2
-> bumped(bump: Int) -> Int { bump(bump) }
 
 @ print("value=" + show(closed))
 @ print("call=" + show(closed(5)))
 @ print("rule=" + show(doubled))
-@ print("local=" + show(uses(4)))
 @ print("lambda=" + show(scale(40)))
-@ print("param=" + show(bumped(1)))
