@@ -216,6 +216,12 @@ pub(super) fn definedness(
             let ExprKind::Var(name) = &function.kind else {
                 return Err("higher-order arithmetic has no SMT encoding".into());
             };
+            // `assert_with_message(condition, message)`, as elaboration
+            // writes `Isin(p)`: the program stops unless the condition holds,
+            // so it is defined only where the condition is true.
+            if name == "assert_with_message" && args.len() == 2 {
+                return Ok(and([defined(&args[0])?, expr_to_smt(&args[0])]));
+            }
             let mut conditions = args.iter().map(defined).collect::<Result<Vec<_>, _>>()?;
             if guarded_functions.contains(name) {
                 let name = guard_name(name);

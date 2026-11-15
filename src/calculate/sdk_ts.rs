@@ -16,8 +16,8 @@
 use super::{
     calculation_type_occurrence_paths, definition_substitutions, joined_column_path,
     product_variant, substitute_contract_type, CalculationContract, CalculationField,
-    CalculationFieldMetadata, CalculationTypeDefinition, CalculationTypeRef, CalculationVariant,
-    CONTRACT_SCHEMA, INPUT_SCHEMA, OUTPUT_SCHEMA,
+    CalculationFieldMetadata, CalculationScalar, CalculationTypeDefinition, CalculationTypeRef,
+    CalculationVariant, CONTRACT_SCHEMA, INPUT_SCHEMA, OUTPUT_SCHEMA,
 };
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
@@ -222,7 +222,7 @@ fn is_date(definition: &CalculationTypeDefinition) -> bool {
                     .zip(&variant.fields)
                     .all(|(name, field)| {
                         field.name == *name
-                            && matches!(&field.ty, CalculationTypeRef::Primitive { name, unit: None } if name == "Int")
+                            && matches!(&field.ty, CalculationTypeRef::Primitive { name, unit: None, scalar: None } if name == "Int")
                     })
         })
 }
@@ -267,6 +267,9 @@ struct Sdk<'a> {
     /// The units of measure (`# unit Ore "DKK øre"`) the contracts use, by
     /// name, with their descriptions: each is a branded number type.
     units: BTreeMap<&'a str, &'a str>,
+    /// The named scalar types (`# Isin: String "..." where ...`) the
+    /// contracts use, by name: each is a branded string or number type.
+    scalars: BTreeMap<&'a str, &'a CalculationScalar>,
     /// (type, variant, field) → the field metadata of every input path the
     /// field occurs at, including the metadata of its `$variant` tag, and for
     /// a `Date` field without its own metadata, the metadata its parts share.
@@ -331,6 +334,21 @@ impl<'a> Sdk<'a> {
             }
         }
 
+        let mut scalars: BTreeMap<&str, &CalculationScalar> = BTreeMap::new();
+        for contract in &contracts {
+            for scalar in &contract.scalars {
+                match scalars.insert(&scalar.name, scalar) {
+                    Some(other) if other != scalar => {
+                        return Err(format!(
+                            "named scalar type `{}` differs between calculation entries",
+                            scalar.name
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
         let mut sdk = Sdk {
             source,
             runtime,
@@ -338,6 +356,7 @@ impl<'a> Sdk<'a> {
             definitions,
             input_definitions: BTreeSet::new(),
             units,
+            scalars,
             field_metadata: BTreeMap::new(),
         };
         for definition in sdk.definitions.values() {
@@ -419,12 +438,19 @@ impl<'a> Sdk<'a> {
         context: &str,
     ) -> Result<(), String> {
         match ty {
-            CalculationTypeRef::Primitive { name, unit } => {
+            CalculationTypeRef::Primitive { name, unit, scalar } => {
                 if !PRIMITIVES.contains(&name.as_str()) {
                     Err(format!("{context}: unsupported primitive type `{name}`"))
                 } else if unit.is_some() && name != "Int" {
                     Err(format!(
                         "{context}: a unit of measure on `{name}`, not `Int`"
+                    ))
+                } else if let Some(scalar) = scalar
+                    .as_deref()
+                    .filter(|scalar| unit.is_some() || !self.scalars.contains_key(scalar))
+                {
+                    Err(format!(
+                        "{context}: undeclared named scalar type `{scalar}`"
                     ))
                 } else {
                     Ok(())
@@ -735,6 +761,11 @@ impl<'a> Sdk<'a> {
             names.push((format!("{unit}Schema"), "schema.ts"));
             names.push((value_identifier(unit), "schema.ts"));
         }
+        for scalar in self.scalars.keys() {
+            names.push((scalar.to_string(), "types.ts"));
+            names.push((format!("{scalar}Schema"), "schema.ts"));
+            names.push((value_identifier(scalar), "schema.ts"));
+        }
         for (name, definition) in &self.definitions {
             match shape(definition) {
                 Shape::Date => {}
@@ -807,7 +838,18 @@ impl<'a> Sdk<'a> {
                 Side::Local => unit.clone(),
                 Side::Qualified | Side::Partial => format!("types.{unit}"),
             },
-            CalculationTypeRef::Primitive { name, unit: None } => match name.as_str() {
+            CalculationTypeRef::Primitive {
+                scalar: Some(scalar),
+                ..
+            } => match side {
+                Side::Local => scalar.clone(),
+                Side::Qualified | Side::Partial => format!("types.{scalar}"),
+            },
+            CalculationTypeRef::Primitive {
+                name,
+                unit: None,
+                scalar: None,
+            } => match name.as_str() {
                 "Int" | "Float" => "number",
                 "Bool" => "boolean",
                 _ => "string",
@@ -882,7 +924,18 @@ impl<'a> Sdk<'a> {
                 Side::Local => format!("{unit}Schema"),
                 Side::Qualified | Side::Partial => format!("schema.{unit}Schema"),
             },
-            CalculationTypeRef::Primitive { name, unit: None } => match name.as_str() {
+            CalculationTypeRef::Primitive {
+                scalar: Some(scalar),
+                ..
+            } => match side {
+                Side::Local => format!("{scalar}Schema"),
+                Side::Qualified | Side::Partial => format!("schema.{scalar}Schema"),
+            },
+            CalculationTypeRef::Primitive {
+                name,
+                unit: None,
+                scalar: None,
+            } => match name.as_str() {
                 "Int" => "IntSchema",
                 "Float" => "FloatSchema",
                 "Char" => "CharSchema",
@@ -1082,6 +1135,16 @@ impl<'a> Sdk<'a> {
                 string_literal(unit)
             );
         }
+        for scalar in self.scalars.values() {
+            write_doc(&mut body, "", &scalar_doc(scalar));
+            let _ = writeln!(
+                body,
+                "export type {} = {} & {{ readonly __scalar: {} }};\n",
+                scalar.name,
+                scalar_wire_type(scalar),
+                string_literal(&scalar.name)
+            );
+        }
         for definition in self.definitions.values() {
             if matches!(shape(definition), Shape::Date) {
                 continue;
@@ -1095,7 +1158,7 @@ impl<'a> Sdk<'a> {
             "Types of every calculation input and result. The SDK writes them in runa call's JSON on the wire.",
         );
         out.push_str(
-            "// Field names are camelCase (snake_case on the wire). A sum type whose variants carry\n// no fields is its variant's name; other sum types are unions tagged by `$variant`.\n// A `Date` is an ISO `YYYY-MM-DD` string (`IsoDate`, made by `isoDate`). Int is `number`\n// and holds safe integers only; the validators in schema.ts reject anything else. An\n// optional value is `T | null` (in a partial case, `T | None`: \"none\" is `none`).\n// An Int with a unit of measure (`# unit Ore \"DKK øre\"`) is the branded number type `Ore`.\n\n",
+            "// Field names are camelCase (snake_case on the wire). A sum type whose variants carry\n// no fields is its variant's name; other sum types are unions tagged by `$variant`.\n// A `Date` is an ISO `YYYY-MM-DD` string (`IsoDate`, made by `isoDate`). Int is `number`\n// and holds safe integers only; the validators in schema.ts reject anything else. An\n// optional value is `T | null` (in a partial case, `T | None`: \"none\" is `none`).\n// An Int with a unit of measure (`# unit Ore \"DKK øre\"`) is the branded number type `Ore`;\n// a named scalar type (`# Isin: String \"...\" where ...`) is the branded type `Isin`.\n\n",
         );
         out.push_str(&self.imports(&body, &[], true));
         out.push_str(&body);
@@ -1308,6 +1371,30 @@ impl<'a> Sdk<'a> {
                 "/** `value` as a `{unit}`; throws a `RangeError` unless it is a safe integer. */\nexport function {}(value: number): types.{unit} {{\n  return unitValue<types.{unit}>({}, value);\n}}",
                 value_identifier(unit),
                 string_literal(unit)
+            );
+        }
+        for scalar in self.scalars.values() {
+            let name = &scalar.name;
+            let wire = scalar_wire_type(scalar);
+            let _ = writeln!(
+                body,
+                "\n/** Validates a `{name}` ({}): a {wire}, typed `{name}` once parsed. The engine runs its checks. */\nexport const {name}Schema: z.ZodType<types.{name}> = scalarSchema<types.{name}>({}, {});\n",
+                escape_doc(&scalar.description),
+                string_literal(name),
+                string_literal(&scalar.of)
+            );
+            let mut doc = scalar_doc(scalar);
+            doc.push(String::new());
+            doc.push(format!(
+                "Throws a `RangeError` unless `value` is a {wire}; the engine runs the checks and reports a value that fails one as an input error at its path."
+            ));
+            write_doc(&mut body, "", &doc);
+            let _ = writeln!(
+                body,
+                "export function {}(value: {wire}): types.{name} {{\n  return scalarValue<types.{name}>({}, {}, value);\n}}",
+                value_identifier(name),
+                string_literal(name),
+                string_literal(&scalar.of)
             );
         }
         for definition in self.definitions.values() {
@@ -2279,6 +2366,36 @@ const RUNTIME: &str = include_str!("sdk_ts_runtime.ts");
 
 /// Every name the runtime exports, and whether it is a type only, read from
 /// its `export` declarations.
+/// The TypeScript type of a named scalar's value on the wire.
+fn scalar_wire_type(scalar: &CalculationScalar) -> &'static str {
+    if scalar.of == "Int" {
+        "number"
+    } else {
+        "string"
+    }
+}
+
+/// The TSDoc of a named scalar type: its description and its checks.
+fn scalar_doc(scalar: &CalculationScalar) -> Vec<String> {
+    let mut doc = vec![
+        sentence(&scalar.description),
+        String::new(),
+        format!(
+            "A Futuruna `{}`: a `{}` the engine checks at the boundary. Only `{}(value)` and the validators make one; a bare {} or a value of another named type is not one.",
+            scalar.name,
+            scalar.of,
+            value_identifier(&scalar.name),
+            scalar_wire_type(scalar)
+        ),
+    ];
+    if !scalar.checks.is_empty() {
+        doc.push(String::new());
+        doc.push("Checks:".to_string());
+        doc.extend(scalar.checks.iter().map(|check| format!("- `{check}`")));
+    }
+    doc
+}
+
 fn runtime_exports() -> impl Iterator<Item = (&'static str, bool)> {
     RUNTIME.lines().filter_map(|line| {
         let rest = line.strip_prefix("export ")?;

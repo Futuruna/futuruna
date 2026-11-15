@@ -81,6 +81,7 @@ mod runtime_imports;
 mod runtime_stack;
 pub use runtime_guard_coverage::{RuntimeGuardedCallSet, RuntimeGuardedRuleCalls};
 pub use runtime_stack::interpreter_stack_bytes;
+mod scalar_types;
 pub mod semantic_interface;
 mod unit_types;
 pub use unit_types::{erase_unit_types, erase_unit_types_in_files};
@@ -6685,6 +6686,32 @@ pub enum TypeDecl {
         description: String,
         scale: Option<UnitScale>,
     },
+    /// `# Isin: String "International Securities Identification Number"
+    /// where isin_shape, isin_check_digit`: a named scalar type. Its values
+    /// are the values of its primitive (`String` or `Int`) that pass every
+    /// check; at runtime, on the wire and in proofs a value is the primitive.
+    /// The checker keeps two named scalars apart and widens one to its
+    /// primitive. `field_meta` is the `@ field(...)` written before the
+    /// declaration: presentation for every input field that holds the type.
+    Scalar {
+        name: String,
+        primitive: String,
+        description: String,
+        checks: Vec<ScalarCheck>,
+        field_meta: Option<FieldMetaDecl>,
+    },
+}
+
+/// One check of a named scalar type: a pure rule or function that takes the
+/// value first, and the further ground arguments written after its name
+/// (`length_between(4, 50)` checks `length_between(value, 4, 50)`).
+#[derive(Debug, Clone)]
+pub struct ScalarCheck {
+    pub name: String,
+    pub arguments: Vec<Expr>,
+    /// The check as written, as the contract and the SDK show it.
+    pub text: String,
+    pub span: Span,
 }
 
 /// `= DKK / 100`: 100 of the unit make one `DKK`. `of` is the base: a name
@@ -8912,6 +8939,11 @@ where
             }
         }
         TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } => {}
+        TypeDecl::Scalar { checks, .. } => {
+            for argument in checks.iter().flat_map(|check| &check.arguments) {
+                visit(AstChild::Expr(argument));
+            }
+        }
         TypeDecl::RuleScope { body, .. } => {
             for stmt in body {
                 visit(AstChild::Stmt(stmt));
@@ -9308,6 +9340,26 @@ fn strip_spans_type_decl(td: &TypeDecl) -> TypeDecl {
             name: name.clone(),
             description: description.clone(),
             scale: scale.clone(),
+        },
+        TypeDecl::Scalar {
+            name,
+            primitive,
+            description,
+            checks,
+            field_meta,
+        } => TypeDecl::Scalar {
+            name: name.clone(),
+            primitive: primitive.clone(),
+            description: description.clone(),
+            checks: checks
+                .iter()
+                .map(|check| ScalarCheck {
+                    arguments: check.arguments.iter().map(strip_spans_expr).collect(),
+                    span: Span::dummy(),
+                    ..check.clone()
+                })
+                .collect(),
+            field_meta: field_meta.clone(),
         },
         TypeDecl::EffectDecl { name, ops } => TypeDecl::EffectDecl {
             name: name.clone(),
@@ -9729,6 +9781,18 @@ pub fn content_hash_type(td: &TypeDecl) -> String {
             Some(scale) => format!("UNIT({description:?}={scale})"),
             None => format!("UNIT({description:?})"),
         },
+        // The primitive and the checks decide which values belong to the
+        // type; the description and `@ field` are presentation.
+        TypeDecl::Scalar {
+            primitive, checks, ..
+        } => format!(
+            "SCALAR({primitive};{})",
+            checks
+                .iter()
+                .map(|check| check.text.as_str())
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
     };
     hash_string(&constructor_display_text(&canonical))
 }
@@ -9770,7 +9834,7 @@ pub fn type_decl_name(td: &TypeDecl) -> &str {
         }
         TypeDecl::WhenType { name, .. } => name,
         TypeDecl::RuleScope { name, .. } => name,
-        TypeDecl::Unit { name, .. } => name,
+        TypeDecl::Unit { name, .. } | TypeDecl::Scalar { name, .. } => name,
     }
 }
 
@@ -9799,6 +9863,7 @@ pub fn print_hashes(stmts: &[Stmt]) {
                     TypeDecl::WhenType { .. } => "# WHEN",
                     TypeDecl::RuleScope { .. } => "# rulescope",
                     TypeDecl::Unit { .. } => "# unit",
+                    TypeDecl::Scalar { .. } => "# scalar",
                 };
                 println!("  {} {} #{}", kind, type_decl_name(td), hash);
                 found = true;
@@ -12405,6 +12470,12 @@ impl Parser {
         let name = self.expect_ident()?;
         self.record_declaration_name_span(format!("type:{name}"), self.pos - 1);
 
+        // # Isin: String "description" where check, check(arguments)
+        if self.peek_kind() == TokenKind::Colon {
+            self.advance();
+            return self.parse_scalar_decl(name);
+        }
+
         // # Type WHEN condition = new_variants (conditional type evolution)
         if self.peek_kind() == TokenKind::KW && self.peek().text == "WHEN"
             || (self.peek_kind() == TokenKind::Type && self.peek().text == "WHEN")
@@ -12593,6 +12664,70 @@ impl Parser {
             methods,
             except_from,
             field_meta,
+        }))
+    }
+
+    /// The rest of `# Name: Primitive "description" where check, ...` after
+    /// the colon.
+    fn parse_scalar_decl(&mut self, name: String) -> Result<Stmt, String> {
+        let usage = format!("# {name}: String \"what a value is\" where check, check(arguments)");
+        let primitive = self.advance();
+        if !(primitive.kind == TokenKind::Type
+            && matches!(primitive.text.as_str(), "String" | "Int"))
+        {
+            return Err(format!(
+                "{}:{}: named scalar `{name}` is a `String` or an `Int`, got `{}`.\n  Try: {usage}",
+                primitive.line, primitive.col, primitive.source_text
+            ));
+        }
+        let description = match self.peek_kind() {
+            TokenKind::String_ if !self.peek().text.trim().is_empty() => self.advance().text,
+            _ => {
+                let p = self.peek();
+                return Err(format!(
+                    "{}:{}: named scalar `{name}` needs a description of what a value is.\n  Try: {usage}",
+                    p.line, p.col
+                ));
+            }
+        };
+        let mut checks = Vec::new();
+        if self.peek_kind() == TokenKind::KW && self.peek().text == "where" {
+            self.advance();
+            loop {
+                let first = self.peek().clone();
+                if first.kind != TokenKind::Ident {
+                    return Err(format!(
+                        "{}:{}: a check of named scalar `{name}` names a rule or function, as in `where isin_shape` or `where length_between(4, 50)`, got `{}`",
+                        first.line, first.col, first.source_text
+                    ));
+                }
+                let check_name = self.advance().text;
+                let arguments = if self.peek_kind() == TokenKind::LParen {
+                    self.parse_arg_list()?
+                } else {
+                    Vec::new()
+                };
+                let start = self.char_offset(first.line, first.col);
+                let end = self.token_span(&self.tokens[self.pos - 1]).end;
+                let text = self.source_chars[start..end].iter().collect::<String>();
+                checks.push(ScalarCheck {
+                    name: check_name,
+                    arguments,
+                    text,
+                    span: Span::new(start, end),
+                });
+                if self.peek_kind() != TokenKind::Comma {
+                    break;
+                }
+                self.advance();
+            }
+        }
+        Ok(Stmt::TypeDecl(TypeDecl::Scalar {
+            name,
+            primitive: primitive.text,
+            description,
+            checks,
+            field_meta: None,
         }))
     }
 
@@ -13123,9 +13258,12 @@ impl Parser {
             entries.push((key.to_string(), value.clone()));
         }
         let has = |key: &str| entries.iter().any(|(existing, _)| existing == key);
-        if !has("label") {
+        // `@ field(key = True)` alone marks the key; the field keeps the
+        // metadata of its type.
+        let key_only = !entries.is_empty() && entries.iter().all(|(key, _)| key == "key");
+        if !has("label") && !key_only {
             return Err(format!(
-                "{}:{}: `@ field` needs a `label`",
+                "{}:{}: `@ field` needs a `label`, or only `key` (`@ field(key = True)`)",
                 name.line, name.col
             ));
         }
@@ -13261,9 +13399,10 @@ impl Parser {
                 }) if !variants.is_empty() => {
                     field_meta.get_or_insert_with(Default::default).type_default = Some(meta);
                 }
+                Stmt::TypeDecl(TypeDecl::Scalar { field_meta, .. }) => *field_meta = Some(meta),
                 _ => {
                     return Err(format!(
-                        "{}:{}: `@ field(...)` describes a data type with variants or fields; the declaration after it is not one",
+                        "{}:{}: `@ field(...)` describes a data type with variants or fields, or a named scalar type; the declaration after it is neither",
                         tok.line, tok.col
                     ))
                 }
@@ -16893,6 +17032,8 @@ struct RuntimeNamespaceState {
     type_variants: BTreeMap<String, Vec<String>>,
     /// Units of measure declared with `# unit`; their values are `Int`.
     unit_types: BTreeSet<String>,
+    /// Named scalar types (`# Isin: String "..."`) and their primitive.
+    scalar_types: BTreeMap<String, String>,
     ctor_to_type: BTreeMap<String, String>,
     functions: BTreeMap<String, FnDef>,
     function_declaration_envs: BTreeMap<String, RuntimeDeclarationEnv>,
@@ -16960,6 +17101,7 @@ impl RuntimeNamespaceState {
             field_names: BTreeMap::new(),
             type_variants: BTreeMap::new(),
             unit_types: BTreeSet::new(),
+            scalar_types: BTreeMap::new(),
             ctor_to_type: BTreeMap::new(),
             functions: BTreeMap::new(),
             function_declaration_envs: BTreeMap::new(),
@@ -20270,6 +20412,8 @@ impl Interpreter {
         env.set("abs".into(), Value::Builtin("abs".into()));
         // `Int(amount)` takes the unit off a value; the value is unchanged.
         env.set("Int".into(), Value::Builtin("unit:Int".into()));
+        // `String(isin)` takes a named scalar's name off; the value is unchanged.
+        env.set("String".into(), Value::Builtin("unit:String".into()));
         env.set("random_float".into(), Value::Builtin("random_float".into()));
         env.set(
             "random_choice".into(),
@@ -20855,6 +20999,15 @@ impl Interpreter {
             }
             TypeDecl::Unit { name, .. } => {
                 namespace.state.borrow_mut().unit_types.insert(name.clone());
+            }
+            TypeDecl::Scalar {
+                name, primitive, ..
+            } => {
+                namespace
+                    .state
+                    .borrow_mut()
+                    .scalar_types
+                    .insert(name.clone(), primitive.clone());
             }
             TypeDecl::WhenType { .. } => {
                 // Handled in run_program (needs env to evaluate condition)
@@ -23083,6 +23236,14 @@ impl Interpreter {
             TypeDecl::EffectDecl { .. } => {}
             // `Ore(100)` gives an Int the unit; the value is unchanged.
             TypeDecl::Unit { name, .. } => {
+                env.set(
+                    name.clone(),
+                    self.runtime_registry_builtin(&namespace, format!("unit:{name}")),
+                );
+            }
+            // After elaboration `Isin(p)` stands only where the checks have
+            // run; the value is unchanged.
+            TypeDecl::Scalar { name, .. } => {
                 env.set(
                     name.clone(),
                     self.runtime_registry_builtin(&namespace, format!("unit:{name}")),
@@ -28775,6 +28936,21 @@ impl Interpreter {
             {
                 matches!(value, Value::Int(_))
             }
+            _ if Self::runtime_namespace_find(expected_namespace, |state| {
+                state.scalar_types.contains_key(type_name).then_some(())
+            })
+            .is_some() =>
+            {
+                let string = Self::runtime_namespace_find(expected_namespace, |state| {
+                    state.scalar_types.get(type_name).cloned()
+                })
+                .is_some_and(|(_, primitive)| primitive == "String");
+                if string {
+                    matches!(value, Value::Str(_))
+                } else {
+                    matches!(value, Value::Int(_))
+                }
+            }
             _ => {
                 let constructor_name = match value {
                     Value::Constructor(name, _)
@@ -32221,6 +32397,16 @@ pub struct TypeChecker {
     /// span. Elaboration rewrites each into the `Int` arithmetic it stands for.
     unit_conversions:
         BTreeMap<Option<PathBuf>, BTreeMap<(usize, usize), unit_types::UnitConversion>>,
+    /// Named scalar types (`# Isin: String "..." where ...`).
+    scalar_types: BTreeMap<String, scalar_types::ScalarType>,
+    /// Checked `Isin(p)` and `parse(Isin, p)` by file and source span.
+    /// Elaboration writes each as the checks it stands for.
+    scalar_conversions:
+        BTreeMap<Option<PathBuf>, BTreeMap<(usize, usize), scalar_types::ScalarConversion>>,
+    /// Literals that take a named scalar type, waiting for their checks.
+    scalar_literals: RefCell<Vec<scalar_types::ScalarLiteral>>,
+    /// Runs the checks of named scalars on literals, built on first use.
+    scalar_evaluator: Option<scalar_types::ScalarLiteralEvaluator>,
     /// Functions declared by the standard prelude rather than the program.
     prelude_functions: BTreeSet<String>,
     annotation_environment: annotation_types::AnnotationEnvironment,
@@ -33507,10 +33693,11 @@ pub struct TypeCheckArtifacts {
     pub warnings: Vec<Diagnostic>,
     pub calculation_contracts: Vec<calculate::CalculationContract>,
     pub compile_time_metadata_bindings: BTreeSet<String>,
-    /// Every declared unit of measure, including imported ones. A backend
-    /// that erases units reads the type metadata below with
-    /// `TypeCheckArtifacts::erase_units_for_backend`.
-    pub unit_names: BTreeSet<String>,
+    /// Every declared unit of measure and named scalar, including imported
+    /// ones, with its runtime representation (`Int`, or the scalar's
+    /// primitive). A backend that erases them reads the type metadata below
+    /// with `TypeCheckArtifacts::erase_unit_type_name`.
+    pub erased_type_names: BTreeMap<String, String>,
     /// The shared-constructor elaboration this check installed for the
     /// imports it reads, when the program needed one.
     pub constructor_elaboration: Option<Arc<ConstructorElaboration>>,
@@ -34043,10 +34230,12 @@ impl TypeCheckArtifacts {
         &self.program
     }
 
-    /// The authored part of [`Self::program`]: its last `authored_len`
-    /// statements, without the prelude the checked program begins with.
-    pub fn authored_program(&self, authored_len: usize) -> &[Stmt] {
-        &self.program[self.program.len() - authored_len..]
+    /// The authored part of [`Self::program`]: what follows the first
+    /// `prelude_len` statements, the prelude the checked program begins
+    /// with. Elaboration may have added statements (the check functions of
+    /// a named scalar) after the authored ones; they are part of it.
+    pub fn authored_program(&self, prelude_len: usize) -> &[Stmt] {
+        &self.program[prelude_len..]
     }
 
     /// Exact guarded runtime calls. This carries no total-value proof authority.
@@ -47618,7 +47807,9 @@ impl<'a> CheckedResolutionRecorder<'a> {
                     }
                 }
             }
-            Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. }) => {}
+            Stmt::TypeDecl(
+                TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } | TypeDecl::Scalar { .. },
+            ) => {}
             Stmt::TypeDecl(TypeDecl::RuleScope {
                 name, params, body, ..
             }) => {
@@ -49077,6 +49268,10 @@ impl TypeChecker {
             unit_scales: BTreeMap::new(),
             unit_conversion_module: None,
             unit_conversions: BTreeMap::new(),
+            scalar_types: BTreeMap::new(),
+            scalar_conversions: BTreeMap::new(),
+            scalar_literals: RefCell::new(Vec::new()),
+            scalar_evaluator: None,
             prelude_functions: BTreeSet::new(),
             annotation_environment: annotation_types::AnnotationEnvironment::default(),
             annotation_source_spans: None,
@@ -50425,7 +50620,7 @@ impl TypeChecker {
             Stmt::TypeDecl(TypeDecl::WhenType { name, .. }) => {
                 Some((DeclarationKind::WhenType, None, name.clone(), None))
             }
-            Stmt::TypeDecl(TypeDecl::Unit { name, .. }) => {
+            Stmt::TypeDecl(TypeDecl::Unit { name, .. } | TypeDecl::Scalar { name, .. }) => {
                 Some((DeclarationKind::Unit, None, name.clone(), None))
             }
             Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => Some((
@@ -50611,6 +50806,15 @@ impl TypeChecker {
                 Some(scale) => format!("unit:{name};description={description:?};scale={scale}"),
                 None => format!("unit:{name};description={description:?}"),
             }),
+            Stmt::TypeDecl(TypeDecl::Scalar {
+                name,
+                primitive,
+                checks,
+                ..
+            }) => Some(format!(
+                "scalar:{name};of={primitive};checks={:?}",
+                checks.iter().map(|check| &check.text).collect::<Vec<_>>()
+            )),
             Stmt::TypeDecl(TypeDecl::WhenType {
                 name,
                 condition,
@@ -52442,6 +52646,10 @@ impl TypeChecker {
                             && expected_type != &actual_type
                             && !(self.is_unit_type(expected_type)
                                 && Self::is_unitless_literal(value))
+                            // An `Isin` is a `String`; a literal takes the
+                            // named scalar its field expects.
+                            && self.scalar_primitive(&actual_type) != Some(expected_type.as_str())
+                            && !self.scalar_literal_fits(value, expected_type)
                         {
                             let hint = self.numeric_conversion_hint(
                                 &Ty::Name(actual_type.clone()),
@@ -53841,6 +54049,9 @@ impl TypeChecker {
                     if !locals.contains_key(name) {
                         if self.is_unit_conversion_name(name) && args.len() == 1 {
                             return Some(name.clone());
+                        }
+                        if let Some(scalar) = self.scalar_conversion_result(name, args, locals) {
+                            return Some(scalar);
                         }
                         if let Some(unit) = self.scaled_conversion_target(name, args, locals) {
                             return Some(unit);
@@ -58098,7 +58309,9 @@ impl TypeChecker {
                         }
                     }
                     Stmt::TypeDecl(
-                        TypeDecl::RuleScope { name, .. } | TypeDecl::Unit { name, .. },
+                        TypeDecl::RuleScope { name, .. }
+                        | TypeDecl::Unit { name, .. }
+                        | TypeDecl::Scalar { name, .. },
                     ) => {
                         exported.insert(name.clone());
                     }
@@ -58294,7 +58507,13 @@ impl TypeChecker {
         let previous_source = std::mem::replace(&mut self.source_text, module.source().to_string());
         let diagnostic_start = self.diagnostics.len();
         self.source_dir = Some(imported_dir);
+        // A named scalar declared here runs its checks with this file's
+        // definitions.
+        let previous_module = self
+            .unit_conversion_module
+            .replace(canonical_source_path(Path::new(file_path)));
         self.collect_declarations(&import_stmts);
+        self.unit_conversion_module = previous_module;
         self.infer_rule_return_types(&import_stmts);
         // Exact Explore rule-return inference is a whole-program fixed point.
         // Running it at every nested import boundary repeatedly revisits the
@@ -58372,6 +58591,7 @@ impl TypeChecker {
                 let previous_module = self
                     .unit_conversion_module
                     .replace(canonical_source_path(&unit.path));
+                self.report_scalar_literals();
                 let start = self.diagnostics.len();
                 self.check_function_declarations(&unit.statements);
                 self.check_top_level_bindings(&unit.statements);
@@ -58391,6 +58611,7 @@ impl TypeChecker {
                     self.source_dir.as_deref(),
                 );
                 self.diagnostics.extend(annotation_diagnostics);
+                self.report_scalar_literals();
                 self.locate_import_diagnostics(start, &unit.path, unit.source, unit.import_span);
                 self.source_text = previous_source;
                 self.source_dir = previous_dir;
@@ -58933,6 +59154,21 @@ impl TypeChecker {
                 }) => {
                     self.collect_unit_declaration(name, description, scale.as_ref());
                 }
+                Stmt::TypeDecl(TypeDecl::Scalar {
+                    name,
+                    primitive,
+                    description,
+                    checks,
+                    field_meta,
+                }) => {
+                    self.collect_scalar_declaration(
+                        name,
+                        primitive,
+                        description,
+                        checks,
+                        field_meta.as_ref(),
+                    );
+                }
                 Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
                     self.types.insert(name.clone());
                     let mut ops_map = BTreeMap::new();
@@ -59276,15 +59512,18 @@ impl TypeChecker {
 
     /// Pass 2: check the program for errors
     pub fn check_program(&mut self, stmts: &[Stmt]) {
+        self.begin_scalar_literal_checks(stmts);
         self.infer_rule_call_site_param_types(stmts);
         self.check_rule_result_contracts(stmts);
         self.check_top_level_bindings(stmts);
         self.check_stmt_sequence_with_exploration_selection(stmts, true);
         self.check_unhandled_effects(stmts);
+        self.report_scalar_literals();
         self.check_imported_bodies();
         // Check trait impl completeness
         self.check_trait_impls();
         self.check_field_meta_declarations(stmts);
+        self.report_scalar_literals();
     }
 
     /// `@ field(...)` values are ordinary expressions: their names must
@@ -61982,10 +62221,12 @@ impl TypeChecker {
                 params: type_params,
                 methods,
                 variants,
+                field_meta,
                 ..
             }) => {
                 self.check_variant_names(name, variants);
                 self.check_reserved_type_name(name);
+                self.check_scalar_field_meta(variants, field_meta.as_deref());
                 let arguments = type_params
                     .iter()
                     .filter(|param| param.ty.is_none())
@@ -62085,6 +62326,7 @@ impl TypeChecker {
             }
             Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
             Stmt::TypeDecl(TypeDecl::Unit { .. }) => {}
+            Stmt::TypeDecl(TypeDecl::Scalar { name, .. }) => self.check_scalar_declaration(name),
             Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
                 self.check_rule_scope_decl(name, params, body);
             }
@@ -62415,6 +62657,9 @@ impl TypeChecker {
                     return;
                 }
                 if let ExprKind::Var(name) = &func.kind {
+                    if self.check_scalar_conversion_call(expr, name, args, _in_fn) {
+                        return;
+                    }
                     if self.check_unit_conversion_call(expr, name, args, _in_fn) {
                         return;
                     }
@@ -62704,6 +62949,9 @@ impl TypeChecker {
                             && !self.var_defined(name)
                         {
                             self.check_collection_predicate(name, args);
+                        }
+                        if !self.var_defined(name) {
+                            self.check_scalar_collection_call(name, args);
                         }
                         if name == "concat" && actual_arity == 2 && !self.var_defined(name) {
                             self.check_concat_arguments(args);
@@ -63947,7 +64195,16 @@ impl TypeChecker {
             warnings,
             calculation_contracts,
             compile_time_metadata_bindings,
-            unit_names: tc.unit_types.keys().cloned().collect(),
+            erased_type_names: tc
+                .unit_types
+                .keys()
+                .map(|unit| (unit.clone(), "Int".to_string()))
+                .chain(
+                    tc.scalar_types
+                        .iter()
+                        .map(|(name, scalar)| (name.clone(), scalar.primitive.clone())),
+                )
+                .collect(),
             constructor_elaboration,
             program,
             rule_return_types: tc.rule_return_types,
@@ -73601,6 +73858,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             TypeDecl::ImplBlock { .. } => "ImplBlock",
             TypeDecl::RuleScope { .. } => "RuleScope",
             TypeDecl::Unit { .. } => "Unit",
+            TypeDecl::Scalar { .. } => "Scalar",
         }
     }
 
@@ -73611,7 +73869,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             | TypeDecl::TraitDecl { .. }
             | TypeDecl::ImplBlock { .. }
             | TypeDecl::RuleScope { .. } => TypecheckerPassCoverage::VisitsExpressions,
-            TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } => {
+            TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } | TypeDecl::Scalar { .. } => {
                 TypecheckerPassCoverage::IntentionallyIgnored
             }
         }

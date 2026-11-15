@@ -1,0 +1,10 @@
+-- A literal in a constructor field of a named scalar type is checked.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `"DK0060534914"` is not an `Isin`: `isin_check_digit` is false
+
+@ import ./isin_lib
+
+# Holding(isin: Isin, name: String)
+
+= home = Holding(isin = "DK0060534914", name = "Novo")

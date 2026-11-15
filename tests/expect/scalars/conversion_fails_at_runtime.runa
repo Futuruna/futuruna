@@ -1,0 +1,14 @@
+-- `Isin(p)` on a value that fails a check stops the program, naming the check.
+-- expect-command: interp
+-- expect-status: fail
+-- expect-stdout: before
+-- expect-stdout-not: after
+-- expect-stderr: `"DK006053491"` is not an `Isin`: `isin_shape` is false
+
+@ import ./isin_lib
+
+> make(text: String) -> Isin { Isin(text) }
+
+@ print("before")
+@ print(make("DK006053491"))
+@ print("after")

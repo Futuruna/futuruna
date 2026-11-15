@@ -589,6 +589,34 @@ export function unitValue<U extends UnitValue>(unit: U["__unit"], value: number)
   return value as U;
 }
 
+// Named scalar types
+
+/** A named scalar type: a string or number branded with its type's name. */
+export type ScalarValue = (string | number) & { readonly __scalar: string };
+
+function isScalarPrimitive(of: "String" | "Int", value: unknown): boolean {
+  return of === "Int" ? Number.isSafeInteger(value) : typeof value === "string";
+}
+
+/**
+ * The validator of a named scalar type: a string (or a safe integer), typed
+ * `S` once parsed. The engine runs the type's checks.
+ */
+export function scalarSchema<S extends ScalarValue>(scalar: S["__scalar"], of: "String" | "Int"): z.ZodType<S> {
+  return z.custom<S>(
+    (value) => isScalarPrimitive(of, value),
+    `expected ${of === "Int" ? "a safe integer" : "a string"} (${scalar})`,
+  );
+}
+
+/** `value` as an `S`; throws a `RangeError` unless it is a string (or a safe integer). */
+export function scalarValue<S extends ScalarValue>(scalar: S["__scalar"], of: "String" | "Int", value: unknown): S {
+  if (!isScalarPrimitive(of, value)) {
+    throw new RangeError(`${scalar}: expected ${of === "Int" ? "a safe integer" : "a string"}, got ${String(value)}`);
+  }
+  return value as S;
+}
+
 // Needs and the result of a partial call
 
 /** A source reference from the contract's field metadata. */
@@ -975,8 +1003,24 @@ export type CalculationEntry = {
  */
 export type CalculationErrorKind = "input" | "output" | "envelope" | "diagnostics";
 
-/** A diagnostic the engine reported for the case, at its path in the input document. */
-export type CalculationDiagnostic = { caseId: string; path: string; message: string };
+/**
+ * A diagnostic the engine reported for the case, at its path in the input
+ * document. When an input value is not a value of its named scalar type, the
+ * diagnostic names the type and the check that is false.
+ */
+export type CalculationDiagnostic = {
+  caseId: string;
+  path: string;
+  message: string;
+  scalar?: string | undefined;
+  check?: string | undefined;
+};
+
+/**
+ * An input value the engine refused because a check of its named scalar type
+ * is false (`isin_check_digit`), at its TypeScript path (`events[3].isin`).
+ */
+export type ScalarIssue = { path: string; message: string; scalar: string; check: string };
 
 export class CalculationError extends Error {
   readonly kind: CalculationErrorKind;
@@ -985,12 +1029,21 @@ export class CalculationError extends Error {
   readonly issues: readonly unknown[];
   /** The engine's diagnostics, for `diagnostics`. */
   readonly diagnostics: readonly CalculationDiagnostic[];
+  /** For `input` the engine found: the named scalar type of the first refused value. */
+  readonly scalar: string | undefined;
+  /** For `input` the engine found: the check of `scalar` that is false. */
+  readonly check: string | undefined;
 
   constructor(
     kind: CalculationErrorKind,
     entry: string,
     message: string,
-    details: { issues?: readonly unknown[]; diagnostics?: readonly CalculationDiagnostic[] } = {},
+    details: {
+      issues?: readonly unknown[];
+      diagnostics?: readonly CalculationDiagnostic[];
+      scalar?: string | undefined;
+      check?: string | undefined;
+    } = {},
   ) {
     super(`${entry}: ${message}`);
     this.name = "CalculationError";
@@ -998,6 +1051,8 @@ export class CalculationError extends Error {
     this.entry = entry;
     this.issues = details.issues ?? [];
     this.diagnostics = details.diagnostics ?? [];
+    this.scalar = details.scalar;
+    this.check = details.check;
   }
 }
 
@@ -1013,6 +1068,7 @@ function caseOutput(
   entry: CalculationEntry,
   outputSchema: string,
   document: unknown,
+  wireCase: unknown,
 ): { readonly [key: string]: unknown } {
   const parsed: unknown = typeof document === "string" ? JSON.parse(document) : document;
   if (!isObject(parsed) || !("$futuruna" in parsed)) return { result: parsed };
@@ -1034,11 +1090,32 @@ function caseOutput(
   }
   const diagnostics = parsed["diagnostics"];
   if (Array.isArray(diagnostics) && diagnostics.length > 0) {
-    const list = diagnostics.filter(isObject).map((diagnostic) => ({
+    const list: CalculationDiagnostic[] = diagnostics.filter(isObject).map((diagnostic) => ({
       caseId: shown(diagnostic["case_id"]),
       path: shown(diagnostic["path"]),
       message: shown(diagnostic["message"]),
+      scalar: typeof diagnostic["scalar"] === "string" ? diagnostic["scalar"] : undefined,
+      check: typeof diagnostic["check"] === "string" ? diagnostic["check"] : undefined,
     }));
+    // A value that fails a check of its named scalar type is an input error,
+    // at the TypeScript path, as a validation failure the SDK finds itself.
+    const refused = list.filter((diagnostic) => diagnostic.scalar !== undefined && diagnostic.check !== undefined);
+    const firstRefused = refused[0];
+    if (firstRefused !== undefined && refused.length === list.length) {
+      const issues: ScalarIssue[] = refused.map((diagnostic) => ({
+        path: fromWirePath(entry.input, wireCase, diagnostic.path.replace(/^\$\.?/, "")),
+        message: diagnostic.message,
+        scalar: diagnostic.scalar ?? "",
+        check: diagnostic.check ?? "",
+      }));
+      const at = issues[0]?.path ?? "";
+      throw new CalculationError(
+        "input",
+        name,
+        `invalid input: ${String(issues.length)} issue${issues.length === 1 ? "" : "s"}; first at ${at === "" ? "$" : at}: ${firstRefused.message}`,
+        { issues, diagnostics: list, scalar: firstRefused.scalar, check: firstRefused.check },
+      );
+    }
     const first = list[0];
     const summary = first === undefined ? "" : `; first at ${first.path}: ${first.message}`;
     throw new CalculationError("diagnostics", name, `${String(diagnostics.length)} diagnostic(s)${summary}`, {
@@ -1097,8 +1174,8 @@ export async function callEntry<I, O>(
   outputSchema: z.ZodType<O>,
   input: I,
 ): Promise<Calculated<O>> {
-  const { document } = inputDocument(entry, inputSchema, input);
-  const output = caseOutput(entry, OUTPUT_SCHEMA, await transport.call(entry.name, document));
+  const { wireCase, document } = inputDocument(entry, inputSchema, input);
+  const output = caseOutput(entry, OUTPUT_SCHEMA, await transport.call(entry.name, document), wireCase);
   return calculated(entry, outputSchema, output);
 }
 
@@ -1123,7 +1200,7 @@ export async function queryEntry<I, R, N extends Need>(
 ): Promise<QueryResult<R, N>> {
   const { wireCase, document } = inputDocument(entry, inputSchema, input);
   const output = await transport.callPartial(entry.name, document);
-  const result = caseOutput(entry, PARTIAL_OUTPUT_SCHEMA, output)["result"];
+  const result = caseOutput(entry, PARTIAL_OUTPUT_SCHEMA, output, wireCase)["result"];
   return validated(entry, resultSchema, () => queryResultFromWire(entry, wireCase, result));
 }
 
@@ -1382,7 +1459,12 @@ export async function explainEntry<I, O>(
   input: I,
 ): Promise<Explained<O>> {
   const { wireCase, document } = inputDocument(entry, inputSchema, input);
-  const output = caseOutput(entry, OUTPUT_SCHEMA, await transport.callExplained(entry.name, document, depth === "full"));
+  const output = caseOutput(
+    entry,
+    OUTPUT_SCHEMA,
+    await transport.callExplained(entry.name, document, depth === "full"),
+    wireCase,
+  );
   const { result, assumptions } = calculated(entry, outputSchema, output);
   if (output["explanation"] === undefined) {
     throw new CalculationError("output", entry.name, "the engine returned no explanation");
@@ -1404,7 +1486,7 @@ export async function explainQueryEntry<I, R, N extends Need>(
 ): Promise<ExplainedQuery<QueryResult<R, N>>> {
   const { wireCase, document } = inputDocument(entry, inputSchema, input);
   const reply = await transport.callPartialExplained(entry.name, document, depth === "full");
-  const output = caseOutput(entry, PARTIAL_OUTPUT_SCHEMA, reply);
+  const output = caseOutput(entry, PARTIAL_OUTPUT_SCHEMA, reply, wireCase);
   const wire = output["result"];
   const result = validated(entry, resultSchema, () => queryResultFromWire(entry, wireCase, wire));
   if (output["explanation"] === undefined) return { result };

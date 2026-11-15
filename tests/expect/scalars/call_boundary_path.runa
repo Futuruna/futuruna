@@ -1,0 +1,17 @@
+-- `runa call` runs a named scalar's checks on every input value of its type
+-- and reports a value that fails at its path: here a list element's field and
+-- a present optional. The case does not run; the good case does. The checks
+-- are the declaring file's, not this file's `isin_check_digit`.
+-- expect-command: call
+-- expect-status: fail
+-- expect-input: call_boundary_path.json
+-- expect-stdout-file: call_boundary_path.stdout
+
+@ import ./isin_lib
+
+| isin_check_digit(text: String) -> True
+# Holding(@ field(key = True) isin: Isin, count: Int)
+# Book(holdings: List(Holding), favourite: Isin?)
+
+@ calculate
+> call_boundary_path(input: Book) -> Int { sum(map(input.holdings, |h| h.count)) }

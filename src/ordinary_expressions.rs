@@ -199,6 +199,16 @@ impl TypeChecker {
         right: &Expr,
         right_type: Option<&str>,
     ) {
+        // An `Isin` meets an `AccountId` in no comparison; otherwise every
+        // operator applies to a named scalar's primitive.
+        if self.check_scalar_operands(expression, operator, left, left_type, right, right_type) {
+            return;
+        }
+        let (left_type, right_type) = (
+            left_type.map(|ty| self.widen_scalars(ty)),
+            right_type.map(|ty| self.widen_scalars(ty)),
+        );
+        let (left_type, right_type) = (left_type.as_deref(), right_type.as_deref());
         if matches!(operator, "==" | "!=") {
             for (literal, other) in [(right, left_type), (left, right_type)] {
                 let Some(other) = other.and_then(|other| parse_type_annotation(other).ok()) else {

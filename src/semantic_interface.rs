@@ -531,6 +531,24 @@ fn collect_type_interface(
                 details,
             });
         }
+        // Which values belong to a named scalar is meaning; its description
+        // and `@ field` are presentation.
+        TypeDecl::Scalar {
+            name,
+            primitive,
+            checks,
+            ..
+        } => {
+            let mut details = vec![format!("of:{primitive}")];
+            details.extend(checks.iter().map(|check| format!("check:{}", check.text)));
+            types.push(SemanticTypeDeclaration {
+                kind: "scalar".to_string(),
+                name: name.clone(),
+                parameters: Vec::new(),
+                variants: Vec::new(),
+                details,
+            });
+        }
         TypeDecl::EffectDecl { name, ops } => {
             types.push(SemanticTypeDeclaration {
                 kind: "effect".to_string(),

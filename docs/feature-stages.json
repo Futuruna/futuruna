@@ -136,6 +136,18 @@
       ]
     },
     {
+      "id": "named-scalar-types",
+      "kind": "language",
+      "name": "Named scalar types (`# Isin: String \"...\" where ...`)",
+      "stage": "experimental",
+      "notes": "No compatibility guarantee: declaration syntax, widening and join rules, the `Isin(p)`/`parse(Isin, p)` conversions, error texts, the boundary diagnostics' `scalar`/`check` members and the contract's `scalar`/`scalars` members may change.",
+      "docs": [
+        "docs/reference/runes.md",
+        "docs/reference/calculations.md",
+        "docs/rfcs/named-scalar-types-and-rule-result-types.md"
+      ]
+    },
+    {
       "id": "rust-interop",
       "kind": "integration",
       "name": "Rust interop and Rust-facing library integration behavior",
@@ -694,7 +706,8 @@
         "calculation-field-declarations",
         "rust-escape-hatches",
         "exploratory-audit-tooling",
-        "unit-types"
+        "unit-types",
+        "named-scalar-types"
       ]
     },
     {

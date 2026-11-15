@@ -187,6 +187,11 @@ impl TypeChecker {
                 &format!("variant:{name}"),
                 format!("`{name}` is already declared as a unit; choose another name"),
             );
+        } else if self.scalar_primitive(name).is_some() {
+            self.declaration_error(
+                &format!("variant:{name}"),
+                format!("`{name}` is already declared as a named scalar type; choose another name"),
+            );
         } else if let Some(unit) = self.unit_with_base(name) {
             self.declaration_error(
                 &format!("variant:{name}"),
@@ -241,6 +246,12 @@ impl TypeChecker {
         left: Option<&str>,
         right: Option<&str>,
     ) -> Option<String> {
+        // No operator makes a named scalar: `isin + "/"` is a `String`.
+        let (left, right) = (
+            left.map(|ty| self.widen_scalars(ty)),
+            right.map(|ty| self.widen_scalars(ty)),
+        );
+        let (left, right) = (left.as_deref(), right.as_deref());
         self.unit_binary_result(operator, left, right)
             .unwrap_or_else(|| Self::binary_expression_result_type(operator, left, right))
     }
@@ -720,7 +731,9 @@ impl TypeChecker {
             return true;
         };
         let accepted = if name == "Int" {
-            actual == "Int" || self.is_unit_type(&actual)
+            actual == "Int"
+                || self.is_unit_type(&actual)
+                || self.scalar_primitive(&actual) == Some("Int")
         } else {
             actual == "Int" || actual == name
         };
@@ -844,6 +857,9 @@ impl TypeChecker {
         }
         match expected {
             Ty::Name(name) if self.is_unit_type(name) => Self::is_unitless_literal(expr),
+            Ty::Name(name) if self.scalar_primitive(name).is_some() => {
+                self.scalar_literal_fits(expr, name)
+            }
             Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) => {
                 self.unit_literal_fits(expr, inner)
             }
@@ -997,6 +1013,7 @@ impl TypeChecker {
     ) -> Option<String> {
         Self::merge_inferred_type_names(known, next)
             .or_else(|| self.merge_unit_branch(known, known_is_literal, next, next_is_literal))
+            .or_else(|| self.merge_scalar_branch(known, known_is_literal, next, next_is_literal))
     }
 
     /// The one type of expressions that must all have it: the items of a
@@ -1030,18 +1047,19 @@ impl TypeChecker {
         (!literal || !unknown || self.unit_types.is_empty()).then_some(ty)
     }
 
-    /// A type as its runtime representation, with every unit an `Int`. The
-    /// canonical rule-dispatch proof judges representations, as generated
-    /// Rust and the solver do; the ordinary checker has already kept the
-    /// units apart, so a unit rule family is as type-safe as its `Int` form.
+    /// A type as its runtime representation, with every unit an `Int` and
+    /// every named scalar its primitive. The canonical rule-dispatch proof
+    /// judges representations, as generated Rust and the solver do; the
+    /// ordinary checker has already kept the units and named scalars apart,
+    /// so a unit rule family is as type-safe as its `Int` form.
     pub(super) fn canonical_type_without_units(&self, type_name: &str) -> String {
         let canonical = Self::canonical_explore_type_name(type_name);
-        if self.unit_types.is_empty() {
+        if self.unit_types.is_empty() && self.scalar_types.is_empty() {
             return canonical;
         }
         match parse_type_annotation(&canonical) {
             Ok(mut ty) => {
-                erase_ty(&mut ty, &self.unit_types);
+                erase_ty(&mut ty, self);
                 Self::canonical_explore_ty_name(&ty)
             }
             Err(_) => canonical,
@@ -1069,17 +1087,17 @@ impl TypeChecker {
 
 impl TypeCheckArtifacts {
     /// A checked type name as a unit-erasing backend sees it: every unit is
-    /// an `Int` (`Ore` is `Int`, `List(Ore)` is `List(Int)`). Rust generation
-    /// erases the program it emits, so the checker metadata it consumes must
-    /// name the same representations.
+    /// an `Int` (`Ore` is `Int`, `List(Ore)` is `List(Int)`) and every named
+    /// scalar its primitive. Rust generation erases the program it emits, so
+    /// the checker metadata it consumes must name the same representations.
     pub fn erase_unit_type_name(&self, type_name: &str) -> String {
-        if self.unit_names.is_empty() {
+        if self.erased_type_names.is_empty() {
             return type_name.to_string();
         }
         match parse_type_annotation(type_name) {
             Ok(ty) => {
                 let mut erased = ty.clone();
-                erase_ty(&mut erased, &self.unit_names);
+                erase_ty(&mut erased, &self.erased_type_names);
                 if erased == ty {
                     type_name.to_string()
                 } else {
@@ -1228,102 +1246,119 @@ fn is_path(expr: &Expr) -> bool {
     }
 }
 
-/// Erase units for a backend that needs only runtime representations: every
-/// unit type becomes `Int` and every conversion (`Ore(n)`, `Int(amount)`)
-/// becomes its argument. The checker has already kept the units apart, so
-/// generated Rust and SMT see exactly the `Int` arithmetic the interpreter
-/// runs. `# unit` declarations stay; Rust generation emits them as aliases.
+/// Erase units and named scalars for a backend that needs only runtime
+/// representations: every unit type becomes `Int`, every named scalar its
+/// primitive, and every conversion (`Ore(n)`, `Int(amount)`, `Isin(text)`
+/// after elaboration, `String(isin)`) becomes its argument. The checker has
+/// already kept them apart, so generated Rust and SMT see exactly the
+/// arithmetic and text the interpreter runs. The declarations stay; Rust
+/// generation emits them as aliases.
 pub fn erase_unit_types(stmts: &mut [Stmt]) {
-    let mut units = BTreeSet::new();
-    collect_unit_names(stmts, &mut units);
-    rewrite_stmts(stmts, &mut Erasure { units: &units });
+    let mut names = BTreeMap::new();
+    collect_erased_names(stmts, &mut names);
+    rewrite_stmts(stmts, &mut Erasure { names: &names });
 }
 
-/// [`erase_unit_types`] over the files of one program: a unit declared in
-/// any of them is erased in all of them.
+/// [`erase_unit_types`] over the files of one program: a unit or named
+/// scalar declared in any of them is erased in all of them.
 pub fn erase_unit_types_in_files(files: &mut [&mut Vec<Stmt>]) {
-    let mut units = BTreeSet::new();
+    let mut names = BTreeMap::new();
     for file in files.iter() {
-        collect_unit_names(file, &mut units);
+        collect_erased_names(file, &mut names);
     }
     for file in files.iter_mut() {
-        rewrite_stmts(file, &mut Erasure { units: &units });
+        rewrite_stmts(file, &mut Erasure { names: &names });
     }
 }
 
-fn collect_unit_names(stmts: &[Stmt], units: &mut BTreeSet<String>) {
+/// Every declared unit and named scalar, with its representation.
+fn collect_erased_names(stmts: &[Stmt], names: &mut BTreeMap<String, String>) {
     for stmt in stmts {
         match stmt {
             Stmt::TypeDecl(TypeDecl::Unit { name, .. }) => {
-                units.insert(name.clone());
+                names.insert(name.clone(), "Int".to_string());
             }
-            Stmt::Defn(Defn::Module { body, .. }) => collect_unit_names(body, units),
+            Stmt::TypeDecl(TypeDecl::Scalar {
+                name, primitive, ..
+            }) => {
+                names.insert(name.clone(), primitive.clone());
+            }
+            Stmt::Defn(Defn::Module { body, .. }) => collect_erased_names(body, names),
             _ => {}
         }
     }
 }
 
 struct Erasure<'a> {
-    units: &'a BTreeSet<String>,
+    names: &'a BTreeMap<String, String>,
 }
 
 impl ProgramRewrite for Erasure<'_> {
     fn ty(&mut self, ty: &mut Ty) {
-        erase_ty(ty, self.units);
+        erase_ty(ty, self.names);
     }
 
     fn typed_annotation(&mut self, type_name: &mut String) {
         if let Ok(mut ty) = parse_type_annotation(type_name) {
-            erase_ty(&mut ty, self.units);
+            erase_ty(&mut ty, self.names);
             *type_name = ty.to_string();
         }
     }
 
     fn expr(&mut self, expr: &mut Expr) {
-        while let Some(argument) = unit_conversion_argument(expr, self.units) {
+        while let Some(argument) = unit_conversion_argument(expr, self.names) {
             *expr = argument;
         }
     }
 }
 
-/// The declared unit names, as a set or as the checker's unit table.
-trait UnitNames {
-    fn is_unit(&self, name: &str) -> bool;
+/// The runtime representation of a unit (`Int`) or named scalar (its
+/// primitive), from a table of declared names or from the checker.
+pub(crate) trait Representations {
+    fn representation(&self, name: &str) -> Option<&str>;
 }
 
-impl UnitNames for BTreeSet<String> {
-    fn is_unit(&self, name: &str) -> bool {
-        self.contains(name)
+impl Representations for BTreeMap<String, String> {
+    fn representation(&self, name: &str) -> Option<&str> {
+        self.get(name).map(String::as_str)
     }
 }
 
-impl UnitNames for BTreeMap<String, String> {
-    fn is_unit(&self, name: &str) -> bool {
-        self.contains_key(name)
+impl Representations for TypeChecker {
+    fn representation(&self, name: &str) -> Option<&str> {
+        if self.is_unit_type(name) {
+            Some("Int")
+        } else {
+            self.scalar_primitive(name)
+        }
     }
 }
 
-fn erase_ty(ty: &mut Ty, units: &impl UnitNames) {
+pub(crate) fn erase_ty(ty: &mut Ty, names: &impl Representations) {
     match ty {
-        Ty::Name(name) if units.is_unit(name) => *name = "Int".to_string(),
+        Ty::Name(name) => {
+            if let Some(representation) = names.representation(name) {
+                *name = representation.to_string();
+            }
+        }
         Ty::App(head, arguments) => {
-            erase_ty(head, units);
+            erase_ty(head, names);
             for argument in arguments {
-                erase_ty(argument, units);
+                erase_ty(argument, names);
             }
         }
         Ty::Arrow(input, output) => {
-            erase_ty(input, units);
-            erase_ty(output, units);
+            erase_ty(input, names);
+            erase_ty(output, names);
         }
         Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
-            erase_ty(inner, units)
+            erase_ty(inner, names)
         }
-        Ty::Name(_) | Ty::Var(_) | Ty::Unit | Ty::Hole => {}
+        Ty::Var(_) | Ty::Unit | Ty::Hole => {}
     }
 }
 
-fn unit_conversion_argument(expr: &Expr, units: &BTreeSet<String>) -> Option<Expr> {
+fn unit_conversion_argument(expr: &Expr, names: &BTreeMap<String, String>) -> Option<Expr> {
     let ExprKind::App(function, arguments) = &expr.kind else {
         return None;
     };
@@ -1333,13 +1368,14 @@ fn unit_conversion_argument(expr: &Expr, units: &BTreeSet<String>) -> Option<Exp
     let [argument] = arguments.as_slice() else {
         return None;
     };
-    ((name == "Int" || units.contains(name.as_str())) && !is_named_arg_expr(argument))
-        .then(|| argument.clone())
+    ((name == "Int" || name == "String" || names.contains_key(name.as_str()))
+        && !is_named_arg_expr(argument))
+    .then(|| argument.clone())
 }
 
 /// A rewrite of a whole program: of every type written in it, and of every
 /// expression before its parts are visited.
-trait ProgramRewrite {
+pub(crate) trait ProgramRewrite {
     fn ty(&mut self, _ty: &mut Ty) {}
     /// The type name a typed rule argument (`__typed`) carries.
     fn typed_annotation(&mut self, _type_name: &mut String) {}
@@ -1354,7 +1390,7 @@ fn rewrite_params(params: &mut [Param], rewrite: &mut impl ProgramRewrite) {
     }
 }
 
-fn rewrite_stmts(stmts: &mut [Stmt], rewrite: &mut impl ProgramRewrite) {
+pub(crate) fn rewrite_stmts(stmts: &mut [Stmt], rewrite: &mut impl ProgramRewrite) {
     for stmt in stmts {
         rewrite_stmt(stmt, rewrite);
     }
@@ -1451,7 +1487,7 @@ fn rewrite_stmt(stmt: &mut Stmt, rewrite: &mut impl ProgramRewrite) {
                 rewrite_params(params, rewrite);
                 rewrite_stmts(body, rewrite);
             }
-            TypeDecl::Unit { .. } => {}
+            TypeDecl::Unit { .. } | TypeDecl::Scalar { .. } => {}
         },
         Stmt::Rule(rule) => match rule {
             Rule::Clause { head, body } => {

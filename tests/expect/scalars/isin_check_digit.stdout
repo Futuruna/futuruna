@@ -1,0 +1,8 @@
+US0378331005 ok
+DK0010274414 ok
+DK0060534915 ok
+IE00B4L5Y983 ok
+`"US0378331006"` is not an `Isin`: `isin_check_digit` is false
+`"DK0010274415"` is not an `Isin`: `isin_check_digit` is false
+`"DK0060534914"` is not an `Isin`: `isin_check_digit` is false
+`"IE00B4L5Y984"` is not an `Isin`: `isin_check_digit` is false

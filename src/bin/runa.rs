@@ -2047,7 +2047,11 @@ fn run_calculation_command(
         std::process::exit(1);
     });
     let cached_contracts = load_calculation_contract_cache(filename, &source, use_prelude);
-    let needs_statements = cached_contracts.is_none() || mode == "call";
+    // A template filled from input shows only values `call` accepts, so it
+    // runs the checks of named scalars on them as `call` does.
+    let needs_statements = cached_contracts.is_none()
+        || mode == "call"
+        || (mode == "template" && input_path.is_some());
     let user_stmts = needs_statements.then(|| {
         let mut lexer = Lexer::new(&source);
         let tokens = lexer.tokenize();
@@ -2142,6 +2146,33 @@ fn run_calculation_command(
                     std::process::exit(1);
                 })
                 .unwrap_or_else(|| contract.template_envelope());
+            if let Some(stmts) = stmts.filter(|_| input_path.is_some()) {
+                let mut prepared = calculate::PreparedCalculation::new(
+                    contract.clone(),
+                    stmts,
+                    source_dir,
+                    constructor_elaboration,
+                )
+                .with_root_file(
+                    std::fs::canonicalize(filename)
+                        .unwrap_or_else(|_| std::path::PathBuf::from(filename)),
+                );
+                let refused = prepared.scalar_input_diagnostics(&envelope);
+                if !refused.is_empty() {
+                    eprintln!(
+                        "error: cannot read calculation template input: {}",
+                        refused
+                            .iter()
+                            .map(|diagnostic| format!(
+                                "case `{}` {}: {}",
+                                diagnostic.case_id, diagnostic.path, diagnostic.message
+                            ))
+                            .collect::<Vec<_>>()
+                            .join("; ")
+                    );
+                    std::process::exit(1);
+                }
+            }
             match format.as_str() {
                 "json" => {
                     let document =
@@ -4042,6 +4073,8 @@ fn read_calculation_xlsx(
                 case_id,
                 path: format!("cases!A{}", row_index + 3),
                 message: "case_id must not be empty".to_string(),
+                scalar: None,
+                check: None,
             });
             continue;
         }
@@ -4050,6 +4083,8 @@ fn read_calculation_xlsx(
                 case_id: case_id.clone(),
                 path: format!("cases!A{}", row_index + 3),
                 message: format!("duplicate case_id `{}`", case_id),
+                scalar: None,
+                check: None,
             });
             invalid_cases.insert(case_id);
             continue;
@@ -4066,6 +4101,8 @@ fn read_calculation_xlsx(
                         case_id: case_id.clone(),
                         path: calculation_xlsx_cell_path("cases", 1, row_index + 3),
                         message: "input_status must be draft or ready".to_string(),
+                        scalar: None,
+                        check: None,
                     });
                     row_valid = false;
                     None
@@ -4090,6 +4127,8 @@ fn read_calculation_xlsx(
                             "input column is inactive unless {}",
                             calculation_variant_guards_description(&column.variant_guards)
                         ),
+                        scalar: None,
+                        check: None,
                     });
                     row_valid = false;
                 }
@@ -4112,6 +4151,8 @@ fn read_calculation_xlsx(
                             row_index + 3,
                         ),
                         message,
+                        scalar: None,
+                        check: None,
                     });
                     row_valid = false;
                     continue;
@@ -4124,6 +4165,8 @@ fn read_calculation_xlsx(
                     case_id: case_id.clone(),
                     path: error.path,
                     message: error.message,
+                    scalar: None,
+                    check: None,
                 });
                 row_valid = false;
             }
@@ -4175,6 +4218,8 @@ fn read_calculation_xlsx(
                         case_id,
                         path: table.path.clone(),
                         message: format!("selected input requires collection sheet `{}`; refresh with `runa template MODEL --input INPUT.xlsx --output REFRESHED.xlsx` and complete the new sheets before calling", table.sheet),
+                        scalar: None,
+                        check: None,
                     });
                 }
             }
@@ -4227,6 +4272,8 @@ fn read_calculation_xlsx(
                     case_id: case_id.clone(),
                     path: calculation_xlsx_cell_path(&table.sheet, 0, excel_row),
                     message: "case_id must not be empty".to_string(),
+                    scalar: None,
+                    check: None,
                 });
                 row_valid = false;
             } else if !case_known {
@@ -4234,6 +4281,8 @@ fn read_calculation_xlsx(
                     case_id: case_id.clone(),
                     path: calculation_xlsx_cell_path(&table.sheet, 0, excel_row),
                     message: format!("unknown case_id `{}`", case_id),
+                    scalar: None,
+                    check: None,
                 });
                 row_valid = false;
             }
@@ -4249,6 +4298,8 @@ fn read_calculation_xlsx(
                         case_id: case_id.clone(),
                         path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
                         message: "parent_id must not be empty".to_string(),
+                        scalar: None,
+                        check: None,
                     });
                     row_valid = false;
                 } else if case_known {
@@ -4262,6 +4313,8 @@ fn read_calculation_xlsx(
                             case_id: case_id.clone(),
                             path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
                             message: format!("orphan parent_id `{}`", value),
+                            scalar: None,
+                            check: None,
                         });
                         row_valid = false;
                     }
@@ -4297,6 +4350,8 @@ fn read_calculation_xlsx(
                         "collection table is inactive unless {}",
                         calculation_variant_guards_description(&table.variant_guards)
                     ),
+                    scalar: None,
+                    check: None,
                 });
                 row_valid = false;
             }
@@ -4310,6 +4365,8 @@ fn read_calculation_xlsx(
                     case_id: case_id.clone(),
                     path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
                     message: "item_id must not be empty".to_string(),
+                    scalar: None,
+                    check: None,
                 });
                 row_valid = false;
             } else if !seen_item_ids.insert((case_id.clone(), item_id.clone())) {
@@ -4317,6 +4374,8 @@ fn read_calculation_xlsx(
                     case_id: case_id.clone(),
                     path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
                     message: format!("duplicate item_id `{}`", item_id),
+                    scalar: None,
+                    check: None,
                 });
                 row_valid = false;
             }
@@ -4343,6 +4402,8 @@ fn read_calculation_xlsx(
                                         "duplicate list position `{}` for the same parent",
                                         value
                                     ),
+                                    scalar: None,
+                                    check: None,
                                 });
                                 row_valid = false;
                             }
@@ -4357,6 +4418,8 @@ fn read_calculation_xlsx(
                                     excel_row,
                                 ),
                                 message,
+                                scalar: None,
+                                check: None,
                             });
                             row_valid = false;
                         }
@@ -4391,6 +4454,8 @@ fn read_calculation_xlsx(
                                         "duplicate map key `{}` for the same parent",
                                         value
                                     ),
+                                    scalar: None,
+                                    check: None,
                                 });
                                 row_valid = false;
                             }
@@ -4405,6 +4470,8 @@ fn read_calculation_xlsx(
                                     excel_row,
                                 ),
                                 message,
+                                scalar: None,
+                                check: None,
                             });
                             row_valid = false;
                         }
@@ -4430,6 +4497,8 @@ fn read_calculation_xlsx(
                                 "input column is inactive unless {}",
                                 calculation_variant_guards_description(&column.variant_guards)
                             ),
+                            scalar: None,
+                            check: None,
                         });
                         row_valid = false;
                     }
@@ -4447,6 +4516,8 @@ fn read_calculation_xlsx(
                                 case_id: case_id.clone(),
                                 path: error.path,
                                 message: error.message,
+                                scalar: None,
+                                check: None,
                             });
                             row_valid = false;
                         }
@@ -4456,6 +4527,8 @@ fn read_calculation_xlsx(
                             case_id: case_id.clone(),
                             path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
                             message,
+                            scalar: None,
+                            check: None,
                         });
                         row_valid = false;
                     }
@@ -4510,6 +4583,8 @@ fn read_calculation_xlsx(
                         case_id: case.case_id.clone(),
                         path: table.path.clone(),
                         message,
+                        scalar: None,
+                        check: None,
                     });
                     invalid_cases.insert(case.case_id.clone());
                     break;
@@ -4524,6 +4599,8 @@ fn read_calculation_xlsx(
                     case_id: case.case_id.clone(),
                     path: error.path,
                     message: error.message,
+                    scalar: None,
+                    check: None,
                 });
                 invalid_cases.insert(case.case_id.clone());
                 break;
@@ -9376,7 +9453,7 @@ fn collect_generated_rust_direct_stmt_names(statement: &Stmt, names: &mut BTreeS
                 }
             }
         }
-        Stmt::TypeDecl(TypeDecl::Unit { name, .. }) => {
+        Stmt::TypeDecl(TypeDecl::Unit { name, .. } | TypeDecl::Scalar { name, .. }) => {
             names.insert(name.clone());
         }
         Stmt::TypeDecl(TypeDecl::WhenType { name, variants, .. }) => {
@@ -13443,6 +13520,121 @@ struct SmtResolvedNamespace {
 struct SmtResolvedProgram {
     root_identity: String,
     namespaces: BTreeMap<String, SmtResolvedNamespace>,
+    /// What the solver knows of named scalars, read before they are erased.
+    scalars: SmtScalars,
+}
+
+/// The named scalars of a program as `runa verify` sees them: for each, its
+/// checks; for each callable, which parameters hold one.
+#[derive(Debug, Clone, Default)]
+struct SmtScalars {
+    /// Each named scalar's checks in order: the check as written and the
+    /// lowered name of the function elaboration declared for it (`None` when
+    /// the program has none, such as a check of an unparsed import).
+    checks: BTreeMap<String, Vec<(String, Option<String>)>>,
+    /// For each function or rule, by lowered name, the named scalar each
+    /// parameter is declared as.
+    parameters: BTreeMap<String, Vec<Option<String>>>,
+}
+
+impl SmtScalars {
+    fn collect(namespaces: &BTreeMap<String, SmtResolvedNamespace>) -> Self {
+        let mut scalars = Self::default();
+        let mut declared = Vec::new();
+        let mut check_functions = BTreeMap::new();
+        for namespace in namespaces.values() {
+            let identity = |kind, name: &str, arity| SmtCallableIdentity {
+                namespace: namespace.identity.clone(),
+                kind,
+                scope: None,
+                name: name.to_string(),
+                arity,
+            };
+            for statement in &namespace.statements {
+                match statement {
+                    Stmt::TypeDecl(TypeDecl::Scalar { name, checks, .. }) => declared.push((
+                        name.clone(),
+                        checks
+                            .iter()
+                            .map(|check| check.text.clone())
+                            .collect::<Vec<_>>(),
+                    )),
+                    Stmt::Defn(Defn::Fn { name, params, .. }) => {
+                        let lowered = identity(SmtCallableKind::Function, name, params.len())
+                            .internal_source_name();
+                        if name.starts_with("__scalar_check_") {
+                            check_functions.insert(name.clone(), lowered.clone());
+                        }
+                        let types = params
+                            .iter()
+                            .map(|param| match &param.ty {
+                                Some(Ty::Name(type_name)) => Some(type_name.clone()),
+                                _ => None,
+                            })
+                            .collect();
+                        scalars.parameters.insert(lowered, types);
+                    }
+                    Stmt::Rule(
+                        Rule::Clause { head, .. }
+                        | Rule::Default { head, .. }
+                        | Rule::Exception { head, .. },
+                    ) => {
+                        let ExprKind::App(function, arguments) = &head.kind else {
+                            continue;
+                        };
+                        let ExprKind::Var(name) = &function.kind else {
+                            continue;
+                        };
+                        let types = arguments
+                            .iter()
+                            .map(|argument| match &argument.kind {
+                                ExprKind::App(typed, parts)
+                                    if matches!(&typed.kind, ExprKind::Var(t) if t == "__typed") =>
+                                {
+                                    match parts.as_slice() {
+                                        [_, Expr { kind: ExprKind::Var(type_name), .. }] => {
+                                            Some(type_name.clone())
+                                        }
+                                        _ => None,
+                                    }
+                                }
+                                _ => None,
+                            })
+                            .collect();
+                        let lowered =
+                            identity(SmtCallableKind::Rule, name, arguments.len()).symbol();
+                        scalars.parameters.insert(lowered, types);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        let names: BTreeSet<&String> = declared.iter().map(|(name, _)| name).collect();
+        for types in scalars.parameters.values_mut() {
+            for ty in types.iter_mut() {
+                if ty.as_ref().is_some_and(|name| !names.contains(name)) {
+                    *ty = None;
+                }
+            }
+        }
+        scalars
+            .parameters
+            .retain(|_, types| types.iter().any(Option::is_some));
+        for (name, texts) in declared {
+            let checks = texts
+                .into_iter()
+                .enumerate()
+                .map(|(index, text)| {
+                    let function = check_functions
+                        .get(&format!("__scalar_check_{name}_{index}"))
+                        .cloned();
+                    (text, function)
+                })
+                .collect();
+            scalars.checks.insert(name, checks);
+        }
+        scalars
+    }
 }
 
 #[derive(Default)]
@@ -13533,6 +13725,7 @@ impl SmtProgramResolver {
             true,
         )?;
         self.active_sources.clear();
+        let scalars = SmtScalars::collect(&self.namespaces);
         // A unit of measure is an Int to the solver; the checker has kept the
         // units apart. Every SMT consumer (verify, the clause audit) starts
         // from this program, so none sees a unit.
@@ -13545,6 +13738,7 @@ impl SmtProgramResolver {
         Ok(SmtResolvedProgram {
             root_identity,
             namespaces: self.namespaces,
+            scalars,
         })
     }
 
@@ -16517,6 +16711,12 @@ fn smt_expr_support_reason(
             let ExprKind::Var(name) = &func.kind else {
                 return Some("higher-order function calls are not translatable to SMT".into());
             };
+            // A failed assertion stops the program, so the solver reads it
+            // as an obligation on its condition (see `definedness`); the
+            // message is never evaluated by a proof.
+            if name == "assert_with_message" && args.len() == 2 && !fn_names.contains(name) {
+                return smt_expr_support_reason(&args[0], fn_names, ctor_names);
+            }
             let builtin = smt_builtin_result_type(name, args.len()).is_some();
             if builtin && fn_names.contains(name) {
                 return Some(format!(
@@ -16611,6 +16811,64 @@ fn collect_smt_called_functions(
             }
         }
     });
+}
+
+/// The free variables of an invariant that are inputs of a named scalar
+/// type: passed directly where a function or rule declares a parameter of
+/// that type. Calls under a binder (a lambda, a match arm, a block) are not
+/// read, so a bound name is never taken for the free variable it shadows.
+fn smt_scalar_inputs(
+    expressions: &[&Expr],
+    parameters: &BTreeMap<String, Vec<Option<String>>>,
+    ordered_vars: &[String],
+    bindings: &BTreeMap<String, Expr>,
+) -> BTreeMap<String, String> {
+    fn visit(
+        expr: &Expr,
+        parameters: &BTreeMap<String, Vec<Option<String>>>,
+        inputs: &mut BTreeMap<String, String>,
+    ) {
+        match &expr.kind {
+            ExprKind::App(function, arguments) => {
+                if let ExprKind::Var(name) = &function.kind {
+                    if let Some(types) = parameters.get(name) {
+                        for (argument, ty) in arguments.iter().zip(types) {
+                            if let (ExprKind::Var(var), Some(scalar)) = (&argument.kind, ty) {
+                                inputs.entry(var.clone()).or_insert_with(|| scalar.clone());
+                            }
+                        }
+                    }
+                }
+                for argument in arguments {
+                    visit(argument, parameters, inputs);
+                }
+            }
+            ExprKind::BinOp(_, left, right) => {
+                visit(left, parameters, inputs);
+                visit(right, parameters, inputs);
+            }
+            ExprKind::UnOp(_, inner) | ExprKind::Field(inner, _) => {
+                visit(inner, parameters, inputs)
+            }
+            ExprKind::If(condition, yes, no) => {
+                visit(condition, parameters, inputs);
+                visit(yes, parameters, inputs);
+                visit(no, parameters, inputs);
+            }
+            ExprKind::Tuple(items) => {
+                for item in items {
+                    visit(item, parameters, inputs);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut inputs = BTreeMap::new();
+    for expr in expressions {
+        visit(expr, parameters, &mut inputs);
+    }
+    inputs.retain(|var, _| ordered_vars.contains(var) && !bindings.contains_key(var));
+    inputs
 }
 
 #[cfg(test)]
@@ -17867,6 +18125,14 @@ fn collect_free_vars_outside(expr: &Expr, bound: &BTreeSet<String>, vars: &mut B
                 if let Some(value) = args.get(1) {
                     collect_free_vars_outside(value, bound, vars);
                 }
+                return;
+            }
+            // The solver reads an assertion as an obligation on its
+            // condition and never evaluates the message.
+            if matches!(&func.kind, ExprKind::Var(name) if name == "assert_with_message")
+                && args.len() == 2
+            {
+                collect_free_vars_outside(&args[0], bound, vars);
                 return;
             }
             if !matches!(&func.kind, ExprKind::Var(name)
@@ -19339,9 +19605,10 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
         eprintln!("runa --verify: verification requires a type-correct program");
         std::process::exit(1);
     }
+    let prelude_len = checked_stmts.len() - stmts.len();
     drop(checked_stmts);
     // The solver reads the authored statements, which follow the prelude.
-    let stmts = checked.authored_program(stmts.len());
+    let stmts = checked.authored_program(prelude_len);
 
     // Imported declarations precede local declarations, matching interpreter
     // and codegen registration. Rule groups intentionally compose across this
@@ -19714,6 +19981,72 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             println!();
             continue;
         }
+        // A free variable passed where a named scalar is declared is an
+        // input of that type: its checks are assumed where they translate.
+        // A check that does not translate is not assumed, which is sound;
+        // a counterexample then names it.
+        let mut used_functions = used_functions;
+        let mut scalar_assumptions: Vec<Expr> = Vec::new();
+        let mut unassumed_checks: Vec<(String, String)> = Vec::new();
+        for (var, scalar) in smt_scalar_inputs(
+            &[pred_expr, subject_expr],
+            &resolved_program.scalars.parameters,
+            &ordered_vars,
+            &bindings,
+        ) {
+            for (text, function) in resolved_program
+                .scalars
+                .checks
+                .get(&scalar)
+                .into_iter()
+                .flatten()
+            {
+                let call = function.as_ref().map(|function| {
+                    Expr::new(
+                        ExprKind::App(
+                            Box::new(Expr::new(ExprKind::Var(function.clone()), Span::dummy())),
+                            vec![Expr::new(ExprKind::Var(var.clone()), Span::dummy())],
+                        ),
+                        Span::dummy(),
+                    )
+                });
+                let translated = call.filter(|call| {
+                    let inputs = [var.clone()];
+                    let deps =
+                        transitive_smt_function_deps(call, call, &inputs, &bindings, &function_map);
+                    let translates = function_map.contains_key(function.as_deref().unwrap_or(""))
+                        && smt_function_lowering_error_for_invariant(
+                            call,
+                            call,
+                            &inputs,
+                            &bindings,
+                            &deps,
+                            &function_map,
+                            &function_lowering_errors,
+                        )
+                        .is_none()
+                        && smt_skip_reason_for_invariant(
+                            call,
+                            call,
+                            &inputs,
+                            &bindings,
+                            &function_map,
+                            &ctor_names,
+                        )
+                        .is_none()
+                        && ordered_smt_functions(&deps, &function_map).is_ok()
+                        && smt_function_free_vars(&deps, &function_map, &ctor_names).is_empty();
+                    if translates {
+                        used_functions.extend(deps);
+                    }
+                    translates
+                });
+                match translated {
+                    Some(call) => scalar_assumptions.push(call),
+                    None => unassumed_checks.push((var.clone(), text.clone())),
+                }
+            }
+        }
         let function_order = match ordered_smt_functions(&used_functions, &function_map) {
             Ok(order) => order,
             Err(reason) => {
@@ -19741,6 +20074,22 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
                 .map(|expr| runa_verification_arithmetic::definedness(expr, &guarded_functions))
                 .collect()
         })();
+        // An assumed check holds and is defined: the value was checked
+        // where it was made.
+        let assumption_smt: Vec<String> = scalar_assumptions
+            .iter()
+            .filter_map(|call| {
+                runa_verification_arithmetic::definedness(call, &guarded_functions)
+                    .ok()
+                    .map(|defined| runa_verification_arithmetic::and([defined, expr_to_smt(call)]))
+            })
+            .collect();
+        if assumption_smt.len() != scalar_assumptions.len() {
+            unsupported_count += 1;
+            println!("  ? SMT fallback skipped: a named scalar check has no arithmetic encoding");
+            println!();
+            continue;
+        }
         let arithmetic_guard = match arithmetic_guards {
             Ok(guards) => runa_verification_arithmetic::and(guards),
             Err(reason) => {
@@ -19836,6 +20185,13 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
         // Definedness is part of the claim, never an assumption that filters
         // away precisely the executions the verifier needs to detect.
         let pred_smt = expr_to_smt(pred_expr);
+        if !assumption_smt.is_empty() {
+            smt.push_str("\n; The checks of named scalar inputs\n");
+            smt.push_str(&format!(
+                "(assert {})\n",
+                runa_verification_arithmetic::and(assumption_smt)
+            ));
+        }
         smt.push_str(&format!(
             "\n; Try to find counterexample to: {}\n",
             inv_name
@@ -19865,6 +20221,9 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
                 }
                 "sat" => {
                     println!("  ✗ COUNTEREXAMPLE found for |{}|:", inv_name);
+                    for (var, check) in &unassumed_checks {
+                        println!("    {var} may violate `{check}`, which verify cannot express");
+                    }
                     match run_z3_script(&format!("{}(get-model)\n", smt)) {
                         Ok(model)
                             if model.lines().next().map(str::trim) == Some("sat")
@@ -20951,9 +21310,10 @@ fn migration_root(file: &Path) -> PathBuf {
 
 /// `runa fmt --migrate`: rewrite the retired comment directives of every
 /// file as annotations, then format it; rewrite string `entry`/`subject`
-/// field metadata as `refof`/`pathof` and rename `unknown`, reserved in 0.5,
-/// to `unknown_`. A file the migration cannot rewrite is left unchanged and
-/// its reasons are listed; so is metadata it cannot rewrite.
+/// field metadata as `refof`/`pathof`, rename `unknown`, reserved in 0.5,
+/// to `unknown_`, and remove each field-level `@ field` that says what its
+/// named scalar's `@ field` says. A file the migration cannot rewrite is left
+/// unchanged and its reasons are listed; so is metadata it cannot rewrite.
 fn migrate_targets(targets: &[String], check: bool) {
     use futuruna::migrate::{add_document_impl, migrate_needs, migrate_source, MigrationProgram};
     let mut files = Vec::new();
@@ -20981,12 +21341,6 @@ fn migrate_targets(targets: &[String], check: bool) {
         let directives = source
             .lines()
             .any(|line| line.trim_start().starts_with("--@"));
-        if !directives
-            && !source.contains("unknown")
-            && !(source.contains("entry") && source.contains("subject"))
-        {
-            continue;
-        }
         let root = migration_root(Path::new(path));
         let program = programs
             .entry(root.clone())
@@ -21015,10 +21369,25 @@ fn migrate_targets(targets: &[String], check: bool) {
         for listed in &needs.listed {
             eprintln!("{path}:{listed}");
         }
-        // Only the directive rewrite moves code; the 0.5 rewrites replace
-        // single tokens and keep the file's layout.
-        let formatted = if result.is_some() {
-            match checked_format_runa_source(&needs.source) {
+        let mut notes = result
+            .as_ref()
+            .map(|result| result.notes.clone())
+            .unwrap_or_default();
+        let mut migrated_source = needs.source.clone();
+        let repeated = program.remove_repeated_scalar_field_meta(Path::new(path), &needs.source);
+        let removed_meta = if let Some((rewritten, removed)) = repeated {
+            migrated_source = rewritten;
+            notes.push(format!(
+                "removed {removed} `@ field` that said what the field's named scalar type says"
+            ));
+            true
+        } else {
+            false
+        };
+        // The directive rewrite and the `@ field` removal move code; the 0.5
+        // rewrites replace single tokens and keep the file's layout.
+        let formatted = if result.is_some() || removed_meta {
+            match checked_format_runa_source(&migrated_source) {
                 Ok(formatted) => formatted,
                 Err(error) => {
                     eprintln!("{path}: the migrated file does not format: {error}; file unchanged");
@@ -21026,12 +21395,12 @@ fn migrate_targets(targets: &[String], check: bool) {
                     continue;
                 }
             }
-        } else if needs.source != source {
-            needs.source.clone()
+        } else if migrated_source != source {
+            migrated_source
         } else {
             continue;
         };
-        for note in result.iter().flat_map(|result| &result.notes) {
+        for note in &notes {
             eprintln!("{path}: {note}");
         }
         for rewritten in &needs.rewritten {
@@ -33064,7 +33433,9 @@ impl RustCodegen {
                         exported.extend(variants.iter().map(|variant| variant.name.clone()));
                     }
                     Stmt::TypeDecl(
-                        TypeDecl::RuleScope { name, .. } | TypeDecl::Unit { name, .. },
+                        TypeDecl::RuleScope { name, .. }
+                        | TypeDecl::Unit { name, .. }
+                        | TypeDecl::Scalar { name, .. },
                     ) => {
                         exported.insert(name.clone());
                     }
@@ -33423,7 +33794,8 @@ impl RustCodegen {
                     TypeDecl::WhenType { .. }
                     | TypeDecl::ImplBlock { .. }
                     | TypeDecl::RuleScope { .. }
-                    | TypeDecl::Unit { .. },
+                    | TypeDecl::Unit { .. }
+                    | TypeDecl::Scalar { .. },
                 )
                 | Stmt::PreludeBoundary
                 | Stmt::Defn(_)
@@ -33488,7 +33860,8 @@ impl RustCodegen {
                         TypeDecl::WhenType { .. }
                         | TypeDecl::ImplBlock { .. }
                         | TypeDecl::RuleScope { .. }
-                        | TypeDecl::Unit { .. },
+                        | TypeDecl::Unit { .. }
+                        | TypeDecl::Scalar { .. },
                     )
                     | Stmt::PreludeBoundary
                     | Stmt::Rule(_)
@@ -33679,7 +34052,9 @@ impl RustCodegen {
                             }
                         }
                         Stmt::TypeDecl(
-                            TypeDecl::RuleScope { name, .. } | TypeDecl::Unit { name, .. },
+                            TypeDecl::RuleScope { name, .. }
+                            | TypeDecl::Unit { name, .. }
+                            | TypeDecl::Scalar { name, .. },
                         ) => {
                             self.types.exported_names.insert(name.clone());
                             self.types.root_exported_names.insert(name.clone());
@@ -35662,7 +36037,9 @@ impl RustCodegen {
                 | Stmt::HashImport(_, _)
                 | Stmt::Depend(_, _)
                 | Stmt::RustBlock(_)
-                | Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. })
+                | Stmt::TypeDecl(
+                    TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } | TypeDecl::Scalar { .. },
+                )
                 | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
                 | Stmt::TypeDecl(TypeDecl::WhenType { .. })
                 | Stmt::Explore(_) => {}
@@ -36103,7 +36480,9 @@ impl RustCodegen {
             | Stmt::HashImport(_, _)
             | Stmt::Depend(_, _)
             | Stmt::RustBlock(_)
-            | Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. })
+            | Stmt::TypeDecl(
+                TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } | TypeDecl::Scalar { .. },
+            )
             | Stmt::Explore(_) => {}
         }
     }
@@ -36381,6 +36760,19 @@ impl RustCodegen {
     }
 
     fn emit_program(&mut self, input_stmts: &[Stmt]) -> String {
+        self.ensure_canonical_rule_metadata(input_stmts);
+        // The imports are read as the program's elaboration rewrote them
+        // (named scalars declare their check functions there), also when
+        // another check on this thread made another elaboration current.
+        match self.constructor_elaboration.clone() {
+            Some(elaboration) => futuruna::with_constructor_elaboration(Some(&elaboration), || {
+                self.emit_program_elaborated(input_stmts)
+            }),
+            None => self.emit_program_elaborated(input_stmts),
+        }
+    }
+
+    fn emit_program_elaborated(&mut self, input_stmts: &[Stmt]) -> String {
         self.ensure_canonical_rule_metadata(input_stmts);
         let all_stmts = self.scan_declarations(input_stmts);
         self.has_raw_rust_blocks = all_stmts.iter().any(stmt_contains_raw_rust);
@@ -41618,6 +42010,20 @@ fn __futuruna_install_error_hook() {
             } => {
                 format!(
                     "/// {}\n#[allow(dead_code)]\npub type {name} = i64;\n",
+                    description.replace(['\n', '\r'], " ")
+                )
+            }
+            // A named scalar is its primitive; its checks ran where a value
+            // was made.
+            TypeDecl::Scalar {
+                name,
+                primitive,
+                description,
+                ..
+            } => {
+                let rust = if primitive == "Int" { "i64" } else { "String" };
+                format!(
+                    "/// {}\n#[allow(dead_code)]\npub type {name} = {rust};\n",
                     description.replace(['\n', '\r'], " ")
                 )
             }
@@ -56235,7 +56641,9 @@ fn __futuruna_install_error_hook() {
                 | Stmt::HashImport(_, _)
                 | Stmt::Depend(_, _)
                 | Stmt::Explore(_)
-                | Stmt::TypeDecl(TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. }) => {}
+                | Stmt::TypeDecl(
+                    TypeDecl::EffectDecl { .. } | TypeDecl::Unit { .. } | TypeDecl::Scalar { .. },
+                ) => {}
                 Stmt::TypeDecl(TypeDecl::WhenType { condition, .. }) => {
                     self.scan_actor_message_site_expr(condition, actor_handles, local_tys);
                 }

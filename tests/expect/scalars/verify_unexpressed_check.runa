@@ -1,0 +1,17 @@
+-- A check that does not translate to SMT is not assumed, which is sound; a
+-- counterexample then names it. `positive` is assumed, `nine` (recursive) is
+-- not, so `x = 1` refutes the claim although 1 is not a `Nines`.
+-- expect-command: verify
+-- expect-status: fail
+-- expect-stdout: COUNTEREXAMPLE found for |ninth_positive|:
+-- expect-stdout: x may violate `nine`, which verify cannot express
+-- expect-stdout-not: may violate `positive`
+-- expect-stdout: Verification: 0 of 1 invariant(s) proved.
+
+> digit_sum(n: Int) -> Int { if n < 10 { n } else { n % 10 + digit_sum(n / 10) } }
+| positive(n: Int) -> n > 0
+| nine(n: Int) -> digit_sum(n) % 9 == 0
+# Nines: Int "a positive multiple of nine" where positive, nine
+
+| ninth(x: Nines) -> x / 9
+| ninth_positive: ninth(x) -> ninth(x) >= 1

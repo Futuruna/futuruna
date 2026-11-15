@@ -110,7 +110,7 @@ impl TypeChecker {
     // A missing inferred argument is a hole, not a fresh rigid variable. Bare
     // constructor parents are partial inference (e.g. None), not proof of a
     // particular type argument. The contextual constructor walk checks fields.
-    fn return_types_compatible(actual: &Ty, expected: &Ty) -> bool {
+    fn return_types_compatible(&self, actual: &Ty, expected: &Ty) -> bool {
         let is_hole =
             |ty: &Ty| matches!(ty, Ty::Hole) || matches!(ty, Ty::Var(name) if name == "_");
         if is_hole(actual) || is_hole(expected) {
@@ -122,16 +122,18 @@ impl TypeChecker {
                 let pair_or_tuple =
                     |head: &Ty| matches!(head, Ty::Name(name) if name == "Pair" || name == "Tuple");
                 let same_tuple = aa.len() == 2 && pair_or_tuple(ac) && pair_or_tuple(ec);
-                (same_tuple || Self::return_types_compatible(ac, ec))
+                (same_tuple || self.return_types_compatible(ac, ec))
                     && aa.len() == ea.len()
                     && aa
                         .iter()
                         .zip(ea)
-                        .all(|(a, e)| Self::return_types_compatible(a, e))
+                        .all(|(a, e)| self.return_types_compatible(a, e))
             }
             (Ty::Name(a), Ty::App(e, _)) => matches!(e.as_ref(), Ty::Name(e) if a == e),
+            // An `Isin` is a `String` wherever a `String` is expected.
+            (Ty::Name(a), Ty::Name(e)) if self.scalar_primitive(a) == Some(e.as_str()) => true,
             (Ty::Arrow(ai, ao), Ty::Arrow(ei, eo)) => {
-                Self::return_types_compatible(ai, ei) && Self::return_types_compatible(ao, eo)
+                self.return_types_compatible(ai, ei) && self.return_types_compatible(ao, eo)
             }
             _ => {
                 Self::canonical_explore_ty_name(actual) == Self::canonical_explore_ty_name(expected)
@@ -337,7 +339,7 @@ impl TypeChecker {
                         self.extend_return_bindings(&mut block_locals, pattern, ty.as_deref());
                     }
                 }
-                if !Self::return_types_compatible(&Ty::Unit, &expected) {
+                if !self.return_types_compatible(&Ty::Unit, &expected) {
                     self.return_type_mismatch(name, &expected, "()", expr);
                 }
                 return;
@@ -383,7 +385,7 @@ impl TypeChecker {
                             body_locals.unresolved.remove(&parameter.name);
                             body_locals.native_mutable_lists.remove(&parameter.name);
                             if let Some(annotation) = &parameter.ty {
-                                if !Self::return_types_compatible(annotation, input) {
+                                if !self.return_types_compatible(annotation, input) {
                                     self.return_type_mismatch(
                                         name,
                                         input,
@@ -472,7 +474,7 @@ impl TypeChecker {
         }
         if let Some(actual) = self.infer_return_type(expr, locals) {
             if let Ok(actual_ty) = parse_type_annotation(&actual) {
-                if !Self::return_types_compatible(&actual_ty, &expected) {
+                if !self.return_types_compatible(&actual_ty, &expected) {
                     self.return_type_mismatch(name, &expected, &actual, expr);
                 }
             }
