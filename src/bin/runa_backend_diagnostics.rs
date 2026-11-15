@@ -262,6 +262,14 @@ pub(super) fn generated_rust_diagnostics(
             "set {SHOW_RUSTC_ENV}=1 to print the complete rustc output"
         ));
     }
+    // Generated Rust names a function an import scope renamed by its
+    // internal name; the reader sees the written one.
+    for diagnostic in &mut diagnostics {
+        diagnostic.message = futuruna::function_display_text(&diagnostic.message).into_owned();
+        for note in &mut diagnostic.notes {
+            *note = futuruna::function_display_text(note).into_owned();
+        }
+    }
     diagnostics
 }
 

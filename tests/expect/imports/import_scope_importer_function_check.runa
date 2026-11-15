@@ -1,0 +1,11 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `hook` (line 3) names no function of this file or of the files it imports, but line 9 of the file being checked declares a function `hook` and imports this file
+-- expect-stderr: import_scope_importer_function_lib.runa:3:
+
+@ import ./import_scope_importer_function_lib
+
+-- A file's calls never reach a file that imports it.
+> hook(n: Int) -> Int { n * 2 }
+
+@ print(show(helper(1)))

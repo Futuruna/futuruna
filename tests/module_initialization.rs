@@ -147,9 +147,13 @@ fn nested_module_calls_helpers_with_their_parent_state() {
     Fixture::new(&[("main.runa", "> init() -> Int { @ print(\"boot\"); 4 }\n> module Parent { = seed = init()\n> read() -> Int { seed }\n> module Child { > value() -> Int { read() } } }\n@ print(show(Parent.Child.value()))\n@ print(show(Parent.Child.value()))\n")]).agrees("boot\n4\n4");
 }
 
+/// The parent's binding is updated after the callbacks are declared (a
+/// rebinding that reads the name; one that does not read it is an error, in a
+/// module as at top level). The callbacks read the updated value, 7, not the
+/// first, 4.
 #[test]
 fn module_parent_callbacks_read_the_current_parent_bindings() {
-    Fixture::new(&[("main.runa", "> init() -> Int { @ print(\"boot\"); 4 }\n> module Parent { = seed = init()\n> read(x: Int) -> Int { seed + x }\n> module Child { > value(x: Int) -> Int { read(x) } }\n= seed = 7 }\n@ print(show(map([1,2], Parent.Child.value)))\n")]).agrees("boot\n[8, 9]");
+    Fixture::new(&[("main.runa", "> init() -> Int { @ print(\"boot\"); 4 }\n> module Parent { = seed = init()\n> read(x: Int) -> Int { seed + x }\n> module Child { > value(x: Int) -> Int { read(x) } }\n= seed = seed + 3 }\n@ print(show(map([1,2], Parent.Child.value)))\n")]).agrees("boot\n[8, 9]");
 }
 
 #[test]

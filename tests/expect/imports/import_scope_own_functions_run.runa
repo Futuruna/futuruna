@@ -1,0 +1,19 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: module isin_ok: false
+-- expect-stdout: root isin_ok: true
+-- expect-stdout: module describes 7
+-- expect-stdout: root describe: 8
+
+@ import ./import_scope_own_functions_lib
+
+-- The root declares two functions the module declares too, one with
+-- another type. The root's calls mean the root's functions; the module's
+-- own calls still mean the module's.
+> isin_ok(s: String) -> Bool { True }
+> describe(n: Int) -> Int { n + 1 }
+
+@ print("module isin_ok: " + show(uses_check("short")))
+@ print("root isin_ok: " + show(isin_ok("short")))
+@ print(described(7))
+@ print("root describe: " + show(describe(7)))

@@ -458,6 +458,15 @@ test('fresh canonical output retains valid, unknown, spouse and failed-year case
       assert.ok(sections[i].includes(c.sti), c.sti); assert.ok(sections[i].includes(c.forklaring), c.forklaring);
     }
     for (const c of row.result.vurdering.forbehold) assert.ok(sections[i].includes(c));
+    // Every assumption the result rests on is shown with its section and
+    // its rule, each named as which it is.
+    assert.ok(row.assumptions?.length > 0, 'the canonical cases rest on assumptions');
+    assert.match(sections[i], /Antagelser, som resultatet hviler på:/);
+    for (const a of row.assumptions) {
+      assert.ok(a.section !== undefined || a.rule !== undefined, JSON.stringify(a));
+      if (a.section !== undefined) assert.ok(sections[i].includes(`afsnit ${a.section}`), a.section);
+      if (a.rule !== undefined) assert.ok(sections[i].includes(`regel ${a.rule}`), a.rule);
+    }
   }
   assert.doesNotMatch(sections[1], /Modelleret slutskat|Bruttoløn:/);
   assert.match(sections[2], /ægtefællens egne tal vises ikke/);

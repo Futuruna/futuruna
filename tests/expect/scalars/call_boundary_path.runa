@@ -9,7 +9,7 @@
 
 @ import ./isin_lib
 
-| isin_check_digit(text: String) -> True
+> isin_check_digit(text: String) -> Bool { True }
 # Holding(@ field(key = True) isin: Isin, count: Int)
 # Book(holdings: List(Holding), favourite: Isin?)
 

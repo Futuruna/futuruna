@@ -1,0 +1,15 @@
+-- expect-skip: dependency-only fixture for import_scope_query_reach_check.runa: a module whose `helper` asks a query
+
+# Household(income: Int)
+# Result(tax: Int)
+
+> helper(h: Household) -> Int {
+    = q = query lib_tax(h)
+    match q {
+        | Complete -> 1
+        | _ -> 0
+    }
+}
+
+@ calculate
+| lib_tax(h: Household) -> Result(tax = helper(h) + h.income)

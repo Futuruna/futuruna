@@ -42,7 +42,8 @@ mod citations;
 mod constructor_scope;
 pub use constructor_scope::{
     bare_constructor_name, clear_constructor_elaboration, constructor_display_name,
-    constructor_display_text, constructor_runtime_name, qualified_constructor_name,
+    constructor_display_text, constructor_runtime_name, function_display_label,
+    function_display_name, function_display_smt, function_display_text, qualified_constructor_name,
     split_qualified_constructor, with_constructor_elaboration, ConstructorElaboration,
 };
 mod danish;
@@ -61,6 +62,7 @@ pub mod explore;
 mod host_effects;
 pub use host_effects::{audit_host_effect_diagnostics, is_host_effect_builtin};
 mod function_returns;
+mod import_scope;
 pub mod manifest;
 pub mod migrate;
 // The search runtime that compiled programs embed; the interpreter shares its
@@ -16411,7 +16413,12 @@ impl fmt::Display for Value {
             }
             Value::Closure { name, params, .. } => {
                 let n = name.as_deref().unwrap_or("lambda");
-                write!(f, "<fn {}({})>", n, params.join(", "))
+                // A function renamed for its import scope shows as written,
+                // with its file: `<fn isin_ok(s) in a.runa>`.
+                let shown = function_display_name(n);
+                let label = function_display_label(n);
+                let file = label.strip_prefix(shown.as_ref()).unwrap_or("");
+                write!(f, "<fn {}({}){}>", shown, params.join(", "), file)
             }
             Value::Builtin(name) => write!(f, "<builtin:{}>", name),
             Value::NamespacedBuiltin { name, .. } => write!(f, "<builtin:{}>", name),
@@ -18374,7 +18381,9 @@ impl Interpreter {
     fn calculation_fail(&self, message: impl Into<String>) -> Value {
         let mut error = self.calculation_error.borrow_mut();
         if error.is_none() {
-            *error = Some(CalculationRuntimeFailure::InvalidValue(message.into()));
+            let message: String = message.into();
+            let message = function_display_text(&message).into_owned();
+            *error = Some(CalculationRuntimeFailure::InvalidValue(message));
         }
         Value::Unit
     }
@@ -18521,8 +18530,9 @@ impl Interpreter {
     fn ground_fail(&self, message: impl Into<String>) -> Value {
         let mut error = self.ground_error.borrow_mut();
         if error.is_none() {
+            let message: String = message.into();
             *error = Some(ExploreRuntimeFailure::RuntimeError {
-                message: message.into(),
+                message: function_display_text(&message).into_owned(),
             });
         }
         Value::Unit
@@ -64106,11 +64116,19 @@ impl TypeChecker {
         extract_calculation_contracts: bool,
     ) -> TypeCheckArtifacts {
         constructor_scope::begin_root_check(stmts);
+        // Each file's names mean its own scope's declarations; the checker
+        // and every consumer of the checked program read the files with the
+        // functions that would meet in the merged program renamed apart.
+        let mut import_scopes = import_scope::ImportScopes::resolve(stmts, source_dir.as_deref());
+        import_scopes.install();
+        let scoped_root = import_scopes.take_root();
+        let stmts = scoped_root.as_deref().unwrap_or(stmts);
         let mut tc = TypeChecker::new();
         tc.source_dir = source_dir;
         tc.source_text = source.to_string();
         tc.install_constructor_prepass(stmts);
         tc.collect_declarations(stmts);
+        tc.report_import_scope_errors(&import_scopes);
         // The same preparation is used by the lightweight runtime installer;
         // neither path may infer a callable contract the other cannot prove.
         tc.prepare_rule_dispatch_metadata(stmts);
@@ -64122,7 +64140,8 @@ impl TypeChecker {
         let query_diagnostics = query::check_program(stmts, source, &tc);
         tc.diagnostics.extend(query_diagnostics);
         let warnings = ordinary_declarations::binding_name_warnings(stmts, source, &tc);
-        let mut constructor_elaboration = tc.elaborate_constructor_scope(stmts);
+        let mut constructor_elaboration =
+            ConstructorElaboration::keeping_current_modules(tc.elaborate_constructor_scope(stmts));
         let elaborated_root = constructor_elaboration
             .as_mut()
             .and_then(ConstructorElaboration::take_root);
@@ -64201,6 +64220,8 @@ impl TypeChecker {
                 elaboration.install();
             }
         }
+        // A function renamed for its import scope reads as written.
+        import_scope::display_written_names(&mut tc.diagnostics);
         let runtime_root_statements: Arc<[Stmt]> = stmts.to_vec().into();
         let program = elaborated_root.map_or_else(|| runtime_root_statements.clone(), Arc::from);
         let runtime_root_program = TypeChecker::checked_resolved_program_id(

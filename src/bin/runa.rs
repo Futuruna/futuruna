@@ -19790,7 +19790,11 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
                     family
                 ),
                 runa_rule_reachability::DispatchGap::Unknown(reason) => {
-                    println!("    Gaps in {} not checked: {}", family, reason)
+                    println!(
+                        "    Gaps in {} not checked: {}",
+                        family,
+                        futuruna::function_display_text(&reason)
+                    )
                 }
                 // A Boolean miss answers False: nothing is uncovered.
                 runa_rule_reachability::DispatchGap::NotApplicable => {}
@@ -19845,7 +19849,10 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
 
         if let Some(reason) = invariant_lowering_errors.get(inv_name) {
             unsupported_count += 1;
-            println!("  ? SMT fallback skipped: {}", reason);
+            println!(
+                "  ? SMT fallback skipped: {}",
+                futuruna::function_display_text(&reason)
+            );
             print_dispatch_gaps(reason);
             println!();
             continue;
@@ -19909,7 +19916,10 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             });
         if let Some(reason) = float_error {
             unsupported_count += 1;
-            println!("  ? Verification unsupported: {}", reason);
+            println!(
+                "  ? Verification unsupported: {}",
+                futuruna::function_display_text(&reason)
+            );
             println!();
             continue;
         }
@@ -19948,7 +19958,11 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
                 .map(|reason| (name, reason))
         }) {
             unsupported_count += 1;
-            println!("  ? SMT fallback skipped: binding `{}` {}", binding, reason);
+            println!(
+                "  ? SMT fallback skipped: binding `{}` {}",
+                binding,
+                futuruna::function_display_text(&reason)
+            );
             print_dispatch_gaps(reason);
             println!();
             continue;
@@ -19963,7 +19977,10 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             &function_lowering_errors,
         ) {
             unsupported_count += 1;
-            println!("  ? SMT fallback skipped: {}", reason);
+            println!(
+                "  ? SMT fallback skipped: {}",
+                futuruna::function_display_text(&reason)
+            );
             print_dispatch_gaps(&reason);
             println!();
             continue;
@@ -19977,7 +19994,10 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             &ctor_names,
         ) {
             unsupported_count += 1;
-            println!("  ? SMT fallback skipped: {}", reason);
+            println!(
+                "  ? SMT fallback skipped: {}",
+                futuruna::function_display_text(&reason)
+            );
             println!();
             continue;
         }
@@ -20051,7 +20071,10 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             Ok(order) => order,
             Err(reason) => {
                 unsupported_count += 1;
-                println!("  ? SMT fallback skipped: {}", reason);
+                println!(
+                    "  ? SMT fallback skipped: {}",
+                    futuruna::function_display_text(&reason)
+                );
                 println!();
                 continue;
             }
@@ -20094,7 +20117,10 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             Ok(guards) => runa_verification_arithmetic::and(guards),
             Err(reason) => {
                 unsupported_count += 1;
-                println!("  ? SMT fallback skipped: {}", reason);
+                println!(
+                    "  ? SMT fallback skipped: {}",
+                    futuruna::function_display_text(&reason)
+                );
                 println!();
                 continue;
             }
@@ -20201,6 +20227,9 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             runa_verification_arithmetic::and([arithmetic_guard, pred_smt])
         ));
         smt.push_str("(check-sat)\n");
+        // A function an import scope renamed is an SMT symbol of its written
+        // name and file (`|ratio in a.runa|`), in the script shown and run.
+        let smt = futuruna::function_display_smt(&smt).into_owned();
 
         println!("  SMT-LIB2:");
         for line in smt.lines() {
@@ -20261,7 +20290,10 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
                 other => println!("  ? Z3 returned unexpected output: {}", other),
             },
             Err(error) => {
-                println!("  ? {}", error);
+                println!(
+                    "  ? {}",
+                    futuruna::function_display_text(&error.to_string())
+                );
                 println!("  SMT-LIB2 output above can be piped to z3 manually.");
             }
         }

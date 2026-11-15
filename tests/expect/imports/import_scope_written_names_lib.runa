@@ -1,0 +1,5 @@
+-- expect-skip: dependency-only fixture: a module whose functions the importer renames apart
+
+> label(n: Int) -> Int { "not a number" }
+> ratio(n: Int) -> Int { 100 / n }
+> uses_ratio(n: Int) -> Int { ratio(n, n) }

@@ -1,0 +1,17 @@
+-- The root and the module each declare `helper`; the merged program renames
+-- the module's apart. Query reachability follows each file's scope: the
+-- module's calculation reaches the module's `helper` and its query, the
+-- root's calculation reaches only the root's `helper`.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `query` in `helper`
+-- expect-stderr: reached from the calculation `lib_tax`
+-- expect-stderr-not: reached from the calculation `root_tax`
+-- expect-stderr-not: __
+
+@ import ./import_scope_query_reach_lib
+
+> helper(h: Household) -> Int { h.income }
+
+@ calculate
+| root_tax(h: Household) -> Result(tax = helper(h))

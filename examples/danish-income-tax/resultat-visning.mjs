@@ -99,6 +99,47 @@ export function amount(value, unit) {
 }
 export function unit(value) { requireThat(value === 'DKK' || value === 'øre', 'Ukendt beløbsenhed; ingen beløb omregnet.'); }
 
+// A case of `runa call`: its name, its result and, since Futuruna 0.4.1, the
+// assumptions the result rests on (left out when there are none).
+export function caseRecord(row) {
+  record(row, Object.hasOwn(row ?? {}, 'assumptions') ? ['case_id', 'result', 'assumptions'] : ['case_id', 'result'], 'Sag');
+  textValue(row.case_id, 'Sagsnavn');
+}
+// The assumptions a case's result rests on, each in full: a view that shows
+// the result without them would claim more than the model does.
+export function assumptionLines(row) {
+  if (!Object.hasOwn(row, 'assumptions')) return ['Antagelser: modellen returnerede ingen for denne sag.'];
+  list(row.assumptions, 'Antagelser');
+  requireThat(row.assumptions.length > 0, 'Antagelser: en tom liste udelades i kontrakten.');
+  const lines = ['Antagelser, som resultatet hviler på:'];
+  for (const assumption of row.assumptions) {
+    // `{section?, rule?, binding?, value}`: the law section the assumption
+    // is written in and the rule it is written on, each left out when it
+    // does not apply, but never both.
+    const keys = ['section', 'rule', 'binding'].filter((key) => Object.hasOwn(assumption ?? {}, key));
+    record(assumption, [...keys, 'value'], 'Antagelse');
+    requireThat(keys.includes('section') || keys.includes('rule'), 'Antagelse: hverken afsnit eller regel er angivet.');
+    if (keys.includes('section')) textValue(assumption.section, 'Antagelsens afsnit');
+    if (keys.includes('rule')) textValue(assumption.rule, 'Antagelsens regel');
+    if (keys.includes('binding')) textValue(assumption.binding, 'Antagelsens navn');
+    const place = [
+      ...(keys.includes('section') ? [`afsnit ${visible(assumption.section)}`] : []),
+      ...(keys.includes('rule') ? [`regel ${visible(assumption.rule)}`] : []),
+    ].join(', ');
+    const name = keys.includes('binding') ? `, ${visible(assumption.binding)}` : '';
+    lines.push(`  - ${place}${name}: ${visible(plain(assumption.value))}`);
+  }
+  return lines;
+}
+// A value from the strict reader as one line: text as written, integers
+// exactly, records and lists with every member.
+function plain(value) {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'bigint' || typeof value === 'boolean' || value === null) return String(value);
+  if (Array.isArray(value)) return `[${value.map(plain).join(', ')}]`;
+  return `{${Object.entries(value).map(([key, member]) => `${key}: ${plain(member)}`).join(', ')}}`;
+}
+
 export function readSavedOutput(path) {
   let descriptor;
   try {

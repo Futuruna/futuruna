@@ -1,0 +1,16 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: in function `label` in import_scope_written_names_lib.runa
+-- expect-stderr: return type mismatch: function `label` in import_scope_written_names_lib.runa expects `Int` but expression has `String`
+-- expect-stderr: `ratio` in import_scope_written_names_lib.runa expects 1 argument but got 2
+-- expect-stderr-not: __
+
+@ import ./import_scope_written_names_lib
+
+-- The root declares `label` and `ratio` too, so the module's functions get
+-- internal names; a diagnostic about one shows the name it was written with
+-- and its file.
+> label(n: Int) -> Int { n }
+> ratio(n: Int) -> Int { n }
+
+@ print(show(uses_ratio(1)))
