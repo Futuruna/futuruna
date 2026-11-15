@@ -1,0 +1,9 @@
+-- The `when` condition of a clause in an imported file is checked when the
+-- importing program is checked.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: rule guard must return Bool, found Int
+
+@ import ./assumptions_when_import_lib
+
+> main() -> Int { levy_base(1) }

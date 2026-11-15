@@ -14,6 +14,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
+mod assumptions;
 mod json;
 pub use json::parse_calculation_json;
 
@@ -6083,6 +6084,9 @@ struct CalculationWorker {
     /// Reads the law sections and assumptions of rules from the model's
     /// files, for needs and every result's assumptions.
     sections: Option<explain::ExplainRenderer>,
+    /// The assumptions written in the model, read when the program was
+    /// initialized.
+    assumption_index: Rc<assumptions::AssumptionIndex>,
 }
 
 impl CalculationWorker {
@@ -6113,6 +6117,19 @@ impl CalculationWorker {
                 )
             });
         interpreter.seal_calculation_initialization();
+        let assumption_index = Rc::new(assumptions::AssumptionIndex::read(
+            &mut interpreter,
+            &base_env,
+            program.root_file.as_deref(),
+            &program.stmts,
+            &program.entry,
+        ));
+        let index = assumption_index.clone();
+        interpreter.assumptions_of = Some(Rc::new(
+            move |interpreter: &Interpreter, rule: &Rc<Rule>, name: &str| {
+                Rc::from(index.of_clause(interpreter, rule, name))
+            },
+        ));
         Self {
             program,
             interpreter,
@@ -6122,6 +6139,7 @@ impl CalculationWorker {
             partial: None,
             explain: None,
             sections: None,
+            assumption_index,
         }
     }
 
@@ -6246,7 +6264,7 @@ impl CalculationWorker {
                 });
             }
         };
-        let assumptions = self.assumptions(contract, &fired);
+        let assumptions = self.case_assumptions(&fired);
         let explanation = match (self.explain.as_mut(), explained.as_ref()) {
             (Some(renderer), Some(state)) => Some(renderer.explanation(
                 &self.interpreter,
@@ -6278,23 +6296,28 @@ impl CalculationWorker {
         outcome
     }
 
-    /// The assumptions of a case's result: those written on the clauses
-    /// that fired, their sections, and the entry.
-    fn assumptions(
-        &mut self,
-        contract: &CalculationContract,
-        fired: &crate::explain::FiredClauses,
-    ) -> Vec<CalculationAssumption> {
-        let root_file = &self.program.root_file;
-        self.sections
-            .get_or_insert_with(|| {
-                explain::ExplainRenderer::new(ExplainOptions {
-                    full: false,
-                    root_file: root_file.clone(),
-                    display_root: None,
-                })
-            })
-            .assumptions(&self.interpreter, fired, &contract.entry)
+    /// The assumptions of a case's result: those of the clauses that fired
+    /// (a conditional one when its condition held), of their sections, and
+    /// of the entry; each once (by binding and value), in the order the
+    /// model writes them.
+    fn case_assumptions(&self, fired: &crate::explain::FiredClauses) -> Vec<CalculationAssumption> {
+        let mut placed: BTreeMap<&(Rc<str>, usize, usize), &CalculationAssumption> = BTreeMap::new();
+        let holding = (0..fired.len()).flat_map(|id| fired.holding(id as u32));
+        for assumption in holding.chain(self.assumption_index.entry()) {
+            placed
+                .entry(&assumption.place)
+                .or_insert(&assumption.assumption);
+        }
+        let mut found: Vec<CalculationAssumption> = Vec::new();
+        for assumption in placed.into_values() {
+            if !found
+                .iter()
+                .any(|seen| seen.binding == assumption.binding && seen.value == assumption.value)
+            {
+                found.push(assumption.clone());
+            }
+        }
+        found
     }
 
     /// Turn a partial case's evaluation into `Complete` or `Needs`.
@@ -6333,7 +6356,7 @@ impl CalculationWorker {
                 read_exact,
                 read_subtree,
             } => {
-                let assumptions = self.assumptions(contract, fired);
+                let assumptions = self.case_assumptions(fired);
                 if let (Some(renderer), Some(state)) = (self.explain.as_mut(), explained) {
                     explanation = Some(renderer.explanation(
                         &self.interpreter,

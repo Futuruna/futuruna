@@ -1,0 +1,32 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.calculate.output.v1",
+    "schema_hash": "9f03db3acd91e8b873222edfb8af31395bd8138141f260efa8219df849aa92db",
+    "entry": "assumptions_when"
+  },
+  "results": [
+    {
+      "case_id": "no-excess",
+      "result": {
+        "levy_base": 0
+      }
+    },
+    {
+      "case_id": "excess",
+      "result": {
+        "levy_base": 5
+      },
+      "assumptions": [
+        {
+          "section": "levy_base",
+          "binding": "levy_base_rule",
+          "value": {
+            "id": "LEVY-BASE",
+            "statement": "The levy base is the largest excess of the year."
+          }
+        }
+      ]
+    }
+  ],
+  "diagnostics": []
+}

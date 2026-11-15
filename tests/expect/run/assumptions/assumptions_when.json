@@ -1,0 +1,1 @@
+{"$futuruna":{"schema":"futuruna.calculate.input.v2","schema_hash":"9f03db3acd91e8b873222edfb8af31395bd8138141f260efa8219df849aa92db","entry":"assumptions_when"},"cases":[{"case_id":"no-excess","input_status":"ready","input":{"excess":0}},{"case_id":"excess","input_status":"ready","input":{"excess":5}}]}

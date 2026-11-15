@@ -1,0 +1,20 @@
+-- `when` qualifies an assumption on a rule clause or member; on a section
+-- it is an error.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ meta(...) when <condition>` stands on a rule clause or RuleScope member
+
+# AssumptionInfo(id: String)
+# LawRole(a) = Assumption(value: a)
+# impl MetaRole for LawRole {}
+
+= base = AssumptionInfo(id = "BASE")
+
+@ meta(Assumption(value = base)) when True
+@ section levy {
+
+| levy_base(excess: Int) -> excess
+
+}
+
+> main() -> Int { levy_base(1) }

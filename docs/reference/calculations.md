@@ -945,9 +945,30 @@ not count, since a function runs whenever it is called; write the assumption
 on a rule clause that fires exactly when it applies. A model need not list
 assumptions in its result type.
 
+When an assumption matters only for some values of a clause's parameters,
+write the condition on it instead of a second clause:
+
+```runa
+@ meta(Assumption(value = assumption_levy_base)) when excess_deposit_ore > 0
+| levy_base_ore(excess_deposit_ore: Ore) -> excess_deposit_ore
+```
+
+The assumption is listed when the clause fires and the condition holds on
+one of its firings. The condition is checked like the clause's guard (a
+`Bool` over its parameters, and in a RuleScope member over the scope's
+fields and members) and evaluated in the clause's environment when it
+fires; it changes nothing the case computes or reads, and in a partial case
+a condition that is not known yet holds. `when` qualifies only an
+`Assumption` value on a rule clause or RuleScope member: other metadata
+describes a declaration whatever its values, and a section or function does
+not fire, so `when` there is an error.
+
 Collecting them traces no value: every case records the rule clauses that
-fire, one table lookup per clause that returns a value, and reads the
-attachments from the model's files once per worker. `runa schema --format
+fire, one table lookup per clause that returns a value. The assumptions are
+read once, when a worker has initialized the program: their values are the
+initialized program's bindings, and no file is scanned for metadata during
+a case.
+`runa schema --format
 result` prints the JSON Schema of a case, `--format partial-result` that of a
 partial result; a result workbook (`--output x.xlsx`) lists them on its
 `assumptions` sheet. The TypeScript SDK returns `{ result, assumptions }` from

@@ -107,12 +107,27 @@ pub(crate) enum Node {
     Computed { from: Box<[NodeId]> },
 }
 
-/// A rule clause that fired.
+/// An assumption written on a rule clause or the section around it: its
+/// place in the model (file, line, and its place among the values written
+/// there), and the condition it holds under (`@ meta(...) when ...`).
+#[derive(Debug, Clone)]
+pub(crate) struct PlacedAssumption {
+    pub(crate) place: (Rc<str>, usize, usize),
+    pub(crate) assumption: Rc<crate::calculate::CalculationAssumption>,
+    pub(crate) condition: Option<Expr>,
+}
+
+/// What a calculation finds a rule clause's assumptions with, by the clause
+/// and its rule's name; set by the calculation for each case.
+pub(crate) type AssumptionsOf = Rc<dyn Fn(&Interpreter, &Rc<Rule>, &str) -> Rc<[PlacedAssumption]>>;
+
+/// A rule clause that fired, with the assumptions written on it.
 #[derive(Debug, Clone)]
 pub(crate) struct ClauseRecord {
     pub(crate) rule: Rc<Rule>,
     pub(crate) scope: Option<String>,
     pub(crate) name: String,
+    pub(crate) assumptions: Rc<[PlacedAssumption]>,
 }
 
 /// The rule clauses that fired in one calculation case, each once; their
@@ -121,6 +136,9 @@ pub(crate) struct ClauseRecord {
 pub struct FiredClauses {
     clauses: Vec<ClauseRecord>,
     ids: HashMap<usize, u32>,
+    /// `(clause, assumption)`: a conditional assumption of a clause whose
+    /// condition held on one of its firings.
+    held: HashSet<(u32, usize)>,
 }
 
 impl FiredClauses {
@@ -132,19 +150,17 @@ impl FiredClauses {
         self.clauses.len()
     }
 
-    fn id(&mut self, rule: &Rc<Rule>, family: &RuleDispatchKey) -> u32 {
-        let key = Rc::as_ptr(rule) as usize;
-        if let Some(id) = self.ids.get(&key) {
-            return *id;
-        }
-        let id = u32::try_from(self.clauses.len()).expect("clause table fits u32");
-        self.clauses.push(ClauseRecord {
-            rule: rule.clone(),
-            scope: family.scope.clone(),
-            name: family.name.clone(),
-        });
-        self.ids.insert(key, id);
-        id
+    /// The assumptions of a fired clause that hold: those without a
+    /// condition, and those whose condition held when it fired.
+    pub(crate) fn holding(&self, id: u32) -> impl Iterator<Item = &PlacedAssumption> {
+        self.clause(id)
+            .assumptions
+            .iter()
+            .enumerate()
+            .filter(move |(index, placed)| {
+                placed.condition.is_none() || self.held.contains(&(id, *index))
+            })
+            .map(|(_, placed)| placed)
     }
 }
 
@@ -705,6 +721,63 @@ impl Interpreter {
         }
     }
 
+    /// A clause that fired with an assumption under a condition not yet seen
+    /// to hold: its id, for [`Self::record_assumption_conditions`].
+    pub(crate) fn conditional_clause(&self, rule: &Rc<Rule>) -> Option<u32> {
+        let fired = self.fired.as_ref()?.borrow();
+        let clause = *fired.ids.get(&(Rc::as_ptr(rule) as usize))?;
+        fired
+            .clause(clause)
+            .assumptions
+            .iter()
+            .enumerate()
+            .any(|(index, placed)| {
+                placed.condition.is_some() && !fired.held.contains(&(clause, index))
+            })
+            .then_some(clause)
+    }
+
+    /// Evaluate the conditions of a fired clause's assumptions in the
+    /// clause's environment (its parameters bound). A condition that is not
+    /// `false` (true, or not known in a partial case) holds. Evaluating one
+    /// changes nothing a case reads: a partial case's reads are put back.
+    pub(crate) fn record_assumption_conditions(&mut self, clause: u32, env: &Env) {
+        let Some(assumptions) = self
+            .fired
+            .as_ref()
+            .map(|fired| fired.borrow().clause(clause).assumptions.clone())
+        else {
+            return;
+        };
+        for (index, placed) in assumptions.iter().enumerate() {
+            let Some(condition) = &placed.condition else {
+                continue;
+            };
+            let held = self
+                .fired
+                .as_ref()
+                .is_some_and(|fired| fired.borrow().held.contains(&(clause, index)));
+            if held {
+                continue;
+            }
+            // A partial case's reads and needs are set aside: the condition
+            // reads only values the clause already has.
+            let saved = self
+                .partial_mode
+                .is_some()
+                .then(|| std::mem::take(&mut *self.partial.borrow_mut()));
+            let value = self.eval(condition, env);
+            if let Some(saved) = saved {
+                *self.partial.borrow_mut() = saved;
+            }
+            if !matches!(untraced(&value), Value::Bool(false)) {
+                if let Some(fired) = &self.fired {
+                    fired.borrow_mut().held.insert((clause, index));
+                }
+            }
+        }
+    }
+
     /// A rule clause returned `value`: record that it fired and, in an
     /// explained case, tag the value with the clause and with the guards its
     /// dispatch read to choose it.
@@ -720,7 +793,28 @@ impl Interpreter {
         if matches!(value, Value::Unknown(_)) {
             return value;
         }
-        let clause = fired.borrow_mut().id(rule, family);
+        let key = Rc::as_ptr(rule) as usize;
+        let known = fired.borrow().ids.get(&key).copied();
+        let clause = match known {
+            Some(clause) => clause,
+            None => {
+                let assumptions = self
+                    .assumptions_of
+                    .as_ref()
+                    .map(|of| of(self, rule, &family.name))
+                    .unwrap_or_else(|| Rc::from(Vec::new()));
+                let mut fired = fired.borrow_mut();
+                let id = u32::try_from(fired.clauses.len()).expect("clause table fits u32");
+                fired.clauses.push(ClauseRecord {
+                    rule: rule.clone(),
+                    scope: family.scope.clone(),
+                    name: family.name.clone(),
+                    assumptions,
+                });
+                fired.ids.insert(key, id);
+                id
+            }
+        };
         let Some(state) = &self.explain else {
             return value;
         };
