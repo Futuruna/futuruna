@@ -1,0 +1,75 @@
+-- expect-skip: dependency-only fixture for needs_options_in_qualified_import_interp.runa: a qualified module that compares the Options of its query answers with Options it builds
+
+# AssumptionInfo(id: String)
+# LawRole(a) = Assumption(value: a)
+-- A qualified module is checked without the standard prelude, so it
+-- declares the marker trait the prelude would give it.
+# trait MetaRole {}
+# impl MetaRole for LawRole {}
+
+@ export
+# Account(value: Int, closed: Bool)
+# Result(room: Int)
+
+@ section closing {
+
+| room(closed: Bool, value: Int) -> 1000 - value
+@ meta(Assumption(value = AssumptionInfo(id = "CLOSING-DAY")))
+| exception closed room(closed: Bool, value: Int) -> 0 under closed
+
+}
+
+@ calculate
+| account_room(a: Account) -> Result(room = room(a.closed, a.value))
+
+> section_name(s: Option(ProgramReference)) -> String {
+    match s {
+        | Some(reference) -> if reference == refof(section closing) { "closing" } else { "other" }
+        | None -> "none"
+    }
+}
+
+@ export
+> assumption_compared() -> Bool {
+    = q = query account_room(Account(value = unknown, closed = True))
+    match q {
+        | Complete -> any(q.assumptions, |a| a.section == Some(refof(section closing)) and a.rule == Some(refof(room)) and a.binding == None)
+        | Needs -> False
+    }
+}
+
+@ export
+> assumption_matched() -> String {
+    = q = query account_room(Account(value = unknown, closed = True))
+    match q {
+        | Complete -> join(map(q.assumptions, |a| section_name(a.section) + "/" + match a.rule {
+            | Some(rule) -> if rule == refof(room) { "room" } else { "other" }
+            | None -> "none"
+        } + "/" + match a.binding {
+            | Some(binding) -> "some"
+            | None -> "none"
+        }), ",")
+        | Needs -> "needs"
+    }
+}
+
+@ export
+> need_compared() -> Bool {
+    = q = query account_room(Account(value = 5, closed = unknown))
+    match q {
+        | Needs -> all(q.needs, |n| n.entry == None and any(n.waiting, |w| w.section == Some(refof(section closing))))
+        | Complete -> False
+    }
+}
+
+@ export
+> need_matched() -> String {
+    = q = query account_room(Account(value = 5, closed = unknown))
+    match q {
+        | Needs -> join(map(q.needs, |n| match n.entry {
+            | Some(entry) -> "entry"
+            | None -> "fact"
+        } + ":" + join(map(n.waiting, |w| section_name(w.section)), "+")), ",")
+        | Complete -> "complete"
+    }
+}

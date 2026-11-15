@@ -1516,8 +1516,10 @@ impl Interpreter {
         }
     }
 
-    /// `value` with each plain constructor as the constructor of that name
-    /// in `namespace`.
+    /// `value` with each plain constructor as the constructor that name has
+    /// in `namespace`: the module's own (`Query`, `Need`, its result types)
+    /// where it declares one, else the prelude's (`Some`, `None`,
+    /// `ProgramReference`), as a constructor the module writes itself.
     fn constructors_in(&self, namespace: &RuntimeNamespace, value: Value) -> Value {
         let values = |interpreter: &Self, values: &[Value]| -> Vec<Value> {
             values
@@ -1528,7 +1530,8 @@ impl Interpreter {
         match value {
             Value::Constructor(name, arguments) => {
                 let arguments = values(self, &arguments);
-                self.runtime_constructor_value(namespace, name, arguments)
+                let owner = self.constructor_owner_in(namespace, &name);
+                self.runtime_constructor_value(&owner, name, arguments)
             }
             Value::NamedConstructor(name, fields) => {
                 let fields = fields
@@ -1540,7 +1543,8 @@ impl Interpreter {
                         )
                     })
                     .collect();
-                self.runtime_named_constructor_value(namespace, name, fields)
+                let owner = self.constructor_owner_in(namespace, &name);
+                self.runtime_named_constructor_value(&owner, name, fields)
             }
             Value::List(items) => Value::List(values(self, &items)),
             Value::Tuple(items) => Value::Tuple(values(self, &items)),
@@ -1558,6 +1562,11 @@ impl Interpreter {
             ),
             other => other,
         }
+    }
+
+    fn constructor_owner_in(&self, namespace: &RuntimeNamespace, name: &str) -> RuntimeNamespace {
+        self.runtime_constructor_owner(namespace, name)
+            .unwrap_or_else(|| self.runtime_root.clone())
     }
 
     fn query_prepared(&self, entry: &str) -> Result<Rc<RefCell<PreparedCalculation>>, String> {
