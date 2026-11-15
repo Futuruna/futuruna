@@ -636,7 +636,7 @@ fn compact_schema_is_explicit_lossless_and_keeps_the_logical_fingerprint() {
     ]);
     assert_eq!(invalid.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&invalid.stderr)
-        .contains("expected json, compact-json, partial-result or explanation"));
+        .contains("expected json, compact-json, result, partial-result or explanation"));
     assert_eq!(
         std::fs::read(&destination).unwrap(),
         compact.stdout,
