@@ -566,7 +566,9 @@ fn read_lexed(source: &str, lexed: Vec<LexedAnnotation>) -> Annotations {
                         let condition = annotation.condition.clone();
                         if condition.is_some() {
                             if !matches!(item.kind, "rule" | "member") {
-                                result.errors.push((annotation.line, META_WHEN_PLACEMENT.to_string()));
+                                result
+                                    .errors
+                                    .push((annotation.line, META_WHEN_PLACEMENT.to_string()));
                             } else if !annotation.argument.trim_start().starts_with("Assumption(") {
                                 result.errors.push((
                                     annotation.line,

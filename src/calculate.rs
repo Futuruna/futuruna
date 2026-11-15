@@ -6266,13 +6266,9 @@ impl CalculationWorker {
         };
         let assumptions = self.case_assumptions(&fired);
         let explanation = match (self.explain.as_mut(), explained.as_ref()) {
-            (Some(renderer), Some(state)) => Some(renderer.explanation(
-                &self.interpreter,
-                state,
-                &fired,
-                &result,
-                contract,
-            )),
+            (Some(renderer), Some(state)) => {
+                Some(renderer.explanation(&self.interpreter, state, &fired, &result, contract))
+            }
             _ => None,
         };
         let result = match explanation {
@@ -6301,7 +6297,8 @@ impl CalculationWorker {
     /// of the entry; each once (by binding and value), in the order the
     /// model writes them.
     fn case_assumptions(&self, fired: &crate::explain::FiredClauses) -> Vec<CalculationAssumption> {
-        let mut placed: BTreeMap<&(Rc<str>, usize, usize), &CalculationAssumption> = BTreeMap::new();
+        let mut placed: BTreeMap<&(Rc<str>, usize, usize), &CalculationAssumption> =
+            BTreeMap::new();
         let holding = (0..fired.len()).flat_map(|id| fired.holding(id as u32));
         for assumption in holding.chain(self.assumption_index.entry()) {
             placed

@@ -218,7 +218,15 @@ fn read_file(
     let annotations = crate::annotations::read(source);
     let path: Rc<str> = Rc::from(path);
     for section in &annotations.sections {
-        let placed = place(interpreter, env, &path, source, &section.name, &section.metas, section.line);
+        let placed = place(
+            interpreter,
+            env,
+            &path,
+            source,
+            &section.name,
+            &section.metas,
+            section.line,
+        );
         if !placed.is_empty() {
             file.sections
                 .push((section.line + 1, section.end_line.saturating_sub(1), placed));
@@ -231,7 +239,15 @@ fn read_file(
         }
         let label = item_meta.section.as_deref().unwrap_or(&item.name);
         let line = item_meta.metas.first().map_or(item.line, |meta| meta.line);
-        let placed = place(interpreter, env, &path, source, label, &item_meta.metas, line);
+        let placed = place(
+            interpreter,
+            env,
+            &path,
+            source,
+            label,
+            &item_meta.metas,
+            line,
+        );
         if !placed.is_empty() {
             file.items
                 .push((item.name.clone(), item.line, item.end_line, placed));
@@ -251,7 +267,8 @@ fn place(
 ) -> Vec<PlacedAssumption> {
     let mut placed = Vec::new();
     for meta in metas {
-        let Ok(expr) = Parser::new(Lexer::new(&meta.value).tokenize(), &meta.value).parse_expr() else {
+        let Ok(expr) = Parser::new(Lexer::new(&meta.value).tokenize(), &meta.value).parse_expr()
+        else {
             continue;
         };
         let condition = meta.condition.as_ref().and_then(|text| {
