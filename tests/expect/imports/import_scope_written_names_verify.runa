@@ -1,0 +1,13 @@
+-- expect-command: verify
+-- expect-status: pass
+-- expect-stdout: (define-fun |ratio in import_scope_written_names_verify_lib.runa|
+-- expect-stdout: PROVED: |ratio_ok|
+-- expect-stdout-not: __
+
+@ import ./import_scope_written_names_verify_lib
+
+-- The root declares `ratio` too, so the module's gets an internal name. The
+-- SMT-LIB script shown, and run, names it as written, with its file.
+> ratio(n: Int) -> Int { n }
+
+| ratio_ok: 0 -> uses_ratio(4) == 25 && ratio(4) == 4

@@ -42,7 +42,8 @@ mod citations;
 mod constructor_scope;
 pub use constructor_scope::{
     bare_constructor_name, clear_constructor_elaboration, constructor_display_name,
-    constructor_display_text, constructor_runtime_name, qualified_constructor_name,
+    constructor_display_text, constructor_runtime_name, function_display_label,
+    function_display_name, function_display_smt, function_display_text, qualified_constructor_name,
     split_qualified_constructor, with_constructor_elaboration, ConstructorElaboration,
 };
 mod danish;
@@ -16078,7 +16079,12 @@ impl fmt::Display for Value {
             }
             Value::Closure { name, params, .. } => {
                 let n = name.as_deref().unwrap_or("lambda");
-                write!(f, "<fn {}({})>", n, params.join(", "))
+                // A function renamed for its import scope shows as written,
+                // with its file: `<fn isin_ok(s) in a.runa>`.
+                let shown = function_display_name(n);
+                let label = function_display_label(n);
+                let file = label.strip_prefix(shown.as_ref()).unwrap_or("");
+                write!(f, "<fn {}({}){}>", shown, params.join(", "), file)
             }
             Value::Builtin(name) => write!(f, "<builtin:{}>", name),
             Value::NamespacedBuiltin { name, .. } => write!(f, "<builtin:{}>", name),
@@ -18019,7 +18025,9 @@ impl Interpreter {
     fn calculation_fail(&self, message: impl Into<String>) -> Value {
         let mut error = self.calculation_error.borrow_mut();
         if error.is_none() {
-            *error = Some(CalculationRuntimeFailure::InvalidValue(message.into()));
+            let message: String = message.into();
+            let message = function_display_text(&message).into_owned();
+            *error = Some(CalculationRuntimeFailure::InvalidValue(message));
         }
         Value::Unit
     }
@@ -18166,8 +18174,9 @@ impl Interpreter {
     fn ground_fail(&self, message: impl Into<String>) -> Value {
         let mut error = self.ground_error.borrow_mut();
         if error.is_none() {
+            let message: String = message.into();
             *error = Some(ExploreRuntimeFailure::RuntimeError {
-                message: message.into(),
+                message: function_display_text(&message).into_owned(),
             });
         }
         Value::Unit
@@ -63599,6 +63608,8 @@ impl TypeChecker {
                 elaboration.install();
             }
         }
+        // A function renamed for its import scope reads as written.
+        import_scope::display_written_names(&mut tc.diagnostics);
         let runtime_root_statements: Arc<[Stmt]> = stmts.to_vec().into();
         let program = elaborated_root.map_or_else(|| runtime_root_statements.clone(), Arc::from);
         let runtime_root_program = TypeChecker::checked_resolved_program_id(

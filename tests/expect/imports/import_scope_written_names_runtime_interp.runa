@@ -1,0 +1,16 @@
+-- expect-command: interp
+-- expect-status: fail
+-- expect-env: FUTURUNA_STACK_MB=16
+-- expect-stdout: <fn deep(n) in import_scope_written_names_runtime_lib.runa>
+-- expect-stderr: function call `deep` in import_scope_written_names_runtime_lib.runa exceeded the recursion limit
+-- expect-stdout-not: __
+-- expect-stderr-not: __
+
+@ import ./import_scope_written_names_runtime_lib
+
+-- The module's `deep` gets an internal name; a value or a runtime error
+-- that names it shows the written name and its file.
+> deep(n: Int) -> Int { n }
+
+@ print(shown())
+@ print(show(uses_deep(0)))

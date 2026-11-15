@@ -155,9 +155,10 @@ pub(crate) fn elaborated_source_module(
 }
 
 /// Start checking a root program. The current elaboration stays when the
-/// program is an elaborated one (it names an internal constructor, so its
-/// imports must be read elaborated too); any other program is checked with its
-/// imports as written.
+/// program is an elaborated one (it names an internal constructor, or a
+/// function an import scope renamed, as the merged program the solver checks
+/// does, so its imports must be read elaborated too); any other program is
+/// checked with its imports as written.
 pub(crate) fn begin_root_check(statements: &[Stmt]) {
     let elaborated = with_current(|current| {
         let Some(elaboration) = current else {
@@ -167,6 +168,7 @@ pub(crate) fn begin_root_check(statements: &[Stmt]) {
         elaboration
             .display
             .keys()
+            .chain(elaboration.functions.keys())
             .any(|internal| text.contains(&format!("\"{internal}\"")))
     });
     if !elaborated {
@@ -192,6 +194,119 @@ pub struct ConstructorElaboration {
     display: BTreeMap<String, String>,
     /// (owner type, constructor name as written) -> internal name.
     internal: BTreeMap<(String, String), String>,
+    /// Internal name of a function renamed for its import scope -> its
+    /// written name and file.
+    functions: BTreeMap<String, ScopedFunction>,
+}
+
+/// A function an import scope renamed: its name as written and the file
+/// declaring it, relative to the root file's directory.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ScopedFunction {
+    pub(crate) name: String,
+    pub(crate) file: String,
+}
+
+/// The name a function has in source: a function renamed for its import
+/// scope (see `import_scope`) under the name its declaration wrote.
+pub fn function_display_name(name: &str) -> Cow<'_, str> {
+    with_current(
+        |current| match current.and_then(|elaboration| elaboration.functions.get(name)) {
+            Some(function) => Cow::Owned(function.name.clone()),
+            None => Cow::Borrowed(name),
+        },
+    )
+}
+
+/// `name` as source writes it, with the file declaring it when an import
+/// scope renamed it: `isin_ok in a.runa`.
+pub fn function_display_label(name: &str) -> Cow<'_, str> {
+    with_current(
+        |current| match current.and_then(|elaboration| elaboration.functions.get(name)) {
+            Some(function) => Cow::Owned(format!("{} in {}", function.name, function.file)),
+            None => Cow::Borrowed(name),
+        },
+    )
+}
+
+/// `text` with every internal function name that stands as a whole
+/// identifier written as source writes it, with its file: `` `ratio__a` ``
+/// reads `` `ratio` in a.runa ``, a bare `ratio__a` reads `ratio in a.runa`.
+/// For diagnostics and runtime errors.
+pub fn function_display_text(text: &str) -> Cow<'_, str> {
+    with_current(|current| {
+        let Some(elaboration) = current.filter(|elaboration| !elaboration.functions.is_empty())
+        else {
+            return Cow::Borrowed(text);
+        };
+        let identifier = |c: char| c.is_alphanumeric() || c == '_';
+        let mut out = String::with_capacity(text.len());
+        let mut rest = text;
+        let mut changed = false;
+        while let Some(start) = rest.find(identifier) {
+            out.push_str(&rest[..start]);
+            let word = &rest[start..];
+            let end = word.find(|c: char| !identifier(c)).unwrap_or(word.len());
+            let token = &word[..end];
+            rest = &word[end..];
+            let Some(function) = elaboration.functions.get(token) else {
+                out.push_str(token);
+                continue;
+            };
+            changed = true;
+            let quoted = out.ends_with('`') && rest.starts_with('`');
+            out.push_str(&function.name);
+            if quoted {
+                out.push('`');
+                rest = &rest[1..];
+            }
+            out.push_str(" in ");
+            out.push_str(&function.file);
+        }
+        if !changed {
+            return Cow::Borrowed(text);
+        }
+        out.push_str(rest);
+        Cow::Owned(out)
+    })
+}
+
+/// `script` with every internal function name that stands as a whole SMT
+/// symbol written as the quoted symbol of its written name and file
+/// (`|ratio in a.runa|`), so the script reads as the source and still runs.
+pub fn function_display_smt(script: &str) -> Cow<'_, str> {
+    with_current(|current| {
+        let Some(elaboration) = current.filter(|elaboration| !elaboration.functions.is_empty())
+        else {
+            return Cow::Borrowed(script);
+        };
+        let identifier = |c: char| c.is_alphanumeric() || c == '_';
+        let mut out = String::with_capacity(script.len());
+        let mut rest = script;
+        let mut changed = false;
+        while let Some(start) = rest.find(identifier) {
+            out.push_str(&rest[..start]);
+            let word = &rest[start..];
+            let end = word.find(|c: char| !identifier(c)).unwrap_or(word.len());
+            let token = &word[..end];
+            rest = &word[end..];
+            match elaboration.functions.get(token) {
+                Some(function) => {
+                    changed = true;
+                    let symbol = format!("{} in {}", function.name, function.file);
+                    out.push('|');
+                    out.push_str(&symbol.replace(['|', '\\'], "/"));
+                    out.push('|');
+                }
+                None => out.push_str(token),
+            }
+        }
+        if !changed {
+            return Cow::Borrowed(script);
+        }
+        out.push_str(rest);
+        Cow::Owned(out)
+    })
 }
 
 impl ConstructorElaboration {
@@ -218,8 +333,12 @@ impl ConstructorElaboration {
 
     /// Read `modules` (files rewritten for their import scopes, see
     /// `import_scope`) on this thread from now on, besides whatever the
-    /// current elaboration renames.
-    pub(crate) fn install_import_scopes(modules: &BTreeMap<PathBuf, Arc<ParsedSourceModule>>) {
+    /// current elaboration renames; `functions` gives each renamed
+    /// function's written name and file.
+    pub(crate) fn install_import_scopes(
+        modules: &BTreeMap<PathBuf, Arc<ParsedSourceModule>>,
+        functions: &BTreeMap<String, ScopedFunction>,
+    ) {
         if modules.is_empty() {
             return;
         }
@@ -229,22 +348,32 @@ impl ConstructorElaboration {
                 .iter()
                 .map(|(path, module)| (path.clone(), module.clone())),
         );
+        elaboration.functions.extend(
+            functions
+                .iter()
+                .map(|(internal, function)| (internal.clone(), function.clone())),
+        );
         replace_current(Some(Arc::new(elaboration)));
     }
 
     /// `elaboration` with the rewritten files current on this thread that it
-    /// did not rewrite again: the checked program's files, read rewritten
-    /// for their import scopes or by an earlier check of the same program.
+    /// did not rewrite again, and their functions' written names: the
+    /// checked program's files, read rewritten for their import scopes or by
+    /// an earlier check of the same program.
     pub(crate) fn keeping_current_modules(elaboration: Option<Self>) -> Option<Self> {
-        let current = with_current(|current| current.map(|current| current.modules.clone()))
-            .unwrap_or_default();
-        if current.is_empty() {
+        let (modules, functions) = with_current(|current| {
+            current
+                .map(|current| (current.modules.clone(), current.functions.clone()))
+                .unwrap_or_default()
+        });
+        if modules.is_empty() {
             return elaboration;
         }
         let mut elaboration = elaboration.unwrap_or_default();
-        for (path, module) in current {
+        for (path, module) in modules {
             elaboration.modules.entry(path).or_insert(module);
         }
+        elaboration.functions.extend(functions);
         Some(elaboration)
     }
 

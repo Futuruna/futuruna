@@ -139,6 +139,8 @@ impl Interpreter {
     }
 
     pub(super) fn ordinary_runtime_fail(&self, message: String) -> ! {
+        // A function renamed for its import scope reads as written.
+        let message = function_display_text(&message).into_owned();
         if let Some(context) = &self.runtime_diagnostic_context {
             let mut diagnostic = Diagnostic::error(message);
             diagnostic.origin = Some(DiagnosticOrigin {

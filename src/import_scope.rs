@@ -10,7 +10,11 @@
 //! the file that declares it and in each file that reaches it through its
 //! imports. `Lib.fee` of a qualified import is rewritten the same way. The
 //! rewritten files belong to the checked program and are read through its
-//! elaboration (see `constructor_scope`), like its constructor names.
+//! elaboration (see `constructor_scope`), like its constructor names. The
+//! elaboration also keeps each internal name's written name and file, so no
+//! internal name reaches the reader: diagnostics, runtime errors, function
+//! values, explanations and the solver's script show `` `ratio` in a.runa ``
+//! (`constructor_scope::function_display_text` and its siblings).
 //!
 //! A qualified import is a merged program of its own: two functions of one
 //! name in it are told apart in the same way.
@@ -25,6 +29,8 @@
 //! file are an error naming both lines, as in a single file.
 
 use super::*;
+use crate::constructor_scope::ScopedFunction;
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -114,6 +120,8 @@ pub(crate) struct ImportScopes {
     files: Vec<ScopeFile>,
     collisions: Vec<RuleAndFunction>,
     importer_functions: Vec<ImporterFunction>,
+    /// Each renamed function's written name and file, by internal name.
+    functions: BTreeMap<String, ScopedFunction>,
 }
 
 impl ImportScopes {
@@ -180,12 +188,26 @@ impl ImportScopes {
                 }
             }
         }
+        let functions = internal
+            .iter()
+            .map(|((file, name), internal)| {
+                let path = files[*file].path.as_deref().unwrap_or(Path::new(""));
+                (
+                    internal.clone(),
+                    ScopedFunction {
+                        name: name.clone(),
+                        file: file_label(path, source_dir),
+                    },
+                )
+            })
+            .collect();
         Self {
             root: root_statements,
             modules,
             files,
             collisions,
             importer_functions,
+            functions,
         }
     }
 
@@ -195,10 +217,21 @@ impl ImportScopes {
         self.root.take()
     }
 
-    /// Read the rewritten files on this thread from now on.
+    /// Read the rewritten files, and show their renamed functions by their
+    /// written names, on this thread from now on.
     pub(crate) fn install(&self) {
-        ConstructorElaboration::install_import_scopes(&self.modules);
+        ConstructorElaboration::install_import_scopes(&self.modules, &self.functions);
     }
+}
+
+/// `path` relative to the root file's directory, as diagnostics show a file.
+fn file_label(path: &Path, root_dir: Option<&str>) -> String {
+    let root = root_dir.map(|dir| canonical_source_path(Path::new(dir)));
+    root.as_deref()
+        .and_then(|root| path.strip_prefix(root).ok())
+        .unwrap_or(path)
+        .display()
+        .to_string()
 }
 
 /// The root and every file it reaches through plain and qualified imports.
@@ -883,6 +916,21 @@ fn head_variables(head: &Expr, bound: &BTreeSet<String>) -> BTreeSet<String> {
     names
 }
 
+/// `diagnostics` with each function an import scope renamed under its
+/// written name and file, as the current elaboration records them.
+pub(crate) fn display_written_names(diagnostics: &mut [Diagnostic]) {
+    fn written(text: &mut String) {
+        if let Cow::Owned(shown) = function_display_text(text) {
+            *text = shown;
+        }
+    }
+    for diagnostic in diagnostics {
+        written(&mut diagnostic.message);
+        diagnostic.notes.iter_mut().for_each(written);
+        diagnostic.context.iter_mut().for_each(written);
+    }
+}
+
 impl TypeChecker {
     /// Report each rule family and function of one name that one file's
     /// scope reaches from different files, and each name in an imported
@@ -968,14 +1016,9 @@ impl TypeChecker {
         let Some(path) = scopes.files[file].path.as_deref() else {
             return format!("line {line} of the file being checked");
         };
-        let root = self
-            .source_dir
-            .as_deref()
-            .map(|dir| canonical_source_path(Path::new(dir)));
-        let shown = root
-            .as_deref()
-            .and_then(|root| path.strip_prefix(root).ok())
-            .unwrap_or(path);
-        format!("line {line} of {}", shown.display())
+        format!(
+            "line {line} of {}",
+            file_label(path, self.source_dir.as_deref())
+        )
     }
 }
