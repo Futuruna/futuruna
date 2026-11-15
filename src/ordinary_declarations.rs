@@ -64,35 +64,37 @@ impl TypeChecker {
         )
     }
 
-    /// A top-level binding is written once in a file or module: with two,
-    /// a reader of the first would read a value the program never uses.
-    /// Bindings in a body may be rebound; each statement sees the latest.
+    /// A top-level name is bound once in a file or module, or rebound by an
+    /// update that reads it (`= m = map_insert(m, "k", 1)`): each statement
+    /// reads the latest binding. A second binding that does not read the
+    /// name replaces the earlier value unseen, so it is an error naming both
+    /// lines. Bindings in a body may be rebound freely.
     pub(super) fn check_top_level_bindings(&mut self, statements: &[Stmt]) {
-        let mut first: BTreeMap<String, Span> = BTreeMap::new();
+        let mut latest: BTreeMap<String, Span> = BTreeMap::new();
         for statement in statements {
             let (Stmt::Bind(pattern, _, value) | Stmt::MonadicBind(pattern, _, value)) = statement
             else {
                 if matches!(statement, Stmt::PreludeBoundary) {
-                    first.clear();
+                    latest.clear();
                 }
                 continue;
             };
             let mut names = BTreeSet::new();
             collect_pattern_names(pattern, &mut names);
+            let mut read = BTreeSet::new();
+            collect_true_free_vars(value, &mut read, &BTreeSet::new());
             for name in names {
-                match first.get(&name) {
-                    Some(earlier) => {
+                if let Some(earlier) = latest.get(&name) {
+                    if !read.contains(&name) {
                         let message = format!(
-                            "`{name}` is bound twice at top level ({} and {}); only the later value would be used, so keep one binding or rename one",
+                            "`{name}` is bound twice at top level ({} and {}), and the second binding does not read the first: only the later value would be used, so keep one binding or rename one",
                             self.source_line_label(*earlier),
                             self.source_line_label(value.span)
                         );
                         self.error_at_expr(value, message);
                     }
-                    None => {
-                        first.insert(name, value.span);
-                    }
                 }
+                latest.insert(name, value.span);
             }
         }
     }

@@ -156,9 +156,9 @@ for i in [1, 2, 3] {
 = n = 42
 = f = 3.14
 = b = true
-= s = "text"
-@ print("T11a: " + show(n) + " " + show(f) + " " + show(b) + " " + s)
-@ print("T11b: still alive: " + show(n) + " " + s)
+= text = "text"
+@ print("T11a: " + show(n) + " " + show(f) + " " + show(b) + " " + text)
+@ print("T11b: still alive: " + show(n) + " " + text)
 
 -- ═══════════════════════════════════════════
 -- SECTION 12: Recursive function with string param

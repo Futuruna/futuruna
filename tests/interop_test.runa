@@ -37,9 +37,9 @@
 @ print("sum = " + show(sum_list(nums)))
 
 -- 6. range produces a list
-= r = range(1, 6)
-@ print("range = " + show(r))
-@ print("range length = " + show(length(r)))
+= numbers = range(1, 6)
+@ print("range = " + show(numbers))
+@ print("range length = " + show(length(numbers)))
 
 -- 7. String builtins roundtrip
 = s = "Hello, World!"

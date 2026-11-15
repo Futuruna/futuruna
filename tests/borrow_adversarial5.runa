@@ -44,8 +44,8 @@
 
 = p = Pair(10, 3)
 = s = pair_sum(p)
-= d = pair_diff(p)
-@ print("T3: sum=" + show(s) + " diff=" + show(d))
+= pair_d = pair_diff(p)
+@ print("T3: sum=" + show(s) + " diff=" + show(pair_d))
 
 -- ═══════════════════════════════════════════
 -- SECTION 4: List used in multiple operations

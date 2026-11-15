@@ -1,12 +1,15 @@
 -- expect-command: check
 -- expect-status: fail
--- expect-stderr: `rate` is bound twice at top level (line 11 and line 12); only the later value would be used, so keep one binding or rename one
+-- expect-stderr: `rate` is bound twice at top level (line 14 and line 15), and the second binding does not read the first: only the later value would be used, so keep one binding or rename one
+-- expect-stderr-not: line 13 and line 14
 
--- A top-level binding is written once; a body may rebind its locals.
+-- A top-level name is bound once, or rebound by an update that reads it; a
+-- body may rebind its locals.
 > doubled(x: Int) -> Int {
     = y = x
     = y = y * 2
     y
 }
 = rate = 25
+= rate = rate + 1
 = rate = doubled(15)

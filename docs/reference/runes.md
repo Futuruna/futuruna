@@ -337,9 +337,11 @@ local declaration may override a name supplied by the prelude or a prefix
 import. Use `|` rules for a family of clauses and cases; a rule family and a
 function never share a name, and the error names the line of each.
 
-A top-level binding (`= rate = 25`) is written once in a file or module; a
-second binding of the name is an error that names both lines. A body may bind
-a local name again; each statement reads the latest binding.
+A top-level name (`= rate = 25`) is bound once in a file or module, or rebound
+by an update that reads it (`= scores = map_insert(scores, "fire", 1)`); each
+statement reads the latest binding. A second binding that does not read the
+name would replace the earlier value unseen, so it is an error that names both
+lines. A body may bind a local name again.
 
 A parameter or local binding hides every function, rule, builtin or effect
 operation of its name in its body: `> g(f: Int) -> Int { f(f) }` is an error
