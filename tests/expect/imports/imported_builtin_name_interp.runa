@@ -1,0 +1,11 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: user first of 2
+-- expect-stdout: last=4
+
+@ import ./imported_builtin_name_lib
+
+-- The imported functions shadow the builtins `first` and `last`, as an
+-- authored function does.
+@ print(first([1, 2]))
+@ print("last=" + show(last(3)))
