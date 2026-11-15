@@ -334,8 +334,10 @@ An ordinary function name has one declaration in each authored lexical scope,
 regardless of parameter count. Duplicate declarations are errors before
 execution. Separate modules and nested scopes may use the same name, and a
 local declaration may override a name supplied by the prelude or a prefix
-import. Use `|` rules for a family of clauses and cases; a rule family and a
-function never share a name, and the error names the line of each.
+import, for the file's own calls only (the imported file keeps its own; see
+[Import](#import-multi-file)). Use `|` rules for a family of clauses and
+cases; a rule family and a function never share a name, in one file or across
+its plain imports, and the error names the line of each.
 
 A top-level name (`= rate = 25`) is bound once in a file or module, or rebound
 by an update that reads it (`= scores = map_insert(scores, "fire", 1)`); each
@@ -685,11 +687,21 @@ shown in the handler example above.
 @ import #a1b2c3 from ./utils       -- content-addressed import
 ```
 
-Top-level plain imports form one merged declaration scope. They are resolved
+Top-level plain imports merge their files into one program. They are resolved
 in import order before the importing file's declarations, regardless of where
-the directives appear. Imported functions override injected prelude defaults;
-local functions override imported functions. A local type declaration likewise
-replaces an imported type with the same name, including its constructors.
+the directives appear. A function name in a file means what that file's own
+scope declares: the file's own function, else the one its plain imports
+provide, a later import's over an earlier one's. So a file may declare a
+function that a file it imports declares too: its calls mean its own, and the
+imported file's calls keep meaning the imported file's, whoever imports it. A
+file's calls never reach a file that imports it: a name that only an
+importing file declares a function for is an error in the imported file, even
+when it would otherwise mean a builtin. Imported functions override injected
+prelude defaults. A rule family spans the plain imports: an importing file's
+clause joins the imported family, so a rule and a function of one name that
+one file's scope reaches are an error that names the line of each, as in one
+file. A local type declaration replaces an imported type with the same name,
+including its constructors.
 Two types in the merged scope may declare the same constructor name. A use of
 such a name takes its owner from the type the context expects (a pattern from
 the matched value, an argument, field or result from its declared type, one
@@ -697,8 +709,8 @@ side of `==` from the other side), or names it as `Type.Constructor` in an
 expression or a pattern. A shared name with no expected type is an error that
 names both types; the owner is never chosen by arity or fields. Types inside
 one inline module keep distinct constructor names.
-Imported initializers and later
-calls use that same final function and rule context. Unique bindings across the
+Imported initializers call their own file's functions, like the file's other
+calls. Unique bindings across the
 merged scope follow the dependency order described above. A canonical source
 is imported once per namespace, including when several dependencies import it.
 Standalone executable statements in an imported file are not run; its binding

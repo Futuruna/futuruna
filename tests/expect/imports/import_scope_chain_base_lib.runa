@@ -1,0 +1,4 @@
+-- expect-skip: dependency-only fixture: the innermost of three files declaring `rate`
+
+> rate() -> Int { 1 }
+> base_rate() -> Int { rate() }

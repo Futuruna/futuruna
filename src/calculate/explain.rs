@@ -709,7 +709,8 @@ impl ExplainRenderer {
                 })
                 .collect();
             let waiting = CalculationWaiting {
-                rule: frame.name.to_string(),
+                // A function renamed for its import scope, as written.
+                rule: crate::function_display_name(&frame.name).into_owned(),
                 section: Some(label),
                 paragraphs,
             };

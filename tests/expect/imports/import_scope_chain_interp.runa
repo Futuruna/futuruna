@@ -1,0 +1,11 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: base 1, middle 2, through middle 1, other 3, root 3
+
+@ import ./import_scope_chain_middle_lib
+@ import ./import_scope_chain_other_lib
+
+-- Three imported files declare `rate`. Each file's own calls mean its own
+-- `rate`, whoever imports it; the root, which declares none, sees the
+-- later import's.
+@ print("base " + show(base_rate()) + ", middle " + show(middle_rate()) + ", through middle " + show(middle_base_rate()) + ", other " + show(other_rate()) + ", root " + show(rate()))

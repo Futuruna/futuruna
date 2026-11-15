@@ -1,0 +1,6 @@
+-- expect-skip: dependency-only fixture: a module whose own calls reach its own functions
+
+> isin_ok(s: String) -> Bool { length(s) == 12 }
+> uses_check(s: String) -> Bool { isin_ok(s) }
+> describe(n: Int) -> String { "module describes " + show(n) }
+> described(n: Int) -> String { describe(n) }
