@@ -1,0 +1,25 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: locals=12
+-- expect-stdout: closure=3
+-- expect-stdout: parameter=3
+-- expect-stdout: lambda=[1, 2]
+
+-- A parameter or local named like an effect operation (`ask`, `say`) is the
+-- value it binds, not the operation, in a function and in a closure.
+> scaled(x: Int) -> Int {
+    = ask = x + 1
+    = say = 2
+    ask * say * 3
+}
+> pair_sum(x: Int) -> Int {
+    = ask = |a: Int, b: Int| a + b
+    ask(x, 2)
+}
+> prompt_length(ask: String) -> Int { length(ask) }
+= labels = map([1, 2], |say| show(say))
+
+@ print("locals=" + show(scaled(1)))
+@ print("closure=" + show(pair_sum(1)))
+@ print("parameter=" + show(prompt_length("abc")))
+@ print("lambda=" + show(labels))

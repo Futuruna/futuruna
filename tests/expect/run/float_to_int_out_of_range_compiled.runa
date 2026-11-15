@@ -1,0 +1,10 @@
+-- expect-command: run
+-- expect-status: fail
+-- expect-stdout: in range=-3 4
+-- expect-stderr: round: 1e300 does not fit in an Int (-9223372036854775808 to 9223372036854775807)
+-- expect-stdout-not: 9223372036854775807
+
+-- A Float outside the Int range has no Int: `round` and `floor` stop with
+-- an error naming it, never with the nearest Int.
+@ print("in range=" + show(floor(-2.5)) + " " + show(round(3.5)))
+@ print(show(round(pow(10.0, 300.0))))

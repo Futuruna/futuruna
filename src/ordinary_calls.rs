@@ -128,17 +128,38 @@ impl TypeChecker {
             return false;
         };
         if target.is_none() {
-            let ty = self
+            let binder = self
                 .scopes
                 .iter()
                 .zip(&self.var_types)
+                .enumerate()
                 .rev()
-                .find(|(names, _)| names.contains(name))
-                .and_then(|(_, types)| types.get(name))
+                .find(|(_, (names, _))| names.contains(name));
+            let declared = binder.and_then(|(_, (_, types))| types.get(name)).cloned();
+            let ty = declared
+                .as_deref()
                 .and_then(|ty| parse_type_annotation(ty).ok());
-            if ty.as_ref().is_some_and(Self::ordinary_non_callable_type) {
-                // Existing dispatch falls back to a declared function/rule when
-                // a same-named binding is scalar (closures still shadow it).
+            let top_level = binder.is_some_and(|(index, _)| index == 0);
+            if ty.as_ref().is_some_and(Self::ordinary_non_callable_type) && !top_level {
+                // A parameter or a binding in a body is the nearest binder:
+                // the call means it, whatever function or rule the name
+                // has outside, and it holds no function.
+                self.error_at_expr(
+                    call,
+                    format!(
+                        "value `{name}` is not callable: here `{name}` is a parameter or local binding of type `{}`{}; rename it or the function",
+                        declared.unwrap_or_default(),
+                        if self.functions.contains_key(name) {
+                            format!(", which hides the function or rule `{name}`")
+                        } else {
+                            String::new()
+                        }
+                    ),
+                );
+                return true;
+            } else if ty.as_ref().is_some_and(Self::ordinary_non_callable_type) {
+                // A scalar top-level binding of a declared function's or
+                // rule's name (`= tax = tax(case)`) leaves calls to it.
                 target = self
                     .ordinary_callable_scopes
                     .iter()
@@ -562,18 +583,47 @@ impl TypeChecker {
     /// `concat` joins two lists of one element type, or two strings: two
     /// arguments of known types that do not join as branches would are an
     /// error. A list of numbers written in the source joins a list of a unit.
+    /// In a program that declares units, such a list beside an argument of
+    /// unknown type has no element type the checker can know (`[0]` could
+    /// be a list of any unit), so it is an error that asks for the type.
     pub(super) fn check_concat_arguments(&mut self, arguments: &[Expr]) {
         let [left, right] = arguments else {
             return;
         };
         let locals = self.ordinary_locals();
         let scope = self.active_rule_scope_inference.clone();
-        let joinable = |argument: &Expr| {
+        let known = |argument: &Expr| {
             self.infer_expr_type_name_with_locals_in_scope(argument, &locals, scope.as_deref())
                 .filter(|ty| Self::is_concrete_type_name(ty))
-                .filter(|ty| ty == "String" || Self::applied_type_argument(ty, "List", 0).is_some())
         };
-        let (Some(left_ty), Some(right_ty)) = (joinable(left), joinable(right)) else {
+        let (left_known, right_known) = (known(left), known(right));
+        if let Some(unit) = self.unit_types.keys().next().cloned() {
+            let number_list = |argument: &Expr| {
+                matches!(argument.kind, ExprKind::List(_))
+                    && Self::is_unitless_literal_value(argument)
+            };
+            for (numbers, other, other_known) in
+                [(left, right, &right_known), (right, left, &left_known)]
+            {
+                if number_list(numbers) && other_known.is_none() && !number_list(other) {
+                    let other_name = match &other.kind {
+                        ExprKind::Var(name) => format!("`{name}`"),
+                        _ => "the other argument".to_string(),
+                    };
+                    self.error_at_expr(
+                        other,
+                        format!(
+                            "the element type of this `concat` is unknown: a list of numbers written in the source takes the unit of the list beside it, and the type of {other_name} is not known; declare the type of {other_name}, or write the numbers in their unit, as in `[{unit}(0)]`"
+                        ),
+                    );
+                    return;
+                }
+            }
+        }
+        let joinable = |ty: Option<String>| {
+            ty.filter(|ty| ty == "String" || Self::applied_type_argument(ty, "List", 0).is_some())
+        };
+        let (Some(left_ty), Some(right_ty)) = (joinable(left_known), joinable(right_known)) else {
             return;
         };
         if self

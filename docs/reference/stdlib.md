@@ -64,8 +64,8 @@ values by constructor name, then by their fields in declaration order.
 | `pow` | `(Float, Float) -> Float` | Exponentiation |
 | `exp` | `Float -> Float` | Natural exponential (e^x) |
 | `ln` | `Float -> Float` | Natural logarithm |
-| `round` | `Float -> Int` | Round to nearest integer |
-| `floor` | `Float -> Int` | Floor (round down) |
+| `round` | `Float -> Int` | Round to nearest integer; a value outside the `Int` range (or NaN) is a runtime error naming it |
+| `floor` | `Float -> Int` | Floor (round down); a value outside the `Int` range (or NaN) is a runtime error naming it |
 | `to_float` | `Int -> Float` | Convert integer to float |
 | `max_int` | `(Int, Int) -> Int` | Maximum of two integers |
 | `min_int` | `(Int, Int) -> Int` | Minimum of two integers |
@@ -150,7 +150,7 @@ return the error from the enclosing function, or `match` on `Ok`/`Err`.
 | `head` | `List(a) -> a` | First element |
 | `tail` | `List(a) -> List(a)` | All but first |
 | `push` | `(List(a), a) -> List(a)` | Append element |
-| `concat` | `(List(a), List(a)) -> List(a)` | Concatenate two lists |
+| `concat` | `(List(a), List(a)) -> List(a)`, `(String, String) -> String` | Concatenate two lists, or two strings |
 | `reverse` | `List(a) -> List(a)` | Reverse a list |
 | `map` | `(List(a), a -> b) -> List(b)` | Transform each element |
 | `filter` | `(List(a), a -> Bool) -> List(a)` | Keep elements matching predicate |
