@@ -119,7 +119,9 @@ fn arguments<'a>(head: &'a Expr, chars: &[char]) -> Option<Vec<Argument<'a>>> {
                 colon += 1;
             }
             if chars.get(colon) != Some(&':') {
-                return None;
+                // The type is the declaring line's (or an imported
+                // declaration's), copied onto a name written without one.
+                return Some(Argument { inner, typed: None });
             }
             let mut type_start = colon + 1;
             while type_start < chars.len() && chars[type_start] == ' ' {
@@ -452,6 +454,9 @@ fn migrate_sequence(
         let mut names: Vec<BTreeSet<String>> = vec![BTreeSet::new(); *arity];
         let mut type_text: Vec<Option<String>> = vec![None; *arity];
         for (_, arguments) in &heads {
+            // A name repeated from an earlier position is a pattern, not the
+            // parameter's name.
+            let mut seen = BTreeSet::new();
             for (position, argument) in arguments.iter().enumerate() {
                 if let Some((_, _, text)) = &argument.typed {
                     let normalized = parse_type_annotation(text)
@@ -461,7 +466,9 @@ fn migrate_sequence(
                     type_text[position].get_or_insert_with(|| text.clone());
                 }
                 if let Some(name) = is_name(argument.inner) {
-                    names[position].insert(name.to_string());
+                    if seen.insert(name) {
+                        names[position].insert(name.to_string());
+                    }
                 }
             }
         }

@@ -141,6 +141,127 @@ fn argument_span(argument: &Expr, head: &Expr) -> Span {
     }
 }
 
+/// The parameter types of each family's first ordinary line in one statement
+/// sequence (not its nested scopes), by name and arity.
+fn first_line_parameter_types(
+    statements: &[Stmt],
+) -> BTreeMap<(String, usize), Vec<Option<String>>> {
+    let mut families = BTreeMap::new();
+    for statement in statements {
+        let Stmt::Rule(Rule::Clause { head, .. } | Rule::Default { head, .. }) = statement else {
+            continue;
+        };
+        let Some(key) = rule_head_name_arity(head) else {
+            continue;
+        };
+        families.entry(key).or_insert_with(|| {
+            head_arguments(head)
+                .iter()
+                .map(|argument| head_parameter(argument).1)
+                .collect()
+        });
+    }
+    families
+}
+
+thread_local! {
+    /// The files whose imported declarations are being read, so that an
+    /// import cycle reads each file once.
+    static IMPORTED_DECLARATIONS_IN_PROGRESS: std::cell::RefCell<BTreeSet<PathBuf>> =
+        const { std::cell::RefCell::new(BTreeSet::new()) };
+}
+
+/// The first-line parameter types of the families of the plain imports of
+/// `statements` and of their imports, the nearest import first.
+fn imported_parameter_types(
+    statements: &[Stmt],
+    dir: &str,
+    families: &mut BTreeMap<(String, usize), Vec<Option<String>>>,
+) {
+    for statement in statements {
+        let Stmt::Import(path) = statement else {
+            continue;
+        };
+        let Some(file) = Interpreter::resolve_import_path_for_source(path, dir) else {
+            continue;
+        };
+        let canonical = canonical_source_path(Path::new(&file));
+        let fresh = IMPORTED_DECLARATIONS_IN_PROGRESS
+            .with(|in_progress| in_progress.borrow_mut().insert(canonical.clone()));
+        if !fresh {
+            continue;
+        }
+        if let Ok(module) = parse_source_module_file_cached(Path::new(&file)) {
+            for (key, types) in first_line_parameter_types(module.statements()) {
+                families.entry(key).or_insert(types);
+            }
+            imported_parameter_types(
+                module.statements(),
+                &Interpreter::imported_source_dir(&file),
+                families,
+            );
+        }
+        IMPORTED_DECLARATIONS_IN_PROGRESS
+            .with(|in_progress| in_progress.borrow_mut().remove(&canonical));
+    }
+}
+
+/// Give each exception over an imported family the imported declaring line's
+/// parameter types, as a later clause in the declaring file takes them. Only
+/// a family without an ordinary line in `statements` is imported.
+pub(crate) fn type_imported_exceptions(
+    statements: &mut [Stmt],
+    source_path: Option<&Path>,
+    dir: &str,
+) {
+    let local = first_line_parameter_types(statements);
+    let needed = statements.iter().any(|statement| {
+        matches!(statement, Stmt::Rule(Rule::Exception { head, .. })
+            if rule_head_name_arity(head).is_some_and(|key| !local.contains_key(&key)))
+    });
+    if !needed
+        || !statements
+            .iter()
+            .any(|statement| matches!(statement, Stmt::Import(_)))
+    {
+        return;
+    }
+    let own = source_path.map(canonical_source_path);
+    let fresh = own.as_ref().is_some_and(|own| {
+        IMPORTED_DECLARATIONS_IN_PROGRESS
+            .with(|in_progress| in_progress.borrow_mut().insert(own.clone()))
+    });
+    let mut imported = BTreeMap::new();
+    imported_parameter_types(statements, dir, &mut imported);
+    if let (true, Some(own)) = (fresh, &own) {
+        IMPORTED_DECLARATIONS_IN_PROGRESS.with(|in_progress| in_progress.borrow_mut().remove(own));
+    }
+    for statement in statements.iter_mut() {
+        let Stmt::Rule(Rule::Exception { head, .. }) = statement else {
+            continue;
+        };
+        let Some(key) = rule_head_name_arity(head) else {
+            continue;
+        };
+        if local.contains_key(&key) {
+            continue;
+        }
+        let Some(types) = imported.get(&key) else {
+            continue;
+        };
+        let Some(arguments) = head_arguments_mut(head) else {
+            continue;
+        };
+        for (argument, ty) in arguments.iter_mut().zip(types) {
+            let (Some(ty), (Some(_), None)) = (ty, head_parameter(argument)) else {
+                continue;
+            };
+            let written = std::mem::replace(argument, ExprKind::Unit.into());
+            *argument = typed_argument(written, ty);
+        }
+    }
+}
+
 struct Declaring {
     /// The declaring line's head.
     span: Span,
@@ -345,8 +466,12 @@ pub(crate) fn elaborate_rule_declarations(
                 let Some(arguments) = head_arguments_mut(head) else {
                     continue;
                 };
+                // A name repeated from an earlier position is a pattern (the
+                // arguments are equal), not the parameter's name.
+                let mut seen: BTreeSet<String> = BTreeSet::new();
                 for (position, argument) in arguments.iter_mut().enumerate() {
                     let (name, ty) = head_parameter(argument);
+                    let repeated = name.as_ref().is_some_and(|name| !seen.insert(name.clone()));
                     let (declared_name, declared_type) =
                         parameters.get(position).cloned().unwrap_or((None, None));
                     if let (false, Some(ty)) = (legacy, &ty) {
@@ -370,7 +495,7 @@ pub(crate) fn elaborate_rule_declarations(
                     if let (true, false, Some(name), Some(declared)) =
                         (declared, legacy, &name, &declared_name)
                     {
-                        if name != declared {
+                        if name != declared && !repeated {
                             errors.push(DeclarationError {
                                 span: argument_span(argument, &Expr::new(ExprKind::Unit, head_span)),
                                 message: format!(

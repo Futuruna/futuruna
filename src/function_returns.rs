@@ -82,9 +82,11 @@ impl TypeChecker {
         let mut locals = ReturnLocals::default();
         for (scope, types) in self.scopes.iter().zip(&self.var_types) {
             for name in scope {
-                // Function declarations are also value names in the legacy
-                // scope table. Their signatures are resolved separately below.
-                if self.user_functions.contains(name)
+                // Function and rule declarations are also value names in the
+                // legacy scope table. Their results are resolved separately.
+                let callable = self.user_functions.contains(name)
+                    || self.rule_arities.iter().any(|(rule, _)| rule == name);
+                if callable
                     && !self
                         .reference_symbols
                         .get(name)
@@ -123,9 +125,9 @@ impl TypeChecker {
         self.error_at_expr(
             expr,
             format!(
-            "return type mismatch: {subject} expects `{}` but expression has `{actual}`",
-            Self::canonical_explore_ty_name(expected),
-        ),
+                "return type mismatch: {subject} expects `{}` but expression has `{actual}`",
+                Self::canonical_explore_ty_name(expected),
+            ),
         );
     }
 

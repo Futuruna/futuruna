@@ -216,3 +216,80 @@ fn the_migration_writes_types_once_and_declares_the_inferred_result() {
     assert_eq!(again.source, migration.source);
     std::fs::remove_dir_all(&directory).ok();
 }
+
+#[test]
+fn an_exception_in_an_importing_module_takes_the_imported_parameter_types() {
+    let directory =
+        std::env::temp_dir().join(format!("rule-result-types-import-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).unwrap();
+    std::fs::write(
+        directory.join("base.runa"),
+        "# unit Ore \"DKK øre\"\n| fee(amount: Ore): Ore -> amount / 10\n",
+    )
+    .unwrap();
+    std::fs::write(
+        directory.join("typed.runa"),
+        "@ import ./base\n| exception small fee(amount) -> Ore(0) under amount < Ore(100)\n= a: Ore = fee(Ore(50))\n= b: Ore = fee(Ore(5000))\n@ print(a)\n@ print(b)\n",
+    )
+    .unwrap();
+    // The same-file rule: `amount` is `Ore`, so comparing it to a string is an error.
+    std::fs::write(
+        directory.join("mismatch.runa"),
+        "@ import ./base\n| exception odd fee(amount) -> Ore(0) under amount == \"x\"\n",
+    )
+    .unwrap();
+    let runa = |args: &[&str]| {
+        std::process::Command::new(env!("CARGO_BIN_EXE_runa"))
+            .current_dir(&directory)
+            .env("NO_COLOR", "1")
+            .args(args)
+            .output()
+            .unwrap()
+    };
+    let checked = runa(&["check", "--frontend", "typed.runa"]);
+    assert!(
+        checked.status.success(),
+        "{}",
+        String::from_utf8_lossy(&checked.stderr)
+    );
+    let ran = runa(&["typed.runa"]);
+    assert_eq!(String::from_utf8_lossy(&ran.stdout).trim(), "0\n500");
+    let mismatch = runa(&["check", "--frontend", "mismatch.runa"]);
+    let stderr = String::from_utf8_lossy(&mismatch.stderr);
+    assert!(!mismatch.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("unsupported operands for operator `==`: `Ore` and `String`"),
+        "{stderr}"
+    );
+    std::fs::remove_dir_all(&directory).ok();
+}
+
+#[test]
+fn a_name_repeated_in_one_head_is_a_pattern_not_a_new_name() {
+    let source = "| pairing(a: Int, b: Int): String\n| pairing(a, a) -> \"same\"\n| pairing(a, b) -> \"differ\"\n@ print(pairing(2, 2))\n@ print(pairing(2, 3))\n";
+    assert!(
+        check_errors(source).is_empty(),
+        "{:?}",
+        check_errors(source)
+    );
+    assert_eq!(run(source), "same\ndiffer");
+    // A first occurrence under another name is still a renamed parameter.
+    let error = parse_error(
+        "| pairing(a: Int, b: Int): String -> \"differ\"\n| pairing(b, b) -> \"same\"\n",
+    );
+    assert!(
+        error.contains("the first parameter of `pairing` is `a`"),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_clause_matching_on_another_rule_family_reads_that_family_s_result() {
+    let source = "# P(year: Int, max: Int)\n| lookup(year: Int): Int? -> Some(5) under year > 2000\n| lookup(year) -> None\n| params(year: Int): P? -> match lookup(year) {\n    | Some(m) -> Some(P(year = year, max = m))\n    | None -> None\n}\n| max_of(year: Int): Int -> match lookup(year) { | Some(m) -> m | None -> 0 }\n@ print(max_of(2020))\n";
+    assert!(
+        check_errors(source).is_empty(),
+        "{:?}",
+        check_errors(source)
+    );
+    assert_eq!(run(source), "5");
+}

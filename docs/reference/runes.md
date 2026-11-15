@@ -490,7 +490,11 @@ whose first clause matches a pattern. Every later clause and every exception
 writes a name or a pattern at each position. A type on a later clause or an
 exception, a later name that differs from the declaring line's (in a family
 that declares a type), a second declaration and a declaration without a
-clause are errors that name the declaring line. Each clause is checked
+clause are errors that name the declaring line. A name repeated at a later
+position of one head (`| pairing(a, a)`) is a pattern that requires equal
+arguments, not a new name. An exception over a family imported from another
+module takes that module's parameter types. `@ cite` stands above a clause,
+never above a bodiless declaration. Each clause is checked
 against `R`: a number takes `R`'s unit (`| loss(): Ore -> 0`), `None`, `[]`
 and a shared constructor take their type from `R`, and a fact or goal body
 requires `R = Bool`. A family declared `: Bool` answers `False` when no clause
@@ -959,11 +963,11 @@ Finite state machines verify over every state and event:
 # Event = Submit | Pay | Ship | Cancel
 
 | next(s: State, e: Event) -> s
-| next(s: State, e: Event) -> Submitted under s == Draft && e == Submit
-| next(s: State, e: Event) -> Paid under s == Submitted && e == Pay
-| next(s: State, e: Event) -> Shipped under s == Paid && e == Ship
-| next(s: State, e: Event) -> Cancelled under e == Cancel && (s == Draft || s == Submitted)
-| exception refund_window next(s: State, e: Event) -> Cancelled under s == Paid && e == Cancel
+| next(s, e) -> Submitted under s == Draft && e == Submit
+| next(s, e) -> Paid under s == Submitted && e == Pay
+| next(s, e) -> Shipped under s == Paid && e == Ship
+| next(s, e) -> Cancelled under e == Cancel && (s == Draft || s == Submitted)
+| exception refund_window next(s, e) -> Cancelled under s == Paid && e == Cancel
 
 | shipped_is_final: next(Shipped, e) -> next(Shipped, e) == Shipped
 | cancel_always_cancels: next(s, Cancel) -> next(s, Cancel) == Cancelled
@@ -1031,13 +1035,13 @@ empty one in disguise:
 
 ```runa
 | band(x: Int) -> 0
-| band(x: Int) -> 70 under x > 7
-| band(x: Int) -> 80 under x > 8        -- unreachable: x > 7 takes every input
+| band(x) -> 70 under x > 7
+| band(x) -> 80 under x > 8        -- unreachable: x > 7 takes every input
 | rate(x: Int) -> 1                     -- unreachable: the two guards cover every Int
-| rate(x: Int) -> 2 under x > 10
-| rate(x: Int) -> 3 under x < 20        -- overlaps the guard above, witness x = 11
+| rate(x) -> 2 under x > 10
+| rate(x) -> 3 under x < 20        -- overlaps the guard above, witness x = 11
 | sign(x: Int) -> 1 under x > 0         -- gap: no clause covers x = 0
-| sign(x: Int) -> -1 under x < 0
+| sign(x) -> -1 under x < 0
 ```
 
 A clause reported unreachable never fires for any value of the family's

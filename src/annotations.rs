@@ -310,6 +310,35 @@ const META_WHEN_PLACEMENT: &str =
 const META_PLACEMENT: &str =
     "stands directly above a section, a data type, a binding, a rule clause, a RuleScope member or a function";
 
+/// Whether a line is a bodiless rule declaration (`| fib(n: Int): Int`): a
+/// rule head followed by `: R` and no `->`.
+fn is_bodiless_declaration(line: &str) -> bool {
+    let code = line.split(" --").next().unwrap_or(line);
+    let Some(head) = code.strip_prefix('|') else {
+        return false;
+    };
+    if code.contains("->") {
+        return false;
+    }
+    let Some(open) = head.find('(') else {
+        return false;
+    };
+    let mut depth = 0usize;
+    for (index, character) in head[open..].char_indices() {
+        match character {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return head[open + index + 1..].trim_start().starts_with(':');
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
 /// Read and place the annotations of `source`.
 pub(crate) fn read(source: &str) -> Annotations {
     let mut lexer = Lexer::new(source);
@@ -545,6 +574,14 @@ fn read_lexed(source: &str, lexed: Vec<LexedAnnotation>) -> Annotations {
                         result.errors.push((
                             annotation.line,
                             format!("{} {CITE_PLACEMENT}", describe(annotation)),
+                        ));
+                    } else if is_bodiless_declaration(target_text) {
+                        result.errors.push((
+                            annotation.line,
+                            format!(
+                                "{} stands above a bodiless declaration, but a declaration has no clause to cite; move it above the clause it supports",
+                                describe(annotation)
+                            ),
                         ));
                     } else if cited {
                         result.errors.push((
