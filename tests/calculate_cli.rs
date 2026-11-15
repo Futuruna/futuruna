@@ -25093,9 +25093,9 @@ fn template_runs_the_checks_of_named_scalars_as_call_does() {
     let generated = run(&["template", model]);
     assert!(generated.status.success(), "{generated:?}");
     let mut envelope = parse_stdout(&generated);
-    let placeholder = envelope["cases"][0]["input"]["holdings"][0]["isin"].clone();
+    let placeholder = envelope["cases"][0]["input"]["favourite"].clone();
     assert!(placeholder.is_object(), "{placeholder}");
-    let good = serde_json::json!({"holdings": [{"isin": "DK0060534915", "count": 2}, {"isin": placeholder, "count": 1}], "favourite": null});
+    let good = serde_json::json!({"holdings": [{"isin": "DK0060534915", "count": 2}], "favourite": placeholder});
     let bad = serde_json::json!({"holdings": [{"isin": "DK0060534915", "count": 2}, {"isin": "DK006053491", "count": 3}], "favourite": "x"});
     let input = dir.join("cases.json");
     let output = dir.join("out.json");
@@ -25121,7 +25121,7 @@ fn template_runs_the_checks_of_named_scalars_as_call_does() {
         written["cases"][0]["input"]["holdings"][0]["isin"],
         "DK0060534915"
     );
-    assert!(written["cases"][0]["input"]["holdings"][1]["isin"].is_object());
+    assert!(written["cases"][0]["input"]["favourite"].is_object());
 
     let refused =
         template(serde_json::json!([{"case_id": "bad", "input_status": "draft", "input": bad}]));
