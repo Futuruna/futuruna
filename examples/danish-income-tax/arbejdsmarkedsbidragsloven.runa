@@ -323,7 +323,46 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 
 # ArbejdsmarkedsbidragSelvstændigInput(personlig_indkomst_ved_selvstændig_virksomhed_kroner: Heltal, biblioteksafgift_kroner: Heltal, fremført_negativ_personlig_indkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_fra_pension_kroner: Heltal)
 # ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstOprindelse = AmblFremførtNegativFraPbl18Pension | AmblFremførtNegativFraAndet
-# ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche(identifikation: Tekst, oprindelsesår: Heltal, resterende_beløb_primo_kroner: Heltal, oprindelse: ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstOprindelse, dokumentreference: Tekst)
+= personskat_ambl_fremført_kilder = [
+    Source(value = arbejdsmarkedsbidragsloven_lbk121_par4),
+    Source(value = arbejdsmarkedsbidragsloven_lbk121_par5),
+    AmendmentSource(value = arbejdsmarkedsbidragsloven_lov2226_par5)
+]
+# ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche(
+    @ field(
+        label = "Saldoens identifikation",
+        question = "Hvilken entydig identifikation har den fremførte saldo?",
+        sources = personskat_ambl_fremført_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Saldoens oprindelsesår",
+        question = "I hvilket tidligere indkomstår opstod den negative personlige indkomst?",
+        unit = "år",
+        sources = personskat_ambl_fremført_kilder
+    )
+    oprindelsesår: Heltal,
+    @ field(
+        label = "Resterende negativ personlig indkomst primo",
+        question = "Hvor meget af saldoen resterer ved indkomstårets begyndelse?",
+        unit = "kr.",
+        sources = personskat_ambl_fremført_kilder
+    )
+    resterende_beløb_primo_kroner: Heltal,
+    @ field(
+        label = "Saldoens oprindelse",
+        question = "Stammer saldoen fra fradrag efter pensionsbeskatningslovens § 18 eller fra anden negativ personlig indkomst?",
+        help = "PBL § 18-beløb reducerer ikke arbejdsmarkedsbidragsgrundlaget efter §§ 4-5.",
+        sources = personskat_ambl_fremført_kilder
+    )
+    oprindelse: ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstOprindelse,
+    @ field(
+        label = "Dokumentation for fremført saldo",
+        question = "Hvilket dokument eller hvilken opgørelse dokumenterer saldoen?",
+        sources = personskat_ambl_fremført_kilder
+    )
+    dokumentreference: Tekst
+)
 # ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstResultat(indkomstår: Heltal, trancher: List(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche), identifikationer_entydige: Boolsk, alle_trancher_gyldige: Boolsk, input_gyldigt: Boolsk, samlet_fremført_negativ_personlig_indkomst_kroner: Heltal, heraf_fra_pbl18_pension_kroner: Heltal, fradrag_i_arbejdsmarkedsbidragsgrundlaget_kroner: Heltal)
 
 | arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_fradrag_kroner(fremført_negativ_personlig_indkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_fra_pension_kroner: Heltal) -> arbejdsmarkedsbidrag_positivt_beløb(fremført_negativ_personlig_indkomst_kroner - fremført_negativ_personlig_indkomst_fra_pension_kroner)
@@ -380,11 +419,148 @@ af stk. 1.
 @ section arbejdsmarkedsbidragsloven_par5 {
 
 # ArbejdsmarkedsbidragVirksomhedsordningInput(overførsel_fra_virksomhedsoverskud_kroner: Heltal, kapitalafkast_fradrag_kroner: Heltal, kapitalafkast_medregnet_personlig_indkomst_kroner: Heltal, overførsel_opsparet_overskud_kroner: Heltal, tilhørende_virksomhedsskat_kroner: Heltal, rentekorrektion_par11_kroner: Heltal, rentekorrektion_par11a_kroner: Heltal, fremført_negativ_personlig_indkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_fra_pension_kroner: Heltal)
-# ArbejdsmarkedsbidragVirksomhedsoverskudOverførselFakta(beløb_kroner: Heltal, dokumentreference: Tekst)
-# ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta(identifikation: Tekst, oprindelsesår: Heltal, overført_netto_kroner: Heltal, tilhørende_virksomhedsskat_kroner: Heltal, dokumentreference: Tekst)
-# ArbejdsmarkedsbidragBiblioteksafgiftFakta(identifikation: Tekst, modtagelsesdato: Dato, beløb_kroner: Heltal, dokumentreference: Tekst)
-# ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta(indkomstår: Heltal, overførsel_fra_skattepligtigt_overskud: ArbejdsmarkedsbidragVirksomhedsoverskudOverførselFakta, overførsler_fra_opsparet_overskud: List(ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta), biblioteksafgifter: List(ArbejdsmarkedsbidragBiblioteksafgiftFakta))
-# ArbejdsmarkedsbidragSelvstændigKildeinput = AmblPar4UdenVirksomhedsordning(fremført_negativ_personlig_indkomst: List(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche)) | AmblPar5MedVirksomhedsordning(fakta: ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta, fremført_negativ_personlig_indkomst: List(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche))
+= personskat_ambl_vso_overskud_kilder = [Source(value = arbejdsmarkedsbidragsloven_lbk121_par5)]
+# ArbejdsmarkedsbidragVirksomhedsoverskudOverførselFakta(
+    @ field(
+        label = "Overført beløb fra årets overskud",
+        question = "Hvor meget af årets skattepligtige virksomhedsoverskud blev overført til den skattepligtige?",
+        unit = "kr.",
+        sources = personskat_ambl_vso_overskud_kilder
+    )
+    beløb_kroner: Heltal,
+    @ field(
+        label = "Dokumentation for årets overførsel",
+        question = "Hvilken VSO-konto eller opgørelse dokumenterer overførslen?",
+        sources = personskat_ambl_vso_overskud_kilder
+    )
+    dokumentreference: Tekst
+)
+= personskat_ambl_opsparet_kilder = [
+    Source(value = arbejdsmarkedsbidragsloven_lbk121_par5),
+    AmendmentSource(value = arbejdsmarkedsbidragsloven_lov2226_par5)
+]
+# ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta(
+    @ field(
+        label = "Identifikation for opsparet overskud",
+        question = "Hvilken entydig identifikation har overførslen fra opsparet overskud?",
+        sources = personskat_ambl_opsparet_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Oprindelsesår for opsparet overskud",
+        question = "I hvilket tidligere indkomstår blev overskuddet opsparet?",
+        unit = "år",
+        sources = personskat_ambl_opsparet_kilder
+    )
+    oprindelsesår: Heltal,
+    @ field(
+        label = "Overført opsparet overskud efter virksomhedsskat",
+        question = "Hvor stort et nettobeløb blev overført fra det opsparede overskud?",
+        unit = "kr.",
+        sources = personskat_ambl_opsparet_kilder
+    )
+    overført_netto_kroner: Heltal,
+    @ field(
+        label = "Tilhørende virksomhedsskat",
+        question = "Hvor meget virksomhedsskat knytter sig til nettooverførslen?",
+        unit = "kr.",
+        sources = personskat_ambl_opsparet_kilder
+    )
+    tilhørende_virksomhedsskat_kroner: Heltal,
+    @ field(
+        label = "Dokumentation for opsparet overskud",
+        question = "Hvilken VSO-konto eller opgørelse dokumenterer overførslen og virksomhedsskatten?",
+        sources = personskat_ambl_opsparet_kilder
+    )
+    dokumentreference: Tekst
+)
+= personskat_ambl_biblioteksafgift_kilder = [
+    Source(value = arbejdsmarkedsbidragsloven_lbk121_par5),
+    Source(value = arbejdsmarkedsbidragsloven_lbk121_par6)
+]
+# ArbejdsmarkedsbidragBiblioteksafgiftFakta(
+    @ field(
+        label = "Biblioteksafgiftens identifikation",
+        question = "Hvilken entydig identifikation har biblioteksafgiften?",
+        sources = personskat_ambl_biblioteksafgift_kilder
+    )
+    identifikation: Tekst,
+    modtagelsesdato: Dato,
+    @ field(
+        label = "Modtaget biblioteksafgift",
+        question = "Hvor stor en biblioteksafgift blev modtaget?",
+        unit = "kr.",
+        sources = personskat_ambl_biblioteksafgift_kilder
+    )
+    beløb_kroner: Heltal,
+    @ field(
+        label = "Dokumentation for biblioteksafgiften",
+        question = "Hvilken meddelelse eller udbetaling dokumenterer biblioteksafgiften?",
+        sources = personskat_ambl_biblioteksafgift_kilder
+    )
+    dokumentreference: Tekst
+)
+= personskat_ambl_vso_årsfakta_kilder = [
+    Source(value = arbejdsmarkedsbidragsloven_lbk121_par5),
+    AmendmentSource(value = arbejdsmarkedsbidragsloven_lov2226_par5),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par6)
+]
+# ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta(
+    @ field(
+        label = "Indkomstår for virksomhedsordningens AM-fakta",
+        question = "Hvilket indkomstår vedrører overførslerne fra virksomhedsordningen?",
+        unit = "år",
+        sources = personskat_ambl_vso_årsfakta_kilder
+    )
+    indkomstår: Heltal,
+    overførsel_fra_skattepligtigt_overskud: ArbejdsmarkedsbidragVirksomhedsoverskudOverførselFakta,
+    @ field(
+        label = "Overførsler fra opsparet overskud",
+        question = "Hvilke nettooverførsler fra tidligere års opsparede overskud og tilhørende virksomhedsskat vedrører året?",
+        help = "Opret én række pr. oprindelsesår og saldo.",
+        sources = personskat_ambl_vso_årsfakta_kilder
+    )
+    overførsler_fra_opsparet_overskud: List(ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta),
+    @ field(
+        label = "Biblioteksafgifter i virksomhedsordningen",
+        question = "Hvilke biblioteksafgifter blev modtaget i indkomståret under virksomhedsordningen?",
+        help = "Opret én række pr. udbetaling. Futuruna afleder godtgørelsen på 8,7 pct. og den tilsvarende § 60-kredit.",
+        sources = personskat_ambl_vso_årsfakta_kilder
+    )
+    biblioteksafgifter: List(ArbejdsmarkedsbidragBiblioteksafgiftFakta)
+)
+= personskat_ambl_selvstændig_kilder = [
+    Source(value = arbejdsmarkedsbidragsloven_lbk121_par4),
+    Source(value = arbejdsmarkedsbidragsloven_lbk121_par5),
+    AmendmentSource(value = arbejdsmarkedsbidragsloven_lov2226_par5),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par6)
+]
+@ field(
+    label = "AM-bidragsregel for selvstændig virksomhed",
+    question = "Anvendes arbejdsmarkedsbidragslovens § 4 eller § 5 på årets selvstændige virksomhed?",
+    help = "§ 4 anvendes uden virksomhedsordningen; § 5 anvendes, når virksomhedsordningen er valgt.",
+    sources = personskat_ambl_selvstændig_kilder
+)
+# ArbejdsmarkedsbidragSelvstændigKildeinput =
+    AmblPar4UdenVirksomhedsordning(
+        @ field(
+            label = "Fremført negativ personlig indkomst uden virksomhedsordningen",
+            question = "Hvilke resterende negative personlige indkomstbeløb fra tidligere år skal prøves efter arbejdsmarkedsbidragslovens § 4?",
+            help = "Opret én række pr. oprindelsesår og dokumenteret saldo. Beløb fra pensionsbeskatningslovens § 18 holdes særskilt.",
+            sources = personskat_ambl_selvstændig_kilder
+        )
+        fremført_negativ_personlig_indkomst: List(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche)
+    ) |
+    AmblPar5MedVirksomhedsordning(
+        fakta: ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta,
+        @ field(
+            label = "Fremført negativ personlig indkomst med virksomhedsordningen",
+            question = "Hvilke resterende negative personlige indkomstbeløb fra tidligere år skal prøves efter arbejdsmarkedsbidragslovens § 5?",
+            help = "Opret én række pr. oprindelsesår og dokumenteret saldo. Beløb fra pensionsbeskatningslovens § 18 holdes særskilt.",
+            sources = personskat_ambl_selvstændig_kilder
+        )
+        fremført_negativ_personlig_indkomst: List(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche)
+    )
 
 | arbejdsmarkedsbidrag_virksomhedsordning_kapitalafkast_fradrag_kroner(input: ArbejdsmarkedsbidragVirksomhedsordningInput) -> arbejdsmarkedsbidrag_positivt_beløb(input.kapitalafkast_fradrag_kroner - input.kapitalafkast_medregnet_personlig_indkomst_kroner)
 | arbejdsmarkedsbidrag_virksomhedsordning_grundlag_kroner(input: ArbejdsmarkedsbidragVirksomhedsordningInput) -> arbejdsmarkedsbidrag_positivt_beløb(input.overførsel_fra_virksomhedsoverskud_kroner - arbejdsmarkedsbidrag_virksomhedsordning_kapitalafkast_fradrag_kroner(input) + input.overførsel_opsparet_overskud_kroner + input.tilhørende_virksomhedsskat_kroner + input.rentekorrektion_par11_kroner + input.rentekorrektion_par11a_kroner - arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_fradrag_kroner(input.fremført_negativ_personlig_indkomst_kroner, input.fremført_negativ_personlig_indkomst_fra_pension_kroner))

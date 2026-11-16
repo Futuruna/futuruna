@@ -4,10 +4,6 @@
 @ importer ./socialpensionsloven-par1a
 @ importer ./personskat-beregningskontrol
 
-# PersonskatEjendomsskatAldersforbehold(besked: Tekst)
-= personskat_ejendomsskat_aldersforbehold = PersonskatEjendomsskatAldersforbehold(
-    besked = "Sammenhængskontrol af årets ejer og aktuelle samlevende ægtefælle samt ejerens eget rabatgrundlag fra 2024, ikke dokumentautentifikation. Fødselsdato og folkepensionsstatus skal stemme efter ESL § 25 og socialpensionslovens § 1 a. Eget 2024-grundlag afstemmes for 2024, ikke beregningsåret. Historiske ægtefæller, overtaget rabatgrundlag og pensionistsuccession har selvstændige personfakta; en tidligere ægtefælle må ikke identificeres med den aktuelle ejer eller ægtefælle. Kontrollen ændrer ikke kildefakta eller nedslagsbeløb."
-)
 = personskat_ejendomsskat_alder_metadata = Metadata(
     attachments = (
         Source(value = ejendomsskatteloven_lov678_par23_til_27),

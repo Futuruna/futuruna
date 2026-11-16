@@ -14,7 +14,28 @@
 @ meta(personskat_udenlandske_sociale_bidrag_kildefakta_metadata)
 @ section personskat_udenlandske_sociale_bidrag_kildefakta {
 
-# PersonskatLigningslov8MFakta(kildeskattepligt: Ligningslov8MKildeskattepligt, arbejdsgiver_indeholdelsespligtig_af_løn: Boolsk, udenlandsk_socialt_bidrag: Ligningslov8MUdenlandskSocialtBidragInput, udenlandsk_arbejdsgiverbidrag: Ligningslov8MUdenlandskArbejdsgiverbidragInput)
+= personskat_udenlandske_sociale_bidrag_kilder_2 = [
+    Source(value = ligningsloven_2025_1500),
+    DependencySource(value = personskatteloven_2021_1284)
+]
+# PersonskatLigningslov8MFakta(
+    @ field(
+        label = "Skattepligt efter kildeskatteloven",
+        question = "Hvilken skattepligt efter kildeskatteloven gælder for personen?",
+        help = "Fuld skattepligt efter § 1 og begrænset skattepligt efter § 2 har forskellige fradragsgrene i ligningslovens § 8 M.",
+        sources = personskat_udenlandske_sociale_bidrag_kilder_2
+    )
+    kildeskattepligt: Ligningslov8MKildeskattepligt,
+    @ field(
+        label = "Arbejdsgiveren indeholder AM-bidrag",
+        question = "Er arbejdsgiveren indeholdelsespligtig for arbejdsmarkedsbidrag af lønnen?",
+        help = "Futuruna afleder selve arbejdsmarkedsbidraget af lønnen og sikrer, at det ikke fradrages to gange.",
+        sources = personskat_udenlandske_sociale_bidrag_kilder_2
+    )
+    arbejdsgiver_indeholdelsespligtig_af_løn: Boolsk,
+    udenlandsk_socialt_bidrag: Ligningslov8MUdenlandskSocialtBidragInput,
+    udenlandsk_arbejdsgiverbidrag: Ligningslov8MUdenlandskArbejdsgiverbidragInput
+)
 # PersonskatUdenlandskeSocialeBidragInput = UdenUdenlandskeSocialeBidragEfterLigningslov8M | MedUdenlandskeSocialeBidragEfterLigningslov8M(fakta: PersonskatLigningslov8MFakta)
 # PersonskatUdenlandskeSocialeBidragResultat = IngenUdenlandskeSocialeBidragEfterLigningslov8M | UgyldigtUdenlandskSocialbidragsgrundlag(fakta: PersonskatLigningslov8MFakta, grundfakta_gyldige: Boolsk, skattepligt_forenelig_med_personskattesagen: Boolsk) | BeregnetUdenlandskSocialbidragsfradrag(fakta: PersonskatLigningslov8MFakta, ligningslov8m_input: Ligningslov8MInput, ligningslov8m_resultat: Ligningslov8MResultat, par3_stk2_nr6_resultat: Par3Stk2Nr6Resultat, arbejdsmarkedsbidrag_indregnet_i_lønmodtagermodellen_kroner: Heltal, yderligere_fradrag_i_personlig_indkomst_kroner: Heltal)
 

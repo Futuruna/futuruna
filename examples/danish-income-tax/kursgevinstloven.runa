@@ -3,6 +3,8 @@
 @ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./kursgevinstloven-gaeld
+@ importer ./aktieavancebeskatningsloven-par23-27
+@ importer ./aktieavancebeskatningsloven
 
 -- Kursgevinstloven -- Personskatteloven § 4, stk. 1, nr. 2.
 --
@@ -52,7 +54,29 @@ og præmieobligationer.
 # KursgevinstlovBagatelOpgørelse(årets_netto_fordringer_valutagæld_investbeviser_kroner: Heltal)
 # KursgevinstlovFordringOpgørelse(tabsgrundlag: KursgevinstlovFordringTabsgrundlag, tabsbegrænsning: KursgevinstlovFordringTabsbegrænsning, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal)
 # KursgevinstlovKontraktOpgørelse(kontrakt_art: KursgevinstlovKontraktArt, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal, anskaffet_i_indkomståret: Boolsk, realiseret_i_indkomståret: Boolsk)
-# KursgevinstlovInput(indkomstår: Heltal, rolle: KursgevinstlovPersonrolle, aktiv: KursgevinstlovAktiv, par1_afgrænsning: KursgevinstlovPar1Afgrænsning, bagatelgrundlag: KursgevinstlovBagatelOpgørelse, fordring: KursgevinstlovFordringOpgørelse, gæld: KursgevinstlovGældInput, kontrakt: KursgevinstlovKontraktOpgørelse, udøver_fordrings_eller_kontraktnæring: Boolsk, fordring_erhvervet_udenfor_næring: Boolsk, anvender_lagerprincip_efter_par25: Boolsk)
+# KursgevinstlovInput(
+    indkomstår: Heltal,
+    @ field(
+        label = "Personens rolle efter kursgevinstloven",
+        question = "Skal kursgevinstlovsposten behandles for en person eller et selskab?",
+        help = "PBL § 15 A vedrører personen, men kildemodellen bevarer den udtrykkelige skatteyderrolle i beregningssporet.",
+        sources = [
+            Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+            Guidance(value = skat_pbl15a_ophørspension_vejledning),
+            GainGuidance(value = skat_pbl15a_fortjeneste_vejledning)
+        ]
+    )
+    rolle: KursgevinstlovPersonrolle,
+    aktiv: KursgevinstlovAktiv,
+    par1_afgrænsning: KursgevinstlovPar1Afgrænsning,
+    bagatelgrundlag: KursgevinstlovBagatelOpgørelse,
+    fordring: KursgevinstlovFordringOpgørelse,
+    gæld: KursgevinstlovGældInput,
+    kontrakt: KursgevinstlovKontraktOpgørelse,
+    udøver_fordrings_eller_kontraktnæring: Boolsk,
+    fordring_erhvervet_udenfor_næring: Boolsk,
+    anvender_lagerprincip_efter_par25: Boolsk
+)
 # KursgevinstlovResultat(indkomstår: Heltal, rolle: KursgevinstlovPersonrolle, aktiv: KursgevinstlovAktiv, input_gyldigt: Boolsk, omfattet_af_par1: Boolsk, person_eller_dødsbo_efter_par12: Boolsk, opgørelsesprincip: KursgevinstlovOpgørelsesprincip, bagatelgrænse_afskærer: Boolsk, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, tab_afskåret_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, kontrakttab_til_par32_årsopgørelse_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, netto_efter_kursgevinstloven_kroner: Heltal, personlig_reklassifikation: KursgevinstlovPersonligReklassifikation, gældsresultat: KursgevinstlovGældResultat)
 
 | kgl_tom_fordring() -> KursgevinstlovFordringOpgørelse(
@@ -239,9 +263,113 @@ markedsværdien på afviklingsdagen.
 @ meta(kursgevinstloven_par29_par30_par33_metadata)
 @ section kursgevinstloven_par29_par30_par33 {
 
-# KursgevinstlovPar30FastEjendomFakta(løbetid_kan_overskride_12_måneder: Boolsk, parterne_er_nærtstående_efter_boafgiftslovens_par22: Boolsk)
-# KursgevinstlovPar30Aftaleart = KglPar30IngenUndtagelsesaftale | KglPar30FastEjendomsaftale(fakta: KursgevinstlovPar30FastEjendomFakta) | KglPar30TegningsretTilAktier | KglPar30KurssikringVedLånMedSærligSikkerhed | KglPar30KonverteringsretKnyttetTilFordring | KglPar30AftaleOmKøbEllerSalgAfAktier | KglPar30ValutakontraktVedVærdipapirhandelMedSædvanligAfvikling | KglPar30SædvanligLeveringsaftale(optaget_til_handel_på_reguleret_marked: Boolsk) | KglPar30AftaleOmVirksomhedsafståelse
-# KursgevinstlovKontraktKildeFakta(aftaleart: KursgevinstlovPar30Aftaleart, har_modgående_kontrakt_eller_forretning: Boolsk, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal, anskaffet_i_indkomståret: Boolsk, realiseret_i_indkomståret: Boolsk, udøver_næring_ved_køb_og_salg_af_finansielle_kontrakter: Boolsk)
+= personskat_kilder_28 = [
+    Source(value = kursgevinstloven_lbk1176_par32),
+    Guidance(value = kursgevinstloven_juridisk_vejledning_par32),
+    AmendmentSource(value = kursgevinstloven_lov1563_par4_par8),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19d)
+]
+# KursgevinstlovPar30FastEjendomFakta(
+    @ field(
+        label = "Ejendomsaftalens løbetid kan overstige 12 måneder",
+        question = "Kan aftalen om fast ejendom løbe længere end 12 måneder?",
+        sources = personskat_kilder_28
+    )
+    løbetid_kan_overskride_12_måneder: Boolsk,
+    @ field(
+        label = "Ejendomsaftalens parter er nærtstående",
+        question = "Er aftalens parter personer som nævnt i boafgiftslovens § 22?",
+        sources = personskat_kilder_28
+    )
+    parterne_er_nærtstående_efter_boafgiftslovens_par22: Boolsk
+)
+@ field(
+    label = "Kontraktens dokumenterede aftaleart",
+    question = "Hvilken aftaleart beskriver kontrakten efter KGL § 30?",
+    help = "Vælg den dokumenterede aftaleart. Futuruna afleder selv, om hovedreglen i § 29 eller en § 30-undtagelse gælder.",
+    sources = personskat_kilder_28
+)
+# KursgevinstlovPar30Aftaleart =
+    KglPar30IngenUndtagelsesaftale |
+    KglPar30FastEjendomsaftale(fakta: KursgevinstlovPar30FastEjendomFakta) |
+    KglPar30TegningsretTilAktier |
+    KglPar30KurssikringVedLånMedSærligSikkerhed |
+    KglPar30KonverteringsretKnyttetTilFordring |
+    KglPar30AftaleOmKøbEllerSalgAfAktier |
+    KglPar30ValutakontraktVedVærdipapirhandelMedSædvanligAfvikling |
+    KglPar30SædvanligLeveringsaftale(
+        @ field(
+            label = "Leveringsaftalen er optaget på et reguleret marked",
+            question = "Er den sædvanlige leveringsaftale optaget til handel på et reguleret marked?",
+            help = "En sædvanlig leveringsaftale er kun omfattet af § 30-undtagelsen, når den ikke er optaget på et reguleret marked.",
+            sources = personskat_kilder_28
+        )
+        optaget_til_handel_på_reguleret_marked: Boolsk
+    ) |
+    KglPar30AftaleOmVirksomhedsafståelse
+# KursgevinstlovKontraktKildeFakta(
+    aftaleart: KursgevinstlovPar30Aftaleart,
+    @ field(
+        label = "Modgående kontrakt eller forretning",
+        question = "Er der indgået en modgående kontrakt eller forretning til denne aftale?",
+        help = "Oplysningen kan lade KGL § 29 genindtræde efter § 30, stk. 4.",
+        sources = personskat_kilder_28
+    )
+    har_modgående_kontrakt_eller_forretning: Boolsk,
+    @ field(
+        label = "Kontraktens værdi ved årets begyndelse",
+        question = "Hvad var kontraktens dokumenterede værdi ved indkomstårets begyndelse?",
+        help = "Værdien kan være positiv, nul eller negativ. Angiv 0, hvis kontrakten blev anskaffet i indkomståret.",
+        unit = "kr.",
+        sources = personskat_kilder_28
+    )
+    værdi_primo_kroner: Heltal,
+    @ field(
+        label = "Kontraktens værdi ved årets udgang",
+        question = "Hvad var kontraktens dokumenterede værdi ved indkomstårets udgang?",
+        help = "Værdien kan være positiv, nul eller negativ. Angiv 0, hvis kontrakten blev realiseret i indkomståret.",
+        unit = "kr.",
+        sources = personskat_kilder_28
+    )
+    værdi_ultimo_kroner: Heltal,
+    @ field(
+        label = "Kontraktens anskaffelsessum",
+        question = "Hvad var kontraktens anskaffelsessum, hvis den blev anskaffet i indkomståret?",
+        help = "Anskaffelsessummen kan være positiv, nul eller negativ. Angiv 0 for en kontrakt, der var anskaffet før indkomståret.",
+        unit = "kr.",
+        sources = personskat_kilder_28
+    )
+    anskaffelsessum_kroner: Heltal,
+    @ field(
+        label = "Kontraktens afståelsesværdi",
+        question = "Hvad var kontraktens afståelsesværdi, hvis den blev realiseret i indkomståret?",
+        help = "Afståelsesværdien kan være positiv, nul eller negativ. Angiv 0 for en kontrakt, der ikke blev realiseret i indkomståret.",
+        unit = "kr.",
+        sources = personskat_kilder_28
+    )
+    afståelsesværdi_kroner: Heltal,
+    @ field(
+        label = "Kontrakten blev anskaffet i indkomståret",
+        question = "Blev kontrakten anskaffet i dette indkomstår?",
+        sources = personskat_kilder_28
+    )
+    anskaffet_i_indkomståret: Boolsk,
+    @ field(
+        label = "Kontrakten blev realiseret i indkomståret",
+        question = "Blev kontrakten realiseret i dette indkomstår?",
+        sources = personskat_kilder_28
+    )
+    realiseret_i_indkomståret: Boolsk,
+    @ field(
+        label = "Næring med finansielle kontrakter",
+        question = "Udøver personen næring ved køb og salg af fordringer og finansielle kontrakter eller ved finansiering?",
+        help = "Oplysningen kan lade KGL § 29 genindtræde for sædvanlige leveringsaftaler efter § 30, stk. 5.",
+        sources = personskat_kilder_28
+    )
+    udøver_næring_ved_køb_og_salg_af_finansielle_kontrakter: Boolsk
+)
 
 | kursgevinstlov_par30_fast_ejendom_undtaget(fakta: KursgevinstlovPar30FastEjendomFakta) -> (fakta.løbetid_kan_overskride_12_måneder && fakta.parterne_er_nærtstående_efter_boafgiftslovens_par22) == Falskt
 | kursgevinstlov_par30_aftale_undtaget(aftaleart: KursgevinstlovPar30Aftaleart) -> match aftaleart {
@@ -385,3 +513,23 @@ markedsværdien på afviklingsdagen.
     anvender_lagerprincip_efter_par25 = Falskt
 )
 | kursgevinstlov_resultat_fra_gæld(input: KursgevinstlovGældInput, årets_netto_kroner: Heltal) -> kursgevinstlov_resultat(kursgevinstlov_input_fra_gæld(input, årets_netto_kroner))
+
+# KursgevinstlovPar32KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= kursgevinstloven_juridisk_vejledning_par32 = KursgevinstlovPar32KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946050",
+    identifier = "Den juridiske vejledning C.B.1.8.4.2: tabsfradragsbegrænsning for personer",
+    hentet_dato = "2026-07-18"
+)
+
+= kursgevinstloven_lbk1176_par32 = KursgevinstlovPar32KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1176",
+    identifier = "Kursgevinstloven § 32",
+    hentet_dato = "2026-07-18"
+)
+
+= kursgevinstloven_lov1563_par4_par8 = KursgevinstlovPar32KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/1563",
+    identifier = "LOV nr. 1563 af 12/12/2023, § 4, nr. 1, og § 8, stk. 1: MTF-udvidelse fra 1. januar 2024",
+    hentet_dato = "2026-07-18"
+)

@@ -4,6 +4,7 @@
 @ importer ./pengebeloeb
 @ importer ./ejendomsavancebeskatningsloven-par5-par5a
 @ importer ./ejendomsavancebeskatningsloven-genanbringelse
+@ importer ./delte-kilder
 
 # EblPar8Par9KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 
@@ -70,7 +71,7 @@
 I § 9, stk. 1, 3. pkt., ændres »§ 2, stk. 2« til: »§ 2, stk. 3«.
 ----
 
-@ meta(ebl_par9_stk1_tredje_pkt_2020_ændringsmeta) for ebl_par9_stk1_tredje_pkt_2020
+-- Kilde: ebl_par9_stk1_tredje_pkt_2020_ændringsmeta.
 
 = ebl_par9_erhverv_og_overgang_fra_2025_ændringsmeta = AmendmentSource(
     value = ebl_par9_lov562
@@ -98,7 +99,7 @@ ejerens foranledning.
 Loven træder i kraft den 1. juli 2025.
 ----
 
-@ meta(ebl_par9_erhverv_og_overgang_fra_2025_ændringsmeta) for ebl_par9_erhverv_og_overgang_fra_2025
+-- Kilde: ebl_par9_erhverv_og_overgang_fra_2025_ændringsmeta.
 
 = ebl_par9_natur_fra_2027_ændringsmeta = AmendmentSource(
     value = ebl_par9_lov615
@@ -110,7 +111,7 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
 §§ 3-12 har virkning fra og med den 1. januar 2027.
 ----
 
-@ meta(ebl_par9_natur_fra_2027_ændringsmeta) for ebl_par9_natur_fra_2027
+-- Kilde: ebl_par9_natur_fra_2027_ændringsmeta.
 
 ----
 § 8. Fortjeneste ved afståelse af en- og tofamilieshuse og ejerlejligheder skal
@@ -190,8 +191,51 @@ til bolig for ejeren umiddelbart forud for fraflytningen.
 @ section ebl_par8 {
 
 # EblPar8Grundbetingelse = EblPar8GrundarealUnder1400M2 | EblPar8IngenMuligUdstykningEfterOffentligMyndighed | EblPar8UdstykningMedVærdiforringelseOver20Procent | EblPar8GrundbetingelseIkkeOpfyldt
-# EblPar8Stk4Grundforhold = EblPar8Stk4UdenBestemtGrundareal | EblPar8Stk4MedBestemtGrundareal(grundbetingelse: EblPar8Grundbetingelse)
-# EblPar8Stk4VærdipapirFakta(værdipapir_forbundet_med_brugsret_til_beboelseslejlighed: Boolsk, udsteder_ejer_direkte_ejendom_med_flere_beboelseslejligheder: Boolsk, lejlighed_har_tjent_til_bolig_mens_skattefrihedsbetingelser_var_opfyldt_i_ejertiden: Boolsk, grundforhold: EblPar8Stk4Grundforhold)
+= personskat_kilder_18 = [
+    Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+    DependencySource(value = ebl_par8_par9_lbk132)
+]
+@ field(
+    label = "Grundareal knyttet til lejligheden",
+    question = "Hører der et bestemt grundareal til lejligheden?",
+    help = "Hvis et bestemt grundareal hører til lejligheden, skal grundbetingelsen i EBL § 8, stk. 1, også prøves.",
+    sources = personskat_kilder_18
+)
+# EblPar8Stk4Grundforhold =
+    EblPar8Stk4UdenBestemtGrundareal |
+    EblPar8Stk4MedBestemtGrundareal(
+        @ field(
+            label = "Grundbetingelse efter EBL § 8",
+            question = "Hvilken grundbetingelse er opfyldt for det bestemte grundareal?",
+            help = "Vælg under 1.400 m², manglende udstykningsmulighed, værdiforringelse over 20 pct. eller at ingen betingelse er opfyldt.",
+            sources = personskat_kilder_18
+        )
+        grundbetingelse: EblPar8Grundbetingelse
+    )
+# EblPar8Stk4VærdipapirFakta(
+    @ field(
+        label = "Værdipapir med boligret",
+        question = "Er aktien, andelsbeviset eller det lignende værdipapir knyttet til brugsretten til lejligheden?",
+        help = "ABL § 15 og EBL § 8, stk. 4, omfatter kun værdipapirer, som er forbundet med den konkrete boligret.",
+        sources = personskat_kilder_18
+    )
+    værdipapir_forbundet_med_brugsret_til_beboelseslejlighed: Boolsk,
+    @ field(
+        label = "Udstederens ejendom med flere boliger",
+        question = "Ejer selskabet eller foreningen direkte den ejendom med flere beboelseslejligheder, som boligretten vedrører?",
+        help = "Boligretsfritagelsen forudsætter, at udstederen direkte ejer ejendommen med de flere beboelseslejligheder.",
+        sources = personskat_kilder_18
+    )
+    udsteder_ejer_direkte_ejendom_med_flere_beboelseslejligheder: Boolsk,
+    @ field(
+        label = "Boligbrug i kvalificerende periode",
+        question = "Har lejligheden tjent til bolig for ejeren eller husstanden i en del af den ejerperiode, hvor skattefrihedsbetingelserne var opfyldt?",
+        help = "Feltet kræver tidsmæssigt overlap mellem boligbrug og den periode, hvor værdipapiret kunne afstås skattefrit efter EBL § 8, stk. 4.",
+        sources = personskat_kilder_18
+    )
+    lejlighed_har_tjent_til_bolig_mens_skattefrihedsbetingelser_var_opfyldt_i_ejertiden: Boolsk,
+    grundforhold: EblPar8Stk4Grundforhold
+)
 # EblPar8Stk4VærdipapirResultat(fakta: EblPar8Stk4VærdipapirFakta, værdipapir_og_ejendom_omfattet: Boolsk, beboelseskrav_opfyldt: Boolsk, grundkrav_opfyldt: Boolsk, betingelser_for_skattefrihed_opfyldt: Boolsk)
 # EblPar8Ejendomsart = EblPar8EnEllerTofamilieshus(grundbetingelse: EblPar8Grundbetingelse) | EblPar8Ejerlejlighed | EblPar8SommerhusEllerLignende(grundbetingelse: EblPar8Grundbetingelse) | EblPar8AnpartMedBrugsretTilBeboelseslejlighed(grundbetingelse: EblPar8Grundbetingelse)
 # EblPar8Skadefakta(skadedato: EblDato, hus_væsentligt_beskadiget: Boolsk, ingen_forsæt_eller_grov_uagtsomhed: Boolsk, kunne_afstås_skattefrit_umiddelbart_før_skaden: Boolsk, hele_ejendommen_afstået: Boolsk, dispensation_fra_etårsfrist: Boolsk)

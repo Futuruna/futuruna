@@ -3,6 +3,8 @@
 @ importer ./kalenderdato
 @ importer ./metadata
 @ importer ./pengebeloeb
+@ importer ./arbejdsmarkedsbidragsloven
+@ importer ./delte-kilder
 
 # Ligningslov10Og11KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 
@@ -143,20 +145,269 @@ tilsvarende anvendelse.
 @ meta(ligningsloven_par10_par11_metadata)
 @ section ligningsloven_par10_par11_underholdsbidrag {
 
-# Ligningslov10Og11Bidragsrolle = Bidragsyder(modtageridentitet_oplyst: Boolsk) | Bidragsmodtager
+= personskat_personlig_indkomst_kilder_2 = [
+    Source(value = personskatteloven_lbk1284_par3),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par4),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par19_stk1),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par56),
+    DependencySource(value = ligningsloven_lbk1500_par10_par11),
+    DependencySource(value = børnebidragsloven_lbk773_par19),
+    DependencySource(value = børnebidragsbekendtgørelsen_bek285_par3_par4_par9_par10_par11),
+    Guidance(value = skat_gruppeliv_vejledning),
+    Guidance(value = skat_gruppeliv_eindkomst_20260925),
+    Guidance(value = skat_gruppeliv_rubrik347_20260925),
+    Guidance(value = skat_honorar_vejledning),
+    Guidance(value = skat_underholdsbidrag_børn_vejledning),
+    Guidance(value = skat_underholdsbidrag_ægtefælle_vejledning),
+    Guidance(value = skat_underholdsbidrag_børn_beskatning_vejledning),
+    Guidance(value = skat_børnebidrag_modtagerskat_20260925),
+    Guidance(value = skat_børnebidrag_fødsel_vejledning),
+    Guidance(value = skat_børnebidrag_engangsbeløb_vejledning),
+    ParameterSource(value = børnebidragsloven_satser_2025),
+    ParameterSource(value = børnebidragsloven_satser_2026)
+]
+@ field(
+    label = "Personens rolle i bidraget",
+    question = "Er personen bidragsyder eller den skattemæssige modtager af bidraget?",
+    help = "Bidragsmodtager sammen med Barn betyder, at denne skatteopgørelse vedrører barnet selv. En forælder, der tager imod børnebidrag på barnets vegne, er ikke derved den skattemæssige modtager. Brug barnets egen opgørelse og faktiske fødselsdato; ens datoer er nødvendige, men beviser ikke identitet. Ægtefællebidrag til personen selv bruger ægtefællevarianten.",
+    sources = personskat_personlig_indkomst_kilder_2
+)
+# Ligningslov10Og11Bidragsrolle =
+    Bidragsyder(
+        @ field(
+            label = "Modtagerens identitet er oplyst",
+            question = "Er modtagerens identitet oplyst til Skatteforvaltningen eller anset for afgivet efter skatteindberetningslovens § 41?",
+            help = "Identitetsoplysningen er en betingelse for bidragsyderens fradrag efter LL § 10, stk. 5, og § 11, stk. 2.",
+            sources = personskat_personlig_indkomst_kilder_2
+        )
+        modtageridentitet_oplyst: Boolsk
+    ) |
+    Bidragsmodtager
 # Ligningslov10Og11Retsgrundlag = Skilsmisse(fastsat_eller_ændret_efter_lovens_ikrafttrædelse: Boolsk) | Separation(fastsat_eller_ændret_efter_lovens_ikrafttrædelse: Boolsk) | FaktiskAdskillelse(faktisk_adskillelse_dokumenteret: Boolsk, ægtefællerne_ansat_selvstændigt_til_statsskat: Boolsk) | BarnUdenForÆgteskab
-# Ligningslov10Og11PrivatFradragsvurdering = IkkeRelevantForFradraget | IndenForNormalbidragUdenYderligereVurdering | DokumenteretVejledendeMånedsbeløb(vejledende_månedsbeløb_kroner: Heltal, dokumentreference: Tekst) | KonkretSkattemæssigtAnerkendtBeløb(anerkendt_betalt_beløb_kroner: Heltal, dokumentreference: Tekst)
+@ field(
+    label = "Privataftalens fradragsvurdering",
+    question = "Hvordan er et privat aftalt børnebidrag vurderet i forhold til normalbidraget og Familieretshusets vejledende beløb?",
+    help = "Vurderingen er kun relevant for bidragsyderens løbende børnebidrag. Bidrag op til normalbidraget kontrolleres automatisk; højere bidrag kræver en dokumenteret sammenligning eller konkret skattemæssig afgørelse.",
+    sources = personskat_personlig_indkomst_kilder_2
+)
+# Ligningslov10Og11PrivatFradragsvurdering =
+    IkkeRelevantForFradraget |
+    IndenForNormalbidragUdenYderligereVurdering |
+    DokumenteretVejledendeMånedsbeløb(
+        @ field(
+            label = "Dokumenteret vejledende månedsbidrag",
+            question = "Hvilket månedligt bidrag viser det dokumenterede sammenligningsgrundlag, at Familieretshuset vejledende ville fastsætte?",
+            help = "Beløbet skal mindst være normalbidraget. Futuruna kontrollerer det faktisk betalte beløb mod grænsen, også når 18-årsmåneden allerede er forholdsmæssigt betalt.",
+            unit = "kr./måned",
+            sources = personskat_personlig_indkomst_kilder_2
+        )
+        vejledende_månedsbeløb_kroner: Heltal,
+        @ field(
+            label = "Reference til vejledende bidragssammenligning",
+            question = "Hvilket dokument underbygger det vejledende månedsbidrag?",
+            help = "Henvis til den relevante afgørelse, beregning eller årlige bidragsvejledning.",
+            sources = personskat_personlig_indkomst_kilder_2
+        )
+        dokumentreference: Tekst
+    ) |
+    KonkretSkattemæssigtAnerkendtBeløb(
+        @ field(
+            label = "Konkret skattemæssigt anerkendt bidrag",
+            question = "Hvor stor en del af det faktisk betalte bidrag er konkret anerkendt som fradragsgrundlag?",
+            help = "Angiv beløbet i samme betalingsperiode og beløbsgrundlag som det faktisk betalte bidrag. Modtagerens indkomst beregnes fortsat af det fulde modtagne beløb.",
+            unit = "kr.",
+            sources = personskat_personlig_indkomst_kilder_2
+        )
+        anerkendt_betalt_beløb_kroner: Heltal,
+        @ field(
+            label = "Reference til konkret skattemæssig vurdering",
+            question = "Hvilken afgørelse eller anden dokumentation fastslår det anerkendte fradragsgrundlag?",
+            sources = personskat_personlig_indkomst_kilder_2
+        )
+        dokumentreference: Tekst
+    )
+@ field(
+    label = "Bidragets fastsættelse",
+    question = "Er bidraget fastsat i en dokumenteret privat aftale, fastsat eller godkendt af en offentlig myndighed eller ikke dokumenteret?",
+    help = "Ved faktisk adskillelse kræver LL § 10, stk. 3, offentlig fastsættelse eller godkendelse.",
+    sources = personskat_personlig_indkomst_kilder_2
+)
 # Ligningslov10Og11Fastsættelse = DokumenteretPrivatAftale(fradragsvurdering: Ligningslov10Og11PrivatFradragsvurdering) | FastsatAfOffentligMyndighed | GodkendtAfOffentligMyndighed | UdenDokumenteretFastsættelse
 # Ligningslov10Og11BarnetsBopæl = HosBidragsyderen | HosDenAndenForælder | DeltBopælMedFolkeregisteradresseHosBidragsyderen | DeltBopælMedFolkeregisteradresseHosDenAndenForælder
-# Ligningslov10Og11BarnFakta(fødselsdato: Dato, bopæl: Ligningslov10Og11BarnetsBopæl, forsørger_eller_bidragspligt_over_for_det_offentlige: Boolsk)
-# Ligningslov10Og11Modtager = ÆgtefælleEllerTidligereÆgtefælle(parterne_bor_sammen: Boolsk) | Barn(fakta: Ligningslov10Og11BarnFakta)
+# Ligningslov10Og11BarnFakta(
+    fødselsdato: Dato,
+    @ field(
+        label = "Barnets bopæl i bidragsperioden",
+        question = "Boede barnet hos bidragsyderen, hos den anden forælder eller på delt bopæl med hvilken folkeregisteradresse?",
+        help = "Ved delt bopæl er folkeregisteradressen afgørende for, hvilken forælder der kan få fradrag.",
+        sources = personskat_personlig_indkomst_kilder_2
+    )
+    bopæl: Ligningslov10Og11BarnetsBopæl,
+    @ field(
+        label = "Offentlig forsørger- eller bidragspligt",
+        question = "Påhviler der bidragsyderen forsørger- eller bidragspligt over for det offentlige for barnet?",
+        help = "Betingelsen følger af LL § 10, stk. 2, og § 11, stk. 2.",
+        sources = personskat_personlig_indkomst_kilder_2
+    )
+    forsørger_eller_bidragspligt_over_for_det_offentlige: Boolsk
+)
+@ field(
+    label = "Bidragsmodtagerens art",
+    question = "Vedrører bidraget en ægtefælle eller tidligere ægtefælle eller et barn?",
+    sources = personskat_personlig_indkomst_kilder_2
+)
+# Ligningslov10Og11Modtager =
+    ÆgtefælleEllerTidligereÆgtefælle(
+        @ field(
+            label = "Parterne bor sammen",
+            question = "Boede bidragsyderen og ægtefællen eller den tidligere ægtefælle sammen, da bidraget vedrørte dem?",
+            help = "Der er ikke fradrag for ægtefællebidrag, mens parterne bor sammen.",
+            sources = personskat_personlig_indkomst_kilder_2
+        )
+        parterne_bor_sammen: Boolsk
+    ) |
+    Barn(fakta: Ligningslov10Og11BarnFakta)
 # Ligningslov10Og11LøbendeBeløbsgrundlag = HeleForfaldsmånedensBidrag | AlleredeForholdsmæssigtTil18Årsdagen
-# Ligningslov10Og11Bidragsart = LøbendeUnderholdsbidrag(beløbsgrundlag: Ligningslov10Og11LøbendeBeløbsgrundlag) | UddannelsesbidragEfter18År(dokumenteret_uddannelsesformål: Boolsk) | DåbsEllerNavngivningsbidrag(dokumenteret_til_begivenhedsudgifter: Boolsk) | KonfirmationsEllerNonfirmationsbidrag(dokumenteret_til_begivenhedsudgifter: Boolsk)
-# Ligningslov10Og11Betalingsvej = BetaltTilDenBidragsberettigede | BetaltGennemUdbetalingDanmark | BetaltDirekteTilBarnet(frigørende_virkning_dokumenteret: Boolsk) | ModregnetIGensidigtBidrag(modregningen_dokumenteret: Boolsk)
-# Ligningslov10Og11Restancestatus = OrdinærBetaling | OffentligBidragsrestance(tidligste_forskudsvis_udbetalte_bidrag_dækket_først: Boolsk)
-# Ligningslov10Og11BidragFakta(identifikation: Tekst, indkomstår: Heltal, rolle: Ligningslov10Og11Bidragsrolle, retsgrundlag: Ligningslov10Og11Retsgrundlag, modtager_identifikation: Tekst, modtager: Ligningslov10Og11Modtager, fastsættelse: Ligningslov10Og11Fastsættelse, bidragsart: Ligningslov10Og11Bidragsart, betalingsvej: Ligningslov10Og11Betalingsvej, restancestatus: Ligningslov10Og11Restancestatus, forfaldsdato: Dato, betalingsdato: Dato, beløb_kroner: Heltal, betalt_af_bidragsyderen_selv: Boolsk)
+@ field(
+    label = "Bidragets art",
+    question = "Er bidraget løbende underhold, uddannelsesbidrag efter 18 år, et dåbs- eller navngivningsbidrag eller et konfirmations- eller nonfirmationsbidrag?",
+    help = "Fødsels- og barselsbidrag til moren er selvstændige bidragsarter og må ikke registreres som løbende børnebidrag her.",
+    sources = personskat_personlig_indkomst_kilder_2
+)
+# Ligningslov10Og11Bidragsart =
+    LøbendeUnderholdsbidrag(
+        @ field(
+            label = "Det løbende bidrags beløbsgrundlag",
+            question = "Er beløbet hele forfaldsmånedens bidrag eller allerede forholdsmæssigt betalt til og med barnets 18-årsdag?",
+            help = "Vælg kun det forholdsmæssige grundlag i den måned, hvor barnet fylder 18 år. Futuruna fordeler da ikke kontantbeløbet endnu en gang.",
+            sources = personskat_personlig_indkomst_kilder_2
+        )
+        beløbsgrundlag: Ligningslov10Og11LøbendeBeløbsgrundlag
+    ) |
+    UddannelsesbidragEfter18År(
+        @ field(
+            label = "Uddannelsesformålet er dokumenteret",
+            question = "Er det dokumenteret, at bidraget til barnet efter 18 år er et uddannelsesbidrag?",
+            help = "Bidraget giver ikke fradrag hos yderen efter LL §§ 10-11 og er fuldt skattepligtigt hos barnet.",
+            sources = personskat_personlig_indkomst_kilder_2
+        )
+        dokumenteret_uddannelsesformål: Boolsk
+    ) |
+    DåbsEllerNavngivningsbidrag(
+        @ field(
+            label = "Dåbs- eller navngivningsudgiften er dokumenteret",
+            question = "Er det dokumenteret, at bidraget er gået til udgifter ved barnets dåb eller navngivning?",
+            sources = personskat_personlig_indkomst_kilder_2
+        )
+        dokumenteret_til_begivenhedsudgifter: Boolsk
+    ) |
+    KonfirmationsEllerNonfirmationsbidrag(
+        @ field(
+            label = "Konfirmations- eller nonfirmationsudgiften er dokumenteret",
+            question = "Er det dokumenteret, at bidraget er gået til udgifter ved barnets konfirmation eller nonfirmation?",
+            sources = personskat_personlig_indkomst_kilder_2
+        )
+        dokumenteret_til_begivenhedsudgifter: Boolsk
+    )
+@ field(
+    label = "Bidragets betalingsvej",
+    question = "Blev bidraget betalt til den bidragsberettigede, gennem Udbetaling Danmark, direkte til barnet eller ved dokumenteret modregning?",
+    sources = personskat_personlig_indkomst_kilder_2
+)
+# Ligningslov10Og11Betalingsvej =
+    BetaltTilDenBidragsberettigede |
+    BetaltGennemUdbetalingDanmark |
+    BetaltDirekteTilBarnet(
+        @ field(
+            label = "Direkte betaling til barnet har frigørende virkning",
+            question = "Dokumenterer aftalen, at den direkte betaling til barnet sker med frigørende virkning for bidragsyderen?",
+            sources = personskat_personlig_indkomst_kilder_2
+        )
+        frigørende_virkning_dokumenteret: Boolsk
+    ) |
+    ModregnetIGensidigtBidrag(
+        @ field(
+            label = "Gensidig modregning er dokumenteret",
+            question = "Er den gensidige bidragspligt og modregningen dokumenteret?",
+            sources = personskat_personlig_indkomst_kilder_2
+        )
+        modregningen_dokumenteret: Boolsk
+    )
+@ field(
+    label = "Bidragets restancestatus",
+    question = "Er betalingen ordinær eller et afdrag på en offentlig bidragsrestance?",
+    sources = personskat_personlig_indkomst_kilder_2
+)
+# Ligningslov10Og11Restancestatus =
+    OrdinærBetaling |
+    OffentligBidragsrestance(
+        @ field(
+            label = "Ældste offentlige bidragsrestance dækkes først",
+            question = "Er betalingen henført til de først forskudsvis udbetalte børnebidrag før senere restancer?",
+            help = "Rækkefølgen følger LL § 10, stk. 2, og § 11, stk. 2.",
+            sources = personskat_personlig_indkomst_kilder_2
+        )
+        tidligste_forskudsvis_udbetalte_bidrag_dækket_først: Boolsk
+    )
+# Ligningslov10Og11BidragFakta(
+    @ field(
+        label = "Bidragets identifikation",
+        question = "Hvilken entydig identifikation har bidraget?",
+        help = "Brug en stabil reference fra aftalen, afgørelsen, betalingsbilaget eller årsopgørelsen.",
+        sources = personskat_personlig_indkomst_kilder_2
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Bidragets indkomstår",
+        question = "I hvilket indkomstår skal bidraget fradrages eller beskattes?",
+        help = "For bidragsyderen er det som udgangspunkt betalingsåret, dog først forfaldsåret ved forudbetaling. For modtageren anvendes modtagelsesåret.",
+        unit = "år",
+        sources = personskat_personlig_indkomst_kilder_2
+    )
+    indkomstår: Heltal,
+    rolle: Ligningslov10Og11Bidragsrolle,
+    retsgrundlag: Ligningslov10Og11Retsgrundlag,
+    @ field(
+        label = "Bidragsmodtagerens identifikation",
+        question = "Hvilken stabil identifikation har den ægtefælle eller det barn, som bidraget vedrører?",
+        help = "Brug en pseudonym eller intern identifikation i delte arbejdsbøger; CPR-nummer skal ikke indgå i kode eller scenarier.",
+        sources = personskat_personlig_indkomst_kilder_2
+    )
+    modtager_identifikation: Tekst,
+    modtager: Ligningslov10Og11Modtager,
+    fastsættelse: Ligningslov10Og11Fastsættelse,
+    bidragsart: Ligningslov10Og11Bidragsart,
+    betalingsvej: Ligningslov10Og11Betalingsvej,
+    restancestatus: Ligningslov10Og11Restancestatus,
+    forfaldsdato: Dato,
+    betalingsdato: Dato,
+    @ field(
+        label = "Betalt eller modtaget bidrag",
+        question = "Hvor stort et bidrag blev faktisk betalt eller modtaget for denne forfaldspost?",
+        help = "Angiv bruttobeløbet før Futuruna anvender tillægget, normalbidraget eller de særlige skattefri grænser.",
+        unit = "kr.",
+        sources = personskat_personlig_indkomst_kilder_2
+    )
+    beløb_kroner: Heltal,
+    @ field(
+        label = "Bidraget er betalt af bidragsyderen selv",
+        question = "Er bidraget faktisk afholdt af den person, som kræver fradraget?",
+        help = "Bidrag dækket af det offentlige uden betaling fra bidragsyderen giver ikke fradrag.",
+        sources = personskat_personlig_indkomst_kilder_2
+    )
+    betalt_af_bidragsyderen_selv: Boolsk
+)
 # Ligningslov10Og11BidragResultat(fakta: Ligningslov10Og11BidragFakta, input_gyldigt: Boolsk, indkomstår_matcher: Boolsk, retsgrundlag_omfattet: Boolsk, historisk_virkningstidspunkt_opfyldt: Boolsk, fastsættelse_dokumenteret: Boolsk, løbende_beløbsgrundlag_gyldigt: Boolsk, privat_fradragsvurdering_gyldig: Boolsk, betaling_forfalden_og_betalt: Boolsk, betalingsvej_opfyldt: Boolsk, restancerækkefølge_opfyldt: Boolsk, modtageridentitet_oplyst: Boolsk, barnets_bopæl_opfyldt: Boolsk, offentlig_forsørgerpligt_opfyldt: Boolsk, dage_før_og_med_18_år_i_måneden: Heltal, fradragsberettiget_bruttobidrag_kroner: Heltal, bidragsbetingelser_opfyldt: Boolsk, ligningsmæssigt_fradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal)
-# Ligningslov10Og11Årsinput(bidrag: List(Ligningslov10Og11BidragFakta))
+# Ligningslov10Og11Årsinput(
+    @ field(
+        label = "Underholds- og børnebidrag",
+        question = "Hvilke betalte eller modtagne underholds- og børnebidrag vedrører personen i indkomståret?",
+        help = "Opret én række pr. forfaldent månedsbidrag eller særligt bidrag. Flere betalinger for samme barn og måned skal samles i én række. Modtaget børnebidrag vedrører barnets skatteopgørelse, ikke en forælders opgørelse alene fordi pengene går ind på forælderens konto.",
+        sources = personskat_personlig_indkomst_kilder_2
+    )
+    bidrag: List(Ligningslov10Og11BidragFakta)
+)
 # Ligningslov10Og11Årsresultat(indkomstår: Heltal, input: Ligningslov10Og11Årsinput, resultater: List(Ligningslov10Og11BidragResultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, løbende_børnebidragsmåneder_entydige: Boolsk, alle_input_gyldige: Boolsk, samlet_ligningsmæssigt_fradrag_kroner: Heltal, samlet_personlig_indkomst_kroner: Heltal, kan_sammensættes: Boolsk)
 
 | ligningslov10_11_tomt_årsinput() -> Ligningslov10Og11Årsinput(bidrag = [])

@@ -45,10 +45,110 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 @ section personskat_par4_saerlige_kapitalposter_kildefakta {
 
 # PersonskatPar4Virksomhedsopgørelseskilde(indtægter: List(PersonskatVirksomhedsindtægtFakta), udgifter: List(PersonskatVirksomhedsudgiftFakta), ligningslovsfradrag_efter_par3_stk2_nr2: List(PersonskatPar3Nr2Ligningslovsfakta), erhvervsposter_efter_par3_stk2_nr4_til_10: List(PersonskatPar3Erhvervspostfakta))
-# PersonskatPar4Nr9Virksomhedsklassifikation(virksomhed: PersonskatPar4Virksomhedsopgørelseskilde, virksomhedstype: Par4Stk1Nr9Virksomhedstype, samlet_ejerantal: Heltal, personligt_ejerantal: Heltal, ligningslov8p_ejere_der_ikke_medregnes: Heltal, deltager_væsentligt_i_drift: Boolsk)
-# PersonskatPar4Nr11Udlejningsklassifikation(virksomhed: PersonskatPar4Virksomhedsopgørelseskilde, aktiv: Par4Stk1Nr11Udlejningsaktiv, anskaffelse: Anskaffelsesstatus, skatteråds_tilladelse: SkatterådsTilladelse, rådets_skøn: RådetsSkøn, deltager_væsentligt_i_drift: Boolsk)
+= personskat_par4_særlige_kapitalposter_kilder_2 = [
+    Source(value = personskatteloven_lbk1284_par4),
+    DependencySource(value = ligningsloven_par14a_lbk1500),
+    DependencySource(value = ligningsloven_par5c_lbk1500),
+    DependencySource(value = ligningslov12b_lbk1500),
+    AmendmentSource(value = ligningslov12b_lov749),
+    DependencySource(value = afskrivningsloven_lbk1222)
+]
+# PersonskatPar4Nr9Virksomhedsklassifikation(
+    virksomhed: PersonskatPar4Virksomhedsopgørelseskilde,
+    @ field(
+        label = "Virksomhedstype efter PSL § 4, nr. 9",
+        question = "Er virksomheden almindelig eller omfattet af ligningslovens § 8 K, stk. 2?",
+        sources = personskat_par4_særlige_kapitalposter_kilder_2
+    )
+    virksomhedstype: Par4Stk1Nr9Virksomhedstype,
+    @ field(
+        label = "Samlet antal ejere",
+        question = "Hvor mange ejere har virksomheden før undtagelsen i § 4, stk. 9?",
+        unit = "ejere",
+        sources = personskat_par4_særlige_kapitalposter_kilder_2
+    )
+    samlet_ejerantal: Heltal,
+    @ field(
+        label = "Antal personlige ejere",
+        question = "Hvor mange af ejerne er personlige ejere?",
+        unit = "ejere",
+        sources = personskat_par4_særlige_kapitalposter_kilder_2
+    )
+    personligt_ejerantal: Heltal,
+    @ field(
+        label = "Ejere undtaget efter ligningslovens § 8 P",
+        question = "Hvor mange ejere af vedvarende energi-anlæg skal holdes uden for ejerantallet?",
+        unit = "ejere",
+        sources = personskat_par4_særlige_kapitalposter_kilder_2
+    )
+    ligningslov8p_ejere_der_ikke_medregnes: Heltal,
+    @ field(
+        label = "Væsentlig deltagelse i driften",
+        question = "Deltager den skattepligtige i virksomhedens drift i væsentligt omfang?",
+        help = "Væsentlig deltagelse afskærer klassifikation som kapitalindkomst efter nr. 9.",
+        sources = personskat_par4_særlige_kapitalposter_kilder_2
+    )
+    deltager_væsentligt_i_drift: Boolsk
+)
+# PersonskatPar4Nr11Udlejningsklassifikation(
+    virksomhed: PersonskatPar4Virksomhedsopgørelseskilde,
+    @ field(
+        label = "Udlejningsaktivets art",
+        question = "Udlejes et afskrivningsberettiget driftsmiddel eller et skib?",
+        sources = personskat_par4_særlige_kapitalposter_kilder_2
+    )
+    aktiv: Par4Stk1Nr11Udlejningsaktiv,
+    @ field(
+        label = "Aktivets anskaffelsesperiode",
+        question = "Er aktivet anskaffet før den 19. maj 1993?",
+        help = "Kun ældre aktiver kan omfattes af Skatterådets undtagelse i § 4, stk. 8.",
+        sources = personskat_par4_særlige_kapitalposter_kilder_2
+    )
+    anskaffelse: Anskaffelsesstatus,
+    @ field(
+        label = "Skatterådets tilladelse",
+        question = "Har Skatterådet tilladt, at nr. 11 ikke anvendes?",
+        sources = personskat_par4_særlige_kapitalposter_kilder_2
+    )
+    skatteråds_tilladelse: SkatterådsTilladelse,
+    @ field(
+        label = "Skatterådets konkrete skøn",
+        question = "Har Skatterådet anset generationsskifte eller særlige omstændigheder for godtgjort?",
+        sources = personskat_par4_særlige_kapitalposter_kilder_2
+    )
+    rådets_skøn: RådetsSkøn,
+    @ field(
+        label = "Væsentlig deltagelse i udlejningsdriften",
+        question = "Deltager den skattepligtige i udlejningsvirksomhedens drift i væsentligt omfang?",
+        sources = personskat_par4_særlige_kapitalposter_kilder_2
+    )
+    deltager_væsentligt_i_drift: Boolsk
+)
+@ field(
+    label = "Kapitalpostens hjemmel",
+    question = "Hvilken bestemmelse i personskattelovens § 4 vedrører posten?",
+    help = "Valget åbner de kildefakta, som den valgte regelkaskade kræver.",
+    sources = personskat_par4_særlige_kapitalposter_kilder_2
+)
 # PersonskatPar4SærligKapitalpostkilde = PsPar4Nr9Virksomhed(klassifikation: PersonskatPar4Nr9Virksomhedsklassifikation) | PsPar4Nr10Ligningslov14A(input: Ligningslov14AInput) | PsPar4Nr11Udlejningsvirksomhed(klassifikation: PersonskatPar4Nr11Udlejningsklassifikation) | PsPar4Nr12Ligningslov5C(input: Ligningslov5CInput) | PsPar4Nr15Ligningslov12B(input: Ligningslov12BInput) | PsPar4Nr16Afskrivningslov40C(kildefakta: Afskrivningslov40CÅrskildefakta)
-# PersonskatPar4SærligKapitalpostfakta(identifikation: Tekst, indkomstår: Heltal, kilde: PersonskatPar4SærligKapitalpostkilde)
+# PersonskatPar4SærligKapitalpostfakta(
+    @ field(
+        label = "Postens identifikation",
+        question = "Hvilken entydig bilags- eller aftalereference har posten?",
+        help = "Brug en stabil reference, så samme retsforhold ikke medregnes to gange.",
+        sources = personskat_par4_særlige_kapitalposter_kilder_2
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Postens indkomstår",
+        question = "Hvilket indkomstår vedrører posten?",
+        help = "Året skal svare til skatteåret og den delegerede lovberegning.",
+        unit = "år",
+        sources = personskat_par4_særlige_kapitalposter_kilder_2
+    )
+    indkomstår: Heltal,
+    kilde: PersonskatPar4SærligKapitalpostkilde
+)
 # PersonskatPar4Nr9Kilderesultat(virksomhedsresultat: PersonskatOrdinærVirksomhedResultat, par4_input: Par4Stk1Nr9Input, par4_resultat: Par4Stk1Nr9Resultat)
 # PersonskatPar4Nr10Kilderesultat(ligningslov_resultat: Ligningslov14AResultat, par4_input: Par4Stk1Nr10Input, par4_resultat: Par4Stk1Nr10Resultat)
 # PersonskatPar4Nr11Kilderesultat(virksomhedsresultat: PersonskatOrdinærVirksomhedResultat, par4_input: Par4Stk1Nr11Input, par4_resultat: Par4Stk1Nr11Resultat)

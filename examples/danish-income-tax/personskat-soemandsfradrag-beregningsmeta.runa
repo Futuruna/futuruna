@@ -3,156 +3,34 @@
 @ importer ./metadata
 @ importer ./soemandsbeskatningsloven-par3-par4
 
-= personskat_sømandsfradrag_felt_valg = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov3Årsinput::valg::$variant),
-    label = "Valg af sømandsfradrag",
-    question = Some("Skal sømandsfradraget anvendes for indkomståret?"),
-    help = Some("Et fravalg bevarer de almindelige lønmodtagerfradrag. Futuruna afgør ud fra beskæftigelserne, om et valg kan gennemføres."),
-    unit = None
-)
-= personskat_sømandsfradrag_felt_beskæftigelser = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser),
-    label = "Sømandsbeskæftigelser",
-    question = Some("Hvilke beskæftigelser til søs eller på en omfattet installation havde personen i indkomståret?"),
-    help = Some("Opret én række pr. særskilt beskæftigelse eller satsperiode. Arbejdsgiverens fuldtidsomregnede sødage styrer delårs- og deltidsberegningen."),
-    unit = None
-)
-= personskat_sømandsfradrag_felt_identifikation = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::identifikation),
-    label = "Beskæftigelsens identifikation",
-    question = Some("Hvilken entydig identifikation har sømandsbeskæftigelsen?"),
-    help = Some("Brug en stabil reference fra arbejdsgiverens indberetning eller ansættelsesforholdet."),
-    unit = None
-)
-= personskat_sømandsfradrag_felt_indkomstår = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::indkomstår),
-    label = "Sømandsbeskæftigelsens indkomstår",
-    question = Some("Hvilket indkomstår vedrører beskæftigelsen?"),
-    help = None,
-    unit = Some("år")
-)
-= personskat_sømandsfradrag_felt_ansættelsesstart_år = TypetBeregningsfelt(
+= personskat_sømandsfradrag_felt_ansættelsesstart_år = Beregningsfelt(
     path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::ansættelsesforhold_startdato::år),
     label = "Ansættelsesforholdets startdato (ISO 8601) - år",
     question = Some("I hvilket år begyndte ansættelsesforholdet?"),
     help = Some("Startdatoen afgør overgangsreglen: § 3 a finder kun anvendelse på ansættelsesforhold, der begyndte den 1. januar 2022 eller senere."),
     unit = Some("år")
 )
-= personskat_sømandsfradrag_felt_ansættelsesstart_måned = TypetBeregningsfelt(
+= personskat_sømandsfradrag_felt_ansættelsesstart_måned = Beregningsfelt(
     path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::ansættelsesforhold_startdato::måned),
     label = "Ansættelsesforholdets startdato (ISO 8601) - måned",
     question = Some("I hvilken måned begyndte ansættelsesforholdet?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_sømandsfradrag_felt_ansættelsesstart_dag = TypetBeregningsfelt(
+= personskat_sømandsfradrag_felt_ansættelsesstart_dag = Beregningsfelt(
     path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::ansættelsesforhold_startdato::dag),
     label = "Ansættelsesforholdets startdato (ISO 8601) - dag",
     question = Some("På hvilken dag i måneden begyndte ansættelsesforholdet?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_sømandsfradrag_felt_arbejdssted = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::arbejdssted::$variant),
-    label = "Arbejdssted til søs",
-    question = Some("Blev arbejdet udført på et skib eller på en kulbrinteinstallation uden for dansk område?"),
-    help = Some("Installationsvarianten må kun bruges ved efterforskning eller udvinding uden for dansk søterritorium og kontinentalsokkelområde."),
-    unit = None
-)
-= personskat_sømandsfradrag_felt_bruttotonnage = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::arbejdssted::ArbejdePåSkib::bruttotonnage),
-    label = "Skibets bruttotonnage",
-    question = Some("Hvad er skibets bruttotonnage?"),
-    help = Some("En bruttotonnage på mindst 500 t kan udløse det forhøjede fradrag, bortset fra de lovbestemte undtagelser."),
-    unit = Some("t")
-)
-= personskat_sømandsfradrag_felt_anvendelse = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::arbejdssted::ArbejdePåSkib::anvendelse::$variant),
-    label = "Skibets udelukkende anvendelse",
-    question = Some("Hvilken lovbestemt anvendelse havde skibet i beskæftigelsesperioden?"),
-    help = Some("Vælg kun en omfattet anvendelse, når skibet i perioden udelukkende blev anvendt til det angivne formål."),
-    unit = None
-)
-= personskat_sømandsfradrag_felt_passagerrute = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::arbejdssted::ArbejdePåSkib::anvendelse::ErhvervsmæssigBefordringAfPassagerer::rute::$variant),
-    label = "Passagerrutens EU/EØS-status",
-    question = Some("Sejlede skibet regelmæssigt med passagerer mellem havne i EU- eller EØS-medlemsstater?"),
-    help = Some("En sådan rute afskærer det forhøjede fradrag og udløser de særlige personbetingelser i § 3 a."),
-    unit = None
-)
-= personskat_sømandsfradrag_felt_passager_skattepligt = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::arbejdssted::ArbejdePåSkib::anvendelse::ErhvervsmæssigBefordringAfPassagerer::rute::RegelmæssigPassagersejladsMellemEUEØSHavne::skattepligt::$variant),
-    label = "Skattepligt ved regelmæssig EU/EØS-passagersejlads",
-    question = Some("Er personen skattepligtig efter kildeskattelovens § 1 eller § 2, stk. 2?"),
-    help = Some("Andre skattepligtspositioner opfylder ikke § 3 a."),
-    unit = None
-)
-= personskat_sømandsfradrag_felt_passager_statsborgerskab = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::arbejdssted::ArbejdePåSkib::anvendelse::ErhvervsmæssigBefordringAfPassagerer::rute::RegelmæssigPassagersejladsMellemEUEØSHavne::statsborgerskab::$variant),
-    label = "Statsborgerskab ved regelmæssig EU/EØS-passagersejlads",
-    question = Some("Hvilken statsborgerskabsposition har personen efter § 3 a?"),
-    help = Some("EU/EØS, Schweiz og omfattede britiske statsborgere kan opfylde betingelsen."),
-    unit = None
-)
-= personskat_sømandsfradrag_felt_fart = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::fart::$variant),
-    label = "Fart uden for eller inden for begrænset fart",
-    question = Some("Foregik beskæftigelsen uden for begrænset fart?"),
-    help = Some("Stenfiskerfartøjer omfattet af § 3, stk. 2, og den særskilte kulbrintegren behandles efter deres egne betingelser."),
-    unit = None
-)
-= personskat_sømandsfradrag_felt_hjemsted = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::hjemsted::$variant),
-    label = "Fartøjets eller installationens registrerede hjemsted",
-    question = Some("Er arbejdsstedet registreret med hjemsted i Danmark, en anden EU/EØS-stat eller uden for EU/EØS?"),
-    help = Some("§ 3, stk. 6, kræver hjemsted i Danmark eller en anden EU/EØS-medlemsstat."),
-    unit = None
-)
-= personskat_sømandsfradrag_felt_flag = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::flag::$variant),
-    label = "Fartøjets flag",
-    question = Some("Sejler fartøjet under flag fra en EU- eller EØS-medlemsstat?"),
-    help = Some("Brug installationsvarianten alene for et arbejdssted, som ikke er et fartøj."),
-    unit = None
-)
-= personskat_sømandsfradrag_felt_forhyringsvilkår = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::forhyringsvilkår::$variant),
-    label = "Forhyringsvilkår",
-    question = Some("Svarer forhyringsvilkårene til, hvad der sædvanligvis gælder for søfolk?"),
-    help = Some("Vurderingen skal følge løn-, arbejds- og ansættelsesvilkårene for arbejde af den pågældende karakter."),
-    unit = None
-)
-= personskat_sømandsfradrag_felt_sødage = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::fuldtidsomregnede_sødage_hundrededele),
-    label = "Fuldtidsomregnede sødage",
-    question = Some("Hvor mange sødage har arbejdsgiveren omregnet til sædvanlige forhyringsvilkår på fuld tid?"),
-    help = Some("Angiv hundrededele af en dag: 365,00 dage skrives som 36500, og 273,75 dage som 27375."),
-    unit = Some("hundrededele dag")
-)
 
-= personskat_sømandsfradrag_beregningsmeta = TypetBeregningsmeta(
+= personskat_sømandsfradrag_beregningsmeta = Beregningsmeta(
     felter = [
-        personskat_sømandsfradrag_felt_valg,
-        personskat_sømandsfradrag_felt_beskæftigelser,
-        personskat_sømandsfradrag_felt_identifikation,
-        personskat_sømandsfradrag_felt_indkomstår,
         personskat_sømandsfradrag_felt_ansættelsesstart_år,
         personskat_sømandsfradrag_felt_ansættelsesstart_måned,
-        personskat_sømandsfradrag_felt_ansættelsesstart_dag,
-        personskat_sømandsfradrag_felt_arbejdssted,
-        personskat_sømandsfradrag_felt_bruttotonnage,
-        personskat_sømandsfradrag_felt_anvendelse,
-        personskat_sømandsfradrag_felt_passagerrute,
-        personskat_sømandsfradrag_felt_passager_skattepligt,
-        personskat_sømandsfradrag_felt_passager_statsborgerskab,
-        personskat_sømandsfradrag_felt_fart,
-        personskat_sømandsfradrag_felt_hjemsted,
-        personskat_sømandsfradrag_felt_flag,
-        personskat_sømandsfradrag_felt_forhyringsvilkår,
-        personskat_sømandsfradrag_felt_sødage
+        personskat_sømandsfradrag_felt_ansættelsesstart_dag
     ],
-    spørgsmål = [],
-    beløbsfelter = [],
     attachments = (
         Source(value = sømandsbeskatningsloven_lbk1181_par3_til4),
         AmendmentSource(value = sømandsbeskatningsloven_lov2613_par3_stk3),
@@ -163,91 +41,3 @@
 )
 
 @ meta(personskat_sømandsfradrag_beregningsmeta) for Sømandsbeskatningslov3Årsinput
-
-= personskat_søbl4_felt_kildetilknytninger = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger),
-    label = "Arbejdsperioder for almindelige fradrag",
-    question = Some("Hvilket arbejdsforhold eller hvilken årsfordeling vedrører hvert fradrag, som kan blive berørt af sømandsfradraget?"),
-    help = Some("Opret én række pr. fradragskilde. En § 9 B-kørsel skal være opdelt pr. arbejdsperiode; årsfordeling må kun bruges til kilder, der reelt foreligger som et samlet årsbeløb."),
-    unit = None
-)
-= personskat_søbl4_felt_kilde = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::kilde::$variant),
-    label = "Fradragskilde omfattet af § 4",
-    question = Some("Er kilden en § 9, stk. 1-lønmodtagerudgift, en § 9 B-kørsel, et identificeret §§ 9 C-9 D-befordringsforhold, årets § 13-kontingentfradrag eller et § 49, stk. 1-bidrag?"),
-    help = Some("Kildetypen bruges kun til at forbinde allerede oplyste kildefakta med det arbejdsforhold, de vedrører."),
-    unit = None
-)
-= personskat_søbl4_felt_ll9_stk1_kildeidentifikation = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::kilde::Søbl4Ligningslov9Stk1Lønmodtagerudgift::kildeidentifikation),
-    label = "Identifikation for § 9, stk. 1-lønmodtagerudgiften",
-    question = Some("Hvilken oplyst lønmodtagerudgift vedrører denne arbejdsperiode?"),
-    help = Some("Identifikationen skal svare præcist til udgiftens identifikation. Opret en særskilt udgift for hvert arbejdsforhold."),
-    unit = None
-)
-= personskat_søbl4_felt_ll9b_kildeidentifikation = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::kilde::Søbl4Ligningslov9BErhvervsbefordring::kildeidentifikation),
-    label = "Identifikation for § 9 B-kørselssagen",
-    question = Some("Hvilken oplyst § 9 B-kørselssag vedrører denne arbejdsperiode?"),
-    help = Some("Identifikationen skal svare præcist til kørselssagens identifikation. Del en kørselssag op, hvis kørslerne vedrører forskellige arbejdsperioder."),
-    unit = None
-)
-= personskat_søbl4_felt_ll9c_og_9d_kildeidentifikation = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::kilde::Søbl4Ligningslov9COg9DBefordringsforhold::kildeidentifikation),
-    label = "Identifikation for §§ 9 C-9 D-befordringsforholdet",
-    question = Some("Hvilket oplyst befordringsforhold vedrører denne arbejdsperiode?"),
-    help = Some("Identifikationen skal svare præcist til befordringsforholdets identifikation, og dets befordringsmål skal være samme arbejdsforhold. Opret særskilte forhold for sømandsarbejde og andet arbejde."),
-    unit = None
-)
-= personskat_søbl4_felt_pbl49_kildeidentifikation = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::kilde::Søbl4Pensionsbeskatningslov49Stk1Bidrag::kildeidentifikation),
-    label = "Identifikation for § 49, stk. 1-bidraget",
-    question = Some("Hvilket oplyst A-kasse- eller arbejdsløshedsforsikringsbidrag vedrører denne arbejdsperiode?"),
-    help = Some("Identifikationen skal svare præcist til bidragets identifikation. Efterløns- og fleksydelsesbidrag efter §§ 49 A-49 B skal ikke henføres her."),
-    unit = None
-)
-= personskat_søbl4_felt_arbejdstilknytning = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::arbejdstilknytning::$variant),
-    label = "Arbejdsperiodens faktiske tilknytning",
-    question = Some("Vedrører kilden en oplyst sømandsbeskæftigelse, et andet navngivet arbejdsforhold eller et årsbeløb uden periodeopdeling?"),
-    help = Some("Vælg ud fra bilaget og arbejdsperioden. Futuruna udleder selv, om beløbet bevares, afskæres eller fordeles efter sødage."),
-    unit = None
-)
-= personskat_søbl4_felt_sømandsbeskæftigelse = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::arbejdstilknytning::Søbl4Sømandsbeskæftigelsesperiode::beskæftigelsesidentifikation),
-    label = "Tilknyttet sømandsbeskæftigelse",
-    question = Some("Hvilken oplyst sømandsbeskæftigelse vedrører kilden?"),
-    help = Some("Identifikationen skal svare præcist til en beskæftigelse, der opfylder betingelserne for sømandsfradrag."),
-    unit = None
-)
-= personskat_søbl4_felt_andet_arbejdsforhold = TypetBeregningsfelt(
-    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::arbejdstilknytning::Søbl4AndetArbejdsforhold::arbejdsforhold_identifikation),
-    label = "Tilknyttet andet arbejdsforhold",
-    question = Some("Hvilket andet arbejdsforhold vedrører kilden?"),
-    help = Some("Brug en stabil arbejdsgiver- eller ansættelsesreference, som ikke også er brugt som sømandsbeskæftigelsens identifikation."),
-    unit = None
-)
-
-= personskat_søbl4_beregningsmeta = TypetBeregningsmeta(
-    felter = [
-        personskat_søbl4_felt_kildetilknytninger,
-        personskat_søbl4_felt_kilde,
-        personskat_søbl4_felt_ll9_stk1_kildeidentifikation,
-        personskat_søbl4_felt_ll9b_kildeidentifikation,
-        personskat_søbl4_felt_ll9c_og_9d_kildeidentifikation,
-        personskat_søbl4_felt_pbl49_kildeidentifikation,
-        personskat_søbl4_felt_arbejdstilknytning,
-        personskat_søbl4_felt_sømandsbeskæftigelse,
-        personskat_søbl4_felt_andet_arbejdsforhold
-    ],
-    spørgsmål = [],
-    beløbsfelter = [],
-    attachments = (
-        Source(value = sømandsbeskatningsloven_lbk1181_par3_til4),
-        Guidance(value = juridisk_vejledning_sømandsfradrag_2026_1),
-        Guidance(value = skat_sømandsfradrag_vejledning),
-        Practice(value = landsskatteretten_skm2025_442_lsr),
-    )
-)
-
-@ meta(personskat_søbl4_beregningsmeta) for Sømandsbeskatningslov4Årsinput

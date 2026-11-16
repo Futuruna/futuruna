@@ -2,6 +2,7 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
+@ importer ./delte-kilder
 
 -- Etableringskontoloven -- Personskatteloven § 3, stk. 2, nr. 11.
 --
@@ -132,10 +133,215 @@ efter reglerne om indskud.
 @ meta(etableringskontoloven_par1_par4_metadata)
 @ section etableringskontoloven_par1_par4 {
 
-# EtableringskontoIndskudsfase = EtblFørEtablering | EtblEtableringsår | EtblEfterEtablering(antal_år_efter_etableringsåret: Heltal) | EtblEfterFradragsperioden
+= personskat_etableringskonto_kilder = [
+    Source(value = etableringskontoloven_lbk1307_par1_par4),
+    DependencySource(value = personskatteloven_lbk1284_par3)
+]
+@ field(
+    label = "Fase i forhold til etableringen",
+    question = "Vedrører indskuddet tiden før etablering, etableringsåret eller et af de fire efterfølgende år?",
+    help = "Efter etableringen kan fradrag kun opnås i etableringsåret og de fire nærmest følgende indkomstår.",
+    sources = personskat_etableringskonto_kilder
+)
+# EtableringskontoIndskudsfase =
+    EtblFørEtablering |
+    EtblEtableringsår |
+    EtblEfterEtablering(
+        @ field(
+            label = "Antal år efter etableringsåret",
+            question = "Hvor mange indkomstår er der gået siden etableringsåret?",
+            help = "Kun år 1 til 4 ligger i den ordinære fradragsperiode efter etableringen.",
+            unit = "år",
+            sources = personskat_etableringskonto_kilder
+        )
+        antal_år_efter_etableringsåret: Heltal
+    ) |
+    EtblEfterFradragsperioden
 # EtableringskontoPlacering = EtblSærligIndlånskonto | EtblSærskiltObligationsdepot | EtblIndlånskontoOgObligationsdepot | EtblIkkeGodkendtPlacering
-# EtableringskontoPar4Placering(placering: EtableringskontoPlacering, pengeinstitut_omfattet_af_par4_stk1: Boolsk, etableringskonto_og_iværksætterkonto_ført_særskilt: Boolsk, konto_korrekt_betegnet: Boolsk, navn_adresse_og_personnummer_påført: Boolsk, kontantkonto_og_depot_i_samme_pengeinstitut: Boolsk)
-# EtableringskontoIndskudInput(indkomstår: Heltal, fase: EtableringskontoIndskudsfase, fuldt_skattepligtig: Boolsk, skattemæssigt_hjemmehørende_i_andet_land_efter_dbo: Boolsk, senest_indkomståret_efter_folkepensionsalderen: Boolsk, tidligere_indskud_fuldt_hævet: Boolsk, indskud_foretaget_i_indskudsåret: Boolsk, betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt: Boolsk, faktisk_indskudsplacering: EtableringskontoPar4Placering, kontant_løn_kroner: Heltal, skatteværdi_af_frit_ophold_og_andre_goder_kroner: Heltal, skattepligtige_arbejdsgivergodtgørelser_kroner: Heltal, ligningslov9_til_9d_fradrag_kroner: Heltal, skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner: Heltal, vsl22b_henlæggelse_kroner: Heltal, renteudgifter_og_kurstab_kroner: Heltal, rente_udbytte_og_kursgevinst_kroner: Heltal, forskudsafskrivning_efter_al29_kroner: Heltal, faktisk_etableringskontoindskud_kroner: Heltal, faktisk_iværksætterkontoindskud_kroner: Heltal, undladt_etableringskontoindskud_efter_par4_stk2_kroner: Heltal, undladt_iværksætterkontoindskud_efter_par4_stk2_kroner: Heltal)
+# EtableringskontoPar4Placering(
+    @ field(
+        label = "Placering af det faktiske indskud",
+        question = "Er indskuddet placeret på en særlig indlånskonto, i et særskilt obligationsdepot eller i begge dele?",
+        sources = personskat_etableringskonto_kilder
+    )
+    placering: EtableringskontoPlacering,
+    @ field(
+        label = "Godkendt pengeinstitut",
+        question = "Er kontoen eller depotet oprettet i et pengeinstitut omfattet af § 4, stk. 1?",
+        sources = personskat_etableringskonto_kilder
+    )
+    pengeinstitut_omfattet_af_par4_stk1: Boolsk,
+    @ field(
+        label = "Kontotyper ført særskilt",
+        question = "Føres etableringskonto og iværksætterkonto på særskilte konti?",
+        sources = personskat_etableringskonto_kilder
+    )
+    etableringskonto_og_iværksætterkonto_ført_særskilt: Boolsk,
+    @ field(
+        label = "Kontoen er korrekt betegnet",
+        question = "Er kontoen betegnet etableringskonto eller iværksætterkonto?",
+        sources = personskat_etableringskonto_kilder
+    )
+    konto_korrekt_betegnet: Boolsk,
+    @ field(
+        label = "Personoplysninger påført",
+        question = "Er navn, adresse og personnummer påført kontoen?",
+        sources = personskat_etableringskonto_kilder
+    )
+    navn_adresse_og_personnummer_påført: Boolsk,
+    @ field(
+        label = "Kontantkonto og depot i samme pengeinstitut",
+        question = "Er kontantkonto og obligationsdepot oprettet i samme pengeinstitut?",
+        help = "Oplysningen er relevant, når indskuddet er fordelt mellem konto og depot.",
+        sources = personskat_etableringskonto_kilder
+    )
+    kontantkonto_og_depot_i_samme_pengeinstitut: Boolsk
+)
+# EtableringskontoIndskudInput(
+    @ field(
+        label = "Indkomstår for indskuddet",
+        question = "Hvilket indkomstår vedrører indskuddet?",
+        help = "Året skal være det samme som Personskat-beregningens skatteår.",
+        unit = "år",
+        sources = personskat_etableringskonto_kilder
+    )
+    indkomstår: Heltal,
+    fase: EtableringskontoIndskudsfase,
+    @ field(
+        label = "Fuld dansk skattepligt",
+        question = "Er du fuldt skattepligtig til Danmark i indkomståret?",
+        sources = personskat_etableringskonto_kilder
+    )
+    fuldt_skattepligtig: Boolsk,
+    @ field(
+        label = "Skattemæssigt hjemmehørende i andet land",
+        question = "Er du skattemæssigt hjemmehørende i et andet land efter en dobbeltbeskatningsoverenskomst?",
+        sources = personskat_etableringskonto_kilder
+    )
+    skattemæssigt_hjemmehørende_i_andet_land_efter_dbo: Boolsk,
+    @ field(
+        label = "Inden aldersgrænsen",
+        question = "Er indkomståret senest året efter det år, hvor du når folkepensionsalderen?",
+        sources = personskat_etableringskonto_kilder
+    )
+    senest_indkomståret_efter_folkepensionsalderen: Boolsk,
+    @ field(
+        label = "Tidligere indskud fuldt hævet",
+        question = "Er alle tidligere indskud fuldt hævet, hvis indskuddet vedrører et år efter etableringen?",
+        help = "Et nyt fradrag efter etableringen kræver, at ældre indskud er hævet fuldt ud.",
+        sources = personskat_etableringskonto_kilder
+    )
+    tidligere_indskud_fuldt_hævet: Boolsk,
+    @ field(
+        label = "Indskud foretaget i indskudsåret",
+        question = "Blev det faktiske indskud foretaget fra 16. maj i indkomståret til og med 15. maj året efter?",
+        sources = personskat_etableringskonto_kilder
+    )
+    indskud_foretaget_i_indskudsåret: Boolsk,
+    @ field(
+        label = "Betingelser for undladt indskud opfyldt",
+        question = "Er betingelserne i § 4, stk. 2 opfyldt for et indskud, der helt eller delvis er undladt?",
+        help = "Dette kræver, at betingelserne for at hæve et tilsvarende beløb efter § 5 var opfyldt inden indskudsårets udløb.",
+        sources = personskat_etableringskonto_kilder
+    )
+    betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt: Boolsk,
+    faktisk_indskudsplacering: EtableringskontoPar4Placering,
+    @ field(
+        label = "Kontant løn efter etableringskontoloven",
+        question = "Hvor stor kontant løn indgår i indskudsgrundlaget?",
+        help = "Angiv lønnen efter etableringskontolovens § 3, stk. 2; dette grundlag kan afvige fra den almindelige bruttoløn.",
+        unit = "kr./år",
+        sources = personskat_etableringskonto_kilder
+    )
+    kontant_løn_kroner: Heltal,
+    @ field(
+        label = "Skatteværdi af frit ophold og andre goder",
+        question = "Hvilken skatteværdi har frit ophold og andre goder modtaget gennem arbejdsforholdet?",
+        unit = "kr./år",
+        sources = personskat_etableringskonto_kilder
+    )
+    skatteværdi_af_frit_ophold_og_andre_goder_kroner: Heltal,
+    @ field(
+        label = "Skattepligtige arbejdsgivergodtgørelser",
+        question = "Hvor store skattepligtige arbejdsgivergodtgørelser indgår i lønindtægten efter § 3, stk. 2?",
+        unit = "kr./år",
+        sources = personskat_etableringskonto_kilder
+    )
+    skattepligtige_arbejdsgivergodtgørelser_kroner: Heltal,
+    @ field(
+        label = "Fradrag efter ligningslovens §§ 9-9 D",
+        question = "Hvor stort samlet fradrag efter ligningslovens §§ 9-9 D skal trækkes fra ved opgørelsen af nettolønnen?",
+        unit = "kr./år",
+        sources = personskat_etableringskonto_kilder
+    )
+    ligningslov9_til_9d_fradrag_kroner: Heltal,
+    @ field(
+        label = "Skattepligtigt virksomhedsoverskud",
+        question = "Hvor stort er virksomhedens skattepligtige overskud efter et eventuelt § 22 b-fradrag?",
+        help = "Futuruna regulerer beløbet med henlæggelse, renter, udbytte og kursresultater efter etableringskontolovens § 3, stk. 3.",
+        unit = "kr./år",
+        sources = personskat_etableringskonto_kilder
+    )
+    skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner: Heltal,
+    @ field(
+        label = "Henlæggelse efter virksomhedsskattelovens § 22 b",
+        question = "Hvor stor henlæggelse efter virksomhedsskattelovens § 22 b er allerede fratrukket overskuddet?",
+        unit = "kr./år",
+        sources = personskat_etableringskonto_kilder
+    )
+    vsl22b_henlæggelse_kroner: Heltal,
+    @ field(
+        label = "Renteudgifter og kurstab i virksomhedsoverskuddet",
+        question = "Hvor store renteudgifter og kurstab indgår i virksomhedsoverskuddet?",
+        unit = "kr./år",
+        sources = personskat_etableringskonto_kilder
+    )
+    renteudgifter_og_kurstab_kroner: Heltal,
+    @ field(
+        label = "Rente-, udbytte- og kursgevinster i virksomhedsoverskuddet",
+        question = "Hvor store renteindtægter, udbytter og kursgevinster indgår i virksomhedsoverskuddet?",
+        unit = "kr./år",
+        sources = personskat_etableringskonto_kilder
+    )
+    rente_udbytte_og_kursgevinst_kroner: Heltal,
+    @ field(
+        label = "Forskudsafskrivning efter afskrivningslovens § 29",
+        question = "Hvor stor forskudsafskrivning efter afskrivningslovens § 29 skal reducere årets højeste indskud?",
+        unit = "kr./år",
+        sources = personskat_etableringskonto_kilder
+    )
+    forskudsafskrivning_efter_al29_kroner: Heltal,
+    @ field(
+        label = "Faktisk indskud på etableringskonto",
+        question = "Hvor meget blev faktisk indsat på etableringskontoen for indkomståret?",
+        help = "Et gyldigt beløb bliver et ligningsmæssigt fradrag og fradrages ikke i personlig indkomst.",
+        unit = "kr./år",
+        sources = personskat_etableringskonto_kilder
+    )
+    faktisk_etableringskontoindskud_kroner: Heltal,
+    @ field(
+        label = "Faktisk indskud på iværksætterkonto",
+        question = "Hvor meget blev faktisk indsat på iværksætterkontoen for indkomståret?",
+        help = "Et gyldigt beløb fradrages i personlig indkomst efter Personskattelovens § 3, stk. 2, nr. 11.",
+        unit = "kr./år",
+        sources = personskat_etableringskonto_kilder
+    )
+    faktisk_iværksætterkontoindskud_kroner: Heltal,
+    @ field(
+        label = "Undladt etableringskontoindskud efter § 4, stk. 2",
+        question = "Hvor stort etableringskontoindskud er undladt efter § 4, stk. 2?",
+        unit = "kr./år",
+        sources = personskat_etableringskonto_kilder
+    )
+    undladt_etableringskontoindskud_efter_par4_stk2_kroner: Heltal,
+    @ field(
+        label = "Undladt iværksætterkontoindskud efter § 4, stk. 2",
+        question = "Hvor stort iværksætterkontoindskud er undladt efter § 4, stk. 2?",
+        unit = "kr./år",
+        sources = personskat_etableringskonto_kilder
+    )
+    undladt_iværksætterkontoindskud_efter_par4_stk2_kroner: Heltal
+)
 # EtableringskontoIndskudResultat(indkomstår: Heltal, fase: EtableringskontoIndskudsfase, person_berettiget: Boolsk, indkomstkrav_opfyldt: Boolsk, fradragsperiode_åben: Boolsk, faktiske_indskud_opfylder_par4_stk1: Boolsk, indskudskrav_opfyldt: Boolsk, indskudsgrænser_opfyldt: Boolsk, lønindtægt_før_ligningslov9_til_9d_fradrag_kroner: Heltal, nettolønindtægt_kroner: Heltal, reguleret_virksomhedsoverskud_kroner: Heltal, højeste_indskud_før_forskudsafskrivning_kroner: Heltal, højeste_indskud_efter_forskudsafskrivning_kroner: Heltal, faktiske_indskud_i_alt_kroner: Heltal, faktiske_indskud_afskåret_af_form_eller_frist_kroner: Heltal, behandlede_indskud_i_alt_kroner: Heltal, etableringskonto_ligningsmæssigt_fradrag_kroner: Heltal, iværksætterkonto_personlig_indkomst_fradrag_kroner: Heltal, behandlede_indskud_uden_fradrag_kroner: Heltal, samlet_fradrag_i_skattepligtig_indkomst_kroner: Heltal)
 
 | etableringskonto_lønindtægt_før_ligningslov9_til_9d_fradrag_kroner(input: EtableringskontoIndskudInput) -> penge_positivt_beløb(

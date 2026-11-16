@@ -59,7 +59,57 @@ Arbejdsmarkedsbidragsloven § 2, stk. 1:
 
 # Pbl14BOptjeningsgrundlag = Pbl14BFerieMedLøn | Pbl14BFeriegodtgørelseIFeriekortordningUdenFeriekasse | Pbl14BØvrigUdbetalingEfterFeriemiddellovensPar15
 # Pbl14BOprindelse = Pbl14BAlmindeligArbejdsgiverindbetaling | Pbl14BLønmodtagernesGarantifondEfterPar8B
-# Pbl14BUdbetalingsfakta(identifikation: Tekst, indkomstår: Heltal, optjeningsgrundlag: Pbl14BOptjeningsgrundlag, oprindelse: Pbl14BOprindelse, tilgodehavende_feriemidler_kroner: Heltal, regulering_kroner: Heltal)
+= personskat_kilder_35 = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par14b),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2_stk1_nr6)
+]
+# Pbl14BUdbetalingsfakta(
+    @ field(
+        label = "Feriemiddeludbetalingens identifikation",
+        question = "Hvilken entydig identifikation har feriemiddeludbetalingen?",
+        help = "Brug en stabil identifikation fra dokumentationen, så udbetalingen kan spores særskilt i beregning og audit.",
+        sources = personskat_kilder_35
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Indkomstår for feriemiddeludbetalingen",
+        question = "I hvilket indkomstår blev feriemidlerne udbetalt?",
+        help = "Indkomståret skal svare til skatteåret for den samlede beregning.",
+        unit = "år",
+        sources = personskat_kilder_35
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Feriemidlernes optjeningsgrundlag",
+        question = "Stammer feriemidlerne fra ferie med løn, en feriekortordning uden feriekasse eller en anden udbetaling efter feriemiddellovens § 15?",
+        help = "PBL § 14 B, stk. 1, medregner kun ferie med løn og feriegodtgørelse i feriekortordninger uden feriekasser.",
+        sources = personskat_kilder_35
+    )
+    optjeningsgrundlag: Pbl14BOptjeningsgrundlag,
+    @ field(
+        label = "Feriemidlernes oprindelse",
+        question = "Stammer udbetalingen fra en almindelig arbejdsgiverindbetaling eller fra et krav indbetalt af Lønmodtagernes Garantifond?",
+        help = "Udbetalinger, der hidrører fra Garantifondens indbetaling efter LG-lovens § 8 b, er undtaget efter PBL § 14 B, stk. 2.",
+        sources = personskat_kilder_35
+    )
+    oprindelse: Pbl14BOprindelse,
+    @ field(
+        label = "Udbetalte tilgodehavende feriemidler",
+        question = "Hvor stort et beløb i tilgodehavende feriemidler blev udbetalt før regulering?",
+        help = "Angiv selve feriemiddelbeløbet. En eventuel regulering oplyses særskilt.",
+        unit = "kr.",
+        sources = personskat_kilder_35
+    )
+    tilgodehavende_feriemidler_kroner: Heltal,
+    @ field(
+        label = "Regulering af tilgodehavende feriemidler",
+        question = "Hvor stort et reguleringstillæg blev udbetalt sammen med feriemidlerne?",
+        help = "Reguleringen følger samme skatte- og arbejdsmarkedsbidragsbehandling som den tilknyttede udbetaling.",
+        unit = "kr.",
+        sources = personskat_kilder_35
+    )
+    regulering_kroner: Heltal
+)
 # Pbl14BUdbetalingsresultat(fakta: Pbl14BUdbetalingsfakta, fakta_gyldige: Boolsk, samlet_udbetaling_kroner: Heltal, hidrører_fra_stk1_1_pkt: Boolsk, fritaget_efter_stk1_2_pkt: Boolsk, fritaget_efter_stk2: Boolsk, skattepligtig_indkomst_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_efter_ambl_par2_stk1_nr6_kroner: Heltal)
 # Pbl14BÅrsgrundlag(udbetalinger: List(Pbl14BUdbetalingsfakta))
 # Pbl14BÅrsresultat(indkomstår: Heltal, udbetalingsresultater: List(Pbl14BUdbetalingsresultat), identifikationer_entydige: Boolsk, alle_hører_til_indkomståret: Boolsk, input_gyldigt: Boolsk, samlet_udbetaling_kroner: Heltal, samlet_skattepligtig_indkomst_kroner: Heltal, samlet_arbejdsmarkedsbidragsgrundlag_efter_ambl_par2_stk1_nr6_kroner: Heltal, samlet_fritaget_efter_stk1_kroner: Heltal, samlet_fritaget_efter_stk2_kroner: Heltal)

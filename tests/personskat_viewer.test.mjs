@@ -10,6 +10,7 @@ import { fillFictionalPersonskat } from '../examples/danish-income-tax/personska
 import { amount, parseReportOutput, readSavedOutput } from '../examples/danish-income-tax/resultat-visning.mjs';
 import { incomeFields, partyearChoiceFields, partyearIncomeFields, partyearResultFields,
   renderPersonskatOutput, resultFields } from '../examples/danish-income-tax/personskat-resultat.mjs';
+import { declaredFields } from './field_declarations.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const model = 'examples/danish-income-tax/personskat.calculate.runa';
@@ -73,12 +74,13 @@ test('part-year presentation fields track the distinct output, choice and income
     ['kapitel-04-omregning-skatteloft.runa', 'Par14ValgResultat', partyearChoiceFields],
   ]) {
     const source = readFileSync(join(root, 'examples/danish-income-tax', file), 'utf8');
-    const fields = source.match(new RegExp(`^# ${type}\\((.+)\\)$`, 'm'))?.[1];
-    assert.ok(fields); assert.deepEqual(fields.split(', ').map(f => f.split(':')[0]).sort(), [...expected].sort());
+    const fields = declaredFields(source, type);
+    assert.ok(fields); assert.deepEqual(fields.map(f => f.name).sort(), [...expected].sort());
   }
   const source = readFileSync(join(root, 'examples/danish-income-tax/loenmodtager_beregning.runa'), 'utf8');
-  const fields = source.match(/^# LønmodtagerInput\((.+)\)$/m)?.[1];
-  for (const [field] of partyearIncomeFields) assert.ok(fields.includes(`${field}: Heltal`));
+  const fields = declaredFields(source, 'LønmodtagerInput');
+  assert.ok(fields);
+  for (const [field] of partyearIncomeFields) assert.ok(fields.some(f => f.name === field && f.type === 'Heltal'), field);
 });
 
 test('part-year viewer uses the final outer tax, not a valid ordinary intermediate', () => {

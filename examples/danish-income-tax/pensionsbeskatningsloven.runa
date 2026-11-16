@@ -8,6 +8,8 @@
 @ importer ./pensionsbeskatningsloven-par15-15a
 @ importer ./pensionsbeskatningsloven-par15b
 @ importer ./pensionsbeskatningsloven-par22e
+@ importer ./arbejdsmarkedsbidragsloven
+@ importer ./ligningsloven-par10-par11-underhold
 
 -- Pensionsbeskatningsloven -- Personskatteloven-afhængigheder.
 --
@@ -22,27 +24,11 @@
 -- og de anvendte dele af §§ 29 og 36 i pensionsbeskatningsloven-par29.runa.
 -- Ingen af de gennemgåede ændringer ændrer §§ 16, 18, 52, 53 A eller 53 B.
 
-# PensionsbeskatningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
-
 = pensionsbeskatningsloven_lbk1243_par16 = PensionsbeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/1243",
     identifier = "Pensionsbeskatningsloven § 16",
     hentet_dato = "2026-07-18",
     ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 16 er uændret"
-)
-
-= pensionsbeskatningsloven_lbk1243_par18 = PensionsbeskatningslovKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
-    identifier = "Pensionsbeskatningsloven § 18",
-    hentet_dato = "2026-07-18",
-    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 18 er uændret"
-)
-
-= pensionsbeskatningsloven_lbk1243_par19_stk1 = PensionsbeskatningslovKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
-    identifier = "Pensionsbeskatningsloven § 19, stk. 1",
-    hentet_dato = "2026-08-08",
-    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; LOV nr. 1757 af 29/12/2025 indsætter stk. 6, men stk. 1 er uændret"
 )
 
 = pensionsbeskatningsloven_lbk1243_par52 = PensionsbeskatningslovKildeInfo(
@@ -440,22 +426,377 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 # Pbl18Ordning = Pbl18LivsvarigLivrente | Pbl18OphørendeLivrente | Pbl18Rateforsikring | Pbl18Rateopsparing | Pbl18Kapitalforsikring | Pbl18OpsparingIPensionsøjemed | Pbl18Aldersopsparing | Pbl18Aldersforsikring | Pbl18SupplerendeEngangssum | Pbl18SupplerendeEngangsydelse | Pbl18Indeksordning | Pbl18Par15ALøbendeUdbetaling | Pbl18Par15ARateordning | Pbl18Par15BRateforsikring | Pbl18Par15BRateopsparing | Pbl18UdenForKapitel1
 # Pbl18Indbetalingskilde = Pbl18EgenIndbetaling | Pbl18Arbejdsgiverindbetaling | Pbl18HjælpeEllerUnderstøttelsesfond
 # Pbl18Fradragsretshaver = Pbl18OrdningensEjer | Pbl18SamlevendeLængstlevendeÆgtefælle | Pbl18AndenEfterEjerensDød
-# Pbl18Par15AFradragsplacering = Pbl18IkkePar15APlacering | Pbl18Par15AIndbetalingsår | Pbl18Par15AAfståelsesår(fradragsår: Heltal, indbetalt_senest_1_juli_efterfølgende: Boolsk)
-# Pbl18SærligtOrdningsgrundlag = Pbl18IntetSærligtOrdningsgrundlag | Pbl18Par15AIndbetalingsgrundlag(ordning_identifikation: Tekst, afståelse_identifikation: Tekst) | Pbl18Par15BIndbetalingsgrundlag(ordning_identifikation: Tekst)
+= personskat_pbl18_betalingstid_kilder = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par18),
+    Source(value = pensionsbeskatningsloven_lbk1243_par19_stk1),
+    Guidance(value = personskat_pensionsbetaling_bank_vejledning),
+    Guidance(value = pbl19_bankår_kilde),
+    Source(value = pbl22e_lovkilde),
+    Guidance(value = pbl22e_vejledning),
+    Guidance(value = pbl22e_bruttovejledning)
+]
+= personskat_kilder_47 = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par18),
+    RateSource(value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026)
+]
+@ field(
+    label = "Fradragsplacering for § 15 A-ordning",
+    question = "Skal en indbetaling på en § 15 A-ordning fradrages i indbetalingsåret eller i afståelsesåret?",
+    help = "Pbl18Par15AIndbetalingsår og Pbl18Par15AAfståelsesår må kun bruges til en faktisk § 15 A-ordning. Almindelig ratepension bruger Pbl18IkkePar15APlacering; den kan ikke frit flyttes til betalingsåret. Fradrag i afståelsesåret kræver særreglens dokumenterede betingelser. Se pension-og-fradrag.md#betalingsår-og-forfaldsår.",
+    sources = personskat_pbl18_betalingstid_kilder
+)
+# Pbl18Par15AFradragsplacering =
+    Pbl18IkkePar15APlacering |
+    Pbl18Par15AIndbetalingsår |
+    Pbl18Par15AAfståelsesår(
+        @ field(
+            label = "Valgt afståelsesår for § 15 A-fradrag",
+            question = "Hvilket afståelsesår skal § 15 A-indbetalingen henføres til?",
+            help = "Året anvendes kun, når fradraget er valgt placeret i afståelsesåret og indbetalingsfristen er overholdt.",
+            unit = "år",
+            sources = personskat_kilder_47
+        )
+        fradragsår: Heltal,
+        @ field(
+            label = "§ 15 A-indbetaling foretaget rettidigt",
+            question = "Blev § 15 A-indbetalingen foretaget senest den 1. juli i året efter afståelsesåret?",
+            help = "Kun en rettidig indbetaling kan placere fradraget i det valgte afståelsesår.",
+            sources = personskat_kilder_47
+        )
+        indbetalt_senest_1_juli_efterfølgende: Boolsk
+    )
+= personskat_kilder_48 = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par18),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par15a),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par15b),
+    AmendmentSource(value = pensionsbeskatningsloven_lov369_par15a),
+    FutureAmendmentSource(value = pensionsbeskatningsloven_lov615_par15a),
+    RateSource(value = skatteministeriet_pbl15a_beløbsgrænser_2026),
+    Guidance(value = skat_pbl15a_ophørspension_vejledning),
+    TimingGuidance(value = skat_pbl15a_fradragstidspunkt_vejledning),
+    MultiDisposalGuidance(value = skat_pbl15a_flere_afståelser_vejledning)
+]
+@ field(
+    label = "Særligt pensionsgrundlag",
+    question = "Er indbetalingen en almindelig pensionsindbetaling, en ophørspension efter PBL § 15 A eller en sportspension efter PBL § 15 B?",
+    help = "Vælg § 15 A-grundlaget for en konkret ophørspension og virksomhedsafståelse. Vælg § 15 B-grundlaget for den konkrete sportspension; Futuruna udleder fradraget af sportsindkomst, ordningsfakta og indbetalingshistorik.",
+    sources = personskat_kilder_48
+)
+# Pbl18SærligtOrdningsgrundlag =
+    Pbl18IntetSærligtOrdningsgrundlag |
+    Pbl18Par15AIndbetalingsgrundlag(
+        @ field(
+            label = "Ophørspension for indbetalingen",
+            question = "Hvilken registreret ophørspension efter PBL § 15 A modtog denne indbetaling?",
+            help = "Identifikationen skal svare til én ordning i ophørspensionsgrundlaget. Flere indbetalinger og afståelser kan bruge samme ordning.",
+            sources = personskat_kilder_48
+        )
+        ordning_identifikation: Tekst,
+        @ field(
+            label = "Virksomhedsafståelse for indbetalingen",
+            question = "Hvilken konkret virksomheds- eller aktieafståelse finansierer denne § 15 A-indbetaling?",
+            help = "Futuruna bruger forbindelsen til at håndhæve både den enkelte afståelses skattepligtige fortjeneste og det fælles maksimum på tværs af ordninger.",
+            sources = personskat_kilder_48
+        )
+        afståelse_identifikation: Tekst
+    ) |
+    Pbl18Par15BIndbetalingsgrundlag(
+        @ field(
+            label = "Sportspension for indbetalingen",
+            question = "Hvilken registreret sportspension efter PBL § 15 B modtog denne indbetaling?",
+            help = "Identifikationen skal svare til den ene sportspensionsordning i årets § 15 B-grundlag.",
+            sources = personskat_kilder_48
+        )
+        ordning_identifikation: Tekst
+    )
 # Pbl18Betaling(beløb_kroner: Heltal, forfaldsår: Heltal, betalingsår: Heltal, betalt_senest_bankjusteret_1_april_efter_forfald: Boolsk, hidrører_fra_par22e_tilbagebetaling: Boolsk, par22e_genindbetaling: Pbl22EGenindbetalingsfakta?, par15a_fradragsplacering: Pbl18Par15AFradragsplacering, arbejdsgiverindbetalinger_kroner: Heltal, arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner: Heltal)
-# Pbl18Fordelingsforløb = Pbl18IngenTiårsfordeling | Pbl18Kapitalindskud(indskudsår: Heltal, indskud_kroner: Heltal) | Pbl18KortIndbetalingsperiode(første_forfaldsår: Heltal, samlet_aftalt_beløb_kroner: Heltal, efterfølgende_tilsvarende_ordning: Boolsk, samlet_indbetalingsperiode_år: Heltal) | Pbl18ForhøjelseKortRestperiode(første_forhøjelsesår: Heltal, samlet_forhøjelse_kroner: Heltal) | Pbl18PristalsreguleretForhøjelse
-# Pbl18Indeksvalg(fradragsvalgte_kontraktbidrag_kroner: List(Heltal))
-# Pbl18SelvstændigOverskudInput(skattepligtigt_overskud_før_vsl22b_kroner: Heltal, renteudgifter_kroner: Heltal, kurstab_kroner: Heltal, renteindtægter_kroner: Heltal, udbytteindtægter_kroner: Heltal, kursgevinster_kroner: Heltal, udelukkede_afståelsesindkomster_kroner: Heltal)
-# Pbl18Fradragsvalg = Pbl18FordeltFradrag | Pbl18Grundbeløbsvalg(ønsket_fradrag_kroner: Heltal) | Pbl18Selvstændig30PctValg
+@ field(
+    label = "Fordeling af livrentefradraget",
+    question = "Er livrenteindbetalingen et kapitalindskud, en kort indbetalingsperiode, en forhøjelse med kort restperiode eller en almindelig indbetaling?",
+    help = "PBL § 18 kan fordele visse livrenteindbetalinger over ti år. Vælg ingen tiårsfordeling, når særreglerne ikke gælder.",
+    sources = personskat_kilder_47
+)
+# Pbl18Fordelingsforløb =
+    Pbl18IngenTiårsfordeling |
+    Pbl18Kapitalindskud(
+        @ field(
+            label = "År for kapitalindskuddet",
+            question = "I hvilket år blev kapitalindskuddet på livrenten foretaget?",
+            help = "Kapitalindskuddet fordeles som udgangspunkt med en tiendedel i indskudsåret og hvert af de følgende ni år.",
+            unit = "år",
+            sources = personskat_kilder_47
+        )
+        indskudsår: Heltal,
+        @ field(
+            label = "Kapitalindskud på livrenten",
+            question = "Hvor stort var det samlede kapitalindskud på livrenten?",
+            help = "Futuruna beregner årets tiendedel inden for den fælles fradragsramme.",
+            unit = "kr.",
+            sources = personskat_kilder_47
+        )
+        indskud_kroner: Heltal
+    ) |
+    Pbl18KortIndbetalingsperiode(
+        @ field(
+            label = "Første forfaldsår i kort indbetalingsperiode",
+            question = "I hvilket år forfaldt den første betaling i den korte indbetalingsperiode?",
+            help = "Året starter den mulige tiårige fordeling af det aftalte beløb.",
+            unit = "år",
+            sources = personskat_kilder_47
+        )
+        første_forfaldsår: Heltal,
+        @ field(
+            label = "Samlet aftalt beløb i den korte periode",
+            question = "Hvor stort et samlet pensionsbeløb blev aftalt for den korte indbetalingsperiode?",
+            help = "Når betingelserne for fuld løbende fradragsret ikke er opfyldt, fordeles dette beløb over ti år.",
+            unit = "kr.",
+            sources = personskat_kilder_47
+        )
+        samlet_aftalt_beløb_kroner: Heltal,
+        @ field(
+            label = "Efterfølgende tilsvarende pensionsordning",
+            question = "Fortsatte indbetalingerne på en tilsvarende ordning efter den korte aftaleperiode?",
+            help = "En efterfølgende tilsvarende ordning kan medføre, at den samlede indbetalingsperiode behandles som mindst ti år.",
+            sources = personskat_kilder_47
+        )
+        efterfølgende_tilsvarende_ordning: Boolsk,
+        @ field(
+            label = "Samlet indbetalingsperiode",
+            question = "Hvor mange år dækker den oprindelige og eventuelle efterfølgende tilsvarende indbetalingsperiode tilsammen?",
+            help = "Ved en samlet periode på mindst ti år kan årets faktiske betaling anvendes i stedet for tiårsfordelingen.",
+            unit = "år",
+            sources = personskat_kilder_47
+        )
+        samlet_indbetalingsperiode_år: Heltal
+    ) |
+    Pbl18ForhøjelseKortRestperiode(
+        @ field(
+            label = "Første år med pensionsforhøjelsen",
+            question = "I hvilket år trådte forhøjelsen med kort restperiode i kraft?",
+            help = "Året starter den tiårige fordeling af den samlede forhøjelse.",
+            unit = "år",
+            sources = personskat_kilder_47
+        )
+        første_forhøjelsesår: Heltal,
+        @ field(
+            label = "Samlet pensionsforhøjelse",
+            question = "Hvor stor er den samlede forhøjelse af de aftalte pensionsbetalinger?",
+            help = "Futuruna fordeler den samlede forhøjelse over den lovbestemte tiårsperiode.",
+            unit = "kr.",
+            sources = personskat_kilder_47
+        )
+        samlet_forhøjelse_kroner: Heltal
+    ) |
+    Pbl18PristalsreguleretForhøjelse
+# Pbl18Indeksvalg(
+    @ field(
+        label = "Valgte indekskontraktbidrag",
+        question = "Hvilke kontraktbidrag på indeksordningen er valgt til fradrag?",
+        help = "Tilføj ét beløb pr. kontrakt. Der kan højst vælges bidrag for seks kontrakter i årets samlede pensionsgrundlag.",
+        unit = "kr./år",
+        sources = personskat_kilder_47
+    )
+    fradragsvalgte_kontraktbidrag_kroner: List(Heltal)
+)
+# Pbl18SelvstændigOverskudInput(
+    @ field(
+        label = "Selvstændigt overskud før VSL § 22 b",
+        question = "Hvad er årets skattepligtige overskud fra selvstændig virksomhed før fradrag efter virksomhedsskattelovens § 22 b?",
+        help = "Beløbet bruges kun, hvis den selvstændiges særlige 30-procentsfradrag for livrente er valgt.",
+        unit = "kr./år",
+        sources = personskat_kilder_47
+    )
+    skattepligtigt_overskud_før_vsl22b_kroner: Heltal,
+    @ field(
+        label = "Renteudgifter i virksomhedsoverskuddet",
+        question = "Hvor store renteudgifter skal lægges tilbage ved opgørelsen af den selvstændiges pensionsgrundlag?",
+        help = "Renteudgifterne lægges til overskuddet ved beregningen af 30-procentsgrænsen.",
+        unit = "kr./år",
+        sources = personskat_kilder_47
+    )
+    renteudgifter_kroner: Heltal,
+    @ field(
+        label = "Kurstab i virksomhedsoverskuddet",
+        question = "Hvor store kurstab skal lægges tilbage ved opgørelsen af den selvstændiges pensionsgrundlag?",
+        help = "Kurstabene lægges til overskuddet ved beregningen af 30-procentsgrænsen.",
+        unit = "kr./år",
+        sources = personskat_kilder_47
+    )
+    kurstab_kroner: Heltal,
+    @ field(
+        label = "Renteindtægter i virksomhedsoverskuddet",
+        question = "Hvor store renteindtægter skal trækkes fra ved opgørelsen af den selvstændiges pensionsgrundlag?",
+        help = "Renteindtægterne trækkes fra overskuddet ved beregningen af 30-procentsgrænsen.",
+        unit = "kr./år",
+        sources = personskat_kilder_47
+    )
+    renteindtægter_kroner: Heltal,
+    @ field(
+        label = "Udbytteindtægter i virksomhedsoverskuddet",
+        question = "Hvor store udbytteindtægter skal trækkes fra ved opgørelsen af den selvstændiges pensionsgrundlag?",
+        help = "Udbytteindtægterne trækkes fra overskuddet ved beregningen af 30-procentsgrænsen.",
+        unit = "kr./år",
+        sources = personskat_kilder_47
+    )
+    udbytteindtægter_kroner: Heltal,
+    @ field(
+        label = "Kursgevinster i virksomhedsoverskuddet",
+        question = "Hvor store kursgevinster skal trækkes fra ved opgørelsen af den selvstændiges pensionsgrundlag?",
+        help = "Kursgevinsterne trækkes fra overskuddet ved beregningen af 30-procentsgrænsen.",
+        unit = "kr./år",
+        sources = personskat_kilder_47
+    )
+    kursgevinster_kroner: Heltal,
+    @ field(
+        label = "Udelukkede afståelsesindkomster",
+        question = "Hvor store afståelsesindkomster skal holdes uden for den selvstændiges pensionsgrundlag?",
+        help = "De oplyste afståelsesindkomster trækkes fra overskuddet ved beregningen af 30-procentsgrænsen.",
+        unit = "kr./år",
+        sources = personskat_kilder_47
+    )
+    udelukkede_afståelsesindkomster_kroner: Heltal
+)
+# Pbl18Fradragsvalg =
+    Pbl18FordeltFradrag |
+    Pbl18Grundbeløbsvalg(
+        @ field(
+            label = "Ønsket opfyldningsfradrag for livrenter",
+            question = "Hvor stort et samlet opfyldningsfradrag ønskes anvendt for årets livrenter?",
+            help = "Futuruna begrænser beløbet til det regulerede opfyldningsgrundbeløb og den resterende dokumenterede fradragsramme.",
+            unit = "kr./år",
+            sources = personskat_kilder_47
+        )
+        ønsket_fradrag_kroner: Heltal
+    ) |
+    Pbl18Selvstændig30PctValg
 # Pbl18Fradragsramme(personlig_indkomst_før_pensionsfradrag_kroner: Heltal, forfaldne_ikke_tidligere_fratrukket_kroner: Heltal, selvstændig_overskud: Pbl18SelvstændigOverskudInput, valg: Pbl18Fradragsvalg)
-# Pbl18Begrænsninger(pbl54_personkreds_opfyldt: Boolsk, afgiftspligt_for_hele_ordningen_indtrådt: Boolsk, udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens: Boolsk)
+# Pbl18Begrænsninger(
+    @ field(
+        label = "Personkredsen i PBL § 54 er opfyldt",
+        question = "Er personen omfattet af den fradragsberettigede personkreds efter PBL § 54?",
+        help = "Fradraget efter PBL § 18 afskæres, hvis personkredsbetingelsen ikke er opfyldt.",
+        sources = personskat_kilder_47
+    )
+    pbl54_personkreds_opfyldt: Boolsk,
+    @ field(
+        label = "Afgiftspligt for hele ordningen er indtrådt",
+        question = "Er afgiftspligten for hele pensionsordningen allerede indtrådt?",
+        help = "Når afgiftspligten er indtrådt for hele ordningen, giver indbetalingen ikke fradrag efter den modellerede § 18-regel.",
+        sources = personskat_kilder_47
+    )
+    afgiftspligt_for_hele_ordningen_indtrådt: Boolsk,
+    @ field(
+        label = "Udenlandsk overførsel med bevaret tidligere fradrag",
+        question = "Er ordningen overført fra udlandet med tidligere fradrag uden dansk skatte- eller afgiftskonsekvens?",
+        help = "En sådan overførsel afskærer fradrag efter den modellerede begrænsning i PBL § 18.",
+        sources = personskat_kilder_47
+    )
+    udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens: Boolsk
+)
 # Pbl18Input(indkomstår: Heltal, ordning: Pbl18Ordning, indbetalingskilde: Pbl18Indbetalingskilde, fradragsretshaver: Pbl18Fradragsretshaver, betaling: Pbl18Betaling, fordelingsforløb: Pbl18Fordelingsforløb, indeksvalg: Pbl18Indeksvalg, fradragsramme: Pbl18Fradragsramme, begrænsninger: Pbl18Begrænsninger)
 # Pbl18Resultat(indkomstår: Heltal, fradragsår: Heltal, ordning: Pbl18Ordning, årsparametre: Pbl16Og18Årsparametre, grundlæggende_fradragsret: Boolsk, indekskontrakter_medregnet: Heltal, indbetalt_beløb_kroner: Heltal, ordningsbeløb_efter_indeksbegrænsning_kroner: Heltal, par16_reguleret_bruttoloft_kroner: Heltal, reducerende_arbejdsgiverindbetalinger_kroner: Heltal, fradragsloft_efter_stk2_kroner: Heltal, beregnet_årsfradrag_kroner: Heltal, opfyldningsgrundbeløb_kroner: Heltal, selvstændig_30_pct_kroner: Heltal, valgt_årsfradrag_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, ikke_fratrukket_i_indkomståret_kroner: Heltal)
 # Pbl19BankGodkendelse(identifikation: Tekst, kildereference: Tekst, løntilbageholdelse_kildereference: Tekst, tilbageholdelsesår: Heltal, godkendt_indkomstår: Heltal, tilbageholdt_brutto_kroner: Heltal, godkendt_brutto_kroner: Heltal)
 # Pbl19BankÅrsplacering = Pbl19BankBetalingsår | Pbl19BankGodkendtÅr(godkendelse: Pbl19BankGodkendelse, indbetalingsdato: Dato, indbetalingen_omfattet_af_godkendelsen: Boolsk)
-# Pbl18Årsbetaling(beløb_kroner: Heltal, forfaldsår: Heltal, betalingsår: Heltal, betalt_senest_bankjusteret_1_april_efter_forfald: Boolsk, hidrører_fra_par22e_tilbagebetaling: Boolsk, par22e_genindbetaling: Pbl22EGenindbetalingsfakta?, bank_årsplacering: Pbl19BankÅrsplacering?, par15a_fradragsplacering: Pbl18Par15AFradragsplacering, arbejdsmarkedsbidrag_kroner: Heltal)
+# Pbl18Årsbetaling(
+    @ field(
+        label = "Indbetalt pensionsbeløb",
+        question = "Hvor stort et beløb blev indbetalt på ordningen?",
+        help = "Angiv bruttobeløbet før eventuelt arbejdsmarkedsbidrag. Futuruna anvender selv de relevante fradrags- og bortseelsesregler.",
+        unit = "kr./år",
+        sources = personskat_kilder_47
+    )
+    beløb_kroner: Heltal,
+    @ field(
+        label = "Indbetalingens forfaldsår",
+        question = "I hvilket år forfaldt pensionsindbetalingen efter aftalen?",
+        help = "Brug aftalens forfaldsår, ikke et år valgt for at få skatten til at passe. Rettidige forsikringspræmier kan henføres hertil; rateopsparing i et pengeinstitut følger normalt betalingsåret. Se pension-og-fradrag.md#betalingsår-og-forfaldsår.",
+        unit = "år",
+        sources = personskat_pbl18_betalingstid_kilder
+    )
+    forfaldsår: Heltal,
+    @ field(
+        label = "Faktisk betalingsår",
+        question = "I hvilket år blev pensionsindbetalingen faktisk betalt?",
+        help = "Bevar det faktiske betalingsår fra bilaget. En betaling to eller flere år efter forfaldsåret kan ikke være betalt senest den bankjusterede 1. april året efter forfald. En tidligere års betaling er ikke automatisk ugyldig. Gæt ikke betalingsdato eller særskilt godkendelse; se pension-og-fradrag.md#betalingsår-og-forfaldsår.",
+        unit = "år",
+        sources = personskat_pbl18_betalingstid_kilder
+    )
+    betalingsår: Heltal,
+    @ field(
+        label = "Betalt senest den justerede 1. april",
+        question = "Blev beløbet betalt senest 1. april i året efter forfaldsåret, eller førstkommende bankdag hvis 1. april var en banklukkedag?",
+        help = "Sandt og falskt er faktiske oplysninger, ikke valg af skatteår. Betaling i eller før forfaldsåret er før fristen; betaling mindst to år efter er efter fristen. Ved betaling i det efterfølgende år kræves dokumentation for fristen. Ukendt må ikke blive falskt. Ordningstypen afgør stadig, om forfaldsåret bruges; se pension-og-fradrag.md#betalingsår-og-forfaldsår.",
+        sources = personskat_pbl18_betalingstid_kilder
+    )
+    betalt_senest_bankjusteret_1_april_efter_forfald: Boolsk,
+    @ field(
+        label = "Tilbagebetaling efter PBL § 22 E",
+        question = "Hidrører indbetalingen fra en tilbagebetaling efter PBL § 22 E?",
+        help = "Sandt kræver dokumenterede fakta i par22e_genindbetaling. Fristen for tilbagebetaling og genindbetaling med oprindeligt indbetalingsår beregnes fra den oprindelige betaling, ikke fra tilbagebetalingen. Forsikringspræmiers almindelige forfaldsregel gælder fortsat. Ukendt må ikke blive falskt; se personskat-pensionskorrektion.md.",
+        sources = personskat_pbl18_betalingstid_kilder
+    )
+    hidrører_fra_par22e_tilbagebetaling: Boolsk,
+    @ field(
+        label = "Dokumenteret tilbagebetaling og genindbetaling",
+        question = "Hvad dokumenterer den oprindelige pensionsindbetaling, tilbagebetalingen til indbetaleren og den nye indbetaling: datoer, bruttobeløb, ordningstype og entydige kilde-id'er?",
+        help = "Brug null ved en afklaret almindelig betaling og hidrører_fra_par22e_tilbagebetaling = falskt. Ved sandt kræves objektet fra kontrakten; gæt ikke manglende fakta. Bruttobeløb er før AM, også ved tilbagebetaling til arbejdsgiver. En rettidig genindbetaling kan bruge oprindeligt år; en sen genindbetaling følger almindelig timing. Delte kilde-id'er skal have samme fakta, og beløbet må ikke bruges flere gange. En oprindelig post må kun indeholde den ikke-tilbagebetalte rest. Se personskat-pensionskorrektion.md for JSON, frister og afgrænsning.",
+        unit = "datoer og hele bruttokroner",
+        sources = personskat_pbl18_betalingstid_kilder
+    )
+    par22e_genindbetaling: Pbl22EGenindbetalingsfakta?,
+    @ field(
+        label = "Årsplacering af arbejdsgiverens bankpension",
+        question = "Følger arbejdsgiverens rateopsparing det faktiske betalingsår, eller har Skattestyrelsen godkendt året for løntilbageholdelsen?",
+        help = "Ved en ikke-nul almindelig arbejdsgiver-rateopsparing er null uafklaret og tilbageholder sammenligningen, også når forfaldsår og betalingsår er ens. Pbl19BankBetalingsår bekræfter almindelig behandling uden denne særgodkendelse; vælg det ikke blot for at få et resultat. Pbl19BankGodkendtÅr kræver afgørelsens kilde/id, løntilbageholdelsens kilde/år/brutto, godkendt år/brutto og den faktiske betalingsdato samt bekræftet dækning af denne betaling. Modellen udsteder ikke godkendelsen og opfinder ingen frist for rimelig tid. Samme godkendelse har én delt beløbsramme. Private bidrag, forsikring og § 22 E følger egne regler; se personskat-bankpension-aar.md.",
+        unit = "år, dato og hele bruttokroner",
+        sources = personskat_pbl18_betalingstid_kilder
+    )
+    bank_årsplacering: Pbl19BankÅrsplacering?,
+    par15a_fradragsplacering: Pbl18Par15AFradragsplacering,
+    arbejdsmarkedsbidrag_kroner: Heltal
+)
+@ field(
+    label = "Grundlag for indeksordningen",
+    question = "Er indbetalingen knyttet til en indeksordning efter PBL § 15?",
+    help = "Vælg kun § 15-grundlaget for en indeksordning. Andre pensionsindbetalinger skal bruge den almindelige ikke-indeksvariant.",
+    sources = [
+        Source(value = pensionsbeskatningsloven_lbk1243_par15),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par18)
+    ]
+)
 # Pbl18Indeksordningsgrundlag = Pbl18IkkeIndeksordning | Pbl18Par15Indeksordning(fakta: Pbl15Indeksordningsfakta)
-# Pbl18Årsindbetaling(identifikation: Tekst, ordning: Pbl18Ordning, indbetalingskilde: Pbl18Indbetalingskilde, fradragsretshaver: Pbl18Fradragsretshaver, betaling: Pbl18Årsbetaling, fordelingsforløb: Pbl18Fordelingsforløb, indeksvalg: Pbl18Indeksvalg, indeksordningsgrundlag: Pbl18Indeksordningsgrundlag, forfaldne_ikke_tidligere_fratrukket_kroner: Heltal, særligt_ordningsgrundlag: Pbl18SærligtOrdningsgrundlag, begrænsninger: Pbl18Begrænsninger)
+# Pbl18Årsindbetaling(
+    @ field(
+        label = "Pensionsindbetaling",
+        question = "Hvilken entydig identifikation skal denne pensionsindbetaling have?",
+        help = "Brug en stabil identifikation for hver betaling, så den kan spores. Samme betaling må ikke også stå under personlig_indkomst.ordinære_forhold.arbejdsgiverydelser. To reelt forskellige betalinger kan have samme beløb, men skal have forskellige identifikationer.",
+        sources = personskat_kilder_47
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Type pensionsordning",
+        question = "Hvilken type pensionsordning vedrører indbetalingen?",
+        help = "Ordningstypen bestemmer blandt andet fradragsret, fælles rate- eller kapitalgrænse og eventuel tiårsfordeling.",
+        sources = personskat_kilder_47
+    )
+    ordning: Pbl18Ordning,
+    indbetalingskilde: Pbl18Indbetalingskilde,
+    fradragsretshaver: Pbl18Fradragsretshaver,
+    betaling: Pbl18Årsbetaling,
+    fordelingsforløb: Pbl18Fordelingsforløb,
+    indeksvalg: Pbl18Indeksvalg,
+    indeksordningsgrundlag: Pbl18Indeksordningsgrundlag,
+    @ field(
+        label = "Tidligere forfaldne beløb uden fradrag",
+        question = "Hvor meget er forfaldet på ordningen uden tidligere at være fratrukket?",
+        help = "Beløbet afgrænser den resterende fradragsramme ved opfyldningsfradrag og den selvstændiges 30-procentsvalg.",
+        unit = "kr.",
+        sources = personskat_kilder_47
+    )
+    forfaldne_ikke_tidligere_fratrukket_kroner: Heltal,
+    særligt_ordningsgrundlag: Pbl18SærligtOrdningsgrundlag,
+    begrænsninger: Pbl18Begrænsninger
+)
 # Pbl18Årsinput(indkomstår: Heltal, personlig_indkomst_før_pensionsfradrag_kroner: Heltal, selvstændig_overskud: Pbl18SelvstændigOverskudInput, livrentevalg: Pbl18Fradragsvalg, par15a_årsgrundlag: Pbl15AÅrsgrundlag, par15b_årsgrundlag: Pbl15BÅrsgrundlag, indbetalinger: List(Pbl18Årsindbetaling))
 # Pbl18Årsarbejdsgivergrundlag(rate_og_ophørende_brutto_kroner: Heltal, rate_og_ophørende_am_bidrag_kroner: Heltal, kapitalordninger_brutto_kroner: Heltal, kapitalordninger_am_bidrag_kroner: Heltal, øvrige_efter_am_bidrag_kroner: Heltal)
 # Pbl18Årspostresultat(indbetaling: Pbl18Årsindbetaling, pbl18_input: Pbl18Input, fradragsår: Heltal, grundlæggende_fradragsret: Boolsk, arbejdsgiverindbetaling_efter_am_bidrag_kroner: Heltal, fradragsgrundlag_før_fælles_årsgrænser_kroner: Heltal)
@@ -994,8 +1335,79 @@ for egne præmier og bidrag, jf. § 15 B, stk. 6.
 @ section pensionsbeskatningsloven_par19_stk1 {
 
 # Pbl19Arbejdsgiverrelation = Pbl19NuværendeArbejdsgiver | Pbl19TidligereArbejdsgiver | Pbl19AndenIndbetaler
-# Pbl19Kapitalordningsstatus = Pbl19IngenTidligereAfgiftsberigtigelse | Pbl19AfgiftsberigtigetEfterPensionsalderen(afgiftsberigtigelsesår: Heltal)
-# Pbl19ArbejdsgiverindbetalingFakta(arbejdsgiverrelation: Pbl19Arbejdsgiverrelation, ordning: Pbl18Ordning, indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner: Option(Heltal), indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal, kapitalordningsstatus: Pbl19Kapitalordningsstatus)
+= personskat_personlig_indkomst_kilder_3 = [
+    Source(value = personskatteloven_lbk1284_par3),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par4),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par19_stk1),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par56),
+    DependencySource(value = ligningsloven_lbk1500_par10_par11),
+    DependencySource(value = børnebidragsloven_lbk773_par19),
+    DependencySource(value = børnebidragsbekendtgørelsen_bek285_par3_par4_par9_par10_par11),
+    Guidance(value = skat_gruppeliv_vejledning),
+    Guidance(value = skat_gruppeliv_eindkomst_20260925),
+    Guidance(value = skat_gruppeliv_rubrik347_20260925),
+    Guidance(value = skat_honorar_vejledning),
+    Guidance(value = skat_underholdsbidrag_børn_vejledning),
+    Guidance(value = skat_underholdsbidrag_ægtefælle_vejledning),
+    Guidance(value = skat_underholdsbidrag_børn_beskatning_vejledning),
+    Guidance(value = skat_børnebidrag_modtagerskat_20260925),
+    Guidance(value = skat_børnebidrag_fødsel_vejledning),
+    Guidance(value = skat_børnebidrag_engangsbeløb_vejledning),
+    ParameterSource(value = børnebidragsloven_satser_2025),
+    ParameterSource(value = børnebidragsloven_satser_2026)
+]
+@ field(
+    label = "Tidligere afgiftsberigtigelse af kapitalordning",
+    question = "Er kapitalforsikringen eller opsparingen tidligere afgiftsberigtiget efter pensionsalderen?",
+    help = "Vælg ingen tidligere afgiftsberigtigelse for andre ordningstyper. Senere arbejdsgiverindbetalinger til en afgiftsberigtiget kapitalordning medregnes i indkomsten.",
+    sources = personskat_personlig_indkomst_kilder_3
+)
+# Pbl19Kapitalordningsstatus =
+    Pbl19IngenTidligereAfgiftsberigtigelse |
+    Pbl19AfgiftsberigtigetEfterPensionsalderen(
+        @ field(
+            label = "Kapitalordningens afgiftsberigtigelsesår",
+            question = "I hvilket indkomstår blev kapitalordningen første gang afgiftsberigtiget efter pensionsalderen?",
+            help = "Året bruges til at afgøre, om den aktuelle arbejdsgiverindbetaling ligger i et efterfølgende indkomstår.",
+            unit = "år",
+            sources = personskat_personlig_indkomst_kilder_3
+        )
+        afgiftsberigtigelsesår: Heltal
+    )
+# Pbl19ArbejdsgiverindbetalingFakta(
+    @ field(
+        label = "Pensionsindbetalingens arbejdsgiverrelation",
+        question = "Blev pensionsindbetalingen foretaget af den nuværende arbejdsgiver, en tidligere arbejdsgiver eller en anden indbetaler?",
+        help = "PBL § 19, stk. 1, omfatter indbetalinger fra en nuværende eller tidligere arbejdsgiver.",
+        sources = personskat_personlig_indkomst_kilder_3
+    )
+    arbejdsgiverrelation: Pbl19Arbejdsgiverrelation,
+    @ field(
+        label = "Den arbejdsgiveradministrerede pensionsordning",
+        question = "Hvilken pensionsordning blev arbejdsgiverens indbetaling ført til?",
+        help = "Denne kildevej samordner almindelig ratepension og ophørende/livsvarig livrente med pension.pbl18_indbetalinger. Aldersopsparing, aldersforsikring og supplerende engangssum er skattepligtige § 19-undtagelser. Særlige ordninger, fx §§ 15, 15 A og 15 B, kræver detaljerede årsgrundlag og kan ikke afstemmes fra denne korte post alene.",
+        sources = personskat_personlig_indkomst_kilder_3
+    )
+    ordning: Pbl18Ordning,
+    @ field(
+        label = "Arbejdsgiveradministreret pension før indeholdt AM-bidrag",
+        question = "Hvilket bruttobeløb før pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag er indberettet?",
+        help = "Bevar null, hvis bruttobeløbet er ukendt. Personskat kræver det dokumenterede beløb til beskæftigelses- og jobfradrag og giver ellers intet sammenligningsbeløb. Brug ikke netto/0,92 som erstatning; allerede indeholdt AM opkræves ikke igen.",
+        unit = "kr./år",
+        sources = personskat_personlig_indkomst_kilder_3
+    )
+    indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner: Option(Heltal),
+    @ field(
+        label = "Arbejdsgiveradministreret pension efter AM-bidrag",
+        question = "Hvor stor pensionsindbetaling er indberettet efter pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag?",
+        help = "Brug pensionsudbyderens dokumenterede nettobidrag, ikke en afledt skatte- eller fradragspost. Almindelige ratebidrag samles med pensionslisten før årsloftet; overskud til rubrik 347 tilføjes automatisk uden nyt AM. Indtast ikke overskuddet igen som anden indkomst.",
+        unit = "kr./år",
+        sources = personskat_personlig_indkomst_kilder_3
+    )
+    indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal,
+    kapitalordningsstatus: Pbl19Kapitalordningsstatus
+)
 -- Postklassifikationen afgør ikke årsloftet. Ratebeløbet skal samordnes
 -- på tværs af kilder i Pbl19RateÅrsresultat, før bortseelsesret kan fastslås.
 # Pbl19ArbejdsgiverindbetalingResultat(indkomstår: Heltal, fakta: Pbl19ArbejdsgiverindbetalingFakta, input_gyldigt: Boolsk, arbejdsgiverrelation_omfattet: Boolsk, ordning_omfattet_af_kapitel1: Boolsk, særlig_ordningsundtagelse: Boolsk, kapitalordning_efter_tidligere_afgiftsberigtigelse: Boolsk, bortseelsesgrundlag_før_årsgrænser_efter_am_kroner: Heltal, personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal)
@@ -1254,34 +1666,509 @@ pensionsordningen modtager statsstøtte.
 # Pensionsbeskatningslov53AOrdning = Pbl53ALivsforsikringUdenKapitel1 | Pbl53ALivsforsikringAfkaldAfsnitI | Pbl53APensionskasseUdenKapitel1 | Pbl53APensionskasseAfkaldAfsnitI | Pbl53ASygeOgUlykkesforsikring | Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse | Pbl53ADirektørGarantiforsikring | Pbl53APengeinstitutUdenKapitel1 | Pbl53APengeinstitutAfkaldAfsnitI | Pbl53ATidligerePar15DGodkendt
 # Pbl53AKapitel1Fakta = Pbl53AIkkeOmfattetAfKapitel1 | Pbl53AOmfattetAfKapitel1 | Pbl53ATidligereGodkendtEfterPar15D(godkendt_fra: Pbl15ADato, godkendt_til: Pbl15ADato)
 # Pbl53AAfsnitIAfkaldsgiver = Pbl53AForsikringsejerSomAfkaldsgiver | Pbl53APensionsberettigetSomAfkaldsgiver | Pbl53AKontohaverSomAfkaldsgiver | Pbl53AAndenAfkaldsgiver
-# Pbl53AAfsnitIValgfakta = Pbl53AIntetAfkaldPåAfsnitI | Pbl53AAfkaldPåAfsnitI(afgiver_identifikation: Tekst, afgiver: Pbl53AAfsnitIAfkaldsgiver, afgivet_dato: Pbl15ADato)
+= personskat_pbl53a_kilder = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par53a),
+    HistoricalSource(value = pensionsbeskatningsloven_lov569_par1_nr11_og_par6_stk1),
+    Source(value = aftaleloven_lbk193_par6),
+    PreparatorySource(value = pensionsbeskatningsloven_lsf229_1992_par6),
+    TransitionSource(value = pensionsbeskatningsloven_lov1388_par5_nr2_og_par7_stk1),
+    HistoricalSource(value = pensionsbeskatningsloven_historisk_lbk1120_par53a_stk3),
+    AmendmentSource(value = pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3),
+    TransitionSource(value = pensionsbeskatningsloven_lov1534_par1_nr37_og_par11_stk7),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par53b),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par20),
+    DependencySource(value = personskatteloven_lbk1284_par3),
+    DependencySource(value = personskatteloven_lbk1284_par4),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
+    Guidance(value = skat_juridisk_vejledning_pbl53a_indbetalinger),
+    Guidance(value = skat_juridisk_vejledning_pbl53a_udbetalinger),
+    Guidance(value = skat_juridisk_vejledning_pbl53a_afkast),
+    Guidance(value = skat_juridisk_vejledning_pbl53a_overgang),
+    Guidance(value = skat_juridisk_vejledning_pbl53a_overgangsvalg),
+    Guidance(value = skat_juridisk_vejledning_pbl53a_ordningstyper),
+    Guidance(value = skat_juridisk_vejledning_pbl53b_omfang),
+    Practice(value = skat_skm2023_171_sr_pbl53a_arvevalg),
+    Practice(value = skat_skm2025_658_lsr_pbl53a_blanketvalg),
+    Practice(value = skat_skm2013_481_sr_pbl53a_produktændring),
+    Practice(value = skat_skm2023_406_lsr_pbl53a_overflytning),
+    PreparatorySource(value = pensionsbeskatningsloven_lsf24_2007_par53a_stk5)
+]
+@ field(
+    label = "Afkald på beskatning efter PBL afsnit I",
+    question = "Blev der ved ordningens oprettelse givet afkald på beskatning efter reglerne i afsnit I?",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53AAfsnitIValgfakta =
+    Pbl53AIntetAfkaldPåAfsnitI |
+    Pbl53AAfkaldPåAfsnitI(
+        @ field(
+            label = "Personen der gav afkald på afsnit I",
+            question = "Hvem afgav afkaldet på beskatning efter afsnit I?",
+            sources = personskat_pbl53a_kilder
+        )
+        afgiver_identifikation: Tekst,
+        @ field(
+            label = "Afgiverens rolle ved afkaldet",
+            question = "Gav personen afkald som forsikringsejer, pensionsberettiget eller kontohaver?",
+            sources = personskat_pbl53a_kilder
+        )
+        afgiver: Pbl53AAfsnitIAfkaldsgiver,
+        afgivet_dato: Pbl15ADato
+    )
 # Pbl53ALivsforsikringsdækning = Pbl53ADødsdækning | Pbl53AInvaliditetsdækning | Pbl53ALivstruendeSygdomsdækning | Pbl53AAndenLivsforsikringsdækning
-# Pbl53ALivsforsikringsvilkår(dækninger: List(Pbl53ALivsforsikringsdækning), aftalt_udløbsdato: Pbl15ADato, første_policedag_efter_fyldte_80_år: Pbl15ADato)
-# Pbl53ADirektørberettigelse = Pbl53ADirektørenSomBerettiget(identifikation: Tekst) | Pbl53AEfterladtEfterDirektør(identifikation: Tekst, direktør_identifikation: Tekst) | Pbl53AAndenDirektørpensionsberettiget(identifikation: Tekst)
+# Pbl53ALivsforsikringsvilkår(
+    @ field(
+        label = "Livsforsikringens dækninger",
+        question = "Hvilke hændelser kan udløse udbetaling fra livsforsikringen?",
+        sources = personskat_pbl53a_kilder
+    )
+    dækninger: List(Pbl53ALivsforsikringsdækning),
+    aftalt_udløbsdato: Pbl15ADato,
+    første_policedag_efter_fyldte_80_år: Pbl15ADato
+)
+@ field(
+    label = "Type berettiget til direktørpension",
+    question = "Er den berettigede direktøren selv, en efterladt eller en anden person?",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53ADirektørberettigelse =
+    Pbl53ADirektørenSomBerettiget(
+        @ field(
+            label = "Direktørens identifikation",
+            question = "Hvilken direktør er berettiget til pensionstilsagnet?",
+            sources = personskat_pbl53a_kilder
+        )
+        identifikation: Tekst
+    ) |
+    Pbl53AEfterladtEfterDirektør(
+        @ field(
+            label = "Den efterladtes identifikation",
+            question = "Hvilken efterladt er berettiget efter direktørens død?",
+            sources = personskat_pbl53a_kilder
+        )
+        identifikation: Tekst,
+        @ field(
+            label = "Direktør for den efterladte",
+            question = "Hvilken direktør er den efterladtes ret knyttet til?",
+            sources = personskat_pbl53a_kilder
+        )
+        direktør_identifikation: Tekst
+    ) |
+    Pbl53AAndenDirektørpensionsberettiget(
+        @ field(
+            label = "Anden berettigets identifikation",
+            question = "Hvilken anden person er angivet som berettiget?",
+            sources = personskat_pbl53a_kilder
+        )
+        identifikation: Tekst
+    )
 # Pbl53ADirektørpensionstilsagnsfakta(identifikation: Tekst, ansættelsesforhold_identifikation: Tekst, berettigede: List(Pbl53ADirektørberettigelse))
 # Pbl53ADirektørsikkerhedsfakta = Pbl53AIngenDirektørsikkerhed | Pbl53ASikkerhedForDirektørpensionstilsagn(tilsagn: Pbl53ADirektørpensionstilsagnsfakta)
-# Pbl53APensionskassekarakteristika(selvstændig_juridisk_person: Boolsk, uafhængig_af_arbejdsgiver: Boolsk, midler_afsondret_fra_berettigedes_formue: Boolsk, vedtægter_fastlægger_pensionsydelser: Boolsk)
-# Pbl53AInstitutionssted = Pbl53ADanskInstitution | Pbl53AUdenlandskInstitution(stat: Tekst)
-# Pbl53APengeinstitutkarakteristika(standardiseret_lovreguleret_pensionsprodukt: Boolsk, pensionsmidler_adskilt_fra_øvrig_formue: Boolsk, kan_disponeres_som_almindelig_bankkonto: Boolsk)
-# Pbl53AProduktfakta = Pbl53ALivsforsikringsprodukt(ejer_identifikation: Tekst, forsikret_identifikation: Tekst, kapitel1fakta: Pbl53AKapitel1Fakta, vilkår: Pbl53ALivsforsikringsvilkår, direktørsikkerhed: Pbl53ADirektørsikkerhedsfakta) | Pbl53APensionskasseprodukt(pensionsberettiget_identifikation: Tekst, kapitel1fakta: Pbl53AKapitel1Fakta, karakteristika: Pbl53APensionskassekarakteristika, direktørsikkerhed: Pbl53ADirektørsikkerhedsfakta) | Pbl53ASygeOgUlykkesforsikringsprodukt(ejer_identifikation: Tekst, forsikret_identifikation: Tekst) | Pbl53AGarantiforsikringsprodukt(tilsagn: Pbl53ADirektørpensionstilsagnsfakta) | Pbl53APengeEllerKreditinstitutprodukt(kontohaver_identifikation: Tekst, kapitel1fakta: Pbl53AKapitel1Fakta, institutionssted: Pbl53AInstitutionssted, karakteristika: Pbl53APengeinstitutkarakteristika)
-# Pbl53AInstitutionsfinansiering(samlet_drift_løn_og_pension_kroner: Heltal, statsligt_finansieret_drift_løn_og_pension_kroner: Heltal)
+# Pbl53APensionskassekarakteristika(
+    @ field(
+        label = "Pensionskassen er en selvstændig juridisk person",
+        question = "Er pensionskassen en selvstændig juridisk person?",
+        sources = personskat_pbl53a_kilder
+    )
+    selvstændig_juridisk_person: Boolsk,
+    @ field(
+        label = "Pensionskassen er uafhængig af arbejdsgiveren",
+        question = "Er pensionskassen retligt og økonomisk uafhængig af arbejdsgiveren?",
+        sources = personskat_pbl53a_kilder
+    )
+    uafhængig_af_arbejdsgiver: Boolsk,
+    @ field(
+        label = "Pensionskassens midler er afsondret",
+        question = "Er pensionskassens midler afsondret fra den pensionsberettigedes øvrige formue?",
+        sources = personskat_pbl53a_kilder
+    )
+    midler_afsondret_fra_berettigedes_formue: Boolsk,
+    @ field(
+        label = "Vedtægterne fastlægger pensionsydelserne",
+        question = "Fastlægger pensionskassens vedtægter de pensionsydelser, der kan udbetales?",
+        sources = personskat_pbl53a_kilder
+    )
+    vedtægter_fastlægger_pensionsydelser: Boolsk
+)
+@ field(
+    label = "Penge- eller kreditinstituttets placering",
+    question = "Er instituttet dansk eller udenlandsk?",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53AInstitutionssted =
+    Pbl53ADanskInstitution |
+    Pbl53AUdenlandskInstitution(
+        @ field(
+            label = "Stat for det udenlandske institut",
+            question = "I hvilken stat ligger penge- eller kreditinstituttet?",
+            sources = personskat_pbl53a_kilder
+        )
+        stat: Tekst
+    )
+# Pbl53APengeinstitutkarakteristika(
+    @ field(
+        label = "Standardiseret og lovreguleret pensionsprodukt",
+        question = "Er ordningen et standardiseret pensionsprodukt reguleret ved lov?",
+        sources = personskat_pbl53a_kilder
+    )
+    standardiseret_lovreguleret_pensionsprodukt: Boolsk,
+    @ field(
+        label = "Pensionsmidlerne er adskilt fra øvrig formue",
+        question = "Er pensionsmidlerne adskilt fra kontohaverens øvrige formue?",
+        sources = personskat_pbl53a_kilder
+    )
+    pensionsmidler_adskilt_fra_øvrig_formue: Boolsk,
+    @ field(
+        label = "Kan disponeres som almindelig bankkonto",
+        question = "Kan kontohaveren disponere over midlerne som på en almindelig bankkonto?",
+        sources = personskat_pbl53a_kilder
+    )
+    kan_disponeres_som_almindelig_bankkonto: Boolsk
+)
+@ field(
+    label = "Ordningens faktiske produkttype",
+    question = "Hvilket forsikrings-, pensionskasse- eller pengeinstitutprodukt er der faktisk oprettet?",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53AProduktfakta =
+    Pbl53ALivsforsikringsprodukt(
+        @ field(
+            label = "Livsforsikringens ejer",
+            question = "Hvem ejer livsforsikringen?",
+            sources = personskat_pbl53a_kilder
+        )
+        ejer_identifikation: Tekst,
+        @ field(
+            label = "Personen forsikret ved livsforsikringen",
+            question = "Hvem er forsikret ved livsforsikringen?",
+            sources = personskat_pbl53a_kilder
+        )
+        forsikret_identifikation: Tekst,
+        kapitel1fakta: Pbl53AKapitel1Fakta,
+        vilkår: Pbl53ALivsforsikringsvilkår,
+        direktørsikkerhed: Pbl53ADirektørsikkerhedsfakta
+    ) |
+    Pbl53APensionskasseprodukt(
+        @ field(
+            label = "Pensionsberettiget i pensionskassen",
+            question = "Hvem er pensionsberettiget i pensionskasseordningen?",
+            sources = personskat_pbl53a_kilder
+        )
+        pensionsberettiget_identifikation: Tekst,
+        kapitel1fakta: Pbl53AKapitel1Fakta,
+        karakteristika: Pbl53APensionskassekarakteristika,
+        direktørsikkerhed: Pbl53ADirektørsikkerhedsfakta
+    ) |
+    Pbl53ASygeOgUlykkesforsikringsprodukt(
+        @ field(
+            label = "Syge- og ulykkesforsikringens ejer",
+            question = "Hvem ejer syge- og ulykkesforsikringen?",
+            sources = personskat_pbl53a_kilder
+        )
+        ejer_identifikation: Tekst,
+        @ field(
+            label = "Personen dækket af syge- og ulykkesforsikringen",
+            question = "Hvem er forsikret ved syge- og ulykkesforsikringen?",
+            sources = personskat_pbl53a_kilder
+        )
+        forsikret_identifikation: Tekst
+    ) |
+    Pbl53AGarantiforsikringsprodukt(tilsagn: Pbl53ADirektørpensionstilsagnsfakta) |
+    Pbl53APengeEllerKreditinstitutprodukt(
+        @ field(
+            label = "Kontohaver i penge- eller kreditinstituttet",
+            question = "Hvem er kontohaver på pensionsordningen?",
+            sources = personskat_pbl53a_kilder
+        )
+        kontohaver_identifikation: Tekst,
+        kapitel1fakta: Pbl53AKapitel1Fakta,
+        institutionssted: Pbl53AInstitutionssted,
+        karakteristika: Pbl53APengeinstitutkarakteristika
+    )
+# Pbl53AInstitutionsfinansiering(
+    @ field(
+        label = "Institutionens samlede drift, løn og pension",
+        question = "Hvor store var institutionens samlede udgifter til drift, løn og pension i den relevante periode?",
+        unit = "kr.",
+        sources = personskat_pbl53a_kilder
+    )
+    samlet_drift_løn_og_pension_kroner: Heltal,
+    @ field(
+        label = "Statsligt finansieret drift, løn og pension",
+        question = "Hvor stor en del af institutionens drift, løn og pension blev finansieret af staten?",
+        unit = "kr.",
+        sources = personskat_pbl53a_kilder
+    )
+    statsligt_finansieret_drift_løn_og_pension_kroner: Heltal
+)
 # Pbl53BUdenlandskHjemsted = Pbl53BFremmedStat(stat: Tekst) | Pbl53BFærøerne | Pbl53BGrønland
+@ field(
+    label = "Skattepligt og skattemæssigt hjemsted ved oprettelsen",
+    question = "Var personen fuldt skattepligtig og hjemmehørende i Danmark, uden fuld dansk skattepligt eller hjemmehørende i udlandet efter en dobbeltbeskatningsoverenskomst, da ordningen blev oprettet?",
+    sources = personskat_pbl53a_kilder
+)
 # Pbl53BOprettelsesposition = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted | Pbl53BOprettetUdenFuldDanskSkattepligt(hjemsted: Pbl53BUdenlandskHjemsted, sidste_dato_uden_dansk_skattepligt: Pbl15ADato) | Pbl53BOprettetMedDboHjemstedIUdlandet(hjemsted: Pbl53BUdenlandskHjemsted, sidste_dato_med_dbo_hjemsted_i_udlandet: Pbl15ADato)
-# Pbl53BUdenlandskIndbetalingsbehandling = Pbl53BIkkeForetagetIUdenlandsperioden | Pbl53BEjerbidragFuldtFradragetIPositivIndkomst(positiv_skattepligtig_indkomst_kroner: Heltal, faktisk_fradrag_kroner: Heltal) | Pbl53BArbejdsgiverbidragFuldtBortsetFraIndkomst | Pbl53BIkkeFuldtFradragetEllerBortset
+@ field(
+    label = "Indbetalingens behandling efter PBL § 53 B",
+    question = "Blev indbetalingen foretaget i udenlandsperioden, og var den fuldt fradraget eller foretaget af en arbejdsgiver uden medregning i indkomsten?",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53BUdenlandskIndbetalingsbehandling =
+    Pbl53BIkkeForetagetIUdenlandsperioden |
+    Pbl53BEjerbidragFuldtFradragetIPositivIndkomst(
+        @ field(
+            label = "Positiv udenlandsk indkomst for § 53 B-bidraget",
+            question = "Hvor stor var den positive skattepligtige indkomst, som ejerbidraget kunne fradrages i?",
+            unit = "kr.",
+            sources = personskat_pbl53a_kilder
+        )
+        positiv_skattepligtig_indkomst_kroner: Heltal,
+        @ field(
+            label = "Faktisk udenlandsk fradrag for § 53 B-bidraget",
+            question = "Hvor stort et fradrag blev faktisk opnået for ejerbidraget?",
+            unit = "kr.",
+            sources = personskat_pbl53a_kilder
+        )
+        faktisk_fradrag_kroner: Heltal
+    ) |
+    Pbl53BArbejdsgiverbidragFuldtBortsetFraIndkomst |
+    Pbl53BIkkeFuldtFradragetEllerBortset
 # Pbl53AErhvervelsesmåde = Pbl53AErhvervetVedArv | Pbl53AErhvervetPåAndenMåde
-# Pbl53AErhvervelseshændelse(identifikation: Tekst, tidspunkt: Pbl15ATidspunkt, overdrager_identifikation: Tekst, erhverver_identifikation: Tekst, kapitalværdi_på_erhvervelsestidspunktet_kroner: Heltal, måde: Pbl53AErhvervelsesmåde)
-# Pbl53ARettighedsperiodereference = Pbl53ARettighedsperiodeFraOprettelsen | Pbl53ARettighedsperiodeFraErhvervelse(erhvervelsesidentifikation: Tekst)
+# Pbl53AErhvervelseshændelse(
+    @ field(
+        label = "Erhvervelsens identifikation",
+        question = "Hvilken entydig identifikation skal denne overgang af rettigheder have?",
+        sources = personskat_pbl53a_kilder
+    )
+    identifikation: Tekst,
+    tidspunkt: Pbl15ATidspunkt,
+    @ field(
+        label = "Rettighedshaver før erhvervelsen",
+        question = "Hvem overdrog retten til ordningen ved denne erhvervelse?",
+        sources = personskat_pbl53a_kilder
+    )
+    overdrager_identifikation: Tekst,
+    @ field(
+        label = "Rettighedshaver efter erhvervelsen",
+        question = "Hvem erhvervede retten til ordningen?",
+        sources = personskat_pbl53a_kilder
+    )
+    erhverver_identifikation: Tekst,
+    @ field(
+        label = "Kapitalværdi ved erhvervelsen",
+        question = "Hvad var ordningens kapitalværdi på erhvervelsestidspunktet?",
+        unit = "kr.",
+        sources = personskat_pbl53a_kilder
+    )
+    kapitalværdi_på_erhvervelsestidspunktet_kroner: Heltal,
+    @ field(
+        label = "Erhvervelsesmåden",
+        question = "Skete denne erhvervelse ved arv eller på anden måde?",
+        sources = personskat_pbl53a_kilder
+    )
+    måde: Pbl53AErhvervelsesmåde
+)
+@ field(
+    label = "Rettighedsperiodens begyndelse",
+    question = "Begyndte de samtidige berettigedes rettighedsperiode ved ordningens oprettelse eller ved en senere erhvervelse?",
+    help = "Vælg den faktiske begivenhed, som begyndte rettighedsperioden. Futuruna knytter den til den afledte ejerhistorik.",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53ARettighedsperiodereference =
+    Pbl53ARettighedsperiodeFraOprettelsen |
+    Pbl53ARettighedsperiodeFraErhvervelse(
+        @ field(
+            label = "Erhvervelse, der begyndte rettighedsperioden",
+            question = "Hvilken registreret erhvervelse begyndte de samtidige berettigedes rettighedsperiode?",
+            help = "Brug samme entydige identifikation som på den daterede erhvervelse i ordningens ejerhistorik.",
+            sources = personskat_pbl53a_kilder
+        )
+        erhvervelsesidentifikation: Tekst
+    )
 # Pbl53ARettighedsperiodeslutning = Pbl53AÅbenRettighedsperiode | Pbl53ARettighedsperiodeSlutter(erhvervelse_identifikation: Tekst, tidspunkt: Pbl15ATidspunkt, kapitalværdi_ved_slutningen_kroner: Heltal)
 # Pbl53ARettighedsperiode(identifikation: Tekst, reference: Pbl53ARettighedsperiodereference, rettighedshaver_identifikation: Tekst, starttidspunkt: Pbl15ATidspunkt, kapitalværdi_ved_starten_kroner: Heltal, slutning: Pbl53ARettighedsperiodeslutning)
-# Pbl53AKontraktdelsrepræsentation = Pbl53AHeleKontrakten | Pbl53AHistoriskRestEfterDelviseKontraktændringer | Pbl53ADelSkabtVedKontraktændring(ændringsidentifikation: Tekst)
-# Pbl53AForhåndsaftalefakta = Pbl53AIngenDokumenteretForhåndsaftale | Pbl53ADokumenteretForhåndsaftale(bindende_fra_dato: Pbl15ADato, vilkår_fuldt_fastlagt: Boolsk, indtræder_uden_nyt_valg: Boolsk) | Pbl53AForhåndsaftaleUoplyst
+@ field(
+    label = "Kontraktdel repræsenteret ved ordningen",
+    question = "Repræsenterer denne række hele kontrakten, den historiske rest eller en del skabt ved en bestemt kontraktændring?",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53AKontraktdelsrepræsentation =
+    Pbl53AHeleKontrakten |
+    Pbl53AHistoriskRestEfterDelviseKontraktændringer |
+    Pbl53ADelSkabtVedKontraktændring(
+        @ field(
+            label = "Kontraktændring som skabte den repræsenterede del",
+            question = "Hvilken kontraktændrings identifikation skabte denne særskilt repræsenterede del?",
+            sources = personskat_pbl53a_kilder
+        )
+        ændringsidentifikation: Tekst
+    )
+@ field(
+    label = "Forhåndsaftale om kontraktændringen",
+    question = "Var kontraktændringen endeligt og bindende aftalt før 18. februar 1992?",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53AForhåndsaftalefakta =
+    Pbl53AIngenDokumenteretForhåndsaftale |
+    Pbl53ADokumenteretForhåndsaftale(
+        bindende_fra_dato: Pbl15ADato,
+        @ field(
+            label = "Forhåndsaftalens vilkår var fuldt fastlagt",
+            question = "Var alle vilkår for den senere ændring fuldt fastlagt i forhåndsaftalen?",
+            sources = personskat_pbl53a_kilder
+        )
+        vilkår_fuldt_fastlagt: Boolsk,
+        @ field(
+            label = "Ændringen indtrådte uden et nyt valg",
+            question = "Indtrådte ændringen automatisk uden et nyt valg fra forsikringstageren eller den pensionsberettigede?",
+            sources = personskat_pbl53a_kilder
+        )
+        indtræder_uden_nyt_valg: Boolsk
+    ) |
+    Pbl53AForhåndsaftaleUoplyst
 # Pbl53APræmieforhøjelsesgrundlag = Pbl53ANyPræmieforhøjelse | Pbl53AAutomatiskPristalsreguleringUdenIndflydelse | Pbl53AAutomatiskForhøjelseVedBonustilskrivning | Pbl53AFørskæringsaftaltReguleringValgtLavere | Pbl53APræmieforhøjelsesgrundlagUoplyst
 # Pbl53APræmieafkortningsfølge = Pbl53AKunPræmiebetalingstidenAfkortet | Pbl53APræmiebetalingstidAfkortetOgPræmieNedsat | Pbl53APræmiebetalingBortfaldtVedFripolice | Pbl53APræmiebetalingBortfaldtMedUændretForsikring | Pbl53APræmieafkortningsfølgeUoplyst
 # Pbl53AMisligholdelsesfølge = Pbl53AForsikringsdækningOpretholdtUnderMisligholdelse | Pbl53AForsikringsaftaleBortfaldtUnderMisligholdelse | Pbl53AMisligholdelsesfølgeUoplyst
 # Pbl53ABestandsoverførselsvilkår = Pbl53ABestandOverførtPåUændredeVilkår | Pbl53ABestandOverførtMedVilkårsændringer | Pbl53ABestandsoverførselsvilkårUoplyst
-# Pbl53AKontraktændringsart = Pbl53AForsikringsperiodeForlængetFørForsikringsbegivenhed | Pbl53APræmiebetalingsperiodeForlænget(oprindelig_præmiebetalingsperiodes_slutdato: Pbl15ADato) | Pbl53AÅrligOpsparingspræmieForhøjet(forhøjelse_kroner: Heltal, grundlag: Pbl53APræmieforhøjelsesgrundlag) | Pbl53AForsikringForlængetVedForsikringsbegivenhed | Pbl53APræmiebetalingstidAfkortet(følge: Pbl53APræmieafkortningsfølge) | Pbl53AFripoliceGenopskrevet | Pbl53AForsikringGenoptagetEfterMisligholdelse(følge: Pbl53AMisligholdelsesfølge, nye_helbredsoplysninger_krævet: Boolsk) | Pbl53AIkkefastsatIndskudsretUdnyttet(indskud_kroner: Heltal) | Pbl53ABedreHelbredsvilkårMedHøjereForsikringssum | Pbl53ABedreHelbredsvilkårMedLaverePræmie | Pbl53APræmiebetalingsterminÆndretIndenForÅret | Pbl53ALøbendePræmieAfløstAfEngangsindskud(indskud_kroner: Heltal) | Pbl53AGennemsnitsrenteSkiftetTilMarkedsrente | Pbl53AValutaÆndret | Pbl53APorteføljemanagerUdskiftet | Pbl53ADepotbankUdskiftet | Pbl53APolicePantsat | Pbl53ABegunstigetIndsatEllerTilbagekaldt | Pbl53APoliceOpdeltUdenVilkårsændring | Pbl53AHelBestandOverførtVedFusionOpkøbEllerOphør(vilkår: Pbl53ABestandsoverførselsvilkår) | Pbl53ASelvvalgtOverflytningTilNyUdbyder(modtagende_ordnings_oprettelsesdato: Pbl15ADato, policer_enslydende: Boolsk) | Pbl53AAndenKontraktændring(beskrivelse: Tekst)
-# Pbl53AKapitalværdiVedKontraktændring = Pbl53AHeleOrdningensKapitalværdi(kroner: Heltal) | Pbl53ANyeDelsKapitalværdi(kroner: Heltal) | Pbl53AKapitalværdiIkkeRelevant | Pbl53AKapitalværdiUoplyst
-# Pbl53AKontraktændring(identifikation: Tekst, ændringsdato: Pbl15ADato, virkningstidspunkt: Pbl15ATidspunkt, kapitalværdi_på_virkningstidspunktet: Pbl53AKapitalværdiVedKontraktændring, forhåndsaftale: Pbl53AForhåndsaftalefakta, art: Pbl53AKontraktændringsart)
+@ field(
+    label = "Kontraktændringens art",
+    question = "Hvilken faktisk ændring blev foretaget i pensionskontrakten?",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53AKontraktændringsart =
+    Pbl53AForsikringsperiodeForlængetFørForsikringsbegivenhed |
+    Pbl53APræmiebetalingsperiodeForlænget(oprindelig_præmiebetalingsperiodes_slutdato: Pbl15ADato) |
+    Pbl53AÅrligOpsparingspræmieForhøjet(
+        @ field(
+            label = "Årlig forhøjelse af opsparingspræmien",
+            question = "Hvor meget blev den årlige opsparingspræmie forhøjet?",
+            unit = "kr.",
+            sources = personskat_pbl53a_kilder
+        )
+        forhøjelse_kroner: Heltal,
+        @ field(
+            label = "Grundlag for præmieforhøjelsen",
+            question = "Var præmieforhøjelsen ny, automatisk eller allerede aftalt før skæringsdatoen?",
+            sources = personskat_pbl53a_kilder
+        )
+        grundlag: Pbl53APræmieforhøjelsesgrundlag
+    ) |
+    Pbl53AForsikringForlængetVedForsikringsbegivenhed |
+    Pbl53APræmiebetalingstidAfkortet(
+        @ field(
+            label = "Følge af den afkortede præmiebetalingstid",
+            question = "Blev kun betalingstiden afkortet, eller blev præmien samtidig nedsat eller bragt til ophør?",
+            sources = personskat_pbl53a_kilder
+        )
+        følge: Pbl53APræmieafkortningsfølge
+    ) |
+    Pbl53AFripoliceGenopskrevet |
+    Pbl53AForsikringGenoptagetEfterMisligholdelse(
+        @ field(
+            label = "Forsikringens status under misligholdelsen",
+            question = "Var forsikringsdækningen opretholdt, eller var aftalen bortfaldet under misligholdelsen?",
+            sources = personskat_pbl53a_kilder
+        )
+        følge: Pbl53AMisligholdelsesfølge,
+        @ field(
+            label = "Nye helbredsoplysninger ved genoptagelsen",
+            question = "Krævede genoptagelsen nye helbredsoplysninger?",
+            sources = personskat_pbl53a_kilder
+        )
+        nye_helbredsoplysninger_krævet: Boolsk
+    ) |
+    Pbl53AIkkefastsatIndskudsretUdnyttet(
+        @ field(
+            label = "Indskud efter ikke fastsat indskudsret",
+            question = "Hvor stort et indskud blev foretaget efter den ikke beløbsmæssigt fastsatte indskudsret?",
+            unit = "kr.",
+            sources = personskat_pbl53a_kilder
+        )
+        indskud_kroner: Heltal
+    ) |
+    Pbl53ABedreHelbredsvilkårMedHøjereForsikringssum |
+    Pbl53ABedreHelbredsvilkårMedLaverePræmie |
+    Pbl53APræmiebetalingsterminÆndretIndenForÅret |
+    Pbl53ALøbendePræmieAfløstAfEngangsindskud(
+        @ field(
+            label = "Engangsindskud som afløste løbende præmie",
+            question = "Hvor stort var engangsindskuddet, som afløste den løbende præmie?",
+            unit = "kr.",
+            sources = personskat_pbl53a_kilder
+        )
+        indskud_kroner: Heltal
+    ) |
+    Pbl53AGennemsnitsrenteSkiftetTilMarkedsrente |
+    Pbl53AValutaÆndret |
+    Pbl53APorteføljemanagerUdskiftet |
+    Pbl53ADepotbankUdskiftet |
+    Pbl53APolicePantsat |
+    Pbl53ABegunstigetIndsatEllerTilbagekaldt |
+    Pbl53APoliceOpdeltUdenVilkårsændring |
+    Pbl53AHelBestandOverførtVedFusionOpkøbEllerOphør(
+        @ field(
+            label = "Vilkår ved overførsel af hele bestanden",
+            question = "Blev hele bestanden overført på uændrede vilkår eller med vilkårsændringer?",
+            sources = personskat_pbl53a_kilder
+        )
+        vilkår: Pbl53ABestandsoverførselsvilkår
+    ) |
+    Pbl53ASelvvalgtOverflytningTilNyUdbyder(
+        modtagende_ordnings_oprettelsesdato: Pbl15ADato,
+        @ field(
+            label = "Policerne var enslydende ved selvvalgt overflytning",
+            question = "Var den afgivende og modtagende police enslydende ved den selvvalgte overflytning?",
+            sources = personskat_pbl53a_kilder
+        )
+        policer_enslydende: Boolsk
+    ) |
+    Pbl53AAndenKontraktændring(
+        @ field(
+            label = "Beskrivelse af anden kontraktændring",
+            question = "Hvilken anden kontraktændring blev foretaget?",
+            sources = personskat_pbl53a_kilder
+        )
+        beskrivelse: Tekst
+    )
+@ field(
+    label = "Kapitalværdiens rækkevidde ved kontraktændringen",
+    question = "Er kapitalværdien opgjort for hele ordningen, for den nye kontraktdel, ikke relevant eller uoplyst?",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53AKapitalværdiVedKontraktændring =
+    Pbl53AHeleOrdningensKapitalværdi(
+        @ field(
+            label = "Hele ordningens kapitalværdi ved kontraktændringen",
+            question = "Hvad var hele ordningens kapitalværdi, da kontraktændringen fik virkning?",
+            unit = "kr.",
+            sources = personskat_pbl53a_kilder
+        )
+        kroner: Heltal
+    ) |
+    Pbl53ANyeDelsKapitalværdi(
+        @ field(
+            label = "Den nye kontraktdels kapitalværdi ved ændringen",
+            question = "Hvad var kapitalværdien af den særskilt nye kontraktdel, da ændringen fik virkning?",
+            unit = "kr.",
+            sources = personskat_pbl53a_kilder
+        )
+        kroner: Heltal
+    ) |
+    Pbl53AKapitalværdiIkkeRelevant |
+    Pbl53AKapitalværdiUoplyst
+# Pbl53AKontraktændring(
+    @ field(
+        label = "Kontraktændringens identifikation",
+        question = "Hvilken entydig identifikation skal kontraktændringen have?",
+        sources = personskat_pbl53a_kilder
+    )
+    identifikation: Tekst,
+    ændringsdato: Pbl15ADato,
+    virkningstidspunkt: Pbl15ATidspunkt,
+    kapitalværdi_på_virkningstidspunktet: Pbl53AKapitalværdiVedKontraktændring,
+    forhåndsaftale: Pbl53AForhåndsaftalefakta,
+    art: Pbl53AKontraktændringsart
+)
 # Pbl53AKontraktændringsvirkning = Pbl53AIngenNyOrdningVedKontraktændring | Pbl53AHeleOrdningenNyVedKontraktændring(ændringsidentifikation: Tekst, virkningstidspunkt: Pbl15ATidspunkt, kapitalværdi_kroner: Heltal) | Pbl53ADelNyVedKontraktændring(ændringsidentifikation: Tekst, virkningstidspunkt: Pbl15ATidspunkt, kapitalværdi_kroner: Heltal) | Pbl53AKontraktændringUafklaret
 # Pbl53AKontraktændringsresultat(ændring: Pbl53AKontraktændring, datoer_gyldige: Boolsk, ændring_ikke_efter_virkning: Boolsk, efter_oprettelsen: Boolsk, forhåndsaftalefakta_gyldige: Boolsk, endeligt_og_bindende_aftalt_før_skæringsdatoen: Boolsk, ændringsart_understøttet: Boolsk, kapitalværdi_entydig: Boolsk, ændring_gyldig: Boolsk, virkning: Pbl53AKontraktændringsvirkning)
 # Pbl53AKontraktændringsrækkefølgetilstand(seneste_virkningstidspunkt_nøgle: Heltal, kronologiske: Boolsk)
@@ -1289,11 +2176,89 @@ pensionsordningen modtager statsstøtte.
 # Pbl53AOvergangsvalgmål = Pbl53AValgAfPar53A | Pbl53AValgAfPar53B
 # Pbl53AOvergangsvalgmodtager = Pbl53AValgMeddeltSkattestyrelsen | Pbl53AValgMeddeltIndberettendePensionsudbyder | Pbl53AValgMeddeltAndenModtager
 # Pbl53AOvergangsvalgvirkning = Pbl53AValgVirkningFraModtagelse | Pbl53AValgVirkningFra1Januar2004
-# Pbl53AOvergangsvalgmeddelelse(beslutningsdato: Pbl15ADato, modtagelsesdato: Pbl15ADato, mål: Pbl53AOvergangsvalgmål, modtager: Pbl53AOvergangsvalgmodtager, ønsket_virkning: Pbl53AOvergangsvalgvirkning)
+# Pbl53AOvergangsvalgmeddelelse(
+    beslutningsdato: Pbl15ADato,
+    modtagelsesdato: Pbl15ADato,
+    @ field(
+        label = "Valgt pensionsbeskatningsregel",
+        question = "Gjaldt meddelelsen behandling efter PBL § 53 A eller § 53 B?",
+        sources = personskat_pbl53a_kilder
+    )
+    mål: Pbl53AOvergangsvalgmål,
+    @ field(
+        label = "Modtager af overgangsvalget",
+        question = "Blev valget meddelt Skattestyrelsen, den indberettende pensionsudbyder eller en anden modtager?",
+        sources = personskat_pbl53a_kilder
+    )
+    modtager: Pbl53AOvergangsvalgmodtager,
+    @ field(
+        label = "Ønsket virkning af overgangsvalget",
+        question = "Skulle valget have virkning fra modtagelsen eller tilbagevirkende fra 1. januar 2004?",
+        sources = personskat_pbl53a_kilder
+    )
+    ønsket_virkning: Pbl53AOvergangsvalgvirkning
+)
 # Pbl53ABlanket49020Udgave = Pbl53ATidligereBlanket49020UdenValgfelt | Pbl53ANyBlanket49020MedValgfelt
 # Pbl53AHistoriskBlanketpåberåbelse = Pbl53AValgEfterPar53AEllerPar53BPåberåbt | Pbl53AIntetValgEfterPar53AEllerPar53BPåberåbt | Pbl53AIngenDokumenteretPåberåbelse
-# Pbl53AHistoriskBlanket49020Indsendelse(indsendelsesdato: Pbl15ADato, modtagelsesdato: Pbl15ADato, udgave: Pbl53ABlanket49020Udgave, modtager: Pbl53AOvergangsvalgmodtager, påberåbelse: Pbl53AHistoriskBlanketpåberåbelse, ønsket_virkning: Pbl53AOvergangsvalgvirkning)
-# Pbl53AOvergangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag | Pbl53AFuldSkattepligtVedLovensIkrafttræden | Pbl53ASenereIndtrådtFuldSkattepligt(indtrædelsesdato: Pbl15ADato, oplysningsfrist: Pbl15ADato) | Pbl53ASenereArvUnderFuldSkattepligt(arvedato: Pbl15ADato, oplysningsfrist: Pbl15ADato, fuld_skattepligtig_på_arvedatoen: Boolsk, tidligere_ejer_fuld_skattepligtig_i_ejerperioden: Boolsk, tidligere_ejer_havde_valgt_afsnit_iia: Boolsk)
+# Pbl53AHistoriskBlanket49020Indsendelse(
+    indsendelsesdato: Pbl15ADato,
+    modtagelsesdato: Pbl15ADato,
+    @ field(
+        label = "Udgave af blanket 49.020",
+        question = "Var det den tidligere blanket uden valgfelt eller den nye blanket med et udtrykkeligt valgfelt?",
+        sources = personskat_pbl53a_kilder
+    )
+    udgave: Pbl53ABlanket49020Udgave,
+    @ field(
+        label = "Modtager af blanket 49.020",
+        question = "Hvem modtog den indsendte blanket 49.020?",
+        sources = personskat_pbl53a_kilder
+    )
+    modtager: Pbl53AOvergangsvalgmodtager,
+    @ field(
+        label = "Skatteyderens påberåbelse af den historiske blanket",
+        question = "Påberåber skatteyderen, at blanketten udgjorde et valg, at den ikke udgjorde et valg, eller foreligger der ingen dokumenteret påberåbelse?",
+        sources = personskat_pbl53a_kilder
+    )
+    påberåbelse: Pbl53AHistoriskBlanketpåberåbelse,
+    @ field(
+        label = "Ønsket virkning af den historiske blanket",
+        question = "Skulle valget have virkning fra modtagelsen eller tilbagevirkende fra 1. januar 2004?",
+        sources = personskat_pbl53a_kilder
+    )
+    ønsket_virkning: Pbl53AOvergangsvalgvirkning
+)
+@ field(
+    label = "Fristgrundlag for overgangsvalg efter PBL §§ 53 A eller 53 B",
+    question = "Hvilket fristgrundlag gjaldt for et eventuelt bindende valg for den historiske ordning?",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53AOvergangsvalgfristfakta =
+    Pbl53AIntetOvergangsvalgfristgrundlag |
+    Pbl53AFuldSkattepligtVedLovensIkrafttræden |
+    Pbl53ASenereIndtrådtFuldSkattepligt(indtrædelsesdato: Pbl15ADato, oplysningsfrist: Pbl15ADato) |
+    Pbl53ASenereArvUnderFuldSkattepligt(
+        arvedato: Pbl15ADato,
+        oplysningsfrist: Pbl15ADato,
+        @ field(
+            label = "Fuld dansk skattepligt ved den senere arv",
+            question = "Var arvingen fuldt skattepligtig til Danmark på arvedatoen?",
+            sources = personskat_pbl53a_kilder
+        )
+        fuld_skattepligtig_på_arvedatoen: Boolsk,
+        @ field(
+            label = "Tidligere ejers danske skattepligt",
+            question = "Var en tidligere ejer fuldt skattepligtig til Danmark, mens vedkommende ejede ordningen?",
+            sources = personskat_pbl53a_kilder
+        )
+        tidligere_ejer_fuld_skattepligtig_i_ejerperioden: Boolsk,
+        @ field(
+            label = "Tidligere ejers overgangsvalg",
+            question = "Havde en tidligere ejer allerede valgt behandling efter PBL afsnit II A?",
+            sources = personskat_pbl53a_kilder
+        )
+        tidligere_ejer_havde_valgt_afsnit_iia: Boolsk
+    )
 # Pbl53AModerneVirkningsstart = Pbl53AIngenModerneVirkningsstart | Pbl53AModerneVirkningsstartFra(dato: Pbl15ADato)
 # Pbl53AValgtOvergangsregime = Pbl53AIntetGyldigtOvergangsvalg | Pbl53AOvergangsvalgTilPar53A | Pbl53AOvergangsvalgTilPar53B
 # Pbl53AOvergangsvalgmeddelelsesresultat(meddelelse: Pbl53AOvergangsvalgmeddelelse, datoer_gyldige: Boolsk, beslutning_ikke_efter_modtagelse: Boolsk, modtager_gyldig: Boolsk, fristgrundlag_gyldigt: Boolsk, rettidig: Boolsk, historisk_ordning_uden_valg: Boolsk, mål_i_øvrigt_anvendeligt: Boolsk, ønsket_virkning_tilladt: Boolsk, meddelelse_opfylder_betingelser: Boolsk, valgt_regime: Pbl53AValgtOvergangsregime, virkningsstart: Pbl53AModerneVirkningsstart)
@@ -1305,7 +2270,52 @@ pensionsordningen modtager statsstøtte.
 # Pbl53AModerneAfkastvirkningsgrænse = Pbl53AIngenModerneAfkastvirkningsgrænse | Pbl53AKendtModerneAfkastvirkningsgrænse(kilde: Pbl53AModerneAfkastvirkningskilde, tidspunkt: Pbl15ATidspunkt, kapitalværdi_kroner: Heltal) | Pbl53AModerneAfkastvirkningsgrænseUdenKapitalværdi(kilde: Pbl53AModerneAfkastvirkningskilde, dato: Pbl15ADato)
 # Pbl53AErhvervelsesfold(seneste_tidspunkt: Pbl15ATidspunkt, datoer_gyldige: Boolsk, kronologiske: Boolsk, alle_efter_oprettelsen: Boolsk, rettighedskæde_sammenhængende: Boolsk, aktuel_rettighedshaver_identifikation: Tekst, aktuel_rettighedsperiode: Pbl53ARettighedsperiode, afsluttede_rettighedsperioder: List(Pbl53ARettighedsperiode), moderne_virkningsstart: Pbl53AModerneVirkningsstart, kvalificerende_arv_efter_skæringsdato: Boolsk)
 # Pbl53AOvergangsresultat(fakta_gyldige: Boolsk, erhvervelsesidentifikationer_entydige: Boolsk, erhvervelsesdatoer_gyldige: Boolsk, erhvervelser_kronologiske: Boolsk, alle_erhvervelser_efter_oprettelsen: Boolsk, rettighedskæde_sammenhængende: Boolsk, rettighedsperioder: List(Pbl53ARettighedsperiode), kontraktændringsresultat: Pbl53AKontraktændringsforløbsresultat, valgresultat: Pbl53AOvergangsvalgresultat, moderne_virkningsstart: Pbl53AModerneVirkningsstart, moderne_afkastvirkningsgrænse: Pbl53AModerneAfkastvirkningsgrænse, arveundtagelse_bevarer_historisk_regime: Boolsk, historisk_par50_eller_statsskattelov: Boolsk)
-# Pbl53AOmfangsfakta(oprettelsesdato: Pbl15ADato, oprindelig_rettighedshaver_identifikation: Tekst, kapitalværdi_ved_oprettelsen_kroner: Heltal, repræsenteret_kontraktdel: Pbl53AKontraktdelsrepræsentation, kontraktændringer: List(Pbl53AKontraktændring), erhvervelser: List(Pbl53AErhvervelseshændelse), overgangsvalgfristfakta: Pbl53AOvergangsvalgfristfakta, overgangsvalg: List(Pbl53AOvergangsvalgmeddelelse), historiske_blanket49020_indsendelser: List(Pbl53AHistoriskBlanket49020Indsendelse), produkt: Pbl53AProduktfakta, afsnit_i_valg: Pbl53AAfsnitIValgfakta, institutionsfinansiering: Pbl53AInstitutionsfinansiering, par53b_oprettelsesposition: Pbl53BOprettelsesposition)
+# Pbl53AOmfangsfakta(
+    oprettelsesdato: Pbl15ADato,
+    @ field(
+        label = "Oprindelig rettighedshaver til ordningen",
+        question = "Hvem havde retten til ordningen, da den blev oprettet?",
+        sources = personskat_pbl53a_kilder
+    )
+    oprindelig_rettighedshaver_identifikation: Tekst,
+    @ field(
+        label = "Kapitalværdi ved ordningens oprettelse",
+        question = "Hvad var ordningens kapitalværdi, da den blev oprettet?",
+        unit = "kr.",
+        sources = personskat_pbl53a_kilder
+    )
+    kapitalværdi_ved_oprettelsen_kroner: Heltal,
+    repræsenteret_kontraktdel: Pbl53AKontraktdelsrepræsentation,
+    @ field(
+        label = "Ændringer af den historiske pensionskontrakt",
+        question = "Er en ordning fra før 18. februar 1992 senere blevet ændret?",
+        sources = personskat_pbl53a_kilder
+    )
+    kontraktændringer: List(Pbl53AKontraktændring),
+    @ field(
+        label = "Senere erhvervelser af ordningen",
+        question = "Er ordningen efter oprettelsen overgået til en ny ejer en eller flere gange?",
+        sources = personskat_pbl53a_kilder
+    )
+    erhvervelser: List(Pbl53AErhvervelseshændelse),
+    overgangsvalgfristfakta: Pbl53AOvergangsvalgfristfakta,
+    @ field(
+        label = "Meddelelser om bindende overgangsvalg",
+        question = "Blev der meddelt et valg om behandling efter PBL § 53 A eller § 53 B?",
+        sources = personskat_pbl53a_kilder
+    )
+    overgangsvalg: List(Pbl53AOvergangsvalgmeddelelse),
+    @ field(
+        label = "Historiske indsendelser af blanket 49.020",
+        question = "Blev den tidligere blanket 49.020 indsendt uden et særskilt felt til valg af PBL § 53 A eller § 53 B?",
+        sources = personskat_pbl53a_kilder
+    )
+    historiske_blanket49020_indsendelser: List(Pbl53AHistoriskBlanket49020Indsendelse),
+    produkt: Pbl53AProduktfakta,
+    afsnit_i_valg: Pbl53AAfsnitIValgfakta,
+    institutionsfinansiering: Pbl53AInstitutionsfinansiering,
+    par53b_oprettelsesposition: Pbl53BOprettelsesposition
+)
 # Pbl53BResultat(overgang_har_virkning: Boolsk, produktkreds_omfattet: Boolsk, oprettelsesbetingelse_opfyldt: Boolsk, indbetalingsdokumentation_konsistent: Boolsk, samtlige_udenlandske_indbetalinger_kvalificerer: Boolsk, i_øvrigt_anvendelig: Boolsk, omfattes_af_par53b: Boolsk)
 # Pbl53AStk1Klassifikation = Pbl53AIngenStk1Hjemmel | Pbl53AStk1Hjemmel(nummer: Heltal, ordning: Pensionsbeskatningslov53AOrdning)
 # Pbl53AOmfangsresultat(fakta: Pbl53AOmfangsfakta, grundfakta_gyldige: Boolsk, produkt_fakta_gyldige: Boolsk, afsnit_i_valgfakta_konsistente: Boolsk, overgangsresultat: Pbl53AOvergangsresultat, modtager_statsstøtte: Boolsk, afkald_relevant_for_stk6: Boolsk, afkald_tilladt_efter_stk6: Boolsk, par53b_resultat: Pbl53BResultat, par53a_i_øvrigt_anvendelig: Boolsk, stk1_nr1_opfyldt: Boolsk, stk1_nr2_opfyldt: Boolsk, stk1_nr3_opfyldt: Boolsk, stk1_nr4_opfyldt: Boolsk, stk1_nr5_opfyldt: Boolsk, stk1_nr6_opfyldt: Boolsk, stk1_nr7_opfyldt: Boolsk, stk1_nr8_opfyldt: Boolsk, stk1_nr9_opfyldt: Boolsk, stk1_hjemler_antal: Heltal, stk1_hjemmel_entydig: Boolsk, stk1_klassifikation: Pbl53AStk1Klassifikation, risikoliv_undtaget_efter_stk4: Boolsk, syge_ulykke_undtaget_efter_stk4: Boolsk, direktørgaranti_undtaget_efter_stk4: Boolsk, undtaget_efter_stk4: Boolsk, omfattes_af_par53a: Boolsk)
@@ -1555,19 +2565,167 @@ pensionsordningen modtager statsstøtte.
 # Pbl53ATidspunkt(dato: Pbl15ADato, rækkefølge_på_dagen: Heltal)
 # Pbl53ASenesteTidspunkt = Pbl53AIntetTidspunkt | Pbl53ARegistreretTidspunkt(tidspunkt: Pbl53ATidspunkt)
 # Pbl53AUdsendelsessted = Pbl53AFremmedStat | Pbl53AFærøerne | Pbl53AGrønland | Pbl53ADanmark
-# Pbl53AUdsendelsesfakta(startdato: Pbl15ADato, slutdato: Pbl15ADato, sted: Pbl53AUdsendelsessted, fælles_bopæl_hele_perioden: Boolsk, indbetaling_til_afsnit_i_eller_iia_under_udsendelsen: Boolsk)
+# Pbl53AUdsendelsesfakta(
+    startdato: Pbl15ADato,
+    slutdato: Pbl15ADato,
+    sted: Pbl53AUdsendelsessted,
+    @ field(
+        label = "Fælles bopæl under udsendelsen",
+        question = "Havde I fælles bopæl under hele udsendelsesperioden?",
+        sources = personskat_pbl53a_kilder
+    )
+    fælles_bopæl_hele_perioden: Boolsk,
+    indbetaling_til_afsnit_i_eller_iia_under_udsendelsen: Boolsk
+)
 # Pbl53AIndbetalingsperiode = Pbl53AIndbetaltMensOrdningenErOmfattet | Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet
 # Pbl53AEjerensFradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret | Pbl53AFradragEllerBortseelsesretIDanmark | Pbl53AFradragEllerBortseelsesretIUdlandet | Pbl53AFradragEllerBortseelsesretIDanmarkOgUdlandet
+@ field(
+    label = "Hvem foretog indbetalingen",
+    question = "Hvem foretog indbetalingen på ordningen?",
+    sources = personskat_pbl53a_kilder
+)
 # Pbl53AIndbetaler = Pbl53AEjeren | Pbl53ANuværendeArbejdsgiver | Pbl53ATidligereArbejdsgiver | Pbl53AÆgtefællesEllerSamleversArbejdsgiver(udsendelse: Pbl53AUdsendelsesfakta) | Pbl53AAndenIndbetaler
-# Pbl53AIndbetalingsfakta(identifikation: Tekst, tidspunkt: Pbl53ATidspunkt, beløb_kroner: Heltal, periode: Pbl53AIndbetalingsperiode, indbetaler: Pbl53AIndbetaler, ejerens_fradragsstatus: Pbl53AEjerensFradragsstatus, par53b_udenlandsk_skattebehandling: Pbl53BUdenlandskIndbetalingsbehandling)
+# Pbl53AIndbetalingsfakta(
+    @ field(
+        label = "Indbetalingens identifikation",
+        question = "Hvilken entydig identifikation skal indbetalingen have?",
+        sources = personskat_pbl53a_kilder
+    )
+    identifikation: Tekst,
+    tidspunkt: Pbl53ATidspunkt,
+    @ field(
+        label = "Indbetalt beløb",
+        question = "Hvor stort var det indbetalte beløb?",
+        unit = "kr.",
+        sources = personskat_pbl53a_kilder
+    )
+    beløb_kroner: Heltal,
+    @ field(
+        label = "Indbetalingens periode",
+        question = "Blev beløbet indbetalt, mens ordningen var omfattet af § 53 A, eller før?",
+        sources = personskat_pbl53a_kilder
+    )
+    periode: Pbl53AIndbetalingsperiode,
+    indbetaler: Pbl53AIndbetaler,
+    @ field(
+        label = "Ejerens fradrags- eller bortseelsesret",
+        question = "Var der hel eller delvis fradrags- eller bortseelsesret for indbetalingen i Danmark eller udlandet?",
+        help = "Oplys den faktiske skattemæssige behandling af indbetalingen; en senere udbetaling kan blive skattepligtig efter stk. 5.",
+        sources = personskat_pbl53a_kilder
+    )
+    ejerens_fradragsstatus: Pbl53AEjerensFradragsstatus,
+    par53b_udenlandsk_skattebehandling: Pbl53BUdenlandskIndbetalingsbehandling
+)
 # Pbl53AIndbetalingsresultat(fakta: Pbl53AIndbetalingsfakta, fakta_gyldige: Boolsk, medfølgende_ægtefælle_eller_samlever_omfattet: Boolsk, eget_fradrag_i_skattepligtig_indkomst_kroner: Heltal, arbejdsgiverfradrag_for_sikkerhedsstillelse_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal, fradrags_eller_bortseelsesberettiget_principal_tilføjet_kroner: Heltal)
 # Pbl53AUdbetalingsmodtager = Pbl53AEjer | Pbl53APensionsberettiget | Pbl53ABerettigetEfterEjerensEllerPensionsberettigedesDød | Pbl53AAndenUdbetalingsmodtager
 # Pbl53AKapitaludbetalingsgrund = Pbl53APensionsudbetalingsalder | Pbl53AInvaliditet | Pbl53ALivstruendeSygdom | Pbl53ADød | Pbl53AAndenUdbetalingsgrund
-# Pbl53AUdbetalingsform = Pbl53AIkkeSamletKapitaludbetaling | Pbl53ASamletKapitaludbetaling(grund: Pbl53AKapitaludbetalingsgrund)
+@ field(
+    label = "Udbetalingsform",
+    question = "Er der tale om en samlet kapitaludbetaling?",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53AUdbetalingsform =
+    Pbl53AIkkeSamletKapitaludbetaling |
+    Pbl53ASamletKapitaludbetaling(
+        @ field(
+            label = "Grund til samlet kapitaludbetaling",
+            question = "Hvorfor blev kapitalen udbetalt samlet?",
+            help = "Pensionsalder, invaliditet, livstruende sygdom eller død kan udløse stk. 5's 75-procentregel.",
+            sources = personskat_pbl53a_kilder
+        )
+        grund: Pbl53AKapitaludbetalingsgrund
+    )
 # Pbl53AProduktart = Pbl53ATilsvarerDanskKapitalforsikringEllerOpsparing | Pbl53AAndenProduktart
-# Pbl53AUdbetalingsart = Pbl53AUdbetalingFraOrdningen(kapitalværdi_umiddelbart_før_udbetalingen_kroner: Heltal, produktart: Pbl53AProduktart, udbetalingsform: Pbl53AUdbetalingsform, pbl20_stk6_kildefakta: Pbl20Stk6KildeFakta) | Pbl53AUdbetalingTilAfkastskat(kapitalværdi_umiddelbart_før_udbetalingen_kroner: Heltal, afkast_indkomstår: Heltal, dokumenteret_endelig_afkastskat_kroner: Heltal, dokumentationsdato: Pbl15ADato, pbl20_stk6_kildefakta: Pbl20Stk6KildeFakta) | Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(sikkerhedsstillelse_eller_tidligere_sikkerhedsstillelse_kroner: Heltal)
-# Pbl53AUdbetalingsfakta(identifikation: Tekst, tidspunkt: Pbl53ATidspunkt, modtager: Pbl53AUdbetalingsmodtager, bruttoudbetaling_kroner: Heltal, art: Pbl53AUdbetalingsart)
+@ field(
+    label = "Type § 53 A-udbetaling",
+    question = "Kom udbetalingen fra ordningen, dækkede den dokumenteret afkastskat, eller kom den fra arbejdsgiverens pensionstilsagn?",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53AUdbetalingsart =
+    Pbl53AUdbetalingFraOrdningen(
+        @ field(
+            label = "Kapitalværdi før udbetalingen",
+            question = "Hvad var ordningens kapitalværdi umiddelbart før udbetalingen?",
+            help = "Kapitalværdien bruges til at fordele tidligere fradrags- eller bortseelsesberettiget principal forholdsmæssigt.",
+            unit = "kr.",
+            sources = personskat_pbl53a_kilder
+        )
+        kapitalværdi_umiddelbart_før_udbetalingen_kroner: Heltal,
+        @ field(
+            label = "Pensionsproduktets art",
+            question = "Svarer ordningen til en dansk kapitalforsikring eller opsparing i pensionsøjemed?",
+            sources = personskat_pbl53a_kilder
+        )
+        produktart: Pbl53AProduktart,
+        udbetalingsform: Pbl53AUdbetalingsform,
+        pbl20_stk6_kildefakta: Pbl20Stk6KildeFakta
+    ) |
+    Pbl53AUdbetalingTilAfkastskat(
+        @ field(
+            label = "Kapitalværdi før udbetaling til afkastskat",
+            question = "Hvad var ordningens kapitalværdi umiddelbart før udbetalingen til afkastskat?",
+            help = "Kapitalværdien bruges til at fordele tidligere fradrags- eller bortseelsesberettiget principal forholdsmæssigt.",
+            unit = "kr.",
+            sources = personskat_pbl53a_kilder
+        )
+        kapitalværdi_umiddelbart_før_udbetalingen_kroner: Heltal,
+        @ field(
+            label = "Indkomstår for den dækkede afkastskat",
+            question = "Hvilket indkomstårs afkastskat dækkede udbetalingen?",
+            help = "Udbetalingen skal ske i afkaståret eller det følgende kalenderår for at være rettidig.",
+            unit = "år",
+            sources = personskat_pbl53a_kilder
+        )
+        afkast_indkomstår: Heltal,
+        @ field(
+            label = "Dokumenteret endelig afkastskat",
+            question = "Hvor stor var den dokumenterede endelige skat af ordningens løbende afkast?",
+            help = "Kun en udbetaling, der ikke overstiger den dokumenterede skat, kan behandles som rettidig skattedækning.",
+            unit = "kr.",
+            sources = personskat_pbl53a_kilder
+        )
+        dokumenteret_endelig_afkastskat_kroner: Heltal,
+        dokumentationsdato: Pbl15ADato,
+        pbl20_stk6_kildefakta: Pbl20Stk6KildeFakta
+    ) |
+    Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(
+        @ field(
+            label = "Modsvarende sikkerhedsstillelse",
+            question = "Hvor stor en del af arbejdsgiverens udbetaling modsvares af sikkerhedsstillelsen eller den tidligere sikkerhedsstillelse?",
+            unit = "kr.",
+            sources = personskat_pbl53a_kilder
+        )
+        sikkerhedsstillelse_eller_tidligere_sikkerhedsstillelse_kroner: Heltal
+    )
+# Pbl53AUdbetalingsfakta(
+    @ field(
+        label = "Udbetalingens identifikation",
+        question = "Hvilken entydig identifikation skal udbetalingen have?",
+        sources = personskat_pbl53a_kilder
+    )
+    identifikation: Tekst,
+    tidspunkt: Pbl53ATidspunkt,
+    @ field(
+        label = "Udbetalingens modtager",
+        question = "Hvem modtog udbetalingen?",
+        sources = personskat_pbl53a_kilder
+    )
+    modtager: Pbl53AUdbetalingsmodtager,
+    @ field(
+        label = "Bruttoudbetaling",
+        question = "Hvor stort var det udbetalte beløb før skat?",
+        unit = "kr.",
+        sources = personskat_pbl53a_kilder
+    )
+    bruttoudbetaling_kroner: Heltal,
+    art: Pbl53AUdbetalingsart
+)
 # Pbl53AUdbetalingsresultat(fakta: Pbl53AUdbetalingsfakta, fakta_gyldige: Boolsk, modtager_omfattet_af_par55: Boolsk, afkastskatteudbetaling_rettidig: Boolsk, fradrags_eller_bortseelsesberettiget_principal_før_kroner: Heltal, principal_fordelt_til_udbetalingen_kroner: Heltal, principal_medregnet_før_75_procent_kroner: Heltal, kapitalregel_75_procent_anvendt: Boolsk, sikkerhedsstillelse_modsvarer_udbetaling_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal, pbl20_stk6_resultat: Pbl20Stk6Resultat)
+@ field(
+    label = "Type § 53 A-hændelse",
+    question = "Er hændelsen en indbetaling eller en udbetaling?",
+    sources = personskat_pbl53a_kilder
+)
 # Pbl53AHændelse = Pbl53AIndbetaling(fakta: Pbl53AIndbetalingsfakta) | Pbl53AUdbetaling(fakta: Pbl53AUdbetalingsfakta)
 # Pbl53AHændelsesresultat = Pbl53AIndbetalingBeregnet(resultat: Pbl53AIndbetalingsresultat) | Pbl53AUdbetalingBeregnet(resultat: Pbl53AUdbetalingsresultat)
 # Pbl53AForløbsinput(indkomstår: Heltal, ordning: Pensionsbeskatningslov53AOrdning, omfangsresultat: Pbl53AOmfangsresultat, hændelser: List(Pbl53AHændelse))
@@ -2932,21 +4090,152 @@ for dette.
 @ meta(pbl53a_afkastovergang_kildemeta)
 @ section pensionsbeskatningsloven_par53a_afkastovergang {
 
-# Pbl53AAfkastgrundlag = Pbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner: Heltal) | Pbl53AAlternativtKapitalværdiAfkast(kalenderårets_primo_depotværdi_kroner: Heltal, kalenderårets_ultimo_depotværdi_kroner: Heltal)
+@ field(
+    label = "Opgørelsesgrundlag for årets § 53 A-afkast",
+    question = "Har pensionsudbyderen opgjort årets afkast efter PAL §§ 3-5, eller foreligger kalenderårets depotværdier?",
+    help = "Futuruna kontrollerer selv, om det valgte grundlag er tilladt og stemmer med ordningens tidligere år.",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53AAfkastgrundlag =
+    Pbl53AAfkastEfterPal(
+        @ field(
+            label = "Afkast opgjort efter PAL §§ 3-5",
+            question = "Hvad er årets positive eller negative afkast opgjort efter pensionsafkastbeskatningslovens §§ 3-5?",
+            unit = "kr./år",
+            sources = personskat_pbl53a_kilder
+        )
+        afkast_efter_pal_par3_til_5_kroner: Heltal
+    ) |
+    Pbl53AAlternativtKapitalværdiAfkast(
+        @ field(
+            label = "Depotværdi ved kalenderårets begyndelse",
+            question = "Hvad var ordningens depotværdi ved kalenderårets begyndelse?",
+            help = "Ved erhvervelse, indtræden eller sikkerhedsstillelse i løbet af året bruger Futuruna i stedet depotværdien ved den afledte eller oplyste grænsehændelse.",
+            unit = "kr.",
+            sources = personskat_pbl53a_kilder
+        )
+        kalenderårets_primo_depotværdi_kroner: Heltal,
+        @ field(
+            label = "Depotværdi ved kalenderårets udgang",
+            question = "Hvad var ordningens depotværdi ved kalenderårets udgang?",
+            help = "Ved ophør eller bortfald af sikkerhed i løbet af året bruger Futuruna i stedet depotværdien ved den daterede grænsehændelse.",
+            unit = "kr.",
+            sources = personskat_pbl53a_kilder
+        )
+        kalenderårets_ultimo_depotværdi_kroner: Heltal
+    )
 # Pbl53ASkattepligtsstatusVedÅretsBegyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse | Pbl53AIkkeSkattepligtigVedÅretsBegyndelse
 # Pbl53ASikkerhedsstatusVedÅretsBegyndelse = Pbl53ASikkerhedIkkeRelevant | Pbl53ASikkerhedBestårVedÅretsBegyndelse | Pbl53ASikkerhedBestårIkkeVedÅretsBegyndelse
 # Pbl53AOplystAfkastgrænsehændelsesart = Pbl53ASkattepligtIndtræder | Pbl53ASkattepligtOphører | Pbl53ASikkerhedsstillelseEtableres | Pbl53ASikkerhedsstillelseOphører
-# Pbl53AOplystAfkastgrænsehændelse(identifikation: Tekst, tidspunkt: Pbl15ATidspunkt, depotværdi_kroner: Heltal, art: Pbl53AOplystAfkastgrænsehændelsesart)
+# Pbl53AOplystAfkastgrænsehændelse(
+    @ field(
+        label = "Grænsehændelsens identifikation",
+        question = "Hvilken entydig identifikation skal ændringen have?",
+        sources = personskat_pbl53a_kilder
+    )
+    identifikation: Tekst,
+    tidspunkt: Pbl15ATidspunkt,
+    @ field(
+        label = "Depotværdi ved ændringen",
+        question = "Hvad var depotværdien, da skattepligten eller sikkerhedsstillelsen ændrede sig?",
+        unit = "kr.",
+        sources = personskat_pbl53a_kilder
+    )
+    depotværdi_kroner: Heltal,
+    @ field(
+        label = "Type ændring i skattepligt eller sikkerhed",
+        question = "Hvilken ændring skete på datoen?",
+        sources = personskat_pbl53a_kilder
+    )
+    art: Pbl53AOplystAfkastgrænsehændelsesart
+)
 # Pbl53AAfkastgrænsehændelsesart = Pbl53AOplystAfkastgrænse(art: Pbl53AOplystAfkastgrænsehændelsesart) | Pbl53ARettighedErhverves | Pbl53ARettighedAfstås | Pbl53APar53AVirkningIndtræder
 # Pbl53AAfkastgrænsehændelse(identifikation: Tekst, tidspunkt: Pbl15ATidspunkt, depotværdi_kroner: Heltal, art: Pbl53AAfkastgrænsehændelsesart)
 # Pbl53ASenesteAfkastgrænsetidspunkt = Pbl53AIntetAfkastgrænsetidspunkt | Pbl53ARegistreretAfkastgrænsetidspunkt(tidspunkt: Pbl15ATidspunkt)
 # Pbl53AAfkastgrænserækkefølgetilstand(seneste_tidspunkt: Pbl53ASenesteAfkastgrænsetidspunkt, kronologiske: Boolsk)
 # Pbl53AAfkastgrænse = Pbl53AIngenAfkastgrænse | Pbl53ARegistreretAfkastgrænse(tidspunkt: Pbl15ATidspunkt, depotværdi_kroner: Heltal)
 # Pbl53AAfkastperiode = Pbl53AIngenAfkastperiode | Pbl53ASammenhængendeAfkastperiode(starttidspunkt: Pbl15ATidspunkt, sluttidspunkt_eksklusiv: Pbl15ATidspunkt)
-# Pbl53ABerettigetAndel(identifikation: Tekst, indestående_ved_afkastperiodens_udgang_kroner: Heltal)
-# Pbl53AAfkastfordelingsfakta = Pbl53AAfledtEnkeltRettighedshaver | Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(rettighedsperiodereference: Pbl53ARettighedsperiodereference, samlet_indestående_ved_afkastperiodens_udgang_kroner: Heltal, andele: List(Pbl53ABerettigetAndel))
+# Pbl53ABerettigetAndel(
+    @ field(
+        label = "Berettiget person",
+        question = "Hvilken person vedrører dette indestående?",
+        sources = personskat_pbl53a_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Personens indestående ved afkastperiodens udgang",
+        question = "Hvor stort var denne persons indestående ved afkastperiodens udgang?",
+        unit = "kr.",
+        sources = personskat_pbl53a_kilder
+    )
+    indestående_ved_afkastperiodens_udgang_kroner: Heltal
+)
+@ field(
+    label = "Fordeling af afkastet",
+    question = "Skal afkastet henføres til den afledte enkelte rettighedshaver eller fordeles mellem flere berettigede?",
+    help = "Den enkelte rettighedshaver afledes af det daterede ejerforløb. Kun flere samtidige berettigede kræver særskilte andelsfakta.",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53AAfkastfordelingsfakta =
+    Pbl53AAfledtEnkeltRettighedshaver |
+    Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(
+        rettighedsperiodereference: Pbl53ARettighedsperiodereference,
+        @ field(
+            label = "Samlet indestående ved afkastperiodens udgang",
+            question = "Hvad var de berettigedes samlede indestående ved afkastperiodens udgang?",
+            help = "Beløbet skal være lig summen af alle de angivne berettigedes indeståender.",
+            unit = "kr.",
+            sources = personskat_pbl53a_kilder
+        )
+        samlet_indestående_ved_afkastperiodens_udgang_kroner: Heltal,
+        @ field(
+            label = "Indeståender for flere berettigede",
+            question = "Hvilke personer var berettigede, og hvad var hver persons indestående ved afkastperiodens udgang?",
+            help = "Angiv alle berettigede. Futuruna validerer totalsummen og udleder skatteyderens nøjagtige andel.",
+            sources = personskat_pbl53a_kilder
+        )
+        andele: List(Pbl53ABerettigetAndel)
+    )
 # Pbl53ARettighedsperiodevalg = Pbl53AIngenRettighedsperiodeIIndkomståret | Pbl53AEntydigRettighedsperiodeIIndkomståret(identifikation: Tekst) | Pbl53AFlereRettighedsperioderIIndkomståret(identifikationer: List(Tekst))
-# Pbl53AAfkastårFakta(indkomstår: Heltal, afkastgrundlag: Pbl53AAfkastgrundlag, pensionsudbyder_opgjorde_afkast_efter_pal: Boolsk, skattepligtsstatus_ved_årets_begyndelse: Pbl53ASkattepligtsstatusVedÅretsBegyndelse, sikkerhedsstatus_ved_årets_begyndelse: Pbl53ASikkerhedsstatusVedÅretsBegyndelse, grænsehændelser: List(Pbl53AOplystAfkastgrænsehændelse), afkastfordeling: Pbl53AAfkastfordelingsfakta)
+# Pbl53AAfkastårFakta(
+    @ field(
+        label = "Indkomstår for afkastet",
+        question = "Hvilket indkomstår vedrører disse afkastfakta?",
+        unit = "år",
+        sources = personskat_pbl53a_kilder
+    )
+    indkomstår: Heltal,
+    afkastgrundlag: Pbl53AAfkastgrundlag,
+    @ field(
+        label = "Pensionsudbyderen har opgjort årets PAL-afkast",
+        question = "Har pensionsudbyderen opgjort afkastet for dette år efter PAL §§ 3-5?",
+        help = "Oplysningen afgør, om den alternative kapitalværdimetode overhovedet kunne vælges i det første relevante år.",
+        sources = personskat_pbl53a_kilder
+    )
+    pensionsudbyder_opgjorde_afkast_efter_pal: Boolsk,
+    @ field(
+        label = "Skattepligt ved årets begyndelse",
+        question = "Var personen skattepligtig af ordningens afkast ved indkomstårets begyndelse?",
+        help = "Senere indtræden eller ophør angives som daterede grænsehændelser.",
+        sources = personskat_pbl53a_kilder
+    )
+    skattepligtsstatus_ved_årets_begyndelse: Pbl53ASkattepligtsstatusVedÅretsBegyndelse,
+    @ field(
+        label = "Sikkerhedsstillelse ved årets begyndelse",
+        question = "Bestod den relevante sikkerhedsstillelse ved årets begyndelse?",
+        help = "Brug 'ikke relevant' for andre ordninger end direktørens pensionstilsagn.",
+        sources = personskat_pbl53a_kilder
+    )
+    sikkerhedsstatus_ved_årets_begyndelse: Pbl53ASikkerhedsstatusVedÅretsBegyndelse,
+    @ field(
+        label = "Daterede ændringer i skattepligt eller sikkerhed",
+        question = "Indtrådte eller ophørte skattepligt eller sikkerhedsstillelse i løbet af året?",
+        help = "Angiv hændelserne kronologisk med depotværdien på ændringstidspunktet.",
+        sources = personskat_pbl53a_kilder
+    )
+    grænsehændelser: List(Pbl53AOplystAfkastgrænsehændelse),
+    afkastfordeling: Pbl53AAfkastfordelingsfakta
+)
 # Pbl53AAfkastperiodetilstand(skattepligtig: Boolsk, rettighedshaver: Boolsk, sikkerhedsstillelse_består: Boolsk, par53a_har_virkning: Boolsk, afkastbeskatning_aktiv: Boolsk, seneste_tidspunkt: Pbl53ASenesteAfkastgrænsetidspunkt, åbningsgrænse: Pbl53AAfkastgrænse, lukningsgrænse: Pbl53AAfkastgrænse, antal_sammenhængende_perioder: Heltal, hændelser_kronologiske: Boolsk, overgange_gyldige: Boolsk)
 # Pbl53AAfkastperiodeResultat(fakta: Pbl53AAfkastårFakta, moderne_afkastvirkningsgrænse: Pbl53AModerneAfkastvirkningsgrænse, moderne_afkastvirkningsgrænse_understøttet: Boolsk, rettighedsperiodevalg: Pbl53ARettighedsperiodevalg, afledte_rettighedsgrænsehændelser: List(Pbl53AAfkastgrænsehændelse), afledte_moderne_virkningsgrænsehændelser: List(Pbl53AAfkastgrænsehændelse), samlede_grænsehændelser: List(Pbl53AAfkastgrænsehændelse), overgangsfakta_gyldige: Boolsk, rettighedsperiode_findes_entydigt: Boolsk, afkastperiode: Pbl53AAfkastperiode, grænsehændelsesidentifikationer_entydige: Boolsk, oplyste_grænsehændelser_kronologiske: Boolsk, hændelser_kronologiske: Boolsk, overgange_gyldige: Boolsk, periode_understøttet: Boolsk, kapitalværdi_primo_kroner: Heltal, kapitalværdi_ultimo_kroner: Heltal, indbetalinger_i_perioden_kroner: Heltal, udbetalinger_i_perioden_kroner: Heltal)
 
@@ -3286,8 +4575,54 @@ for dette.
 }
 
 # Pbl53AMetodetilstand = Pbl53AIngenMetodeValgt | Pbl53APalMetodeValgt | Pbl53AAlternativKapitalværdiMetodeValgt
-# Pbl53ANegativtAfkastSaldo(opstået_indkomstår: Heltal, resterende_kroner: Heltal)
-# Pbl53AAfkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik | Pbl53ADokumenteretTidligereAfkasthistorik(seneste_indkomstår: Heltal, metodetilstand: Pbl53AMetodetilstand, fremførte_negative_afkast: List(Pbl53ANegativtAfkastSaldo))
+# Pbl53ANegativtAfkastSaldo(
+    @ field(
+        label = "Oprindelsesår for fremført negativt afkast",
+        question = "I hvilket indkomstår opstod det negative afkast?",
+        unit = "år",
+        sources = personskat_pbl53a_kilder
+    )
+    opstået_indkomstår: Heltal,
+    @ field(
+        label = "Resterende fremført negativt afkast",
+        question = "Hvor meget af det negative afkast var endnu ikke modregnet før det første angivne år?",
+        unit = "kr.",
+        sources = personskat_pbl53a_kilder
+    )
+    resterende_kroner: Heltal
+)
+@ field(
+    label = "Historik før det første angivne afkastår",
+    question = "Er det første angivne afkastår ordningens første skattepligtige afkastår, eller fortsætter beregningen en dokumenteret historik?",
+    help = "Vælg dokumenteret historik, hvis ordningen allerede havde et bindende metodevalg eller fremført negativt afkast før det første år i arket.",
+    sources = personskat_pbl53a_kilder
+)
+# Pbl53AAfkastforløbsåbning =
+    Pbl53AIngenTidligereAfkasthistorik |
+    Pbl53ADokumenteretTidligereAfkasthistorik(
+        @ field(
+            label = "Seneste indkomstår før afkastforløbet",
+            question = "Hvilket indkomstår ligger umiddelbart før det første angivne afkastår?",
+            help = "Året skal ligge umiddelbart før første række med årlige afkastfakta.",
+            unit = "år",
+            sources = personskat_pbl53a_kilder
+        )
+        seneste_indkomstår: Heltal,
+        @ field(
+            label = "Bindende afkastmetode før afkastforløbet",
+            question = "Var PAL-metoden eller den alternative kapitalværdimetode allerede bindende før det første angivne år?",
+            help = "Før 2010 skal der ikke angives et bindende moderne metodevalg. Fra 2010 følger valget ordningen i senere skattepligtige år.",
+            sources = personskat_pbl53a_kilder
+        )
+        metodetilstand: Pbl53AMetodetilstand,
+        @ field(
+            label = "Fremførte negative afkast ved afkastforløbets begyndelse",
+            question = "Hvilke uudnyttede negative afkast fra samme ordning var dokumenteret før det første angivne år?",
+            help = "Angiv hvert oprindelsesår særskilt. Tab fra 2001 eller tidligere kan kun bruges i oprindelsesåret og de fem følgende indkomstår; tab fra 2002 eller senere har ingen tilsvarende femårsgrænse.",
+            sources = personskat_pbl53a_kilder
+        )
+        fremførte_negative_afkast: List(Pbl53ANegativtAfkastSaldo)
+    )
 # Pbl53ANegativtAfkastRækkefølgetilstand(seneste_opstået_indkomstår: Heltal, kronologiske: Boolsk)
 # Pbl53ANegativtAfkastAnvendelsestilstand(resterende_anvendelse_kroner: Heltal, anvendt_kroner: Heltal, saldi_efter_anvendelse: List(Pbl53ANegativtAfkastSaldo))
 # Pbl53ANegativtAfkastAnvendelsesresultat(anvendelige_saldi_primo: List(Pbl53ANegativtAfkastSaldo), udløbne_saldi: List(Pbl53ANegativtAfkastSaldo), anvendt_kroner: Heltal, saldi_efter_anvendelse: List(Pbl53ANegativtAfkastSaldo))
@@ -3511,3 +4846,10 @@ for dette.
 | pbl53a_afkastårsresultat_findes_entydigt(resultat: Pbl53AAfkastforløbsresultat, indkomstår: Heltal) -> length(filter(resultat.årsresultater, |årsresultat: Pbl53AAfkastårsresultat| årsresultat.fakta.indkomstår == indkomstår)) == 1
 
 }
+
+= personskat_pensionsbetaling_bank_vejledning = PensionsbeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048283",
+    identifier = "Den juridiske vejledning C.A.10.2.2.3.1, bidrag til pensionsordning i pengeinstitut",
+    hentet_dato = "2026-09-25",
+    ændringsstatus = "Vejledning om betalingsår og særskilt godkendt henføring af tilbageholdte arbejdsgiverbidrag; ikke en automatisk forsikringsfrist"
+)

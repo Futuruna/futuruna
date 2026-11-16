@@ -65,157 +65,140 @@ https://info.skat.dk/data.aspx?oid=1977389
 ----
 
 # PersonskatPar14Beregningsfelt = Par14Bruttoløn | Par14ØvrigPersonligIndkomst | Par14DisPersonligIndkomst | Par14Nettokapitalindkomst | Par14ØvrigeLigningsmæssigeFradrag | Par14Pbl18FradragsberettigetIndbetaling | Par14Pbl19RateOgOphørendeFørArbejdsmarkedsbidrag | Par14Pbl19RateOgOphørendeEfterArbejdsmarkedsbidrag | Par14Pbl19ØvrigeIndbetalingerEfterArbejdsmarkedsbidrag | Par14ØvrigtArbejdsmarkedsbidragsgrundlagMedIndeholdtBidrag | Par14AmblPar2Stk1Nr5Arbejdsmarkedsbidragsgrundlag | Par14Pbl20IndkomstskattepligtigUdbetaling | Par14Aktieindkomst | Par14CfcIndkomst | Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst
-# PersonskatPar14Kilde(identifikation: Tekst, beregningsfelt: PersonskatPar14Beregningsfelt, delårsbeløb_kroner: Heltal, omregningsmetode: Par14Omregningsmetode, faktisk_helårsbeløb_kroner: Option(Heltal))
+= personskat_par14_kilder_2 = [
+    Source(value = personskatteloven_2021_1284),
+    DependencySource(value = kommuneskatteloven_2019_935),
+    AmendmentSource(value = personskat_personfradrag_aendring_2023_1564),
+    Guidance(value = personskat_kirkeskat_medlemsvejledning),
+    Guidance(value = personskat_par14_juridisk_vejledning),
+    Guidance(value = personskat_par14_indkomsttypevejledning),
+    Guidance(value = personskat_par14_beregningscirkulære),
+    Warning(value = personskat_par14_mellemtrin_forbehold)
+]
+# PersonskatPar14Kilde(
+    @ field(
+        label = "Kildens identifikation",
+        question = "Hvilken entydig identifikation har beløbet?",
+        help = "Brug en stabil identifikation, som også kan genfindes i dokumentation og auditspor.",
+        sources = personskat_par14_kilder_2
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Felt i skatteberegningen",
+        question = "Hvilket kanonisk beregningsfelt tilhører beløbet?",
+        help = "Feltet bestemmer, hvor beløbet indgår i den rekonstruerede helårsberegning. Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst er en afgrænsning af arbejdsfradragsgrundlaget, ikke ny indkomst eller et ekstra fradrag. Brug samme identifikation og delårsbeløb som den udelukkede fordelingspost og en dokumenteret omregning af netop denne kildes grundlag.",
+        sources = personskat_par14_kilder_2
+    )
+    beregningsfelt: PersonskatPar14Beregningsfelt,
+    @ field(
+        label = "Beløb i skattepligtsperioden",
+        question = "Hvor stort var beløbet i den danske skattepligtsperiode?",
+        help = "Beløbet skal tilsammen med de øvrige kilder afstemme det kanoniske Personskat-grundlag. Par14Aktieindkomst angiver egen aktieindkomst før PSL § 8 a-ægtefællemodregning, ikke det modregnede skattegrundlag. Bevar kildebeløbene; modellen beregner selv ægtefællemodregning og grundbeløbsoverførsel. Aktieindkomst, der er et engangsbeløb, bevares uden forholdsmæssig opskalering; se personskat-delaar.md.",
+        unit = "kr.",
+        sources = personskat_par14_kilder_2
+    )
+    delårsbeløb_kroner: Heltal,
+    omregningsmetode: Par14Omregningsmetode,
+    @ field(
+        label = "Faktisk beløb i hele året",
+        question = "Hvad er kildens beløb til det faktiske årsgrundlag efter § 14, stk. 2? Vedrører kilden aktieindkomst, som ikke skal omregnes?",
+        help = "For Par14Aktieindkomst kan feltet udelades: det allerede oplyste delårsbeløb indgår uændret. Oplyses et årsbeløb, skal det være det samme; nul er et udtrykkeligt beløb, ikke en tom værdi. For øvrige kildearter er feltet påkrævet, når § 14, stk. 2-valget anvendes, og kan ellers udelades. For almindelig skattepligtig, personlig og kapitalindkomst medtages det faktiske beløb også uden for dansk skattepligt. Valget gør ikke udenlandske aktiebeløb uden for perioden til dansk aktieindkomst. Afklar særskilt skattepligt og kildeklassifikation, og ret ikke dokumenterede beløb for at få et match. Se personskat-delaar.md.",
+        unit = "kr.",
+        sources = personskat_par14_kilder_2
+    )
+    faktisk_helårsbeløb_kroner: Option(Heltal)
+)
 # PersonskatPar14Skattepligtsperiode(fra_dato: Dato, til_dato: Dato)
+@ field(
+    label = "Grundlag for den kanoniske helårsberegning",
+    question = "Kan helårsberegningen afledes alene af de identificerede beløb, eller skal et komplet dokumenteret Personskat-grundlag for hele året anvendes?",
+    help = "Brug et komplet helårsgrundlag, når ægtefælleoverførsler, underskud eller andre sammensatte årsforløb skal genberegnes i den samme kanoniske regelgraf. Bevar hver persons egne kapitalbeløb før ægtefællemodregning. Ægtefællens delårs- og helårsbeløb skal dokumenteres særskilt; genbrug ikke automatisk delårsbeløbet og udled ikke beløbet af den forventede skat. Modellen anvender PSL §§ 6 og 11 i hvert sit grundlag. Samliv ved indkomstårets udløb skal være samme oplysning i begge grundlag. Hver persons fødselsdato, også dag og måned, skal være ens i de to grundlag; det gælder også den tilsvarende ægtefælle. Ægtefællerne skal ikke have samme fødselsdato som hinanden. Indkomster kan være forskellige, men helårsomregning ændrer ikke fødselsdatoen. Ens datoer beviser ikke personernes identitet. Afklar modstridende bilag uden at vælge dato efter skatteresultatet. For den tilsvarende ægtefælle skal også lønmodtager.kommune, lønmodtager.kirkeskat og lønmodtager.personfradrag_alder_status stemme mellem grundlagene. Kommune betyder årets skattekommune, ikke nødvendigvis bopæl i dag. Kirkeskat er den samme oplysning om hele indkomståret; medlemsperioder er fortsat ikke understøttet. Ægtefællerne kan have forskellige kommuner og kirkeskatteforhold fra hinanden. Ens oplysninger beviser ikke, at de er korrekte; afklar kilderne uden at kopiere en værdi blot for at få sammenligningen. Se personskat-delaar.md.",
+    sources = personskat_par14_kilder_2
+)
 # PersonskatPar14Helårsgrundlag = AfledtFraIdentificeredeKilder | DokumenteretHelårsPersonskat(personskat: PersonskatInput)
-# PersonskatPar14Input(personskat: PersonskatInput, skattepligtsændring: Par14Skattepligtsændring, skattepligtsperiode: PersonskatPar14Skattepligtsperiode, valg_afgivet_ved_oplysninger: Boolsk, omvalg_dato: Option(Dato), kilder: List(PersonskatPar14Kilde), helårsgrundlag: PersonskatPar14Helårsgrundlag)
+# PersonskatPar14Input(
+    personskat: PersonskatInput,
+    @ field(
+        label = "Ændring i skattepligt",
+        question = "Indtrådte eller ophørte fuld eller begrænset skattepligt i indkomståret?",
+        help = "Afklar den juridiske skattepligtsperiode, ikke kun ansættelsesperioden. Færre lønmåneder betyder ikke i sig selv delårsskattepligt. Fra indkomståret 2023 henviser § 14, stk. 3, til § 10, stk. 5; tidligere år anvender stk. 6. Se personskat-delaar.md.",
+        sources = personskat_par14_kilder_2
+    )
+    skattepligtsændring: Par14Skattepligtsændring,
+    skattepligtsperiode: PersonskatPar14Skattepligtsperiode,
+    @ field(
+        label = "Valg af faktisk helårsindkomst efter § 14, stk. 2",
+        question = "Er der ved afgivelsen af oplysninger valgt beskatning efter den faktiske helårsindkomst i stedet for helårsomregning?",
+        help = "Ved dette valg skal faktisk helårsbeløb oplyses for hver kilde bortset fra aktieindkomst, som indgår uændret med det allerede oplyste delårsbeløb. Et udtrykkeligt årsbeløb for aktieindkomst skal stemme med delårsbeløbet.",
+        sources = personskat_par14_kilder_2
+    )
+    valg_afgivet_ved_oplysninger: Boolsk,
+    @ field(
+        label = "Dato for omvalg",
+        question = "Er § 14, stk. 2-valget senere omgjort, og i så fald på hvilken dato?",
+        help = "Lad feltet være tomt uden omvalg. Fristen er den 30. juni i det andet kalenderår efter indkomståret.",
+        unit = "ISO-dato",
+        sources = personskat_par14_kilder_2
+    )
+    omvalg_dato: Option(Dato),
+    @ field(
+        label = "Indkomstkilder til helårsomregning",
+        question = "Hvilke identificerede beløb skal omregnes eller bevares ved helårsberegningen?",
+        help = "Tilføj én række pr. beløb og vælg, om beløbet er løbende, et engangsbeløb eller kræver et dokumenteret retvisende helårsbeløb.",
+        sources = personskat_par14_kilder_2
+    )
+    kilder: List(PersonskatPar14Kilde),
+    helårsgrundlag: PersonskatPar14Helårsgrundlag
+)
 # PersonskatPar14Par11Resultat(input_gyldigt: Boolsk, delårsgrundlag: Par11NegativKapitalNedslagResultat, helårsgrundlag: Par11NegativKapitalNedslagResultat, delårs_beregnet_nedslag_øre: Heltal, helårs_beregnet_nedslag_øre: Heltal, delårs_anvendt_nedslag_i_kanonisk_beregning_øre: Heltal, helårs_anvendt_nedslag_i_kanonisk_beregning_øre: Heltal, modregning_efter_par14: Par11NedslagModregningResultat, anvendt_nedslag_efter_par14_øre: Heltal, ubrugt_nedslag_efter_par14_øre: Heltal, delårsafstemt: Boolsk, helårsafstemt: Boolsk)
 # PersonskatPar14DisGrundlag(dis_personlig_indkomst_kroner: Heltal, personlig_indkomstgrundlag_kroner: Heltal, personlig_og_positiv_kapitalindkomstgrundlag_kroner: Heltal, skattepligtig_indkomstgrundlag_kroner: Heltal)
 # PersonskatPar14DisResultat(input_gyldigt: Boolsk, delårsgrundlag: PersonskatPar14DisGrundlag, helårsgrundlag: PersonskatPar14DisGrundlag, komponenter_efter_par14: List(Søbl5EksaktLempelseskomponent), lempelse_før_skatteloft_øre: Heltal, henført_personligt_skatteloftsnedslag_beregning: PengeØreBeregning, henført_personligt_skatteloftsnedslag_øre: Heltal, højeste_lempelse_efter_par13_og_skatteloft_øre: Heltal, beregnet_lempelse_øre: Heltal, samlet_lempelse_øre: Heltal, anvendt_lempelse_øre: Heltal, ubrugt_lempelse_øre: Heltal, indkomstskat_før_dis_lempelse_øre: Heltal, indkomstskat_efter_dis_lempelse_øre: Heltal, afstemt: Boolsk)
 # PersonskatPar14EfterfølgendeSkatResultat(ligningslov33: Ligningslov33PersonÅrsresultat, ligningslov33a: Ligningslov33AÅrsresultat, ligningslov33_og_33a_nedslag_øre: Heltal, negativ_aktieindkomstskat: AktieindkomstNegativSkatParResultat, tidligere_fremført_negativ_aktieindkomstskat: AktieindkomstNegativSkatFremførselsparResultat, personskattelov_par8a_stk5_kredit_øre: Heltal, arbejdsmarkedsbidragslov_par6_kredit_øre: Heltal, afskrivningslov40c_acontoskat: PersonskatAfskrivningslov40CAcontoskatResultat, afskrivningslov40c_acontoskat_kredit_øre: Heltal, ligningslov33_understøttet: Boolsk, aktieskattekredit_understøttet: Boolsk, afskrivningslov40c_understøttet: Boolsk, slutskat_før_kreditter_øre: Heltal, endelig_arbejdsudlejebeskatning_øre: Heltal, slutskat_inkl_endelig_arbejdsudlejebeskatning_øre: Heltal)
 # PersonskatPar14BeregningResultat(vurdering: PersonskatBeregningsvurdering, input_gyldigt: Boolsk, periode_gyldig: Boolsk, kilder_gyldige: Boolsk, kilder_afstemt_med_personskat: Boolsk, helårsgrundlag_gyldigt: Boolsk, kanonisk_beregning_understøttet: Boolsk, helårsskattekomponenter_afstemt: Boolsk, skattepligtsdage: Heltal, valg: Par14ValgResultat, delårsresultat: PersonskatBeregningResultat, delårsinput: LønmodtagerInput, helårsinput: LønmodtagerInput, helårsberegning: LønmodtagerBreakdown, helårsberegning_eksakt: LønmodtagerEksaktBeregning, statslige_skattekomponenter: List(Par14SkattekomponentResultat), kommunale_og_kirkelige_skattekomponenter: List(Par14SkattekomponentResultat), skatteloftsnedslag: List(Par14SkattekomponentResultat), par11: PersonskatPar14Par11Resultat, sømandsbeskatning: PersonskatPar14DisResultat, statslig_indkomstskat_efter_par14_øre: Heltal, kommunal_og_kirkelig_indkomstskat_efter_par14_øre: Heltal, arbejdsmarkedsbidrag_for_delåret_øre: Heltal, ejendomsskatter_øre: Heltal, efterfølgende_skat: PersonskatPar14EfterfølgendeSkatResultat, slutskat_efter_par14_øre: Heltal, slutskat_efter_par14_kroner: Heltal, slutskat_inkl_endelig_arbejdsudlejebeskatning_øre: Heltal, slutskat_inkl_endelig_arbejdsudlejebeskatning_kroner: Heltal, årsopgørelse: PersonskatÅrsopgørelseResultat)
-# PersonskatPar14VejledningKilde(titel: Tekst, url: Tekst, afsnit: Tekst)
-# PersonskatPar14Beregningsmeta(a) = PersonskatPar14Beregningsmeta(felter: List(Beregningsfelt), typede_felter: List(TypetBeregningsfelt), attachments: a)
-# impl Meta for PersonskatPar14Beregningsmeta {}
 
-= personskat_par14_juridisk_vejledning = PersonskatPar14VejledningKilde(
-    titel = "Den juridiske vejledning 2026-1",
-    url = "https://info.skat.dk/data.aspx?oid=1977388",
-    afsnit = "C.F.1.6.2.1"
-)
-= personskat_par14_beregningscirkulære = PersonskatPar14VejledningKilde(
-    titel = "Cirkulære nr. 22 af 9. december 1986",
-    url = "https://www.retsinformation.dk/eli/mt/1986/22",
-    afsnit = "J. Omregning, nr. 90"
-)
-= personskat_par14_indkomsttypevejledning = PersonskatPar14VejledningKilde(
-    titel = "Den juridiske vejledning 2026-1",
-    url = "https://info.skat.dk/data.aspx?oid=1977389",
-    afsnit = "C.F.1.6.2.2"
-)
-= personskat_par14_mellemtrin_forbehold = "Denne vurdering gælder den afsluttede delårsberegning efter PSL § 14. delårsresultat.vurdering og helårsberegningen er mellemtrin; deres beløb må ikke bruges som den endelige delårsskat."
-= personskat_par14_beregningsmeta = PersonskatPar14Beregningsmeta(
+= personskat_par14_beregningsmeta = Beregningsmeta(
     felter = [
         Beregningsfelt(
-            path = pathof(PersonskatPar14Input::skattepligtsændring::$variant),
-            label = "Ændring i skattepligt",
-            question = Some("Indtrådte eller ophørte fuld eller begrænset skattepligt i indkomståret?"),
-            help = Some("Afklar den juridiske skattepligtsperiode, ikke kun ansættelsesperioden. Færre lønmåneder betyder ikke i sig selv delårsskattepligt. Fra indkomståret 2023 henviser § 14, stk. 3, til § 10, stk. 5; tidligere år anvender stk. 6. Se personskat-delaar.md."),
-            unit = None
-        ),
-        Beregningsfelt(
-            path = pathof(PersonskatPar14Input::skattepligtsperiode::fra_dato::år),
+            path = refof(PersonskatPar14Input::skattepligtsperiode::fra_dato::år),
             label = "Skattepligtsperiodens startår",
             question = Some("I hvilket år begyndte den danske skattepligtsperiode?"),
             help = None,
             unit = Some("år")
         ),
         Beregningsfelt(
-            path = pathof(PersonskatPar14Input::skattepligtsperiode::fra_dato::måned),
+            path = refof(PersonskatPar14Input::skattepligtsperiode::fra_dato::måned),
             label = "Skattepligtsperiodens startmåned",
             question = Some("I hvilken måned begyndte den danske skattepligtsperiode?"),
             help = None,
             unit = Some("måned 1-12")
         ),
         Beregningsfelt(
-            path = pathof(PersonskatPar14Input::skattepligtsperiode::fra_dato::dag),
+            path = refof(PersonskatPar14Input::skattepligtsperiode::fra_dato::dag),
             label = "Skattepligtsperiodens startdag",
             question = Some("På hvilken dag i måneden begyndte den danske skattepligtsperiode?"),
             help = None,
             unit = Some("dag")
         ),
         Beregningsfelt(
-            path = pathof(PersonskatPar14Input::skattepligtsperiode::til_dato::år),
+            path = refof(PersonskatPar14Input::skattepligtsperiode::til_dato::år),
             label = "Skattepligtsperiodens slutår",
             question = Some("I hvilket år sluttede den danske skattepligtsperiode?"),
             help = None,
             unit = Some("år")
         ),
         Beregningsfelt(
-            path = pathof(PersonskatPar14Input::skattepligtsperiode::til_dato::måned),
+            path = refof(PersonskatPar14Input::skattepligtsperiode::til_dato::måned),
             label = "Skattepligtsperiodens slutmåned",
             question = Some("I hvilken måned sluttede den danske skattepligtsperiode?"),
             help = None,
             unit = Some("måned 1-12")
         ),
         Beregningsfelt(
-            path = pathof(PersonskatPar14Input::skattepligtsperiode::til_dato::dag),
+            path = refof(PersonskatPar14Input::skattepligtsperiode::til_dato::dag),
             label = "Skattepligtsperiodens slutdag",
             question = Some("På hvilken dag i måneden sluttede den danske skattepligtsperiode?"),
             help = None,
             unit = Some("dag")
-        ),
-        Beregningsfelt(
-            path = pathof(PersonskatPar14Input::valg_afgivet_ved_oplysninger),
-            label = "Valg af faktisk helårsindkomst efter § 14, stk. 2",
-            question = Some("Er der ved afgivelsen af oplysninger valgt beskatning efter den faktiske helårsindkomst i stedet for helårsomregning?"),
-            help = Some("Ved dette valg skal faktisk helårsbeløb oplyses for hver kilde bortset fra aktieindkomst, som indgår uændret med det allerede oplyste delårsbeløb. Et udtrykkeligt årsbeløb for aktieindkomst skal stemme med delårsbeløbet."),
-            unit = None
-        ),
-        Beregningsfelt(
-            path = pathof(PersonskatPar14Input::omvalg_dato),
-            label = "Dato for omvalg",
-            question = Some("Er § 14, stk. 2-valget senere omgjort, og i så fald på hvilken dato?"),
-            help = Some("Lad feltet være tomt uden omvalg. Fristen er den 30. juni i det andet kalenderår efter indkomståret."),
-            unit = Some("ISO-dato")
-        ),
-        Beregningsfelt(
-            path = pathof(PersonskatPar14Input::kilder),
-            label = "Indkomstkilder til helårsomregning",
-            question = Some("Hvilke identificerede beløb skal omregnes eller bevares ved helårsberegningen?"),
-            help = Some("Tilføj én række pr. beløb og vælg, om beløbet er løbende, et engangsbeløb eller kræver et dokumenteret retvisende helårsbeløb."),
-            unit = None
-        ),
-        Beregningsfelt(
-            path = pathof(PersonskatPar14Input::helårsgrundlag::$variant),
-            label = "Grundlag for den kanoniske helårsberegning",
-            question = Some("Kan helårsberegningen afledes alene af de identificerede beløb, eller skal et komplet dokumenteret Personskat-grundlag for hele året anvendes?"),
-            help = Some("Brug et komplet helårsgrundlag, når ægtefælleoverførsler, underskud eller andre sammensatte årsforløb skal genberegnes i den samme kanoniske regelgraf. Bevar hver persons egne kapitalbeløb før ægtefællemodregning. Ægtefællens delårs- og helårsbeløb skal dokumenteres særskilt; genbrug ikke automatisk delårsbeløbet og udled ikke beløbet af den forventede skat. Modellen anvender PSL §§ 6 og 11 i hvert sit grundlag. Samliv ved indkomstårets udløb skal være samme oplysning i begge grundlag. Hver persons fødselsdato, også dag og måned, skal være ens i de to grundlag; det gælder også den tilsvarende ægtefælle. Ægtefællerne skal ikke have samme fødselsdato som hinanden. Indkomster kan være forskellige, men helårsomregning ændrer ikke fødselsdatoen. Ens datoer beviser ikke personernes identitet. Afklar modstridende bilag uden at vælge dato efter skatteresultatet. For den tilsvarende ægtefælle skal også lønmodtager.kommune, lønmodtager.kirkeskat og lønmodtager.personfradrag_alder_status stemme mellem grundlagene. Kommune betyder årets skattekommune, ikke nødvendigvis bopæl i dag. Kirkeskat er den samme oplysning om hele indkomståret; medlemsperioder er fortsat ikke understøttet. Ægtefællerne kan have forskellige kommuner og kirkeskatteforhold fra hinanden. Ens oplysninger beviser ikke, at de er korrekte; afklar kilderne uden at kopiere en værdi blot for at få sammenligningen. Se personskat-delaar.md."),
-            unit = None
-        )
-    ],
-    typede_felter = [
-        TypetBeregningsfelt(
-            path = refof(PersonskatPar14Kilde::identifikation),
-            label = "Kildens identifikation",
-            question = Some("Hvilken entydig identifikation har beløbet?"),
-            help = Some("Brug en stabil identifikation, som også kan genfindes i dokumentation og auditspor."),
-            unit = None
-        ),
-        TypetBeregningsfelt(
-            path = refof(PersonskatPar14Kilde::beregningsfelt::$variant),
-            label = "Felt i skatteberegningen",
-            question = Some("Hvilket kanonisk beregningsfelt tilhører beløbet?"),
-            help = Some("Feltet bestemmer, hvor beløbet indgår i den rekonstruerede helårsberegning. Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst er en afgrænsning af arbejdsfradragsgrundlaget, ikke ny indkomst eller et ekstra fradrag. Brug samme identifikation og delårsbeløb som den udelukkede fordelingspost og en dokumenteret omregning af netop denne kildes grundlag."),
-            unit = None
-        ),
-        TypetBeregningsfelt(
-            path = refof(PersonskatPar14Kilde::delårsbeløb_kroner),
-            label = "Beløb i skattepligtsperioden",
-            question = Some("Hvor stort var beløbet i den danske skattepligtsperiode?"),
-            help = Some("Beløbet skal tilsammen med de øvrige kilder afstemme det kanoniske Personskat-grundlag. Par14Aktieindkomst angiver egen aktieindkomst før PSL § 8 a-ægtefællemodregning, ikke det modregnede skattegrundlag. Bevar kildebeløbene; modellen beregner selv ægtefællemodregning og grundbeløbsoverførsel. Aktieindkomst, der er et engangsbeløb, bevares uden forholdsmæssig opskalering; se personskat-delaar.md."),
-            unit = Some("kr.")
-        ),
-        TypetBeregningsfelt(
-            path = refof(PersonskatPar14Kilde::omregningsmetode::$variant),
-            label = "Metode til helårsbeløb",
-            question = Some("Skal beløbet omregnes forholdsmæssigt, bevares som engangsbeløb eller erstattes af et dokumenteret retvisende helårsbeløb?"),
-            help = Some("Løbende beløb omregnes efter periodens faktiske kalenderdage; engangsbeløb bevares uændret. Par14Aktieindkomst er ikke løn: hver kildes aktieindkomst skal indgå uændret, uden dagfaktor eller et andet hypotetisk helårsbeløb. Vælg Par14UændretEngangsbeløb, eller dokumentér samme beløb; se PSL § 14 og personskat-delaar.md."),
-            unit = None
-        ),
-        TypetBeregningsfelt(
-            path = refof(PersonskatPar14Kilde::omregningsmetode::Par14DokumenteretRetvisendeHelårsbeløb::helårsbeløb_kroner),
-            label = "Dokumenteret retvisende helårsbeløb",
-            question = Some("Hvilket helårsbeløb giver et dokumenteret retvisende billede af denne kilde?"),
-            help = Some("Udfyld kun ved metoden for dokumenteret retvisende helårsbeløb. For Par14Aktieindkomst skal beløbet være det samme som kildens delårsbeløb; en dokumenteret værdi gør ikke aktieindkomst til en indkomst, der skal helårsomregnes."),
-            unit = Some("kr.")
-        ),
-        TypetBeregningsfelt(
-            path = refof(PersonskatPar14Kilde::faktisk_helårsbeløb_kroner),
-            label = "Faktisk beløb i hele året",
-            question = Some("Hvad er kildens beløb til det faktiske årsgrundlag efter § 14, stk. 2? Vedrører kilden aktieindkomst, som ikke skal omregnes?"),
-            help = Some("For Par14Aktieindkomst kan feltet udelades: det allerede oplyste delårsbeløb indgår uændret. Oplyses et årsbeløb, skal det være det samme; nul er et udtrykkeligt beløb, ikke en tom værdi. For øvrige kildearter er feltet påkrævet, når § 14, stk. 2-valget anvendes, og kan ellers udelades. For almindelig skattepligtig, personlig og kapitalindkomst medtages det faktiske beløb også uden for dansk skattepligt. Valget gør ikke udenlandske aktiebeløb uden for perioden til dansk aktieindkomst. Afklar særskilt skattepligt og kildeklassifikation, og ret ikke dokumenterede beløb for at få et match. Se personskat-delaar.md."),
-            unit = Some("kr.")
         )
     ],
     attachments = (

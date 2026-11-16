@@ -2,6 +2,7 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
+@ importer ./delte-kilder
 
 -- Selskabsskatteloven — selected dependency slice for Personskatteloven.
 --
@@ -33,7 +34,27 @@ foreninger m.v., der er hjemmehørende her i landet:
 
 # Selskabsskattelov1Stk1Nr1Kilde = SelskabsskattelovenLbk279Af2025Par1Stk1Nr1
 # Selskabsskattelov1Stk1Nr1Selskabsform = Sel1Stk1Nr1IndregistreretAktieselskab | Sel1Stk1Nr1IndregistreretAnpartsselskab | Sel1Stk1Nr1AndenSelskabsform
-# Selskabsskattelov1Stk1Nr1Input(selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform, hjemmehørende_i_danmark: Boolsk)
+= personskat_kilder_60 = [
+    Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+    DependencySource(value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme)
+]
+# Selskabsskattelov1Stk1Nr1Input(
+    @ field(
+        label = "Kapitalselskabets registrerede form",
+        question = "Hvilken registreret selskabsform har udstederen?",
+        help = "Registrerede aktie- og anpartsselskaber kan være selvstændige skattesubjekter efter selskabsskattelovens § 1, stk. 1, nr. 1.",
+        sources = personskat_kilder_60
+    )
+    selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform,
+    @ field(
+        label = "Kapitalselskabets skattemæssige hjemsted",
+        question = "Er kapitalselskabet hjemmehørende i Danmark?",
+        help = "Selskabsskattelovens § 1 omfatter de opregnede selskaber og foreninger, der er hjemmehørende her i landet.",
+        sources = personskat_kilder_60
+    )
+    hjemmehørende_i_danmark: Boolsk
+)
 # Selskabsskattelov1Stk1Nr1Resultat(kilde: Selskabsskattelov1Stk1Nr1Kilde, selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform, selskabsform_omfattet_af_nr1: Boolsk, hjemmehørende_i_danmark: Boolsk, skattepligtig_efter_par1_stk1_nr1: Boolsk)
 
 | selskabsskattelov1_stk1_nr1_selskabsform_omfattet(selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform): Bool -> Falskt
@@ -87,7 +108,30 @@ anvendes til almenvelgørende eller på anden måde almennyttige formål.
 # Selskabsskattelov1Stk1Nr6Kilde = SelskabsskattelovenLbk279Af2025Par1Stk1Nr6
 # Selskabsskattelov1Stk1Nr6Enhed = Ssl1Stk1Nr6AndenForening | Ssl1Stk1Nr6Korporation | Ssl1Stk1Nr6Stiftelse | Ssl1Stk1Nr6Legat | Ssl1Stk1Nr6SelvejendeInstitution | Ssl1Stk1Nr6Investeringsforening | Ssl1Stk1Nr6AndenEnhed
 # Selskabsskattelov1Stk1Nr6IndkomstArt = Ssl1Stk1Nr6ErhvervsmæssigVirksomhed | Ssl1Stk1Nr6FormuegodeMedErhvervstilknytning | Ssl1Stk1Nr6Par2UdbytteRenteRoyaltyKursgevinst | Ssl1Stk1Nr6AndenIndkomst
-# Selskabsskattelov1Stk1Nr6Input(enhed: Selskabsskattelov1Stk1Nr6Enhed, hjemmehørende_i_danmark: Boolsk, omfattet_af_par3_undtagelse: Boolsk, omfattet_af_fondsbeskatningsloven: Boolsk)
+# Selskabsskattelov1Stk1Nr6Input(
+    enhed: Selskabsskattelov1Stk1Nr6Enhed,
+    @ field(
+        label = "Foreningens skattemæssige hjemsted",
+        question = "Er foreningen hjemmehørende i Danmark?",
+        help = "Selskabsskattelovens § 1, stk. 1, nr. 6, omfatter kun de opregnede foreninger m.v., der er hjemmehørende her i landet.",
+        sources = personskat_kilder_60
+    )
+    hjemmehørende_i_danmark: Boolsk,
+    @ field(
+        label = "Undtagelse efter selskabsskattelovens § 3",
+        question = "Er foreningen omfattet af en skattefri undtagelse i selskabsskattelovens § 3?",
+        help = "En § 3-undtagelse afskærer skattepligt efter selskabsskattelovens § 1, stk. 1, nr. 6.",
+        sources = personskat_kilder_60
+    )
+    omfattet_af_par3_undtagelse: Boolsk,
+    @ field(
+        label = "Foreningen er omfattet af fondsbeskatningsloven",
+        question = "Er foreningen omfattet af fondsbeskatningsloven?",
+        help = "En forening omfattet af fondsbeskatningsloven er ikke skattepligtig efter selskabsskattelovens § 1, stk. 1, nr. 6.",
+        sources = personskat_kilder_60
+    )
+    omfattet_af_fondsbeskatningsloven: Boolsk
+)
 # Selskabsskattelov1Stk1Nr6Resultat(kilde: Selskabsskattelov1Stk1Nr6Kilde, enhed: Selskabsskattelov1Stk1Nr6Enhed, enhed_omfattet_af_nr6: Boolsk, investeringsforening: Boolsk, hjemmehørende_i_danmark: Boolsk, undtaget_efter_par3: Boolsk, omfattet_af_fondsbeskatningsloven: Boolsk, skattepligtig_efter_par1_stk1_nr6: Boolsk)
 # Selskabsskattelov1Stk1Nr6IndkomstInput(nr6_resultat: Selskabsskattelov1Stk1Nr6Resultat, indkomst_art: Selskabsskattelov1Stk1Nr6IndkomstArt, beløb_kroner: Heltal)
 # Selskabsskattelov1Stk1Nr6IndkomstResultat(skattepligtig_efter_par1_stk1_nr6: Boolsk, indkomst_omfattet_af_nr6: Boolsk, skattepligtig_indkomst_kroner: Heltal)

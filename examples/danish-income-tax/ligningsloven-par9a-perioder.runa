@@ -2,6 +2,7 @@
 
 @ importer ./metadata
 @ importer ./kalenderdato
+@ importer ./statsskatteloven-par6-dobbelt-husfoerelse
 
 # Ligningslov9APeriodeKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 
@@ -58,12 +59,127 @@ tilbagevenden til det tidligere midlertidige arbejdssted.
 @ meta(ligningslov9a_standardperiodemetadata)
 @ section ligningsloven_par9a_standardperioder {
 
-# Ligningslov9AArbejdsdagssted = Ll9AArbejdePåReeltArbejdssted(arbejdssted_identifikation: Tekst) | Ll9AArbejdePåPrivatBopæl
+= personskat_ll9a_kilder = [
+    Source(value = ligningsloven_lbk1500_par9a),
+    Source(value = ligningsloven_lbk1500_par9a_stk5_og_stk6),
+    DependencySource(value = ligningsloven_lbk1500_par9c_stk3),
+    AmendmentSource(value = lovforslag_l196_2010_2011_ligningslov9a_korte_tjenesterejser),
+    DependencySource(value = ligningsloven_lbk1500_par9_stk2_og_stk4),
+    RateSource(value = skatteforvaltningen_rejsesatser_2025),
+    RateSource(value = skatteforvaltningen_rejsesatser_2026),
+    Guidance(value = juridisk_vejledning_ligningslov9a_rejsebegreb),
+    Guidance(value = juridisk_vejledning_ligningslov9a_midlertidigt_arbejdssted),
+    Guidance(value = juridisk_vejledning_ligningslov9a_fradrag),
+    Guidance(value = juridisk_vejledning_ligningslov9_udlandsfradrag),
+    Guidance(value = juridisk_vejledning_ligningslov9a_kostgodtgørelse),
+    Guidance(value = juridisk_vejledning_ligningslov9a_logigodtgørelse),
+    Guidance(value = juridisk_vejledning_ligningslov9a_udlæg_efter_regning),
+    Guidance(value = juridisk_vejledning_ligningslov9a_dækningsprincip),
+    Guidance(value = juridisk_vejledning_ligningslov9a_kontrol),
+    Guidance(value = juridisk_vejledning_ligningslov9a_standardperioder),
+    Guidance(value = juridisk_vejledning_ligningslov9a_øfradrag),
+    Assumption(value = ligningslov9a_ølogi_årsfordeling),
+    DependencySource(value = statsskatteloven_lov149_par6_litra_a_dobbelt_husførelse),
+    Guidance(value = juridisk_vejledning_dobbelt_husførelse_2026),
+    Practice(value = skatterådet_skm2021_130_sr)
+]
+@ field(
+    label = "Arbejdsdagens stedstype",
+    question = "Blev arbejdet udført på et reelt arbejdssted eller på den private bopæl?",
+    help = "Kun arbejde på et reelt andet arbejdssted kan indgå i de 40 arbejdsdage.",
+    sources = personskat_ll9a_kilder
+)
+# Ligningslov9AArbejdsdagssted =
+    Ll9AArbejdePåReeltArbejdssted(
+        @ field(
+            label = "Arbejdsdagens reelle arbejdssted",
+            question = "På hvilket reelt arbejdssted blev arbejdet udført?",
+            help = "Feltet udfyldes kun, når stedstypen er et reelt arbejdssted.",
+            sources = personskat_ll9a_kilder
+        )
+        arbejdssted_identifikation: Tekst
+    ) |
+    Ll9AArbejdePåPrivatBopæl
 # Ligningslov9AArbejdsdag(dato: Dato, sted: Ligningslov9AArbejdsdagssted)
-# Ligningslov9AArbejdsstedsafstand(fra_arbejdssted_identifikation: Tekst, til_arbejdssted_identifikation: Tekst, gældende_fra: Dato, afstand_ad_normal_transportvej_kilometer: Heltal)
+# Ligningslov9AArbejdsstedsafstand(
+    @ field(
+        label = "Afstand fra arbejdssted",
+        question = "Hvilket arbejdssted måles afstanden fra?",
+        sources = personskat_ll9a_kilder
+    )
+    fra_arbejdssted_identifikation: Tekst,
+    @ field(
+        label = "Afstand til arbejdssted",
+        question = "Hvilket arbejdssted måles afstanden til?",
+        sources = personskat_ll9a_kilder
+    )
+    til_arbejdssted_identifikation: Tekst,
+    gældende_fra: Dato,
+    @ field(
+        label = "Afstand ad normal transportvej",
+        question = "Hvor mange kilometer er der mellem arbejdsstederne ad normal transportvej?",
+        help = "Mindst 8 km starter en ny 12-månedersperiode ved skift til et nyt midlertidigt arbejdssted.",
+        unit = "km",
+        sources = personskat_ll9a_kilder
+    )
+    afstand_ad_normal_transportvej_kilometer: Heltal
+)
 # Ligningslov9APerioderejseart = Ll9APeriodeTjenesterejse | Ll9APeriodeSelvvalgtRejse
-# Ligningslov9APerioderejse(identifikation: Tekst, startdato: Dato, arbejdssted_identifikation: Tekst, rejseart: Ligningslov9APerioderejseart, varighed_minutter: Heltal)
-# Ligningslov9AArbejdshistorik(tidligere_rejser: List(Ligningslov9APerioderejse), arbejdsdage: List(Ligningslov9AArbejdsdag), arbejdsstedsafstande: List(Ligningslov9AArbejdsstedsafstand))
+# Ligningslov9APerioderejse(
+    @ field(
+        label = "Tidligere rejses identifikation",
+        question = "Hvilken entydig identifikation har den tidligere rejse?",
+        help = "Identifikationen skal være forskellig fra alle aktuelle og øvrige tidligere rejser.",
+        sources = personskat_ll9a_kilder
+    )
+    identifikation: Tekst,
+    startdato: Dato,
+    @ field(
+        label = "Tidligere rejses arbejdssted",
+        question = "Hvilket arbejdssted vedrørte den tidligere rejse?",
+        help = "Brug samme stabile arbejdsstedsidentifikation som på aktuelle rejser og arbejdsdage.",
+        sources = personskat_ll9a_kilder
+    )
+    arbejdssted_identifikation: Tekst,
+    @ field(
+        label = "Tidligere rejses art",
+        question = "Var den tidligere rejse en tjenesterejse eller selvvalgt?",
+        help = "Kun tjenesterejser kan omfattes af undtagelsen for enkeltstående kortvarige rejser.",
+        sources = personskat_ll9a_kilder
+    )
+    rejseart: Ligningslov9APerioderejseart,
+    @ field(
+        label = "Tidligere rejses samlede varighed",
+        question = "Hvor mange minutter varede den tidligere rejse fra afrejse til hjemkomst?",
+        help = "Varigheden indgår sammen med månedens rejsehyppighed i den afledte vurdering af enkeltstående kortvarige tjenesterejser.",
+        unit = "minutter",
+        sources = personskat_ll9a_kilder
+    )
+    varighed_minutter: Heltal
+)
+# Ligningslov9AArbejdshistorik(
+    @ field(
+        label = "Tidligere rejser til de samme arbejdssteder",
+        question = "Hvilke tidligere rejser er nødvendige for at fastlægge rejsemønstre og aktuelle 12-månedersperioder?",
+        help = "Medtag både korte og længere tidligere rejser til de berørte stedbundne arbejdssteder. Rejserne skal begynde før de aktuelle rejser; Futuruna udleder selv, hvilke der indgår i perioderne.",
+        sources = personskat_ll9a_kilder
+    )
+    tidligere_rejser: List(Ligningslov9APerioderejse),
+    @ field(
+        label = "Daterede arbejdsdage mellem rejser",
+        question = "Hvilke arbejdsdage mellem rejserne er nødvendige for at vurdere en tilbagevenden?",
+        help = "Registrer arbejdsdage mellem rejser, men dupliker ikke dage, der allerede er dækket af en rejserække. Arbejde på en privat bopæl tæller ikke som arbejde på et andet arbejdssted.",
+        sources = personskat_ll9a_kilder
+    )
+    arbejdsdage: List(Ligningslov9AArbejdsdag),
+    @ field(
+        label = "Afstande mellem arbejdssteder",
+        question = "Hvilke afstande ad normal transportvej gælder mellem de berørte arbejdssteder?",
+        help = "Registrer en ny række, når en afstand ændrer sig; Futuruna anvender den seneste række, der var gældende på rejsens startdato.",
+        sources = personskat_ll9a_kilder
+    )
+    arbejdsstedsafstande: List(Ligningslov9AArbejdsstedsafstand)
+)
 # Ligningslov9AKortTjenesterejsevurdering = Ll9AEnkeltståendeKortvarigEfterPraksiseksempel(antal_rejser_til_arbejdsstedet_i_måneden: Heltal) | Ll9AIkkeTjenesterejse | Ll9AKortTjenesterejseIkkeRelevant | Ll9ARejsemønsterForHyppigt(antal_rejser_til_arbejdsstedet_i_måneden: Heltal) | Ll9AKortvarighedKræverKonkretVurdering | Ll9AUgyldigeRejsemønsterfakta
 # Ligningslov9APeriodeovergang = Ll9AFørsteRegistreredeRejse | Ll9ASammeArbejdsstedFortsætter | Ll9ANytArbejdsstedStarterPeriode(afstand_ad_normal_transportvej_kilometer: Heltal) | Ll9ANytArbejdsstedDelerPeriode(afstand_ad_normal_transportvej_kilometer: Heltal) | Ll9ATilbagevendenStarterPeriode(sammenhængende_arbejdsdage: Heltal) | Ll9ATilbagevendenFortsætterPeriode(sammenhængende_arbejdsdage: Heltal) | Ll9AUgyldigPeriodeovergang
 # Ligningslov9AStandardperioderesultat(rejse: Ligningslov9APerioderejse, input_gyldigt: Boolsk, overgang: Ligningslov9APeriodeovergang, periodestart_dato: Dato, periodeudløb_dato: Dato, fulde_måneder_siden_periodestart: Heltal, aktiv_for_kost: Boolsk)
@@ -250,3 +366,117 @@ tilbagevenden til det tidligere midlertidige arbejdssted.
 | ligningslov9a_standardperioderesultater_for_rejse(forløb: Ligningslov9AStandardperiodeforløb, rejseidentifikation: Tekst) -> filter(forløb.resultater, |resultat: Ligningslov9AStandardperioderesultat| resultat.rejse.identifikation == rejseidentifikation)
 
 }
+
+# Ligningslov9AKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+# Ligningslov9AÅrsfordelingsforudsætning(princip: Tekst, begrundelse: Tekst)
+
+= juridisk_vejledning_ligningslov9_udlandsfradrag = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977822",
+    identifier = "Den juridiske vejledning C.F.2.2: Fradrag for udgifter ved arbejde i udlandet",
+    hentet_dato = "2026-08-06",
+    ændringsstatus = "Gældende vejledning om det fælles indkomstloft for fradrag ved samme udenlandske indkomsterhvervelse kontrolleret 06/08/2026"
+)
+
+= juridisk_vejledning_ligningslov9a_dækningsprincip = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976869",
+    identifier = "Den juridiske vejledning C.A.7.2.7: Dækningsprincip for rejseudgifter",
+    hentet_dato = "2026-08-06",
+    ændringsstatus = "Gældende vejledning om samlet kostprincip og døgnvist logiprincip kontrolleret 06/08/2026"
+)
+
+= juridisk_vejledning_ligningslov9a_fradrag = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976873",
+    identifier = "Den juridiske vejledning C.A.7.3.1: Generelt om fradrag for rejseudgifter",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende vejledning og årslofter for 2025-2026 kontrolleret 04/08/2026"
+)
+
+= juridisk_vejledning_ligningslov9a_kontrol = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976870",
+    identifier = "Den juridiske vejledning C.A.7.2.8: Betingelse om kontrol",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende vejledning, inklusive SKM2026.318.LSR, kontrolleret 04/08/2026"
+)
+
+= juridisk_vejledning_ligningslov9a_kostgodtgørelse = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976865",
+    identifier = "Den juridiske vejledning C.A.7.2.5.1: Rejsegodtgørelse med standardsats for kost og småfornødenheder",
+    hentet_dato = "2026-08-06",
+    ændringsstatus = "Gældende vejledning om samlet kostprincip og opsplitning af overskydende godtgørelse kontrolleret 06/08/2026"
+)
+
+= juridisk_vejledning_ligningslov9a_logigodtgørelse = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976866",
+    identifier = "Den juridiske vejledning C.A.7.2.5.2: Rejsegodtgørelse med standardsats for logi",
+    hentet_dato = "2026-08-06",
+    ændringsstatus = "Gældende vejledning om døgnvis dækning af logi kontrolleret 06/08/2026"
+)
+
+= juridisk_vejledning_ligningslov9a_midlertidigt_arbejdssted = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976857",
+    identifier = "Den juridiske vejledning C.A.7.1.4: Betingelse om midlertidigt arbejdssted",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende vejledning kontrolleret 04/08/2026"
+)
+
+= juridisk_vejledning_ligningslov9a_rejsebegreb = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976854",
+    identifier = "Den juridiske vejledning C.A.7.1.1: Hvad vil det sige at være på rejse?",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende vejledning kontrolleret 04/08/2026"
+)
+
+= juridisk_vejledning_ligningslov9a_udlæg_efter_regning = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976867",
+    identifier = "Den juridiske vejledning C.A.7.2.6: Godtgørelse af den dokumenterede faktiske udgift",
+    hentet_dato = "2026-08-06",
+    ændringsstatus = "Gældende vejledning om hel og delvis dækning efter regning kontrolleret 06/08/2026"
+)
+
+= juridisk_vejledning_ligningslov9a_øfradrag = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2289990",
+    identifier = "Den juridiske vejledning C.A.7.3.4.3: Fradrag for logiudgifter for beboere på visse ikke-brofaste øer (Ø-fradrag)",
+    hentet_dato = "2026-08-06",
+    ændringsstatus = "Gældende 2026-vejledning om personkreds, fulde logidøgn, satser og fælles fradragsloft kontrolleret 06/08/2026"
+)
+
+= ligningslov9a_ølogi_årsfordeling = Ligningslov9AÅrsfordelingsforudsætning(
+    princip = "Et fuldt 24-timers-logidøgn henføres til det indkomstår, hvor døgnets starttidspunkt ligger",
+    begrundelse = "De officielle kilder fastlægger fulde 24-timers-døgn og årlige satser, men ikke den tekniske fordeling af et enkelt døgn over årsskiftet; starttidspunktet giver én deterministisk henføring uden dobbelt medregning"
+)
+
+= ligningsloven_lbk1500_par9_stk2_og_stk4 = Ligningslov9AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 9, stk. 2 og 4, i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; de anvendte bestemmelser er uændrede"
+)
+
+= ligningsloven_lbk1500_par9a = Ligningslov9AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 9 A i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; § 9 A er uændret"
+)
+
+= ligningsloven_lbk1500_par9c_stk3 = Ligningslov9AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 9 C, stk. 3, 3. pkt.: kommuner og småøer omfattet af den forhøjede kilometertakst",
+    hentet_dato = "2026-08-06",
+    ændringsstatus = "Gældende geografisk afgrænsning anvendt af § 9 A, stk. 12, kontrolleret 06/08/2026"
+)
+
+= skatteforvaltningen_rejsesatser_2025 = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2437004",
+    identifier = "SKM2024.643.SKTST: Skattefri godtgørelse til dækning af rejseudgifter mv. gældende for 2025",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Historisk 2025-satsmeddelelse"
+)
+
+= skatteforvaltningen_rejsesatser_2026 = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2460063",
+    identifier = "SKM2025.725.SKTST: Skattefri godtgørelse til dækning af rejseudgifter mv. gældende for 2026",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende 2026-satsmeddelelse"
+)

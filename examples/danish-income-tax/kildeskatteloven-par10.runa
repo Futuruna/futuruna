@@ -2,6 +2,7 @@
 
 @ importer ./kalenderdato
 @ importer ./metadata
+@ importer ./delte-kilder
 
 -- Kildeskatteloven § 10 - fiktiv afståelse ved ophør af dansk beskatningsret.
 --
@@ -45,10 +46,66 @@ aktieavancebeskatningslovens § 38, kursgevinstlovens § 37 eller ligningslovens
 @ meta(kildeskatteloven_par10_metadata)
 @ section kildeskatteloven_par10 {
 
+= personskat_kilder_20 = [
+    Source(value = ligningsloven_lbk1500_par33),
+    Source(value = ligningsloven_lbk1500_par33a),
+    AmendmentSource(value = ligningsloven_lov487_1996_par33_fragtskat),
+    AmendmentSource(value = ligningsloven_lov313_2002_par33_fragtskat),
+    DependencySource(value = kildeskatteloven_lbk460_par10),
+    Guidance(value = ligningsloven_vejledning_par33_credit),
+    Guidance(value = ligningsloven_vejledning_par33_personberegning),
+    Guidance(value = ligningsloven_vejledning_par33f_nettoprincip),
+    Guidance(value = ligningsloven_vejledning_par33a_stk1),
+    Guidance(value = ligningsloven_vejledning_par33a_42_dages_regel),
+    Guidance(value = ligningsloven_ligningsvejledning_2003_par33a_opholdseksempel),
+    Guidance(value = ligningsloven_vejledning_par33a_stk2),
+    Guidance(value = ligningsloven_vejledning_par33a_stk3),
+    Guidance(value = ligningsloven_vejledning_par33a_beregning),
+    Practice(value = ligningsloven_praksis_skm2018_370_sr),
+    Practice(value = ligningsloven_styresignal_2023_10299),
+    Practice(value = ligningsloven_skm2026_158_vlr)
+]
+@ field(
+    label = "Grænsehændelse for aktivet",
+    question = "Ophørte den fulde skattepligt, flyttede det skattemæssige hjemsted efter en overenskomst, eller skete en anden grænsehændelse?",
+    help = "Ligningslovens § 33, stk. 6 kræver en fiktiv afståelse efter kildeskattelovens § 10, stk. 1.",
+    sources = personskat_kilder_20
+)
 # Kildeskat10Grænsehændelse = Ksl10FuldSkattepligtEfterPar1Ophører(dato: Dato) | Ksl10DobbeltbeskatningshjemstedBliverUdland(dato: Dato) | Ksl10BegrænsetSkattepligtigtAktivOverføresUd(dato: Dato) | Ksl10Dødsfald(dato: Dato) | Ksl10IngenGrænsehændelse
 # Kildeskat10DanskBeskatningsstatus = Ksl10AktivIkkeLængereOmfattetAfDanskBeskatning | Ksl10AktivFortsatOmfattetAfDanskBeskatning
 # Kildeskat10Særregel = Ksl10IngenSærregel | Ksl10AktieOmfattetAfAktieavancebeskatningslovensPar38 | Ksl10FordringGældEllerFinansielKontraktOmfattetAfKursgevinstlovensPar37 | Ksl10KøbeEllerTegningsretOmfattetAfLigningslovensPar28
-# Kildeskat10Aktivfakta(identifikation: Tekst, grænsehændelse: Kildeskat10Grænsehændelse, dansk_beskatningsstatus_efter_hændelsen: Kildeskat10DanskBeskatningsstatus, særregel: Kildeskat10Særregel, handelsværdi_på_grænsetidspunktet_kroner: Heltal)
+# Kildeskat10Aktivfakta(
+    @ field(
+        label = "Aktivets identifikation ved fraflytningen",
+        question = "Hvilket aktiv prøves efter kildeskattelovens § 10?",
+        help = "Brug en stabil identifikation fra aktivets dokumentation.",
+        sources = personskat_kilder_20
+    )
+    identifikation: Tekst,
+    grænsehændelse: Kildeskat10Grænsehændelse,
+    @ field(
+        label = "Dansk beskatningsret efter grænsehændelsen",
+        question = "Er aktivet fortsat omfattet af dansk beskatning efter grænsehændelsen?",
+        help = "§ 10 anvendes kun, når aktivet ikke længere er omfattet af dansk beskatning.",
+        sources = personskat_kilder_20
+    )
+    dansk_beskatningsstatus_efter_hændelsen: Kildeskat10DanskBeskatningsstatus,
+    @ field(
+        label = "Særregel for aktivets fraflytningsbeskatning",
+        question = "Er aktivet omfattet af ABL § 38, KGL § 37 eller LL § 28?",
+        help = "Disse aktiver er udtrykkeligt undtaget fra kildeskattelovens § 10, stk. 1 og 2.",
+        sources = personskat_kilder_20
+    )
+    særregel: Kildeskat10Særregel,
+    @ field(
+        label = "Handelsværdi på grænsetidspunktet",
+        question = "Hvad var aktivets dokumenterede handelsværdi på fraflytnings- eller hjemstedstidspunktet?",
+        help = "Kildeskattelovens § 10 anvender handelsværdien som den fiktive afståelsessum.",
+        unit = "kr.",
+        sources = personskat_kilder_20
+    )
+    handelsværdi_på_grænsetidspunktet_kroner: Heltal
+)
 # Kildeskat10Aktivresultat(fakta: Kildeskat10Aktivfakta, input_gyldigt: Boolsk, stk1_hændelse: Boolsk, stk2_hændelse: Boolsk, stk3_udelukket: Boolsk, fortsat_dansk_beskatning: Boolsk, anses_for_afhændet: Boolsk, afståelsesdato: Option(Dato), afståelsessum_kroner: Heltal)
 
 | kildeskat10_grænsehændelsesdato(hændelse: Kildeskat10Grænsehændelse) -> match hændelse {

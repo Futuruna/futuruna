@@ -3,6 +3,7 @@
 @ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./skatteaar-parametre
+@ importer ./socialpensionsloven-par1a
 
 # EjendomsskattelovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 
@@ -474,7 +475,88 @@ Loven træder i kraft den 1. juli 2025.
 @ meta(ejendomsskatteloven_ejendomsværdiskat_metadata)
 @ section ejendomsskatteloven_ejendomsvaerdiskat {
 
-# EjendomsskattelovOrdinærPersonEjendomFakta(identifikation: Tekst, kommune: Kommune, kategori: EjendomsskattelovPar3Kategori, beliggenhed: EjendomsskattelovPar3Beliggenhed, erhvervsmæssigt_udlejet: Boolsk, særlige_betingelser_for_nr6_til_nr8_opfyldt: Boolsk, ejendomsværdi_kroner: Heltal, grundværdi_kroner: Heltal, produktionsjord: Boolsk, ejendomsværdiskatteperiode: EjendomsskattelovÅrsperiode, grundskyldsperiode: EjendomsskattelovÅrsperiode, ejerandel_basispoint: Heltal)
+= personskat_kilder_19 = [
+    DependencySource(value = ejendomsskatteloven_lov678_par13_til_31_og_par72),
+    RateSource(value = ejendomsskatteloven_skm_satser_2025_2026),
+    DependencySource(value = ejendomsskatteloven_lov678_par23_til_27),
+    DependencySource(value = socialpensionsloven_lbk1123_par1a),
+    AmendmentSource(value = socialpensionsloven_lov703_par1_nr1),
+    Warning(value = personskat_ejendomsskat_aldersforbehold),
+    DependencySource(value = ejendomsskatteloven_tidligere_ejendomsvaerdiskattelov),
+    AmendmentSource(value = ejendomsskatteloven_evsl_lov2202_par11),
+    Guidance(value = ejendomsskatteloven_l113_bemaerkninger_par25),
+    ParameterSource(value = ejendomsskatteloven_skm_satser_2025_2026),
+    TransitionSource(value = ejendomsskatteloven_lov394_historisk_aktieloen),
+    AmendmentSource(value = ejendomsskatteloven_lov515_historisk_aktieloen),
+    DependencySource(value = ejendomsskatteloven_lov678_par35_til_45),
+    AmendmentSource(value = ejendomsskatteloven_lov562_par1_nr31_til_33),
+    AmendmentSource(value = ejendomsskatteloven_lov562_par1_nr5_6_15_17_og_par17),
+    Guidance(value = ejendomsskatteloven_vejledning_30_360)
+]
+# EjendomsskattelovOrdinærPersonEjendomFakta(
+    @ field(
+        label = "Ejendomsandelens identifikation",
+        question = "Hvilken entydig identifikation skal denne faste ejerandel og skatteperiode have i beregningen?",
+        help = "Brug en stabil, ikke-følsom identifikation. Ved ændringer i ejerandelen bruges særskilte identifikationer for de beregningsandele, som har forskellige perioder.",
+        sources = personskat_kilder_19
+    )
+    identifikation: Tekst,
+    kommune: Kommune,
+    @ field(
+        label = "Ejendomskategori",
+        question = "Hvilken kategori efter ejendomsskattelovens § 3 tilhører ejendommen?",
+        help = "Kategorien afgør, om ejendommen er omfattet af ejendomsværdiskat.",
+        sources = personskat_kilder_19
+    )
+    kategori: EjendomsskattelovPar3Kategori,
+    @ field(
+        label = "Ejendommens landestatus",
+        question = "Ligger ejendommen i Danmark eller uden for Danmark?",
+        help = "Den ordinære grundskyldsberegning i denne grænse vedrører danske ejendomme.",
+        sources = personskat_kilder_19
+    )
+    beliggenhed: EjendomsskattelovPar3Beliggenhed,
+    @ field(
+        label = "Erhvervsmæssigt udlejet ejendom",
+        question = "Er ejendommen udlejet erhvervsmæssigt?",
+        help = "Erhvervsmæssig udlejning afskærer ejendomsværdiskat efter § 3, stk. 3.",
+        sources = personskat_kilder_19
+    )
+    erhvervsmæssigt_udlejet: Boolsk,
+    @ field(
+        label = "Særlige ejerboligbetingelser",
+        question = "Er de særlige betingelser for de relevante ejerlejligheds- og boligfællesskabskategorier opfyldt?",
+        help = "Feltet er kun materielt for kategorierne med særlige vurderings-, meddelelses- eller historiske betingelser.",
+        sources = personskat_kilder_19
+    )
+    særlige_betingelser_for_nr6_til_nr8_opfyldt: Boolsk,
+    @ field(
+        label = "Vurderet ejendomsværdi",
+        question = "Hvad er den offentligt ansatte ejendomsværdi, før 20-procentsforsigtighedsnedslaget?",
+        help = "Angiv vurderingen, ikke det allerede reducerede beskatningsgrundlag og ikke den beregnede ejendomsværdiskat.",
+        unit = "kr.",
+        sources = personskat_kilder_19
+    )
+    ejendomsværdi_kroner: Heltal,
+    @ field(
+        label = "Vurderet grundværdi",
+        question = "Hvad er den offentligt ansatte grundværdi, før 20-procentsforsigtighedsnedslaget?",
+        help = "Angiv vurderingen, ikke det allerede reducerede grundskyldsgrundlag og ikke den beregnede grundskyld.",
+        unit = "kr.",
+        sources = personskat_kilder_19
+    )
+    grundværdi_kroner: Heltal,
+    @ field(
+        label = "Produktionsjord",
+        question = "Er grundværdien produktionsjord efter ejendomsvurderingslovens § 28?",
+        help = "Produktionsjord har et særskilt grundlag og en særskilt sats efter ejendomsskattelovens §§ 17 og 28.",
+        sources = personskat_kilder_19
+    )
+    produktionsjord: Boolsk,
+    ejendomsværdiskatteperiode: EjendomsskattelovÅrsperiode,
+    grundskyldsperiode: EjendomsskattelovÅrsperiode,
+    ejerandel_basispoint: Heltal
+)
 # EjendomsskattelovEjendomsværdiskatResultat(par3_resultat: EjendomsskattelovPar3Resultat, periode: EjendomsskattelovPeriodeResultat, beskatningsgrundlag_kroner: Heltal, lavt_satsgrundlag_kroner: Heltal, højt_satsgrundlag_kroner: Heltal, lav_sats_promille_tiendedele: Heltal, høj_sats_promille_tiendedele: Heltal, ejerandel_basispoint: Heltal, beregning: PengeØreBeregning, skat_øre: Heltal, skat_kroner: Heltal, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk)
 # EjendomsskattelovGrundskyldResultat(periode: EjendomsskattelovPeriodeResultat, kommune: Kommune, grundskyld_promille_tiendedele: Heltal, beskatningsgrundlag_kroner: Heltal, ejerandel_basispoint: Heltal, beregning: PengeØreBeregning, skat_øre: Heltal, skat_kroner: Heltal, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk)
 # EjendomsskattelovOrdinærPersonEjendomResultat(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta, ejendomsværdiskat: EjendomsskattelovEjendomsværdiskatResultat, grundskyld: EjendomsskattelovGrundskyldResultat, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, samlet_ejendomsskat_øre: Heltal, samlet_ejendomsskat_kroner: Heltal)
@@ -763,7 +845,25 @@ ejendomsværdiskat.
 # EjendomsskattelovRegelkapabilitet = EjskInputUgyldigt | EjskIkkeRelevant | EjskUnderstøttet | EjskManglerKildefakta | EjskIkkeUnderstøttet
 # EjendomsskattelovFolkepensionsalder = EjskFolkepensionsalderIkkeOpnået | EjskFolkepensionsalderOpnået(opnået_dato: EjendomsskattelovDato)
 # EjendomsskattelovSkattemæssigtHjemsted = EjskFuldtSkattepligtigEfterKildeskattelovensPar1 | EjskHjemmehørendeUdenForDanmark(indkomstoplysninger_meddelt: Boolsk, administrativ_udveksling_mulig: Boolsk)
-# EjendomsskattelovAfgiftsberigtigetAktieløn(identifikation: Tekst, tildelingsdato: EjendomsskattelovDato, udnyttelses_eller_afståelsesdato: EjendomsskattelovDato, afgiftsberigtiget_beløb_kroner: Heltal)
+# EjendomsskattelovAfgiftsberigtigetAktieløn(
+    @ field(
+        label = "Aktielønshændelsens identifikation",
+        question = "Hvilken stabil identifikation har købe- eller tegningsretten i dokumentationen?",
+        help = "Identifikationen forhindrer, at den samme hændelse medregnes flere gange.",
+        sources = personskat_kilder_19
+    )
+    identifikation: Tekst,
+    tildelingsdato: EjendomsskattelovDato,
+    udnyttelses_eller_afståelsesdato: EjendomsskattelovDato,
+    @ field(
+        label = "Afgiftsberigtiget aktielønsbeløb",
+        question = "Hvilket afgiftsberigtiget beløb fremgår af dokumentationen for hændelsen?",
+        help = "Angiv kildebeløbet i kroner; Futuruna afgør anvendelsesåret og overgangsbetingelserne.",
+        unit = "kr.",
+        sources = personskat_kilder_19
+    )
+    afgiftsberigtiget_beløb_kroner: Heltal
+)
 # EjendomsskattelovPersonKildeFakta(ejer_folkepensionsalder: EjendomsskattelovFolkepensionsalder, samlevende_ægtefælles_folkepensionsalder: EjendomsskattelovFolkepensionsalder, skattemæssigt_hjemsted: EjendomsskattelovSkattemæssigtHjemsted, egen_udbytteindkomst_kroner: Heltal, ægtefælles_udbytteindkomst_kroner: Heltal, egne_historiske_aktielønshændelser: List(EjendomsskattelovAfgiftsberigtigetAktieløn), ægtefælles_historiske_aktielønshændelser: List(EjendomsskattelovAfgiftsberigtigetAktieløn))
 # EjendomsskattelovIndkomstkomponenter(personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal, aktieindkomst_kroner: Heltal)
 # EjendomsskattelovPersonÅrskontekst(indkomstår: Heltal, kildefakta: EjendomsskattelovPersonKildeFakta, egen_indkomst: EjendomsskattelovIndkomstkomponenter, ægtefælles_indkomst: EjendomsskattelovIndkomstkomponenter, gift_og_samlevende_ved_indkomstårets_udgang: Boolsk)
@@ -775,11 +875,73 @@ ejendomsværdiskat.
 
 # EjendomsskattelovBoliganvendelse = EjskHelårsbolig | EjskFritidsbolig | EjskFritidsboligMedTilladtHelårsanvendelse
 # EjendomsskattelovEjendomsform = EjskIkkeEjerlejlighed | EjskEjerlejlighed
+@ field(
+    label = "Værdigrundlag for tofamilieshus efter § 24",
+    question = "Skal § 24 anvende samme ejendomsværdi som § 13 eller hele ejendomsværdien for et tofamilieshus?",
+    help = "Ved tofamilieshuse angives den offentlige ejendomsværdi for hele ejendommen; Futuruna beregner selv 80-procentsgrundlaget.",
+    sources = personskat_kilder_19
+)
 # EjendomsskattelovPar24Beregningsgrundlag = EjskPar24SammeVærdiSomPar13 | EjskPar24TofamilieshusHeleEjendomsværdi(ejendomsværdi_kroner: Heltal)
 # EjendomsskattelovPensionistsuccession = EjskIngenPensionistsuccession | EjskLængstlevendeBevarerRådighed(hændelsesdato: EjendomsskattelovDato, ægtefæller_ikke_separerede: Boolsk, rådighed_bevaret: Boolsk, ægtefælles_folkepensionsalder: EjendomsskattelovFolkepensionsalder, nyt_ægteskab: Option(EjendomsskattelovDato))
 # EjendomsskattelovUdenlandskEjendomsskatArt = EjskVærdibaseretUdenlandskEjendomsskat | EjskUdenlandskGrundskat | EjskUdenlandskTinglysningsafgift | EjskUdenlandskOverdragelsesafgift | EjskUdenlandskBelåningsafgift | EjskAndenUdenlandskEjendomsafgift
-# EjendomsskattelovUdenlandskEjendomsskatBetaling(art: EjendomsskattelovUdenlandskEjendomsskatArt, betalt_øre: Heltal)
-# EjendomsskattelovNedslagsfakta(ejerskabshistorik: EjendomsskattelovEjerskabshistorik, boliganvendelse: EjendomsskattelovBoliganvendelse, selvstændige_boligenheder: Heltal, ejendomsform: EjendomsskattelovEjendomsform, fredet_og_omfattet_af_ligningslovens_par15k: Boolsk, par24_beregningsgrundlag: EjendomsskattelovPar24Beregningsgrundlag, pensionistsuccession: EjendomsskattelovPensionistsuccession, udenlandske_ejendomsskatter: List(EjendomsskattelovUdenlandskEjendomsskatBetaling))
+# EjendomsskattelovUdenlandskEjendomsskatBetaling(
+    @ field(
+        label = "Udenlandsk skatte- eller afgiftsart",
+        question = "Hvilken type udenlandsk skat eller afgift blev betalt?",
+        help = "Klassifikationen afgør, om betalingen kan krediteres efter § 27.",
+        sources = personskat_kilder_19
+    )
+    art: EjendomsskattelovUdenlandskEjendomsskatArt,
+    @ field(
+        label = "Betalt udenlandsk ejendomsskat",
+        question = "Hvor meget blev betalt af denne udenlandske skat eller afgift?",
+        help = "Beløbet angives i øre, så kreditten kan begrænses præcist til den opgjorte ejendomsværdiskat.",
+        unit = "øre",
+        sources = personskat_kilder_19
+    )
+    betalt_øre: Heltal
+)
+# EjendomsskattelovNedslagsfakta(
+    ejerskabshistorik: EjendomsskattelovEjerskabshistorik,
+    @ field(
+        label = "Boligens anvendelse",
+        question = "Er ejendommen helårsbolig, fritidsbolig eller fritidsbolig med tilladt helårsanvendelse?",
+        help = "Anvendelsen bestemmer beløbsgrænsen for pensionistnedslaget efter § 25.",
+        sources = personskat_kilder_19
+    )
+    boliganvendelse: EjendomsskattelovBoliganvendelse,
+    @ field(
+        label = "Selvstændige boligenheder",
+        question = "Hvor mange selvstændige boligenheder omfatter ejendomsværdiskattegrundlaget?",
+        help = "Antallet anvendes ved maksimum og faste beløb efter §§ 24-25.",
+        unit = "boligenheder",
+        sources = personskat_kilder_19
+    )
+    selvstændige_boligenheder: Heltal,
+    @ field(
+        label = "Ejerlejlighedsstatus",
+        question = "Er ejendommen en ejerlejlighed?",
+        help = "Ejere af ejerlejligheder kan ikke få det yderligere nedslag efter § 24.",
+        sources = personskat_kilder_19
+    )
+    ejendomsform: EjendomsskattelovEjendomsform,
+    @ field(
+        label = "Fredet ejendom med fradrag efter ligningslovens § 15 K",
+        question = "Er ejendommen fredet og omfattet af fradraget efter ligningslovens § 15 K?",
+        help = "Kun kombinationen af fredning og § 15 K-status afskærer det yderligere nedslag efter § 24.",
+        sources = personskat_kilder_19
+    )
+    fredet_og_omfattet_af_ligningslovens_par15k: Boolsk,
+    par24_beregningsgrundlag: EjendomsskattelovPar24Beregningsgrundlag,
+    pensionistsuccession: EjendomsskattelovPensionistsuccession,
+    @ field(
+        label = "Udenlandske skatter og afgifter på ejendommen",
+        question = "Hvilke udenlandske skatter eller afgifter er betalt for denne ejendom?",
+        help = "Angiv art og betalt beløb. Futuruna medregner kun værdibaseret ejendomsskat efter § 27 og udelukker grundskat, tinglysning, overdragelse og belåning.",
+        sources = personskat_kilder_19
+    )
+    udenlandske_ejendomsskatter: List(EjendomsskattelovUdenlandskEjendomsskatBetaling)
+)
 # EjendomsskattelovNedslagResultat(kapabilitet: EjendomsskattelovRegelkapabilitet, input_gyldigt: Boolsk, par23_berettiget: Boolsk, par24_berettiget: Boolsk, par25_berettiget: Boolsk, skat_før_nedslag_øre: Heltal, par23_nedslag_øre: Heltal, par24_nedslag_øre: Heltal, par25_nedslag_før_par26_øre: Heltal, par26_reduktion_af_nedslag_øre: Heltal, par25_nedslag_efter_par26_øre: Heltal, skat_efter_par23_til_par26_øre: Heltal, par27_udenlandsk_skat_øre: Heltal, skat_efter_par23_til_par27_øre: Heltal)
 
 | ejendomsskattelov_kapabilitet_beregnet(kapabilitet: EjendomsskattelovRegelkapabilitet) -> kapabilitet == EjskIkkeRelevant || kapabilitet == EjskUnderstøttet
@@ -1246,26 +1408,210 @@ registreret i henhold til et autoritativt register.
 @ meta(ejendomsskatteloven_rabatordning_metadata)
 @ section ejendomsskatteloven_rabatordning {
 
-# EjendomsskattelovByggeriVedOvergang = EjskIngenNyEllerOmbygning | EjskNybygningVedOvergang(færdigmeldt_dato: Option(EjendomsskattelovDato), færdigmelding_underkendt_for_forsæt_eller_grov_uagtsomhed: Boolsk) | EjskOmbygningVedOvergang(færdigmeldt_dato: Option(EjendomsskattelovDato), færdigmelding_underkendt_for_forsæt_eller_grov_uagtsomhed: Boolsk, sammenligningsfakta_vedrører_ejendommen_før_ombygning: Boolsk)
+@ field(
+    label = "Ny- eller ombygning ved overgangen",
+    question = "Var ejendommen nybygget eller ombygget omkring den 1. januar 2024?",
+    help = "Færdigmeldingen og ejendommens tilstand før ombygningen afgør, hvilket sammenligningsgrundlag § 36 tillader.",
+    sources = personskat_kilder_19
+)
+# EjendomsskattelovByggeriVedOvergang =
+    EjskIngenNyEllerOmbygning |
+    EjskNybygningVedOvergang(
+        @ field(
+            label = "Færdigmeldelsesdato",
+            question = "På hvilken dato blev byggeriet færdigmeldt til kommunen?",
+            help = "Angiv datoen fra kommunens registrering; en manglende færdigmelding repræsenteres som ingen dato.",
+            unit = "dato",
+            sources = personskat_kilder_19
+        )
+        færdigmeldt_dato: Option(EjendomsskattelovDato),
+        @ field(
+            label = "Færdigmelding underkendt",
+            question = "Har Skatteforvaltningen underkendt færdigmeldingen på grund af forsæt eller grov uagtsomhed?",
+            help = "Angiv den faktiske afgørelse; feltet er ikke en vurdering af, om en underkendelse burde ske.",
+            sources = personskat_kilder_19
+        )
+        færdigmelding_underkendt_for_forsæt_eller_grov_uagtsomhed: Boolsk
+    ) |
+    EjskOmbygningVedOvergang(
+        færdigmeldt_dato: Option(EjendomsskattelovDato),
+        færdigmelding_underkendt_for_forsæt_eller_grov_uagtsomhed: Boolsk,
+        @ field(
+            label = "Sammenligningsgrundlag før ombygning",
+            question = "Vedrører de historiske vurderingsoplysninger ejendommen i dens tilstand før ombygningen?",
+            help = "Feltet bruges, når en ombygning ikke var færdigmeldt senest den 1. januar 2024.",
+            sources = personskat_kilder_19
+        )
+        sammenligningsfakta_vedrører_ejendommen_før_ombygning: Boolsk
+    )
 # EjendomsskattelovVurderingskategori = EjskEjerboligEfterEjendomsvurderingslovensPar3Stk1Nr1 | EjskBoligdelEfterEjendomsskattelovensPar3Stk1Nr3Eller4 | EjskAndenVurderingskategori
 # EjendomsskattelovEjerkreds = EjskKunFysiskeEjere | EjskFysiskEjerSammenMedDødsbo | EjskFysiskEjerSammenMedJuridiskPerson | EjskFysiskEjerUndtagetEfterKildeskattelovensPar3Stk1
-# EjendomsskattelovOvergangsomfang(vurderingskategori: EjendomsskattelovVurderingskategori, ejerkreds: EjendomsskattelovEjerkreds)
+# EjendomsskattelovOvergangsomfang(
+    @ field(
+        label = "Vurderingskategori for overgangsregler",
+        question = "Hvilken vurderingskategori havde ejendommen ved anvendelsen af rabatordningen og stigningsbegrænsningen?",
+        help = "Kategorien er en kendsgerning fra vurderingen. Futuruna udleder selv, om §§ 38 eller 44 finder anvendelse.",
+        sources = personskat_kilder_19
+    )
+    vurderingskategori: EjendomsskattelovVurderingskategori,
+    @ field(
+        label = "Ejerkreds for overgangsregler",
+        question = "Består ejerkredsen kun af fysiske personer, eller indgår et dødsbo, en juridisk person eller en person undtaget efter kildeskattelovens § 3?",
+        help = "Ejerkredsen afgør afgrænsningen mellem grundskyldrabat efter § 38 og stigningsbegrænsning efter § 44.",
+        sources = personskat_kilder_19
+    )
+    ejerkreds: EjendomsskattelovEjerkreds
+)
 # EjendomsskattelovEvslPar9SocialYdelse = EjskEvslFørtidspension | EjskEvslSeniorpension | EjskEvslTidligPension | EjskEvslInvaliditetsydelseMedBistandsEllerPlejetillæg
 # EjendomsskattelovEvslPar9Ydelse = EjskEvslPar9YdelseUoplyst | EjskEvslIngenPar9Ydelse | EjskEvslModtagerSocialYdelse(ydelse: EjendomsskattelovEvslPar9SocialYdelse, fødselsdato: EjendomsskattelovDato) | EjskEvslEfterlønVedÅretsUdgang | EjskEvslFleksydelseVedÅretsUdgang
 # EjendomsskattelovEvslPar9Ydelsesgrundlag(ejer: EjendomsskattelovEvslPar9Ydelse, ægtefælle: EjendomsskattelovEvslPar9Ydelse)
 # EjendomsskattelovEvslNytÆgteskab = EjskEvslNytÆgteskabUoplyst | EjskEvslIntetNytÆgteskab | EjskEvslNytÆgteskabIndgået(dato: EjendomsskattelovDato)
 # EjendomsskattelovEvslLængstlevendeFakta(dødsdato: EjendomsskattelovDato, ægtefæller_ikke_separerede: Option(Boolsk), bliver_boende: Option(Boolsk), ejendommen_har_tilhørt_en_af_ægtefællerne: Option(Boolsk), afdødes_par8_personkreds: Option(Boolsk), afdødes_par9_personkreds: Option(Boolsk), nyt_ægteskab: EjendomsskattelovEvslNytÆgteskab)
 # EjendomsskattelovEvslSuccession = EjskEvslSuccessionUoplyst | EjskEvslIngenSuccession | EjskEvslLængstlevende(fakta: EjendomsskattelovEvslLængstlevendeFakta)
-# EjendomsskattelovEvslHistoriskeBegrænsningsfakta(foregående_indkomstårs_ejendomsværdiskat_øre: Option(Heltal), par9_ydelsesgrundlag: Option(EjendomsskattelovEvslPar9Ydelsesgrundlag), par9b_nedsættelse_øre: Heltal, vurderet_helt_eller_delvis_benyttet_til_ejerbolig: Boolsk, ejerlejlighed_frigjort_for_lejemål: Boolsk, ombygning_over_100_procent: Boolsk)
-# EjendomsskattelovTidligereEjendomsværdiskat2024Fakta(ejendomsværdi_året_før_kroner: Heltal, ejendomsværdi_2001_kroner: Heltal, ejendomsværdi_2002_kroner: Heltal, succession: EjendomsskattelovEvslSuccession, historisk_begrænsning: EjendomsskattelovEvslHistoriskeBegrænsningsfakta, udenlandske_ejendomsskatter: List(EjendomsskattelovUdenlandskEjendomsskatBetaling))
-# EjendomsskattelovTidligereGrundskyld2024Fakta(grundværdi_efter_fradrag_og_fritagelser_kroner: Heltal, foregående_års_afgiftspligtige_grundværdi_kroner: Heltal, grundskyld_promille_2023_tiendedele: Heltal)
-# EjendomsskattelovRabat2024Fakta(kontekst_2024: EjendomsskattelovPersonÅrskontekst, ny_lov_helårsgrundlag: EjendomsskattelovOrdinærPersonEjendomFakta, ny_lov_nedslagsfakta: EjendomsskattelovNedslagsfakta, tidligere_ejendomsværdiskat: EjendomsskattelovTidligereEjendomsværdiskat2024Fakta, tidligere_grundskyld: EjendomsskattelovTidligereGrundskyld2024Fakta, byggeri: EjendomsskattelovByggeriVedOvergang, grundskyld_fritaget_basispoint: Heltal, grundskyld_kan_fordeles_på_samme_boligenhed: Boolsk)
-# EjendomsskattelovÆgtefælleoverdragelsesgrund = EjskGrundOverdragelseMellemÆgtefæller | EjskLængstlevendeOvertagelse(sidder_i_uskiftet_bo: Boolsk, har_overtaget_ejendommen_eller_ejerandelen: Boolsk) | EjskSkilsmisseoverdragelse(boet_er_endnu_ikke_delt: Boolsk)
+# EjendomsskattelovEvslHistoriskeBegrænsningsfakta(
+    @ field(
+        label = "Foregående års ejendomsværdiskat ved historisk loft",
+        question = "Foreligger den ejendomsværdiskat, som dannede grundlag for den historiske stigningsbegrænsning?",
+        help = "Angiv ingen værdi, hvis §§ 9 eller 9 a ikke blev anvendt; ellers angives det opgjorte beløb i øre.",
+        unit = "øre",
+        sources = personskat_kilder_19
+    )
+    foregående_indkomstårs_ejendomsværdiskat_øre: Option(Heltal),
+    par9_ydelsesgrundlag: Option(EjendomsskattelovEvslPar9Ydelsesgrundlag),
+    @ field(
+        label = "Historisk nedsættelse efter § 9 b",
+        question = "Hvor stor en nedsættelse efter den tidligere ejendomsværdiskattelovs § 9 b var registreret?",
+        help = "Angiv kildebeløbet i øre; Futuruna indarbejder det i 2024-sammenligningen.",
+        unit = "øre",
+        sources = personskat_kilder_19
+    )
+    par9b_nedsættelse_øre: Heltal,
+    @ field(
+        label = "Historisk vurderet som ejerbolig",
+        question = "Var ejendommen vurderet som helt eller delvist benyttet til ejerbolig?",
+        help = "Oplysningen indgår i betingelserne for de historiske begrænsninger efter §§ 9 og 9 a.",
+        sources = personskat_kilder_19
+    )
+    vurderet_helt_eller_delvis_benyttet_til_ejerbolig: Boolsk,
+    @ field(
+        label = "Ejerlejlighed frigjort for lejemål",
+        question = "Blev ejerlejligheden frigjort for et lejemål i det historiske sammenligningsforløb?",
+        help = "En sådan ændring kan afskære den historiske stigningsbegrænsning.",
+        sources = personskat_kilder_19
+    )
+    ejerlejlighed_frigjort_for_lejemål: Boolsk,
+    @ field(
+        label = "Historisk ombygning over 100 procent",
+        question = "Medførte en ombygning en værdistigning på mere end 100 procent i det historiske forløb?",
+        help = "Oplysningen indgår i afgrænsningen af de tidligere §§ 9 og 9 a.",
+        sources = personskat_kilder_19
+    )
+    ombygning_over_100_procent: Boolsk
+)
+# EjendomsskattelovTidligereEjendomsværdiskat2024Fakta(
+    @ field(
+        label = "Ejendomsværdi året før 2024",
+        question = "Hvilken ejendomsværdi var ansat for ejendommen i året før 2024?",
+        help = "Angiv den historiske vurdering før 80-procentsleddet; Futuruna vælger selv det laveste skattestopgrundlag.",
+        unit = "kr.",
+        sources = personskat_kilder_19
+    )
+    ejendomsværdi_året_før_kroner: Heltal,
+    @ field(
+        label = "Ejendomsværdi i 2001-niveau",
+        question = "Hvilken værdi er registreret for ejendommen i 2001-niveau til skattestopberegningen?",
+        help = "Futuruna tillægger selv 5 procent efter den tidligere ejendomsværdiskattelovs § 4 a.",
+        unit = "kr.",
+        sources = personskat_kilder_19
+    )
+    ejendomsværdi_2001_kroner: Heltal,
+    @ field(
+        label = "Ejendomsværdi i 2002-niveau",
+        question = "Hvilken værdi er registreret for ejendommen i 2002-niveau til skattestopberegningen?",
+        help = "Angiv kildeværdien; Futuruna sammenholder den med 2001-værdien og vurderingen året før.",
+        unit = "kr.",
+        sources = personskat_kilder_19
+    )
+    ejendomsværdi_2002_kroner: Heltal,
+    succession: EjendomsskattelovEvslSuccession,
+    historisk_begrænsning: EjendomsskattelovEvslHistoriskeBegrænsningsfakta,
+    udenlandske_ejendomsskatter: List(EjendomsskattelovUdenlandskEjendomsskatBetaling)
+)
+# EjendomsskattelovTidligereGrundskyld2024Fakta(
+    @ field(
+        label = "Afgiftspligtig grundværdi efter gamle regler",
+        question = "Hvilken afgiftspligtig grundværdi efter fradrag og fritagelser indgår som den aktuelle kandidat i 2024-sammenligningen?",
+        help = "Angiv kildeværdien, herunder det lovbestemte forsigtighedsprincip hvor det er indarbejdet; Futuruna vælger selv den laveste loftsværdi.",
+        unit = "kr.",
+        sources = personskat_kilder_19
+    )
+    grundværdi_efter_fradrag_og_fritagelser_kroner: Heltal,
+    @ field(
+        label = "Foregående års afgiftspligtige grundværdi",
+        question = "Hvilken afgiftspligtig grundværdi dannede grundlag for grundskylden året før 2024?",
+        help = "Futuruna anvender selv reguleringsprocenten på 2,8 procent.",
+        unit = "kr.",
+        sources = personskat_kilder_19
+    )
+    foregående_års_afgiftspligtige_grundværdi_kroner: Heltal,
+    @ field(
+        label = "Grundskyldspromille for 2023",
+        question = "Hvilken grundskyldspromille var fastsat for ejendommen for skatteåret 2023?",
+        help = "Angiv satsen i tiendedele promille, eksempelvis 260 for 26,0 promille.",
+        unit = "0,1 promille",
+        sources = personskat_kilder_19
+    )
+    grundskyld_promille_2023_tiendedele: Heltal
+)
+# EjendomsskattelovRabat2024Fakta(
+    kontekst_2024: EjendomsskattelovPersonÅrskontekst,
+    ny_lov_helårsgrundlag: EjendomsskattelovOrdinærPersonEjendomFakta,
+    ny_lov_nedslagsfakta: EjendomsskattelovNedslagsfakta,
+    tidligere_ejendomsværdiskat: EjendomsskattelovTidligereEjendomsværdiskat2024Fakta,
+    tidligere_grundskyld: EjendomsskattelovTidligereGrundskyld2024Fakta,
+    byggeri: EjendomsskattelovByggeriVedOvergang,
+    @ field(
+        label = "Grundandel fritaget for grundskyld i 2024",
+        question = "Hvor stor en del af grundværdien var fritaget for grundskyld den 1. januar 2024?",
+        help = "Angiv andelen i basispoint. Ved 10.000 opgøres intet forskelsbeløb for grundskyld.",
+        unit = "basispoint",
+        sources = personskat_kilder_19
+    )
+    grundskyld_fritaget_basispoint: Heltal,
+    @ field(
+        label = "Grundskyld kan henføres til samme boligenhed",
+        question = "Kan grundskylden og ejendomsværdiskatten henføres til den samme boligenhed?",
+        help = "Når svaret er sandt, sammenholder Futuruna positive og negative forskelsbeløb efter § 40.",
+        sources = personskat_kilder_19
+    )
+    grundskyld_kan_fordeles_på_samme_boligenhed: Boolsk
+)
+# EjendomsskattelovÆgtefælleoverdragelsesgrund =
+    EjskGrundOverdragelseMellemÆgtefæller |
+    EjskLængstlevendeOvertagelse(sidder_i_uskiftet_bo: Boolsk, har_overtaget_ejendommen_eller_ejerandelen: Boolsk) |
+    EjskSkilsmisseoverdragelse(
+        @ field(
+            label = "Boet var endnu ikke delt ved skilsmisseoverdragelsen",
+            question = "Var boet endnu ikke delt, da ejendommen eller ejerandelen blev overdraget efter skilsmissen?",
+            help = "Rabatten følger kun skilsmisseoverdragelsen efter § 43, stk. 5, når bodelingen endnu ikke var sket.",
+            sources = personskat_kilder_19
+        )
+        boet_er_endnu_ikke_delt: Boolsk
+    )
 # EjendomsskattelovOvertagetRabatgrundlag(overgangsomfang: EjendomsskattelovOvergangsomfang, rabat_2024: EjendomsskattelovRabat2024Fakta)
 # EjendomsskattelovÆgtefælleoverdragelsesretning = EjskAfgiverRabatTilÆgtefælle(ny_ejerandel_basispoint: Heltal) | EjskModtagerRabatFraÆgtefælle(ny_ejerandel_basispoint: Heltal, overtaget_rabatgrundlag: EjendomsskattelovOvertagetRabatgrundlag)
 # EjendomsskattelovRabatHændelseArt = EjskDelvisOverdragelseTilFysiskePersoner(ny_ejerandel_basispoint: Heltal) | EjskDelvisOverdragelseTilJuridiskePersoner(ny_ejerandel_basispoint: Heltal) | EjskAlmindeligtFuldtEjerskifte | EjskÆgtefælleoverdragelse(grund: EjendomsskattelovÆgtefælleoverdragelsesgrund, retning: EjendomsskattelovÆgtefælleoverdragelsesretning) | EjskBoligKanIkkeTjeneTilBoligForEjeren | EjskBoligKanIgenTjeneTilBoligForEjeren | EjskBfeNummerBortfalder | EjskIkkeLængereEjendomEfterPar3 | EjskIkkeLængereGrundskyldskategoriEfterPar38
 # EjendomsskattelovRabatHændelse(dato: EjendomsskattelovDato, art: EjendomsskattelovRabatHændelseArt)
-# EjendomsskattelovRabatOvergangsfakta(eget_rabatgrundlag_2024: Option(EjendomsskattelovRabat2024Fakta), hændelser: List(EjendomsskattelovRabatHændelse))
+# EjendomsskattelovRabatOvergangsfakta(
+    eget_rabatgrundlag_2024: Option(EjendomsskattelovRabat2024Fakta),
+    @ field(
+        label = "Hændelser der ændrer skatterabatten",
+        question = "Er der siden 1. januar 2024 sket overdragelser eller anvendelsesændringer, som kan ændre rabatten?",
+        help = "Tilføj de registrerede hændelser kronologisk. Futuruna udleder selv nedsættelse, bevarelse og bortfald.",
+        sources = personskat_kilder_19
+    )
+    hændelser: List(EjendomsskattelovRabatHændelse)
+)
 
 # EjendomsskattelovTidligereEjendomsværdiskat2024Resultat(input_gyldigt: Boolsk, beregningsgrundlag_kroner: Heltal, skat_før_nedslag_øre: Heltal, par6_nedslag_øre: Heltal, par7_nedslag_øre: Heltal, par8_nedslag_før_par10_øre: Heltal, par10_reduktion_øre: Heltal, par9_eller_par9a_begrænset_skat_øre: Heltal, par9b_nedsættelse_øre: Heltal, udenlandsk_skat_øre: Heltal, skat_øre: Heltal, skat_til_forskelsbeløb_øre: Heltal)
 # EjendomsskattelovRabat2024Resultat(kapabilitet: EjendomsskattelovRegelkapabilitet, input_gyldigt: Boolsk, par36_berettiget: Boolsk, par38_berettiget: Boolsk, ny_ejendomsværdiskat_øre: Heltal, tidligere_ejendomsværdiskat_øre: Heltal, forskelsbeløb_ejendomsværdiskat_øre: Heltal, ny_grundskyld_øre: Heltal, tidligere_grundskyld_øre: Heltal, forskelsbeløb_grundskyld_øre: Heltal, tværgående_opgørelse: Boolsk, rabat_ejendomsværdiskat_øre: Heltal, rabat_grundskyld_øre: Heltal, samlet_rabat_øre: Heltal)
@@ -1713,8 +2059,84 @@ laveste beløb efter stk. 2.
 @ section ejendomsskatteloven_stigningsbegraensning {
 
 # EjendomsskattelovStigningshændelse = EjskIngenStigningshændelse | EjskNyopståetEjendom | EjskOmkategoriseretEjendom | EjskOmfattetAfPar41Stk2 | EjskAnvendelsesændringEfterPar43Stk3 | EjskVurderingsundtagelseOphørt | EjskBfeNummerBortfaldet | EjskGrundskyldsfritagelseOphørt
-# EjendomsskattelovStigningsårsfakta(kalenderår: Heltal, kommune: Kommune, grundværdi_kroner: Heltal, produktionsjord: Boolsk, ejerandel_basispoint: Heltal, almen_bolig: Boolsk, hændelse: EjendomsskattelovStigningshændelse)
-# EjendomsskattelovStigningsbegrænsningsfakta(tidligere_grundskyld_2024: EjendomsskattelovTidligereGrundskyld2024Fakta, tidligere_år: List(EjendomsskattelovStigningsårsfakta), aktuel_almen_bolig: Boolsk, aktuel_hændelse: EjendomsskattelovStigningshændelse)
+# EjendomsskattelovStigningsårsfakta(
+    @ field(
+        label = "Kalenderår i loftsforløbet",
+        question = "Hvilket kalenderår vedrører denne historiske grundværdi?",
+        help = "Årene skal begynde med 2024 og slutte året før beregningsåret uden huller.",
+        unit = "år",
+        sources = personskat_kilder_19
+    )
+    kalenderår: Heltal,
+    @ field(
+        label = "Kommune i loftsåret",
+        question = "Hvilken kommune og dermed grundskyldssats gjaldt for ejendommen dette år?",
+        help = "Angiv kommunen som kildefaktum; satsen hentes fra Futurunas årsparametre.",
+        sources = personskat_kilder_19
+    )
+    kommune: Kommune,
+    @ field(
+        label = "Grundværdi i loftsåret",
+        question = "Hvilken offentligt ansat grundværdi gjaldt dette kalenderår?",
+        help = "Angiv vurderingen før beregning af grundskyld; Futuruna anvender forsigtighedsprincippet og årets sats.",
+        unit = "kr.",
+        sources = personskat_kilder_19
+    )
+    grundværdi_kroner: Heltal,
+    @ field(
+        label = "Produktionsjord i loftsåret",
+        question = "Var grundværdien produktionsjord dette kalenderår?",
+        help = "Statussen styrer beregningsgrundlaget efter § 17.",
+        sources = personskat_kilder_19
+    )
+    produktionsjord: Boolsk,
+    @ field(
+        label = "Ejerandel i loftsåret",
+        question = "Hvor stor en registreret ejerandel vedrørte grundskylden dette kalenderår?",
+        help = "Angiv andelen i basispoint for det historiske år.",
+        unit = "basispoint",
+        sources = personskat_kilder_19
+    )
+    ejerandel_basispoint: Heltal,
+    @ field(
+        label = "Almen bolig i loftsåret",
+        question = "Var ejendommen en almen bolig omfattet af lov om almene boliger dette kalenderår?",
+        help = "Til og med 2040 anvendes 3,50 procent i stedet for 4,75 procent for almene boliger.",
+        sources = personskat_kilder_19
+    )
+    almen_bolig: Boolsk,
+    @ field(
+        label = "Loftshændelse i kalenderåret",
+        question = "Indtraf en hændelse, som efter § 45, stk. 3, nulstiller stigningsbegrænsningen dette år?",
+        help = "Vælg den faktiske hændelse. Ophør af grundskyldsfritagelse er særskilt og nulstiller ikke loftet.",
+        sources = personskat_kilder_19
+    )
+    hændelse: EjendomsskattelovStigningshændelse
+)
+# EjendomsskattelovStigningsbegrænsningsfakta(
+    tidligere_grundskyld_2024: EjendomsskattelovTidligereGrundskyld2024Fakta,
+    @ field(
+        label = "Tidligere år for stigningsbegrænsning",
+        question = "Hvilke kalenderår fra og med 2024 ligger før det år, der skal beregnes?",
+        help = "Tilføj hvert år én gang i ubrudt kronologisk rækkefølge; Futuruna fører loftet videre år for år.",
+        sources = personskat_kilder_19
+    )
+    tidligere_år: List(EjendomsskattelovStigningsårsfakta),
+    @ field(
+        label = "Almen bolig i beregningsåret",
+        question = "Er ejendommen en almen bolig omfattet af lov om almene boliger i beregningsåret?",
+        help = "Oplysningen vælger den lovbestemte stigningssats; satsen selv skal ikke indtastes.",
+        sources = personskat_kilder_19
+    )
+    aktuel_almen_bolig: Boolsk,
+    @ field(
+        label = "Loftshændelse i beregningsåret",
+        question = "Indtraf en nyopståen, omkategorisering, anvendelsesændring eller anden § 45-hændelse i beregningsåret?",
+        help = "Futuruna udleder, om årets grundskyld bliver nyt udgangspunkt eller fortsat begrænses.",
+        sources = personskat_kilder_19
+    )
+    aktuel_hændelse: EjendomsskattelovStigningshændelse
+)
 # EjendomsskattelovStigningstilstand(seneste_kalenderår: Heltal, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, ordinær_grundskyld_øre: Heltal, grundskyld_efter_stigningsbegrænsning_øre: Heltal)
 # EjendomsskattelovStigningsbegrænsningsresultat(kapabilitet: EjendomsskattelovRegelkapabilitet, input_gyldigt: Boolsk, par44_omfattet: Boolsk, kalenderår: Heltal, foregående_års_grundskyld_øre: Heltal, ordinær_grundskyld_helår_øre: Heltal, ordinær_grundskyld_øre: Heltal, stigningssats_basispoint: Heltal, nulstillet_til_ordinær_grundskyld: Boolsk, grundskyld_efter_stigningsbegrænsning_helår_øre: Heltal, grundskyld_efter_stigningsbegrænsning_øre: Heltal, begrænsning_øre: Heltal)
 
@@ -1799,7 +2221,19 @@ stigninger i grundskyld efter § 45.
 @ meta(ejendomsskatteloven_person_ejendom_metadata)
 @ section ejendomsskatteloven_person_ejendom {
 
+@ field(
+    label = "Kildegrundlag for skatterabat",
+    question = "Foreligger vurderingerne og de historiske kildeoplysninger, som er nødvendige for at opgøre skatterabatten fra 2024?",
+    help = "Vælg kun oplyst, når kildefakta kan udfyldes. Futuruna beregner forskelsbeløb og rabat; indtast ikke et færdigt rabatbeløb.",
+    sources = personskat_kilder_19
+)
 # EjendomsskattelovRabatvurderinger = EjskIngenRabatvurderingerOplyst | EjskRabatvurderingerOplyst(fakta: EjendomsskattelovRabatOvergangsfakta)
+@ field(
+    label = "Kildegrundlag for stigningsbegrænsning",
+    question = "Foreligger de historiske grundværdier, som er nødvendige for at opgøre stigningsbegrænsningen i grundskyld?",
+    help = "Vælg kun oplyst, når hvert kalenderårs kildefakta kan udfyldes. Futuruna udleder selv loftet efter § 45.",
+    sources = personskat_kilder_19
+)
 # EjendomsskattelovStigningsvurderinger = EjskIngenStigningsvurderingerOplyst | EjskStigningsvurderingerOplyst(fakta: EjendomsskattelovStigningsbegrænsningsfakta)
 # EjendomsskattelovOvergangsvurderinger(rabat: EjendomsskattelovRabatvurderinger, stigningsbegrænsning: EjendomsskattelovStigningsvurderinger)
 # EjendomsskattelovPersonEjendomFakta(ordinært_grundlag: EjendomsskattelovOrdinærPersonEjendomFakta, nedslagsfakta: EjendomsskattelovNedslagsfakta, overgangsomfang: EjendomsskattelovOvergangsomfang, overgangsvurderinger: EjendomsskattelovOvergangsvurderinger)
@@ -1939,3 +2373,9 @@ stigninger i grundskyld efter § 45.
 }
 
 }
+
+# PersonskatEjendomsskatAldersforbehold(besked: Tekst)
+
+= personskat_ejendomsskat_aldersforbehold = PersonskatEjendomsskatAldersforbehold(
+    besked = "Sammenhængskontrol af årets ejer og aktuelle samlevende ægtefælle samt ejerens eget rabatgrundlag fra 2024, ikke dokumentautentifikation. Fødselsdato og folkepensionsstatus skal stemme efter ESL § 25 og socialpensionslovens § 1 a. Eget 2024-grundlag afstemmes for 2024, ikke beregningsåret. Historiske ægtefæller, overtaget rabatgrundlag og pensionistsuccession har selvstændige personfakta; en tidligere ægtefælle må ikke identificeres med den aktuelle ejer eller ægtefælle. Kontrollen ændrer ikke kildefakta eller nedslagsbeløb."
+)

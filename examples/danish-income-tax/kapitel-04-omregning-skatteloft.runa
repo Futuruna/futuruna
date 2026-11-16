@@ -3,6 +3,8 @@
 @ importer ./pengebeloeb
 @ importer ./skatteaar-parametre
 @ importer ./kalenderdato
+@ importer ./delte-kilder
+@ importer ./source-status
 
 -- Personskatteloven — omregning, skatteloft og regulering (§§ 14-20).
 --
@@ -69,7 +71,35 @@ https://www.retsinformation.dk/eli/mt/1986/22
 ----
 
 # Par14Skattepligtsændring = FuldSkattepligtIndtræder | FuldSkattepligtOphører | BegrænsetSkattepligtPar10Stk6Indtræder | BegrænsetSkattepligtPar10Stk6Ophører | BegrænsetSkattepligtPar10Stk5Indtræder | BegrænsetSkattepligtPar10Stk5Ophører | IngenSkattepligtsændring
-# Par14Omregningsmetode = Par14ForholdsmæssigtLøbendeBeløb | Par14UændretEngangsbeløb | Par14DokumenteretRetvisendeHelårsbeløb(helårsbeløb_kroner: Heltal)
+= personskat_par14_kilder = [
+    Source(value = personskatteloven_2021_1284),
+    DependencySource(value = kommuneskatteloven_2019_935),
+    AmendmentSource(value = personskat_personfradrag_aendring_2023_1564),
+    Guidance(value = personskat_kirkeskat_medlemsvejledning),
+    Guidance(value = personskat_par14_juridisk_vejledning),
+    Guidance(value = personskat_par14_indkomsttypevejledning),
+    Guidance(value = personskat_par14_beregningscirkulære),
+    Warning(value = personskat_par14_mellemtrin_forbehold)
+]
+@ field(
+    label = "Metode til helårsbeløb",
+    question = "Skal beløbet omregnes forholdsmæssigt, bevares som engangsbeløb eller erstattes af et dokumenteret retvisende helårsbeløb?",
+    help = "Løbende beløb omregnes efter periodens faktiske kalenderdage; engangsbeløb bevares uændret. Par14Aktieindkomst er ikke løn: hver kildes aktieindkomst skal indgå uændret, uden dagfaktor eller et andet hypotetisk helårsbeløb. Vælg Par14UændretEngangsbeløb, eller dokumentér samme beløb; se PSL § 14 og personskat-delaar.md.",
+    sources = personskat_par14_kilder
+)
+# Par14Omregningsmetode =
+    Par14ForholdsmæssigtLøbendeBeløb |
+    Par14UændretEngangsbeløb |
+    Par14DokumenteretRetvisendeHelårsbeløb(
+        @ field(
+            label = "Dokumenteret retvisende helårsbeløb",
+            question = "Hvilket helårsbeløb giver et dokumenteret retvisende billede af denne kilde?",
+            help = "Udfyld kun ved metoden for dokumenteret retvisende helårsbeløb. For Par14Aktieindkomst skal beløbet være det samme som kildens delårsbeløb; en dokumenteret værdi gør ikke aktieindkomst til en indkomst, der skal helårsomregnes.",
+            unit = "kr.",
+            sources = personskat_par14_kilder
+        )
+        helårsbeløb_kroner: Heltal
+    )
 # Par14Beløbspost(identifikation: Tekst, delårsbeløb_kroner: Heltal, metode: Par14Omregningsmetode)
 # Par14OmregningInput(skatteår: Heltal, delårs_skattepligtig_indkomst_kroner: Heltal, delårs_personlig_indkomst_kroner: Heltal, delårs_kapitalindkomst_kroner: Heltal, skattepligtsdage: Heltal, skattepligtige_indkomstposter: List(Par14Beløbspost), personlige_indkomstposter: List(Par14Beløbspost), kapitalindkomstposter: List(Par14Beløbspost))
 # Par14Helårsindkomst(skattepligtig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal)
@@ -537,3 +567,39 @@ https://skm.dk/tal-og-metode/satser/regulering-af-beloebsgraenser/beloebsgraense
 | par20_regulerer_og_afrunder_personfradrag: par20_personfradrag_2025_fixture -> par20_personfradrag_2025_fixture == 51600
 | par20_regulering_resultat_forklarer_personfradrag: par20_personfradrag_2025_resultat -> par20_personfradrag_2025_resultat.reguleringstal_tiendedele == 1310 && par20_personfradrag_2025_resultat.reguleret_før_afrunding_kroner == 51548 && par20_personfradrag_2025_resultat.reguleret_og_afrundet_kroner == 51600
 | par20_lader_præcis_hundrede_stå: par20_præcis_hundrede_fixture -> par20_præcis_hundrede_fixture == 51600
+
+# PersonskatPar14VejledningKilde(titel: Tekst, url: Tekst, afsnit: Tekst)
+
+# PersonskattelovKildeAdvarsel(kode: Tekst, besked: Tekst)
+
+= personskat_kirkeskat_medlemsvejledning = PersonskattelovIndkomstKildeInfo(
+    url = "https://www.borger.dk/kultur-og-fritid/medlemskab-af-folkekirken",
+    identifier = "Sundheds- og Kirkeministeriet: medlemskab, registreret udmeldelsesdato og ophør af kirkeskat",
+    hentet_dato = "2026-09-25"
+)
+
+= personskat_par14_beregningscirkulære = PersonskatPar14VejledningKilde(
+    titel = "Cirkulære nr. 22 af 9. december 1986",
+    url = "https://www.retsinformation.dk/eli/mt/1986/22",
+    afsnit = "J. Omregning, nr. 90"
+)
+
+= personskat_par14_indkomsttypevejledning = PersonskatPar14VejledningKilde(
+    titel = "Den juridiske vejledning 2026-1",
+    url = "https://info.skat.dk/data.aspx?oid=1977389",
+    afsnit = "C.F.1.6.2.2"
+)
+
+= personskat_par14_juridisk_vejledning = PersonskatPar14VejledningKilde(
+    titel = "Den juridiske vejledning 2026-1",
+    url = "https://info.skat.dk/data.aspx?oid=1977388",
+    afsnit = "C.F.1.6.2.1"
+)
+
+= personskat_par14_mellemtrin_forbehold = "Denne vurdering gælder den afsluttede delårsberegning efter PSL § 14. delårsresultat.vurdering og helårsberegningen er mellemtrin; deres beløb må ikke bruges som den endelige delårsskat."
+
+= personskatteloven_lbk1284_par4 = PersonskattelovIndkomstKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2021/1284",
+    identifier = "Personskatteloven § 4",
+    hentet_dato = "2026-07-18"
+)

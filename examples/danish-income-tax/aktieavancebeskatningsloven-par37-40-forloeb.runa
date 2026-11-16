@@ -78,9 +78,139 @@ til mindre end 0 kr.
 @ meta(aktieavancebeskatningsloven_par37_til_40_forloeb_metadata)
 @ section aktieavancebeskatningsloven_par37_til_40_forloeb {
 
-# AktieavancePar37Til40Opgørelseskilde = AblPar37Til40OpgørelseEfterPar23Til29Og46 | AblPar37Til40Tegningsretsvalg(udnyttelseskurs_pr_aktie_kroner: Heltal, markedskurs_pr_aktie_ved_ophør_kroner: Heltal)
+= personskat_kilder_6 = [
+    Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par26),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par17_klassifikation),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par44),
+    Source(value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par37),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par38),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39a),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39b),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par40),
+    PreparatoryWork(value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
+    DependencySource(value = aktieavancebeskatningsloven_lbk835_par4_stk2),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par44),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par23),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par37),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_beholdningsoversigt),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_prioritet),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_alle_afstået),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_årsoplysninger),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39b)
+]
+@ field(
+    label = "Opgørelsesmetode ved fraflytningen",
+    question = "Skal gevinsten afledes som handelsværdi minus anskaffelsessum eller efter tegningsretsvalget i § 38, stk. 4?",
+    help = "Angiv kildefakta; et færdigt gevinstbeløb kan ikke indtastes.",
+    sources = personskat_kilder_6
+)
+# AktieavancePar37Til40Opgørelseskilde =
+    AblPar37Til40OpgørelseEfterPar23Til29Og46 |
+    AblPar37Til40Tegningsretsvalg(
+        @ field(
+            label = "Tegningsrettens udnyttelseskurs pr. aktie",
+            question = "Hvad var udnyttelseskursen pr. aktie for tegningsretten?",
+            unit = "kr./aktie",
+            sources = personskat_kilder_6
+        )
+        udnyttelseskurs_pr_aktie_kroner: Heltal,
+        @ field(
+            label = "Markedskurs pr. aktie ved fraflytningen",
+            question = "Hvad var markedskursen pr. underliggende aktie ved ophøret?",
+            unit = "kr./aktie",
+            sources = personskat_kilder_6
+        )
+        markedskurs_pr_aktie_ved_ophør_kroner: Heltal
+    )
 # AktieavancePar37Til40Henstandsvalg = AblPar37Til40HenstandSøges | AblPar37Til40SkatBetalesStraks
-# AktieavancePar37Til40AktiepostFakta(identifikation: Tekst, selskabsidentifikation: Tekst, aktieserie: Tekst, erhvervelsesdato: AktieavancePar23Dato, erhvervelsesrækkefølge: Heltal, antal: Heltal, handelsværdi_ved_ophør_kroner: Heltal, skattemæssig_anskaffelsessum_kroner: Heltal, beskatningsstatus: AktieavancePar38Beskatningsstatus, par44_status: AktieavancePar38Par44Status, egenskaber: List(AktieavancePar38Aktieegenskab), opgørelseskilde: AktieavancePar37Til40Opgørelseskilde, aktivgrundlag: AktieavancePar38Aktivgrundlag, princip: AktieavancePar23Princip, henstandsvalg: AktieavancePar37Til40Henstandsvalg)
+# AktieavancePar37Til40AktiepostFakta(
+    @ field(
+        label = "Fraflytteraktiens identifikation",
+        question = "Hvilken entydig identifikation har aktiepartiet?",
+        help = "Brug samme identifikation ved en senere § 39 B-tilflytningsværdi.",
+        sources = personskat_kilder_6
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Fraflytteraktiens selskab",
+        question = "Hvilket selskab vedrører aktiepartiet?",
+        sources = personskat_kilder_6
+    )
+    selskabsidentifikation: Tekst,
+    @ field(
+        label = "Fraflytteraktiens serie",
+        question = "Hvilken aktieserie tilhører partiet?",
+        sources = personskat_kilder_6
+    )
+    aktieserie: Tekst,
+    erhvervelsesdato: AktieavancePar23Dato,
+    @ field(
+        label = "Aktiepartiets erhvervelsesrækkefølge",
+        question = "Hvilket løbenummer har partiet blandt aktier erhvervet samme dag?",
+        help = "Dato og løbenummer danner den entydige FIFO-rækkefølge.",
+        sources = personskat_kilder_6
+    )
+    erhvervelsesrækkefølge: Heltal,
+    @ field(
+        label = "Antal aktier ved fraflytningen",
+        question = "Hvor mange aktier omfattede partiet ved fraflytningen?",
+        unit = "aktier",
+        sources = personskat_kilder_6
+    )
+    antal: Heltal,
+    @ field(
+        label = "Handelsværdi ved fraflytningen",
+        question = "Hvad var aktiepartiets dokumenterede handelsværdi, da beskatningsretten ophørte?",
+        unit = "kr.",
+        sources = personskat_kilder_6
+    )
+    handelsværdi_ved_ophør_kroner: Heltal,
+    @ field(
+        label = "Skattemæssig anskaffelsessum ved fraflytningen",
+        question = "Hvilken skattemæssig anskaffelsessum indgår i § 38-opgørelsen?",
+        help = "En negativ anskaffelsessum skal angives som et negativt beløb.",
+        unit = "kr.",
+        sources = personskat_kilder_6
+    )
+    skattemæssig_anskaffelsessum_kroner: Heltal,
+    @ field(
+        label = "Dansk beskatningsstatus for aktien",
+        question = "Var aktien omfattet af dansk beskatning umiddelbart før ophøret?",
+        sources = personskat_kilder_6
+    )
+    beskatningsstatus: AktieavancePar38Beskatningsstatus,
+    @ field(
+        label = "Historisk status efter ABL § 44",
+        question = "Var aktien omfattet af § 44, og hvor længe havde personen ejet den ved fraflytningen?",
+        sources = personskat_kilder_6
+    )
+    par44_status: AktieavancePar38Par44Status,
+    egenskaber: List(AktieavancePar38Aktieegenskab),
+    opgørelseskilde: AktieavancePar37Til40Opgørelseskilde,
+    aktivgrundlag: AktieavancePar38Aktivgrundlag,
+    @ field(
+        label = "Realisations- eller lagerprincip",
+        question = "Blev aktiepartiet opgjort efter realisationsprincippet eller lagerprincippet ved fraflytningen?",
+        help = "Kun realisationsopgjorte poster kan indgå i henstanden.",
+        sources = personskat_kilder_6
+    )
+    princip: AktieavancePar23Princip,
+    @ field(
+        label = "Valg om henstand for aktiepartiet",
+        question = "Søges der henstand for skatten på dette konkrete aktieparti, eller betales skatten straks?",
+        help = "Aktier, hvor skatten betales, kommer ikke på § 39 A-beholdningsoversigten.",
+        sources = personskat_kilder_6
+    )
+    henstandsvalg: AktieavancePar37Til40Henstandsvalg
+)
 # AktieavancePar37Til40Aktieindkomstkontekst(indkomstår: Heltal, øvrig_egen_aktieindkomst_kroner: Heltal, ægtefælles_aktieindkomst_kroner: Heltal, samlevende_med_ægtefælle_ved_indkomstårets_udløb: Boolsk)
 # AktieavancePar37Til40Slutskattekontekst(skat_uden_fraflytterindkomst_kroner: Heltal, skat_før_henstandsvalgt_fraflytterindkomst_kroner: Heltal, skat_med_hele_fraflytterindkomsten_kroner: Heltal, input_gyldigt: Boolsk)
 # AktieavancePar37Til40Skattekontekst = AblPar37Til40LokalAktieindkomstskat | AblPar37Til40AfledtSlutskat(kontekst: AktieavancePar37Til40Slutskattekontekst)
@@ -218,12 +348,77 @@ til mindre end 0 kr.
 | aktieavance_par37_til40_fraflytningsresultat_med_skattekontekst(fakta: AktieavancePar37Til40Fraflytningsfakta, skattekontekst: AktieavancePar37Til40Skattekontekst) -> AktieavancePar37Til40FraflytningsSag(fakta, skattekontekst).resultat()
 | aktieavance_par37_til40_fraflytningsresultat(fakta: AktieavancePar37Til40Fraflytningsfakta) -> aktieavance_par37_til40_fraflytningsresultat_med_skattekontekst(fakta, aktieavance_par37_til40_lokal_skattekontekst())
 
-# AktieavancePar37Til40Hændelsespost(identifikation: Tekst, indkomstår: Heltal, rækkefølge_i_indkomståret: Heltal, hændelse: AktieavancePar39AHændelse)
+# AktieavancePar37Til40Hændelsespost(
+    @ field(
+        label = "Fraflytterskattehændelsens identifikation",
+        question = "Hvilken entydig identifikation har hændelsen?",
+        help = "Identifikationen skal være stabil og må ikke genbruges i samme forløb.",
+        sources = personskat_kilder_6
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Fraflytterskattehændelsens indkomstår",
+        question = "I hvilket indkomstår indtraf hændelsen?",
+        unit = "år",
+        sources = personskat_kilder_6
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Hændelsens rækkefølge i indkomståret",
+        question = "Hvilket løbenummer har hændelsen blandt årets fraflytterskattehændelser?",
+        help = "Løbenummeret skal være strengt stigende inden for året.",
+        sources = personskat_kilder_6
+    )
+    rækkefølge_i_indkomståret: Heltal,
+    hændelse: AktieavancePar39AHændelse
+)
 # AktieavancePar37Til40Hændelsespostresultat(post: AktieavancePar37Til40Hændelsespost, post_strukturelt_gyldig: Boolsk, hændelsesresultat: AktieavancePar39AHændelsesresultat, hændelse_gyldig: Boolsk, tilstand_før: AktieavancePar39ATilstand, tilstand_efter: AktieavancePar39ATilstand)
 # AktieavancePar37Til40Forløbstilstand(tilstand: AktieavancePar39ATilstand, resultater: List(AktieavancePar37Til40Hændelsespostresultat), alle_hændelser_gyldige: Boolsk)
 # AktieavancePar37Til40Årskontrolresultat(indkomstår: Heltal, årsoplysninger_påkrævet: Boolsk, antal_årsoplysningshændelser: Heltal, effektiv_oplysningsfrist: Dato, frist_udløbet_ved_kildegrænsen: Boolsk, manglende_årsoplysninger: Boolsk, kontrol_gyldig: Boolsk, afledt_hændelsesresultat: Option(AktieavancePar37Til40Hændelsespostresultat), tilstand_efter: AktieavancePar39ATilstand)
 # AktieavancePar37Til40Årsforløbstilstand(tilstand: AktieavancePar39ATilstand, hændelsesresultater: List(AktieavancePar37Til40Hændelsespostresultat), årskontrolresultater: List(AktieavancePar37Til40Årskontrolresultat), alle_hændelser_gyldige: Boolsk)
-# AktieavancePar37Til40Tilflytning = IngenTilflytningEfterPar39B | TilflytningEfterPar39B(identifikation: Tekst, indkomstår: Heltal, rækkefølge_i_indkomståret: Heltal, tilflytningsværdier: List(AktieavancePar39BTilflytningsværdi), får_på_ny_skattemæssigt_hjemsted_i_danmark: Boolsk, samlevende_med_ægtefælle_ved_indkomstårets_udløb: Boolsk)
+@ field(
+    label = "Tilbageflytning efter ABL § 39 B",
+    question = "Har personen fået skattemæssigt hjemsted i Danmark igen inden opgørelsesårets udløb?",
+    help = "Ved tilbageflytning afleder Futuruna nye indgangsværdier fra den genafspillede beholdning og den resterende henstandssaldo.",
+    sources = personskat_kilder_6
+)
+# AktieavancePar37Til40Tilflytning =
+    IngenTilflytningEfterPar39B |
+    TilflytningEfterPar39B(
+        @ field(
+            label = "Tilbageflytningens identifikation",
+            question = "Hvilken entydig identifikation har tilbageflytningen?",
+            sources = personskat_kilder_6
+        )
+        identifikation: Tekst,
+        @ field(
+            label = "Indkomstår for tilbageflytningen",
+            question = "I hvilket indkomstår fik personen igen skattemæssigt hjemsted i Danmark?",
+            unit = "år",
+            sources = personskat_kilder_6
+        )
+        indkomstår: Heltal,
+        @ field(
+            label = "Tilbageflytningens rækkefølge i indkomståret",
+            question = "Efter hvilket løbenummer i årets hændelseshistorik skete tilbageflytningen?",
+            sources = personskat_kilder_6
+        )
+        rækkefølge_i_indkomståret: Heltal,
+        @ field(
+            label = "Handelsværdier ved tilbageflytningen",
+            question = "Hvad var handelsværdien for hvert aktieparti, der stadig stod på beholdningsoversigten ved tilbageflytningen?",
+            help = "Angiv én værdi for hver resterende partiidentifikation.",
+            sources = personskat_kilder_6
+        )
+        tilflytningsværdier: List(AktieavancePar39BTilflytningsværdi),
+        @ field(
+            label = "Skattemæssigt hjemsted i Danmark igen",
+            question = "Fik personen på ny skattemæssigt hjemsted i Danmark?",
+            sources = personskat_kilder_6
+        )
+        får_på_ny_skattemæssigt_hjemsted_i_danmark: Boolsk,
+        samlevende_med_ægtefælle_ved_indkomstårets_udløb: Boolsk
+    )
 # AktieavancePar37Til40Forløbsinput(identifikation: Tekst, opgørelsesår: Heltal, fraflytning: AktieavancePar37Til40Fraflytningsfakta, hændelsesposter: List(AktieavancePar37Til40Hændelsespost), kildehistorik: AktieavancePar39AKildehistorik, tilflytning: AktieavancePar37Til40Tilflytning)
 # AktieavancePar37Til40Forløbsresultat(input: AktieavancePar37Til40Forløbsinput, fraflytningsresultat: AktieavancePar37Til40Fraflytningsresultat, hændelsesresultater: List(AktieavancePar37Til40Hændelsespostresultat), årskontrolresultater: List(AktieavancePar37Til40Årskontrolresultat), tilstand_før_tilflytning: AktieavancePar39ATilstand, tilflytningsresultat: Option(AktieavancePar39BResultat), input_gyldigt: Boolsk, årets_beregnede_fraflytterskat_kroner: Heltal, årets_nye_henstand_kroner: Heltal, årets_skat_til_betaling_ved_fraflytning_kroner: Heltal, årets_nye_forfald_kroner: Heltal, årets_betalte_fraflytterskat_kroner: Heltal, årets_straksnedskrivning_kroner: Heltal, årets_saldobortfald_kroner: Heltal, tilstand_ultimo: AktieavancePar39ATilstand, aktieavancebeskatningslov_kilderesultater: List(AktieavancebeskatningslovKilderesultat), aktieavancebeskatningslov_resultater: List(AktieavancebeskatningslovResultat), aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
 

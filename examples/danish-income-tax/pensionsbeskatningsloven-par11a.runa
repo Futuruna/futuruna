@@ -1,6 +1,8 @@
 @ sprog da
 
 @ importer ./metadata
+@ importer ./pensionsbeskatningsloven-par20
+@ importer ./pensionsbeskatningsloven-par29
 
 # Pbl11AKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 
@@ -46,7 +48,58 @@ pensionsafkastbeskatningslovens § 2.
 @ section pensionsbeskatningsloven_par11a_stk2_og_3 {
 
 # Pbl11AUdbetalingsmetode = Pbl11APrimoVærdiDivideretMedResterendeÅr | Pbl11AAnnuitetMedAmortisationsrente
-# Pbl11ARateberegningsfakta = Pbl11ARateEfterPrimoVærdi(ordningsværdi_ved_årets_begyndelse_kroner: Heltal) | Pbl11AAnnuitetsrate(ordningsværdi_ved_årets_begyndelse_kroner: Heltal, amortisationsrente_basispoint: Heltal, langsigtet_obligationsafkast_basispoint: Heltal, pensionsafkastskattesats_basispoint: Heltal)
+= personskat_kilder_34 = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par15b),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par11a_stk2_og_3),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par20),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par29_par36),
+    Guidance(value = skatteforvaltningen_pbl15b_udbetalinger)
+]
+# Pbl11ARateberegningsfakta =
+    Pbl11ARateEfterPrimoVærdi(
+        @ field(
+            label = "Opsparingens værdi ved årets begyndelse",
+            question = "Hvad var rateopsparingens værdi ved begyndelsen af dette udbetalingsår?",
+            help = "Ved divisionsmetoden divideres værdien med antallet af resterende rateår.",
+            unit = "kr.",
+            sources = personskat_kilder_34
+        )
+        ordningsværdi_ved_årets_begyndelse_kroner: Heltal
+    ) |
+    Pbl11AAnnuitetsrate(
+        @ field(
+            label = "Opsparingens værdi før annuitetsraten",
+            question = "Hvad var rateopsparingens værdi ved begyndelsen af dette annuitetsår?",
+            help = "Værdien er hovedstolen i årets annuitetsberegning.",
+            unit = "kr.",
+            sources = personskat_kilder_34
+        )
+        ordningsværdi_ved_årets_begyndelse_kroner: Heltal,
+        @ field(
+            label = "Amortisationsrente for annuitetsraten",
+            question = "Hvilken amortisationsrente er anvendt ved beregningen af årets rate?",
+            help = "Futuruna kontrollerer renten mod den lovlige maksimumsrente udledt af obligationsafkast og pensionsafkastskat.",
+            unit = "basispoint",
+            sources = personskat_kilder_34
+        )
+        amortisationsrente_basispoint: Heltal,
+        @ field(
+            label = "Langsigtet obligationsafkast",
+            question = "Hvilket langsigtet obligationsafkast ligger til grund for årets maksimale amortisationsrente?",
+            help = "Det dokumenterede afkast indgår sammen med tillægget på 2 procentpoint og pensionsafkastskatten.",
+            unit = "basispoint",
+            sources = personskat_kilder_34
+        )
+        langsigtet_obligationsafkast_basispoint: Heltal,
+        @ field(
+            label = "Pensionsafkastskattesats i annuitetsberegningen",
+            question = "Hvilken pensionsafkastskattesats er anvendt i beregningen af maksimumsrenten?",
+            help = "Futuruna reducerer obligationsafkastet og rentetillægget med den oplyste pensionsafkastskat.",
+            unit = "basispoint",
+            sources = personskat_kilder_34
+        )
+        pensionsafkastskattesats_basispoint: Heltal
+    )
 
 | pbl11a_maksimal_amortisationsrente_basispoint(langsigtet_obligationsafkast_basispoint: Heltal, pensionsafkastskattesats_basispoint: Heltal) -> {
     = afkast_med_tillæg_basispoint = langsigtet_obligationsafkast_basispoint + 200
@@ -73,3 +126,19 @@ pensionsafkastbeskatningslovens § 2.
 }
 
 }
+
+# Pbl15BKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= pensionsbeskatningsloven_lbk1243_par15b = Pbl15BKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 15 B",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 15 B er uændret"
+)
+
+= skatteforvaltningen_pbl15b_udbetalinger = Pbl15BKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048292",
+    identifier = "Den juridiske vejledning C.A.10.2.2.3.6.3",
+    hentet_dato = "2026-07-24",
+    ændringsstatus = "Gældende vejledning: højst ti år, 2026-loft 469.200 kr., § 20-indkomst og 60 pct. § 29-afgift af overskridelsen"
+)

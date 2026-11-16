@@ -3,6 +3,7 @@
 @ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./kapitel-04-omregning-skatteloft
+@ importer ./source-status
 
 -- Afskrivningsloven -- Personskatteloven §§ 3 og 4-afhængigheder.
 --
@@ -401,7 +402,31 @@ Kunstværker kan dog afskrives efter §§ 44 A og 44 B.
 
 # AfskrivningslovSkatteyder = AlSelvstændigErhvervsdrivendePerson | AlSelskabEllerForening | AlAndenFysiskPerson
 # AfskrivningslovAktivart = AlMaskine | AlInventar | AlAndetDriftsmiddel | AlSkib | AlSoftware | AlAntikvitetEllerAndetVærdifastAktiv | AlKunstværk
-# AfskrivningslovPar1Par2Input(skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, erhvervsmæssig_anvendelsesandel_basispoint: Heltal)
+= personskat_honorarafskrivning_inputmeta_kilder = [
+    Source(value = afskrivningsloven_lbk1222),
+    Guidance(value = honorarudgifter_djv),
+    Guidance(value = afskrivningsloven_par11_par13_juridisk_vejledning),
+    ParameterSource(value = afskrivningsloven_2023_2024_satser),
+    ParameterSource(value = afskrivningsloven_2025_2026_satser),
+    Warning(value = honorarudgifter_dækningsgrænse)
+]
+# AfskrivningslovPar1Par2Input(
+    @ field(
+        label = "Skatteyder i honoraraktiviteten",
+        question = "Er dette en fysisk persons honoraraktivitet uden selvstændig virksomhed?",
+        help = "Brug AlAndenFysiskPerson her; virksomheds- og selskabsopgørelser skal ikke flyttes ind i honorargrenen. Se personskat-honorar.md.",
+        sources = personskat_honorarafskrivning_inputmeta_kilder
+    )
+    skatteyder: AfskrivningslovSkatteyder,
+    @ field(
+        label = "Driftsmidlets art",
+        question = "Hvilken afskrivningsberettiget art har driftsmidlet?",
+        help = "AlMaskine, AlInventar, AlAndetDriftsmiddel eller AlSoftware i denne almindelige rute. Andre arter afvises her, ikke generelt efter loven. Se personskat-honorar.md.",
+        sources = personskat_honorarafskrivning_inputmeta_kilder
+    )
+    aktivart: AfskrivningslovAktivart,
+    erhvervsmæssig_anvendelsesandel_basispoint: Heltal
+)
 # AfskrivningslovPar1Par2Resultat(skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, erhvervsmæssig_anvendelsesandel_basispoint: Heltal, erhvervsmæssigt_benyttet: Boolsk, udelukkende_erhvervsmæssigt_benyttet: Boolsk, aktivart_omfattet_af_kapitel2: Boolsk, omfattet_af_kapitel2: Boolsk)
 
 | afskrivningslov_par1_par2_aktivart_omfattet(aktivart: AfskrivningslovAktivart) -> match aktivart {
@@ -687,9 +712,83 @@ tilladelsen.
 @ section afskrivningsloven_par5 {
 
 # AfskrivningslovSaldoordning = AlPar5AlmindeligSaldo | AlPar5BSkibssaldo | AlPar5CInfrastruktursaldo | AlPar5DMidlertidig116Saldo | AlPar5EMidlertidig108Saldo
-# Afskrivningslov5Valg = Al5IngenAfskrivning | Al5OrdinærAfskrivning(sats_basispoint: Heltal) | Al5FuldRestsaldo
+@ field(
+    label = "Afskrivningsvalg",
+    question = "Hvilket afskrivningsvalg er faktisk truffet for året?",
+    help = "Ingen, ordinær sats eller fuld restværdi inden for årets grænse. Modellen optimerer ikke valget og ændrer ikke allerede trufne valg. Se personskat-honorar.md.",
+    sources = personskat_honorarafskrivning_inputmeta_kilder
+)
+# Afskrivningslov5Valg =
+    Al5IngenAfskrivning |
+    Al5OrdinærAfskrivning(
+        @ field(
+            label = "Valgt afskrivningssats",
+            question = "Hvilken ordinær afskrivningssats er valgt?",
+            help = "0–2500 basispoint (0–25 %). For blandet brug beregnes privat andel bagefter, ikke ved at reducere satsen. Se personskat-honorar.md.",
+            unit = "basispoint",
+            sources = personskat_honorarafskrivning_inputmeta_kilder
+        )
+        sats_basispoint: Heltal
+    ) |
+    Al5FuldRestsaldo
+@ field(
+    label = "Saldoens aktivgrundlag",
+    question = "Er saldoen alene almindelige kapitel 2-driftsmidler?",
+    help = "Brug Al5Kapitel2Aktiv. Dok/bedding og forskudsafskrevne aktiver kræver andre regler. Se personskat-honorar.md.",
+    sources = personskat_honorarafskrivning_inputmeta_kilder
+)
 # Afskrivningslov5Aktivgrundlag = Al5Kapitel2Aktiv(input: AfskrivningslovPar1Par2Input) | Al5Par10DokEllerBedding(input: Afskrivningslov10Input) | Al5Par33ForskudsafskrevneAktiver(input: Afskrivningslov33Input)
-# Afskrivningslov5Input(indkomstår: Heltal, aktivgrundlag: Afskrivningslov5Aktivgrundlag, saldoordning: AfskrivningslovSaldoordning, saldoværdi_primo_kroner: Heltal, øvrige_anskaffelsessummer_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, salgssummer_i_året_kroner: Heltal, valg: Afskrivningslov5Valg)
+# Afskrivningslov5Input(
+    @ field(
+        label = "Afskrivningens år",
+        question = "Hvilket indkomstår vedrører opgørelsen?",
+        help = "Skal matche honorarets skatteår. Årsparametre er dækket for 2023–2026. Se personskat-honorar.md.",
+        unit = "år",
+        sources = personskat_honorarafskrivning_inputmeta_kilder
+    )
+    indkomstår: Heltal,
+    aktivgrundlag: Afskrivningslov5Aktivgrundlag,
+    @ field(
+        label = "Almindelig saldo",
+        question = "Er dette den almindelige samlede AL § 5-saldo?",
+        help = "Kun AlPar5AlmindeligSaldo er omfattet; særskilte forhøjede saldi må ikke ommærkes. Se personskat-honorar.md.",
+        sources = personskat_honorarafskrivning_inputmeta_kilder
+    )
+    saldoordning: AfskrivningslovSaldoordning,
+    @ field(
+        label = "Skattemæssig saldo primo",
+        question = "Hvad er det kildeafklarede beløb for skattemæssig saldo primo?",
+        help = "Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md.",
+        unit = "kr.",
+        sources = personskat_honorarafskrivning_inputmeta_kilder
+    )
+    saldoværdi_primo_kroner: Heltal,
+    @ field(
+        label = "Årets anskaffelser til saldo",
+        question = "Hvad er det kildeafklarede beløb for årets anskaffelser til saldo?",
+        help = "Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md.",
+        unit = "kr.",
+        sources = personskat_honorarafskrivning_inputmeta_kilder
+    )
+    øvrige_anskaffelsessummer_i_året_kroner: Heltal,
+    @ field(
+        label = "Årets forbedringer",
+        question = "Hvad er det kildeafklarede beløb for årets forbedringer?",
+        help = "Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md.",
+        unit = "kr.",
+        sources = personskat_honorarafskrivning_inputmeta_kilder
+    )
+    forbedringsudgifter_i_året_kroner: Heltal,
+    @ field(
+        label = "Salg på saldoen",
+        question = "Er det bekræftet, at der ingen salg er i opgørelsen?",
+        help = "Denne fortsættelsesrute kræver nul. Et faktisk salg skal afklares særskilt, ikke erstattes med nul. Se personskat-honorar.md.",
+        unit = "kr.",
+        sources = personskat_honorarafskrivning_inputmeta_kilder
+    )
+    salgssummer_i_året_kroner: Heltal,
+    valg: Afskrivningslov5Valg
+)
 # Afskrivningslov5Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, saldoordning: AfskrivningslovSaldoordning, omfattet_af_par5: Boolsk, valg: Afskrivningslov5Valg, valg_gyldigt: Boolsk, anskaffelsessummer_til_saldo_kroner: Heltal, saldoværdi_før_afskrivning_kroner: Heltal, afskrivningsberettiget_saldoværdi_kroner: Heltal, højeste_ordinære_afskrivning_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, saldoværdi_efter_afskrivning_kroner: Heltal)
 # Afskrivningslov5UdlejningsSkatteyderStatus = Al5SelskabPar1Stk1Nr1Nr2EllerNr4 | Al5AndenSkatteyder
 # Afskrivningslov5UdlejningsTilladelse = Al5IngenUdlejningstilladelse | Al5UdlejningstilladelseGældende | Al5UdlejningstilladelseBortfaldet
@@ -1735,10 +1834,88 @@ tilsvarende anvendelse.
 @ meta(afskrivningsloven_par11_metadata)
 @ section afskrivningsloven_par11 {
 
-# AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder: Heltal, samlet_benyttelse_enheder: Heltal)
+# AfskrivningslovBenyttelse(
+    @ field(
+        label = "Årets honorarbrug",
+        question = "Hvor mange af årets dokumenterede brugsenheder vedrører honoraraktiviteten?",
+        help = "Samme enhed som samlet brug, fx timer eller kilometer. Større end nul og mindre end samlet brug; gæt ikke en andel. Se personskat-honorar.md.",
+        unit = "brugsenheder",
+        sources = personskat_honorarafskrivning_inputmeta_kilder
+    )
+    erhvervsmæssig_benyttelse_enheder: Heltal,
+    @ field(
+        label = "Årets samlede brug",
+        question = "Hvor mange brugsenheder er der i alt, inklusive privat brug?",
+        help = "Hele årets brug i samme enhed. Anskaffelsesgrundlaget må ikke allerede være reduceret med denne andel. Se personskat-honorar.md.",
+        unit = "brugsenheder",
+        sources = personskat_honorarafskrivning_inputmeta_kilder
+    )
+    samlet_benyttelse_enheder: Heltal
+)
 # Afskrivningslov11Afskrivningskategori = Al11Par5Stk1 | Al11Par5CStk1 | Al11Par5CStk2
-# Afskrivningslov11Valg = Al11IngenAfskrivning | Al11OrdinærAfskrivning(sats_basispoint: Heltal) | Al11FuldRestfradrag
-# Afskrivningslov11Input(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, afskrivningskategori: Afskrivningslov11Afskrivningskategori, uafskrevet_beløb_primo_kroner: Heltal, anskaffelsessum_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, årets_benyttelse: AfskrivningslovBenyttelse, valg: Afskrivningslov11Valg)
+@ field(
+    label = "Afskrivningsvalg",
+    question = "Hvilket afskrivningsvalg er faktisk truffet for året?",
+    help = "Ingen, ordinær sats eller fuld restværdi inden for årets grænse. Modellen optimerer ikke valget og ændrer ikke allerede trufne valg. Se personskat-honorar.md.",
+    sources = personskat_honorarafskrivning_inputmeta_kilder
+)
+# Afskrivningslov11Valg =
+    Al11IngenAfskrivning |
+    Al11OrdinærAfskrivning(
+        @ field(
+            label = "Valgt afskrivningssats",
+            question = "Hvilken ordinær afskrivningssats er valgt?",
+            help = "0–2500 basispoint (0–25 %). For blandet brug beregnes privat andel bagefter, ikke ved at reducere satsen. Se personskat-honorar.md.",
+            unit = "basispoint",
+            sources = personskat_honorarafskrivning_inputmeta_kilder
+        )
+        sats_basispoint: Heltal
+    ) |
+    Al11FuldRestfradrag
+# Afskrivningslov11Input(
+    @ field(
+        label = "Afskrivningens år",
+        question = "Hvilket indkomstår vedrører opgørelsen?",
+        help = "Skal matche honorarets skatteår. Årsparametre er dækket for 2023–2026. Se personskat-honorar.md.",
+        unit = "år",
+        sources = personskat_honorarafskrivning_inputmeta_kilder
+    )
+    indkomstår: Heltal,
+    aktiv_input: AfskrivningslovPar1Par2Input,
+    @ field(
+        label = "Almindelig afskrivningskategori",
+        question = "Er aktivet et almindeligt driftsmiddel efter AL § 5, stk. 1?",
+        help = "Brug Al11Par5Stk1. Infrastruktur og særlige § 5 C-aktiver behandles ikke i denne honorarrute. Se personskat-honorar.md.",
+        sources = personskat_honorarafskrivning_inputmeta_kilder
+    )
+    afskrivningskategori: Afskrivningslov11Afskrivningskategori,
+    @ field(
+        label = "Uafskrevet beløb primo",
+        question = "Hvad er det kildeafklarede beløb for uafskrevet beløb primo?",
+        help = "Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md.",
+        unit = "kr.",
+        sources = personskat_honorarafskrivning_inputmeta_kilder
+    )
+    uafskrevet_beløb_primo_kroner: Heltal,
+    @ field(
+        label = "Årets anskaffelsessum",
+        question = "Hvad er det kildeafklarede beløb for årets anskaffelsessum?",
+        help = "Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md.",
+        unit = "kr.",
+        sources = personskat_honorarafskrivning_inputmeta_kilder
+    )
+    anskaffelsessum_i_året_kroner: Heltal,
+    @ field(
+        label = "Årets forbedringer",
+        question = "Hvad er det kildeafklarede beløb for årets forbedringer?",
+        help = "Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md.",
+        unit = "kr.",
+        sources = personskat_honorarafskrivning_inputmeta_kilder
+    )
+    forbedringsudgifter_i_året_kroner: Heltal,
+    årets_benyttelse: AfskrivningslovBenyttelse,
+    valg: Afskrivningslov11Valg
+)
 # Afskrivningslov11Årsopgørelse(indkomstår: Heltal, benyttelse: AfskrivningslovBenyttelse, beregnet_afskrivning_før_erhvervsandel_kroner: Heltal, fradraget_afskrivning_kroner: Heltal)
 # Afskrivningslov11Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, afskrivningskategori: Afskrivningslov11Afskrivningskategori, blandet_benyttet: Boolsk, valg: Afskrivningslov11Valg, valg_gyldigt: Boolsk, højeste_sats_basispoint: Heltal, afskrivningsgrundlag_før_årets_afskrivning_kroner: Heltal, beregnet_afskrivning_før_erhvervsandel_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, uafskrevet_beløb_ultimo_kroner: Heltal, årsopgørelse: Afskrivningslov11Årsopgørelse)
 
@@ -2158,7 +2335,22 @@ og ombygningen eller forbedringen benyttes erhvervsmæssigt.
 
 # AfskrivningslovKapitel3Aktiv = AlK3Bygning(input: Afskrivningslov14Input) | AlK3Installation(input: Afskrivningslov15Input)
 # Afskrivningslov16Hændelse = Al16Anskaffelse | Al16OmbygningEllerForbedring
-# Afskrivningslov16Input(aktiv_identifikation: Tekst, aktiv: AfskrivningslovKapitel3Aktiv, hændelse: Afskrivningslov16Hændelse, indkomstår: Heltal, erhvervet_eller_opført: Boolsk, udgift_afholdt: Boolsk, benyttes_erhvervsmæssigt: Boolsk)
+= personskat_al16_aktividentifikation_kilder = [Source(value = afskrivningsloven_lbk1222)]
+# Afskrivningslov16Input(
+    @ field(
+        label = "Aktivets identifikation",
+        question = "Hvilken stabil identifikation har bygningen eller installationen?",
+        help = "Identifikationen skal være den samme i aktivets anskaffelsesforløb og i en eventuel fordeling efter afskrivningslovens § 45.",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    aktiv_identifikation: Tekst,
+    aktiv: AfskrivningslovKapitel3Aktiv,
+    hændelse: Afskrivningslov16Hændelse,
+    indkomstår: Heltal,
+    erhvervet_eller_opført: Boolsk,
+    udgift_afholdt: Boolsk,
+    benyttes_erhvervsmæssigt: Boolsk
+)
 # Afskrivningslov16Resultat(aktiv_identifikation: Tekst, aktiv: AfskrivningslovKapitel3Aktiv, skatteyder: AfskrivningslovSkatteyder, hændelse: Afskrivningslov16Hændelse, indkomstår: Heltal, aktiv_omfattet_af_kapitel3: Boolsk, erhvervet_eller_opført: Boolsk, udgift_afholdt: Boolsk, benyttes_erhvervsmæssigt: Boolsk, betingelser_opfyldt: Boolsk, afskrivningsberettiget_fra_indkomstår: Heltal)
 
 | afskrivningslov_kapitel3_aktiv_skatteyder(aktiv: AfskrivningslovKapitel3Aktiv) -> match aktiv {
@@ -2497,7 +2689,7 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
 27. maj 2025.
 ----
 
-@ meta(al_par19_ikrafttraedelsesnote_kildemeta) for afskrivningsloven_par19_ikrafttraedelsesnote
+-- Kilde: al_par19_ikrafttraedelsesnote_kildemeta.
 
 ----
 § 19. Anvendes kun en del af en bygning til formål, der berettiger til
@@ -2545,7 +2737,29 @@ efter stk. 1.
 # Afskrivningslov19Historik(skatteyder: AfskrivningslovSkatteyder, samlet_anskaffelsessum_kroner: Heltal, afskrivningsberettigede_indkomstår_for_bygningen: Heltal, intervaller: List(Afskrivningslov19Interval), gyldig: Boolsk)
 # Afskrivningslov19Anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner: Heltal, ejerbolig_anskaffelsessum_kroner: Heltal) | Al19FordeltAnskaffelsessumEfterPar45(bygningsfordeling: Afskrivningslov45FordeltKontantværdiInput, boligfordeling: Option(Afskrivningslov45FordeltKontantværdiInput))
 # Afskrivningslov19AnskaffelsessumResultat(input: Afskrivningslov19Anskaffelsessum, input_gyldigt: Boolsk, samlet_anskaffelsessum_før_ejerbolig_kroner: Heltal, ejerbolig_anskaffelsessum_kroner: Heltal, anskaffelsessum_efter_ejerbolig_kroner: Heltal)
-# Afskrivningslov19Input(aktiv_identifikation: Tekst, ejerbolig_identifikation: Option(Tekst), bygning_input: Afskrivningslov14Input, anskaffelsessum: Afskrivningslov19Anskaffelsessum, samlet_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, ejerbolig_etageareal_kvadratmeter: Heltal, tidligere_afskrivningsberettigede_indkomstår_for_bygningen: Heltal, tidligere_intervaller: List(Afskrivningslov19Interval))
+# Afskrivningslov19Input(
+    @ field(
+        label = "Bygningens identifikation",
+        question = "Hvilken stabil identifikation har bygningen?",
+        help = "Ved en fordeling efter afskrivningslovens § 45 skal identifikationen svare til præcis bygningens fordelingspost.",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    aktiv_identifikation: Tekst,
+    @ field(
+        label = "Ejerboligens identifikation",
+        question = "Hvilken stabil identifikation har ejerboligdelen i § 45-fordelingen?",
+        help = "Feltet bruges, når bygningen har ejerboligareal og anskaffelsessummen kommer fra en skriftlig § 45-fordeling.",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    ejerbolig_identifikation: Option(Tekst),
+    bygning_input: Afskrivningslov14Input,
+    anskaffelsessum: Afskrivningslov19Anskaffelsessum,
+    samlet_etageareal_kvadratmeter: Heltal,
+    afskrivningsberettiget_etageareal_kvadratmeter: Heltal,
+    ejerbolig_etageareal_kvadratmeter: Heltal,
+    tidligere_afskrivningsberettigede_indkomstår_for_bygningen: Heltal,
+    tidligere_intervaller: List(Afskrivningslov19Interval)
+)
 # Afskrivningslov19Resultat(skatteyder: AfskrivningslovSkatteyder, omfattet_af_par19: Boolsk, afskrivning_tilladt_i_indkomståret: Boolsk, afskrivningsberettigede_indkomstår_for_bygningen: Heltal, etageareal_efter_ejerbolig_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_basispoint: Heltal, under_25_procent: Boolsk, mindst_300_kvadratmeter_opfyldt: Boolsk, samlet_anskaffelsessum_før_ejerbolig_kroner: Heltal, ejerbolig_anskaffelsessum_kroner: Heltal, anskaffelsessum_efter_ejerbolig_kroner: Heltal, aktuelt_afskrivningsberettiget_grundlag_kroner: Heltal, tidligere_afskrivningsberettiget_grundlag_kroner: Heltal, videreført_tidligere_grundlag_kroner: Heltal, forøgelse_som_særskilt_grundlag_kroner: Heltal, reduktion_fra_tidligere_grundlag_kroner: Heltal, ikkeafskrivningsberettiget_særskilt_grundlag_kroner: Heltal, intervaller_gyldige: Boolsk, intervaller: List(Afskrivningslov19Interval), samlede_foretagne_afskrivninger_kroner: Heltal, samlede_maksimalt_mulige_afskrivninger_kroner: Heltal)
 
 # Afskrivningslov19AnskaffelsessumSag(input: Afskrivningslov19Anskaffelsessum, aktiv_identifikation: Tekst, ejerbolig_identifikation: Option(Tekst), ejerbolig_etageareal_kvadratmeter: Heltal) {
@@ -3487,7 +3701,7 @@ af år fra henholdsvis indkomstårets begyndelse og indkomstårets afslutning ti
 hjemfaldstidspunktet.
 ----
 
-@ meta(al_par25_hjemfaldsskala_kildemeta) for afskrivningsloven_par25_hjemfaldsskala
+-- Kilde: al_par25_hjemfaldsskala_kildemeta.
 
 ----
 § 25. Udgifter til anskaffelse og forbedring af bygninger, som ikke opfylder
@@ -5090,7 +5304,35 @@ stk. 1-5.
 
 # AfskrivningslovKvoteAnskaffelse = AlKvoteKøbt(købssum_kroner: Heltal) | AlKvoteVederlagsfritTildelt
 # AfskrivningslovKvoteTilknytning = AlKvoteSelvstændigRettighed | AlKvoteKnyttetTilAndelsbevisSelPar1Stk1Nr3 | AlKvoteKnyttetTilAndelsbevisSelPar1Stk1Nr4
-# AfskrivningslovKvoteLot(lot_id: Tekst, rettighedsnøgle: Tekst, erhvervelsesdato: AfskrivningslovDato, erhvervelsesrækkefølge: Heltal, resterende_enheder: Heltal)
+# AfskrivningslovKvoteLot(
+    @ field(
+        label = "Aktivpartiets identifikation",
+        question = "Hvilken stabil og entydig identifikation har aktivpartiet?",
+        help = "Årets hændelser henviser til denne identifikation.",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    lot_id: Tekst,
+    @ field(
+        label = "Rettighedens identifikation",
+        question = "Hvilken underliggende rettighed eller kvote vedrører partiet?",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    rettighedsnøgle: Tekst,
+    erhvervelsesdato: AfskrivningslovDato,
+    @ field(
+        label = "Erhvervelsesrækkefølge",
+        question = "Hvilken rækkefølge har partiet ved FIFO-prøvelsen?",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    erhvervelsesrækkefølge: Heltal,
+    @ field(
+        label = "Resterende enheder i aktivpartiet",
+        question = "Hvor mange enheder resterer ved positionens begyndelse?",
+        unit = "enheder",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    resterende_enheder: Heltal
+)
 # Afskrivningslov40APosition(skatteyder: AfskrivningslovSkatteyder, lot: AfskrivningslovKvoteLot, tilknytning: AfskrivningslovKvoteTilknytning, anskaffelse: AfskrivningslovKvoteAnskaffelse, resterende_anskaffelsessum_kroner: Heltal)
 # Afskrivningslov40AHændelse = Al40AAnvendtIProduktion(anvendte_enheder: Heltal) | Al40ASolgt(solgte_enheder: Heltal, afståelsessum_kroner: Heltal) | Al40AUdløbetUdenAnvendelse(udløbne_enheder: Heltal)
 # Afskrivningslov40AInput(indkomstår: Heltal, position: Afskrivningslov40APosition, lager: List(AfskrivningslovKvoteLot), hændelse: Afskrivningslov40AHændelse)
@@ -5437,18 +5679,246 @@ eller andele af kvoter for de først afståede.
 # Afskrivningslov40CInput(indkomstår: Heltal, begivenhed: Afskrivningslov40CBegivenhed, saldo_status: Afskrivningslov40CSaldostatus, saldo_primo_kroner: Heltal, bevægelser_i_året: List(Afskrivningslov40CSaldobevægelse))
 # Afskrivningslov40CResultat(indkomstår: Heltal, begivenhed: Afskrivningslov40CBegivenhed, saldo_status: Afskrivningslov40CSaldostatus, input_gyldigt: Boolsk, omfattet_af_par40c: Boolsk, anskaffelsessummer_i_året_kroner: Heltal, afståelsessummer_i_året_kroner: Heltal, afståelsesårets_nyanskaffelser_kroner: Heltal, saldoværdi_ultimo_før_regulering_kroner: Heltal, positiv_saldo_uden_fradrag_kroner: Heltal, negativ_saldo_indtægtsført_kroner: Heltal, saldo_efter_regulering_kroner: Heltal, afståelsesår_fortjeneste_kroner: Heltal, afståelsesår_tab_kroner: Heltal, skattepligtigt_beløb_kroner: Heltal, fradragsberettiget_beløb_kroner: Heltal, netto_skattepligtigt_eller_fradragsberettiget_kroner: Heltal)
 
-# Afskrivningslov40CAnskaffelsesgrundlag = Al40CSærskiltAnskaffelsessum(anskaffelsessum_kroner: Heltal) | Al40CVederlagsfritTildelt(beskattet_værdi_ved_tildeling_kroner: Heltal) | Al40CSkønsmæssigAndelAfSamletAnskaffelsessum(anskaffelsessum_kroner: Heltal) | Al40CPolsukkerStandard(polsukker_ton: Heltal) | Al40DHandelsværdiVedSkattepligtsindtræden(input: Afskrivningslov40DInput)
+@ field(
+    label = "Anskaffelsesgrundlagets opgørelsesmetode",
+    question = "Er grundlaget særskilt, vederlagsfrit, skønsmæssigt, baseret på polsukkerstandarden eller fastsat efter § 40 D?",
+    sources = personskat_al16_aktividentifikation_kilder
+)
+# Afskrivningslov40CAnskaffelsesgrundlag =
+    Al40CSærskiltAnskaffelsessum(
+        @ field(
+            label = "Særskilt anskaffelsessum",
+            question = "Hvad er den særskilt opgjorte anskaffelsessum?",
+            unit = "DKK",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        anskaffelsessum_kroner: Heltal
+    ) |
+    Al40CVederlagsfritTildelt(
+        @ field(
+            label = "Beskattet værdi ved vederlagsfri tildeling",
+            question = "Hvilken værdi blev beskattet ved den vederlagsfrie tildeling?",
+            unit = "DKK",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        beskattet_værdi_ved_tildeling_kroner: Heltal
+    ) |
+    Al40CSkønsmæssigAndelAfSamletAnskaffelsessum(
+        @ field(
+            label = "Skønsmæssig andel af samlet anskaffelsessum",
+            question = "Hvilken anskaffelsessum er skønsmæssigt henført til rettigheden?",
+            unit = "DKK",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        anskaffelsessum_kroner: Heltal
+    ) |
+    Al40CPolsukkerStandard(
+        @ field(
+            label = "Tons polsukker efter standardreglen",
+            question = "Hvor mange tons polsukker skal værdiansættes med lovens standardsats?",
+            unit = "ton",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        polsukker_ton: Heltal
+    ) |
+    Al40DHandelsværdiVedSkattepligtsindtræden(input: Afskrivningslov40DInput)
+@ field(
+    label = "Saldoaktivets art",
+    question = "Hvilken type rettighed eller kvote er aktivet?",
+    sources = personskat_al16_aktividentifikation_kilder
+)
 # Afskrivningslov40CAktivgrundlag = Al40CBetalingsrettighedsgrundlag(anskaffelsesgrundlag: Afskrivningslov40CAnskaffelsesgrundlag) | Al40CMælkekvotegrundlag(anskaffelsesgrundlag: Afskrivningslov40CAnskaffelsesgrundlag) | Al40CSukkerroegrundlag(anskaffelsesgrundlag: Afskrivningslov40CAnskaffelsesgrundlag)
 # Afskrivningslov40CMælkekvoteEjendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant | Al40CMælkEjendomIkkeAfstået | Al40CMælkAfståetFørEllerSammenMedEjendom | Al40CMælkAfståetEfterEjendomUdenEblRegulering
-# Afskrivningslov40CPosition(skatteyder: AfskrivningslovSkatteyder, lot: AfskrivningslovKvoteLot, aktivgrundlag: Afskrivningslov40CAktivgrundlag, resterende_anskaffelsesgrundlag_kroner: Heltal)
+# Afskrivningslov40CPosition(
+    @ field(
+        label = "Aktivpartiets skatteyder",
+        question = "Hvem ejer aktivpartiet skattemæssigt?",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    skatteyder: AfskrivningslovSkatteyder,
+    lot: AfskrivningslovKvoteLot,
+    aktivgrundlag: Afskrivningslov40CAktivgrundlag,
+    @ field(
+        label = "Resterende anskaffelsesgrundlag",
+        question = "Hvor meget anskaffelsesgrundlag resterer på aktivpartiet?",
+        unit = "DKK",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    resterende_anskaffelsesgrundlag_kroner: Heltal
+)
 # Afskrivningslov40CAktivhændelse = Al40CAnskaffelsePåSaldo | Al40CAktivAfstået(hændelsesdato: AfskrivningslovDato, afståede_enheder: Heltal, afståelsessum_kroner: Heltal, mælkekvote_ejendomsforløb: Afskrivningslov40CMælkekvoteEjendomsforløb) | Al40CAktivUdløbet(hændelsesdato: AfskrivningslovDato, udløbne_enheder: Heltal, mælkekvote_ejendomsforløb: Afskrivningslov40CMælkekvoteEjendomsforløb) | Al40CForpagterAfgiverVederlagsfrit(hændelsesdato: AfskrivningslovDato, afgivne_enheder: Heltal) | Al40CBortforpagterModtagerVederlagsfrit
 # Afskrivningslov40CAktivInput(indkomstår: Heltal, position: Afskrivningslov40CPosition, lager: List(Afskrivningslov40CPosition), hændelse: Afskrivningslov40CAktivhændelse)
 # Afskrivningslov40CAktivResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, kvoteart: Afskrivningslov40CKvoteart, hændelse: Afskrivningslov40CAktivhændelse, position_gyldig: Boolsk, lager_gyldigt: Boolsk, omfattet_af_par40c: Boolsk, hændelse_gyldig: Boolsk, fifo_betingelse_opfyldt: Boolsk, gammel_mælkekvote_indgår_ved_afståelsen: Boolsk, forpagterregel_anvendt: Boolsk, disponerede_enheder: Heltal, anskaffelsessum_henført_til_hændelsen_kroner: Heltal, afståelsessum_kroner: Heltal, bevægelser_i_året: List(Afskrivningslov40CSaldobevægelse), resterende_enheder: Heltal, resterende_anskaffelsesgrundlag_kroner: Heltal, position_efter: Afskrivningslov40CPosition)
 
-# Afskrivningslov40CSaldoposition(skatteyder: AfskrivningslovSkatteyder, indkomstår: Heltal, saldo_ultimo_kroner: Heltal)
+# Afskrivningslov40CSaldoposition(
+    @ field(
+        label = "Skatteyder på den videreførte saldo",
+        question = "Hvem tilhører den afsluttede saldoposition?",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    skatteyder: AfskrivningslovSkatteyder,
+    @ field(
+        label = "Den videreførte saldos indkomstår",
+        question = "Hvilket foregående indkomstår blev saldopositionen afsluttet for?",
+        unit = "år",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Saldo ved foregående års udgang",
+        question = "Hvad var saldoen efter foregående års regulering?",
+        unit = "DKK",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    saldo_ultimo_kroner: Heltal
+)
+@ field(
+    label = "Primosaldoens oprindelse",
+    question = "Er dette første saldoår, eller kommer saldoen fra det foregående år?",
+    sources = personskat_al16_aktividentifikation_kilder
+)
 # Afskrivningslov40CPrimosaldo = Al40CFørsteSaldoår | Al40CPrimosaldoFraForrigeÅr(position: Afskrivningslov40CSaldoposition)
-# Afskrivningslov40CÅrshændelse = Al40CÅrsanskaffelse(identifikation: Tekst, position: Afskrivningslov40CPosition) | Al40CÅrsvederlagsfriModtagelse(identifikation: Tekst, position: Afskrivningslov40CPosition) | Al40CÅrsTilgangEfterPar40D(fakta: Afskrivningslov40DÅrstilgangsfakta) | Al40CÅrsafståelse(identifikation: Tekst, lot_id: Tekst, hændelsesdato: AfskrivningslovDato, afståede_enheder: Heltal, afståelsessum_kroner: Heltal, mælkekvote_ejendomsforløb: Afskrivningslov40CMælkekvoteEjendomsforløb) | Al40CÅrsudløb(identifikation: Tekst, lot_id: Tekst, hændelsesdato: AfskrivningslovDato, udløbne_enheder: Heltal, mælkekvote_ejendomsforløb: Afskrivningslov40CMælkekvoteEjendomsforløb) | Al40CÅrsforpagterAfgiverVederlagsfrit(identifikation: Tekst, lot_id: Tekst, hændelsesdato: AfskrivningslovDato, afgivne_enheder: Heltal)
-# Afskrivningslov40CÅrskildefakta(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, primosaldo: Afskrivningslov40CPrimosaldo, positioner_primo: List(Afskrivningslov40CPosition), hændelser_i_året: List(Afskrivningslov40CÅrshændelse))
+@ field(
+    label = "Årshændelsens art",
+    question = "Er hændelsen en anskaffelse, en tilgang efter § 40 D, en vederlagsfri modtagelse, en afståelse, et udløb eller en vederlagsfri afgivelse?",
+    sources = personskat_al16_aktividentifikation_kilder
+)
+# Afskrivningslov40CÅrshændelse =
+    Al40CÅrsanskaffelse(
+        @ field(
+            label = "Anskaffelsens identifikation",
+            question = "Hvilken entydig bilagsreference har anskaffelsen?",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        identifikation: Tekst,
+        position: Afskrivningslov40CPosition
+    ) |
+    Al40CÅrsvederlagsfriModtagelse(
+        @ field(
+            label = "Den vederlagsfrie modtagelses identifikation",
+            question = "Hvilken entydig reference har den vederlagsfrie modtagelse?",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        identifikation: Tekst,
+        position: Afskrivningslov40CPosition
+    ) |
+    Al40CÅrsTilgangEfterPar40D(fakta: Afskrivningslov40DÅrstilgangsfakta) |
+    Al40CÅrsafståelse(
+        @ field(
+            label = "Afståelsens identifikation",
+            question = "Hvilken entydig bilagsreference har afståelsen?",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        identifikation: Tekst,
+        @ field(
+            label = "Afstået aktivparti",
+            question = "Hvilken aktivparti-identifikation vedrører afståelsen?",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        lot_id: Tekst,
+        hændelsesdato: AfskrivningslovDato,
+        @ field(
+            label = "Afståede enheder",
+            question = "Hvor mange enheder blev afstået?",
+            unit = "enheder",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        afståede_enheder: Heltal,
+        @ field(
+            label = "Afståelsessum",
+            question = "Hvad var afståelsessummen?",
+            unit = "DKK",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        afståelsessum_kroner: Heltal,
+        @ field(
+            label = "Mælkekvotens ejendomsforløb",
+            question = "Hvordan forholder mælkekvoteafståelsen sig til ejendommens afståelse og EBL-regulering?",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        mælkekvote_ejendomsforløb: Afskrivningslov40CMælkekvoteEjendomsforløb
+    ) |
+    Al40CÅrsudløb(
+        @ field(
+            label = "Udløbets identifikation",
+            question = "Hvilken entydig reference dokumenterer udløbet?",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        identifikation: Tekst,
+        @ field(
+            label = "Udløbet aktivparti",
+            question = "Hvilken aktivparti-identifikation vedrører udløbet?",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        lot_id: Tekst,
+        hændelsesdato: AfskrivningslovDato,
+        @ field(
+            label = "Udløbne enheder",
+            question = "Hvor mange enheder udløb?",
+            unit = "enheder",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        udløbne_enheder: Heltal,
+        @ field(
+            label = "Den udløbne mælkekvotes ejendomsforløb",
+            question = "Hvordan forholder mælkekvotens udløb sig til ejendomsforløbet?",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        mælkekvote_ejendomsforløb: Afskrivningslov40CMælkekvoteEjendomsforløb
+    ) |
+    Al40CÅrsforpagterAfgiverVederlagsfrit(
+        @ field(
+            label = "Den vederlagsfrie afgivelses identifikation",
+            question = "Hvilken entydig reference har den vederlagsfrie afgivelse?",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        identifikation: Tekst,
+        @ field(
+            label = "Vederlagsfrit afgivet aktivparti",
+            question = "Hvilken aktivparti-identifikation blev afgivet?",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        lot_id: Tekst,
+        hændelsesdato: AfskrivningslovDato,
+        @ field(
+            label = "Vederlagsfrit afgivne enheder",
+            question = "Hvor mange enheder blev afgivet vederlagsfrit?",
+            unit = "enheder",
+            sources = personskat_al16_aktividentifikation_kilder
+        )
+        afgivne_enheder: Heltal
+    )
+# Afskrivningslov40CÅrskildefakta(
+    @ field(
+        label = "Indkomstår for § 40 C-forløbet",
+        question = "Hvilket indkomstår vedrører saldoens aktivforløb?",
+        unit = "år",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Skatteyder på § 40 C-saldoen",
+        question = "Hvilken fysisk skatteyder fører saldoen?",
+        help = "Personskattelovens § 4-gren accepterer en selvstændigt erhvervsdrivende eller anden fysisk person.",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    skatteyder: AfskrivningslovSkatteyder,
+    primosaldo: Afskrivningslov40CPrimosaldo,
+    @ field(
+        label = "Aktiver på saldoen ved årets begyndelse",
+        question = "Hvilke betalingsrettigheder eller kvoter ligger på saldoen ved årets begyndelse?",
+        help = "Opret én række pr. stabilt identificeret aktivparti.",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    positioner_primo: List(Afskrivningslov40CPosition),
+    @ field(
+        label = "Årets hændelser for saldoaktiverne",
+        question = "Hvilke anskaffelser, tilgange efter § 40 D, afståelser, udløb eller vederlagsfrie overdragelser skete i året?",
+        help = "Hændelserne angives kronologisk og henviser til aktivpartiets stabile identifikation.",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    hændelser_i_året: List(Afskrivningslov40CÅrshændelse)
+)
 # Afskrivningslov40CÅrshændelsesresultat(hændelse: Afskrivningslov40CÅrshændelse, hændelsesdato: AfskrivningslovDato, identifikation_unik: Boolsk, kronologi_gyldig: Boolsk, lot_identitet_gyldig: Boolsk, par40d_resultat: Option(Afskrivningslov40DResultat), aktiv_resultat: Option(Afskrivningslov40CAktivResultat), hændelse_gyldig: Boolsk, omfattet_afslutning: Boolsk, positioner_før: List(Afskrivningslov40CPosition), positioner_efter: List(Afskrivningslov40CPosition), bevægelser_i_året: List(Afskrivningslov40CSaldobevægelse))
 # Afskrivningslov40CÅrsforløbstilstand(positioner: List(Afskrivningslov40CPosition), seneste_hændelsesdato: Option(AfskrivningslovDato), hændelsesidentifikationer: List(Tekst), hændelsesresultater: List(Afskrivningslov40CÅrshændelsesresultat), bevægelser_i_året: List(Afskrivningslov40CSaldobevægelse), alle_hændelser_gyldige: Boolsk, har_omfattet_afslutning: Boolsk)
 # Afskrivningslov40CÅrsresultat(kildefakta: Afskrivningslov40CÅrskildefakta, primosaldo_gyldig: Boolsk, positioner_primo_gyldige: Boolsk, hændelsesidentifikationer_entydige: Boolsk, hændelser_kronologiske: Boolsk, alle_hændelser_gyldige: Boolsk, input_gyldigt: Boolsk, hændelsesresultater: List(Afskrivningslov40CÅrshændelsesresultat), positioner_ultimo: List(Afskrivningslov40CPosition), bevægelser_i_året: List(Afskrivningslov40CSaldobevægelse), sidste_saldoaktiv_afstået_eller_udløbet: Boolsk, afskrivningslov_input: Afskrivningslov40CInput, afskrivningslov_resultat: Afskrivningslov40CResultat, saldoposition_ultimo: Afskrivningslov40CSaldoposition)
@@ -5830,7 +6300,28 @@ eller andele af kvoter for de først afståede.
 | afskrivningslov40c_ejendomstab_sag(input: Afskrivningslov40CEjendomstabInput) -> Afskrivningslov40CEjendomstabSag(input)
 | afskrivningslov40c_ejendomstab_resultat(input: Afskrivningslov40CEjendomstabInput) -> afskrivningslov40c_ejendomstab_sag(input).resultat()
 
-# Afskrivningslov40CAcontoskatPosition(oprindelsesår: Heltal, resterende_fremført_acontoskat_kroner: Heltal)
+= personskat_kilder = [
+    Source(value = kildeskatteloven_2024_460),
+    DependencySource(value = afskrivningsloven_lbk1222)
+]
+# Afskrivningslov40CAcontoskatPosition(
+    @ field(
+        label = "Oprindelsesår for fremført § 40 C-acontoskat",
+        question = "Fra hvilket indkomstår stammer det fremførte acontoskattebeløb?",
+        help = "Oprindelsesåret skal ligge før det aktuelle skatteår.",
+        unit = "år",
+        sources = personskat_kilder
+    )
+    oprindelsesår: Heltal,
+    @ field(
+        label = "Resterende fremført § 40 C-acontoskat",
+        question = "Hvor stort et § 40 C-acontoskattebeløb resterer fra tidligere år?",
+        help = "Beløbet skal komme fra den foregående års typed § 40 C-position eller en dokumenteret myndighedsopgørelse.",
+        unit = "kr.",
+        sources = personskat_kilder
+    )
+    resterende_fremført_acontoskat_kroner: Heltal
+)
 # Afskrivningslov40CAcontoskatGrundlag = Al40CNytAcontoskattebeløb(ejendomstab_resultat: Afskrivningslov40CEjendomstabResultat) | Al40CFremførtAcontoskattebeløb(position: Afskrivningslov40CAcontoskatPosition)
 # Afskrivningslov40CAcontoskatOverdragelse = Al40CIngenSuccession | Al40CSuccessionEfterKildeskattelov33C | Al40CSuccessionEfterDødsboskattelov39
 # Afskrivningslov40CAcontoskatInput(indkomstår: Heltal, grundlag: Afskrivningslov40CAcontoskatGrundlag, egen_slutskat_med_restskat_mv_før_al40c_kroner: Heltal, overdragelse: Afskrivningslov40CAcontoskatOverdragelse, gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen: Boolsk, ægtefælles_slutskat_mv_kroner: Heltal)
@@ -5890,8 +6381,49 @@ eller andele af kvoter for de først afståede.
 | afskrivningslov40c_acontoskat_sag(input: Afskrivningslov40CAcontoskatInput) -> Afskrivningslov40CAcontoskatSag(input)
 | afskrivningslov40c_acontoskat_resultat(input: Afskrivningslov40CAcontoskatInput) -> afskrivningslov40c_acontoskat_sag(input).resultat()
 
-# Afskrivningslov40CNegativSaldoPosition(identifikation: Tekst, indkomstår: Heltal, oprindeligt_indtægtsført_kroner: Heltal, tidligere_modregnet_i_ejendomstab_kroner: Heltal)
-# Afskrivningslov40CAcontoskatTranche(identifikation: Tekst, position: Afskrivningslov40CAcontoskatPosition)
+# Afskrivningslov40CNegativSaldoPosition(
+    @ field(
+        label = "Identifikation for negativ § 40 C-saldo",
+        question = "Hvilken stabil identifikation har saldopositionen?",
+        help = "Identifikationen skal være entydig i åbningsgrundlaget.",
+        sources = personskat_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Indkomstår for negativ § 40 C-saldo",
+        question = "I hvilket indkomstår blev den negative saldo indtægtsført?",
+        help = "Året skal ligge før det aktuelle skatteår.",
+        unit = "år",
+        sources = personskat_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Oprindeligt indtægtsført negativ § 40 C-saldo",
+        question = "Hvor stort et positivt beløb blev oprindeligt indtægtsført fra den negative saldo?",
+        help = "Beløbet skal fremgå af det dokumenterede myndighedsgrundlag.",
+        unit = "kr.",
+        sources = personskat_kilder
+    )
+    oprindeligt_indtægtsført_kroner: Heltal,
+    @ field(
+        label = "Tidligere modregnet i ejendomstab",
+        question = "Hvor meget af saldopositionen er allerede modregnet i tidligere ejendomstab?",
+        help = "Futuruna anvender kun den resterende del og fører forbruget videre i årsresultatet.",
+        unit = "kr.",
+        sources = personskat_kilder
+    )
+    tidligere_modregnet_i_ejendomstab_kroner: Heltal
+)
+# Afskrivningslov40CAcontoskatTranche(
+    @ field(
+        label = "Identifikation for fremført § 40 C-acontoskat",
+        question = "Hvilken stabil identifikation har den fremførte tranche?",
+        help = "Identifikationen skal være entydig og må ikke genbruges til et nyt ejendomstab i samme år.",
+        sources = personskat_kilder
+    )
+    identifikation: Tekst,
+    position: Afskrivningslov40CAcontoskatPosition
+)
 # Afskrivningslov40CEjendomstabshændelse(identifikation: Tekst, afståelsesdato: AfskrivningslovDato, ejendomskategori: AfskrivningslovEjendomskategori, fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner: Heltal, overdragelse: Afskrivningslov40CAcontoskatOverdragelse, gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen: Boolsk)
 # Afskrivningslov40CNegativSaldoForbrugstilstand(resterende_modregningsmål_kroner: Heltal, positioner_efter: List(Afskrivningslov40CNegativSaldoPosition))
 # Afskrivningslov40CEjendomstabÅrstrinResultat(hændelse: Afskrivningslov40CEjendomstabshændelse, hændelse_gyldig: Boolsk, positioner_før: List(Afskrivningslov40CNegativSaldoPosition), ejendomstab_resultat: Afskrivningslov40CEjendomstabResultat, positioner_efter: List(Afskrivningslov40CNegativSaldoPosition))
@@ -6125,9 +6657,77 @@ anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
 @ section afskrivningsloven_par40d {
 
 # Afskrivningslov40DSkattepligtsindtræden = Al40DSelskabsskattelovPar4A | Al40DKildeskattelovPar9 | Al40DHjemmehørendeEfterDobbeltbeskatningsoverenskomst
-# Afskrivningslov40DInput(skatteyder: AfskrivningslovSkatteyder, kvoteart: Afskrivningslov40CKvoteart, skattepligtsindtræden: Afskrivningslov40DSkattepligtsindtræden, tilflytningstidspunkt: AfskrivningslovDato, ikke_i_forvejen_omfattet_af_skattepligt_her_i_landet: Boolsk, handelsværdi_på_tilflytningstidspunktet_kroner: Heltal)
+# Afskrivningslov40DInput(
+    @ field(
+        label = "Skatteyder ved indtræden af skattepligt",
+        question = "Hvilken skatteyder bliver omfattet af dansk skattepligt?",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    skatteyder: AfskrivningslovSkatteyder,
+    @ field(
+        label = "Rettighedens art efter § 40 C",
+        question = "Hvilken betalingsrettighed eller kvote bliver omfattet?",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    kvoteart: Afskrivningslov40CKvoteart,
+    @ field(
+        label = "Grundlag for skattepligtens indtræden",
+        question = "Efter hvilken regel indtræder dansk skattepligt?",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    skattepligtsindtræden: Afskrivningslov40DSkattepligtsindtræden,
+    tilflytningstidspunkt: AfskrivningslovDato,
+    @ field(
+        label = "Rettigheden var ikke allerede omfattet af dansk skattepligt",
+        question = "Var rettigheden uden for dansk skattepligt umiddelbart før indtræden?",
+        help = "§ 40 D fastsætter kun et nyt anskaffelsesgrundlag for aktiver, der ikke allerede var omfattet.",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    ikke_i_forvejen_omfattet_af_skattepligt_her_i_landet: Boolsk,
+    @ field(
+        label = "Handelsværdi ved skattepligtens indtræden",
+        question = "Hvad var rettighedens handelsværdi på dette tidspunkt?",
+        unit = "DKK",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    handelsværdi_på_tilflytningstidspunktet_kroner: Heltal
+)
 # Afskrivningslov40DResultat(skatteyder: AfskrivningslovSkatteyder, kvoteart: Afskrivningslov40CKvoteart, skattepligtsindtræden: Afskrivningslov40DSkattepligtsindtræden, tilflytningstidspunkt: AfskrivningslovDato, input_gyldigt: Boolsk, dobbeltbeskatningsoverenskomst_sidestilles_med_skattepligtsindtræden: Boolsk, omfattet_af_par40d: Boolsk, anskaffelsessum_til_par40c_saldo_kroner: Heltal, par40c_saldobevægelse: Afskrivningslov40CSaldobevægelse)
-# Afskrivningslov40DÅrstilgangsfakta(identifikation: Tekst, lot_id: Tekst, rettighedsnøgle: Tekst, erhvervelsesrækkefølge: Heltal, enheder: Heltal, input: Afskrivningslov40DInput)
+# Afskrivningslov40DÅrstilgangsfakta(
+    @ field(
+        label = "§ 40 D-hændelsens identifikation",
+        question = "Hvilken entydig bilagsreference dokumenterer skattepligtens indtræden?",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Det nye aktivpartis identifikation",
+        question = "Hvilken stabil identifikation skal aktivpartiet have på § 40 C-saldoen?",
+        help = "Senere afståelser og udløb henviser til denne identifikation.",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    lot_id: Tekst,
+    @ field(
+        label = "Den underliggende rettigheds identifikation",
+        question = "Hvilken rettighed eller kvote vedrører aktivpartiet?",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    rettighedsnøgle: Tekst,
+    @ field(
+        label = "Erhvervelsesrækkefølge",
+        question = "Hvilken rækkefølge har aktivpartiet ved FIFO-prøvelsen?",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    erhvervelsesrækkefølge: Heltal,
+    @ field(
+        label = "Enheder ved skattepligtens indtræden",
+        question = "Hvor mange enheder omfatter aktivpartiet?",
+        unit = "enheder",
+        sources = personskat_al16_aktividentifikation_kilder
+    )
+    enheder: Heltal,
+    input: Afskrivningslov40DInput
+)
 # Afskrivningslov40DPar40COverførsel(indkomstår: Heltal, begivenhed: Afskrivningslov40CBegivenhed, saldo_primo_kroner: Heltal, par40d_resultat: Afskrivningslov40DResultat, øvrige_bevægelser_i_året: List(Afskrivningslov40CSaldobevægelse))
 
 | afskrivningslov40d_dbo_hjemmehørende(indtræden: Afskrivningslov40DSkattepligtsindtræden) -> indtræden == Al40DHjemmehørendeEfterDobbeltbeskatningsoverenskomst
@@ -8041,3 +8641,9 @@ overførselstidspunktet.
 | afskrivningslov69_resultat(territorium: Afskrivningslov69Territorium) -> Afskrivningslov69Resultat(territorium = territorium, loven_gælder = territorium == Al69Danmark)
 
 }
+
+# HonorarudgiftKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= honorarudgifter_djv = HonorarudgiftKilde(url = "https://info.skat.dk/data.aspx?oid=2048532", identifier = "C.C.1.2.3: brutto-AM, personlig nettoindkomst og forbehold om SKM2025.490.ØLR", hentet_dato = "2026-09-26")
+
+= honorarudgifter_dækningsgrænse = "Modellen behandler afklarede løbende egne udgifter og almindelige driftsmiddelafskrivninger i årets honoraraktivitet efter nettoindkomstpraksis i C.C.1.2.3. Driftsmidler kræver PsHonorarudgifterMedDriftsmidler: én samlet AL § 5-saldo og særskilte blandede AL § 11-aktiver med afklaret ejerskab, anskaffelser, samlesæt og årets brug. Der må ikke være salg, ophør eller AL § 4-overførsel i denne rute; køb og afskrivning må ikke fratrækkes dobbelt. Andre afskrivninger, satsberegnet kørsel, erstatninger, periodisering og negativ nettoindkomst kræver særskilt behandling. SKM2025.490.ØLR giver fradrag uden kildeartsbegrænsning for de omhandlede erstatninger i skattepligtig indkomst, ikke automatisk i personlig indkomst. Dækningsgrænsen er ikke et lovbestemt fradragsloft eller en afvisning af fradragsret. Skattestyrelsens udkast til styresignal er ikke sat i kraft som beregningsregel; afklar gældende praksis og indkomstår ved krav ud over denne gren. Ukendt er ikke nul."

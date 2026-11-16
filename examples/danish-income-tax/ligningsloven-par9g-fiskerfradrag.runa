@@ -109,18 +109,295 @@ som kan sidestilles med lønmodtagerudgifter efter § 9, stk. 1.
 # Ligningslov9GFradragsvalg = Ll9GFravælgFiskerfradrag | Ll9GVælgFiskerfradrag
 # Ligningslov9GRegistreringsstatus = Ll9GErhvervsfiskerMedAStatus | Ll9GErhvervsfiskerMedBStatus
 # Ligningslov9GErhvervsform = Ll9GAnsatFisker | Ll9GSelvstændigFisker
-# Ligningslov9GRegistreringsperiode(identifikation: Tekst, status: Ligningslov9GRegistreringsstatus, fra_dato: Dato, til_dato: Dato)
-# Ligningslov9GArbejdsforhold(identifikation: Tekst, erhvervsform: Ligningslov9GErhvervsform, fra_dato: Dato, til_dato: Dato)
-# Ligningslov9GFangsttur(identifikation: Tekst, arbejdsforhold_identifikation: Tekst, afgang_fra_havn: DatoTidspunkt, ankomst_til_havn: DatoTidspunkt)
+= personskat_fiskerfradrag_kilder = [
+    Source(value = ligningsloven_lbk1500_par9g),
+    DependencySource(value = fiskeriloven_lbk205_par14),
+    AmendmentSource(value = fiskeriloven_lov333_par9_og_par10_stk4),
+    Guidance(value = juridisk_vejledning_ligningslov9g_fiskere)
+]
+# Ligningslov9GRegistreringsperiode(
+    @ field(
+        label = "Fiskerregistreringens identifikation",
+        question = "Hvilken entydig identifikation har registreringsperioden?",
+        help = "Brug en stabil reference fra Fiskeristyrelsens registrering.",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Erhvervsfiskerens registreringsstatus",
+        question = "Var registreringen A-status eller B-status?",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    status: Ligningslov9GRegistreringsstatus,
+    fra_dato: Dato,
+    til_dato: Dato
+)
+# Ligningslov9GArbejdsforhold(
+    @ field(
+        label = "Fiskerarbejdsforholdets identifikation",
+        question = "Hvilken entydig identifikation har fiskerarbejdsforholdet?",
+        help = "For en selvstændig fisker skal identifikationen svare til virksomhedens identifikation i de personlige indkomstfakta.",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Erhvervsform for fiskerarbejdet",
+        question = "Blev arbejdet udført som ansat eller selvstændig fisker?",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    erhvervsform: Ligningslov9GErhvervsform,
+    fra_dato: Dato,
+    til_dato: Dato
+)
+# Ligningslov9GFangsttur(
+    @ field(
+        label = "Fangstturens identifikation",
+        question = "Hvilken entydig identifikation har fangstturen?",
+        help = "Brug en stabil reference fra fartøjets afregning, logbog eller besætningsopgørelse.",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Fiskerarbejdsforhold for fangstturen",
+        question = "Hvilket oplyst fiskerarbejdsforhold vedrører fangstturen?",
+        help = "Identifikationen skal svare præcist til et arbejdsforhold som erhvervsfisker.",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    arbejdsforhold_identifikation: Tekst,
+    afgang_fra_havn: DatoTidspunkt,
+    ankomst_til_havn: DatoTidspunkt
+)
 # Ligningslov9GSelvstændigUdgiftssammenlignelighed = Ll9GSidstillesMedLønmodtagerudgift | Ll9GSidstillesIkkeMedLønmodtagerudgift
 # Ligningslov9GSelvstændigUdgiftsnøgle(virksomhedsidentifikation: Tekst, kildeidentifikation: Tekst)
-# Ligningslov9GSelvstændigUdgiftsvurdering(virksomhedsidentifikation: Tekst, kildeidentifikation: Tekst, sammenlignelighed: Ligningslov9GSelvstændigUdgiftssammenlignelighed)
-# Ligningslov9GKontingentperiodebedømmelse = Ll9GFørFørsteRegistreringGodkendtEfterKonkretBedømmelse(andet_arbejdsforhold_identifikation: Tekst, ligningsmæssig_bedømmelsesreference: Tekst) | Ll9GEfterFuldtOphørGodkendtEfterKonkretBedømmelse(andet_erhverv_identifikation: Tekst, ligningsmæssig_bedømmelsesreference: Tekst)
-# Ligningslov9GKontingentperiodeundtagelse(kontingent_identifikation: Tekst, bedømmelse: Ligningslov9GKontingentperiodebedømmelse)
-# Ligningslov9GFradragskilde = Ll9GLigningslov9Stk1Udgift(kildeidentifikation: Tekst) | Ll9GLigningslov9ARejse(kildeidentifikation: Tekst) | Ll9GLigningslov9AØlogiophold(kildeidentifikation: Tekst) | Ll9GLigningslov9BErhvervsbefordring(kildeidentifikation: Tekst) | Ll9GLigningslov9COg9DBefordringsforhold(kildeidentifikation: Tekst) | Ll9GLigningslov13Forening(forening_identifikation: Tekst) | Ll9GPensionsbeskatningslov49Stk1Bidrag(kildeidentifikation: Tekst) | Ll9GSelvstændigUdgiftSidestilletMedLønmodtagerudgift(virksomhedsidentifikation: Tekst, kildeidentifikation: Tekst)
-# Ligningslov9GArbejdstilknytning = Ll9GTilknyttetErhvervsfiskerarbejde(arbejdsforhold_identifikation: Tekst) | Ll9GTilknyttetAndetArbejde(arbejdsforhold_identifikation: Tekst)
+# Ligningslov9GSelvstændigUdgiftsvurdering(
+    @ field(
+        label = "Fiskerivirksomhed for udgiftsvurderingen",
+        question = "Hvilken selvstændig fiskerivirksomhed har afholdt udgiften?",
+        help = "Identifikationen skal svare præcist til både virksomheden og et selvstændigt fiskerarbejdsforhold.",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    virksomhedsidentifikation: Tekst,
+    @ field(
+        label = "Driftsudgift for udgiftsvurderingen",
+        question = "Hvilken oplyst driftsudgift i fiskerivirksomheden vurderes?",
+        help = "Brug udgiftens entydige identifikation fra virksomhedens udgiftstabel.",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    kildeidentifikation: Tekst,
+    @ field(
+        label = "Sammenlignelighed med lønmodtagerudgift",
+        question = "Kan udgiften sidestilles med en lønmodtagerudgift efter § 9, stk. 1?",
+        help = "Vælg nej for en almindelig driftsudgift, som ikke erstattes af fiskerfradraget.",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    sammenlignelighed: Ligningslov9GSelvstændigUdgiftssammenlignelighed
+)
+@ field(
+    label = "Kontingentperiodens overgangstype",
+    question = "Vedrører bedømmelsen tiden før den første registrering eller tiden efter fuldstændigt ophør med fiskeriet?",
+    help = "Futuruna kontrollerer den valgte overgangstype mod alle oplyste registreringsperioder.",
+    sources = personskat_fiskerfradrag_kilder
+)
+# Ligningslov9GKontingentperiodebedømmelse =
+    Ll9GFørFørsteRegistreringGodkendtEfterKonkretBedømmelse(
+        @ field(
+            label = "Andet arbejde før første fiskerregistrering",
+            question = "Hvilket andet arbejdsforhold havde personen før den første registrering som erhvervsfisker?",
+            help = "Identifikationen må ikke være et oplyst fiskerarbejdsforhold.",
+            sources = personskat_fiskerfradrag_kilder
+        )
+        andet_arbejdsforhold_identifikation: Tekst,
+        @ field(
+            label = "Reference for bedømmelsen før første registrering",
+            question = "Hvilken afgørelse, kontrollerbar vurdering eller anden reference dokumenterer den konkrete ligningsmæssige bedømmelse?",
+            help = "Henvisningen skal identificere den konkrete bedømmelse; en generel henvisning til § 9 G er ikke tilstrækkelig.",
+            sources = personskat_fiskerfradrag_kilder
+        )
+        ligningsmæssig_bedømmelsesreference: Tekst
+    ) |
+    Ll9GEfterFuldtOphørGodkendtEfterKonkretBedømmelse(
+        @ field(
+            label = "Andet erhverv efter fuldstændigt ophør med fiskeriet",
+            question = "Hvilket andet erhverv påbegyndte personen efter fuldstændigt ophør med fiskeriet?",
+            help = "Identifikationen må ikke være et oplyst fiskerarbejdsforhold.",
+            sources = personskat_fiskerfradrag_kilder
+        )
+        andet_erhverv_identifikation: Tekst,
+        @ field(
+            label = "Reference for bedømmelsen efter fuldstændigt ophør",
+            question = "Hvilken afgørelse, kontrollerbar vurdering eller anden reference dokumenterer den konkrete ligningsmæssige bedømmelse?",
+            help = "Henvisningen skal identificere den konkrete bedømmelse; en generel henvisning til § 9 G er ikke tilstrækkelig.",
+            sources = personskat_fiskerfradrag_kilder
+        )
+        ligningsmæssig_bedømmelsesreference: Tekst
+    )
+# Ligningslov9GKontingentperiodeundtagelse(
+    @ field(
+        label = "Kontingentbetaling for den konkrete bedømmelse",
+        question = "Hvilken oplyst kontingentbetaling vedrører den konkrete bedømmelse?",
+        help = "Identifikationen skal svare præcist til én række i tabellen over faglige kontingenter.",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    kontingent_identifikation: Tekst,
+    bedømmelse: Ligningslov9GKontingentperiodebedømmelse
+)
+@ field(
+    label = "Fradragskildens lovtype",
+    question = "Hvilken lovbestemt fradragstype har kilden?",
+    help = "Vælg den type, som svarer til den allerede oplyste post. Efterløns- og fleksydelsesbidrag efter PBL §§ 49 A-49 B skal ikke tilknyttes.",
+    sources = personskat_fiskerfradrag_kilder
+)
+# Ligningslov9GFradragskilde =
+    Ll9GLigningslov9Stk1Udgift(
+        @ field(
+            label = "Identifikation for § 9, stk. 1-udgiften",
+            question = "Hvilken oplyst lønmodtagerudgift vedrører tilknytningen?",
+            sources = personskat_fiskerfradrag_kilder
+        )
+        kildeidentifikation: Tekst
+    ) |
+    Ll9GLigningslov9ARejse(
+        @ field(
+            label = "Identifikation for § 9 A-rejsen",
+            question = "Hvilken oplyst rejse vedrører tilknytningen?",
+            sources = personskat_fiskerfradrag_kilder
+        )
+        kildeidentifikation: Tekst
+    ) |
+    Ll9GLigningslov9AØlogiophold(
+        @ field(
+            label = "Identifikation for § 9 A-ølogiopholdet",
+            question = "Hvilket oplyst ølogiophold vedrører tilknytningen?",
+            sources = personskat_fiskerfradrag_kilder
+        )
+        kildeidentifikation: Tekst
+    ) |
+    Ll9GLigningslov9BErhvervsbefordring(
+        @ field(
+            label = "Identifikation for § 9 B-befordringen",
+            question = "Hvilken oplyst erhvervsbefordringssag vedrører tilknytningen?",
+            sources = personskat_fiskerfradrag_kilder
+        )
+        kildeidentifikation: Tekst
+    ) |
+    Ll9GLigningslov9COg9DBefordringsforhold(
+        @ field(
+            label = "Identifikation for § 9 C- eller § 9 D-befordringen",
+            question = "Hvilket oplyst befordringsforhold mellem hjem og arbejde vedrører tilknytningen?",
+            help = "Brug befordringsforholdets entydige identifikation, så fiskeriets befordring kan adskilles fra befordring til andet arbejde.",
+            sources = personskat_fiskerfradrag_kilder
+        )
+        kildeidentifikation: Tekst
+    ) |
+    Ll9GLigningslov13Forening(
+        @ field(
+            label = "Faglig forening efter § 13",
+            question = "Hvilken oplyst faglig forening vedrører tilknytningen?",
+            help = "Alle betalinger til samme forening deler denne tilknytning. Andet arbejde uden medlemskab af en anden forening bevarer ikke fradraget til fiskeriets forening.",
+            sources = personskat_fiskerfradrag_kilder
+        )
+        forening_identifikation: Tekst
+    ) |
+    Ll9GPensionsbeskatningslov49Stk1Bidrag(
+        @ field(
+            label = "Identifikation for PBL § 49, stk. 1-bidraget",
+            question = "Hvilket oplyst A-kasse- eller arbejdsløshedsforsikringsbidrag vedrører tilknytningen?",
+            sources = personskat_fiskerfradrag_kilder
+        )
+        kildeidentifikation: Tekst
+    ) |
+    Ll9GSelvstændigUdgiftSidestilletMedLønmodtagerudgift(
+        @ field(
+            label = "Virksomhed for sidestillet selvstændig udgift",
+            question = "Hvilken oplyst fiskerivirksomhed har afholdt den sidestillede udgift?",
+            help = "Virksomhedsidentifikationen afgrænser entydigt udgifter, selv når flere virksomheder bruger samme bilagsidentifikation.",
+            sources = personskat_fiskerfradrag_kilder
+        )
+        virksomhedsidentifikation: Tekst,
+        @ field(
+            label = "Sidestillet selvstændig udgift",
+            question = "Hvilken udgift, der kan sidestilles med en lønmodtagerudgift, vedrører tilknytningen?",
+            sources = personskat_fiskerfradrag_kilder
+        )
+        kildeidentifikation: Tekst
+    )
+@ field(
+    label = "Fradragskildens arbejdstilknytning",
+    question = "Vedrører kilden erhvervsfiskerarbejde eller et andet arbejdsforhold?",
+    help = "Futuruna afskærer kun kilder, som udtrykkeligt er knyttet til erhvervsfiskerarbejdet.",
+    sources = personskat_fiskerfradrag_kilder
+)
+# Ligningslov9GArbejdstilknytning =
+    Ll9GTilknyttetErhvervsfiskerarbejde(
+        @ field(
+            label = "Tilknyttet erhvervsfiskerarbejde",
+            question = "Hvilket oplyst fiskerarbejdsforhold vedrører kilden?",
+            help = "Identifikationen skal svare præcist til et arbejdsforhold i fiskerfradragets arbejdsforholdstabel.",
+            sources = personskat_fiskerfradrag_kilder
+        )
+        arbejdsforhold_identifikation: Tekst
+    ) |
+    Ll9GTilknyttetAndetArbejde(
+        @ field(
+            label = "Tilknyttet andet arbejdsforhold",
+            question = "Hvilket andet arbejdsforhold vedrører kilden?",
+            help = "Brug samme arbejds- eller virksomhedsidentifikation som på den oprindelige kilde; den må ikke være registreret som et fiskerarbejdsforhold.",
+            sources = personskat_fiskerfradrag_kilder
+        )
+        arbejdsforhold_identifikation: Tekst
+    )
 # Ligningslov9GKildetilknytning(kilde: Ligningslov9GFradragskilde, arbejdstilknytning: Ligningslov9GArbejdstilknytning)
-# Ligningslov9GÅrsinput(valg: Ligningslov9GFradragsvalg, registreringer: List(Ligningslov9GRegistreringsperiode), arbejdsforhold: List(Ligningslov9GArbejdsforhold), fangstture: List(Ligningslov9GFangsttur), selvstændige_udgiftsvurderinger: List(Ligningslov9GSelvstændigUdgiftsvurdering), kontingentperiodeundtagelser: List(Ligningslov9GKontingentperiodeundtagelse), kildetilknytninger: List(Ligningslov9GKildetilknytning))
+# Ligningslov9GÅrsinput(
+    @ field(
+        label = "Valg af fiskerfradrag",
+        question = "Skal fiskerfradraget efter ligningslovens § 9 G anvendes for indkomståret?",
+        help = "Valget gælder hele indkomståret. Futuruna udleder registreringskravet, havdagene, årsloftet og de fradrag, som valget erstatter.",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    valg: Ligningslov9GFradragsvalg,
+    @ field(
+        label = "Registreringer som erhvervsfisker",
+        question = "I hvilke perioder var personen registreret som erhvervsfisker med A- eller B-status?",
+        help = "Opret én række pr. registreringsperiode. En registrering i blot en del af indkomståret kan opfylde registreringsbetingelsen for årets fangstture.",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    registreringer: List(Ligningslov9GRegistreringsperiode),
+    @ field(
+        label = "Arbejdsforhold som erhvervsfisker",
+        question = "Hvilke ansættelser eller selvstændige virksomheder vedrørte erhvervsfiskeriet?",
+        help = "Opret én række pr. arbejdsforhold. Identifikationen bruges til fangstture og til at afgrænse de udgifter og kontingenter, som fiskerfradraget erstatter.",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    arbejdsforhold: List(Ligningslov9GArbejdsforhold),
+    @ field(
+        label = "Fangstture",
+        question = "Hvilke fangstture på mindst 12 timer overlappede indkomståret?",
+        help = "Opret én række pr. sammenhængende tur fra afgang fra havn til ankomst til havn. En tur over nytår oplyses med de samme fulde tidspunkter i hvert relevant års beregning; Futuruna henfører hver påbegyndt 24-timers-havdag til året, hvor perioden starter.",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    fangstture: List(Ligningslov9GFangsttur),
+    @ field(
+        label = "Vurdering af selvstændige fiskeres udgifter",
+        question = "Kan hver driftsudgift i fiskerivirksomheden sidestilles med en lønmodtagerudgift efter ligningslovens § 9, stk. 1?",
+        help = "Opret én række for hver oplyst driftsudgift i en selvstændig fiskerivirksomhed. Kun udgifter, som kan sidestilles med lønmodtagerudgifter, afskæres af § 9 G; almindelige driftsudgifter bevares.",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    selvstændige_udgiftsvurderinger: List(Ligningslov9GSelvstændigUdgiftsvurdering),
+    @ field(
+        label = "Konkrete bedømmelser af kontingentperioder",
+        question = "Er et kontingent til fiskeriets faglige forening konkret godkendt for en periode før første registrering eller efter fuldstændigt ophør med fiskeriet?",
+        help = "Opret kun en række, når der foreligger en konkret ligningsmæssig bedømmelse. Midlertidigt andet arbejde, arbejdsløshed eller en pause mellem registreringer er ikke et fuldstændigt ophør.",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    kontingentperiodeundtagelser: List(Ligningslov9GKontingentperiodeundtagelse),
+    @ field(
+        label = "Arbejdstilknytning for fradragskilder",
+        question = "Hvilket fiskerarbejde eller andet arbejde vedrører hver udgift, faglig forening og bidragskilde, som § 9 G kan erstatte?",
+        help = "Opret én række pr. oplyst § 9, stk. 1-, §§ 9 A-9 D-, faglig § 13-forening eller PBL § 49, stk. 1-kilde og pr. selvstændig udgift, der er vurderet som sidestillet med en lønmodtagerudgift. Postkilder bruger postens identifikation; § 13 bruger den stabile foreningsidentifikation.",
+        sources = personskat_fiskerfradrag_kilder
+    )
+    kildetilknytninger: List(Ligningslov9GKildetilknytning)
+)
 # Ligningslov9GFangstturResultat(fakta: Ligningslov9GFangsttur, input_gyldigt: Boolsk, arbejdsforhold_fundet: Boolsk, tur_inden_for_arbejdsforhold: Boolsk, fangsttur_overlapper_indkomståret: Boolsk, varighed_minutter: Heltal, mindst_tolvtimers_fangsttur: Boolsk, samlede_påbegyndte_havdage_på_fangstturen: Heltal, påbegyndte_havdage: Heltal)
 # Ligningslov9GÅrsresultat(indkomstår: Heltal, lovversion: Ligningslov9GLovversion, input: Ligningslov9GÅrsinput, fangstturresultater: List(Ligningslov9GFangstturResultat), skatteår_understøttet: Boolsk, registreringsidentifikationer_entydige: Boolsk, arbejdsforholdsidentifikationer_entydige: Boolsk, fangstturidentifikationer_entydige: Boolsk, fangstture_ikke_overlappende: Boolsk, selvstændige_udgiftsvurderinger_entydige: Boolsk, selvstændige_udgiftsvurderinger_grundgyldige: Boolsk, kontingentperiodeundtagelser_entydige: Boolsk, kontingentperiodeundtagelser_grundgyldige: Boolsk, kildetilknytninger_entydige: Boolsk, kildetilknytninger_grundgyldige: Boolsk, alle_input_gyldige: Boolsk, registreret_som_erhvervsfisker_i_indkomståret: Boolsk, kan_vælge_fiskerfradrag: Boolsk, fradrag_foretaget_efter_par9g: Boolsk, påbegyndte_havdage_før_årsloft: Heltal, havdage_efter_årsloft: Heltal, sats_pr_havdag_kroner: Heltal, årsloft_kroner: Heltal, samlet_fradrag_kroner: Heltal)
 

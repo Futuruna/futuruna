@@ -4,14 +4,6 @@
 @ importer ./kursgevinstloven-saelgerpantebrev
 @ importer ./ejendomsavancebeskatningsloven-par6d
 
-# KglEblPar6DKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
-
-= kgl_ebl_par6d_vejledning_2026 = KglEblPar6DKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=2292757",
-    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.11.9: EBL § 6 D-sælgerpantebreve og kursgevinstloven",
-    hentet_dato = "2026-07-18"
-)
-
 = kgl_ebl_par6d_samspil_vejledningsmeta = Guidance(
     value = kgl_ebl_par6d_vejledning_2026
 )
@@ -32,8 +24,54 @@ Det samme gælder ved en (ekstraordinær) indfrielse af sælgerpantebrevet.
 @ meta(kgl_ebl_par6d_samspil_vejledningsmeta)
 @ section kgl_ebl_par6d_samspil {
 
-# KglEblPar6DSkatteyderfakta(udøver_næring_ved_køb_og_salg_af_fordringer: Boolsk, fordringen_erhvervet_uden_for_fordringsnæring: Boolsk, fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser: Boolsk, fordringen_erhvervet_i_direkte_tilknytning_til_erhvervsmæssig_drift: Boolsk, debitor_omfattet_af_tabsbegrænsningen_i_kgl_par14_stk2: Boolsk, renter_eller_gevinster_fritaget_efter_dobbeltbeskatningsoverenskomst: Boolsk)
-# KglEblPar6DSælgerpantebrevsfakta(sælgerpantebrev_identifikation: Tekst, oprindelig_skatteyder_identifikation: Tekst, skatteyderfakta: KglEblPar6DSkatteyderfakta, dispositioner_efter_ebl_forløbet: List(KglSælgerpantebrevDisposition))
+= personskat_kilder_24 = [
+    Source(value = kgl_sælgerpantebrev_lbk1176),
+    Source(value = kursgevinstloven_lbk1176_gæld),
+    Source(value = kursgevinstloven_lbk1176_årsnetto),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par22_årsnetto),
+    DependencySource(value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
+    DependencySource(value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
+    Guidance(value = kgl_ebl_par6d_vejledning_2026),
+    Guidance(value = kursgevinstloven_vejledning_par24),
+    Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_realisering),
+    Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_gennemsnit)
+]
+# KglEblPar6DSkatteyderfakta(
+    udøver_næring_ved_køb_og_salg_af_fordringer: Boolsk,
+    fordringen_erhvervet_uden_for_fordringsnæring: Boolsk,
+    fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser: Boolsk,
+    fordringen_erhvervet_i_direkte_tilknytning_til_erhvervsmæssig_drift: Boolsk,
+    debitor_omfattet_af_tabsbegrænsningen_i_kgl_par14_stk2: Boolsk,
+    @ field(
+        label = "Fritagelse efter skatteaftale",
+        question = "Er renter eller gevinster på sælgerpantebrevet fritaget efter en dobbeltbeskatningsoverenskomst?",
+        help = "Denne gren kræver særskilt traktatbehandling og afvises derfor, indtil den relevante overenskomst er modelleret.",
+        sources = personskat_kilder_24
+    )
+    renter_eller_gevinster_fritaget_efter_dobbeltbeskatningsoverenskomst: Boolsk
+)
+# KglEblPar6DSælgerpantebrevsfakta(
+    @ field(
+        label = "Sælgerpantebrev",
+        question = "Hvilket sælgerpantebrev vedrører disse kursgevinstforhold?",
+        sources = personskat_kilder_24
+    )
+    sælgerpantebrev_identifikation: Tekst,
+    @ field(
+        label = "Sælgerpantebrevets oprindelige skatteyder",
+        question = "Hvem modtog oprindeligt sælgerpantebrevet ved ejendomssalget?",
+        sources = personskat_kilder_24
+    )
+    oprindelig_skatteyder_identifikation: Tekst,
+    skatteyderfakta: KglEblPar6DSkatteyderfakta,
+    @ field(
+        label = "Dispositioner efter EBL-forløbet",
+        question = "Skete der noget med restfordringen efter, at EBL § 6 D-forløbet var afsluttet?",
+        help = "Tilføj kun dispositioner efter det sidste år i EBL-forløbet, eksempelvis betaling, afståelse, indfrielse eller konstateret nedskrivning af en restfordring.",
+        sources = personskat_kilder_24
+    )
+    dispositioner_efter_ebl_forløbet: List(KglSælgerpantebrevDisposition)
+)
 # KglEblPar6DFordringsdelejer(fordringsdel_identifikation: Tekst, skatteyder: KglSælgerpantebrevSkatteyder)
 # KglEblPar6DFortjenestemedregning(medregning: EblPar6DFortjenestemedregning, skatteyder: KglSælgerpantebrevSkatteyder)
 # KglEblPar6DSælgerpantebrevsresultat(fakta: KglEblPar6DSælgerpantebrevsfakta, par6d_resultat: EblPar6DResultat, identifikation_matcher: Boolsk, skatteyder_understøttet: Boolsk, tranchefordeling_entydig: Boolsk, fortjenestefordeling_entydig: Boolsk, efterfølgende_dispositioner_gyldige: Boolsk, ebl_kgl_realisering_sammenhæng_gyldig: Boolsk, input_gyldigt: Boolsk, skatteforhold: KglSælgerpantebrevSkatteforhold, fortjenestemedregninger: List(KglEblPar6DFortjenestemedregning), kursgevinstresultat: KglSælgerpantebrevResultat)

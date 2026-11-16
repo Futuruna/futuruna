@@ -3,44 +3,9 @@
 @ importer ./metadata
 @ importer ./aktieavancebeskatningsloven-par23-27
 
-= aktieavancebeskatningsloven_lbk1098_par37 = AktieavancebeskatningslovKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
-    identifier = "Aktieavancebeskatningsloven § 37",
-    hentet_dato = "2026-07-18"
-)
-= aktieavancebeskatningsloven_lbk1098_par38 = AktieavancebeskatningslovKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
-    identifier = "Aktieavancebeskatningsloven § 38",
-    hentet_dato = "2026-08-02"
-)
-= aktieavancebeskatningsloven_lbk1098_par39 = AktieavancebeskatningslovKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
-    identifier = "Aktieavancebeskatningsloven § 39",
-    hentet_dato = "2026-07-18"
-)
-= aktieavancebeskatningsloven_juridisk_vejledning_par37 = AktieavancebeskatningslovKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1946389",
-    identifier = "Den juridiske vejledning C.B.2.14.1: tilflytning",
-    hentet_dato = "2026-07-18"
-)
-= aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds = AktieavancebeskatningslovKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1946393",
-    identifier = "Den juridiske vejledning C.B.2.14.2.3: personkredsen for fraflytterskat",
-    hentet_dato = "2026-07-18"
-)
 = aktieavancebeskatningsloven_juridisk_vejledning_par38_vaerdipapirer = AktieavancebeskatningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1946394",
     identifier = "Den juridiske vejledning C.B.2.14.2.4: værdipapirer omfattet af fraflytterskat",
-    hentet_dato = "2026-08-02"
-)
-= aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse = AktieavancebeskatningslovKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1946398",
-    identifier = "Den juridiske vejledning 2026-2, C.B.2.14.2.7: gevinst og tab ved fraflytning",
-    hentet_dato = "2026-08-07"
-)
-= aktieavancebeskatningsloven_juridisk_vejledning_par39 = AktieavancebeskatningslovKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1946400",
-    identifier = "Den juridiske vejledning C.B.2.14.2.8.1: henstand med betaling af skatten",
     hentet_dato = "2026-08-02"
 )
 
@@ -166,8 +131,103 @@ ved skattepligtsophøret skal opgøres efter realisationsprincippet.
 # AktieavancePar38Beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning | AblPar38AktieIkkeOmfattetAfDanskBeskatning
 # AktieavancePar38Par44Status = AblPar38IkkeHistoriskPar44Aktie | AblPar38Par44AktieEjetUnderTreÅrVedOphør | AblPar38Par44AktieEjetMindstTreÅrVedOphør
 # AktieavancePar38Aktieegenskab = AblPar38MedarbejderandelEfterLl7N | AblPar38AktieErhvervetEfterLl7P | AblPar38AktieVedUdnyttelseAfLl7PRet | AblPar38ØvrigAktieISammeSelskabSomLl7P | AblPar38ErhvervetFraÆgtefælleDerOpfylderSyvårskravet | AblPar38SuccessionEfterPar34Til35A | AblPar38SkattefriVirksomhedsomdannelseEfterSuccession
-# AktieavancePar38OrdinærtAktivgrundlag(markedsstatus: AktieavanceOrdinærMarkedsstatus, har_tidligere_været_optaget_til_handel: Boolsk, oplysningsstatus: AktieavanceOrdinærOplysningsstatus, par5a_kildefakta: AktieavanceOrdinærPar5AKildefakta)
-# AktieavancePar38SærligtAktivgrundlag(klassifikation: AktieavanceAktivklassifikationInput, markedsstatus: AktieavanceOrdinærMarkedsstatus, koncernintern_konvertibel_eller_tegningsret: Boolsk, andelsforening_stiftet_før_22_maj_1987: Boolsk, afståelse_sker_for_at_undgå_likvidationsbeskatning: Boolsk, årets_netto_med_kgl_par14_23_kroner: Heltal)
+= personskat_kilder_5 = [
+    Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par26),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par17_klassifikation),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par44),
+    Source(value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par37),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par38),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39a),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39b),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par40),
+    PreparatoryWork(value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
+    DependencySource(value = aktieavancebeskatningsloven_lbk835_par4_stk2),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par44),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par23),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par37),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_beholdningsoversigt),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_prioritet),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_alle_afstået),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_årsoplysninger),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39b)
+]
+# AktieavancePar38OrdinærtAktivgrundlag(
+    @ field(
+        label = "Fraflytteraktiens markedsstatus",
+        question = "Var den almindelige aktie optaget til handel på et reguleret marked, en multilateral handelsfacilitet eller ingen af delene?",
+        help = "Markedsstatus afgør, om et tab behandles efter ABL § 13 eller §§ 13 A-14.",
+        sources = personskat_kilder_5
+    )
+    markedsstatus: AktieavanceOrdinærMarkedsstatus,
+    @ field(
+        label = "Tidligere optaget til handel",
+        question = "Har aktien tidligere i ejerperioden været optaget til handel på et reguleret marked eller en multilateral handelsfacilitet?",
+        help = "Et tidligere markedsnoteret parti følger tabsreglerne i ABL §§ 13 A-14, selv om det ikke længere er optaget til handel.",
+        sources = personskat_kilder_5
+    )
+    har_tidligere_været_optaget_til_handel: Boolsk,
+    @ field(
+        label = "Oplysningsgrundlag efter ABL § 14",
+        question = "Hvordan er oplysningerne om erhvervelsen kommet rettidigt til Skatteforvaltningen?",
+        help = "Futuruna bruger kun feltet, når et tab kræver opfyldelse af oplysningsbetingelsen efter ABL § 14.",
+        sources = personskat_kilder_5
+    )
+    oplysningsstatus: AktieavanceOrdinærOplysningsstatus,
+    par5a_kildefakta: AktieavanceOrdinærPar5AKildefakta
+)
+# AktieavancePar38SærligtAktivgrundlag(
+    klassifikation: AktieavanceAktivklassifikationInput,
+    @ field(
+        label = "Det særlige fraflytteraktivs markedsstatus",
+        question = "Var dette særlige aktiv optaget til handel på et reguleret marked, en multilateral handelsfacilitet eller ingen af delene?",
+        help = "Markedsstatus knyttes til det enkelte aktieparti og bruges ved modregning efter ABL § 13 A og KGL § 32.",
+        sources = personskat_kilder_5
+    )
+    markedsstatus: AktieavanceOrdinærMarkedsstatus,
+    @ field(
+        label = "Koncernintern konvertibel obligation eller tegningsret",
+        question = "Er aktivet en koncernintern konvertibel obligation eller en tegningsret hertil?",
+        help = "Et tab på denne type aktiv kan være afskåret efter aktieavancebeskatningsloven.",
+        sources = personskat_kilder_5
+    )
+    koncernintern_konvertibel_eller_tegningsret: Boolsk,
+    @ field(
+        label = "Andelsforening stiftet før 22. maj 1987",
+        question = "Er andelsforeningen stiftet før den 22. maj 1987?",
+        help = "Oplysningen indgår i undtagelsen i ABL § 18, stk. 4.",
+        sources = personskat_kilder_5
+    )
+    andelsforening_stiftet_før_22_maj_1987: Boolsk,
+    @ field(
+        label = "Afståelse for at undgå likvidationsbeskatning",
+        question = "Sker afståelsen for at undgå beskatning af likvidationsprovenu efter ABL § 18, stk. 2?",
+        help = "Oplysningen bruges kun for den historiske andelsforeningsundtagelse.",
+        sources = personskat_kilder_5
+    )
+    afståelse_sker_for_at_undgå_likvidationsbeskatning: Boolsk,
+    @ field(
+        label = "Årets netto sammen med KGL §§ 14 og 23",
+        question = "Hvilket nettobeløb skal samordnes med aktivet efter kursgevinstlovens §§ 14 og 23?",
+        help = "Angiv 0, når aktivets behandling ikke bruger bagatelgrænsen i ABL § 22.",
+        unit = "kr.",
+        sources = personskat_kilder_5
+    )
+    årets_netto_med_kgl_par14_23_kroner: Heltal
+)
+@ field(
+    label = "Aktivgrundlag for fraflytteraktien",
+    question = "Er aktiepartiet en almindelig aktie efter ABL §§ 12-15 eller et aktiv med en særlig ABL-klassifikation?",
+    help = "Vælg den dokumenterede kildegren. Futuruna afleder selv indkomstkategori og tabsbehandling.",
+    sources = personskat_kilder_5
+)
 # AktieavancePar38Aktivgrundlag = AblPar38OrdinærAktieEfterPar12Til15(fakta: AktieavancePar38OrdinærtAktivgrundlag) | AblPar38SærligtAktiv(fakta: AktieavancePar38SærligtAktivgrundlag)
 # AktieavancePar38Opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner: Heltal) | AblPar38TegningsretValgEfterStk4(antal_rettigheder: Heltal, udnyttelseskurs_pr_aktie_kroner: Heltal, markedskurs_pr_aktie_ved_ophør_kroner: Heltal)
 # AktieavancePar38Aktie(identifikation: Tekst, handelsværdi_ved_ophør_kroner: Heltal, skattemæssig_anskaffelsessum_kroner: Heltal, beskatningsstatus: AktieavancePar38Beskatningsstatus, par44_status: AktieavancePar38Par44Status, egenskaber: List(AktieavancePar38Aktieegenskab), opgørelsesgrundlag: AktieavancePar38Opgørelsesgrundlag, aktivgrundlag: AktieavancePar38Aktivgrundlag, princip: AktieavancePar23Princip)
@@ -357,11 +417,60 @@ fristen for afgivelse af beholdningsoversigt som nævnt i stk. 2, jf. stk. 4.
 @ section aktieavancebeskatningsloven_par39 {
 
 # AktieavancePar39Friststatus = AblPar39RettidigOrdinærFrist | AblPar39RettidigForlængetFrist | AblPar39FristOverskredet | AblPar39FristoverskridelseTilsidesatEfterStk5
-# AktieavancePar39Indberetning(oplysninger_efter_skattekontrollov_par2: AktieavancePar39Friststatus, beholdningsoversigt_efter_par39a: AktieavancePar39Friststatus)
+# AktieavancePar39Indberetning(
+    @ field(
+        label = "Frist for oplysninger efter skattekontrollovens § 2",
+        question = "Blev oplysningerne ved fraflytningen indgivet rettidigt, forlænget eller efter en tilsidesat fristoverskridelse?",
+        sources = personskat_kilder_5
+    )
+    oplysninger_efter_skattekontrollov_par2: AktieavancePar39Friststatus,
+    @ field(
+        label = "Frist for beholdningsoversigten efter § 39 A",
+        question = "Blev beholdningsoversigten indgivet inden den gældende frist?",
+        sources = personskat_kilder_5
+    )
+    beholdningsoversigt_efter_par39a: AktieavancePar39Friststatus
+)
 # AktieavancePar39Bistandsstatus = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv | AblPar39LandIkkeOmfattetAfNordiskOverenskomstEllerEuDirektiv
-# AktieavancePar39Bopæl(oprindeligt_fraflytningsland: AktieavancePar39Bistandsstatus, aktuelt_land: AktieavancePar39Bistandsstatus, frigivelse_af_sikkerhed_anmodet: Boolsk)
+# AktieavancePar39Bopæl(
+    @ field(
+        label = "Inddrivelsesbistand i det oprindelige fraflytningsland",
+        question = "Er det oprindelige fraflytningsland omfattet af nordisk bistand eller EU-direktiv 2010/24/EU?",
+        sources = personskat_kilder_5
+    )
+    oprindeligt_fraflytningsland: AktieavancePar39Bistandsstatus,
+    @ field(
+        label = "Inddrivelsesbistand i det aktuelle bopælsland",
+        question = "Er det aktuelle bopælsland omfattet af nordisk bistand eller EU-direktiv 2010/24/EU?",
+        help = "Det aktuelle land afgør, om fortsat henstand kræver betryggende sikkerhed.",
+        sources = personskat_kilder_5
+    )
+    aktuelt_land: AktieavancePar39Bistandsstatus,
+    @ field(
+        label = "Anmodning om frigivelse af sikkerhed",
+        question = "Er der anmodet om at få sikkerheden frigivet efter flytning til et bistandsland?",
+        sources = personskat_kilder_5
+    )
+    frigivelse_af_sikkerhed_anmodet: Boolsk
+)
 # AktieavancePar39Sikkerhedsform = AblPar39SikkerhedIAktier | AblPar39SikkerhedIReguleredeObligationer | AblPar39Bankgaranti | AblPar39AndenBetryggendeSikkerhed
-# AktieavancePar39Sikkerhed = AblPar39IngenSikkerhedStillet | AblPar39BetryggendeSikkerhed(form: AktieavancePar39Sikkerhedsform) | AblPar39IkkeBetryggendeSikkerhed
+@ field(
+    label = "Sikkerhed for fraflytterskatten",
+    question = "Er der stillet betryggende sikkerhed for henstanden, og i hvilken form?",
+    help = "Sikkerhed kræves ved bopæl i et land uden den relevante inddrivelsesbistand.",
+    sources = personskat_kilder_5
+)
+# AktieavancePar39Sikkerhed =
+    AblPar39IngenSikkerhedStillet |
+    AblPar39BetryggendeSikkerhed(
+        @ field(
+            label = "Form for betryggende sikkerhed",
+            question = "Er sikkerheden stillet i aktier, regulerede obligationer, bankgaranti eller anden betryggende form?",
+            sources = personskat_kilder_5
+        )
+        form: AktieavancePar39Sikkerhedsform
+    ) |
+    AblPar39IkkeBetryggendeSikkerhed
 # AktieavancePar39Input(par38_resultat: AktieavancePar38Resultat, beregnet_skat_for_realisationsopgjorte_poster_kroner: Heltal, indberetning: AktieavancePar39Indberetning, bopæl: AktieavancePar39Bopæl, sikkerhed: AktieavancePar39Sikkerhed)
 # AktieavancePar39Resultat(input: AktieavancePar39Input, input_gyldigt: Boolsk, grundbetingelser_efter_stk1: Boolsk, indberetningsbetingelser_efter_stk2_opfyldt: Boolsk, sikkerhed_påkrævet_efter_stk3: Boolsk, sikkerhedsbetingelse_opfyldt: Boolsk, sikkerhed_frigives_efter_anmodning: Boolsk, henstand_finder_anvendelse: Boolsk, henstandsbeløb_kroner: Heltal, henstandsret_bortfalder_efter_stk4: Boolsk, henstand_afvist_på_grund_af_sikkerhed: Boolsk, skat_forfalder_uden_henstand: Boolsk, opkrævningslovens_rente_skal_anvendes: Boolsk, rentetillæg_basispoint_pr_påbegyndt_måned: Heltal)
 

@@ -104,7 +104,77 @@ endvidere ikke udbytte efter ligningslovens § 16 A, stk. 5.
 @ meta(personskat_ligningslov7n_kildefakta_metadata)
 @ section personskat_ligningslov7n_kildefakta {
 
-# PersonskatLigningslov7NFakta(identifikation: Tekst, indkomstår: Heltal, selskab: Ligningslov7NSelskab, postart: Ligningslov7NPostart, beløb_kroner: Heltal, kontant_løn_minus_amb_fra_arbejdsgiver_kroner: Heltal, registreret_i_erhvervsstyrelsen: Boolsk, godkendt_eu_eøs_selskab: Boolsk, godkendelse_tilbagekaldt: Boolsk)
+= personskat_ligningslov7n_kilder = [
+    Source(value = ligningsloven_par7n_lbk1500),
+    DependencySource(value = personskatteloven_lbk1284_par4),
+    DependencySource(value = personskatteloven_lbk1284_par4a),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2)
+]
+# PersonskatLigningslov7NFakta(
+    @ field(
+        label = "Postens identifikation",
+        question = "Hvilken entydig bilags- eller selskabsreference har posten?",
+        help = "Brug en stabil reference, så samme indskud, udbetaling, fortjeneste eller tab ikke medregnes to gange.",
+        sources = personskat_ligningslov7n_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Postens indkomstår",
+        question = "Hvilket indkomstår vedrører posten?",
+        help = "Året skal svare til skatteåret. Futuruna anvender posterne i deres angivne rækkefølge til det fælles årsloft.",
+        unit = "år",
+        sources = personskat_ligningslov7n_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Medarbejderinvesteringsselskabets status",
+        question = "Er selskabet dansk, godkendelsespligtigt i EU/EØS eller ikke omfattet af § 7 N?",
+        sources = personskat_ligningslov7n_kilder
+    )
+    selskab: Ligningslov7NSelskab,
+    @ field(
+        label = "Postens art efter ligningslovens § 7 N",
+        question = "Vedrører posten arbejdsgiverindskud, udbetaling, fortjeneste, tab eller tilbagekaldelsesværdi?",
+        help = "Postarten bestemmer, om beløbet føres til arbejdsmarkedsbidragspligtig personlig indkomst, øvrig personlig indkomst eller aktieindkomst.",
+        sources = personskat_ligningslov7n_kilder
+    )
+    postart: Ligningslov7NPostart,
+    @ field(
+        label = "Beløb før skat",
+        question = "Hvor stort er indskuddet, udbetalingen, fortjenesten, tabet eller værdien?",
+        help = "Angiv tab som et positivt tabsbeløb; § 4 a-kaskaden danner selv det negative aktieindkomstbeløb.",
+        unit = "DKK",
+        sources = personskat_ligningslov7n_kilder
+    )
+    beløb_kroner: Heltal,
+    @ field(
+        label = "Kontant løn efter arbejdsmarkedsbidrag fra arbejdsgiveren",
+        question = "Hvad var den kontante løn minus arbejdsmarkedsbidrag fra den arbejdsgiver, som foretog indskuddet?",
+        help = "Feltet bruges kun ved arbejdsgiverindskud til at beregne loftet på 7,5 pct.",
+        unit = "DKK/år",
+        sources = personskat_ligningslov7n_kilder
+    )
+    kontant_løn_minus_amb_fra_arbejdsgiver_kroner: Heltal,
+    @ field(
+        label = "Registreret i Erhvervsstyrelsen",
+        question = "Er det danske medarbejderinvesteringsselskab registreret i Erhvervsstyrelsen?",
+        sources = personskat_ligningslov7n_kilder
+    )
+    registreret_i_erhvervsstyrelsen: Boolsk,
+    @ field(
+        label = "EU/EØS-selskabet er godkendt",
+        question = "Har Skatteforvaltningen godkendt det medarbejderinvesteringsselskabslignende selskab i EU/EØS?",
+        sources = personskat_ligningslov7n_kilder
+    )
+    godkendt_eu_eøs_selskab: Boolsk,
+    @ field(
+        label = "EU/EØS-godkendelsen er tilbagekaldt",
+        question = "Er selskabets godkendelse tilbagekaldt i indkomståret?",
+        help = "Ved tilbagekaldelse skal postarten være tilbagekaldelsesværdi, som medregnes i den skattepligtige indkomst.",
+        sources = personskat_ligningslov7n_kilder
+    )
+    godkendelse_tilbagekaldt: Boolsk
+)
 # PersonskatLigningslov7NPostresultat(fakta: PersonskatLigningslov7NFakta, identifikation_unik: Boolsk, grundfakta_gyldige: Boolsk, tidligere_bortset_arbejdsgiverindskud_i_året_kroner: Heltal, ligningslov_input: Ligningslov7NInput, ligningslov_resultat: Ligningslov7NResultat, par4_stk7_resultat: Par4Stk7Ligningslov7NResultat, par4a_resultat: Par4aLigningslov7NResultat, input_gyldigt: Boolsk, kapitalpost: Par4Kapitalpost, aktiepost: Par4aAktiepost)
 # PersonskatLigningslov7NForløbstilstand(tidligere_bortset_arbejdsgiverindskud_i_året_kroner: Heltal, postresultater: List(PersonskatLigningslov7NPostresultat), alle_input_gyldige: Boolsk)
 # PersonskatLigningslov7NÅrsresultat(fakta: List(PersonskatLigningslov7NFakta), postresultater: List(PersonskatLigningslov7NPostresultat), identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, samlet_bortset_arbejdsgiverindskud_kroner: Heltal, arbejdsgiverindskud_skattepligtigt_kroner: Heltal, tilbagekaldelsesværdi_skattepligtig_kroner: Heltal, øvrig_personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, kapitalposter: List(Par4Kapitalpost), aktieposter: List(Par4aAktiepost))

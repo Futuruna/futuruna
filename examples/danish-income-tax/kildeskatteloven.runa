@@ -149,8 +149,44 @@ forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
 @ meta(ksl_par25a_kildemeta)
 @ section kildeskatteloven_par25a {
 
-# Kildeskat25AFaktiskSamlivsophørsfakta(varigt_adskilt_uden_fælles_husførelse: Boolsk, samlivet_genoptaget_i_samme_indkomstår: Boolsk)
+= personskat_kildeskat25a_kilder = [
+    DependencySource(value = kildeskatteloven_lbk460_par25a),
+    Guidance(value = kildeskatteloven_vejledning_samlivsstatus),
+    Guidance(value = kildeskatteloven_vejledning_par25a_samlivsophør),
+    Guidance(value = kildeskatteloven_vejledning_par25a_fri_fordeling),
+    Guidance(value = kildeskatteloven_vejledning_par25a_dødsfald),
+    Guidance(value = skat_ksl25a_medarbejdende_ægtefælle_vejledning),
+    Guidance(value = skat_ksl25a_lønaftale_vejledning)
+]
+# Kildeskat25AFaktiskSamlivsophørsfakta(
+    @ field(
+        label = "Varig adskillelse uden fælles husførelse",
+        question = "Levede ægtefællerne varigt adskilt uden fælles husførelse?",
+        help = "Midlertidig adskillelse på grund af arbejde eller lignende er ikke et faktisk skattemæssigt samlivsophør.",
+        sources = personskat_kildeskat25a_kilder
+    )
+    varigt_adskilt_uden_fælles_husførelse: Boolsk,
+    @ field(
+        label = "Samlivet genoptaget i samme indkomstår",
+        question = "Genoptog ægtefællerne samlivet i det samme indkomstår?",
+        help = "Et faktisk samlivsophør uden separation eller skilsmisse får ikke skattemæssig virkning, hvis samlivet genoptages i samme år.",
+        sources = personskat_kildeskat25a_kilder
+    )
+    samlivet_genoptaget_i_samme_indkomstår: Boolsk
+)
+@ field(
+    label = "Årsag til samlivsophør",
+    question = "Hvorfor ophørte samlivet?",
+    help = "Årsagen afgør, hvornår samlivsophøret får skattemæssig virkning.",
+    sources = personskat_kildeskat25a_kilder
+)
 # Kildeskat25ASamlivsophørsårsag = Ksl25ASeparation | Ksl25ASkilsmisse | Ksl25AFaktiskSamlivsophør(fakta: Kildeskat25AFaktiskSamlivsophørsfakta) | Ksl25ADødsfald
+@ field(
+    label = "Samlivsforløb i indkomståret",
+    question = "Var der et samlivsophør mellem ægtefællerne i indkomståret?",
+    help = "Vælg et dateret ophør, hvis samlivet ophørte ved separation, skilsmisse, faktisk varig adskillelse eller dødsfald.",
+    sources = personskat_kildeskat25a_kilder
+)
 # Kildeskat25ASamlivsforløb = Ksl25AIntetSamlivsophør | Ksl25ASamlivsophør(dato: Dato, årsag: Kildeskat25ASamlivsophørsårsag)
 # Kildeskat25ASamlivsforløbsresultat(indkomstår: Heltal, forløb: Kildeskat25ASamlivsforløb, input_gyldigt: Boolsk, samlivsophør_i_indkomståret: Boolsk, skattemæssigt_samlevende_ved_indkomstårets_udgang: Boolsk, delårsperiodisering_påkrævet: Boolsk, stk1_stk7_og_stk8_gælder_hele_indkomståret: Boolsk, stk3_tilladt_i_indkomståret: Boolsk, dødsfald_i_indkomståret: Boolsk, ophørsdato: Option(Dato))
 # Kildeskat25AStk3Input(indkomstår: Heltal, samlevende_ved_indkomstårets_udgang: Boolsk, samliv_ophoert_i_indkomståret: Boolsk, begge_deltaget_i_væsentligt_omfang: Boolsk, en_ægtefælle_driver_i_overvejende_grad: Boolsk, anmodet_overførsel_kroner: Heltal, arbejdsindsats_forsvarligt_maksimum_kroner: Heltal, skattepligtigt_almindeligt_overskud_kroner: Heltal, renteudgifter_kroner: Heltal, kurstab_på_fordringer_og_gæld_kroner: Heltal, renteindtægter_kroner: Heltal, udbytteindtægter_kroner: Heltal, kursgevinster_på_fordringer_og_gæld_kroner: Heltal, lønaftale_finder_anvendelse: Boolsk, fordeling_efter_stk8_finder_anvendelse: Boolsk)
@@ -159,10 +195,145 @@ forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
 # Kildeskat25AFortjenestehenføring = Ksl25AStk1Virksomhedsdriver(samlevende_ved_indkomstårets_udgang: Boolsk, samliv_ophoert_i_indkomståret: Boolsk, begge_ægtefæller_deltager_i_driften: Boolsk, personen_driver_virksomheden: Boolsk, personen_driver_i_overvejende_grad: Boolsk) | Ksl25AStk3MedarbejdendeÆgtefælle(fakta: Kildeskat25AStk3Fortjenestefakta) | Ksl25AStk8LigeligDeltagelse(samlevende_ved_indkomstårets_udgang: Boolsk, samliv_ophoert_i_indkomståret: Boolsk, begge_deltager_i_væsentligt_og_ligeligt_omfang: Boolsk, hæfter_i_samme_omfang: Boolsk, fordeling_anmodet: Boolsk, fordeling_sagligt_begrundet_i_driften: Boolsk, lønaftale_finder_anvendelse: Boolsk, personens_fordelingsandel_basispoint: Heltal)
 # Kildeskat25AFortjenestegrundlag(person_identifikation: Tekst, ægtefælle_identifikation: Tekst, henføring: Kildeskat25AFortjenestehenføring)
 # Kildeskat25AFortjenestehenføringsresultat(indkomstår: Heltal, grundlag: Kildeskat25AFortjenestegrundlag, fortjeneste_opnået_af_ægtefælle_før_am_kroner: Heltal, stk3_resultat: Option(Kildeskat25AStk3Resultat), grundlag_gyldigt: Boolsk, hjemmel_opfyldt: Boolsk, fortjeneste_medregnet_hos_person_før_am_kroner: Heltal)
-# Kildeskat25AStk7Fakta(aftalens_ikrafttrædelsesdato: Dato, lønperiodens_startdato: Dato, lønperiodens_slutdato: Dato, begge_ægtefæller_deltager_i_driften: Boolsk, a_skat_indeholdt_og_indbetalt: Boolsk, arbejdsmarkedsbidrag_indeholdt_og_indbetalt: Boolsk, gældsindeholdelse_påkrævet: Boolsk, påkrævet_gældsindeholdelse_overholdt: Boolsk, løn_før_arbejdsmarkedsbidrag_kroner: Heltal, arbejdsindsats_forsvarligt_maksimum_kroner: Heltal)
+# Kildeskat25AStk7Fakta(
+    aftalens_ikrafttrædelsesdato: Dato,
+    lønperiodens_startdato: Dato,
+    lønperiodens_slutdato: Dato,
+    @ field(
+        label = "Begge ægtefæller deltager i driften",
+        question = "Deltager begge ægtefæller i virksomhedens drift under lønaftalen?",
+        sources = personskat_kildeskat25a_kilder
+    )
+    begge_ægtefæller_deltager_i_driften: Boolsk,
+    @ field(
+        label = "A-skat indeholdt og indbetalt",
+        question = "Er A-skat af ægtefællens løn både indeholdt og indbetalt?",
+        help = "Lønaftalen får kun skattemæssig virkning, når indeholdelses- og indbetalingspligterne er overholdt.",
+        sources = personskat_kildeskat25a_kilder
+    )
+    a_skat_indeholdt_og_indbetalt: Boolsk,
+    @ field(
+        label = "Arbejdsmarkedsbidrag indeholdt og indbetalt",
+        question = "Er arbejdsmarkedsbidrag af ægtefællens løn både indeholdt og indbetalt?",
+        sources = personskat_kildeskat25a_kilder
+    )
+    arbejdsmarkedsbidrag_indeholdt_og_indbetalt: Boolsk,
+    @ field(
+        label = "Gældsindeholdelse påkrævet",
+        question = "Skulle der indeholdes beløb efter gældsinddrivelseslovens § 10?",
+        sources = personskat_kildeskat25a_kilder
+    )
+    gældsindeholdelse_påkrævet: Boolsk,
+    @ field(
+        label = "Påkrævet gældsindeholdelse overholdt",
+        question = "Blev den påkrævede gældsindeholdelse gennemført og indbetalt?",
+        sources = personskat_kildeskat25a_kilder
+    )
+    påkrævet_gældsindeholdelse_overholdt: Boolsk,
+    @ field(
+        label = "Ægtefællens løn fra virksomheden",
+        question = "Hvor stor løn før arbejdsmarkedsbidrag modtog den anden ægtefælle fra virksomheden?",
+        help = "Beløbet skal også findes som en særskilt virksomhedsudgift med den nedenfor angivne identifikation.",
+        unit = "kr./år",
+        sources = personskat_kildeskat25a_kilder
+    )
+    løn_før_arbejdsmarkedsbidrag_kroner: Heltal,
+    @ field(
+        label = "Forsvarligt lønmaksimum efter arbejdsindsatsen",
+        question = "Hvilket højeste lønbeløb står ikke i åbenbart misforhold til ægtefællens arbejdsindsats?",
+        unit = "kr./år",
+        sources = personskat_kildeskat25a_kilder
+    )
+    arbejdsindsats_forsvarligt_maksimum_kroner: Heltal
+)
 # Kildeskat25AStk7Resultat(indkomstår: Heltal, fakta: Kildeskat25AStk7Fakta, datoer_gyldige: Boolsk, indeholdelses_og_indbetalingspligter_overholdt: Boolsk, lønnen_svarer_til_arbejdsindsatsen: Boolsk, stk7_betingelser_opfyldt: Boolsk, lønmodtagerens_skattepligtige_indkomst_kroner: Heltal, lønmodtagerens_personlige_indkomst_kroner: Heltal, lønmodtagerens_arbejdsmarkedsbidragspligtige_indkomst_kroner: Heltal)
 # Kildeskat25AVirksomhedsbeløb(skattepligtig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_indkomst_kroner: Heltal)
-# Kildeskat25AVirksomhedsfordelingsvalg = Ksl25AStk1HosVirksomhedsdriver(begge_ægtefæller_deltager_i_driften: Boolsk, virksomhedsdriveren_driver_i_overvejende_grad: Boolsk) | Ksl25AStk3TilMedarbejdendeÆgtefælle(begge_deltager_i_væsentligt_omfang: Boolsk, virksomhedsdriveren_driver_i_overvejende_grad: Boolsk, anmodet_overførsel_kroner: Heltal, arbejdsindsats_forsvarligt_maksimum_kroner: Heltal) | Ksl25AStk7Lønaftale(fakta: Kildeskat25AStk7Fakta) | Ksl25AStk8LigeligResultatfordeling(begge_deltager_i_væsentligt_og_ligeligt_omfang: Boolsk, hæfter_i_samme_omfang: Boolsk, fordeling_anmodet: Boolsk, fordeling_sagligt_begrundet_i_driften: Boolsk, anden_ægtefælles_fordelingsandel_basispoint: Heltal)
+@ field(
+    label = "Regel for ægtefællernes virksomhedsindkomst",
+    question = "Hvordan skal virksomhedens resultat behandles mellem ægtefællerne efter kildeskattelovens § 25 A?",
+    help = "Fælles drevne virksomheder skal bruge samme årsregel. En lønaftale udelukker stk. 3 og 8 i hele indkomståret.",
+    sources = personskat_kildeskat25a_kilder
+)
+# Kildeskat25AVirksomhedsfordelingsvalg =
+    Ksl25AStk1HosVirksomhedsdriver(
+        @ field(
+            label = "Begge ægtefæller deltager i driften",
+            question = "Deltager begge ægtefæller i virksomhedens drift?",
+            sources = personskat_kildeskat25a_kilder
+        )
+        begge_ægtefæller_deltager_i_driften: Boolsk,
+        @ field(
+            label = "Virksomhedsdriveren driver i overvejende grad",
+            question = "Driver den angivne virksomhedsdriver virksomheden i overvejende grad?",
+            help = "Oplysningen er nødvendig efter § 25 A, stk. 1, når begge ægtefæller deltager i driften.",
+            sources = personskat_kildeskat25a_kilder
+        )
+        virksomhedsdriveren_driver_i_overvejende_grad: Boolsk
+    ) |
+    Ksl25AStk3TilMedarbejdendeÆgtefælle(
+        @ field(
+            label = "Begge deltager væsentligt",
+            question = "Deltager begge ægtefæller i væsentligt omfang i virksomhedens drift?",
+            sources = personskat_kildeskat25a_kilder
+        )
+        begge_deltager_i_væsentligt_omfang: Boolsk,
+        @ field(
+            label = "Én ægtefælle driver i overvejende grad",
+            question = "Driver den angivne virksomhedsdriver virksomheden i overvejende grad?",
+            sources = personskat_kildeskat25a_kilder
+        )
+        virksomhedsdriveren_driver_i_overvejende_grad: Boolsk,
+        @ field(
+            label = "Anmodet overførsel til medarbejdende ægtefælle",
+            question = "Hvor meget af virksomhedens overskud anmoder ægtefællerne om at overføre til den medarbejdende ægtefælle?",
+            help = "Futuruna anvender halvdelsgrænsen og arbejdsindsatsen pr. virksomhed samt det fælles regulerede årsloft på tværs af virksomheder.",
+            unit = "kr./år",
+            sources = personskat_kildeskat25a_kilder
+        )
+        anmodet_overførsel_kroner: Heltal,
+        @ field(
+            label = "Forsvarligt maksimum efter arbejdsindsatsen",
+            question = "Hvilket højeste årligt beløb står ikke i åbenbart misforhold til den medarbejdende ægtefælles arbejdsindsats?",
+            unit = "kr./år",
+            sources = personskat_kildeskat25a_kilder
+        )
+        arbejdsindsats_forsvarligt_maksimum_kroner: Heltal
+    ) |
+    Ksl25AStk7Lønaftale(fakta: Kildeskat25AStk7Fakta) |
+    Ksl25AStk8LigeligResultatfordeling(
+        @ field(
+            label = "Begge deltager væsentligt og ligeligt",
+            question = "Deltager begge ægtefæller i væsentligt og ligeligt omfang i virksomhedens drift?",
+            sources = personskat_kildeskat25a_kilder
+        )
+        begge_deltager_i_væsentligt_og_ligeligt_omfang: Boolsk,
+        @ field(
+            label = "Samme hæftelse for virksomhedens forpligtelser",
+            question = "Hæfter ægtefællerne i samme omfang for virksomhedens forpligtelser?",
+            sources = personskat_kildeskat25a_kilder
+        )
+        hæfter_i_samme_omfang: Boolsk,
+        @ field(
+            label = "Resultatfordeling anmodet",
+            question = "Har ægtefællerne anmodet om at fordele virksomhedens resultat mellem sig?",
+            sources = personskat_kildeskat25a_kilder
+        )
+        fordeling_anmodet: Boolsk,
+        @ field(
+            label = "Fordelingen er sagligt begrundet i driften",
+            question = "Kan den valgte resultatfordeling sagligt begrundes i virksomhedens drift?",
+            sources = personskat_kildeskat25a_kilder
+        )
+        fordeling_sagligt_begrundet_i_driften: Boolsk,
+        @ field(
+            label = "Den anden parts andel af resultatet",
+            question = "Hvor stor en andel skal henføres til den part, som virksomhedens kildeposter ikke er registreret hos?",
+            help = "Ved stk. 8 bruges kildeplaceringen kun som fordelingsanker. Angiv andelen i basispoint; 5.000 svarer til 50 procent.",
+            unit = "basispoint",
+            sources = personskat_kildeskat25a_kilder
+        )
+        anden_ægtefælles_fordelingsandel_basispoint: Heltal
+    )
 # Kildeskat25AVirksomhedsfordelingsinput(indkomstår: Heltal, samlevende_ved_indkomstårets_udgang: Boolsk, samliv_ophoert_i_indkomståret: Boolsk, virksomhedsresultat_efter_eventuel_løn: Kildeskat25AVirksomhedsbeløb, valg: Kildeskat25AVirksomhedsfordelingsvalg)
 # Kildeskat25AVirksomhedsfordelingsresultat(input: Kildeskat25AVirksomhedsfordelingsinput, stk3_resultat: Option(Kildeskat25AStk3Resultat), stk7_resultat: Option(Kildeskat25AStk7Resultat), grundfakta_gyldige: Boolsk, hjemmel_opfyldt: Boolsk, virksomhedsdriver: Kildeskat25AVirksomhedsbeløb, anden_ægtefælle: Kildeskat25AVirksomhedsbeløb, samlet_efter_fordeling: Kildeskat25AVirksomhedsbeløb)
 
@@ -857,3 +1028,15 @@ grænse, jf. stk. 4.
 
 | kildeskat_forskudsgrundlag_sidste_års_ændring: kildeskat_forskudsgrundlag_sidste_års_fixture -> kildeskat_forskudsgrundlag_sidste_års_fixture == KildeskatSidsteÅrsForskudsændring
 | kildeskat_forskudsgrundlag_kan_ændres_ved_sandsynliggjort_anmodning: kildeskat_forskudsændring_anmodning_fixture -> kildeskat_forskudsændring_anmodning_fixture == Sandt
+
+= skat_ksl25a_lønaftale_vejledning = KildeskatKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976891",
+    identifier = "Den juridiske vejledning C.A.8.4.1.3: Lønaftale",
+    hentet_dato = "2026-08-10"
+)
+
+= skat_ksl25a_medarbejdende_ægtefælle_vejledning = KildeskatKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976890",
+    identifier = "Den juridiske vejledning C.A.8.4.1.2: Fordeling efter reglen om medarbejdende ægtefælle",
+    hentet_dato = "2026-08-10"
+)

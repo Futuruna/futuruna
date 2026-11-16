@@ -218,13 +218,68 @@ medregnes til denne værdi.
 # Virksomhedsskattelov8FastEjendomsværdiansættelse = Vsl8KontantAnskaffelsessum | Vsl8AttendeAlmindeligeVurdering(vurdering_kroner: Heltal, ikke_medregnet_anskaffelsessum_for_ombygning_og_forbedringer_kroner: Heltal)
 # Virksomhedsskattelov8FastEjendomFakta(anskaffelsesår: Heltal, kontant_anskaffelsessum_kroner: Heltal, anskaffelsessum_for_ombygning_og_forbedringer_efter_anskaffelsen_kroner: Heltal, værdiansættelse: Virksomhedsskattelov8FastEjendomsværdiansættelse, boliganvendelse: Virksomhedsskattelov8Boliganvendelse)
 # Virksomhedsskattelov8ØvrigtAktivAnskaffelsesgrundlag = Vsl8Anskaffelsessum(anskaffelsessum_kroner: Heltal) | Vsl8KontantomregnetAnskaffelsessum(kontantværdi_kroner: Heltal)
+= personskat_vsl8_aktiv_kilder = [Source(value = virksomhedsskatteloven_lbk1836_par8)]
+@ field(
+    label = "Aktivets værdiansættelse",
+    question = "Efter hvilken § 8-kategori skal aktivet værdiansættes?",
+    sources = personskat_vsl8_aktiv_kilder
+)
 # Virksomhedsskattelov8Værdiansættelse = Vsl8FastEjendom(fakta: Virksomhedsskattelov8FastEjendomFakta) | Vsl8UdelukkendeErhvervsmæssigtDriftsmiddelEllerSkib(afskrivningsberettiget_saldoværdi_kroner: Heltal) | Vsl8DelvistErhvervsmæssigtDriftsmiddelEllerSkib(uafskrevet_erhvervsmæssigt_beløb_kroner: Heltal) | Vsl8AndenLøsøregenstand(handelsværdi_kroner: Heltal) | Vsl8Varelager(værdi_efter_varelagerloven_kroner: Heltal) | Vsl8Husdyrbesætning(værdi_efter_husdyrbesætningsloven_kroner: Heltal) | Vsl8ØvrigtAktiv(anskaffelsesgrundlag: Virksomhedsskattelov8ØvrigtAktivAnskaffelsesgrundlag, skattemæssige_afskrivninger_kroner: Heltal)
-# Virksomhedsskattelov8Aktiv(identifikation: Tekst, værdiansættelse: Virksomhedsskattelov8Værdiansættelse)
-# Virksomhedsskattelov8Gældspost(identifikation: Tekst, kursværdi_kroner: Heltal)
+# Virksomhedsskattelov8Aktiv(
+    @ field(
+        label = "Aktivets identifikation",
+        question = "Hvilken entydig identifikation har aktivet?",
+        sources = personskat_vsl8_aktiv_kilder
+    )
+    identifikation: Tekst,
+    værdiansættelse: Virksomhedsskattelov8Værdiansættelse
+)
+= personskat_vsl8_gæld_kilder = [
+    Source(value = virksomhedsskatteloven_lbk1836_par8),
+    DependencySource(value = virksomhedsskatteloven_lbk1836_par11a)
+]
+# Virksomhedsskattelov8Gældspost(
+    @ field(
+        label = "Gældspostens identifikation",
+        question = "Hvilken entydig identifikation har gældsposten?",
+        sources = personskat_vsl8_gæld_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Gældspostens kursværdi",
+        question = "Hvad er gældspostens kursværdi på opgørelsestidspunktet?",
+        unit = "kr.",
+        sources = personskat_vsl8_gæld_kilder
+    )
+    kursværdi_kroner: Heltal
+)
 # Virksomhedsskattelov8Privatoverførselsvirkning = Vsl8VirkningFraIndkomståretsBegyndelse | Vsl8VirkningSenereIIndkomståret
 # Virksomhedsskattelov8Privatoverførsel(identifikation: Tekst, beløb_kroner: Heltal, virkning: Virksomhedsskattelov8Privatoverførselsvirkning)
 # Virksomhedsskattelov8Fradragsposter(gældsposter: List(Virksomhedsskattelov8Gældspost), afsat_efter_par4_kroner: Heltal, afsat_efter_par10_stk1_kroner: Heltal, indestående_på_mellemregningskonto_efter_par4a_kroner: Heltal, tidligere_indkomstårs_beløb_omfattet_af_par4b_stk1_kroner: Heltal, overførsler_til_privatøkonomien: List(Virksomhedsskattelov8Privatoverførsel))
-# Virksomhedsskattelov8Input(indkomstår: Heltal, opgørelsestidspunkt: Virksomhedsskattelov8Opgørelsestidspunkt, aktiver: List(Virksomhedsskattelov8Aktiv), fradragsposter: Virksomhedsskattelov8Fradragsposter)
+# Virksomhedsskattelov8Input(
+    @ field(
+        label = "Virksomhedens indkomstår",
+        question = "Hvilket indkomstår vedrører afkastgrundlaget efter § 8?",
+        help = "Året skal være det samme som personskatteberegningens skatteår.",
+        unit = "år",
+        sources = personskat_vsl8_aktiv_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Tidspunkt for § 8-opgørelsen",
+        question = "Opgøres afkastgrundlaget ved indkomstårets begyndelse eller ved start af en ny virksomhed?",
+        sources = personskat_vsl8_aktiv_kilder
+    )
+    opgørelsestidspunkt: Virksomhedsskattelov8Opgørelsestidspunkt,
+    @ field(
+        label = "Aktiver i virksomhedsordningen",
+        question = "Hvilke aktiver indgår i afkastgrundlaget efter § 8?",
+        help = "Opret én række pr. aktiv; identifikationerne skal være entydige.",
+        sources = personskat_vsl8_aktiv_kilder
+    )
+    aktiver: List(Virksomhedsskattelov8Aktiv),
+    fradragsposter: Virksomhedsskattelov8Fradragsposter
+)
 # Virksomhedsskattelov8AktivResultat(aktiv: Virksomhedsskattelov8Aktiv, input_gyldigt: Boolsk, værdi_kroner: Heltal, er_nærtstående_bolig: Boolsk, gældsfordelingsgrundlag_kroner: Heltal)
 # Virksomhedsskattelov8NærtståendeBoligkorrektion = Vsl8IngenNærtståendeBoligkorrektion | Vsl8NærtståendeBoligkorrektion(aktiv_identifikation: Tekst, relation: Virksomhedsskattelov8Nærtståenderelation, ejendomsværdi_kroner: Heltal, gældsfordelingsgrundlag_kroner: Heltal, samlede_aktiver_kroner: Heltal, gæld_til_kursværdi_kroner: Heltal, henført_gældsandel_kroner: Heltal, forskel_til_fradrag_kroner: Heltal)
 # Virksomhedsskattelov8Resultat(input: Virksomhedsskattelov8Input, aktivresultater: List(Virksomhedsskattelov8AktivResultat), nærtstående_boligkorrektioner: List(Virksomhedsskattelov8NærtståendeBoligkorrektion), aktividentifikationer_entydige: Boolsk, gældsidentifikationer_entydige: Boolsk, overførselsidentifikationer_entydige: Boolsk, aktivinput_gyldige: Boolsk, fradragsposter_gyldige: Boolsk, nærtstående_gældsfordeling_mulig: Boolsk, input_gyldigt: Boolsk, samlede_aktiver_kroner: Heltal, gæld_til_kursværdi_kroner: Heltal, afsat_efter_par4_kroner: Heltal, afsat_efter_par10_stk1_kroner: Heltal, indestående_på_mellemregningskonto_efter_par4a_kroner: Heltal, tidligere_indkomstårs_beløb_omfattet_af_par4b_stk1_kroner: Heltal, overført_til_privatøkonomien_fra_indkomstårets_begyndelse_kroner: Heltal, nærtstående_boligforskelle_til_fradrag_kroner: Heltal, afkastgrundlag_før_validering_kroner: Heltal, afkastgrundlag_kroner: Heltal)
@@ -514,7 +569,24 @@ derefter til nærmeste hele procentsats. Satsen kan ikke være mindre end 0 pct.
 | virksomhedsskattelov9_og_9a_sag(indkomstår: Heltal) -> Virksomhedsskattelov9Og9ASag(indkomstår)
 | virksomhedsskattelov9_og_9a_resultat(indkomstår: Heltal) -> virksomhedsskattelov9_og_9a_sag(indkomstår).resultat()
 
-# Virksomhedsskattelov7KildeInput(par8_input: Virksomhedsskattelov8Input, skattepligtigt_overskud_kroner: Heltal, regnskabsperiode_hele_måneder: Heltal)
+# Virksomhedsskattelov7KildeInput(
+    par8_input: Virksomhedsskattelov8Input,
+    @ field(
+        label = "Skattepligtigt virksomhedsoverskud",
+        question = "Hvad er årets skattepligtige overskud, som kapitalafkastet efter § 7 højst kan udgøre?",
+        unit = "kr.",
+        sources = personskat_vsl8_aktiv_kilder
+    )
+    skattepligtigt_overskud_kroner: Heltal,
+    @ field(
+        label = "Regnskabsperiodens hele måneder",
+        question = "Hvor mange hele måneder omfatter virksomhedens regnskabsperiode?",
+        help = "Futuruna forholdsberegner kapitalafkastet, når perioden er kortere end 12 måneder.",
+        unit = "måneder",
+        sources = personskat_vsl8_aktiv_kilder
+    )
+    regnskabsperiode_hele_måneder: Heltal
+)
 # Virksomhedsskattelov7KildeResultat(input: Virksomhedsskattelov7KildeInput, par8_resultat: Virksomhedsskattelov8Resultat, par9_og_9a_resultat: Virksomhedsskattelov9Og9AResultat, par7_input: Virksomhedsskattelov7Input, par7_resultat: Virksomhedsskattelov7Resultat, input_gyldigt: Boolsk)
 # Virksomhedsskattelov7KildeSag(input: Virksomhedsskattelov7KildeInput) {
     | par8_resultat() -> virksomhedsskattelov8_resultat(input.par8_input)
@@ -600,11 +672,73 @@ Stk. 8. I kapitalafkastgrundlaget efter stk. 5 indgår ikke fast ejendom, der st
 | virksomhedsskattelov22a_sag(input: Virksomhedsskattelov22AInput) -> Virksomhedsskattelov22ASag(input)
 | virksomhedsskattelov22a_resultat(input: Virksomhedsskattelov22AInput) -> virksomhedsskattelov22a_sag(input).resultat()
 
-# Virksomhedsskattelov22AAnvendelse = Vsl22AUdelukkendeErhvervsmæssig | Vsl22ABlandetErhvervOgPrivatOmfattetAfPar1Stk3(erhvervsandel_basispoint: Heltal) | Vsl22AIkkeErhvervsmæssigEllerIkkeOmfattetAfPar1Stk3
+= personskat_vsl22a_aktiv_kilder = [Source(value = virksomhedsskatteloven_lbk1836_par22a)]
+@ field(
+    label = "Aktivets erhvervsmæssige anvendelse",
+    question = "Anvendes aktivet udelukkende erhvervsmæssigt, blandet efter § 1, stk. 3, eller ikke erhvervsmæssigt?",
+    sources = personskat_vsl22a_aktiv_kilder
+)
+# Virksomhedsskattelov22AAnvendelse =
+    Vsl22AUdelukkendeErhvervsmæssig |
+    Vsl22ABlandetErhvervOgPrivatOmfattetAfPar1Stk3(
+        @ field(
+            label = "Erhvervsmæssig andel",
+            question = "Hvor stor en andel af det blandet anvendte aktiv anvendes erhvervsmæssigt?",
+            unit = "basispoint; 10.000 = 100 pct.",
+            sources = personskat_vsl22a_aktiv_kilder
+        )
+        erhvervsandel_basispoint: Heltal
+    ) |
+    Vsl22AIkkeErhvervsmæssigEllerIkkeOmfattetAfPar1Stk3
 # Virksomhedsskattelov22AAktivkategori = Vsl22AAlmindeligtAktiv | Vsl22AVaredebitor | Vsl22AVarelager | Vsl22AIgangværendeArbejdeForFremmedRegning | Vsl22AVirksomhedBeskattetEfterPersonskattelov4Stk1Nr9 | Vsl22AVirksomhedBeskattetEfterPersonskattelov4Stk1Nr11 | Vsl22AKonkursindkomstEfterKonkursskattelov6 | Vsl22AKontantBeløb | Vsl22AAndenFordring | Vsl22AAndelIForeningEfterSelskabsskattelov1Stk1Nr3Eller4 | Vsl22AAndenAktieEllerFinansieltAktiv
-# Virksomhedsskattelov22AAktivværdi = Vsl22AVærdiEfterPar8Stk2(værdiansættelse: Virksomhedsskattelov8Værdiansættelse) | Vsl22AIgangværendeArbejdeNettoværdi(nettoværdi_kroner: Heltal)
-# Virksomhedsskattelov22AAktiv(identifikation: Tekst, kategori: Virksomhedsskattelov22AAktivkategori, anvendelse: Virksomhedsskattelov22AAnvendelse, værdi: Virksomhedsskattelov22AAktivværdi)
-# Virksomhedsskattelov22AVarekreditor(identifikation: Tekst, værdi_kroner: Heltal)
+@ field(
+    label = "Værdiopgørelse for § 22 a-aktivet",
+    question = "Skal aktivet værdiansættes efter § 8, stk. 2, eller som nettoværdi af igangværende arbejde?",
+    sources = personskat_vsl22a_aktiv_kilder
+)
+# Virksomhedsskattelov22AAktivværdi =
+    Vsl22AVærdiEfterPar8Stk2(værdiansættelse: Virksomhedsskattelov8Værdiansættelse) |
+    Vsl22AIgangværendeArbejdeNettoværdi(
+        @ field(
+            label = "Nettoværdi af igangværende arbejde",
+            question = "Hvad er nettoværdien af igangværende arbejde for fremmed regning?",
+            unit = "kr.",
+            sources = personskat_vsl22a_aktiv_kilder
+        )
+        nettoværdi_kroner: Heltal
+    )
+# Virksomhedsskattelov22AAktiv(
+    @ field(
+        label = "§ 22 a-aktivets identifikation",
+        question = "Hvilken entydig identifikation har aktivet?",
+        sources = personskat_vsl22a_aktiv_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "§ 22 a-aktivkategori",
+        question = "Hvilken lovbestemt kategori tilhører aktivet?",
+        help = "Kategorien afgør, om beløbet indgår direkte, i arbejdskapitalen eller skal udelades.",
+        sources = personskat_vsl22a_aktiv_kilder
+    )
+    kategori: Virksomhedsskattelov22AAktivkategori,
+    anvendelse: Virksomhedsskattelov22AAnvendelse,
+    værdi: Virksomhedsskattelov22AAktivværdi
+)
+# Virksomhedsskattelov22AVarekreditor(
+    @ field(
+        label = "Varekreditorens identifikation",
+        question = "Hvilken entydig identifikation har varekreditorposten?",
+        sources = personskat_vsl22a_aktiv_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Varekreditorens værdi",
+        question = "Hvilket beløb skal fragå i § 22 a-arbejdskapitalen?",
+        unit = "kr.",
+        sources = personskat_vsl22a_aktiv_kilder
+    )
+    værdi_kroner: Heltal
+)
 # Virksomhedsskattelov22AUdelukkelsesgrund = Vsl22AUgyldigtAktiv | Vsl22AIkkeErhvervsmæssigEfterStk5Eller6 | Vsl22APersonskattelov4Stk1Nr9 | Vsl22APersonskattelov4Stk1Nr11 | Vsl22AKonkursskattelov6 | Vsl22AKontantBeløbEfterStk7 | Vsl22AAndenFordringEfterStk7 | Vsl22AAndenAktieEllerFinansieltAktivEfterStk7 | Vsl22ANærtståendeBoligEfterStk8
 # Virksomhedsskattelov22AAktivbehandling = Vsl22ADirekteAfkastgrundlag | Vsl22AArbejdskapitalEfterStk7 | Vsl22AUdeladt(grund: Virksomhedsskattelov22AUdelukkelsesgrund)
 # Virksomhedsskattelov22AAktivResultat(aktiv: Virksomhedsskattelov22AAktiv, input_gyldigt: Boolsk, værdi_kroner: Heltal, erhvervsmæssig_værdi_kroner: Heltal, behandling: Virksomhedsskattelov22AAktivbehandling, direkte_afkastgrundlag_kroner: Heltal, arbejdskapitalværdi_kroner: Heltal)
@@ -612,7 +746,21 @@ Stk. 8. I kapitalafkastgrundlaget efter stk. 5 indgår ikke fast ejendom, der st
 # Virksomhedsskattelov22APersongrundlagResultat(grundlag: Virksomhedsskattelov22APersongrundlag, aktivresultater: List(Virksomhedsskattelov22AAktivResultat), aktividentifikationer_entydige: Boolsk, varekreditoridentifikationer_entydige: Boolsk, aktivinput_gyldige: Boolsk, varekreditorinput_gyldige: Boolsk, input_gyldigt: Boolsk, direkte_afkastgrundlag_kroner: Heltal, arbejdskapitalaktiver_kroner: Heltal, varekreditorer_kroner: Heltal, arbejdskapital_efter_stk7_kroner: Heltal, afkastgrundlag_før_validering_kroner: Heltal, afkastgrundlag_kroner: Heltal, personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner: Heltal, nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner: Heltal)
 # Virksomhedsskattelov22AÆgtefælle = Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang | Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(grundlag: Virksomhedsskattelov22APersongrundlag)
 # Virksomhedsskattelov22AÆgtefælleResultat = Vsl22AIngenÆgtefælleResultat | Vsl22AGiftOgSamlevendeÆgtefælleResultat(resultat: Virksomhedsskattelov22APersongrundlagResultat)
-# Virksomhedsskattelov22AVirksomhedsfordeling = Vsl22AÉnVirksomhed(drevet_af_person_identifikation: Tekst) | Vsl22AÆgtefællerDriverHverSinVirksomhed
+@ field(
+    label = "Virksomhedsfordeling mellem ægtefæller",
+    question = "Driver ægtefællerne hver sin virksomhed, eller driver én af dem den fælles virksomhed?",
+    sources = personskat_vsl22a_aktiv_kilder
+)
+# Virksomhedsskattelov22AVirksomhedsfordeling =
+    Vsl22AÉnVirksomhed(
+        @ field(
+            label = "Personen som driver den fælles virksomhed",
+            question = "Hvilken personidentifikation tilhører den ægtefælle, der driver virksomheden?",
+            sources = personskat_vsl22a_aktiv_kilder
+        )
+        drevet_af_person_identifikation: Tekst
+    ) |
+    Vsl22AÆgtefællerDriverHverSinVirksomhed
 # Virksomhedsskattelov22AFordelingResultat(person_identifikation: Tekst, afkastgrundlag_kroner: Heltal, kapitalafkast_kroner: Heltal, personlig_indkomst_fradrag_kroner: Heltal, kapitalindkomst_tillæg_kroner: Heltal)
 # Virksomhedsskattelov22AKildeInput(indkomstår: Heltal, skattepligtig: Virksomhedsskattelov22APersongrundlag, ægtefælle: Virksomhedsskattelov22AÆgtefælle, virksomhedsfordeling: Virksomhedsskattelov22AVirksomhedsfordeling, vælger_kapitalafkastordning: Boolsk, periode_hele_måneder: Heltal)
 # Virksomhedsskattelov22AKildeResultat(input: Virksomhedsskattelov22AKildeInput, skattepligtig_resultat: Virksomhedsskattelov22APersongrundlagResultat, ægtefælle_resultat: Virksomhedsskattelov22AÆgtefælleResultat, par9_og_9a_resultat: Virksomhedsskattelov9Og9AResultat, par22a_input: Virksomhedsskattelov22AInput, par22a_resultat: Virksomhedsskattelov22AResultat, input_gyldigt: Boolsk, ægtefællens_virksomhedsordning_udeladt: Boolsk, samlet_afkastgrundlag_kroner: Heltal, samlet_personlig_nettoindkomst_kroner: Heltal, samlet_nettokapitalindkomst_kroner: Heltal, skattepligtiges_kapitalafkast_kroner: Heltal, ægtefællens_kapitalafkast_kroner: Heltal, fordelinger: List(Virksomhedsskattelov22AFordelingResultat))
@@ -1451,7 +1599,104 @@ vederlag, den skattepligtige betaler for aktierne eller anparterne.
 | virksomhedsskattelov22c_sag(input: Virksomhedsskattelov22CInput) -> Virksomhedsskattelov22CSag(input)
 | virksomhedsskattelov22c_resultat(input: Virksomhedsskattelov22CInput) -> virksomhedsskattelov22c_sag(input).resultat()
 
-# Virksomhedsskattelov22CKildeInput(indkomstår: Heltal, vælger_kapitalafkastordning: Boolsk, fuld_skattepligt_og_hjemmehørende: Boolsk, kontantomregnet_vederlag_kroner: Heltal, ejerandel_basispoint: Heltal, stemmeværdi_basispoint: Heltal, ansatte_samlet_ejerandel_basispoint: Heltal, ansatte_samlet_stemmeværdi_basispoint: Heltal, ingen_ansat_råder_over_mere_end_50_pct_stemmer: Boolsk, selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering: Boolsk, aktier_ikke_omfattet_af_abl19b_eller_19c: Boolsk, ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto: Boolsk, ejet_i_mindre_end_11_år: Boolsk, ejerperiode_hele_måneder: Heltal)
+= personskat_vsl22c_kilder = [
+    Source(value = virksomhedsskatteloven_lbk1836_par22c),
+    RateSource(value = virksomhedsskatteloven_skatteministeriet_satser_par22c_par23a)
+]
+# Virksomhedsskattelov22CKildeInput(
+    @ field(
+        label = "Indkomstår for § 22 c",
+        question = "Hvilket indkomstår vedrører medarbejderaktierne?",
+        unit = "år",
+        sources = personskat_vsl22c_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Valg af § 22 c-ordningen",
+        question = "Vælger personen kapitalafkastordningen for medarbejderaktierne?",
+        sources = personskat_vsl22c_kilder
+    )
+    vælger_kapitalafkastordning: Boolsk,
+    @ field(
+        label = "Fuld skattepligt og skattemæssigt hjemsted",
+        question = "Er personen fuldt skattepligtig og skattemæssigt hjemmehørende i Danmark?",
+        sources = personskat_vsl22c_kilder
+    )
+    fuld_skattepligt_og_hjemmehørende: Boolsk,
+    @ field(
+        label = "Kontantomregnet vederlag for aktierne",
+        question = "Hvad er det kontantomregnede vederlag for aktierne eller anparterne?",
+        help = "Futuruna udleder selv årets regulerede beløbsgrænse.",
+        unit = "kr.",
+        sources = personskat_vsl22c_kilder
+    )
+    kontantomregnet_vederlag_kroner: Heltal,
+    @ field(
+        label = "Personens ejerandel",
+        question = "Hvor stor en ejerandel har personen?",
+        unit = "basispoint; 10.000 = 100 pct.",
+        sources = personskat_vsl22c_kilder
+    )
+    ejerandel_basispoint: Heltal,
+    @ field(
+        label = "Personens stemmeandel",
+        question = "Hvor stor en andel af stemmerne råder personen over?",
+        unit = "basispoint; 10.000 = 100 pct.",
+        sources = personskat_vsl22c_kilder
+    )
+    stemmeværdi_basispoint: Heltal,
+    @ field(
+        label = "Ansattes samlede ejerandel",
+        question = "Hvor stor en ejerandel har de omfattede ansatte tilsammen?",
+        unit = "basispoint; 10.000 = 100 pct.",
+        sources = personskat_vsl22c_kilder
+    )
+    ansatte_samlet_ejerandel_basispoint: Heltal,
+    @ field(
+        label = "Ansattes samlede stemmeandel",
+        question = "Hvor stor en andel af stemmerne råder de omfattede ansatte tilsammen over?",
+        unit = "basispoint; 10.000 = 100 pct.",
+        sources = personskat_vsl22c_kilder
+    )
+    ansatte_samlet_stemmeværdi_basispoint: Heltal,
+    @ field(
+        label = "Ingen ansat råder over stemmeflertal",
+        question = "Er betingelsen opfyldt, at ingen af de omfattede ansatte råder over mere end 50 pct. af stemmerne?",
+        sources = personskat_vsl22c_kilder
+    )
+    ingen_ansat_råder_over_mere_end_50_pct_stemmer: Boolsk,
+    @ field(
+        label = "Selskabet opfylder aktivitetskravet",
+        question = "Er selskabets virksomhed uden for de udelukkede områder passiv kapitalanbringelse, værdipapirnæring og finansiering?",
+        sources = personskat_vsl22c_kilder
+    )
+    selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering: Boolsk,
+    @ field(
+        label = "Aktierne er uden for ABL §§ 19 B og 19 C",
+        question = "Er aktierne eller anparterne ikke omfattet af aktieavancebeskatningslovens §§ 19 B eller 19 C?",
+        sources = personskat_vsl22c_kilder
+    )
+    aktier_ikke_omfattet_af_abl19b_eller_19c: Boolsk,
+    @ field(
+        label = "Aktierne er ikke erhvervet ved udelukket omstrukturering",
+        question = "Er aktierne ikke erhvervet ved de i § 22 c udelukkede omdannelser, aktieombytninger eller etableringskontomidler?",
+        sources = personskat_vsl22c_kilder
+    )
+    ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto: Boolsk,
+    @ field(
+        label = "Ejet i mindre end 11 år",
+        question = "Har personen ejet aktierne i mindre end 11 år?",
+        sources = personskat_vsl22c_kilder
+    )
+    ejet_i_mindre_end_11_år: Boolsk,
+    @ field(
+        label = "Ejerperiodens hele måneder",
+        question = "Hvor mange hele måneder i året var aktierne ejet?",
+        unit = "måneder",
+        sources = personskat_vsl22c_kilder
+    )
+    ejerperiode_hele_måneder: Heltal
+)
 # Virksomhedsskattelov22CKildeResultat(input: Virksomhedsskattelov22CKildeInput, par9_og_9a_resultat: Virksomhedsskattelov9Og9AResultat, reguleret_beløbsgrænse_kroner: Heltal, par22c_input: Virksomhedsskattelov22CInput, par22c_resultat: Virksomhedsskattelov22CResultat, input_gyldigt: Boolsk, ordningen_anvendes: Boolsk, kapitalafkast_kroner: Heltal, personlig_indkomst_fradrag_kroner: Heltal, kapitalindkomst_tillæg_kroner: Heltal)
 
 | virksomhedsskattelov22c_reguleret_beløbsgrænse_kroner(indkomstår: Heltal): Int -> 0
@@ -1688,7 +1933,72 @@ indkomstår.
 | virksomhedsskattelov11_sag(input: Virksomhedsskattelov11Input) -> Virksomhedsskattelov11Sag(input)
 | virksomhedsskattelov11_resultat(input: Virksomhedsskattelov11Input) -> virksomhedsskattelov11_sag(input).resultat()
 
-# Virksomhedsskattelov11KildeInput(indkomstår: Heltal, negativ_indskudskonto_start_eller_primo_abs_kroner: Heltal, negativ_indskudskonto_ultimo_abs_kroner: Heltal, negativt_afkastgrundlag_start_eller_primo_abs_kroner: Heltal, negativt_afkastgrundlag_ultimo_abs_kroner: Heltal, nettofinansieringsudgifter_efter_kursgevinstlov_kroner: Heltal, overført_efter_par5_stk1_nr5_og_stk2_kroner: Heltal, indskud_efter_par3_stk1_kroner: Heltal)
+= personskat_vsl11_kilder = [
+    Source(value = virksomhedsskatteloven_lbk1836_par11),
+    RateSource(value = virksomhedsskatteloven_lbk1836_par9_par9a)
+]
+# Virksomhedsskattelov11KildeInput(
+    @ field(
+        label = "Indkomstår for rentekorrektion",
+        question = "Hvilket indkomstår vedrører rentekorrektionen?",
+        unit = "år",
+        sources = personskat_vsl11_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Negativ indskudskonto ved start eller primo",
+        question = "Hvad er den talmæssige størrelse af en negativ indskudskonto ved ordningens start eller årets begyndelse?",
+        help = "Angiv 0, hvis saldoen ikke er negativ.",
+        unit = "kr.",
+        sources = personskat_vsl11_kilder
+    )
+    negativ_indskudskonto_start_eller_primo_abs_kroner: Heltal,
+    @ field(
+        label = "Negativ indskudskonto ultimo",
+        question = "Hvad er den talmæssige størrelse af en negativ indskudskonto ved årets udløb?",
+        help = "Angiv 0, hvis saldoen ikke er negativ.",
+        unit = "kr.",
+        sources = personskat_vsl11_kilder
+    )
+    negativ_indskudskonto_ultimo_abs_kroner: Heltal,
+    @ field(
+        label = "Negativt afkastgrundlag ved start eller primo",
+        question = "Hvad er den talmæssige størrelse af et negativt § 8-afkastgrundlag ved start eller primo?",
+        help = "Angiv 0, hvis grundlaget ikke er negativt.",
+        unit = "kr.",
+        sources = personskat_vsl11_kilder
+    )
+    negativt_afkastgrundlag_start_eller_primo_abs_kroner: Heltal,
+    @ field(
+        label = "Negativt afkastgrundlag ultimo",
+        question = "Hvad er den talmæssige størrelse af et negativt § 8-afkastgrundlag ved årets udløb?",
+        help = "Angiv 0, hvis grundlaget ikke er negativt.",
+        unit = "kr.",
+        sources = personskat_vsl11_kilder
+    )
+    negativt_afkastgrundlag_ultimo_abs_kroner: Heltal,
+    @ field(
+        label = "Nettofinansieringsudgifter",
+        question = "Hvor store er virksomhedens nettorenteudgifter forhøjet med kurstab og nedsat med skattepligtige kursgevinster?",
+        unit = "kr.",
+        sources = personskat_vsl11_kilder
+    )
+    nettofinansieringsudgifter_efter_kursgevinstlov_kroner: Heltal,
+    @ field(
+        label = "Overførte værdier efter § 5",
+        question = "Hvor store værdier blev overført efter § 5, stk. 1, nr. 5, og stk. 2?",
+        unit = "kr.",
+        sources = personskat_vsl11_kilder
+    )
+    overført_efter_par5_stk1_nr5_og_stk2_kroner: Heltal,
+    @ field(
+        label = "Indskud efter § 3, stk. 1",
+        question = "Hvor stort indskud blev foretaget efter § 3, stk. 1, i samme indkomstår?",
+        unit = "kr.",
+        sources = personskat_vsl11_kilder
+    )
+    indskud_efter_par3_stk1_kroner: Heltal
+)
 # Virksomhedsskattelov11KildeResultat(input: Virksomhedsskattelov11KildeInput, par9_og_9a_resultat: Virksomhedsskattelov9Og9AResultat, par11_input: Virksomhedsskattelov11Input, par11_resultat: Virksomhedsskattelov11Resultat, input_gyldigt: Boolsk)
 
 # Virksomhedsskattelov11KildeSag(input: Virksomhedsskattelov11KildeInput) {
@@ -1777,9 +2087,49 @@ indkomst og fradrages i kapitalindkomsten for det pågældende indkomstår.
 @ section virksomhedsskatteloven_par11a {
 
 # Virksomhedsskattelov11AOpgørelsestidspunkt = Vsl11AVirksomhedsordningensStart | Vsl11AIndkomståretsBegyndelse | Vsl11AIndkomståretsUdløb
-# Virksomhedsskattelov11AFormuefakta(tidspunkt: Virksomhedsskattelov11AOpgørelsestidspunkt, aktiver: List(Virksomhedsskattelov8Aktiv), gældsposter: List(Virksomhedsskattelov8Gældspost))
+= personskat_vsl11a_formue_kilder = [
+    Source(value = virksomhedsskatteloven_lbk1836_par11a),
+    DependencySource(value = virksomhedsskatteloven_lbk1836_par8)
+]
+# Virksomhedsskattelov11AFormuefakta(
+    @ field(
+        label = "Tidspunkt for § 11 a-formueopgørelsen",
+        question = "Er dette opgørelsen ved virksomhedsordningens start, indkomstårets begyndelse eller indkomstårets udløb?",
+        sources = personskat_vsl11a_formue_kilder
+    )
+    tidspunkt: Virksomhedsskattelov11AOpgørelsestidspunkt,
+    @ field(
+        label = "Aktiver i § 11 a-formueopgørelsen",
+        question = "Hvilke aktiver indgår på dette opgørelsestidspunkt?",
+        help = "Mindst ét aktiv skal være en bolig stillet til rådighed for den nærtstående personkreds i § 11 a.",
+        sources = personskat_vsl11a_formue_kilder
+    )
+    aktiver: List(Virksomhedsskattelov8Aktiv),
+    @ field(
+        label = "Gæld til kursværdi i § 11 a-formueopgørelsen",
+        question = "Hvilke gældsposter indgår på dette opgørelsestidspunkt?",
+        help = "Opret én række pr. gældspost med en entydig identifikation.",
+        sources = personskat_vsl11a_formue_kilder
+    )
+    gældsposter: List(Virksomhedsskattelov8Gældspost)
+)
 # Virksomhedsskattelov11AFormueresultat(fakta: Virksomhedsskattelov11AFormuefakta, input_gyldigt: Boolsk, samlede_aktiver_kroner: Heltal, nærtstående_boligaktiver_kroner: Heltal, gæld_til_kursværdi_kroner: Heltal, gæld_efter_par11_stk1_grundlag_kroner: Heltal, nærtstående_gældsandel_kroner: Heltal, nærtstående_nettofinansieringsandel_kroner: Heltal)
-# Virksomhedsskattelov11AKildeInput(indkomstår: Heltal, start_eller_primo: Virksomhedsskattelov11AFormuefakta, ultimo: Virksomhedsskattelov11AFormuefakta, par11_input: Virksomhedsskattelov11KildeInput)
+# Virksomhedsskattelov11AKildeInput(
+    @ field(
+        label = "Indkomstår for § 11 a-rentekorrektion",
+        question = "Hvilket indkomstår vedrører boligen, der er stillet til rådighed for nærtstående?",
+        unit = "år",
+        sources = [
+            Source(value = virksomhedsskatteloven_lbk1836_par11a),
+            DependencySource(value = virksomhedsskatteloven_lbk1836_par11),
+            RateSource(value = virksomhedsskatteloven_lbk1836_par9_par9a)
+        ]
+    )
+    indkomstår: Heltal,
+    start_eller_primo: Virksomhedsskattelov11AFormuefakta,
+    ultimo: Virksomhedsskattelov11AFormuefakta,
+    par11_input: Virksomhedsskattelov11KildeInput
+)
 # Virksomhedsskattelov11AKildeResultat(input: Virksomhedsskattelov11AKildeInput, par11_resultat: Virksomhedsskattelov11KildeResultat, start_eller_primo: Virksomhedsskattelov11AFormueresultat, ultimo: Virksomhedsskattelov11AFormueresultat, opgørelsestidspunkter_gyldige: Boolsk, nærtstående_ejendomme_ens: Boolsk, input_gyldigt: Boolsk, største_nærtstående_gældsandel_kroner: Heltal, rentekorrektion_før_loft_kroner: Heltal, nettofinansieringsandelsloft_kroner: Heltal, loft_efter_par11_stk1_kroner: Heltal, rentekorrektion_kroner: Heltal, personlig_indkomst_tillæg_kroner: Heltal, kapitalindkomst_fradrag_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 
 | virksomhedsskattelov11a_nærtstående_aktiver(fakta: Virksomhedsskattelov11AFormuefakta) -> filter(fakta.aktiver, virksomhedsskattelov8_aktiv_er_nærtstående_bolig)

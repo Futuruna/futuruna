@@ -93,10 +93,94 @@ vederlag ikke skal medregnes ved opgørelsen af den skattepligtige indkomst.
 @ meta(ambl_par2_nr5_lovmetadata)
 @ section arbejdsmarkedsbidragsloven_par2_stk1_nr5 {
 
-# AmblPar2Nr5Betingelse = AmblNr5BetingelseDokumenteret(dokumentreference: Tekst) | AmblNr5BetingelseIkkeOpfyldt | AmblNr5BetingelseUafklaret
-# AmblPar2Nr5Arbejdsgiverrelation = AmblNr5SammeArbejdsgiver(dokumentreference: Tekst) | AmblNr5ForbundneArbejdsgivere(dokumentreference: Tekst) | AmblNr5IkkeSammeEllerForbundneArbejdsgivere | AmblNr5ArbejdsgiverrelationUafklaret
-# AmblPar2Nr5Beløbsgrænse = AmblNr5DokumenteretMaksimum(maksimum_kroner: Heltal, dokumentreference: Tekst) | AmblNr5DokumenteretUdenBeløbsgrænse(dokumentreference: Tekst) | AmblNr5BeløbsgrænseUafklaret
-# AmblPar2Nr5Beløbsrammer(årsramme_identifikation: Tekst, dansk_grænse: AmblPar2Nr5Beløbsgrænse, ordningslandets_grænse: AmblPar2Nr5Beløbsgrænse)
+= ambl_par2_nr5_betingelse_kilder = [
+    Source(value = ambl_par2_nr5_lbk121),
+    DependencySource(value = ambl_par2_nr5_sverige_2003),
+    DependencySource(value = ambl_par2_nr5_sverige_2024),
+    DependencySource(value = ambl_par2_nr5_nederlandene),
+    DependencySource(value = ambl_par2_nr5_schweiz),
+    DependencySource(value = ambl_par2_nr5_storbritannien),
+    Guidance(value = ambl_par2_nr5_vejledning_ca12_2),
+    Guidance(value = ambl_par2_nr5_vejledning_ca10_3_3)
+]
+# AmblPar2Nr5Betingelse =
+    AmblNr5BetingelseDokumenteret(
+        @ field(
+            label = "Dokumentation for betingelsen",
+            question = "Hvilken kontrollerbar reference dokumenterer betingelsen?",
+            help = "Angiv eksempelvis en kontrakt, pensionsopgørelse, myndighedsgodkendelse eller skatteresidensreference.",
+            sources = ambl_par2_nr5_betingelse_kilder
+        )
+        dokumentreference: Tekst
+    ) |
+    AmblNr5BetingelseIkkeOpfyldt |
+    AmblNr5BetingelseUafklaret
+# AmblPar2Nr5Arbejdsgiverrelation =
+    AmblNr5SammeArbejdsgiver(
+        @ field(
+            label = "Dokumentation for samme arbejdsgiver",
+            question = "Hvilken reference dokumenterer, at arbejdsgiveren er den samme?",
+            help = "Angiv eksempelvis ansættelseskontrakter før og efter flytningen.",
+            sources = ambl_par2_nr5_betingelse_kilder
+        )
+        dokumentreference: Tekst
+    ) |
+    AmblNr5ForbundneArbejdsgivere(
+        @ field(
+            label = "Dokumentation for forbundne arbejdsgivere",
+            question = "Hvilken reference dokumenterer forbindelsen mellem arbejdsgiverne?",
+            help = "Angiv eksempelvis en koncernstruktur eller anden dokumenteret kontrolrelation.",
+            sources = ambl_par2_nr5_betingelse_kilder
+        )
+        dokumentreference: Tekst
+    ) |
+    AmblNr5IkkeSammeEllerForbundneArbejdsgivere |
+    AmblNr5ArbejdsgiverrelationUafklaret
+@ field(
+    label = "Beløbsgrænsens type",
+    question = "Er beløbsrammen et dokumenteret maksimum, dokumenteret uden beløbsgrænse eller uafklaret?",
+    help = "Begge landes beløbsrammer skal dokumenteres; den laveste ramme anvendes.",
+    sources = ambl_par2_nr5_betingelse_kilder
+)
+# AmblPar2Nr5Beløbsgrænse =
+    AmblNr5DokumenteretMaksimum(
+        @ field(
+            label = "Dokumenteret maksimumbeløb",
+            question = "Hvad er det dokumenterede maksimum for denne pensionsordning?",
+            help = "Angiv maksimum for det relevante land, den relevante ordning og indkomståret.",
+            unit = "kr.",
+            sources = ambl_par2_nr5_betingelse_kilder
+        )
+        maksimum_kroner: Heltal,
+        @ field(
+            label = "Dokumentation for maksimumbeløbet",
+            question = "Hvilken kilde dokumenterer maksimumbeløbet?",
+            help = "Angiv en afgørelse, satskilde eller anden kontrollerbar reference.",
+            sources = ambl_par2_nr5_betingelse_kilder
+        )
+        dokumentreference: Tekst
+    ) |
+    AmblNr5DokumenteretUdenBeløbsgrænse(
+        @ field(
+            label = "Dokumentation for ordning uden beløbsgrænse",
+            question = "Hvilken kilde dokumenterer, at ordningen ikke har en beløbsgrænse?",
+            help = "Angiv en kontrollerbar reference til ordningens skattebehandling.",
+            sources = ambl_par2_nr5_betingelse_kilder
+        )
+        dokumentreference: Tekst
+    ) |
+    AmblNr5BeløbsgrænseUafklaret
+# AmblPar2Nr5Beløbsrammer(
+    @ field(
+        label = "Årsrammens identifikation",
+        question = "Hvilken stabil identifikation har den fælles årlige beløbsramme?",
+        help = "Brug samme identifikation for alle årets indbetalinger, der deler de samme dokumenterede danske og udenlandske beløbsgrænser. Futuruna anvender da loftet én gang på tværs af indbetalingerne.",
+        sources = ambl_par2_nr5_betingelse_kilder
+    )
+    årsramme_identifikation: Tekst,
+    dansk_grænse: AmblPar2Nr5Beløbsgrænse,
+    ordningslandets_grænse: AmblPar2Nr5Beløbsgrænse
+)
 
 | ambl_par2_nr5_betingelse_input_gyldig(betingelse: AmblPar2Nr5Betingelse) -> match betingelse {
     | AmblNr5BetingelseDokumenteret(dokumentreference) -> dokumentreference != ""
@@ -197,8 +281,63 @@ indkomstskatteloven (1999:1229).
 @ section ambl_par2_nr5_sverige {
 
 # AmblPar2Nr5SverigeAftaleversion = AmblNr5SverigeAftale2003 | AmblNr5SverigeAftale2024 | AmblNr5SverigeUdenKildedækning
-# AmblPar2Nr5SvenskOrdning = AmblNr5SvenskOrdningKapitel28(dokumentreference: Tekst) | AmblNr5SvenskOrdningKapitel58(dokumentreference: Tekst) | AmblNr5SvenskOrdningIkkeAnerkendt | AmblNr5SvenskOrdningUafklaret
-# AmblPar2Nr5SvenskPersonstatus = AmblNr5SvenskGrænsegænger(hjemmehørende_i_sverige: AmblPar2Nr5Betingelse, arbejder_og_beskattes_i_danmark: AmblPar2Nr5Betingelse, dansk_nettoindkomst_kroner: Heltal, samlet_nettoindkomst_kroner: Heltal) | AmblNr5SvenskTilflytter(hjemmehørende_i_danmark: AmblPar2Nr5Betingelse, deltog_og_bidrog_umiddelbart_før: AmblPar2Nr5Betingelse) | AmblNr5SvenskPersonIkkeOmfattet | AmblNr5SvenskPersonstatusUafklaret
+@ field(
+    label = "Svensk pensionsordning",
+    question = "Hvilken dokumenteret svensk pensionsordning er indbetalingen foretaget til?",
+    help = "Ordningen skal være omfattet af kapitel 28 eller 58 i den svenske indkomstskattelov.",
+    sources = ambl_par2_nr5_betingelse_kilder
+)
+# AmblPar2Nr5SvenskOrdning =
+    AmblNr5SvenskOrdningKapitel28(
+        @ field(
+            label = "Dokumentation for svensk kapitel 28-ordning",
+            question = "Hvilken reference dokumenterer, at ordningen er omfattet af kapitel 28?",
+            help = "Angiv pensionsudbyderens eller myndighedens kontrollerbare reference.",
+            sources = ambl_par2_nr5_betingelse_kilder
+        )
+        dokumentreference: Tekst
+    ) |
+    AmblNr5SvenskOrdningKapitel58(
+        @ field(
+            label = "Dokumentation for svensk kapitel 58-ordning",
+            question = "Hvilken reference dokumenterer, at ordningen er omfattet af kapitel 58?",
+            help = "Angiv pensionsudbyderens eller myndighedens kontrollerbare reference.",
+            sources = ambl_par2_nr5_betingelse_kilder
+        )
+        dokumentreference: Tekst
+    ) |
+    AmblNr5SvenskOrdningIkkeAnerkendt |
+    AmblNr5SvenskOrdningUafklaret
+@ field(
+    label = "Svensk grænsegænger- eller tilflytterstatus",
+    question = "Er personen svensk grænsegænger, tilflytter til Danmark eller ikke omfattet?",
+    help = "Status afgør, om 75-procentsprøven eller kravet om tidligere pensionsdeltagelse anvendes.",
+    sources = ambl_par2_nr5_betingelse_kilder
+)
+# AmblPar2Nr5SvenskPersonstatus =
+    AmblNr5SvenskGrænsegænger(
+        hjemmehørende_i_sverige: AmblPar2Nr5Betingelse,
+        arbejder_og_beskattes_i_danmark: AmblPar2Nr5Betingelse,
+        @ field(
+            label = "Dansk nettoarbejdsindkomst",
+            question = "Hvor stor er nettoindkomsten fra arbejde, som kan beskattes i Danmark?",
+            help = "Beløbet er tæller i grænsegængeraftalens 75-procentsprøve.",
+            unit = "kr.",
+            sources = ambl_par2_nr5_betingelse_kilder
+        )
+        dansk_nettoindkomst_kroner: Heltal,
+        @ field(
+            label = "Samlet nettoarbejdsindkomst",
+            question = "Hvor stor er personens samlede nettoindkomst fra erhverv og arbejde?",
+            help = "Beløbet er nævner i grænsegængeraftalens 75-procentsprøve.",
+            unit = "kr.",
+            sources = ambl_par2_nr5_betingelse_kilder
+        )
+        samlet_nettoindkomst_kroner: Heltal
+    ) |
+    AmblNr5SvenskTilflytter(hjemmehørende_i_danmark: AmblPar2Nr5Betingelse, deltog_og_bidrog_umiddelbart_før: AmblPar2Nr5Betingelse) |
+    AmblNr5SvenskPersonIkkeOmfattet |
+    AmblNr5SvenskPersonstatusUafklaret
 # AmblPar2Nr5Sverigefakta(ordning: AmblPar2Nr5SvenskOrdning, personstatus: AmblPar2Nr5SvenskPersonstatus, beløbsrammer: AmblPar2Nr5Beløbsrammer)
 
 | ambl_par2_nr5_sverige_aftaleversion_for(indkomstår: Heltal): AmblPar2Nr5SverigeAftaleversion -> AmblNr5SverigeUdenKildedækning
@@ -308,7 +447,60 @@ anerkendt i denne stat.
 @ meta(ambl_par2_nr5_schweiz_metadata)
 @ section ambl_par2_nr5_schweiz {
 
-# AmblPar2Nr5SchweiziskOrdning = AmblNr5SchweizAldersOgEfterladteforsikring(dokumentreference: Tekst) | AmblNr5SchweizInvalideforsikring(dokumentreference: Tekst) | AmblNr5SchweizSupplerendePension(dokumentreference: Tekst) | AmblNr5SchweizBeskæftigelsesrelateretPension(dokumentreference: Tekst) | AmblNr5SchweizIndividuelOrdningEfterPar82(dokumentreference: Tekst) | AmblNr5SchweizAndenOrdning | AmblNr5SchweizOrdningUafklaret
+@ field(
+    label = "Schweizisk pensionsordning",
+    question = "Hvilken dokumenteret schweizisk pensionsordning er indbetalingen foretaget til?",
+    help = "Ordningstypen skal være en af de ordninger, som overenskomsten og vejledningen anerkender.",
+    sources = ambl_par2_nr5_betingelse_kilder
+)
+# AmblPar2Nr5SchweiziskOrdning =
+    AmblNr5SchweizAldersOgEfterladteforsikring(
+        @ field(
+            label = "Dokumentation for alders- og efterladteforsikring",
+            question = "Hvilken reference dokumenterer den schweiziske alders- og efterladteforsikring?",
+            help = "Angiv en kontrollerbar ordnings- eller myndighedsreference.",
+            sources = ambl_par2_nr5_betingelse_kilder
+        )
+        dokumentreference: Tekst
+    ) |
+    AmblNr5SchweizInvalideforsikring(
+        @ field(
+            label = "Dokumentation for invalideforsikring",
+            question = "Hvilken reference dokumenterer den schweiziske invalideforsikring?",
+            help = "Angiv en kontrollerbar ordnings- eller myndighedsreference.",
+            sources = ambl_par2_nr5_betingelse_kilder
+        )
+        dokumentreference: Tekst
+    ) |
+    AmblNr5SchweizSupplerendePension(
+        @ field(
+            label = "Dokumentation for supplerende pension",
+            question = "Hvilken reference dokumenterer den schweiziske supplerende pensionsordning?",
+            help = "Angiv en kontrollerbar ordnings- eller myndighedsreference.",
+            sources = ambl_par2_nr5_betingelse_kilder
+        )
+        dokumentreference: Tekst
+    ) |
+    AmblNr5SchweizBeskæftigelsesrelateretPension(
+        @ field(
+            label = "Dokumentation for beskæftigelsesrelateret pension",
+            question = "Hvilken reference dokumenterer den schweiziske beskæftigelsesrelaterede pensionsordning?",
+            help = "Angiv en kontrollerbar ordnings- eller myndighedsreference.",
+            sources = ambl_par2_nr5_betingelse_kilder
+        )
+        dokumentreference: Tekst
+    ) |
+    AmblNr5SchweizIndividuelOrdningEfterPar82(
+        @ field(
+            label = "Dokumentation for individuel ordning efter artikel 82",
+            question = "Hvilken reference dokumenterer den schweiziske individuelle ordning efter artikel 82?",
+            help = "Angiv en kontrollerbar ordnings- eller myndighedsreference.",
+            sources = ambl_par2_nr5_betingelse_kilder
+        )
+        dokumentreference: Tekst
+    ) |
+    AmblNr5SchweizAndenOrdning |
+    AmblNr5SchweizOrdningUafklaret
 # AmblPar2Nr5Schweizfakta(ordning: AmblPar2Nr5SchweiziskOrdning, skattemæssigt_anerkendt_i_schweiz: AmblPar2Nr5Betingelse, godkendt_sammenlignelig_i_danmark: AmblPar2Nr5Betingelse, yder_personligt_arbejde_i_danmark: AmblPar2Nr5Betingelse, ikke_hjemmehørende_i_danmark_umiddelbart_før: AmblPar2Nr5Betingelse, deltog_umiddelbart_før_arbejde_i_danmark: AmblPar2Nr5Betingelse, beløbsrammer: AmblPar2Nr5Beløbsrammer)
 
 | ambl_par2_nr5_schweizisk_ordning_input_gyldig(ordning: AmblPar2Nr5SchweiziskOrdning) -> match ordning {
@@ -414,10 +606,50 @@ stk. 1, nr. 5.
 @ meta(ambl_par2_nr5_samordning_metadata)
 @ section ambl_par2_nr5_dbo_samordning {
 
+@ field(
+    label = "Land og dobbeltbeskatningsoverenskomst",
+    question = "Hvilken dobbeltbeskatningsoverenskomst skal pensionsindbetalingen vurderes efter?",
+    help = "AMBL § 2, stk. 1, nr. 5 anvendes her for Nederlandene, Schweiz, Sverige og Storbritannien.",
+    sources = ambl_par2_nr5_betingelse_kilder
+)
 # AmblPar2Nr5DboGrundlag = AmblNr5Sverige(fakta: AmblPar2Nr5Sverigefakta) | AmblNr5Nederlandene(fakta: AmblPar2Nr5Nederlandefakta) | AmblNr5Schweiz(fakta: AmblPar2Nr5Schweizfakta) | AmblNr5Storbritannien(fakta: AmblPar2Nr5Storbritannienfakta)
-# AmblPar2Nr5Indbetalingsfakta(identifikation: Tekst, indkomstår: Heltal, indbetalingsdato: Dato, arbejdsgiverindbetaling_kroner: Heltal, dbo_grundlag: AmblPar2Nr5DboGrundlag)
+# AmblPar2Nr5Indbetalingsfakta(
+    @ field(
+        label = "Indbetalingens identifikation",
+        question = "Hvilken entydig identifikation har arbejdsgiverens pensionsindbetaling?",
+        help = "Brug en stabil reference fra lønseddel, pensionsopgørelse eller anden dokumentation.",
+        sources = ambl_par2_nr5_betingelse_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Indkomstår for indbetalingen",
+        question = "I hvilket indkomstår blev pensionsindbetalingen foretaget?",
+        help = "Indkomståret skal svare til skatteåret i den samlede Personskat-beregning.",
+        unit = "år",
+        sources = ambl_par2_nr5_betingelse_kilder
+    )
+    indkomstår: Heltal,
+    indbetalingsdato: Dato,
+    @ field(
+        label = "Arbejdsgiverens pensionsindbetaling",
+        question = "Hvor meget indbetalte arbejdsgiveren til den udenlandske pensionsordning?",
+        help = "Angiv hele arbejdsgiverindbetalingen før opdeling efter overenskomstens beløbsgrænser.",
+        unit = "kr.",
+        sources = ambl_par2_nr5_betingelse_kilder
+    )
+    arbejdsgiverindbetaling_kroner: Heltal,
+    dbo_grundlag: AmblPar2Nr5DboGrundlag
+)
 # AmblPar2Nr5Indbetalingsresultat(fakta: AmblPar2Nr5Indbetalingsfakta, fakta_gyldige: Boolsk, dbo_betingelser_opfyldt: Boolsk, tidligere_anvendt_årsramme_kroner: Heltal, fælles_bortseelsesramme_kroner: Heltal, ikke_skattepligtig_efter_dbo_kroner: Heltal, skattepligtig_arbejdsgiverindbetaling_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr5_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr1_kroner: Heltal)
-# AmblPar2Nr5Årsgrundlag(indbetalinger: List(AmblPar2Nr5Indbetalingsfakta))
+# AmblPar2Nr5Årsgrundlag(
+    @ field(
+        label = "Arbejdsgiverindbetalinger til udenlandske pensionsordninger",
+        question = "Hvilke arbejdsgiverindbetalinger til udenlandske pensionsordninger skal vurderes efter en dobbeltbeskatningsoverenskomst?",
+        help = "Tilføj én række pr. indbetaling. Futuruna udleder den ikke-skattepligtige del, den skattepligtige del og hvert arbejdsmarkedsbidragsgrundlag fra de dokumenterede kildefakta. Rækkefølgen afgør kun, hvilken række der bærer et eventuelt beløb over en delt årsramme; årssummerne er uændrede.",
+        sources = ambl_par2_nr5_betingelse_kilder
+    )
+    indbetalinger: List(AmblPar2Nr5Indbetalingsfakta)
+)
 # AmblPar2Nr5Fordelingstilstand(indbetalingsresultater: List(AmblPar2Nr5Indbetalingsresultat))
 # AmblPar2Nr5Årsresultat(indkomstår: Heltal, indbetalingsresultater: List(AmblPar2Nr5Indbetalingsresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_hører_til_indkomståret: Boolsk, årsrammer_konsistente: Boolsk, input_gyldigt: Boolsk, samlet_arbejdsgiverindbetaling_kroner: Heltal, samlet_ikke_skattepligtig_efter_dbo_kroner: Heltal, samlet_skattepligtig_arbejdsgiverindbetaling_kroner: Heltal, samlet_arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr5_kroner: Heltal, samlet_arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr1_kroner: Heltal)
 

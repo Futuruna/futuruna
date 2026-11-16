@@ -11,26 +11,6 @@
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
 -- XML: https://www.retsinformation.dk/eli/lta/2025/1500/dan/xml
 
-# Ligningslov33AKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
-
-= ligningsloven_lbk1500_par33a = Ligningslov33AKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
-    identifier = "Ligningsloven § 33 A i LBK nr. 1500 af 24/11/2025",
-    hentet_dato = "2026-08-08"
-)
-
-= ligningsloven_vejledning_par33a_stk1 = Ligningslov33AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1977314",
-    identifier = "Den juridiske vejledning 2026-1, C.F.4.2.1 Skattelempelse efter LL § 33 A, stk. 1",
-    hentet_dato = "2026-08-08"
-)
-
-= ligningsloven_vejledning_par33a_42_dages_regel = Ligningslov33AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1977320",
-    identifier = "Den juridiske vejledning 2026-1, C.F.4.2.2.4 42-dages-reglen",
-    hentet_dato = "2026-08-08"
-)
-
 = ligningsloven_vejledning_par33a_ophold_uden_for_riget = Ligningslov33AKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1977318",
     identifier = "Den juridiske vejledning 2026-1, C.F.4.2.2.2 Ophold uden for riget",
@@ -40,42 +20,6 @@
 = ligningsloven_vejledning_par33a_mindst_seks_maaneder = Ligningslov33AKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1977319",
     identifier = "Den juridiske vejledning 2026-1, C.F.4.2.2.3 Mindst 6 måneder",
-    hentet_dato = "2026-08-08"
-)
-
-= ligningsloven_ligningsvejledning_2003_par33a_opholdseksempel = Ligningslov33AKildeInfo(
-    url = "https://www.retsinformation.dk/eli/retsinfo/2003/20112",
-    identifier = "Ligningsvejledningen 2003, § 33 A-eksempel: 15. januar til 25. september tillader 58 dage",
-    hentet_dato = "2026-08-08"
-)
-
-= ligningsloven_vejledning_par33a_stk3 = Ligningslov33AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1977322",
-    identifier = "Den juridiske vejledning 2026-1, C.F.4.2.3 Halv skattelempelse efter LL § 33 A, stk. 3",
-    hentet_dato = "2026-08-08"
-)
-
-= ligningsloven_vejledning_par33a_stk2 = Ligningslov33AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1977323",
-    identifier = "Den juridiske vejledning 2026-1, C.F.4.2.4 Tjeneste for dansk offentlig myndighed",
-    hentet_dato = "2026-08-08"
-)
-
-= ligningsloven_vejledning_par33a_beregning = Ligningslov33AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1977325",
-    identifier = "Den juridiske vejledning 2026-1, C.F.4.2.5 Nedslagsregler efter LL § 33 A",
-    hentet_dato = "2026-08-08"
-)
-
-= ligningsloven_styresignal_2023_10299 = Ligningslov33AKildeInfo(
-    url = "https://www.retsinformation.dk/eli/retsinfo/2023/10299",
-    identifier = "Styresignal SKM2023.519.SKTST efter SKM2023.18.ØLR - udlandsopholdets sammenhæng med arbejdsgiverens forhold",
-    hentet_dato = "2026-08-08"
-)
-
-= ligningsloven_skm2026_158_vlr = Ligningslov33AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=2461005",
-    identifier = "SKM2026.158.VLR - dansk luftrum og dokumentation af 42-dagesreglen",
     hentet_dato = "2026-08-08"
 )
 
@@ -137,9 +81,59 @@ skattepligten bestod, såfremt betingelserne i 1. pkt. i øvrigt er opfyldt.
 @ section ligningsloven_par33a_stk1 {
 
 # Ligningslov33ADanskOpholdsart = Ll33ANødvendigtArbejdeMedDirekteForbindelseTilUdlandsopholdet | Ll33AFerieEllerLignende | Ll33AArbejdeIRigetUdenNødvendigDirekteForbindelseTilUdlandsopholdet | Ll33AModtogArbejdsløshedsdagpengeUnderOpholdIRiget
-# Ligningslov33ADanskOpholdsdag(dato: Dato, art: Ligningslov33ADanskOpholdsart)
-# Ligningslov33AArbejdsgiverforbindelse = Ll33AUdlandsopholdBegrundetIArbejdsgiverensForhold(dokumentreference: Tekst) | Ll33AUdlandsopholdIkkeBegrundetIArbejdsgiverensForhold | Ll33AArbejdsgiverforbindelseIkkeDokumenteret
+= personskat_kilder_30 = [
+    Source(value = ligningsloven_lbk1500_par33),
+    Source(value = ligningsloven_lbk1500_par33a),
+    AmendmentSource(value = ligningsloven_lov487_1996_par33_fragtskat),
+    AmendmentSource(value = ligningsloven_lov313_2002_par33_fragtskat),
+    DependencySource(value = kildeskatteloven_lbk460_par10),
+    Guidance(value = ligningsloven_vejledning_par33_credit),
+    Guidance(value = ligningsloven_vejledning_par33_personberegning),
+    Guidance(value = ligningsloven_vejledning_par33f_nettoprincip),
+    Guidance(value = ligningsloven_vejledning_par33a_stk1),
+    Guidance(value = ligningsloven_vejledning_par33a_42_dages_regel),
+    Guidance(value = ligningsloven_ligningsvejledning_2003_par33a_opholdseksempel),
+    Guidance(value = ligningsloven_vejledning_par33a_stk2),
+    Guidance(value = ligningsloven_vejledning_par33a_stk3),
+    Guidance(value = ligningsloven_vejledning_par33a_beregning),
+    Practice(value = ligningsloven_praksis_skm2018_370_sr),
+    Practice(value = ligningsloven_styresignal_2023_10299),
+    Practice(value = ligningsloven_skm2026_158_vlr)
+]
+# Ligningslov33ADanskOpholdsdag(
+    dato: Dato,
+    @ field(
+        label = "Formålet med dagen i Danmark",
+        question = "Var dagen nødvendig for arbejde med direkte forbindelse til udlandsopholdet, ferie, arbejde uden den nødvendige direkte forbindelse eller en dag med arbejdsløshedsdagpenge?",
+        help = "Arbejde uden den nødvendige direkte forbindelse og modtagelse af arbejdsløshedsdagpenge under ophold i Danmark afbryder perioden; ferie og nødvendigt, direkte forbundet arbejde tæller med i dageloftet.",
+        sources = personskat_kilder_30
+    )
+    art: Ligningslov33ADanskOpholdsart
+)
+@ field(
+    label = "Arbejdsgiverens forbindelse til udlandsopholdet",
+    question = "Var udlandsopholdet begrundet i arbejdsgiverens forhold?",
+    help = "Forbindelsen skal fremgå af de faktiske arbejds- og ansættelsesforhold og kunne dokumenteres.",
+    sources = personskat_kilder_30
+)
+# Ligningslov33AArbejdsgiverforbindelse =
+    Ll33AUdlandsopholdBegrundetIArbejdsgiverensForhold(
+        @ field(
+            label = "Dokumentation for arbejdsgiverforbindelsen",
+            question = "Hvilket dokument viser, at udlandsopholdet var begrundet i arbejdsgiverens forhold?",
+            help = "Brug en stabil reference uden personfølsomme oplysninger.",
+            sources = personskat_kilder_30
+        )
+        dokumentreference: Tekst
+    ) |
+    Ll33AUdlandsopholdIkkeBegrundetIArbejdsgiverensForhold |
+    Ll33AArbejdsgiverforbindelseIkkeDokumenteret
 # Ligningslov33ATjenesteforholdsstatus = Ll33APersonligtArbejdeITjenesteforhold | Ll33AIkkePersonligtArbejdeITjenesteforhold
+@ field(
+    label = "Fuld dansk skattepligt under opholdet",
+    question = "Bestod skattepligten efter kildeskattelovens § 1 under hele opholdet, ophørte den undervejs, eller forelå den ikke?",
+    sources = personskat_kilder_30
+)
 # Ligningslov33ASkattepligtsstatus = Ll33ASkattepligtigEfterKildeskattelovensPar1HeleOpholdet | Ll33ASkattepligtEfterKildeskattelovensPar1OphørteUnderOpholdet(første_dato_uden_skattepligt: Dato) | Ll33AIkkeSkattepligtigEfterKildeskattelovensPar1
 # Ligningslov33ALønindkomstEfterDanskeRegler(skattepligtig_nettoindkomst_kroner: Heltal, personlig_nettoindkomst_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal)
 
@@ -174,8 +168,48 @@ denne aftale, at lønnen er fastsat under hensyn til lempelse efter stk. 1.
 
 # Ligningslov33AOffentligYdelsesstatus = Ll33AIngenYdelseEfterPar7Nr15EllerPar9A | Ll33AYdelseEfterPar7Nr15 | Ll33AYdelseEfterPar9A | Ll33AYdelseEfterPar7Nr15OgPar9A
 # Ligningslov33AOffentligLønfastsættelse = Ll33AIndividuelOffentligLønaftale | Ll33AKollektivAftaleMedUdtrykkeligtLempelseshensyn | Ll33AKollektivAftaleUdenUdtrykkeligtLempelseshensyn
-# Ligningslov33ASystemeksportstatus = Ll33AIkkeSystemeksport | Ll33ASystemeksportForDanskOffentligMyndighed(dokumentreference: Tekst)
-# Ligningslov33AArbejdsgivergrundlag = Ll33AIkkeDanskOffentligArbejdsgiver | Ll33ADanskStatEllerOffentligMyndighed(ydelser: Ligningslov33AOffentligYdelsesstatus, lønfastsættelse: Ligningslov33AOffentligLønfastsættelse, systemeksport: Ligningslov33ASystemeksportstatus)
+@ field(
+    label = "Systemeksport for offentlig myndighed",
+    question = "Skete udstationeringen som led i systemeksport for en dansk offentlig myndighed?",
+    help = "Systemeksport har en særlig adgang til halvt eller helt nedslag efter § 33 A, stk. 3.",
+    sources = personskat_kilder_30
+)
+# Ligningslov33ASystemeksportstatus =
+    Ll33AIkkeSystemeksport |
+    Ll33ASystemeksportForDanskOffentligMyndighed(
+        @ field(
+            label = "Dokumentation for systemeksport",
+            question = "Hvilket dokument viser, at udstationeringen skete som led i systemeksport?",
+            help = "Brug en stabil reference uden personfølsomme oplysninger.",
+            sources = personskat_kilder_30
+        )
+        dokumentreference: Tekst
+    )
+@ field(
+    label = "Arbejdsgiverens retlige status",
+    question = "Er arbejdsgiveren en dansk offentlig myndighed, eller er der tale om en anden arbejdsgiver?",
+    help = "Offentlig ansættelse har særlige udelukkelser og lempelsesregler efter § 33 A, stk. 2 og 3.",
+    sources = personskat_kilder_30
+)
+# Ligningslov33AArbejdsgivergrundlag =
+    Ll33AIkkeDanskOffentligArbejdsgiver |
+    Ll33ADanskStatEllerOffentligMyndighed(
+        @ field(
+            label = "Skattefri rejseydelser fra offentlig arbejdsgiver",
+            question = "Modtog personen ydelser efter ligningslovens § 7, nr. 15 eller § 9 A under udstationeringen?",
+            help = "Sådanne ydelser udelukker lempelse for offentligt ansatte efter § 33 A, stk. 2.",
+            sources = personskat_kilder_30
+        )
+        ydelser: Ligningslov33AOffentligYdelsesstatus,
+        @ field(
+            label = "Lønfastsættelse ved offentlig udstationering",
+            question = "Er lønnen individuelt fastsat, eller følger den en kollektiv aftale med eller uden udtrykkeligt hensyn til § 33 A-lempelsen?",
+            help = "En kollektiv aftale uden udtrykkeligt lempelseshensyn udelukker § 33 A efter stk. 2.",
+            sources = personskat_kilder_30
+        )
+        lønfastsættelse: Ligningslov33AOffentligLønfastsættelse,
+        systemeksport: Ligningslov33ASystemeksportstatus
+    )
 
 | ligningslov33a_systemeksport_input_gyldig(status: Ligningslov33ASystemeksportstatus) -> match status {
     | Ll33AIkkeSystemeksport -> Sandt
@@ -208,7 +242,32 @@ systemeksport for den danske stat eller anden dansk offentlig myndighed.
 @ meta(ligningsloven_par33a_metadata)
 @ section ligningsloven_par33a_stk3 {
 
-# Ligningslov33ABeskatningsret = Ll33AIngenDobbeltbeskatningsoverenskomst | Ll33AArbejdslandetHarBeskatningsrettenEfterOverenskomst(dokumentreference: Tekst) | Ll33ADanmarkHarBeskatningsrettenEfterOverenskomst(dokumentreference: Tekst)
+@ field(
+    label = "Beskatningsret efter overenskomst",
+    question = "Findes der en dobbeltbeskatningsoverenskomst, og hvilken stat har efter den beskatningsretten til lønnen?",
+    help = "Valget skal kunne henføres til den relevante overenskomst og artikel. Dansk beskatningsret medfører som udgangspunkt halvt nedslag.",
+    sources = personskat_kilder_30
+)
+# Ligningslov33ABeskatningsret =
+    Ll33AIngenDobbeltbeskatningsoverenskomst |
+    Ll33AArbejdslandetHarBeskatningsrettenEfterOverenskomst(
+        @ field(
+            label = "Dokumentation for arbejdslandets beskatningsret",
+            question = "Hvilken overenskomst og artikel giver arbejdslandet beskatningsretten?",
+            help = "Angiv en stabil reference til dobbeltbeskatningsoverenskomsten.",
+            sources = personskat_kilder_30
+        )
+        dokumentreference: Tekst
+    ) |
+    Ll33ADanmarkHarBeskatningsrettenEfterOverenskomst(
+        @ field(
+            label = "Dokumentation for dansk beskatningsret",
+            question = "Hvilken overenskomst og artikel tillægger Danmark beskatningsretten?",
+            help = "Angiv en stabil reference til dobbeltbeskatningsoverenskomsten.",
+            sources = personskat_kilder_30
+        )
+        dokumentreference: Tekst
+    )
 
 | ligningslov33a_beskatningsret_input_gyldig(beskatningsret: Ligningslov33ABeskatningsret) -> match beskatningsret {
     | Ll33AIngenDobbeltbeskatningsoverenskomst -> Sandt
@@ -249,7 +308,23 @@ skatten.
 @ meta(ligningsloven_par33a_metadata)
 @ section ligningsloven_par33a_stk4 {
 
-# Ligningslov33AHenstandsstatus = Ll33AIngenHenstand | Ll33AHenstandEfterSkatteministerensRegler(dokumentreference: Tekst)
+@ field(
+    label = "Henstand efter § 33 A, stk. 4",
+    question = "Er der meddelt henstand efter skatteministerens regler for dette ansættelsesforhold?",
+    help = "Henstand påvirker betalingstidspunktet, ikke størrelsen af det beregnede nedslag.",
+    sources = personskat_kilder_30
+)
+# Ligningslov33AHenstandsstatus =
+    Ll33AIngenHenstand |
+    Ll33AHenstandEfterSkatteministerensRegler(
+        @ field(
+            label = "Dokumentation for henstand",
+            question = "Hvilket dokument viser den meddelte henstand efter § 33 A, stk. 4?",
+            help = "Brug en stabil reference uden personfølsomme oplysninger.",
+            sources = personskat_kilder_30
+        )
+        dokumentreference: Tekst
+    )
 
 | ligningslov33a_henstandsstatus_input_gyldig(status: Ligningslov33AHenstandsstatus) -> match status {
     | Ll33AIngenHenstand -> Sandt
@@ -294,7 +369,25 @@ den 30. juni 2022.
 @ meta(ligningsloven_par33a_metadata)
 @ section ligningsloven_par33a_stk6 {
 
-# Ligningslov33ACovidvalg = Ll33AUdenCovidvalg | Ll33ACovidvalgAnvendt(arbejde_genoptaget_i_arbejdslandet_dato: Option(Dato), valgdato: Dato) | Ll33ACovidvalgOmgjort(omgørelsesdato: Dato)
+@ field(
+    label = "Midlertidigt COVID-19-valg",
+    question = "Blev særreglen for udlandsophold afbrudt af COVID-19 anvendt eller senere omgjort?",
+    help = "Særreglen vedrører alene de lovbestemte perioder i 2020 og kontrolleres mod valg- og omgørelsesfristerne.",
+    sources = personskat_kilder_30
+)
+# Ligningslov33ACovidvalg =
+    Ll33AUdenCovidvalg |
+    Ll33ACovidvalgAnvendt(
+        @ field(
+            label = "Dato for genoptaget arbejde i arbejdslandet",
+            question = "Hvornår blev arbejdet genoptaget i det land, hvor arbejdet normalt blev udført?",
+            help = "Lad feltet være tomt, hvis arbejdet ikke blev genoptaget inden for særreglens periode.",
+            sources = personskat_kilder_30
+        )
+        arbejde_genoptaget_i_arbejdslandet_dato: Option(Dato),
+        valgdato: Dato
+    ) |
+    Ll33ACovidvalgOmgjort(omgørelsesdato: Dato)
 
 | ligningslov33a_covidperiodestart() -> Dato(år = 2020, måned = 3, dag = 9)
 | ligningslov33a_covidperiodens_seneste_slut() -> Dato(år = 2020, måned = 6, dag = 30)
@@ -347,19 +440,123 @@ afbryder udlandsopholdet, når opholdet i Danmark har karakter af ferie el.lign.
 @ meta(ligningsloven_par33a_metadata)
 @ section ligningsloven_par33a_aarsberegning {
 
-# Ligningslov33AOphold(fra_dato: Dato, til_dato: Dato, danske_opholdsdage: List(Ligningslov33ADanskOpholdsdag), arbejdsgiverforbindelse: Ligningslov33AArbejdsgiverforbindelse, tjenesteforhold: Ligningslov33ATjenesteforholdsstatus, skattepligt: Ligningslov33ASkattepligtsstatus, covidvalg: Ligningslov33ACovidvalg, dokumentreference: Tekst)
+# Ligningslov33AOphold(
+    fra_dato: Dato,
+    til_dato: Dato,
+    @ field(
+        label = "Dage opholdt i Danmark",
+        question = "Hvilke kalenderdage opholdt personen sig i Danmark under udlandsopholdet?",
+        help = "Oplys alle brudte døgn. Rejsedage under opholdet tæller som hele dage; rejsedagene ved udlandsopholdets start og afslutning medregnes ikke. Futuruna prøver enhver afsluttet seksmånedersperiode.",
+        sources = personskat_kilder_30
+    )
+    danske_opholdsdage: List(Ligningslov33ADanskOpholdsdag),
+    arbejdsgiverforbindelse: Ligningslov33AArbejdsgiverforbindelse,
+    @ field(
+        label = "Personligt arbejde i tjenesteforhold",
+        question = "Er indkomsten vederlag for personligt arbejde i et tjenesteforhold?",
+        sources = personskat_kilder_30
+    )
+    tjenesteforhold: Ligningslov33ATjenesteforholdsstatus,
+    skattepligt: Ligningslov33ASkattepligtsstatus,
+    covidvalg: Ligningslov33ACovidvalg,
+    @ field(
+        label = "Dokumentation for udlandsopholdet",
+        question = "Hvilke dokumenter underbygger opholdets datoer og dagene i Danmark?",
+        help = "Brug en stabil reference til eksempelvis rejseoversigt, kontrakt eller arbejdsgivererklæring.",
+        sources = personskat_kilder_30
+    )
+    dokumentreference: Tekst
+)
 # Ligningslov33AIndkomstfordeling(samlet_lønindkomst_efter_danske_regler: Ligningslov33ALønindkomstEfterDanskeRegler, heraf_arbejde_i_riget_efter_danske_regler: Ligningslov33ALønindkomstEfterDanskeRegler)
-# Ligningslov33ADateretIndkomstfordeling(identifikation: Tekst, fra_dato: Dato, til_dato: Dato, fordeling: Ligningslov33AIndkomstfordeling, dokumentreference: Tekst)
-# Ligningslov33AIndkomstgrundlag = Ll33ASamletIndkomstForUafbrudtLempelsesperiode(fordeling: Ligningslov33AIndkomstfordeling) | Ll33ADateredeIndkomstfordelinger(perioder: List(Ligningslov33ADateretIndkomstfordeling))
+# Ligningslov33ADateretIndkomstfordeling(
+    @ field(
+        label = "Lønperiodens identifikation",
+        question = "Hvilken entydig reference identificerer denne lønperiode?",
+        help = "Brug eksempelvis lønseddelens eller arbejdsgiveropgørelsens stabile reference.",
+        sources = personskat_kilder_30
+    )
+    identifikation: Tekst,
+    fra_dato: Dato,
+    til_dato: Dato,
+    fordeling: Ligningslov33AIndkomstfordeling,
+    @ field(
+        label = "Dokumentation for lønperioden",
+        question = "Hvilket dokument underbygger periodens datoer og beløb?",
+        help = "Brug en stabil reference uden personfølsomme oplysninger.",
+        sources = personskat_kilder_30
+    )
+    dokumentreference: Tekst
+)
+@ field(
+    label = "Metode for fordeling af lønindkomsten",
+    question = "Er lønnen opgjort samlet for en uafbrudt lempelsesperiode eller fordelt på dokumenterede datoperioder?",
+    help = "Brug daterede indkomstfordelinger, hvis en senere overskridelse af 42-dages-reglen kan afgrænse en allerede kvalificerende periode.",
+    sources = personskat_kilder_30
+)
+# Ligningslov33AIndkomstgrundlag =
+    Ll33ASamletIndkomstForUafbrudtLempelsesperiode(fordeling: Ligningslov33AIndkomstfordeling) |
+    Ll33ADateredeIndkomstfordelinger(
+        @ field(
+            label = "Daterede lønfordelinger",
+            question = "Hvilke ikke-overlappende perioder fordeler lønnen før og efter en mulig afbrydelse af udlandsopholdet?",
+            help = "En periode må ikke krydse den afledte afbrydelsesdato. Del i stedet lønnen ved grænsen, så Futuruna aldrig skal gætte en forholdsmæssig fordeling.",
+            sources = personskat_kilder_30
+        )
+        perioder: List(Ligningslov33ADateretIndkomstfordeling)
+    )
 # Ligningslov33AAfbrydelsesårsag = Ll33AOverskridelseAf42DagesGrænsen(første_overskridelsesdato: Dato) | Ll33AArbejdeIRigetUdenNødvendigDirekteForbindelse(arbejdsdato: Dato) | Ll33AModtagelseAfArbejdsløshedsdagpengeUnderOpholdIRiget(dagpengedato: Dato)
 # Ligningslov33AAfbrydelse(årsag: Ligningslov33AAfbrydelsesårsag, afbrydelsesdato: Dato, ny_udrejsedato: Dato)
 # Ligningslov33APeriodeudfald = Ll33ALempelsesberettigetPeriode | Ll33AAfvistPeriode
 # Ligningslov33APeriodevurdering(kandidatstart_dato: Dato, vurderet_ophold: Ligningslov33AOphold, afbrydelse: Option(Ligningslov33AAfbrydelse), mindst_seks_måneders_udlandsophold: Boolsk, danske_opholdsdage_lovlige: Boolsk, alle_seksmånedersvinduer_overholder_42_dage: Boolsk, samlet_dagegrænse_overholdt: Boolsk, betingelser_opfyldt: Boolsk, udfald: Ligningslov33APeriodeudfald)
-# Ligningslov33APeriodevalg(valgte_udrejsedatoer: List(Dato))
+# Ligningslov33APeriodevalg(
+    @ field(
+        label = "Valgte udrejsedatoer for § 33 A",
+        question = "Fra hvilke faktiske udrejsedatoer vælger personen at anvende lempelse efter ligningslovens § 33 A?",
+        help = "Angiv datoerne kronologisk. Den første kan være udlandsopholdets første udrejsedato eller en senere udrejse; efter en afbrydelse kan en ny ikke-overlappende lempelsesperiode vælges fra en ny faktisk udrejsedato.",
+        sources = personskat_kilder_30
+    )
+    valgte_udrejsedatoer: List(Dato)
+)
 # Ligningslov33AIndkomstperiodeudfald = Ll33ALempelsesberettigetIndkomstperiode | Ll33AIkkeLempelsesberettigetIndkomstperiode | Ll33AUgyldigtAfgrænsetIndkomstperiode
 # Ligningslov33AIndkomstperiodevurdering(periode: Ligningslov33ADateretIndkomstfordeling, afgrænset_entydigt: Boolsk, inden_for_skattepligtig_periode: Boolsk, indeholdt_i_lempelsesberettiget_periode: Boolsk, udfald: Ligningslov33AIndkomstperiodeudfald)
-# Ligningslov33AAnsættelsesforhold(identifikation: Tekst, subjekt: Ligningslov33ASkattesubjekt, ophold: Ligningslov33AOphold, periodevalg: Ligningslov33APeriodevalg, arbejdsgivergrundlag: Ligningslov33AArbejdsgivergrundlag, beskatningsret: Ligningslov33ABeskatningsret, indkomstgrundlag: Ligningslov33AIndkomstgrundlag, henstand: Ligningslov33AHenstandsstatus)
-# Ligningslov33AÅrsinput(indkomstår: Heltal, ansættelsesforhold: List(Ligningslov33AAnsættelsesforhold))
+# Ligningslov33AAnsættelsesforhold(
+    @ field(
+        label = "Ansættelsesforholdets identifikation",
+        question = "Hvilken entydig reference identificerer ansættelsesforholdet og udlandsopholdet?",
+        help = "Brug en stabil reference fra kontrakt, udstationeringsaftale eller anden dokumentation.",
+        sources = personskat_kilder_30
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Skattesubjekt under § 33 A",
+        question = "Vedrører indkomsten personen selv eller et dødsbo omfattet af dødsboskattelovens § 1, stk. 2?",
+        sources = personskat_kilder_30
+    )
+    subjekt: Ligningslov33ASkattesubjekt,
+    ophold: Ligningslov33AOphold,
+    periodevalg: Ligningslov33APeriodevalg,
+    arbejdsgivergrundlag: Ligningslov33AArbejdsgivergrundlag,
+    beskatningsret: Ligningslov33ABeskatningsret,
+    indkomstgrundlag: Ligningslov33AIndkomstgrundlag,
+    henstand: Ligningslov33AHenstandsstatus
+)
+# Ligningslov33AÅrsinput(
+    @ field(
+        label = "Indkomstår for § 33 A",
+        question = "Hvilket indkomstår vedrører udlandsopholdet og lønindkomsten?",
+        help = "Året skal være det samme som skatteåret i den samlede Personskat-beregning.",
+        unit = "år",
+        sources = personskat_kilder_30
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Ansættelsesforhold under udlandsophold",
+        question = "Hvilke ansættelsesforhold og sammenhængende udlandsophold skal prøves efter § 33 A?",
+        help = "Tilføj ét forhold pr. dokumenteret ophold og indkomstfordeling. Flere forhold samles før den endelige lempelse beregnes.",
+        sources = personskat_kilder_30
+    )
+    ansættelsesforhold: List(Ligningslov33AAnsættelsesforhold)
+)
 # Ligningslov33AForholdsresultat(fakta: Ligningslov33AAnsættelsesforhold, periodevurderinger: List(Ligningslov33APeriodevurdering), valgte_periodevurderinger: List(Ligningslov33APeriodevurdering), indkomstperiodevurderinger: List(Ligningslov33AIndkomstperiodevurdering), input_gyldigt: Boolsk, mindst_en_kandidatperiode_på_seks_måneder: Boolsk, oprindeligt_opholds_danske_opholdsdage_lovlige: Boolsk, oprindeligt_opholds_højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode: Heltal, oprindeligt_opholds_samlet_antal_medregnede_danske_dage: Heltal, oprindeligt_opholds_samlet_tilladt_antal_danske_dage: Heltal, oprindeligt_opholds_samlet_dagegrænse_overholdt: Boolsk, arbejdsgiverforbindelse_opfyldt: Boolsk, tjenesteforhold_omfattet: Boolsk, skattepligt_omfattet: Boolsk, stk2_udelukker: Boolsk, betingelser_opfyldt: Boolsk, lempelsesandel_basispoint: Heltal, lempelsesberettiget_indkomst_efter_danske_regler: Ligningslov33ALønindkomstEfterDanskeRegler)
 # Ligningslov33AKomponentresultat(komponent: Ligningslov33DanskSkattekomponent, fuldt_lempelsesberettiget_indkomst_kroner: Heltal, halvt_lempelsesberettiget_indkomst_kroner: Heltal, forholdsmæssig_beregning: PengeØreBeregning, nedslag_øre: Heltal)
 # Ligningslov33AÅrsresultat(input: Ligningslov33AÅrsinput, dansk_skattekreds: Ligningslov33PersonDanskSkattekreds, forholdsresultater: List(Ligningslov33AForholdsresultat), fuldt_lempelsesberettiget_indkomst: Ligningslov33ALønindkomstEfterDanskeRegler, halvt_lempelsesberettiget_indkomst: Ligningslov33ALønindkomstEfterDanskeRegler, komponenter: List(Ligningslov33AKomponentresultat), input_gyldigt: Boolsk, alle_forhold_lempelsesberettigede: Boolsk, samlet_nedslag_før_skattecap_øre: Heltal, samlet_nedslag_øre: Heltal)

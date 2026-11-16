@@ -26,15 +26,127 @@
 @ section personskat_virksomhedskapital_kildefakta {
 
 # PersonskatVirksomhedsordningskapitalInput = UdenKapitalafkastEfterVirksomhedsskattelov7 | MedKapitalafkastEfterVirksomhedsskattelov7(par7_input: Virksomhedsskattelov7KildeInput, oplysningsfrist_input: SkattekontrollovOplysningsfristInput, ønsket_medregnet_efter_par23a_kroner: Heltal)
-# PersonskatKapitalafkastordningPersongrundlag(person_identifikation: Tekst, opgørelsestidspunkt: Virksomhedsskattelov8Opgørelsestidspunkt, aktiver: List(Virksomhedsskattelov22AAktiv), varekreditorer: List(Virksomhedsskattelov22AVarekreditor), nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner: Heltal)
+= personskat_vsl22a_person_kilder = [Source(value = virksomhedsskatteloven_lbk1836_par22a)]
+# PersonskatKapitalafkastordningPersongrundlag(
+    @ field(
+        label = "Personidentifikation",
+        question = "Hvilken entydig identifikation har personen i ægtefælleopgørelsen?",
+        sources = personskat_vsl22a_person_kilder
+    )
+    person_identifikation: Tekst,
+    @ field(
+        label = "Opgørelsestidspunkt for personens aktiver",
+        question = "Opgøres personens aktiver ved indkomstårets begyndelse eller ved start af en ny virksomhed?",
+        sources = personskat_vsl22a_person_kilder
+    )
+    opgørelsestidspunkt: Virksomhedsskattelov8Opgørelsestidspunkt,
+    @ field(
+        label = "Personens § 22 a-aktiver",
+        question = "Hvilke erhvervsmæssige og eventuelt blandet anvendte aktiver skal prøves efter § 22 a, stk. 4-8?",
+        sources = personskat_vsl22a_person_kilder
+    )
+    aktiver: List(Virksomhedsskattelov22AAktiv),
+    @ field(
+        label = "Varekreditorer",
+        question = "Hvilke varekreditorer skal fragå ved opgørelsen af arbejdskapitalen efter stk. 7?",
+        sources = personskat_vsl22a_person_kilder
+    )
+    varekreditorer: List(Virksomhedsskattelov22AVarekreditor),
+    @ field(
+        label = "Nettokapitalindkomst før § 22 a",
+        question = "Hvad er personens nettokapitalindkomst, når § 22 a samt personskattelovens § 4, stk. 1, nr. 9 og 11 holdes ude?",
+        help = "Beløbet må være negativt og indgår i loftet efter § 22 a, stk. 3.",
+        unit = "kr.",
+        sources = personskat_vsl22a_person_kilder
+    )
+    nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner: Heltal
+)
+@ field(
+    label = "Ægtefællens § 22 a-grundlag",
+    question = "Skal ægtefællens aktiver og kapitalindkomst indgå i fællesgrundlaget efter § 22 a, stk. 4?",
+    help = "Angiv kun grundlaget, når ægtefællerne er gift og samlevende ved indkomstårets udgang. Futuruna kontrollerer dette mod den kanoniske ægtefællerelation.",
+    sources = personskat_vsl22a_person_kilder
+)
 # PersonskatKapitalafkastordningÆgtefællegrundlag = UdenÆgtefællegrundlagEfterVirksomhedsskattelov22A | MedÆgtefællegrundlagEfterVirksomhedsskattelov22A(grundlag: PersonskatKapitalafkastordningPersongrundlag)
-# PersonskatKapitalafkastordningKildeinput(indkomstår: Heltal, skattepligtig: PersonskatKapitalafkastordningPersongrundlag, ægtefællegrundlag: PersonskatKapitalafkastordningÆgtefællegrundlag, virksomhedsfordeling: Virksomhedsskattelov22AVirksomhedsfordeling, periode_hele_måneder: Heltal)
+# PersonskatKapitalafkastordningKildeinput(
+    @ field(
+        label = "Indkomstår for kapitalafkastordningen",
+        question = "Hvilket indkomstår vedrører § 22 a-opgørelsen?",
+        unit = "år",
+        sources = personskat_vsl22a_person_kilder
+    )
+    indkomstår: Heltal,
+    skattepligtig: PersonskatKapitalafkastordningPersongrundlag,
+    ægtefællegrundlag: PersonskatKapitalafkastordningÆgtefællegrundlag,
+    virksomhedsfordeling: Virksomhedsskattelov22AVirksomhedsfordeling,
+    @ field(
+        label = "§ 22 a-periodens hele måneder",
+        question = "Hvor mange hele måneder skal kapitalafkastet beregnes for?",
+        unit = "måneder",
+        sources = personskat_vsl22a_person_kilder
+    )
+    periode_hele_måneder: Heltal
+)
 # PersonskatKapitalafkastordningPersonkontekst(personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner: Heltal, anvender_virksomhedsordningen: Boolsk, input_gyldigt: Boolsk)
 # PersonskatKapitalafkastordningKontekst = UdenAfledtKapitalafkastordningskontekst | MedAfledtKapitalafkastordningskontekst(skattepligtig: PersonskatKapitalafkastordningPersonkontekst, ægtefælle: Option(PersonskatKapitalafkastordningPersonkontekst))
 # PersonskatKapitalafkastordningInput = UdenKapitalafkastEfterVirksomhedsskattelov22A | MedKapitalafkastEfterVirksomhedsskattelov22A(kildeinput: PersonskatKapitalafkastordningKildeinput, ønsket_medregnet_efter_par23a_kroner: Heltal)
+= personskat_virksomhedskapital_kilder = [
+    Source(value = personskatteloven_2021_1284),
+    DependencySource(value = virksomhedsskatteloven_lbk1836_par22a),
+    DependencySource(value = virksomhedsskatteloven_lbk1836_par22c),
+    DependencySource(value = virksomhedsskatteloven_lbk1836_par23a),
+    DependencySource(value = virksomhedsskatteloven_lbk1836_par11),
+    DependencySource(value = virksomhedsskatteloven_lbk1836_par11a),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par4),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par5),
+    AmendmentSource(value = arbejdsmarkedsbidragsloven_lov2226_par5),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par6)
+]
+@ field(
+    label = "Kapitalafkast af medarbejderaktier",
+    question = "Skal der beregnes kapitalafkast efter virksomhedsskattelovens § 22 c?",
+    sources = personskat_virksomhedskapital_kilder
+)
 # PersonskatMedarbejderaktiekapitalafkastInput = UdenKapitalafkastEfterVirksomhedsskattelov22C | MedKapitalafkastEfterVirksomhedsskattelov22C(par22c_input: Virksomhedsskattelov22CKildeInput)
+@ field(
+    label = "Rentekorrektion",
+    question = "Skal der beregnes rentekorrektion efter virksomhedsskattelovens § 11 eller §§ 11 og 11 a?",
+    help = "Feltet findes kun under virksomhedsordningen efter afsnit I.",
+    sources = personskat_virksomhedskapital_kilder
+)
 # PersonskatVirksomhedsrentekorrektionInput = UdenRentekorrektionEfterVirksomhedsskattelov11 | MedRentekorrektionEfterVirksomhedsskattelov11(par11_input: Virksomhedsskattelov11KildeInput) | MedRentekorrektionEfterVirksomhedsskattelov11Og11A(par11a_input: Virksomhedsskattelov11AKildeInput)
-# PersonskatSelvstændigBeskatningsordningInput = UdenVirksomhedsEllerKapitalafkastordning | MedVirksomhedsordningEfterAfsnitI(par7_input: Virksomhedsskattelov7KildeInput, oplysningsfrist_input: SkattekontrollovOplysningsfristInput, ønsket_medregnet_efter_par23a_kroner: Heltal, rentekorrektion: PersonskatVirksomhedsrentekorrektionInput) | MedKapitalafkastordningEfterPar22A(kildeinput: PersonskatKapitalafkastordningKildeinput, ønsket_medregnet_efter_par23a_kroner: Heltal)
+@ field(
+    label = "Beskatningsordning for selvstændig virksomhed",
+    question = "Anvendes virksomhedsordningen, kapitalafkastordningen eller ingen af ordningerne?",
+    help = "Virksomhedsordningen efter afsnit I og kapitalafkastordningen efter § 22 a er gensidigt udelukkende for den samme skattepligtige.",
+    sources = personskat_virksomhedskapital_kilder
+)
+# PersonskatSelvstændigBeskatningsordningInput =
+    UdenVirksomhedsEllerKapitalafkastordning |
+    MedVirksomhedsordningEfterAfsnitI(
+        par7_input: Virksomhedsskattelov7KildeInput,
+        oplysningsfrist_input: SkattekontrollovOplysningsfristInput,
+        @ field(
+            label = "§ 7-afkast valgt som personlig indkomst",
+            question = "Hvor meget af kapitalafkastet efter § 7 ønskes medregnet i den personlige indkomst efter § 23 a?",
+            help = "Futuruna anvender selv det laveste af ønsket, årets kapitalafkast og den regulerede § 23 a-grænse.",
+            unit = "kr.",
+            sources = personskat_virksomhedskapital_kilder
+        )
+        ønsket_medregnet_efter_par23a_kroner: Heltal,
+        rentekorrektion: PersonskatVirksomhedsrentekorrektionInput
+    ) |
+    MedKapitalafkastordningEfterPar22A(
+        kildeinput: PersonskatKapitalafkastordningKildeinput,
+        @ field(
+            label = "§ 22 a-afkast valgt som personlig indkomst",
+            question = "Hvor meget af kapitalafkastet efter § 22 a ønskes medregnet i den personlige indkomst efter § 23 a?",
+            help = "Beløbet kan ikke overstige det afkast, som Futuruna udleder af de samme § 22 a-kildefakta.",
+            unit = "kr.",
+            sources = personskat_virksomhedskapital_kilder
+        )
+        ønsket_medregnet_efter_par23a_kroner: Heltal
+    )
 # PersonskatVirksomhedskapitalInput(selvstændig_beskatningsordning: PersonskatSelvstændigBeskatningsordningInput, selvstændig_arbejdsmarkedsbidrag: ArbejdsmarkedsbidragSelvstændigKildeinput, medarbejderaktier: PersonskatMedarbejderaktiekapitalafkastInput)
 
 # PersonskatVirksomhedsordningskapitalBeregning(input: PersonskatVirksomhedsordningskapitalInput, par7_resultat: Virksomhedsskattelov7KildeResultat, par23a_resultat: Virksomhedsskattelov23ABundetResultat, oplysningsfrist_resultat: SkattekontrollovOplysningsfristResultat, par4_stk1_nr3_resultat: Par4Stk1Nr3Resultat, input_gyldigt: Boolsk)

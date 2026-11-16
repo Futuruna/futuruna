@@ -10,6 +10,7 @@ import test from 'node:test';
 import { buildCoupleCases, personFactFields, runCoupleDemo, summarizeCouple } from '../examples/danish-income-tax/pension-par-demo.mjs';
 import { incomeFields, resultFields } from '../examples/danish-income-tax/personskat-resultat.mjs';
 import { parseReportOutput } from '../examples/danish-income-tax/resultat-visning.mjs';
+import { declaredFields } from './field_declarations.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const hash = 'b'.repeat(64);
@@ -47,8 +48,9 @@ const facts = input => Object.fromEntries(personFactFields.map(key => [key, inpu
 
 test('couple construction mirrors all canonical person fields and changes only the private payment', () => {
   const source = readFileSync(join(root, 'examples/danish-income-tax/personskat.calculate.runa'), 'utf8');
-  const fields = source.match(/^# PersonskatPersonFakta\((.+)\)$/m)?.[1];
-  assert.deepEqual(fields.split(', ').map(f => f.split(':')[0]), [...personFactFields]);
+  const fields = declaredFields(source, 'PersonskatPersonFakta');
+  assert.ok(fields);
+  assert.deepEqual(fields.map(f => f.name), [...personFactFields]);
   const t = template(), original = structuredClone(t);
   const { cases } = buildCoupleCases(t);
   assert.deepEqual(t, original);

@@ -6,25 +6,6 @@
 @ importer ./aktieavancebeskatningsloven
 @ importer ./aktieavancebeskatningsloven-par23-27
 
-# KursgevinstlovPar32KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
-
-= kursgevinstloven_lbk1176_par32 = KursgevinstlovPar32KildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1176",
-    identifier = "Kursgevinstloven § 32",
-    hentet_dato = "2026-07-18"
-)
-
-= kursgevinstloven_juridisk_vejledning_par32 = KursgevinstlovPar32KildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1946050",
-    identifier = "Den juridiske vejledning C.B.1.8.4.2: tabsfradragsbegrænsning for personer",
-    hentet_dato = "2026-07-18"
-)
-= kursgevinstloven_lov1563_par4_par8 = KursgevinstlovPar32KildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2023/1563",
-    identifier = "LOV nr. 1563 af 12/12/2023, § 4, nr. 1, og § 8, stk. 1: MTF-udvidelse fra 1. januar 2024",
-    hentet_dato = "2026-07-18"
-)
-
 = kursgevinstloven_par32_metadata = Metadata(
     attachments = (
         Source(value = kursgevinstloven_lbk1176_par32),
@@ -104,10 +85,65 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 # KursgevinstPar32Tabsprioritet = KglPar32AlmindeligeTabFørst | KglPar32AktiebaseredeTabFørst
 # KursgevinstPar32FastEjendomstabsprioritet = KglPar32SælgertabFørst | KglPar32KøbertabFørst
 # KursgevinstPar32Aktiemodregningsomfang = KglPar32IngenAktiemodregning | KglPar32KunEgneAktiegevinster | KglPar32EgneOgÆgtefællesAktiegevinster
-# KursgevinstPar32Aktiemodregningsbeløb = KglPar32MaksimalAktiemodregning | KglPar32AktiemodregningOpTil(beløb_kroner: Heltal)
+= personskat_kilder_26 = [
+    Source(value = kursgevinstloven_lbk1176_par32),
+    Guidance(value = kursgevinstloven_juridisk_vejledning_par32),
+    AmendmentSource(value = kursgevinstloven_lov1563_par4_par8),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19d)
+]
+@ field(
+    label = "Beløbsvalg for modregning i aktiegevinster",
+    question = "Skal det maksimalt mulige beløb anvendes, eller skal modregningen begrænses til et bestemt beløb?",
+    sources = personskat_kilder_26
+)
+# KursgevinstPar32Aktiemodregningsbeløb =
+    KglPar32MaksimalAktiemodregning |
+    KglPar32AktiemodregningOpTil(
+        @ field(
+            label = "Øvre beløb for aktiemodregning",
+            question = "Hvor stort et kontrakttab ønskes højst modregnet i aktiegevinster?",
+            help = "Udfyldes kun ved et begrænset beløbsvalg.",
+            unit = "kr.",
+            sources = personskat_kilder_26
+        )
+        beløb_kroner: Heltal
+    )
 # KursgevinstPar32Aktiemodregningsvalg(omfang: KursgevinstPar32Aktiemodregningsomfang, beløb: KursgevinstPar32Aktiemodregningsbeløb)
-# KursgevinstPar32Aktiemodregningsmål = KglPar32OrdinærtPar13AÅrsgrundlag | KglPar32SupplerendeAblKilde(kildeidentifikation: Tekst)
-# KursgevinstPar32Aktiemodregningsfordeling = KglPar32AfledEntydigFordeling | KglPar32FordelEfterKilder(kilder: List(KursgevinstPar32Aktiemodregningsmål))
+@ field(
+    label = "Aktiegevinstkildens art",
+    question = "Skal modregningen anvendes på årets ordinære ABL § 13 A-grundlag eller på en konkret supplerende ABL-kilde?",
+    sources = personskat_kilder_26
+)
+# KursgevinstPar32Aktiemodregningsmål =
+    KglPar32OrdinærtPar13AÅrsgrundlag |
+    KglPar32SupplerendeAblKilde(
+        @ field(
+            label = "ABL-kilde til aktiemodregning",
+            question = "Hvilken stabil identifikation har den konkrete ABL-kilde, som skal anvendes på dette trin?",
+            help = "Identifikationen skal svare entydigt til et aktieaktiv eller minimumsbevis i beregningsgrundlaget.",
+            sources = personskat_kilder_26
+        )
+        kildeidentifikation: Tekst
+    )
+@ field(
+    label = "Fordeling af kontrakttab på aktiegevinster",
+    question = "Kan fordelingen af kontrakttabet afledes entydigt, eller skal de konkrete aktiegevinstkilder vælges i rækkefølge?",
+    help = "Vælg kilder i rækkefølge, når de kvalificerede gevinster beskattes i forskellige indkomstarter. Futuruna afleder selv hver kildes ABL-klasse, indkomsttype og disponible gevinst.",
+    sources = personskat_kilder_26
+)
+# KursgevinstPar32Aktiemodregningsfordeling =
+    KglPar32AfledEntydigFordeling |
+    KglPar32FordelEfterKilder(
+        @ field(
+            label = "Kilder til aktiemodregning i valgt rækkefølge",
+            question = "Hvilke aktiegevinstkilder skal kontrakttabet modregnes i, og i hvilken rækkefølge?",
+            help = "Tilføj kun stabile referencer til de indtastede ABL-kilder. Beløb og skatteklasse beregnes fra kilderne.",
+            sources = personskat_kilder_26
+        )
+        kilder: List(KursgevinstPar32Aktiemodregningsmål)
+    )
 # KursgevinstPar32Tabsaldo(almindelige_tab_kroner: Heltal, aktiebaserede_tab_kroner: Heltal)
 # KursgevinstPar32FastEjendomstabsaldo(sælgertab_kroner: Heltal, købertab_kroner: Heltal)
 # KursgevinstPar32Gevinstsaldo(øvrige_kontraktgevinster_kroner: Heltal, fast_ejendomskontraktgevinster_kroner: Heltal)
@@ -129,13 +165,114 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 # KursgevinstPar32Aktiemodregningsforberedelse(egen: KursgevinstPar32EgenÅrsopgørelsesresultat, aktiegevinstgrundlag: KursgevinstPar32Aktiegevinstgrundlagsresultat, ægtefælles_par13a_tab_modtaget_kroner: Heltal, aktiegevinstkapacitet_efter_ægtefælles_par13a_tab_kroner: Heltal, tab_efter_ægtefælles_kontraktgevinster: KursgevinstPar32Tabsaldo, fast_ejendomstab_efter_ægtefælles_kontraktgevinster: KursgevinstPar32FastEjendomstabsaldo, valgt_aktiemodregningsloft_kroner: Heltal, tab_modregnet_i_egne_aktiegevinster_kroner: Heltal, aktiebaseret_tab_efter_egne_aktiegevinster_kroner: Heltal, valgt_loft_efter_egne_aktiegevinster_kroner: Heltal, resterende_egen_aktiegevinstkapacitet_kroner: Heltal)
 # KursgevinstPar32ÆgtefælleparResultat(venstre: KursgevinstPar32PersonÅrsresultat, højre: KursgevinstPar32PersonÅrsresultat, gift_og_samlevende_ved_indkomstårets_udgang: Boolsk)
 # KursgevinstPar32FastEjendomsrolle = KglPar32KildeSælgerAfFastEjendom | KglPar32KildeKøberAfFastEjendom
-# KursgevinstPar32Kontraktrelationsfakta = KglPar32KildeUdenSærligRelation | KglPar32KildeDokumenteretErhvervstilknytning | KglPar32KildeFastEjendom(rolle: KursgevinstPar32FastEjendomsrolle) | KglPar32KildeTilknyttetAblAktiv(aktieaktiv_identifikation: Tekst)
-# KursgevinstPar32Underliggendefakta = KglPar32KildeIkkeAktiebaseret | KglPar32KildeEnkeltaktie(markedsstatus: AktieavanceOrdinærMarkedsstatus) | KglPar32KildeAktieindeks(markedsstatus: AktieavanceOrdinærMarkedsstatus) | KglPar32KildeEnkeltaktieFraAblReference
+@ field(
+    label = "Kontraktens dokumenterede tilknytning",
+    question = "Har kontrakten en dokumenteret erhvervstilknytning, tilknytning til fast ejendom eller tilknytning til et konkret ABL-aktiv?",
+    help = "Vælg kildeforholdet, ikke en færdig § 32-klassifikation.",
+    sources = personskat_kilder_26
+)
+# KursgevinstPar32Kontraktrelationsfakta =
+    KglPar32KildeUdenSærligRelation |
+    KglPar32KildeDokumenteretErhvervstilknytning |
+    KglPar32KildeFastEjendom(
+        @ field(
+            label = "Rolle i ejendomsaftalen",
+            question = "Er personen sælger eller køber i den tilknyttede aftale om fast ejendom?",
+            help = "Rollen bestemmer, om et resterende tab nedsætter afståelsessummen eller forhøjer anskaffelsessummen.",
+            sources = personskat_kilder_26
+        )
+        rolle: KursgevinstPar32FastEjendomsrolle
+    ) |
+    KglPar32KildeTilknyttetAblAktiv(
+        @ field(
+            label = "Tilknyttet ABL-aktiv",
+            question = "Hvilken identifikation har det konkrete aktieaktiv, som kontrakten er knyttet til?",
+            help = "Identifikationen skal svare entydigt til et aktiv i tabellen over andre aktiver efter aktieavancebeskatningsloven.",
+            sources = personskat_kilder_26
+        )
+        aktieaktiv_identifikation: Tekst
+    )
+@ field(
+    label = "Kontraktens underliggende aktiv",
+    question = "Er kontrakten ikke aktiebaseret, knyttet til en enkelt aktie eller knyttet til et aktieindeks?",
+    help = "Ved en ABL-reference kan markedsstatus afledes fra det tilknyttede aktieaktiv.",
+    sources = personskat_kilder_26
+)
+# KursgevinstPar32Underliggendefakta =
+    KglPar32KildeIkkeAktiebaseret |
+    KglPar32KildeEnkeltaktie(
+        @ field(
+            label = "Den underliggende akties markedsstatus",
+            question = "Var den underliggende aktie optaget på et reguleret marked, en multilateral handelsfacilitet eller ingen af delene?",
+            sources = personskat_kilder_26
+        )
+        markedsstatus: AktieavanceOrdinærMarkedsstatus
+    ) |
+    KglPar32KildeAktieindeks(
+        @ field(
+            label = "Aktieindeksets markedsstatus",
+            question = "Vedrører aktieindekset aktier på et reguleret marked, en multilateral handelsfacilitet eller ingen af delene?",
+            sources = personskat_kilder_26
+        )
+        markedsstatus: AktieavanceOrdinærMarkedsstatus
+    ) |
+    KglPar32KildeEnkeltaktieFraAblReference
 # KursgevinstPar32AblKontraktreference(aktieaktiv_identifikation: Tekst, relation: KursgevinstPar32Kontraktrelation, markedsstatus: AktieavanceOrdinærMarkedsstatus, input_gyldigt: Boolsk)
-# KursgevinstPar32KildekontraktFakta(identifikation: Tekst, rækkefølge_i_indkomståret: Heltal, kontrakt: KursgevinstlovKontraktKildeFakta, relationsfakta: KursgevinstPar32Kontraktrelationsfakta, underliggende: KursgevinstPar32Underliggendefakta)
+# KursgevinstPar32KildekontraktFakta(
+    @ field(
+        label = "Kontraktens identifikation",
+        question = "Hvilken stabil og entydig identifikation skal den finansielle kontrakt have?",
+        help = "Brug samme identifikation i dokumentation og audits. Identifikationen skal være unik inden for indkomståret.",
+        sources = personskat_kilder_26
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Kontraktens rækkefølge i indkomståret",
+        question = "Hvilket positivt løbenummer har kontrakten i årets kontraktforløb?",
+        help = "Løbenumrene skal være strengt stigende i tabellen.",
+        sources = personskat_kilder_26
+    )
+    rækkefølge_i_indkomståret: Heltal,
+    kontrakt: KursgevinstlovKontraktKildeFakta,
+    relationsfakta: KursgevinstPar32Kontraktrelationsfakta,
+    underliggende: KursgevinstPar32Underliggendefakta
+)
 # KursgevinstPar32KildekontraktResultat(fakta: KursgevinstPar32KildekontraktFakta, kursgevinstlov_input: KursgevinstlovInput, kursgevinstlov_resultat: KursgevinstlovResultat, relation: KursgevinstPar32Kontraktrelation, aktiegrundlag: KursgevinstPar32Aktiegrundlag, abl_reference_entydig: Boolsk, relation_gyldig: Boolsk, underliggende_gyldigt: Boolsk, input_gyldigt: Boolsk, kontraktpost: KursgevinstPar32Kontraktpost)
-# KursgevinstPar32Kildeårsvalg(tabsprioritet: KursgevinstPar32Tabsprioritet, fast_ejendomstabsprioritet: KursgevinstPar32FastEjendomstabsprioritet, aktiemodregningsvalg: KursgevinstPar32Aktiemodregningsvalg, aktiemodregningsfordeling: KursgevinstPar32Aktiemodregningsfordeling)
-# KursgevinstPar32PersonKildeårsfakta(indkomstår: Heltal, kontrakter: List(KursgevinstPar32KildekontraktFakta), valg: KursgevinstPar32Kildeårsvalg)
+# KursgevinstPar32Kildeårsvalg(
+    @ field(
+        label = "Rækkefølge for årets kontrakttab",
+        question = "Skal almindelige eller aktiebaserede kontrakttab anvendes først, når begge typer kan modregnes?",
+        help = "Valget påvirker, hvilken tabsart der eventuelt fremføres.",
+        sources = personskat_kilder_26
+    )
+    tabsprioritet: KursgevinstPar32Tabsprioritet,
+    @ field(
+        label = "Rækkefølge for ejendomskontrakttab",
+        question = "Skal sælgerens eller køberens tab på ejendomskontrakter anvendes først, når begge typer kan modregnes?",
+        sources = personskat_kilder_26
+    )
+    fast_ejendomstabsprioritet: KursgevinstPar32FastEjendomstabsprioritet,
+    aktiemodregningsvalg: KursgevinstPar32Aktiemodregningsvalg,
+    aktiemodregningsfordeling: KursgevinstPar32Aktiemodregningsfordeling
+)
+# KursgevinstPar32PersonKildeårsfakta(
+    @ field(
+        label = "Kontraktårets indkomstår",
+        question = "Hvilket indkomstår vedrører kontraktoplysningerne?",
+        help = "Det aktuelle år skal svare til personskatteberegningens skatteår; historikårene skal ligge umiddelbart før.",
+        unit = "år",
+        sources = personskat_kilder_26
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Finansielle kontrakter i indkomståret",
+        question = "Hvilke terminskontrakter, køberetter eller salgsretter havde gevinst eller tab i indkomståret?",
+        help = "Tilføj én række pr. kontrakt i den rækkefølge, årets dispositioner fandt sted.",
+        sources = personskat_kilder_26
+    )
+    kontrakter: List(KursgevinstPar32KildekontraktFakta),
+    valg: KursgevinstPar32Kildeårsvalg
+)
 # KursgevinstPar32PersonKildeårsafledning(skatteyder_identifikation: Tekst, fakta: KursgevinstPar32PersonKildeårsfakta, kontraktresultater: List(KursgevinstPar32KildekontraktResultat), årsinput: KursgevinstPar32PersonÅrsinput, input_gyldigt: Boolsk)
 
 | kgl_par32_abl_reference_matcher(identifikation: Tekst, reference: KursgevinstPar32AblKontraktreference) -> identifikation != "" && reference.aktieaktiv_identifikation == identifikation

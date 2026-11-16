@@ -9,11 +9,6 @@
 -- Aktieavancebeskatningsloven §§ 23-26 -- opgørelsesprincipper og
 -- anskaffelsessumsregler, som bygger videre på de ordinære aktiepositioner.
 
-= aktieavancebeskatningsloven_lbk1098_par23_til_par26 = AktieavancebeskatningslovKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
-    identifier = "Aktieavancebeskatningsloven §§ 23-26",
-    hentet_dato = "2026-07-18"
-)
 = aktieavancebeskatningsloven_lbk1098_par19d = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1098",
     identifier = "Aktieavancebeskatningsloven § 19 D, stk. 1",
@@ -22,11 +17,6 @@
 = aktieavancebeskatningsloven_lov1691_par3_nr6_par9_stk4_og_7 = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/1691",
     identifier = "LOV nr. 1691 af 30/12/2024, § 3, nr. 6, og § 9, stk. 4 og 7: syvårigt realisationsvalg for visse § 9-aktier",
-    hentet_dato = "2026-07-18"
-)
-= aktieavancebeskatningsloven_juridisk_vejledning_par23 = AktieavancebeskatningslovKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1946308",
-    identifier = "Den juridiske vejledning C.B.2.1.7.2: realisationsprincippet eller lagerprincippet",
     hentet_dato = "2026-07-18"
 )
 = aktieavance_par23_til_par26_afhængighedsgrænse = AktieavancebeskatningslovDækningsgrænse(
@@ -193,15 +183,118 @@ skattekontrollovens § 2.
 @ meta(aktieavancebeskatningsloven_par23_og_par23a_metadata)
 @ section aktieavancebeskatningsloven_par23_og_par23a {
 
-# AktieavancePar23Dato(år: Heltal, måned: Heltal, dag: Heltal)
+= personskat_kilder_3 = [
+    Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par26),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par17_klassifikation),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par44),
+    Source(value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par37),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par38),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39a),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39b),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par40),
+    PreparatoryWork(value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
+    DependencySource(value = aktieavancebeskatningsloven_lbk835_par4_stk2),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par44),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par23),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par37),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_beholdningsoversigt),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_prioritet),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_alle_afstået),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_årsoplysninger),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39b)
+]
+# AktieavancePar23Dato(
+    @ field(
+        label = "Aktiepartiets erhvervelsesår",
+        question = "I hvilket år blev aktiepartiet erhvervet?",
+        unit = "år",
+        sources = personskat_kilder_3
+    )
+    år: Heltal,
+    @ field(
+        label = "Aktiepartiets erhvervelsesmåned",
+        question = "I hvilken måned blev aktiepartiet erhvervet?",
+        unit = "måned",
+        sources = personskat_kilder_3
+    )
+    måned: Heltal,
+    @ field(
+        label = "Aktiepartiets erhvervelsesdag",
+        question = "På hvilken dag blev aktiepartiet erhvervet?",
+        unit = "dag",
+        sources = personskat_kilder_3
+    )
+    dag: Heltal
+)
 # AktieavanceInvesteringsselskabPapirart = AblInvesteringsselskabsaktie | AblOmsætteligtInvesteringsbevis | AblAndetInvesteringsselskabspapir
-# AktieavancePar23Aktiv = AblPar17Næringsaktiv | AblPar17Stk3Investeringsbevis | AblMinimumsinstitutsbevis(klassifikationsinput: AktieavancePar21Par22Input) | AblPar9Aktie(selskabsidentifikation: Tekst, markedsstatus: AktieavanceOrdinærMarkedsstatus) | AblPar9Tegningsret(underliggende_markedsstatus: AktieavanceOrdinærMarkedsstatus) | AblPar9KonvertibelObligation(underliggende_markedsstatus: AktieavanceOrdinærMarkedsstatus) | AblPar9TegningsretTilKonvertibelObligation(underliggende_markedsstatus: AktieavanceOrdinærMarkedsstatus) | AblPar20Stk1Investeringsbevis(klassifikationsinput: AktieavancePar19ATil20AInput) | AblPar20AInvesteringsbevis(klassifikationsinput: AktieavancePar19ATil20AInput) | AblPar19AInvesteringsselskabsaktiv(klassifikationsinput: AktieavancePar19ATil20AInput, papirart: AktieavanceInvesteringsselskabPapirart, markedsstatus: AktieavanceOrdinærMarkedsstatus, registreret_i_værdipapircentral: Boolsk) | AblInvesteringsselskabsaktiv(klassifikationsinput: AktieavancePar19BPar19CInput, papirart: AktieavanceInvesteringsselskabPapirart, markedsstatus: AktieavanceOrdinærMarkedsstatus, registreret_i_værdipapircentral: Boolsk) | AblPar23AKoncerninternKonvertibelObligation | AblPar23ATegningsretTilKoncerninternKonvertibelObligation | AblAndenAktieEfterPar23
+@ field(
+    label = "Aktivtype prøvet efter ABL § 23",
+    question = "Hvilken dokumenteret aktivtype skal prøves efter ABL § 23?",
+    help = "Aktivtypen og dens klassifikationsfakta afgør, om lagerprincippet er valgt eller lovpligtigt.",
+    sources = personskat_kilder_3
+)
+# AktieavancePar23Aktiv =
+    AblPar17Næringsaktiv |
+    AblPar17Stk3Investeringsbevis |
+    AblMinimumsinstitutsbevis(klassifikationsinput: AktieavancePar21Par22Input) |
+    AblPar9Aktie(selskabsidentifikation: Tekst, markedsstatus: AktieavanceOrdinærMarkedsstatus) |
+    AblPar9Tegningsret(underliggende_markedsstatus: AktieavanceOrdinærMarkedsstatus) |
+    AblPar9KonvertibelObligation(underliggende_markedsstatus: AktieavanceOrdinærMarkedsstatus) |
+    AblPar9TegningsretTilKonvertibelObligation(underliggende_markedsstatus: AktieavanceOrdinærMarkedsstatus) |
+    AblPar20Stk1Investeringsbevis(klassifikationsinput: AktieavancePar19ATil20AInput) |
+    AblPar20AInvesteringsbevis(klassifikationsinput: AktieavancePar19ATil20AInput) |
+    AblPar19AInvesteringsselskabsaktiv(klassifikationsinput: AktieavancePar19ATil20AInput, papirart: AktieavanceInvesteringsselskabPapirart, markedsstatus: AktieavanceOrdinærMarkedsstatus, registreret_i_værdipapircentral: Boolsk) |
+    AblInvesteringsselskabsaktiv(
+        klassifikationsinput: AktieavancePar19BPar19CInput,
+        @ field(
+            label = "Papirart i investeringsselskabet",
+            question = "Er aktivet en aktie, et investeringsbevis eller et andet papir i investeringsselskabet?",
+            sources = personskat_kilder_3
+        )
+        papirart: AktieavanceInvesteringsselskabPapirart,
+        @ field(
+            label = "Investeringsselskabsaktivets markedsstatus",
+            question = "Var aktivet optaget til handel på et reguleret marked eller en multilateral handelsfacilitet?",
+            help = "Statussen skal stemme med den ydre kildeposts markedsstatus.",
+            sources = personskat_kilder_3
+        )
+        markedsstatus: AktieavanceOrdinærMarkedsstatus,
+        @ field(
+            label = "Registreret i en værdipapircentral",
+            question = "Var aktivet registreret i en værdipapircentral?",
+            help = "Registreringen indgår i vurderingen af, om § 23, stk. 8, kræver kalenderårsopgørelse.",
+            sources = personskat_kilder_3
+        )
+        registreret_i_værdipapircentral: Boolsk
+    ) |
+    AblPar23AKoncerninternKonvertibelObligation |
+    AblPar23ATegningsretTilKoncerninternKonvertibelObligation |
+    AblAndenAktieEfterPar23
 # AktieavancePar23AktivKlassifikation(input_gyldigt: Boolsk, effektivt_abl_aktiv: AktieavancebeskatningslovAktiv)
 # AktieavancePar23Princip = AblPar23Realisationsprincip | AblPar23Lagerprincip | AblPar23AndenTilladtOpgørelsesmåde
 # AktieavancePar23Principgrundlag = AblPar23Stk1Grundlag | AblPar23Stk2ValgtLager | AblPar23Stk3TilladtOpgørelsesmåde | AblPar23Stk4TvungetLager | AblPar23Stk5TvungetLager | AblPar23Stk6ValgtRealisation | AblPar23Stk7SyvårigtRealisationsvalg | AblPar23Stk8TvungetLager | AblPar23AGrundlag
 # AktieavancePar23Stk2Valg = AblIntetPar23Stk2Valg | AblLagerValgtEnGangForAlleEfterPar23Stk2
 # AktieavancePar23Stk3Tilladelse = AblIngenPar23Stk3Tilladelse | AblAndenOpgørelsesmådeTilladtEfterPar23Stk3
+@ field(
+    label = "Realisationsvalg efter ABL § 23, stk. 6",
+    question = "Er realisationsprincippet valgt for alle relevante unoterede aktier efter ABL § 23, stk. 6?",
+    sources = personskat_kilder_3
+)
 # AktieavancePar23Stk6Valg = AblIntetPar23Stk6Valg | AblRealisationsprincipForAlleUnoteredePar9Aktier(har_tidligere_anvendt_lagerprincip: Boolsk)
+@ field(
+    label = "Syvårigt realisationsvalg efter ABL § 23, stk. 7",
+    question = "Er der foretaget et gyldigt syvårigt realisationsvalg efter ABL § 23, stk. 7?",
+    help = "Selskabsidentifikation, første optagelsesdato og ejerperiode dokumenteres i samme valg.",
+    sources = personskat_kilder_3
+)
 # AktieavancePar23Stk7Valgmåde = AblIntetPar23Stk7Valg | AblHistoriskGenoptagelsesvalg(anmodet_senest_1_juli_2025: Boolsk, omfatter_hele_perioden: Boolsk) | AblValgVedOplysningerForFørsteIndkomstår(oplysninger_indgivet_rettidigt: Boolsk)
 # AktieavancePar23Stk7Valg(selskabsidentifikation: Tekst, første_optagelsesdato: AktieavancePar23Dato, ejer_dage_før_første_optagelse: Heltal, valgmåde: AktieavancePar23Stk7Valgmåde)
 # AktieavancePar23PrincipInput(indkomstår: Heltal, opgørelsesdato: AktieavancePar23Dato, skattepligtsresultat: AktieavancePar6Par7Resultat, aktiv: AktieavancePar23Aktiv, stk2_valg: AktieavancePar23Stk2Valg, stk3_tilladelse: AktieavancePar23Stk3Tilladelse, stk6_valg: AktieavancePar23Stk6Valg, stk7_valg: AktieavancePar23Stk7Valg, obligationsgevinst_opgøres_efter_lagerprincippet: Boolsk, indkomstår_forskelligt_fra_kalenderår: Boolsk)
@@ -304,7 +397,35 @@ skattekontrollovens § 2.
 | aktieavance_par23_stk8_værdiinput_gyldigt(input: AktieavancePar23Stk8Værdiinput) -> match input { | AblPar23Stk8Markedskurs(markedskurs, tilbagekøbsværdi) -> markedskurs >= 0 && tilbagekøbsværdi >= 0 | AblPar23Stk8UdenFastlæggeligMarkedskurs(tilbagekøbsværdi) -> tilbagekøbsværdi >= 0 }
 | aktieavance_par23_stk8_skattemæssig_værdi_kroner(input: AktieavancePar23Stk8Værdiinput) -> hvis aktieavance_par23_stk8_værdiinput_gyldigt(input) { match input { | AblPar23Stk8Markedskurs(markedskurs, tilbagekøbsværdi) -> penge_største_beløb(markedskurs, tilbagekøbsværdi) | AblPar23Stk8UdenFastlæggeligMarkedskurs(tilbagekøbsværdi) -> tilbagekøbsværdi } } ellers { 0 }
 
-# AktieavancePar23LagerAfståelse(afståelsesidentifikation: Tekst, skattemæssig_værdi_før_afståelse_kroner: Heltal, afståelsessum_kroner: Heltal, omfattet_af_ll16b_stk1: Boolsk)
+# AktieavancePar23LagerAfståelse(
+    @ field(
+        label = "Lagerafståelsens identifikation",
+        question = "Hvilken stabil og entydig identifikation skal afståelsen have?",
+        sources = personskat_kilder_3
+    )
+    afståelsesidentifikation: Tekst,
+    @ field(
+        label = "Skattemæssig værdi før afståelsen",
+        question = "Hvad var aktivets skattemæssige værdi umiddelbart før afståelsen?",
+        unit = "kr.",
+        sources = personskat_kilder_3
+    )
+    skattemæssig_værdi_før_afståelse_kroner: Heltal,
+    @ field(
+        label = "Afståelsessum i lagerperioden",
+        question = "Hvad var den dokumenterede afståelsessum?",
+        unit = "kr.",
+        sources = personskat_kilder_3
+    )
+    afståelsessum_kroner: Heltal,
+    @ field(
+        label = "Afståelsen er omfattet af ligningslovens § 16 B",
+        question = "Er afståelsessummen omfattet af ligningslovens § 16 B, stk. 1?",
+        help = "En sådan afståelsessum indgår ikke i lageropgørelsens afståelsessummer.",
+        sources = personskat_kilder_3
+    )
+    omfattet_af_ll16b_stk1: Boolsk
+)
 # AktieavancePar23LagerÅrsinput(princip_resultat: AktieavancePar23PrincipResultat, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, anskaffelsessummer_i_perioden_kroner: Heltal, afståelser_i_perioden: List(AktieavancePar23LagerAfståelse), par17_modprøve: AktieavancePar17Modprøve, oplysningsbetingelse_efter_par19d_opfyldt: Boolsk)
 # AktieavancePar23LagerÅrsresultat(input: AktieavancePar23LagerÅrsinput, opgørelse_gyldig: Boolsk, afståelsessummer_i_perioden_kroner: Heltal, afståelsessummer_omfattet_af_ll16b_stk1_kroner: Heltal, afståelsessummer_der_indgår_kroner: Heltal, nettogevinst_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, tab_afskåret_efter_par19d_kroner: Heltal, tab_afskåret_efter_par20a_stk2_kroner: Heltal, aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
 

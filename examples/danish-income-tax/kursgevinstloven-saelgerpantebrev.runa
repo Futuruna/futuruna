@@ -3,29 +3,9 @@
 @ importer ./metadata
 @ importer ./kursgevinstloven
 
-# KglSælgerpantebrevKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
-
-= kgl_sælgerpantebrev_lbk1176 = KglSælgerpantebrevKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1176",
-    identifier = "LBK nr. 1176 af 19/09/2025: Kursgevinstlovens §§ 1, 12, 14, 17, 25 og 26",
-    hentet_dato = "2026-07-18"
-)
-
 = kgl_sælgerpantebrev_vejledning_2026 = KglSælgerpantebrevKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2292757",
     identifier = "Den juridiske vejledning 2026-1, C.H.2.1.11.9: Samspillet mellem EBL § 6 D og kursgevinstloven",
-    hentet_dato = "2026-07-18"
-)
-
-= kgl_sælgerpantebrev_kildeskattelov_lbk460 = KglSælgerpantebrevKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2024/460",
-    identifier = "LBK nr. 460 af 03/05/2024: Kildeskattelovens §§ 26 B og 27",
-    hentet_dato = "2026-07-18"
-)
-
-= kgl_sælgerpantebrev_dødsboskattelov_lbk426 = KglSælgerpantebrevKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2019/426",
-    identifier = "LBK nr. 426 af 28/03/2019: Dødsboskattelovens §§ 20, 27-29, 35-36, 38 og 58-59",
     hentet_dato = "2026-07-18"
 )
 
@@ -200,8 +180,65 @@ længstlevende ægtefælle med hensyntagen til sådanne ændringer.
 
 # KglSælgerpantebrevSkatteyder(identifikation: Tekst, rolle: KursgevinstlovPersonrolle)
 # KglSælgerpantebrevEjerskiftegrundlag = KglSælgerpantebrevÆgtefælleEfterKildeskattelovensPar26B(modtagers_skatteyder_identifikation: Tekst, overdrager_hjemmehørende_i_danmark: Boolsk, modtager_hjemmehørende_i_danmark: Boolsk) | KglSælgerpantebrevÆgtefælleVedBodelingEfterSeparationEllerSkilsmisse(modtagers_skatteyder_identifikation: Tekst, overdrager_hjemmehørende_i_danmark: Boolsk, modtager_hjemmehørende_i_danmark: Boolsk) | KglSælgerpantebrevDødsboEfterDødsboskattelovensPar20(boets_skatteyder_identifikation: Tekst) | KglSælgerpantebrevEfterlevendeÆgtefælleEfterDødsboskattelovensPar59(modtagers_skatteyder_identifikation: Tekst) | KglSælgerpantebrevUdlodningTilEfterlevendeÆgtefælleEfterDødsboskattelovensPar35Til38(modtagers_skatteyder_identifikation: Tekst, bo_ikke_fritaget_for_beskatning_efter_par6: Boolsk, bo_har_valgt_salgsbeskatning_efter_par28_stk3: Boolsk, modtager_hjemmehørende_i_danmark: Boolsk, fordringen_kan_fortsat_beskattes_i_danmark: Boolsk, værdi_i_boopgørelsen_kroner: Heltal) | KglSælgerpantebrevIkkeUnderstøttetEjerskifte(beskrivelse: Tekst)
-# KglSælgerpantebrevDispositionstype = KglSælgerpantebrevAfdrag | KglSælgerpantebrevAfståelse | KglSælgerpantebrevIndfrielse | KglSælgerpantebrevNedskrivning | KglSælgerpantebrevEjerskifte(grundlag: KglSælgerpantebrevEjerskiftegrundlag, modtagers_tranche_identifikation: Tekst) | KglSælgerpantebrevIkkeUnderstøttet(beskrivelse: Tekst)
-# KglSælgerpantebrevDisposition(indkomstår: Heltal, berørt_tranche_identifikation: Tekst, art: KglSælgerpantebrevDispositionstype, berørt_hovedstol_kroner: Heltal, afståelses_eller_indfrielsessum_kroner: Heltal)
+= personskat_kilder_27 = [
+    Source(value = kgl_sælgerpantebrev_lbk1176),
+    Source(value = kursgevinstloven_lbk1176_gæld),
+    Source(value = kursgevinstloven_lbk1176_årsnetto),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par22_årsnetto),
+    DependencySource(value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
+    DependencySource(value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
+    Guidance(value = kgl_ebl_par6d_vejledning_2026),
+    Guidance(value = kursgevinstloven_vejledning_par24),
+    Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_realisering),
+    Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_gennemsnit)
+]
+@ field(
+    label = "Disposition med restfordringen",
+    question = "Hvad skete der med den berørte del af restfordringen?",
+    help = "Vælg betaling, afståelse, indfrielse eller nedskrivning. Ukendte dispositioner afvises frem for at blive fortolket.",
+    sources = personskat_kilder_27
+)
+# KglSælgerpantebrevDispositionstype =
+    KglSælgerpantebrevAfdrag |
+    KglSælgerpantebrevAfståelse |
+    KglSælgerpantebrevIndfrielse |
+    KglSælgerpantebrevNedskrivning |
+    KglSælgerpantebrevEjerskifte(
+        grundlag: KglSælgerpantebrevEjerskiftegrundlag,
+        @ field(
+            label = "Ny del efter ejerskifte",
+            question = "Hvilken ny entydig identifikation skal den overdragne del af sælgerpantebrevet have hos modtageren?",
+            help = "Identifikationen forbinder modtagerens senere betalinger, afståelser og indfrielser med det skattemæssige grundlag, der følger den overdragne del.",
+            sources = personskat_kilder_27
+        )
+        modtagers_tranche_identifikation: Tekst
+    ) |
+    KglSælgerpantebrevIkkeUnderstøttet(beskrivelse: Tekst)
+# KglSælgerpantebrevDisposition(
+    @ field(
+        label = "Dispositionens indkomstår",
+        question = "I hvilket indkomstår skete dispositionen med restfordringen?",
+        unit = "år",
+        sources = personskat_kilder_27
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Berørt del af sælgerpantebrevet",
+        question = "Hvilken entydigt identificeret del af sælgerpantebrevet vedrører dispositionen?",
+        help = "Brug samme identifikation på alle senere dispositioner, der vedrører denne del. Ved et ejerskifte får den overdragne del en ny identifikation.",
+        sources = personskat_kilder_27
+    )
+    berørt_tranche_identifikation: Tekst,
+    art: KglSælgerpantebrevDispositionstype,
+    @ field(
+        label = "Berørt hovedstol",
+        question = "Hvor stor en nominel del af restfordringens hovedstol vedrører dispositionen?",
+        unit = "kr.",
+        sources = personskat_kilder_27
+    )
+    berørt_hovedstol_kroner: Heltal,
+    afståelses_eller_indfrielsessum_kroner: Heltal
+)
 # KglSælgerpantebrevInput(identifikation: Tekst, oprindelig_skatteyder: KglSælgerpantebrevSkatteyder, erhvervelsesår: Heltal, hovedstol_kroner: Heltal, kursværdi_ved_erhvervelsen_kroner: Heltal, dispositioner: List(KglSælgerpantebrevDisposition))
 # KglSælgerpantebrevTranche(identifikation: Tekst, skatteyder: KglSælgerpantebrevSkatteyder, skattemæssigt_erhvervelsesår: Heltal, resterende_hovedstol_kroner: Heltal, resterende_anskaffelsessum_kroner: Heltal, seneste_indkomstår: Heltal, aktiv: Boolsk)
 # KglSælgerpantebrevTilstand(trancher: List(KglSælgerpantebrevTranche), seneste_indkomstår: Heltal, aktiv: Boolsk)

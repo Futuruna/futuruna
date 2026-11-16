@@ -1,0 +1,277 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./source-status
+
+-- Kilder, som feltmetadata (`@ field`) i flere lovmoduler citerer.
+-- Hver kilde står ét sted; modulerne importerer denne fil.
+
+# AktieavancebeskatningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+# Børnebidragslov19KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+# KglSælgerpantebrevKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+# Ligningslov16AKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+# Ligningslov33AKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+# Ligningslov33KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+# Pbl15AFortjenesteKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+# Pbl15KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+# PensionsbeskatningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+# PersonskatPersonligIndkomstKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+# PersonskattelovIndkomstKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+# Søbl5Til8KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948728",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.15.6: boligejendomme ejet via aktier eller andelsbeviser",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_lbk1098_par12_til_par15 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven §§ 12-15",
+    hentet_dato = "2026-07-18"
+)
+
+= børnebidragsbekendtgørelsen_bek285_par3_par4_par9_par10_par11 = Børnebidragslov19KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2019/285",
+    identifier = "Bidragsbekendtgørelsen §§ 3-4 og 9-11 i BEK nr. 285 af 20/03/2019",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Gældende bekendtgørelse; fristerne styrer offentlig fastsættelse af § 19-bidrag"
+)
+
+= børnebidragsloven_lbk773_par19 = Børnebidragslov19KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2019/773",
+    identifier = "Børnebidragsloven § 19 i LBK nr. 773 af 07/08/2019",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Gældende konsolidering kontrolleret på Retsinformation"
+)
+
+= børnebidragsloven_satser_2025 = Børnebidragslov19KildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2024/10046",
+    identifier = "Indkomstoversigt for fastsættelse af børne- og ægtefællebidrag i 2025, pkt. 2.5",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Fødselsbidrag 976 kr.; barselsbidrag 1.699 kr. pr. måned; navngivningsbidrag 1.419 kr."
+)
+
+= børnebidragsloven_satser_2026 = Børnebidragslov19KildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2025/10225",
+    identifier = "Indkomstoversigt for fastsættelse af børne- og ægtefællebidrag i 2026, pkt. 2.5",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Fødselsbidrag 1.020 kr.; barselsbidrag 1.775 kr. pr. måned; navngivningsbidrag 1.483 kr."
+)
+
+= kgl_sælgerpantebrev_dødsboskattelov_lbk426 = KglSælgerpantebrevKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2019/426",
+    identifier = "LBK nr. 426 af 28/03/2019: Dødsboskattelovens §§ 20, 27-29, 35-36, 38 og 58-59",
+    hentet_dato = "2026-07-18"
+)
+
+= kgl_sælgerpantebrev_kildeskattelov_lbk460 = KglSælgerpantebrevKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/460",
+    identifier = "LBK nr. 460 af 03/05/2024: Kildeskattelovens §§ 26 B og 27",
+    hentet_dato = "2026-07-18"
+)
+
+= ligningsloven_lbk1500_par33 = Ligningslov33KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 33, stk. 1-2, 6 og 8-9, og § 33 F i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_lbk1500_par33a = Ligningslov33AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 33 A i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_ligningsvejledning_2003_par33a_opholdseksempel = Ligningslov33AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2003/20112",
+    identifier = "Ligningsvejledningen 2003, § 33 A-eksempel: 15. januar til 25. september tillader 58 dage",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_lov313_2002_par33_fragtskat = Ligningslov33KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2002/313",
+    identifier = "LOV nr. 313 af 21/05/2002, § 8, nr. 6-7 - ophævelse af femårsfristen og rækkefølgereglerne",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_lov487_1996_par33_fragtskat = Ligningslov33KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/1996/487",
+    identifier = "LOV nr. 487 af 12/06/1996, § 1, nr. 8 - indførelse af fragtskattereglen",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_par16a_lbk1500 = Ligningslov16AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 16 A i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-01"
+)
+
+= ligningsloven_par16a_lov1755 = Ligningslov16AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1755",
+    identifier = "LOV nr. 1755 af 29/12/2025, § 4, nr. 2, og § 8, stk. 1",
+    hentet_dato = "2026-08-01"
+)
+
+= ligningsloven_praksis_skm2018_370_sr = Ligningslov33KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2273666",
+    identifier = "SKM2018.370.SR, credit i dansk aktieavanceskat for betalt udenlandsk indkomstskat",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_skm2026_158_vlr = Ligningslov33AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2461005",
+    identifier = "SKM2026.158.VLR - dansk luftrum og dokumentation af 42-dagesreglen",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_styresignal_2023_10299 = Ligningslov33AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2023/10299",
+    identifier = "Styresignal SKM2023.519.SKTST efter SKM2023.18.ØLR - udlandsopholdets sammenhæng med arbejdsgiverens forhold",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_vejledning_par33_credit = Ligningslov33KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977310&chk=221020",
+    identifier = "Den juridiske vejledning 2026-2, C.F.4.1 LL § 33",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_vejledning_par33_personberegning = Ligningslov33KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977330&chk=221020",
+    identifier = "Den juridiske vejledning 2026-2, C.F.4.3.1 Generelt om lempelsesberegningerne",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_vejledning_par33a_42_dages_regel = Ligningslov33AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977320",
+    identifier = "Den juridiske vejledning 2026-1, C.F.4.2.2.4 42-dages-reglen",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_vejledning_par33a_beregning = Ligningslov33AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977325",
+    identifier = "Den juridiske vejledning 2026-1, C.F.4.2.5 Nedslagsregler efter LL § 33 A",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_vejledning_par33a_stk1 = Ligningslov33AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977314",
+    identifier = "Den juridiske vejledning 2026-1, C.F.4.2.1 Skattelempelse efter LL § 33 A, stk. 1",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_vejledning_par33a_stk2 = Ligningslov33AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977323",
+    identifier = "Den juridiske vejledning 2026-1, C.F.4.2.4 Tjeneste for dansk offentlig myndighed",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_vejledning_par33a_stk3 = Ligningslov33AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977322",
+    identifier = "Den juridiske vejledning 2026-1, C.F.4.2.3 Halv skattelempelse efter LL § 33 A, stk. 3",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_vejledning_par33f_nettoprincip = Ligningslov33KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977823&chk=221020",
+    identifier = "Den juridiske vejledning 2026-2, C.F.2.3 Nettoprincippet",
+    hentet_dato = "2026-08-10"
+)
+
+= pensionsbeskatningsloven_lbk1243_par15a = Pbl15KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 15 A",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Sammenholdt med LOV nr. 369 af 09/04/2025 og LOV nr. 615 af 30/06/2026"
+)
+
+= pensionsbeskatningsloven_lbk1243_par19_stk1 = PensionsbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 19, stk. 1",
+    hentet_dato = "2026-08-08",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; LOV nr. 1757 af 29/12/2025 indsætter stk. 6, men stk. 1 er uændret"
+)
+
+= pensionsbeskatningsloven_lbk1243_par56 = PersonskatPersonligIndkomstKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 56, stk. 5",
+    hentet_dato = "2026-08-03"
+)
+
+= personskat_dis_kanonisk_dækningsgrænse = "Den kanoniske Personskat-sammenligning understøtter ikke den valgte særlige DIS-skattepligtsposition: kulbrinteskattepligt, begrænset skattepligtsfritagelse eller dødsbolempelse. Det er en modelbegrænsning, ikke i sig selv en fejl i kildefakta eller årsopgørelsen. Særskilte komponenttal er ikke en fuld årsopgørelsesberegning. Bevar den faktiske skattepligtsposition; skift ikke kategori eller fjern indkomst for at få et sammenligningsbeløb. Se personskat-validity.md#særlige-dis-skattepligtspositioner."
+
+= personskatteloven_lbk1284_par3 = PersonskattelovIndkomstKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2021/1284",
+    identifier = "Personskatteloven § 3",
+    hentet_dato = "2026-07-18"
+)
+
+= skat_børnebidrag_engangsbeløb_vejledning = Børnebidragslov19KildeInfo(
+    url = "https://info.skat.dk/data.aspx?chk=220619&oid=1976900",
+    identifier = "Den juridiske vejledning C.A.8.5.2.2: Engangsbeløb",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Vejledningen dokumenterer fradragspraksis for dåbs- og navngivningsbidrag"
+)
+
+= skat_børnebidrag_fødsel_vejledning = Børnebidragslov19KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2061803",
+    identifier = "Den juridiske vejledning C.A.9.5: Bidrag ved fødslen",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Vejledningen afskærer fradrag for § 19-fødselsudgifter og moderens underhold"
+)
+
+= skat_gruppeliv_eindkomst_20260925 = PersonskatPersonligIndkomstKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2045911",
+    identifier = "eIndkomst 8.5, felt 91: lønfinansieret gruppeliv indgår i beskæftigelsesfradrag; pensionsbonus i felt 38, indtægtsart 37, gør ikke",
+    hentet_dato = "2026-09-25"
+)
+
+= skat_gruppeliv_rubrik347_20260925 = PersonskatPersonligIndkomstKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2134461",
+    identifier = "Rubrik 347: arbejdsgiveradministrerede ikke-fradragsberettigede indskud, efter allerede indeholdt AM; den viste rategrænse bruges ikke som årsparameter",
+    hentet_dato = "2026-09-25"
+)
+
+= skat_gruppeliv_vejledning = PersonskatPersonligIndkomstKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048498",
+    identifier = "Den juridiske vejledning C.A.10.4.3.10: Gruppelivsforsikring",
+    hentet_dato = "2026-08-03"
+)
+
+= skat_honorar_vejledning = PersonskatPersonligIndkomstKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976769",
+    identifier = "Den juridiske vejledning C.A.3.1.2: Honorar",
+    hentet_dato = "2026-08-11"
+)
+
+= skat_pbl15a_fortjeneste_vejledning = Pbl15AFortjenesteKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048421",
+    identifier = "Den juridiske vejledning C.A.10.2.3.4, Opgørelse af fortjenesten",
+    hentet_dato = "2026-07-23"
+)
+
+= skat_pbl15a_ophørspension_vejledning = Pbl15KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048421",
+    identifier = "Den juridiske vejledning C.A.10.2.3.4, Indbetalinger til ophørspension",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Det samlede loft følger sidste indbetalingsår; fradraget i afståelsesåret kan højst bruge dette års loft; hver afståelse begrænses af sin skattepligtige fortjeneste"
+)
+
+= søbl5_til8_lbk1181 = Søbl5Til8KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/1181",
+    identifier = "Sømandsbeskatningsloven §§ 1 og 5-8, LBK nr. 1181 af 21/09/2023",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Efterfølgende LOV nr. 333 af 09/04/2024 gennemgået; ændringen indsætter alene § 11 c og ændrer ikke §§ 1 eller 5-8"
+)

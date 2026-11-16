@@ -5,14 +5,6 @@
 @ importer ./kursgevinstloven
 @ importer ./aktieavancebeskatningsloven
 
-# KursgevinstlovÅrsnettoKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
-
-= kursgevinstloven_lbk1176_årsnetto = KursgevinstlovÅrsnettoKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1176",
-    identifier = "LBK nr. 1176 af 19/09/2025: Kursgevinstlovens §§ 1, 12-18, 23, 25-26 og 42",
-    hentet_dato = "2026-08-07"
-)
-
 = kursgevinstloven_vejledning_årsnetto_par25 = KursgevinstlovÅrsnettoKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1946022",
     identifier = "Den juridiske vejledning 2026-2, C.B.1.7.1: KGL § 25, stk. 2",
@@ -22,18 +14,6 @@
 = kursgevinstloven_vejledning_årsnetto_par42 = KursgevinstlovÅrsnettoKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1948970",
     identifier = "Den juridiske vejledning 2026-2, C.B.1.7.10: KGL § 42, stk. 9",
-    hentet_dato = "2026-08-07"
-)
-
-= kursgevinstloven_vejledning_årsnetto_par26_realisering = KursgevinstlovÅrsnettoKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1948965",
-    identifier = "Den juridiske vejledning 2026-2, C.B.1.7.5: realisations- og lagerprincippet",
-    hentet_dato = "2026-08-07"
-)
-
-= kursgevinstloven_vejledning_årsnetto_par26_gennemsnit = KursgevinstlovÅrsnettoKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1948966",
-    identifier = "Den juridiske vejledning 2026-2, C.B.1.7.6: gennemsnitsmetoden",
     hentet_dato = "2026-08-07"
 )
 
@@ -251,11 +231,85 @@ hvor ændringen har virkning fra.
 # KglÅrsnettoValuta(iso_4217_kode: Tekst)
 # KglÅrsnettoValutakurs(dkk_øre_tæller: Heltal, valuta_hundreddele_nævner: Heltal)
 # KglÅrsnettoValutaværdi(beløb_hundreddele: Heltal, kurs: KglÅrsnettoValutakurs)
+= personskat_kilder_22 = [
+    Source(value = kgl_sælgerpantebrev_lbk1176),
+    Source(value = kursgevinstloven_lbk1176_gæld),
+    Source(value = kursgevinstloven_lbk1176_årsnetto),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par22_årsnetto),
+    DependencySource(value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
+    DependencySource(value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
+    Guidance(value = kgl_ebl_par6d_vejledning_2026),
+    Guidance(value = kursgevinstloven_vejledning_par24),
+    Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_realisering),
+    Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_gennemsnit)
+]
+@ field(
+    label = "Valutainstrumentets art",
+    question = "Er instrumentet en fordring eller gæld i fremmed valuta?",
+    help = "En fordring klassificeres yderligere efter KGL §§ 1 og 12-18. Almindelig gæld i fremmed valuta behandles efter KGL § 23.",
+    sources = personskat_kilder_22
+)
 # KglÅrsnettoValutaaktiv = KglÅrsnettoValutafordring(kilde: KglÅrsnettoFordringskilde) | KglÅrsnettoValutagældEfterPar23
-# KglÅrsnettoValutaposition(indkomstår: Heltal, erhvervelsesår: Heltal, valuta: KglÅrsnettoValuta, par25_valgpositioner: KglÅrsnettoPar25Valgpositioner, anskaffelsesværdi: KglÅrsnettoValutaværdi, seneste_værdi: KglÅrsnettoValutaværdi, kredit_eller_pris_tidligere_medregnet_øre: Heltal, valutakurs_tidligere_medregnet_øre: Heltal)
+# KglÅrsnettoValutaposition(
+    @ field(
+        label = "Valutapositionens foregående indkomstår",
+        question = "Hvilket indkomstår stammer den videreførte valutaposition fra?",
+        unit = "år",
+        sources = personskat_kilder_22
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Valutainstrumentets erhvervelsesår",
+        question = "I hvilket indkomstår blev det videreførte valutainstrument oprindeligt anskaffet eller stiftet?",
+        unit = "år",
+        sources = personskat_kilder_22
+    )
+    erhvervelsesår: Heltal,
+    valuta: KglÅrsnettoValuta,
+    par25_valgpositioner: KglÅrsnettoPar25Valgpositioner,
+    anskaffelsesværdi: KglÅrsnettoValutaværdi,
+    seneste_værdi: KglÅrsnettoValutaværdi,
+    @ field(
+        label = "Tidligere medregnet kredit- eller prisændring",
+        question = "Hvor mange danske øre af den kumulative kredit- eller prisændring er allerede medregnet?",
+        unit = "øre",
+        sources = personskat_kilder_22
+    )
+    kredit_eller_pris_tidligere_medregnet_øre: Heltal,
+    @ field(
+        label = "Tidligere medregnet valutakursændring",
+        question = "Hvor mange danske øre af den kumulative valutakursændring er allerede medregnet?",
+        unit = "øre",
+        sources = personskat_kilder_22
+    )
+    valutakurs_tidligere_medregnet_øre: Heltal
+)
+@ field(
+    label = "Valutainstrumentets position ved årets begyndelse",
+    question = "Er valutainstrumentet anskaffet eller stiftet i året, eller videreføres det fra det foregående indkomstår?",
+    help = "En videreført position bevarer anskaffelsesværdien, seneste værdi, allerede medregnede pris- og valutakomponenter og de to § 25-valg fra det foregående indkomstår.",
+    sources = personskat_kilder_22
+)
 # KglÅrsnettoValutapositionPrimo = KglÅrsnettoIngenValutapositionPrimo | KglÅrsnettoVidereførtValutapositionPrimo(position: KglÅrsnettoValutaposition)
+@ field(
+    label = "Valutainstrumentets ændring i året",
+    question = "Blev instrumentet anskaffet, værdiansat ved årets udgang eller afstået i indkomståret?",
+    help = "Vælg den overgang, som forbinder årets begyndelsesposition med den dokumenterede slutværdi.",
+    sources = personskat_kilder_22
+)
 # KglÅrsnettoValutaÅrsændring = KglÅrsnettoValutaAnskaffetOgUltimoværdi(anskaffelsesværdi: KglÅrsnettoValutaværdi, ultimoværdi: KglÅrsnettoValutaværdi) | KglÅrsnettoValutaAnskaffetOgAfstået(anskaffelsesværdi: KglÅrsnettoValutaværdi, afståelsesværdi: KglÅrsnettoValutaværdi) | KglÅrsnettoValutaUltimoværdi(ultimoværdi: KglÅrsnettoValutaværdi) | KglÅrsnettoValutaAfstået(afståelsesværdi: KglÅrsnettoValutaværdi)
-# KglÅrsnettoValutaforløb(identifikation: Tekst, valuta: KglÅrsnettoValuta, aktiv: KglÅrsnettoValutaaktiv, position_primo: KglÅrsnettoValutapositionPrimo, årsændring: KglÅrsnettoValutaÅrsændring)
+# KglÅrsnettoValutaforløb(
+    @ field(
+        label = "Valutainstrumentets identifikation",
+        question = "Hvilken stabil og entydig identifikation skal fordringen, obligationen eller gælden have?",
+        sources = personskat_kilder_22
+    )
+    identifikation: Tekst,
+    valuta: KglÅrsnettoValuta,
+    aktiv: KglÅrsnettoValutaaktiv,
+    position_primo: KglÅrsnettoValutapositionPrimo,
+    årsændring: KglÅrsnettoValutaÅrsændring
+)
 # KglÅrsnettoValutakomponentart = KglÅrsnettoKreditEllerPriskomponent | KglÅrsnettoValutakurskomponent
 # KglÅrsnettoValutakomponentresultat(art: KglÅrsnettoValutakomponentart, opgørelsesprincip: KursgevinstlovOpgørelsesprincip, kumulativ_rå_netto_øre: Heltal, tidligere_medregnet_øre: Heltal, årets_rå_netto_øre: Heltal, årets_rå_netto_kroner: Heltal)
 # KglÅrsnettoValutaforløbsresultat(fakta: KglÅrsnettoValutaforløb, input_gyldigt: Boolsk, kredit_eller_pris: KglÅrsnettoValutakomponentresultat, valutakurs: KglÅrsnettoValutakomponentresultat, årets_rå_netto_kroner: Heltal, position_ultimo: Option(KglÅrsnettoValutaposition), kursgevinstlov_resultater: List(KursgevinstlovResultat))
@@ -393,15 +447,243 @@ hvor ændringen har virkning fra.
 | kgl_årsnetto_valutaforløbsresultat(fakta: KglÅrsnettoValutaforløb, valg: KglÅrsnettoPar25Årsvalg, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> KglÅrsnettoValutaforløbssag(fakta, valg, indkomstår, årets_samlede_netto_kroner).resultat()
 
 # KglÅrsnettoMængdeenhed = KglÅrsnettoAntalStyk | KglÅrsnettoNominelleHundreddele
-# KglÅrsnettoFordringsgruppe = KglÅrsnettoEnkeltfordring(mængdeenhed: KglÅrsnettoMængdeenhed) | KglÅrsnettoFondskode(fondskode: Tekst, mængdeenhed: KglÅrsnettoMængdeenhed) | KglÅrsnettoSammeVilkår(udsteder_identifikation: Tekst, vilkårsidentifikation: Tekst, mængdeenhed: KglÅrsnettoMængdeenhed)
-# KglÅrsnettoTidspunkt(dato: Dato, rækkefølge_på_dagen: Heltal)
-# KglÅrsnettoFordringstranche(identifikation: Tekst, anskaffelsestidspunkt: KglÅrsnettoTidspunkt, resterende_mængde: Heltal, resterende_anskaffelsessum_kroner: Heltal)
+@ field(
+    label = "Fordringer, som skal opgøres samlet",
+    question = "Er dette én fordring, værdipapirer med samme fondskode eller fordringer udstedt på samme vilkår?",
+    help = "Grupperingen afgør, hvilke anskaffelser der indgår i FIFO- eller gennemsnitsberegningen efter KGL § 26, stk. 4-5.",
+    sources = personskat_kilder_22
+)
+# KglÅrsnettoFordringsgruppe =
+    KglÅrsnettoEnkeltfordring(
+        @ field(
+            label = "Mængdeenhed for enkeltfordringen",
+            question = "Angives fordringens mængde som antal styk eller nominelle hundreddele?",
+            sources = personskat_kilder_22
+        )
+        mængdeenhed: KglÅrsnettoMængdeenhed
+    ) |
+    KglÅrsnettoFondskode(
+        @ field(
+            label = "Fordringens fondskode",
+            question = "Hvilken fondskode identificerer de værdipapirer, der skal opgøres samlet?",
+            sources = personskat_kilder_22
+        )
+        fondskode: Tekst,
+        @ field(
+            label = "Mængdeenhed for fondskoden",
+            question = "Angives beholdningen som antal styk eller nominelle hundreddele?",
+            sources = personskat_kilder_22
+        )
+        mængdeenhed: KglÅrsnettoMængdeenhed
+    ) |
+    KglÅrsnettoSammeVilkår(
+        @ field(
+            label = "Udsteder for fordringer med samme vilkår",
+            question = "Hvilken entydig identifikation har den fælles udsteder?",
+            sources = personskat_kilder_22
+        )
+        udsteder_identifikation: Tekst,
+        @ field(
+            label = "Fælles vilkårsidentifikation",
+            question = "Hvilken stabil dokument- eller aftalereference identificerer de fælles udstedelsesvilkår?",
+            sources = personskat_kilder_22
+        )
+        vilkårsidentifikation: Tekst,
+        @ field(
+            label = "Mængdeenhed for fordringer med samme vilkår",
+            question = "Angives fordringerne som antal styk eller nominelle hundreddele?",
+            sources = personskat_kilder_22
+        )
+        mængdeenhed: KglÅrsnettoMængdeenhed
+    )
+= personskat_kilder_23 = [
+    Source(value = kursgevinstloven_lbk1176_årsnetto),
+    Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_realisering),
+    Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_gennemsnit)
+]
+# KglÅrsnettoTidspunkt(
+    dato: Dato,
+    @ field(
+        label = "Hændelsens rækkefølge på dagen",
+        question = "Hvilket løbenummer har hændelsen blandt fordringens hændelser samme dag?",
+        help = "Brug 1 for den første hændelse, 2 for den næste og så videre.",
+        sources = personskat_kilder_23
+    )
+    rækkefølge_på_dagen: Heltal
+)
+# KglÅrsnettoFordringstranche(
+    @ field(
+        label = "Den videreførte tranches identifikation",
+        question = "Hvilken stabil identifikation havde tranchen i forrige års resultat?",
+        sources = personskat_kilder_23
+    )
+    identifikation: Tekst,
+    anskaffelsestidspunkt: KglÅrsnettoTidspunkt,
+    @ field(
+        label = "Tranchens resterende mængde",
+        question = "Hvor stor en mængde resterer ved årets begyndelse?",
+        unit = "valgt mængdeenhed",
+        sources = personskat_kilder_23
+    )
+    resterende_mængde: Heltal,
+    @ field(
+        label = "Tranchens resterende anskaffelsessum",
+        question = "Hvor stor en skattemæssig anskaffelsessum resterer ved årets begyndelse?",
+        unit = "kr.",
+        sources = personskat_kilder_23
+    )
+    resterende_anskaffelsessum_kroner: Heltal
+)
 # KglÅrsnettoAllokeringsprincip = KglÅrsnettoHelpositionsallokering | KglÅrsnettoGennemsnitsmetodeEfterPar26Stk4 | KglÅrsnettoFifoEfterPar26Stk5
 # KglÅrsnettoTranchefordeling(frigivet_anskaffelsessum_kroner: Heltal, afstået_mængde: Heltal, resterende_trancher: List(KglÅrsnettoFordringstranche))
-# KglÅrsnettoPositionPrimo = KglÅrsnettoIngenPositionPrimo | KglÅrsnettoVidereførtPositionPrimo(fra_indkomstår: Heltal, skattemæssig_værdi_kroner: Heltal, opgørelsesprincip: KursgevinstlovOpgørelsesprincip) | KglÅrsnettoVidereførtMængdepositionPrimo(fra_indkomstår: Heltal, fordringsgruppe: KglÅrsnettoFordringsgruppe, trancher: List(KglÅrsnettoFordringstranche), opgørelsesprincip: KursgevinstlovOpgørelsesprincip)
+@ field(
+    label = "Fordringens position ved årets begyndelse",
+    question = "Var fordringen ny i året, eller videreføres den fra det foregående indkomstår?",
+    help = "En videreført position skal angive det umiddelbart foregående indkomstår. Brug en mængdeposition til delvise eller gentagne realisationer.",
+    sources = personskat_kilder_22
+)
+# KglÅrsnettoPositionPrimo =
+    KglÅrsnettoIngenPositionPrimo |
+    KglÅrsnettoVidereførtPositionPrimo(
+        @ field(
+            label = "Indkomstår for den videreførte åbningsværdi",
+            question = "Fra hvilket umiddelbart foregående indkomstår videreføres åbningsværdien?",
+            unit = "år",
+            sources = personskat_kilder_22
+        )
+        fra_indkomstår: Heltal,
+        @ field(
+            label = "Skattemæssig værdi ved årets begyndelse",
+            question = "Hvad var den videreførte skattemæssige værdi ved indkomstårets begyndelse?",
+            unit = "kr.",
+            sources = personskat_kilder_22
+        )
+        skattemæssig_værdi_kroner: Heltal,
+        @ field(
+            label = "Opgørelsesprincip for den videreførte åbningsværdi",
+            question = "Efter hvilket princip blev fordringens skattemæssige værdi opgjort i det foregående indkomstår?",
+            help = "Brug princippet fra forrige års Futuruna-resultat. For obligationer på et reguleret marked kontrolleres det mod den videreførte valghistorik efter KGL § 25.",
+            sources = personskat_kilder_22
+        )
+        opgørelsesprincip: KursgevinstlovOpgørelsesprincip
+    ) |
+    KglÅrsnettoVidereførtMængdepositionPrimo(
+        @ field(
+            label = "Indkomstår for de videreførte trancher",
+            question = "Fra hvilket umiddelbart foregående indkomstår videreføres trancherne?",
+            unit = "år",
+            sources = personskat_kilder_22
+        )
+        fra_indkomstår: Heltal,
+        fordringsgruppe: KglÅrsnettoFordringsgruppe,
+        @ field(
+            label = "Trancher ved årets begyndelse",
+            question = "Hvilke resterende anskaffelsestrancher videreføres fra det foregående indkomstår?",
+            help = "Bevar trancheidentifikation, anskaffelsestidspunkt, restmængde og resterende anskaffelsessum fra forrige års Futuruna-resultat.",
+            sources = personskat_kilder_22
+        )
+        trancher: List(KglÅrsnettoFordringstranche),
+        @ field(
+            label = "Opgørelsesprincip for de videreførte trancher",
+            question = "Efter hvilket princip blev tranchepositionens skattemæssige værdi opgjort i det foregående indkomstår?",
+            help = "Brug princippet fra forrige års Futuruna-resultat. For obligationer på et reguleret marked kontrolleres det mod den videreførte valghistorik efter KGL § 25.",
+            sources = personskat_kilder_22
+        )
+        opgørelsesprincip: KursgevinstlovOpgørelsesprincip
+    )
 # KglÅrsnettoPositionUltimo = KglÅrsnettoIngenPositionUltimo | KglÅrsnettoAktivPositionUltimo(indkomstår: Heltal, skattemæssig_værdi_kroner: Heltal, opgørelsesprincip: KursgevinstlovOpgørelsesprincip) | KglÅrsnettoAktivMængdepositionUltimo(indkomstår: Heltal, fordringsgruppe: KglÅrsnettoFordringsgruppe, trancher: List(KglÅrsnettoFordringstranche), opgørelsesprincip: KursgevinstlovOpgørelsesprincip)
 # KglÅrsnettoMængdeafståelsesart = KglÅrsnettoSalg | KglÅrsnettoFuldIndfrielse | KglÅrsnettoDelafdrag
-# KglÅrsnettoHændelse = KglÅrsnettoAnskaffelse(anskaffelsessum_kroner: Heltal) | KglÅrsnettoAfståelse(afståelsessum_kroner: Heltal) | KglÅrsnettoUltimoværdi(værdi_kroner: Heltal) | KglÅrsnettoMængdeanskaffelse(tidspunkt: KglÅrsnettoTidspunkt, tranche_identifikation: Tekst, mængde: Heltal, anskaffelsessum_kroner: Heltal) | KglÅrsnettoMængdeafståelse(tidspunkt: KglÅrsnettoTidspunkt, afståelsesart: KglÅrsnettoMængdeafståelsesart, mængde: Heltal, afståelsessum_kroner: Heltal) | KglÅrsnettoMængdeultimoværdi(tidspunkt: KglÅrsnettoTidspunkt, værdi_kroner: Heltal)
+@ field(
+    label = "Fordringens hændelse",
+    question = "Skete der en anskaffelse, afståelse eller opgørelse af ultimoværdi?",
+    help = "Tilføj hændelserne i deres faktiske rækkefølge. En aktiv lagerbeskattet position kræver en ultimoværdi.",
+    sources = personskat_kilder_22
+)
+# KglÅrsnettoHændelse =
+    KglÅrsnettoAnskaffelse(
+        @ field(
+            label = "Fordringens anskaffelsessum",
+            question = "Hvad var fordringens dokumenterede anskaffelsessum?",
+            unit = "kr.",
+            sources = personskat_kilder_22
+        )
+        anskaffelsessum_kroner: Heltal
+    ) |
+    KglÅrsnettoAfståelse(
+        @ field(
+            label = "Fordringens afståelsessum",
+            question = "Hvad var fordringens dokumenterede afståelses- eller indfrielsessum?",
+            unit = "kr.",
+            sources = personskat_kilder_22
+        )
+        afståelsessum_kroner: Heltal
+    ) |
+    KglÅrsnettoUltimoværdi(
+        @ field(
+            label = "Fordringens værdi ved årets udgang",
+            question = "Hvad var den dokumenterede ultimoværdi for den lagerbeskattede obligation?",
+            unit = "kr.",
+            sources = personskat_kilder_22
+        )
+        værdi_kroner: Heltal
+    ) |
+    KglÅrsnettoMængdeanskaffelse(
+        tidspunkt: KglÅrsnettoTidspunkt,
+        @ field(
+            label = "Anskaffelsestranchens identifikation",
+            question = "Hvilken stabil og entydig identifikation har anskaffelsestranchen?",
+            sources = personskat_kilder_22
+        )
+        tranche_identifikation: Tekst,
+        @ field(
+            label = "Anskaffet mængde",
+            question = "Hvor stor en mængde blev anskaffet i denne tranche?",
+            unit = "valgt mængdeenhed",
+            sources = personskat_kilder_22
+        )
+        mængde: Heltal,
+        @ field(
+            label = "Anskaffelsestranchens anskaffelsessum",
+            question = "Hvad var den dokumenterede anskaffelsessum for hele tranchen?",
+            unit = "kr.",
+            sources = personskat_kilder_22
+        )
+        anskaffelsessum_kroner: Heltal
+    ) |
+    KglÅrsnettoMængdeafståelse(
+        tidspunkt: KglÅrsnettoTidspunkt,
+        @ field(
+            label = "Hvordan fordringsmængden blev realiseret",
+            question = "Blev mængden solgt, fuldt indfriet eller delvist tilbagebetalt?",
+            help = "En fuld indfrielse skal lukke hele den resterende position; et delafdrag skal efterlade en rest.",
+            sources = personskat_kilder_22
+        )
+        afståelsesart: KglÅrsnettoMængdeafståelsesart,
+        @ field(
+            label = "Afstået eller indfriet mængde",
+            question = "Hvor stor en mængde blev afstået, indfriet eller tilbagebetalt?",
+            unit = "valgt mængdeenhed",
+            sources = personskat_kilder_22
+        )
+        mængde: Heltal,
+        @ field(
+            label = "Beløb ved afståelse eller indfrielse",
+            question = "Hvilket samlet beløb blev modtaget for den afståede, indfriede eller tilbagebetalte mængde?",
+            unit = "kr.",
+            sources = personskat_kilder_22
+        )
+        afståelsessum_kroner: Heltal
+    ) |
+    KglÅrsnettoMængdeultimoværdi(
+        tidspunkt: KglÅrsnettoTidspunkt,
+        @ field(
+            label = "Resterende positions værdi ved årets udgang",
+            question = "Hvad var den dokumenterede ultimoværdi af den resterende lagerbeskattede position?",
+            unit = "kr.",
+            sources = personskat_kilder_22
+        )
+        værdi_kroner: Heltal
+    )
 # KglÅrsnettoHændelsesresultat(hændelse: KglÅrsnettoHændelse, hændelse_gyldig: Boolsk, er_opgørelse: Boolsk, opgørelsesgrundlag_kroner: Heltal, opgørelsesslutværdi_kroner: Heltal, rå_netto_kroner: Heltal, position_aktiv_efter: Boolsk, resterende_mængde_efter: Heltal, skattemæssig_værdi_efter_kroner: Heltal, trancher_efter: List(KglÅrsnettoFordringstranche))
 # KglÅrsnettoForløbstilstand(mængdeforløb: Boolsk, position_aktiv: Boolsk, trancher: List(KglÅrsnettoFordringstranche), tranche_identifikationer: List(Tekst), seneste_tidspunkt: Option(KglÅrsnettoTidspunkt), skattemæssig_værdi_kroner: Heltal, anskaffet_i_indkomståret: Boolsk, afstået_i_indkomståret: Boolsk, ultimoværdi_angivet: Boolsk, har_opgørelse: Boolsk, opgørelsesgrundlag_kroner: Heltal, opgørelsesslutværdi_kroner: Heltal, rå_netto_kroner: Heltal, hændelsesresultater: List(KglÅrsnettoHændelsesresultat), alle_hændelser_gyldige: Boolsk)
 # KglÅrsnettoForløbsresultat(indkomstår: Heltal, fordringsgruppe: KglÅrsnettoFordringsgruppe, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse), opgørelsesprincip: KursgevinstlovOpgørelsesprincip, allokeringsprincip: KglÅrsnettoAllokeringsprincip, hændelsesresultater: List(KglÅrsnettoHændelsesresultat), har_opgørelse: Boolsk, opgørelsesgrundlag_kroner: Heltal, opgørelsesslutværdi_kroner: Heltal, rå_netto_kroner: Heltal, resterende_mængde: Heltal, position_ultimo: KglÅrsnettoPositionUltimo, input_gyldigt: Boolsk)
@@ -607,12 +889,6 @@ hvor ændringen har virkning fra.
 
 }
 
-= aktieavancebeskatningsloven_lbk1098_par22_årsnetto = KursgevinstlovÅrsnettoKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
-    identifier = "LBK nr. 1098 af 27/08/2025: Aktieavancebeskatningslovens § 22",
-    hentet_dato = "2026-08-03"
-)
-
 = kursgevinstloven_årsnetto_abl22_metadata = Metadata(
     attachments = (
         DependencySource(value = aktieavancebeskatningsloven_lbk1098_par22_årsnetto),
@@ -656,10 +932,44 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 @ meta(kursgevinstloven_årsnetto_abl22_metadata)
 @ section kursgevinstloven_årsnetto_abl22 {
 
-# KglÅrsnettoFordringsforløb(identifikation: Tekst, kilde: KglÅrsnettoFordringskilde, fordringsgruppe: KglÅrsnettoFordringsgruppe, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse))
+# KglÅrsnettoFordringsforløb(
+    @ field(
+        label = "Fordringens identifikation",
+        question = "Hvilken stabil og entydig identifikation skal fordringen eller obligationen have?",
+        sources = personskat_kilder_22
+    )
+    identifikation: Tekst,
+    kilde: KglÅrsnettoFordringskilde,
+    fordringsgruppe: KglÅrsnettoFordringsgruppe,
+    position_primo: KglÅrsnettoPositionPrimo,
+    hændelser: List(KglÅrsnettoHændelse)
+)
 # KglÅrsnettoAbl22Kilde(klassifikation: AktieavancePar21Par22Input, par17_modprøve: AktieavancePar17Modprøve)
 # KglÅrsnettoAbl22Forløb(kilde: KglÅrsnettoAbl22Kilde, beholdning: AktieavanceInvesteringsbevisBeholdningsforløbsinput)
-# KursgevinstlovÅrsnettoInput(par25_valg: KglÅrsnettoPar25Årsvalg, fordringer: List(KglÅrsnettoFordringsforløb), valutainstrumenter: List(KglÅrsnettoValutaforløb), obligationsbaserede_minimumsbeviser: List(KglÅrsnettoAbl22Forløb))
+# KursgevinstlovÅrsnettoInput(
+    par25_valg: KglÅrsnettoPar25Årsvalg,
+    @ field(
+        label = "Andre fordringer og obligationer",
+        question = "Hvilke fordringer eller obligationer havde en anskaffelse, afståelse eller årsopgørelse i indkomståret?",
+        help = "Tilføj ét årsforløb pr. instrument. Angiv observerbare kildefakta og hændelser; Futuruna afleder KGL §§ 1 og 12-18, opgørelsen efter §§ 25-26 og den fælles 2.000-kr.-grænse.",
+        sources = personskat_kilder_22
+    )
+    fordringer: List(KglÅrsnettoFordringsforløb),
+    @ field(
+        label = "Fordringer og gæld i fremmed valuta",
+        question = "Hvilke fordringer eller gældsposter i fremmed valuta skal opgøres efter KGL §§ 14, 23 og 25?",
+        help = "Tilføj ét årsforløb pr. instrument. Beløb angives i hundreddele af den udenlandske valuta sammen med dokumenterede valutakurser; Futuruna adskiller kredit- eller prisændringen fra valutakursændringen.",
+        sources = personskat_kilder_22
+    )
+    valutainstrumenter: List(KglÅrsnettoValutaforløb),
+    @ field(
+        label = "Obligationsbaserede minimumsbeviser",
+        question = "Hvilke omsættelige beviser i minimumsbeskattede investeringsinstitutter blev anskaffet eller afstået i indkomståret?",
+        help = "Futuruna klassificerer instituttet efter ABL §§ 21-22 og samordner kun et effektivt obligationsbaseret § 22-bevis med KGL §§ 14 og 23.",
+        sources = personskat_kilder_22
+    )
+    obligationsbaserede_minimumsbeviser: List(KglÅrsnettoAbl22Forløb)
+)
 # KglÅrsnettoFordringsopgørelse(hændelsesresultat: KglÅrsnettoHændelsesresultat, kursgevinstlov_input: KursgevinstlovInput, kursgevinstlov_resultat: KursgevinstlovResultat)
 # KglÅrsnettoFordringsresultat(fakta: KglÅrsnettoFordringsforløb, forløb: KglÅrsnettoForløbsresultat, omfattet_af_par14_bagatelgrundlag: Boolsk, opgørelser: List(KglÅrsnettoFordringsopgørelse), input_gyldigt: Boolsk)
 # KglÅrsnettoAbl22Opgørelse(afståelsesresultat: AktieavanceInvesteringsbevisAfståelsesresultat, aktieavancebeskatningslov_input: AktieavancebeskatningslovInput, aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)

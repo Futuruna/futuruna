@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { declaredField } from './field_declarations.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const model = 'examples/danish-income-tax/groen-check.calculate.runa';
@@ -159,7 +160,10 @@ for (const [id, edit] of [
 test('green-check review stays additive and documents unresolved coverage', () => {
   const source = readFileSync(join(root, model), 'utf8');
   assert.match(source, /@ calculate\("Grøn check/);
-  assert.match(source, /null.*ukendt/);
+  const person = declaredField(readFileSync(join(root, 'examples/danish-income-tax/groen-check.runa'), 'utf8'),
+    'GrønCheckInput', 'person');
+  assert.ok(person, 'GrønCheckInput.person: missing @ field');
+  assert.match(person, /null.*ukendt/);
   const guide = readFileSync(join(root, 'examples/danish-income-tax/groen-check.md'), 'utf8');
   assert.match(guide, /td-5f8fb4/);
   assert.match(guide, /td-6d49ab/);

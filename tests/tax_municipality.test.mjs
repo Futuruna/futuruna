@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { declaredField } from './field_declarations.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const model = 'examples/danish-income-tax/personskat.calculate.runa';
@@ -31,7 +32,8 @@ test('taxpayer and spouse are asked for tax-year municipality, not current resid
 
 test('report review preserves its observed municipality without claiming independent verification', () => {
   const report = readFileSync(join(root, 'examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa'), 'utf8');
-  const metadata = report.split('\n').find(line => line.includes('pathof(ÅrsopgørelseAfstemningsinput::kommune)'));
+  const metadata = declaredField(report, 'ÅrsopgørelseAfstemningsinput', 'kommune');
+  assert.ok(metadata, 'ÅrsopgørelseAfstemningsinput.kommune: missing @ field');
   assert.match(metadata, /Rapportens skattekommune/);
   assert.match(metadata, /ikke.*nuværende bopæl/);
   const guide = readFileSync(join(root, 'examples/danish-income-tax/pension-og-fradrag.md'), 'utf8');

@@ -3,6 +3,7 @@
 @ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./arbejdsmarkedsbidragsloven
+@ importer ./delte-kilder
 
 # KulbrinteskattelovPar21KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 
@@ -68,7 +69,59 @@ Stk. 2. Personer, som ikke er omfattet af kildeskattelovens § 1, og som arbejde
 # Kulbrinteskattelov21Stk2DanskBeskatningsret = KulbrinteDanskBeskatningsretBekræftet | KulbrinteDobbeltbeskatningsaftaleAfskærerDanskBeskatning | KulbrinteDanskBeskatningsretUafklaret
 # Kulbrinteskattelov21Stk2Beskatningsvalg = KulbrinteEndeligBruttoskatEfterPar21Stk2 | KulbrinteValgtKildeskattelov2Stk1Nr1
 # Kulbrinteskattelov21Stk2Lovversion = KulbrintePar21Stk2Lbk1820Af2021MedSenereÆndringer | KulbrintePar21Stk2Lbk477Af2025 | KulbrintePar21Stk2LovversionUdenKildedækning
-# Kulbrinteskattelov21Stk2Kildefakta(personstatus: Kulbrinteskattelov21Stk2Personstatus, arbejdsgiverhjemting: Kulbrinteskattelov21Stk2Arbejdsgiverhjemting, indkomstkategori: Kulbrinteskattelov21Stk2Indkomstkategori, dansk_beskatningsret: Kulbrinteskattelov21Stk2DanskBeskatningsret, beskatningsvalg: Kulbrinteskattelov21Stk2Beskatningsvalg, alder_ved_indkomstårets_udløb: Heltal)
+= personskat_kilder_21 = [
+    Source(value = søbl5_til8_lbk1181),
+    HistoricalSource(value = kulbrinteskattelov_par21_lbk1820),
+    DependencySource(value = kulbrinteskattelov_par21_lbk477),
+    AmendmentSource(value = kulbrinteskattelov_par21_lov502),
+    AmendmentSource(value = kulbrinteskattelov_par21_lov710),
+    AmendmentSource(value = kulbrinteskattelov_par21_lov1564)
+]
+# Kulbrinteskattelov21Stk2Kildefakta(
+    @ field(
+        label = "Personstatus efter kulbrinteskattelovens § 21, stk. 2",
+        question = "Var personen uden for fuld skattepligt efter kildeskattelovens § 1?",
+        help = "Feltet udfyldes kun for kulbrinteskattepligt efter § 21, stk. 2. " + personskat_dis_kanonisk_dækningsgrænse,
+        sources = personskat_kilder_21
+    )
+    personstatus: Kulbrinteskattelov21Stk2Personstatus,
+    @ field(
+        label = "Arbejdsgiverens hjemting efter kulbrinteskatteloven",
+        question = "Havde arbejdsgiveren hjemting i Danmark?",
+        help = "Den endelige bruttoskat efter § 21, stk. 2, forudsætter en arbejdsgiver uden hjemting i Danmark.",
+        sources = personskat_kilder_21
+    )
+    arbejdsgiverhjemting: Kulbrinteskattelov21Stk2Arbejdsgiverhjemting,
+    @ field(
+        label = "Indkomstkategori efter kulbrinteskatteloven",
+        question = "Hvilken kategori efter kulbrinteskattelovens § 21, stk. 2, tilhørte indkomsten?",
+        help = "Erhvervsindkomst og indtægt efter § 4 falder uden for den afgrænsede bruttoskatteberegning.",
+        sources = personskat_kilder_21
+    )
+    indkomstkategori: Kulbrinteskattelov21Stk2Indkomstkategori,
+    @ field(
+        label = "Dansk beskatningsret til kulbrinteindkomsten",
+        question = "Er dansk beskatningsret bekræftet eller afskåret af en dobbeltbeskatningsaftale?",
+        help = "Vælg uafklaret, hvis den relevante dobbeltbeskatningsaftale endnu ikke er vurderet; beregningen fejler da lukket.",
+        sources = personskat_kilder_21
+    )
+    dansk_beskatningsret: Kulbrinteskattelov21Stk2DanskBeskatningsret,
+    @ field(
+        label = "Beskatningsvalg for kulbrinteindkomsten",
+        question = "Er den endelige bruttoskat efter § 21, stk. 2, valgt, eller er ordinær beskatning efter kildeskattelovens § 2 valgt?",
+        help = "Valg af ordinær kildeskat kræver den tilsvarende beregning og fejler derfor lukket i dette afgrænsede resultat.",
+        sources = personskat_kilder_21
+    )
+    beskatningsvalg: Kulbrinteskattelov21Stk2Beskatningsvalg,
+    @ field(
+        label = "Alder ved indkomstårets udløb for kulbrinteindkomsten",
+        question = "Hvor gammel var personen ved indkomstårets udløb?",
+        help = "Alderen bruges til den gældende personlige sats for arbejdsmarkedsbidrag.",
+        unit = "år",
+        sources = personskat_kilder_21
+    )
+    alder_ved_indkomstårets_udløb: Heltal
+)
 # Kulbrinteskattelov21Stk2Input(indkomstår: Heltal, bruttoindtægt_kroner: Heltal, kildefakta: Kulbrinteskattelov21Stk2Kildefakta)
 # Kulbrinteskattelov21Stk2Resultat(input: Kulbrinteskattelov21Stk2Input, lovversion: Kulbrinteskattelov21Stk2Lovversion, input_gyldigt: Boolsk, skatteår_understøttet: Boolsk, grundbetingelser_opfyldt: Boolsk, dansk_beskatningsret_afklaret: Boolsk, dansk_beskatningsret: Boolsk, endelig_bruttoskat_valgt: Boolsk, kræver_kildeskattelov2_stk1_nr1_beregning: Boolsk, beregningsklar: Boolsk, bruttoskattegrundlag_kroner: Heltal, indkomstskattesats_basispoint: Heltal, endelig_indkomstskat_kroner: Heltal, arbejdsmarkedsbidragssats_basispoint: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, samlet_skat_kroner: Heltal)
 

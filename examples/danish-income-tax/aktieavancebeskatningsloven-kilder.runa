@@ -1,3 +1,2 @@
 @ sprog da
-
-# AktieavancebeskatningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+@ importer ./delte-kilder

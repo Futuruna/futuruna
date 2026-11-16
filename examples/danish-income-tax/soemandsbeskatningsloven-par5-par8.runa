@@ -8,14 +8,6 @@
 @ importer ./doedsboskatteloven-par1-par30
 @ importer ./kulbrinteskatteloven-par21
 
-# Søbl5Til8KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
-
-= søbl5_til8_lbk1181 = Søbl5Til8KildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2023/1181",
-    identifier = "Sømandsbeskatningsloven §§ 1 og 5-8, LBK nr. 1181 af 21/09/2023",
-    hentet_dato = "2026-08-04",
-    ændringsstatus = "Efterfølgende LOV nr. 333 af 09/04/2024 gennemgået; ændringen indsætter alene § 11 c og ændrer ikke §§ 1 eller 5-8"
-)
 = søbl5_til8_lov333 = Søbl5Til8KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/333",
     identifier = "LOV nr. 333 af 09/04/2024 § 5",
@@ -83,7 +75,41 @@ Stk. 4. Stk. 3 finder tilsvarende anvendelse for personer, som udøver bestemmen
 @ section søbl5_til8_par1_stk3_stk4 {
 
 # Søbl5Til8Aflønningssammenligning = SøblAflønningSvarerTilSammenligneligeAnsatte | SøblAflønningAfvigerFraSammenligneligeAnsatte
-# Søbl5Til8Personrelation = SøblAlmindeligLønmodtager | SøblEjerPartrederEllerInteressent(sammenligning: Søbl5Til8Aflønningssammenligning) | SøblBestemmendeIndflydelseEllerNærtstående(sammenligning: Søbl5Til8Aflønningssammenligning)
+= personskat_kilder_62 = [
+    Source(value = søbl5_til8_lbk1181),
+    AmendmentSource(value = søbl5_til8_lov333),
+    DependencySource(value = søbl5_til8_bek940),
+    DependencySource(value = søbl5_til8_tonnageskattelov),
+    Guidance(value = søbl5_til8_juridisk_vejledning),
+    Practice(value = søbl5_til8_skm2019_141),
+    Practice(value = søbl5_til8_skm2020_75)
+]
+@ field(
+    label = "Relation til skibet eller rederiet",
+    question = "Var personen almindelig lønmodtager, medejer af skibet eller bestemmende eller nærtstående i rederiet?",
+    help = "Ejere og personer med bestemmende indflydelse skal aflønnes som sammenlignelige ansatte for at anvende §§ 5, 6 og 8.",
+    sources = personskat_kilder_62
+)
+# Søbl5Til8Personrelation =
+    SøblAlmindeligLønmodtager |
+    SøblEjerPartrederEllerInteressent(
+        @ field(
+            label = "Aflønning som ejer, partreder eller interessent",
+            question = "Svarer aflønningen til den, som ansatte med samme anciennitet og funktion modtager?",
+            help = "Feltet udfyldes kun, når personen ejer skibet eller en andel i det.",
+            sources = personskat_kilder_62
+        )
+        sammenligning: Søbl5Til8Aflønningssammenligning
+    ) |
+    SøblBestemmendeIndflydelseEllerNærtstående(
+        @ field(
+            label = "Aflønning ved bestemmende indflydelse eller nærtstående relation",
+            question = "Svarer aflønningen til den, som ansatte med samme anciennitet og funktion modtager?",
+            help = "Feltet udfyldes kun ved bestemmende indflydelse over rederiet eller en nærtstående relation.",
+            sources = personskat_kilder_62
+        )
+        sammenligning: Søbl5Til8Aflønningssammenligning
+    )
 
 | søbl5_til8_aflønningsbetingelse_opfyldt(relation: Søbl5Til8Personrelation) -> match relation {
     | SøblAlmindeligLønmodtager -> Sandt
@@ -118,11 +144,113 @@ Stk. 3. Nødvendige rejsedage i forbindelse med påmønstring og afmønstring an
 @ section søbl5_til8_bek940_par1 {
 
 # Søbl5Til8Datoperiode(startdato: Dato, slutdato: Dato)
-# SøblKursus12Månedersopgørelse(opgørelsesperiode: Søbl5Til8Datoperiode, kursusperioder: List(Søbl5Til8Datoperiode))
+# SøblKursus12Månedersopgørelse(
+    opgørelsesperiode: Søbl5Til8Datoperiode,
+    @ field(
+        label = "Kursusperioder i 12-månedersopgørelsen",
+        question = "Hvilke kursusperioder indgår i den relevante 12-månedersopgørelse?",
+        help = "Tilføj alle perioder. Futuruna afviser overlap og udleder de samlede dage og den eksakte tremånedersgrænse.",
+        sources = personskat_kilder_62
+    )
+    kursusperioder: List(Søbl5Til8Datoperiode)
+)
 # SøblKursus12Månedersresultat(opgørelse: SøblKursus12Månedersopgørelse, input_gyldigt: Boolsk, første_kursusdag: Dato, samlede_kursusdage: Heltal, tremånedersudløb_dato: Dato, tremånedersmaksimum_dage: Heltal, tremånedersgrænse_opfyldt: Boolsk)
-# SøblRejsedage12Månedersopgørelse(opgørelsesperiode: Søbl5Til8Datoperiode, rejsedatoer: List(Dato))
+# SøblRejsedage12Månedersopgørelse(
+    opgørelsesperiode: Søbl5Til8Datoperiode,
+    @ field(
+        label = "Nødvendige rejsedatoer i 12-månedersopgørelsen",
+        question = "På hvilke datoer fandt de nødvendige rejser til eller fra skibet sted?",
+        help = "Tilføj hver dato én gang. Futuruna validerer 12-månedersperioden og udleder selv 14-dagesgrænsen.",
+        sources = personskat_kilder_62
+    )
+    rejsedatoer: List(Dato)
+)
 # SøblRejsedage12Månedersresultat(opgørelse: SøblRejsedage12Månedersopgørelse, input_gyldigt: Boolsk, antal_rejsedage: Heltal, fjortendagesgrænse_opfyldt: Boolsk)
-# Søbl5Til8Arbejdsrolle = SøblNormalDriftsbesætning | SøblMidlertidigtVedligeholdEllerReparation(skib_i_almindelig_drift: Boolsk, del_af_sikkerheds_eller_driftsbesætning: Boolsk, kan_umiddelbart_udføres_af_landpersonale: Boolsk) | SøblSærligTilrigningLastOpgaveEllerSejladsSomDriftsbesætning | SøblArbejdePåMidlertidigtUdeAfDriftSkib(periode: Søbl5Til8Datoperiode, umiddelbart_før_omfattet: Boolsk, kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift: Boolsk) | SøblNybygningstilsyn(periode: Søbl5Til8Datoperiode, skibet_opfylder_betingelser_efter_færdiggørelse: Boolsk, påmønstres_umiddelbart_efter_færdiggørelse: Boolsk) | SøblKursusophold(opgørelse: SøblKursus12Månedersopgørelse, umiddelbart_før_omfattet: Boolsk, fortsat_ansat_af_rederiet: Boolsk) | SøblNødvendigeRejsedage(opgørelse: SøblRejsedage12Månedersopgørelse) | SøblAndetArbejde
+@ field(
+    label = "Arbejdsrolle om bord",
+    question = "Hvilken rolle eller fraværsperiode beskriver arbejdet?",
+    help = "Bekendtgørelsens §§ 4-7 udvider og afgrænser, hvornår arbejde, kursus og nødvendige rejsedage anses for arbejde om bord.",
+    sources = personskat_kilder_62
+)
+# Søbl5Til8Arbejdsrolle =
+    SøblNormalDriftsbesætning |
+    SøblMidlertidigtVedligeholdEllerReparation(
+        @ field(
+            label = "Skibet i almindelig drift under vedligeholdelsen",
+            question = "Var skibet i almindelig drift under det midlertidige vedligeholdelses- eller reparationsarbejde?",
+            help = "Feltet indgår i afgrænsningen efter bekendtgørelsens § 4.",
+            sources = personskat_kilder_62
+        )
+        skib_i_almindelig_drift: Boolsk,
+        @ field(
+            label = "Del af sikkerheds- eller driftsbesætningen",
+            question = "Var personen en del af skibets sikkerheds- eller driftsbesætning under arbejdet?",
+            help = "En ren landbaseret reparationsfunktion er ikke i sig selv arbejde om bord efter ordningen.",
+            sources = personskat_kilder_62
+        )
+        del_af_sikkerheds_eller_driftsbesætning: Boolsk,
+        @ field(
+            label = "Arbejdet kunne umiddelbart udføres af landpersonale",
+            question = "Kunne arbejdet umiddelbart være udført af landbaseret personale?",
+            help = "Oplysningen indgår i den konkrete afgrænsning af besætningsarbejde efter bekendtgørelsens § 4.",
+            sources = personskat_kilder_62
+        )
+        kan_umiddelbart_udføres_af_landpersonale: Boolsk
+    ) |
+    SøblSærligTilrigningLastOpgaveEllerSejladsSomDriftsbesætning |
+    SøblArbejdePåMidlertidigtUdeAfDriftSkib(
+        periode: Søbl5Til8Datoperiode,
+        @ field(
+            label = "Omfattet umiddelbart før driftsophøret",
+            question = "Var personen omfattet af DIS-reglerne umiddelbart før skibet blev taget ud af drift?",
+            help = "Den forudgående tilknytning er en betingelse efter bekendtgørelsens § 5.",
+            sources = personskat_kilder_62
+        )
+        umiddelbart_før_omfattet: Boolsk,
+        @ field(
+            label = "Kun ansat til arbejde under driftsophøret",
+            question = "Var personen alene ansat til arbejdet, mens skibet var ude af drift?",
+            help = "En sådan særskilt ansættelse falder uden for udvidelsen i bekendtgørelsens § 5.",
+            sources = personskat_kilder_62
+        )
+        kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift: Boolsk
+    ) |
+    SøblNybygningstilsyn(
+        periode: Søbl5Til8Datoperiode,
+        @ field(
+            label = "Nybygningen opfylder betingelserne efter færdiggørelse",
+            question = "Opfyldte skibet betingelserne for DIS-behandling efter færdiggørelsen?",
+            help = "Det færdige skibs status er en betingelse for at medregne tilsynsperioden.",
+            sources = personskat_kilder_62
+        )
+        skibet_opfylder_betingelser_efter_færdiggørelse: Boolsk,
+        @ field(
+            label = "Påmønstring umiddelbart efter færdiggørelse",
+            question = "Påmønstrede personen skibet umiddelbart efter færdiggørelsen?",
+            help = "Påmønstringen forbinder tilsynet med efterfølgende arbejde om bord efter bekendtgørelsens § 6.",
+            sources = personskat_kilder_62
+        )
+        påmønstres_umiddelbart_efter_færdiggørelse: Boolsk
+    ) |
+    SøblKursusophold(
+        opgørelse: SøblKursus12Månedersopgørelse,
+        @ field(
+            label = "Omfattet umiddelbart før kursusopholdet",
+            question = "Var personen omfattet af DIS-reglerne umiddelbart før kurset?",
+            help = "Den forudgående tilknytning er en betingelse i bekendtgørelsens § 7.",
+            sources = personskat_kilder_62
+        )
+        umiddelbart_før_omfattet: Boolsk,
+        @ field(
+            label = "Fortsat ansat af rederiet under kurset",
+            question = "Var personen fortsat ansat af rederiet under kursusopholdet?",
+            help = "Fortsat ansættelse er en betingelse for at behandle kurset som arbejde om bord.",
+            sources = personskat_kilder_62
+        )
+        fortsat_ansat_af_rederiet: Boolsk
+    ) |
+    SøblNødvendigeRejsedage(opgørelse: SøblRejsedage12Månedersopgørelse) |
+    SøblAndetArbejde
 
 | søbl5_til8_datoperiode_gyldig(periode: Søbl5Til8Datoperiode) -> dato_før_eller_lig_med(periode.startdato, periode.slutdato)
 | søbl5_til8_datoperiode_dage(periode: Søbl5Til8Datoperiode) -> hvis søbl5_til8_datoperiode_gyldig(periode) { dato_dage_fra_og_med_til_og_med(periode.startdato, periode.slutdato) } ellers { 0 }
@@ -222,26 +350,291 @@ Stk. 5. Personer, som kan anvende stk. 1-3, er ikke omfattet af ligningslovens �
 # Søbl5Til8Skattepligtskategori = SøblIngenSkattepligtskategori | SøblFuldSkattepligtKategori | SøblBegrænsetSkattepligtKategori | SøblDødsboSkattepligtKategori | SøblKulbrinteSkattepligtKategori | SøblAndenSkattepligtKategori
 # Søbl5Til8Statsborgerskab = SøblStatsborgerIEUEØS | SøblStatsborgerISchweiz | SøblBritiskStatsborgerOmfattetAfUdtrædelsesaftalen | SøblAndetStatsborgerskab
 # Søbl5Til8Flag = SøblEUEØSFlag | SøblFlagUdenForEUEØS
-# Søbl5Til8Registrering = SøblDanskSkibRegistreretIDIS | SøblDanskSkibRegistreretIDAS | SøblUdenlandskSkibRegistreretIEUEØS(flag: Søbl5Til8Flag) | SøblSkibRegistreretUdenForEUEØS(flag: Søbl5Til8Flag)
+@ field(
+    label = "Skibets registrering",
+    question = "Var skibet registreret i DIS, DAS, et andet EU/EØS-register eller uden for EU/EØS?",
+    help = "Registreringen afgør, om § 5, § 5 b eller § 8 kan finde anvendelse, eller om lønnen beskattes ordinært.",
+    sources = personskat_kilder_62
+)
+# Søbl5Til8Registrering =
+    SøblDanskSkibRegistreretIDIS |
+    SøblDanskSkibRegistreretIDAS |
+    SøblUdenlandskSkibRegistreretIEUEØS(
+        @ field(
+            label = "Flag for udenlandsk EU/EØS-skib",
+            question = "Fører det udenlandske EU/EØS-registrerede skib et EU/EØS-flag?",
+            help = "Flaget er relevant for den særlige afgrænsning ved regelmæssig passagersejlads efter § 7.",
+            sources = personskat_kilder_62
+        )
+        flag: Søbl5Til8Flag
+    ) |
+    SøblSkibRegistreretUdenForEUEØS(
+        @ field(
+            label = "Flag for skib registreret uden for EU/EØS",
+            question = "Fører skibet et EU/EØS-flag, selv om det er registreret uden for EU/EØS?",
+            help = "Oplysningen bevarer registrering og flag som særskilte kildefakta.",
+            sources = personskat_kilder_62
+        )
+        flag: Søbl5Til8Flag
+    )
 # Søbl5Til8Arbejdsgiverstatus = SøblDanskArbejdsgiver | SøblUdenlandskArbejdsgiverGodkendtEfterPar11A | SøblUdenlandskArbejdsgiverIkkeGodkendtEfterPar11A
-# Søbl5Til8Skibsfakta(identifikation: Tekst, registrering: Søbl5Til8Registrering, bruttotonnage: Heltal, arbejdsgiverstatus: Søbl5Til8Arbejdsgiverstatus)
+# Søbl5Til8Skibsfakta(
+    @ field(
+        label = "Skibets identifikation",
+        question = "Hvilken stabil identifikation har skibet for denne indkomstperiode?",
+        help = "Brug samme identifikation på alle indkomstperioder og årsdriftsoplysninger, der vedrører det samme skib.",
+        sources = personskat_kilder_62
+    )
+    identifikation: Tekst,
+    registrering: Søbl5Til8Registrering,
+    @ field(
+        label = "Skibets bruttotonnage",
+        question = "Hvad var skibets registrerede bruttotonnage?",
+        help = "Skibet skal som udgangspunkt have en bruttotonnage på mindst 20 for at være omfattet.",
+        unit = "BT",
+        sources = personskat_kilder_62
+    )
+    bruttotonnage: Heltal,
+    @ field(
+        label = "Arbejdsgiverens status efter sømandsbeskatningsloven",
+        question = "Var arbejdsgiveren dansk eller en udenlandsk arbejdsgiver med eller uden godkendelse efter § 11 a?",
+        help = "En udenlandsk arbejdsgivers godkendelse indgår i betingelserne for § 5 b.",
+        sources = personskat_kilder_62
+    )
+    arbejdsgiverstatus: Søbl5Til8Arbejdsgiverstatus
+)
 # Søbl5Til8Arbejdsområde = SøblArbejdeIndenForEUEØS | SøblArbejdeUdenForEUEØS
 # Søbl5Til8Passagerrute = SøblIngenPassagersejlads | SøblIkkeRegelmæssigPassagersejladsMellemEUEØSHavne | SøblRegelmæssigPassagersejladsMellemEUEØSHavne | SøblRegelmæssigPassagersejladsMellemDanskeHavne | SøblPassagersejladsMellemDanskeHavneTilFraHavanlæg | SøblAndenPassagersejladsMellemDanskeHavne
-# Søbl6Driftstid(søtransport_minutter: Heltal, mobilisering_til_søs_minutter: Heltal, andre_aktiviteter_minutter: Heltal, ventetid_minutter: Heltal)
-# Søbl6Skibsårsdriftfakta(skibsidentifikation: Tekst, indkomstår: Heltal, driftstid: Søbl6Driftstid)
+= personskat_kilder_63 = [
+    Source(value = søbl5_til8_lbk1181),
+    DependencySource(value = søbl5_til8_bek940),
+    DependencySource(value = søbl5_til8_tonnageskattelov)
+]
+# Søbl6Driftstid(
+    @ field(
+        label = "Søtransporttid ved bugsering og bjærgning",
+        question = "Hvor mange minutter i hele indkomståret blev skibet brugt på søtransport ved bugsering eller bjærgning?",
+        help = "Søtransporttid indgår i 50-procentprøven efter § 6. Lønperioderne henviser til denne ene årsopgørelse gennem skibsidentifikationen.",
+        unit = "minutter",
+        sources = personskat_kilder_63
+    )
+    søtransport_minutter: Heltal,
+    @ field(
+        label = "Mobiliseringstid til søs ved bugsering og bjærgning",
+        question = "Hvor mange minutter i hele indkomståret blev skibet brugt på mobilisering til søs?",
+        help = "Mobilisering til søs medregnes som søtransporttid i 50-procentprøven.",
+        unit = "minutter",
+        sources = personskat_kilder_63
+    )
+    mobilisering_til_søs_minutter: Heltal,
+    @ field(
+        label = "Anden aktivitetstid ved bugsering og bjærgning",
+        question = "Hvor mange minutter i hele indkomståret blev skibet brugt på andre aktiviteter end søtransport og mobilisering til søs?",
+        help = "Andre aktive minutter indgår i nævneren for 50-procentprøven.",
+        unit = "minutter",
+        sources = personskat_kilder_63
+    )
+    andre_aktiviteter_minutter: Heltal,
+    @ field(
+        label = "Ventetid ved bugsering og bjærgning",
+        question = "Hvor mange minutter i hele indkomståret var skibet i ventetid?",
+        help = "Ventetiden fordeles forholdsmæssigt og ændrer derfor ikke den aktive 50-procentandel.",
+        unit = "minutter",
+        sources = personskat_kilder_63
+    )
+    ventetid_minutter: Heltal
+)
+# Søbl6Skibsårsdriftfakta(
+    @ field(
+        label = "Skibsidentifikation for årsdriften",
+        question = "Hvilket skib vedrører årsdriften?",
+        help = "Identifikationen skal svare til skibsidentifikationen i alle relevante sømandsindkomstperioder.",
+        sources = personskat_kilder_63
+    )
+    skibsidentifikation: Tekst,
+    @ field(
+        label = "Indkomstår for skibets årsdrift",
+        question = "Hvilket indkomstår vedrører skibets samlede driftstid?",
+        help = "Opgørelsen skal dække hele den tid, skibet var i drift i det angivne indkomstår.",
+        unit = "år",
+        sources = personskat_kilder_63
+    )
+    indkomstår: Heltal,
+    driftstid: Søbl6Driftstid
+)
 # Søbl5Til8Aktivitet = SøblTransportAfGodsMellemForskelligeDestinationer | SøblTransportAfPassagererMellemForskelligeDestinationer | SøblVagttjeneste | SøblStøtteOgServicefunktion | SøblBygningReparationEllerNedtagningAfHavanlæg | SøblRørledningEllerKabelPåHavbunden | SøblIshåndtering | SøblHusningVedOffshorearbejde | SøblBugseringOgBjærgning | SøblStenfiskeriEllerSandsugning | SøblAndenSkibsaktivitet
-# Søbl5Til8Anvendelsesforløb = SøblUdelukkendeAnvendtTil(aktivitet: Søbl5Til8Aktivitet) | SøblPeriodeMedFlereEllerUoplysteAnvendelser
+@ field(
+    label = "Skibets anvendelsesforløb",
+    question = "Blev skibet udelukkende anvendt til én oplyst aktivitet i perioden?",
+    help = "Opdel perioden i flere rækker, hvis skibets anvendelse skifter; uoplyste blandede anvendelser kan ikke beregnes som DIS.",
+    sources = personskat_kilder_62
+)
+# Søbl5Til8Anvendelsesforløb =
+    SøblUdelukkendeAnvendtTil(
+        @ field(
+            label = "Skibets udelukkende aktivitet",
+            question = "Hvilken aktivitet blev skibet udelukkende anvendt til i perioden?",
+            help = "Aktiviteten prøves mod tonnageskattelovens område og særreglerne i §§ 6 og 8.",
+            sources = personskat_kilder_62
+        )
+        aktivitet: Søbl5Til8Aktivitet
+    ) |
+    SøblPeriodeMedFlereEllerUoplysteAnvendelser
 # Søbl5Til8Indkomsttype = SøblLønVedArbejdeOmBord | SøblLigningslov7UYdelseMedDirekteTilknytning | SøblLigningslov7UYdelseUdenDirekteTilknytning | SøblAndenIndkomsttype
 # Søbl5Til8Løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen | SøblOrdinærBruttoløn | SøblNettolønUdenDokumenteretFastsættelse
-# Søbl5Til8Lønfakta(indkomsttype: Søbl5Til8Indkomsttype, løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal)
-# Søbl5Til8AndenLigningslov7UIndkomstfakta(identifikation: Tekst, beløb_kroner: Heltal)
+# Søbl5Til8Lønfakta(
+    @ field(
+        label = "Sømandsindkomstens retlige type",
+        question = "Er beløbet løn for arbejde om bord, en § 7 U-ydelse med direkte tilknytning eller en anden indkomsttype?",
+        help = "Kun løn og direkte tilknyttede ydelser er omfattet af fritagelsen efter § 5.",
+        sources = personskat_kilder_62
+    )
+    indkomsttype: Søbl5Til8Indkomsttype,
+    @ field(
+        label = "Sømandsindkomstens løngrundlag",
+        question = "Er beløbet en skattefri nettoløn fastsat under hensyn til fritagelsen, en ordinær bruttoløn eller en udokumenteret nettoløn?",
+        help = "Nettolønsbetingelsen er en materiel betingelse; Futuruna omregner ikke automatisk en udokumenteret nettoløn til bruttoløn.",
+        sources = personskat_kilder_62
+    )
+    løngrundlag: Søbl5Til8Løngrundlag,
+    @ field(
+        label = "Løn eller direkte tilknyttet ydelse",
+        question = "Hvor stort var beløbet for denne indkomstperiode?",
+        help = "Angiv beløbet på det valgte løngrundlag. Kvalificerende DIS-indkomst indgår i progressionen, men ikke i AM-bidragsgrundlaget.",
+        unit = "kr.",
+        sources = personskat_kilder_62
+    )
+    beløb_kroner: Heltal
+)
+= personskat_kilder_64 = [
+    Source(value = søbl5_til8_ligningslov7u_lbk1500),
+    DependencySource(value = søbl5_til8_bek940)
+]
+# Søbl5Til8AndenLigningslov7UIndkomstfakta(
+    @ field(
+        label = "Den anden § 7 U-indkomsts identifikation",
+        question = "Hvilken entydig identifikation skal denne anden § 7 U-indkomst have?",
+        help = "Identifikationen skal være forskellig fra alle identifikationer i tabellen med sømandsindkomster.",
+        sources = personskat_kilder_64
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Anden indkomst efter ligningslovens § 7 U",
+        question = "Hvor stort var beløbet før fordeling af årets § 7 U-bundfradrag?",
+        help = "Angiv hele beløbet. Futuruna fordeler bundfradraget og fører den resterende anden indkomst til det ordinære AM-bidragsgrundlag.",
+        unit = "kr.",
+        sources = personskat_kilder_64
+    )
+    beløb_kroner: Heltal
+)
 # Søbl8Beskatningsvalg = SøblAnvendPar8DIS | SøblAnvendPar10RefusionEllerAlmindeligBeskatning
-# Søbl5Til8Personfakta(skattepligt: Søbl5Til8Skattepligt, statsborgerskab: Søbl5Til8Statsborgerskab, relation: Søbl5Til8Personrelation)
-# Søbl5Til8Arbejdsfakta(anvendelse: Søbl5Til8Anvendelsesforløb, arbejdsområde: Søbl5Til8Arbejdsområde, passagerrute: Søbl5Til8Passagerrute, arbejdsrolle: Søbl5Til8Arbejdsrolle, par8_valg: Søbl8Beskatningsvalg)
-# Søbl5Til8Indkomstfakta(identifikation: Tekst, indkomstår: Heltal, person: Søbl5Til8Personfakta, skib: Søbl5Til8Skibsfakta, arbejde: Søbl5Til8Arbejdsfakta, løn: Søbl5Til8Lønfakta)
+# Søbl5Til8Personfakta(
+    @ field(
+        label = "Skattepligtsposition for sømandsindkomsten",
+        question = "Hvilken dansk skattepligtsposition havde personen for denne indkomst?",
+        help = "§§ 5-8 skelner mellem fuld skattepligt, begrænset skattepligt, kulbrinteskattepligt og andre positioner. Ved en særlig fritagelses- eller lempelsesposition gælder: " + personskat_dis_kanonisk_dækningsgrænse,
+        sources = personskat_kilder_62
+    )
+    skattepligt: Søbl5Til8Skattepligt,
+    @ field(
+        label = "Statsborgerskab ved passagersejlads",
+        question = "Hvilken statsborgergruppe tilhørte personen i indkomstperioden?",
+        help = "Statsborgerskabet er navnlig relevant for regelmæssig passagersejlads efter § 7.",
+        sources = personskat_kilder_62
+    )
+    statsborgerskab: Søbl5Til8Statsborgerskab,
+    relation: Søbl5Til8Personrelation
+)
+# Søbl5Til8Arbejdsfakta(
+    anvendelse: Søbl5Til8Anvendelsesforløb,
+    @ field(
+        label = "Arbejdsområde inden for eller uden for EU/EØS",
+        question = "Blev arbejdet udført inden for eller uden for EU/EØS?",
+        help = "Arbejdsområdet adskiller navnlig § 6-forhold fra valget efter § 8.",
+        sources = personskat_kilder_62
+    )
+    arbejdsområde: Søbl5Til8Arbejdsområde,
+    @ field(
+        label = "Passagersejladsens rute",
+        question = "Hvilken type passagerrute sejlede skibet i perioden?",
+        help = "Regelmæssig passagersejlads mellem EU/EØS-havne og danske havne har særlige betingelser efter §§ 5 b og 7.",
+        sources = personskat_kilder_62
+    )
+    passagerrute: Søbl5Til8Passagerrute,
+    arbejdsrolle: Søbl5Til8Arbejdsrolle,
+    @ field(
+        label = "Valg for arbejde uden for EU/EØS efter § 8",
+        question = "Skal § 8 anvendes, eller er der valgt refusion eller almindelig beskatning efter § 10?",
+        help = "Valget er kun materielt for de skibe og aktiviteter uden for EU/EØS, som § 8 omfatter.",
+        sources = personskat_kilder_62
+    )
+    par8_valg: Søbl8Beskatningsvalg
+)
+# Søbl5Til8Indkomstfakta(
+    @ field(
+        label = "Sømandsindkomstens identifikation",
+        question = "Hvilken entydig identifikation skal denne indkomstperiode have?",
+        help = "Brug samme identifikation i dokumentation og efterfølgende auditspor.",
+        sources = personskat_kilder_62
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Sømandsindkomstens indkomstår",
+        question = "I hvilket indkomstår blev lønnen eller ydelsen erhvervet?",
+        help = "Indkomståret skal svare til skatteåret i den samlede beregning.",
+        unit = "år",
+        sources = personskat_kilder_62
+    )
+    indkomstår: Heltal,
+    person: Søbl5Til8Personfakta,
+    skib: Søbl5Til8Skibsfakta,
+    arbejde: Søbl5Til8Arbejdsfakta,
+    løn: Søbl5Til8Lønfakta
+)
+@ field(
+    label = "Dødsboets skattegrundlag efter § 30",
+    question = "Skal der knyttes et dødsboskattegrundlag til årets DIS-indkomst?",
+    help = "Vælg kun et grundlag, når skattepligtspositionen er et dødsbo omfattet af dødsboskattelovens § 1, stk. 2.",
+    sources = [
+        Source(value = søbl5_til8_lbk1181),
+        DependencySource(value = dødsboskattelov_par1_par30_lbk426),
+        Guidance(value = dødsboskattelov_par30_forskudt_indkomstår_vejledning),
+        Guidance(value = dødsboskattelov_par30_satser_2024_2026),
+        Guidance(value = dødsboskattelov_par31_carryback_vejledning),
+        Guidance(value = dødsboskattelov_par31_særbo_fællesbo_vejledning),
+        Guidance(value = dødsboskattelov_par67_stk7_særbo_vejledning),
+        Guidance(value = dødsboskattelov_par67_stk7_skatteberegning_vejledning),
+        PreparatoryWork(value = dødsboskattelov_par67_stk7_l159_bemærkninger)
+    ]
+)
 # Søbl5Dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag | Søbl5Dødsboskattegrundlag(input: Dødsboskattelov30Input)
+@ field(
+    label = "Kulbrinteskattegrundlag efter § 21, stk. 2",
+    question = "Skal der knyttes et kulbrinteskattegrundlag til årets sømandsindkomst?",
+    help = "Vælg kun et grundlag, når skattepligtspositionen er kulbrinteskattepligt efter § 21, stk. 2.",
+    sources = [
+        Source(value = søbl5_til8_lbk1181),
+        HistoricalSource(value = kulbrinteskattelov_par21_lbk1820),
+        DependencySource(value = kulbrinteskattelov_par21_lbk477),
+        AmendmentSource(value = kulbrinteskattelov_par21_lov502),
+        AmendmentSource(value = kulbrinteskattelov_par21_lov710),
+        AmendmentSource(value = kulbrinteskattelov_par21_lov1564)
+    ]
+)
 # Søbl5BKulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag | Søbl5BKulbrinteskattegrundlag(kildefakta: Kulbrinteskattelov21Stk2Kildefakta)
-# Søbl5Til8Årsinput(indkomster: List(Søbl5Til8Indkomstfakta), skibsårsdrifter: List(Søbl6Skibsårsdriftfakta), andre_ligningslov7u_indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta), dødsboskattegrundlag: Søbl5Dødsboskattegrundlag, kulbrinteskattegrundlag: Søbl5BKulbrinteskattegrundlag)
+# Søbl5Til8Årsinput(
+    indkomster: List(Søbl5Til8Indkomstfakta),
+    @ field(
+        label = "Årsdrift for bugser- og bjærgningsfartøjer",
+        question = "Har et bugser- eller bjærgningsfartøj været knyttet til en oplyst sømandsindkomst?",
+        help = "Tilføj præcis én række pr. skib og indkomstår. Futuruna knytter årsdriften til alle lønperioder for skibet og afviser manglende eller modstridende oplysninger.",
+        sources = personskat_kilder_63
+    )
+    skibsårsdrifter: List(Søbl6Skibsårsdriftfakta),
+    andre_ligningslov7u_indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta),
+    dødsboskattegrundlag: Søbl5Dødsboskattegrundlag,
+    kulbrinteskattegrundlag: Søbl5BKulbrinteskattegrundlag
+)
 # Søbl5Til8Lovversion = Søbl5Til8Lbk1181Af2023MedSenereÆndringer | Søbl5Til8LovversionUdenKildedækning
 # Søbl5Til8Ligningslov7ULovversion = Søbl5Til8Ll7ULbk42Af2023MedSenereÆndringer | Søbl5Til8Ll7ULbk1500Af2025 | Søbl5Til8Ll7ULovversionUdenKildedækning
 # Søbl5Til8Beskatningsvirkning = SøblIngenDISVirkning | SøblNedsættelseAfSamletIndkomstskat | SøblNedsættelseAfDødsboskat | SøblIngenDanskSkatEfterPar5Stk2 | SøblKulbrinteskattelov21Stk2Virkning

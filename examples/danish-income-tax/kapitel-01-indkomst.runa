@@ -34,21 +34,6 @@
 -- LOV nr. 615 af 30/06/2026:
 -- https://www.retsinformation.dk/eli/lta/2026/615
 
-# PersonskattelovIndkomstKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
-# PersonskattelovKildeAdvarsel(kode: Tekst, besked: Tekst)
-
-= personskatteloven_lbk1284_par3 = PersonskattelovIndkomstKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2021/1284",
-    identifier = "Personskatteloven § 3",
-    hentet_dato = "2026-07-18"
-)
-
-= personskatteloven_lbk1284_par4 = PersonskattelovIndkomstKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2021/1284",
-    identifier = "Personskatteloven § 4",
-    hentet_dato = "2026-07-18"
-)
-
 = personskatteloven_lbk1284_par4a = PersonskattelovIndkomstKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2021/1284",
     identifier = "Personskatteloven § 4 a",

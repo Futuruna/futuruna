@@ -2,6 +2,7 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
+@ importer ./ligningsloven_fradrag
 
 # Pbl20KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 
@@ -81,6 +82,16 @@ medfør af erklæringen.
 
 # Pbl20Ordning = Pbl20PensionsordningMedLøbendeUdbetalinger | Pbl20ForsikringEfterPar5 | Pbl20ForsikringEfterPar7 | Pbl20Rateforsikring | Pbl20ForsikringEfterPar9 | Pbl20Rateopsparing | Pbl20Indeksordning
 # Pbl20Modtager = Pbl20Ægtefælle | Pbl20FraskiltÆgtefælle | Pbl20Samlever | Pbl20SamleversLivsarving(alder_hele_år: Heltal) | Pbl20EjerensLivsarving(alder_hele_år: Heltal) | Pbl20Stedbarn(alder_hele_år: Heltal) | Pbl20StedbarnsLivsarving(alder_hele_år: Heltal) | Pbl20AndenModtager
+= personskat_kilder_46 = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par20),
+    DependencySource(value = ligningsloven_lbk1500_par9l)
+]
+@ field(
+    label = "Retten til pensionsudbetalingen",
+    question = "På hvilket grundlag modtages pensionsudbetalingen?",
+    help = "Oplys om beløbet udbetales til ejeren efter vilkårene, til en begunstiget, efter skifte eller på et andet dokumenteret grundlag.",
+    sources = personskat_kilder_46
+)
 # Pbl20Udbetalingsret = Pbl20TilEjerEfterVilkår | Pbl20TilBegunstigetEfterEjerensDød(modtager: Pbl20Modtager) | Pbl20TilAndenEfterVilkår(modtager: Pbl20Modtager) | Pbl20UdloddetVedSkifteTilFraskiltEllerFrasepareretÆgtefælle | Pbl20TilBegunstigetEfterUdlodningsmodtagersDød(modtager: Pbl20Modtager) | Pbl20AndenUdbetalingsret(modtager: Pbl20Modtager)
 # Pbl20Ligningslov9LArt = Pbl20OrdinærPensionsudbetaling | Pbl20InvalidepensionFørFolkepensionsalderen | Pbl20RateforsikringVedInvaliditet | Pbl20RateopsparingVedVarigtNedsatArbejdsevneMedFørtidsEllerSeniorpension | Pbl20ÆgtefælleEllerSamleverpension | Pbl20Efterladtepension | Pbl20PensionEfterPar2Stk1Nr1Eller2 | Pbl20Børnepension
 # Pbl20EuEøsErklæring = Pbl20IngenEuEøsErklæring | Pbl20ErklæringEfterPar15C
@@ -89,9 +100,87 @@ medfør af erklæringen.
 # Pbl20Stk6KildeFakta(skattepligt: Pbl20Stk6Skattepligt, stat: Pbl20Stk6Stat, erklæring: Pbl20EuEøsErklæring, indkomstskat_betalt_til_staten_kroner: Heltal)
 # Pbl20Stk6Input(kildefakta: Pbl20Stk6KildeFakta, dansk_skattepligtig_pensionsindkomst_kroner: Heltal)
 # Pbl20Stk6Resultat(input: Pbl20Stk6Input, kildefakta_gyldige: Boolsk, person_omfattet: Boolsk, erklæring_til_eu_eøs_stat: Boolsk, ligningslov33_stk1_finder_tilsvarende_anvendelse: Boolsk, dansk_indkomst_omfattet_kroner: Heltal, udenlandsk_indkomstskat_til_ligningslov33_kroner: Heltal)
-# Pbl20Udbetalingsfakta(identifikation: Tekst, indkomstår: Heltal, ordning: Pbl20Ordning, udbetalingsret: Pbl20Udbetalingsret, ligningslov9l_art: Pbl20Ligningslov9LArt, bruttoudbetaling_kroner: Heltal, del_fra_indbetalinger_før_1955_56_kroner: Heltal, dokumenteret_uden_fradrags_eller_bortseelsesret_kroner: Heltal, eu_eøs_erklæring: Pbl20EuEøsErklæring, udenlandsk_indkomstskat_kroner: Heltal)
+# Pbl20Udbetalingsfakta(
+    @ field(
+        label = "Pensionsudbetalingens identifikation",
+        question = "Hvilken entydig identifikation har pensionsudbetalingen?",
+        help = "Identifikationen gør den enkelte udbetalings lovbehandling og auditspor entydigt.",
+        sources = personskat_kilder_46
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Indkomstår for pensionsudbetalingen",
+        question = "I hvilket indkomstår blev pensionsudbetalingen modtaget?",
+        help = "Årets skattepligtige udbetalinger indgår i årets indkomst. Ved det ekstra pensionsfradrag modregnes årets ikke-undtagne udbetalinger kun, hvis der også var sådanne udbetalinger sidste år. Sidste års beløb trækkes ikke fra årets indbetalinger. Oplys begge års fakta; manglende oplysninger er ikke nul.",
+        unit = "år",
+        sources = personskat_kilder_46
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Pensionsordningens art efter PBL § 20",
+        question = "Hvilken lovbestemt pensionsordningstype stammer udbetalingen fra?",
+        help = "Ordningstypen bestemmer blandt andet, hvilke modtagere og skattefritagelser der kan være omfattet.",
+        sources = personskat_kilder_46
+    )
+    ordning: Pbl20Ordning,
+    udbetalingsret: Pbl20Udbetalingsret,
+    @ field(
+        label = "Udbetalingens art efter ligningslovens § 9 L",
+        question = "Er udbetalingen ordinær eller en af de særligt undtagne pensionsydelser?",
+        help = "Futuruna udleder modregningen i det ekstra pensionsfradrag fra udbetalingens faktiske art; der angives ikke længere en juridisk statuskonklusion.",
+        sources = personskat_kilder_46
+    )
+    ligningslov9l_art: Pbl20Ligningslov9LArt,
+    @ field(
+        label = "Pensionsudbetaling før fritagelser",
+        question = "Hvor stor var den samlede pensionsudbetaling før skattefritagne dele?",
+        help = "Futuruna fratrækker kun de dokumenterede dele, som er fritaget efter PBL § 20, stk. 3 eller 4.",
+        unit = "kr.",
+        sources = personskat_kilder_46
+    )
+    bruttoudbetaling_kroner: Heltal,
+    @ field(
+        label = "Del fra indbetalinger før 1955/56",
+        question = "Hvor stor en del af rateforsikringsudbetalingen stammer fra indbetalinger før de historiske skæringsdatoer i § 20, stk. 3?",
+        help = "Feltet kan kun anvendes for en rateforsikring og holdes uden for den skattepligtige indkomst.",
+        unit = "kr.",
+        sources = personskat_kilder_46
+    )
+    del_fra_indbetalinger_før_1955_56_kroner: Heltal,
+    @ field(
+        label = "Dokumenteret del uden fradrags- eller bortseelsesret",
+        question = "Hvor stor en del kan dokumenteres at hidrøre fra indbetalinger uden fradrags- eller bortseelsesret i Danmark eller udlandet?",
+        help = "Den dokumenterede del medregnes ikke til den skattepligtige indkomst efter § 20, stk. 4.",
+        unit = "kr.",
+        sources = personskat_kilder_46
+    )
+    dokumenteret_uden_fradrags_eller_bortseelsesret_kroner: Heltal,
+    @ field(
+        label = "Erklæring til et andet EU/EØS-land",
+        question = "Er der afgivet en erklæring til skattemyndighederne i et andet EU/EØS-land svarende til PBL § 15 C?",
+        help = "Erklæringen kan åbne for lempelse efter ligningslovens § 33; Futuruna sporer det mulige lempelsesbeløb særskilt.",
+        sources = personskat_kilder_46
+    )
+    eu_eøs_erklæring: Pbl20EuEøsErklæring,
+    @ field(
+        label = "Udenlandsk indkomstskat af pensionsudbetalingen",
+        question = "Hvor meget indkomstskat er betalt til det andet EU/EØS-land som følge af erklæringen?",
+        help = "Beløbet er kildefakta til en mulig § 33-lempelse og er ikke i sig selv en endeligt beregnet dansk kredit.",
+        unit = "kr.",
+        sources = personskat_kilder_46
+    )
+    udenlandsk_indkomstskat_kroner: Heltal
+)
 # Pbl20Udbetalingsresultat(fakta: Pbl20Udbetalingsfakta, fakta_gyldige: Boolsk, modtager_omfattet: Boolsk, omfattet_af_par20: Boolsk, fritaget_efter_stk3_kroner: Heltal, fritaget_efter_stk4_kroner: Heltal, skattepligtig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, undtaget_fra_ligningslov9l: Boolsk, modregningspligtig_efter_ligningslov9l_kroner: Heltal, udenlandsk_skat_med_mulig_ligningslov33_lempelse_kroner: Heltal)
-# Pbl20Årsgrundlag(udbetalinger: List(Pbl20Udbetalingsfakta))
+# Pbl20Årsgrundlag(
+    @ field(
+        label = "Øvrige pensionsudbetalinger efter PBL § 20",
+        question = "Hvilke øvrige pensionsudbetalinger skal behandles efter PBL § 20?",
+        help = "Oplys hver udbetaling som kildefakta. Sportspensionsrater efter § 15 B oplyses særskilt og må ikke gentages her.",
+        sources = personskat_kilder_46
+    )
+    udbetalinger: List(Pbl20Udbetalingsfakta)
+)
 # Pbl20Årsresultat(indkomstår: Heltal, årsudbetalinger: List(Pbl20Udbetalingsfakta), udbetalingsresultater: List(Pbl20Udbetalingsresultat), identifikationer_entydige: Boolsk, input_gyldigt: Boolsk, samlet_bruttoudbetaling_kroner: Heltal, samlet_skattepligtig_indkomst_kroner: Heltal, samlet_personlig_indkomst_kroner: Heltal, samlet_modregningspligtig_efter_ligningslov9l_kroner: Heltal, samlet_udenlandsk_skat_med_mulig_ligningslov33_lempelse_kroner: Heltal, ikke_omfattet_af_par20_kroner: Heltal)
 
 | pbl20_tomt_årsgrundlag() -> Pbl20Årsgrundlag(udbetalinger = [])

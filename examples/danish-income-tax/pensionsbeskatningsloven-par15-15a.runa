@@ -8,20 +8,11 @@
 
 -- Pensionsbeskatningsloven §§ 15 og 15 A -- indeksordning og ophørspension.
 
-# Pbl15KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
-
 = pensionsbeskatningsloven_lbk1243_par15 = Pbl15KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/1243",
     identifier = "Pensionsbeskatningsloven § 15",
     hentet_dato = "2026-07-23",
     ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 15 er uændret"
-)
-
-= pensionsbeskatningsloven_lbk1243_par15a = Pbl15KildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
-    identifier = "Pensionsbeskatningsloven § 15 A",
-    hentet_dato = "2026-07-23",
-    ændringsstatus = "Sammenholdt med LOV nr. 369 af 09/04/2025 og LOV nr. 615 af 30/06/2026"
 )
 
 = pensionsbeskatningsloven_lov369_par15a = Pbl15KildeInfo(
@@ -43,13 +34,6 @@
     identifier = "PBL § 15 A, stk. 6, regulerede beløbsgrænser 2025-2026",
     hentet_dato = "2026-07-23",
     ændringsstatus = "2025: 3.285.400 kr.; 2026: 3.443.400 kr."
-)
-
-= skat_pbl15a_ophørspension_vejledning = Pbl15KildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=2048421",
-    identifier = "Den juridiske vejledning C.A.10.2.3.4, Indbetalinger til ophørspension",
-    hentet_dato = "2026-07-23",
-    ændringsstatus = "Det samlede loft følger sidste indbetalingsår; fradraget i afståelsesåret kan højst bruge dette års loft; hver afståelse begrænses af sin skattepligtige fortjeneste"
 )
 
 = skat_pbl15a_betingelser_vejledning = Pbl15KildeInfo(
@@ -115,7 +99,26 @@ pristalsreguleret alderdomsforsikring og alderdomsopsparing.
 @ section pensionsbeskatningsloven_par15 {
 
 # Pbl15Indeksordningsform = Pbl15Forsikring | Pbl15Opsparingskonto
-# Pbl15Indeksordningsfakta(form: Pbl15Indeksordningsform, indekskontrakt_efter_pristalsloven: Boolsk)
+= personskat_kilder_36 = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par15),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par18)
+]
+# Pbl15Indeksordningsfakta(
+    @ field(
+        label = "Indeksordningens form",
+        question = "Er indeksordningen oprettet som en forsikring eller som en opsparingskonto?",
+        help = "PBL § 15 tillader begge former, når den lovbestemte indekskontrakt er tilknyttet.",
+        sources = personskat_kilder_36
+    )
+    form: Pbl15Indeksordningsform,
+    @ field(
+        label = "Indekskontrakt efter pristalsloven",
+        question = "Er der knyttet en indekskontrakt efter lov om pristalsreguleret alderdomsforsikring og alderdomsopsparing til ordningen?",
+        help = "Uden den lovbestemte indekskontrakt er ordningen ikke omfattet af PBL § 15 og fejler derfor lukket.",
+        sources = personskat_kilder_36
+    )
+    indekskontrakt_efter_pristalsloven: Boolsk
+)
 # Pbl15Indeksordningsresultat(fakta: Pbl15Indeksordningsfakta, tilladt_form: Boolsk, indekskontrakt_tilknyttet: Boolsk, omfattet_af_par15: Boolsk)
 
 | pbl15_indeksordningsform_tilladt(form: Pbl15Indeksordningsform) -> form == Pbl15Forsikring || form == Pbl15Opsparingskonto
@@ -245,7 +248,24 @@ likvideres i umiddelbar tilknytning til virksomhedsoverdragelsen.
 # Pbl15AAfståelsesgrund = Pbl15AEgenVirksomhedsfortjeneste | Pbl15AÆgtefællefortjenesteEfterKildeskattelov25A(henføringsgrundlag: Kildeskat25AFortjenestegrundlag) | Pbl15AHovedaktionæraktier
 # Pbl15AOrdningsart = Pbl15ALøbendeUdbetalinger | Pbl15ARateforsikring | Pbl15ARateopsparing
 # Pbl15AKvalifikationsårsgrund = Pbl15AEgenSelvstændigVirksomhed | Pbl15AEgetHovedaktionærforhold | Pbl15AAfdødesSelvstændigeVirksomhedVedSuccession | Pbl15AAfdødesHovedaktionærforholdVedSuccession | Pbl15ABoperiodeSomSelvstændigVedSuccession | Pbl15ABoperiodeSomHovedaktionærVedSuccession
-# Pbl15AKvalifikationsår(indkomstår: Heltal, grundlag: Pbl15AKvalifikationsårsgrund)
+= personskat_kilder_37 = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+    RateSource(value = skatteministeriet_pbl15a_beløbsgrænser_2026),
+    Guidance(value = skat_pbl15a_ophørspension_vejledning),
+    TimingGuidance(value = skat_pbl15a_fradragstidspunkt_vejledning),
+    MultiDisposalGuidance(value = skat_pbl15a_flere_afståelser_vejledning)
+]
+# Pbl15AKvalifikationsår(
+    @ field(
+        label = "Kvalifikationsår",
+        question = "Hvilket indkomstår vedrører denne kvalificerende erhvervsaktivitet?",
+        help = "Futuruna tæller kun unikke år i den relevante femtenårsperiode.",
+        unit = "år",
+        sources = personskat_kilder_37
+    )
+    indkomstår: Heltal,
+    grundlag: Pbl15AKvalifikationsårsgrund
+)
 # Pbl15ADato(år: Heltal, måned: Heltal, dag: Heltal)
 # Pbl15ATidspunkt(dato: Pbl15ADato, rækkefølge_på_dagen: Heltal)
 # Pbl15AIndtægtsart = Pbl15APassivEjendomsindtægt | Pbl15AKontantEllerVærdipapirindtægt | Pbl15AAktivUdlejningsindtægtEfterAbl34Stk7 | Pbl15ALandbrugsEllerSkovindtægt | Pbl15AKoncerninternUdlejningsindtægt | Pbl15AØvrigDriftsindtægt
@@ -255,21 +275,342 @@ likvideres i umiddelbar tilknytning til virksomhedsoverdragelsen.
 # Pbl15AIndirekteEjervej(identifikation: Tekst, ejerandele_gennem_kæden_basispoint: List(Heltal))
 # Pbl15AEjerforhold(direkte_ejerandel_basispoint: Heltal, indirekte_ejerveje: List(Pbl15AIndirekteEjervej))
 # Pbl15ASelskab(identifikation: Tekst, ejerforhold: Pbl15AEjerforhold, udøver_aktiv_udlejning_efter_abl34_stk7: Boolsk)
-# Pbl15ASelskabsregnskab(selskab: Pbl15ASelskab, aktiernes_handelsværdi_i_virksomheden_kroner: Heltal, aktieafkast_i_virksomheden_kroner: Heltal, selskabets_indtægter_før_ejerandel: List(Pbl15AIndtægtspost), selskabets_aktiver_før_ejerandel: List(Pbl15AAktivpost))
-# Pbl15ASelskabsaktivopgørelse(selskab: Pbl15ASelskab, aktiernes_handelsværdi_i_virksomheden_kroner: Heltal, selskabets_aktiver_før_ejerandel: List(Pbl15AAktivpost))
-# Pbl15ADatterselskabshændelse = Pbl15ADatterselskabsaktierAfstået(hændelses_identifikation: Tekst, selskab_identifikation: Tekst, tidspunkt: Pbl15ATidspunkt, provenuaktiv: Pbl15AAktivpost) | Pbl15ADatterselskabLikvideret(hændelses_identifikation: Tekst, selskab_identifikation: Tekst, tidspunkt: Pbl15ATidspunkt, provenuaktiv: Pbl15AAktivpost)
-# Pbl15AHoldingafvikling = Pbl15AIntetHoldingselskab | Pbl15AHoldingFortsatBestående | Pbl15AHoldingselskabLikvideret(hændelses_identifikation: Tekst, tidspunkt: Pbl15ATidspunkt)
-# Pbl15AHoldingforløb(personens_afståelsesrækkefølge_på_dagen: Heltal, datterselskabshændelser: List(Pbl15ADatterselskabshændelse), afvikling: Pbl15AHoldingafvikling)
-# Pbl15ARegnskabsperiode(rækkefølge_fra_ældste: Heltal, startdato: Pbl15ADato, slutdato: Pbl15ADato, virksomhedens_indtægter: List(Pbl15AIndtægtspost), virksomhedens_aktiver: List(Pbl15AAktivpost), selskabsregnskaber: List(Pbl15ASelskabsregnskab))
-# Pbl15APassivKapitalFakta(seneste_tre_regnskabsperioder: List(Pbl15ARegnskabsperiode), aktuel_regnskabsperiodes_startdato: Pbl15ADato, virksomhedens_aktiver_på_overdragelsestidspunktet: List(Pbl15AAktivpost), selskabsaktiver_på_overdragelsestidspunktet: List(Pbl15ASelskabsaktivopgørelse), holdingforløb: Pbl15AHoldingforløb, næringsvirksomhed_med_værdipapirer_eller_finansiering: Boolsk)
+= personskat_kilder_38 = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+    AmendmentSource(value = pensionsbeskatningsloven_lov369_par15a),
+    PengetankGuidance(value = skat_pbl15a_betingelser_vejledning)
+]
+# Pbl15ASelskabsregnskab(
+    selskab: Pbl15ASelskab,
+    @ field(
+        label = "Aktiernes handelsværdi i virksomheden",
+        question = "Hvilken handelsværdi havde aktierne i selskabet i virksomhedens regnskab?",
+        help = "Værdien medregnes som værdipapir, medmindre Futuruna anvender gennemlysning.",
+        unit = "kr.",
+        sources = personskat_kilder_38
+    )
+    aktiernes_handelsværdi_i_virksomheden_kroner: Heltal,
+    @ field(
+        label = "Aktieafkast fra selskabet",
+        question = "Hvor stort aktieafkast fra selskabet indgik i virksomhedens regnskab?",
+        help = "Afkastet medregnes som passivt, medmindre Futuruna erstatter det med forholdsmæssige underliggende indtægter.",
+        unit = "kr.",
+        sources = personskat_kilder_38
+    )
+    aktieafkast_i_virksomheden_kroner: Heltal,
+    @ field(
+        label = "Selskabets fulde indtægter",
+        question = "Hvilke indtægtsposter havde selskabet før anvendelse af virksomhedens ejerandel?",
+        help = "Angiv 100 procent af selskabets relevante tal; Futuruna beregner den forholdsmæssige del.",
+        sources = personskat_kilder_38
+    )
+    selskabets_indtægter_før_ejerandel: List(Pbl15AIndtægtspost),
+    selskabets_aktiver_før_ejerandel: List(Pbl15AAktivpost)
+)
+# Pbl15ASelskabsaktivopgørelse(
+    selskab: Pbl15ASelskab,
+    @ field(
+        label = "Aktiernes værdi ved overdragelsen",
+        question = "Hvilken handelsværdi havde aktierne i selskabet i virksomheden ved overdragelsen?",
+        help = "Værdien udelades automatisk, når gennemlysningsreglen anvendes.",
+        unit = "kr.",
+        sources = personskat_kilder_38
+    )
+    aktiernes_handelsværdi_i_virksomheden_kroner: Heltal,
+    @ field(
+        label = "Selskabets fulde aktiver ved overdragelsen",
+        question = "Hvilke aktiver havde selskabet ved overdragelsen før anvendelse af ejerandelen?",
+        help = "Angiv 100 procent af selskabets underliggende aktiver.",
+        sources = personskat_kilder_38
+    )
+    selskabets_aktiver_før_ejerandel: List(Pbl15AAktivpost)
+)
+= personskat_kilder_39 = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+    TimingGuidance(value = skat_pbl15a_holdingafvikling_vejledning)
+]
+@ field(
+    label = "Datterselskabshændelsens art",
+    question = "Blev datterselskabsaktierne afstået, eller blev datterselskabet likvideret?",
+    help = "Valget afgør den dokumenterede selskabshændelse; begge hændelser skal have et dateret kontantprovenu.",
+    sources = personskat_kilder_39
+)
+# Pbl15ADatterselskabshændelse =
+    Pbl15ADatterselskabsaktierAfstået(
+        @ field(
+            label = "Identifikation for salg af datterselskabsaktier",
+            question = "Hvilken entydig identifikation har salget af datterselskabsaktierne?",
+            help = "Brug en stabil identifikation fra aftalen eller transaktionssporet.",
+            sources = personskat_kilder_39
+        )
+        hændelses_identifikation: Tekst,
+        @ field(
+            label = "Solgt datterselskab",
+            question = "Hvilket datterselskab vedrørte aktiesalget?",
+            help = "Brug samme selskabsidentifikation som i de historiske selskabsregnskaber.",
+            sources = personskat_kilder_39
+        )
+        selskab_identifikation: Tekst,
+        tidspunkt: Pbl15ATidspunkt,
+        provenuaktiv: Pbl15AAktivpost
+    ) |
+    Pbl15ADatterselskabLikvideret(
+        @ field(
+            label = "Identifikation for datterselskabslikvidation",
+            question = "Hvilken entydig identifikation har likvidationen af datterselskabet?",
+            help = "Brug en stabil identifikation fra likvidations- eller transaktionssporet.",
+            sources = personskat_kilder_39
+        )
+        hændelses_identifikation: Tekst,
+        @ field(
+            label = "Likvideret datterselskab",
+            question = "Hvilket datterselskab blev likvideret?",
+            help = "Brug samme selskabsidentifikation som i de historiske selskabsregnskaber.",
+            sources = personskat_kilder_39
+        )
+        selskab_identifikation: Tekst,
+        tidspunkt: Pbl15ATidspunkt,
+        provenuaktiv: Pbl15AAktivpost
+    )
+@ field(
+    label = "Holdingselskabets afvikling",
+    question = "Var der intet holdingselskab, bestod holdingselskabet fortsat, eller blev det likvideret ved personens afståelse?",
+    help = "Valget afgør, om et dokumenteret datterselskabsprovenu fortsat er et aktiv i holdingselskabet.",
+    sources = personskat_kilder_39
+)
+# Pbl15AHoldingafvikling =
+    Pbl15AIntetHoldingselskab |
+    Pbl15AHoldingFortsatBestående |
+    Pbl15AHoldingselskabLikvideret(
+        @ field(
+            label = "Identifikation for holdinglikvidationen",
+            question = "Hvilken entydig identifikation har likvidationen af holdingselskabet?",
+            help = "Identifikationen skal være forskellig fra datterselskabshændelsernes identifikationer.",
+            sources = personskat_kilder_39
+        )
+        hændelses_identifikation: Tekst,
+        tidspunkt: Pbl15ATidspunkt
+    )
+# Pbl15AHoldingforløb(
+    @ field(
+        label = "Personens afståelsesrækkefølge på dagen",
+        question = "I hvilken rækkefølge skete personens afståelse eller holdinglikvidation blandt dispositionerne samme dag?",
+        help = "Brug 1 for dagens første disposition, 2 for den næste og så videre. Dato og rækkefølge afgør den juridiske begivenhedsorden.",
+        unit = "rækkefølge",
+        sources = personskat_kilder_39
+    )
+    personens_afståelsesrækkefølge_på_dagen: Heltal,
+    @ field(
+        label = "Datterselskabshændelser før personens afståelse",
+        question = "Hvilke datterselskabsaktier blev afstået, eller hvilke datterselskaber blev likvideret, før personens afståelse?",
+        help = "Tilføj hver terminal hændelse én gang. Futuruna følger selskabets identifikation gennem regnskabsperioderne og medregner provenuet én gang.",
+        sources = personskat_kilder_39
+    )
+    datterselskabshændelser: List(Pbl15ADatterselskabshændelse),
+    afvikling: Pbl15AHoldingafvikling
+)
+= personskat_kilder_40 = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+    PengetankGuidance(value = skat_pbl15a_betingelser_vejledning)
+]
+# Pbl15ARegnskabsperiode(
+    @ field(
+        label = "Regnskabsperiodens rækkefølge",
+        question = "Er dette den første, anden eller tredje periode regnet fra den ældste?",
+        help = "Brug 1 for den ældste og 3 for den nyeste afsluttede periode.",
+        unit = "1-3",
+        sources = personskat_kilder_40
+    )
+    rækkefølge_fra_ældste: Heltal,
+    startdato: Pbl15ADato,
+    slutdato: Pbl15ADato,
+    virksomhedens_indtægter: List(Pbl15AIndtægtspost),
+    virksomhedens_aktiver: List(Pbl15AAktivpost),
+    @ field(
+        label = "Selskabsregnskaber til gennemlysning",
+        question = "Hvilke direkte eller indirekte ejede selskaber indgik i regnskabsperioden?",
+        help = "Angiv fulde selskabstal før ejerandel. Futuruna afleder ejerandelen og beslutter, om aktieværdi og afkast skal erstattes af forholdsmæssige underliggende tal.",
+        sources = personskat_kilder_38
+    )
+    selskabsregnskaber: List(Pbl15ASelskabsregnskab)
+)
+# Pbl15APassivKapitalFakta(
+    @ field(
+        label = "Tre seneste afsluttede regnskabsperioder",
+        question = "Hvilke tre seneste afsluttede regnskabsperioder lå før virksomhedsafståelsen?",
+        help = "Angiv perioderne fra ældst til nyest. Futuruna kontrollerer de nøjagtige grænser og at perioderne følger hinanden uden huller.",
+        sources = personskat_kilder_40
+    )
+    seneste_tre_regnskabsperioder: List(Pbl15ARegnskabsperiode),
+    aktuel_regnskabsperiodes_startdato: Pbl15ADato,
+    virksomhedens_aktiver_på_overdragelsestidspunktet: List(Pbl15AAktivpost),
+    @ field(
+        label = "Selskabsaktiver ved overdragelsen",
+        question = "Hvilke direkte eller indirekte ejede selskaber indgik på overdragelsestidspunktet?",
+        help = "Futuruna bruger ejerforholdet til enten at medregne aktieværdien eller forholdsmæssige underliggende aktiver.",
+        sources = personskat_kilder_38
+    )
+    selskabsaktiver_på_overdragelsestidspunktet: List(Pbl15ASelskabsaktivopgørelse),
+    holdingforløb: Pbl15AHoldingforløb,
+    @ field(
+        label = "Næring med værdipapirer eller finansiering",
+        question = "Udøvede personen eller hovedaktionærselskabet næringsvirksomhed med køb og salg af værdipapirer eller finansieringsvirksomhed?",
+        help = "Når denne lovbestemte næringsundtagelse er dokumenteret, anvendes forbuddet mod passiv kapitalanbringelse ikke.",
+        sources = [
+            Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+            AmendmentSource(value = pensionsbeskatningsloven_lov369_par15a),
+            FutureAmendmentSource(value = pensionsbeskatningsloven_lov615_par15a),
+            PengetankGuidance(value = skat_pbl15a_betingelser_vejledning)
+        ]
+    )
+    næringsvirksomhed_med_værdipapirer_eller_finansiering: Boolsk
+)
 # Pbl15AKapitalsammenfatning(passive_indtægter_kroner: Heltal, samlede_indtægter_kroner: Heltal, passive_aktiver_kroner: Heltal, samlede_aktiver_kroner: Heltal)
 # Pbl15APassivKapitalResultat(fakta: Pbl15APassivKapitalFakta, fakta_gyldige: Boolsk, holdingforløb_gyldigt: Boolsk, datterselskabsprovenu_før_holdingafvikling_kroner: Heltal, holdingselskab_likvideret: Boolsk, holdingafvikling_mangler: Boolsk, holdinglikvidation_inden_for_praksisgrænse: Boolsk, holdingafvikling_for_sen: Boolsk, passive_indtægter_tre_år_kroner: Heltal, samlede_indtægter_tre_år_kroner: Heltal, passive_aktiver_tre_år_kroner: Heltal, samlede_aktiver_tre_år_kroner: Heltal, passive_aktiver_ved_afståelse_kroner: Heltal, samlede_aktiver_ved_afståelse_kroner: Heltal, gennemsnitsgrænse_basispoint: Heltal, overdragelsesgrænse_basispoint: Heltal, indtægtsgrænse_nået: Boolsk, gennemsnitlig_aktivgrænse_nået: Boolsk, aktivgrænse_ved_afståelse_nået: Boolsk, overvejende_passiv_kapitalanbringelse: Boolsk)
-# Pbl15AAfståelsesfakta(identifikation: Tekst, afståelsesdato: Pbl15ADato, grundlag: Pbl15AAfståelsesgrund, fortjenestegrundlag: Pbl15AFortjenestegrundlag, alder_hele_år_ved_afståelsen: Heltal, passiv_kapital: Pbl15APassivKapitalFakta, udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe: Boolsk, antal_ejere: Heltal, opretter_deltog_i_driften_i_væsentligt_omfang: Boolsk)
+= personskat_kilder_41 = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+    Guidance(value = skat_pbl15a_ophørspension_vejledning),
+    GainGuidance(value = skat_pbl15a_fortjeneste_vejledning)
+]
+# Pbl15AAfståelsesfakta(
+    @ field(
+        label = "Virksomhedsafståelse",
+        question = "Hvilken entydig identifikation skal denne afståelse have?",
+        help = "Brug samme identifikation på de pensionsindbetalinger, der hidrører fra afståelsen.",
+        sources = personskat_kilder_41
+    )
+    identifikation: Tekst,
+    afståelsesdato: Pbl15ADato,
+    grundlag: Pbl15AAfståelsesgrund,
+    fortjenestegrundlag: Pbl15AFortjenestegrundlag,
+    @ field(
+        label = "Alder ved afståelsen",
+        question = "Hvor mange hele år var personen fyldt inden afståelsen?",
+        help = "PBL § 15 A kræver, at personen var fyldt 55 år inden afståelsen.",
+        unit = "år",
+        sources = personskat_kilder_41
+    )
+    alder_hele_år_ved_afståelsen: Heltal,
+    passiv_kapital: Pbl15APassivKapitalFakta,
+    @ field(
+        label = "Udlejning af driftsmidler eller skibe",
+        question = "Bestod virksomheden i udlejning af afskrivningsberettigede driftsmidler eller skibe?",
+        help = "Forholdet afskærer som udgangspunkt § 15 A, medmindre opretteren deltog væsentligt i driften.",
+        sources = personskat_kilder_41
+    )
+    udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe: Boolsk,
+    @ field(
+        label = "Antal ejere",
+        question = "Hvor mange ejere havde den afståede virksomhed?",
+        help = "Mere end ti ejere kræver, at opretteren deltog i virksomhedens drift i væsentligt omfang.",
+        unit = "personer",
+        sources = personskat_kilder_41
+    )
+    antal_ejere: Heltal,
+    @ field(
+        label = "Væsentlig deltagelse i driften",
+        question = "Deltog opretteren af ophørspensionen i virksomhedens drift i væsentligt omfang?",
+        help = "Oplysningen er afgørende ved driftsmiddel- eller skibsudlejning og ved virksomheder med mere end ti ejere.",
+        sources = personskat_kilder_41
+    )
+    opretter_deltog_i_driften_i_væsentligt_omfang: Boolsk
+)
 # Pbl15AAfståelsesresultat(fakta: Pbl15AAfståelsesfakta, fortjenestegrundlagsresultat: Pbl15AFortjenestegrundlagsresultat, ægtefællehenføringsresultat: Option(Kildeskat25AFortjenestehenføringsresultat), skattepligtig_fortjeneste_før_am_kroner: Heltal, fakta_gyldige: Boolsk, fyldt_55_år_før_afståelsen: Boolsk, passiv_kapital_resultat: Pbl15APassivKapitalResultat, driftsbegrænsning_opfyldt: Boolsk, kvalificerer_til_ophørspension: Boolsk, højeste_indbetaling_fra_afståelsen_kroner: Heltal)
-# Pbl15AOrdningsfakta(identifikation: Tekst, oprettelsesår: Heltal, art: Pbl15AOrdningsart, oprettelsesafståelse_identifikation: Tekst)
+# Pbl15AOrdningsfakta(
+    @ field(
+        label = "Ophørspensionsordning",
+        question = "Hvilken entydig identifikation har ophørspensionsordningen?",
+        help = "Brug identifikationen på hver indbetaling, der er foretaget til ordningen.",
+        sources = personskat_kilder_37
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Oprettelsesår for ophørspensionen",
+        question = "I hvilket indkomstår blev ophørspensionsordningen oprettet?",
+        help = "De mindst ti kvalifikationsår måles inden for de femten år før dette år, og ordningen skal være oprettet senest året efter den afståelse, der oprettede den.",
+        unit = "år",
+        sources = personskat_kilder_37
+    )
+    oprettelsesår: Heltal,
+    @ field(
+        label = "Ophørspensionens art",
+        question = "Er ordningen en pension med løbende udbetalinger, en rateforsikring eller en rateopsparing?",
+        help = "Kun de tre former i PBL § 15 A, stk. 5, er tilladt.",
+        sources = personskat_kilder_37
+    )
+    art: Pbl15AOrdningsart,
+    @ field(
+        label = "Afståelse, der oprettede ophørspensionen",
+        question = "Hvilken virksomheds- eller aktieafståelse blev ophørspensionsordningen oprindeligt oprettet i forbindelse med?",
+        help = "Henvis til afståelsens entydige identifikation. En eksisterende ophørspension kan senere modtage fortjeneste fra andre kvalificerende afståelser.",
+        sources = personskat_kilder_37
+    )
+    oprettelsesafståelse_identifikation: Tekst
+)
 # Pbl15AOrdningsresultat(fakta: Pbl15AOrdningsfakta, fakta_gyldige: Boolsk, tilladt_ordningsart: Boolsk, oprettelsesafståelse_findes: Boolsk, oprettelsesafståelse_kvalificerer: Boolsk, rettidigt_oprettet_efter_afståelsen: Boolsk, kvalifikationsår_i_seneste_15_år: Heltal, mindst_10_kvalifikationsår: Boolsk, kvalificerer_som_ophørspension: Boolsk)
-# Pbl15ATidligereIndbetaling(identifikation: Tekst, indbetalingsår: Heltal, ordning_identifikation: Tekst, afståelse_identifikation: Tekst, beløb_kroner: Heltal)
-# Pbl15AÅrsgrundlag(afståelser: List(Pbl15AAfståelsesfakta), ordninger: List(Pbl15AOrdningsfakta), kvalifikationsår: List(Pbl15AKvalifikationsår), tidligere_indbetalinger: List(Pbl15ATidligereIndbetaling))
+# Pbl15ATidligereIndbetaling(
+    @ field(
+        label = "Tidligere pensionsindbetaling",
+        question = "Hvilken entydig identifikation har den tidligere indbetaling?",
+        help = "Identifikationen skal være forskellig fra andre historiske indbetalinger.",
+        sources = personskat_kilder_37
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "År for tidligere indbetaling",
+        question = "I hvilket indkomstår blev den tidligere indbetaling foretaget?",
+        help = "Året skal ligge før beregningsåret og inden for den relevante afståelses tiårsperiode.",
+        unit = "år",
+        sources = personskat_kilder_37
+    )
+    indbetalingsår: Heltal,
+    @ field(
+        label = "Ordning for tidligere indbetaling",
+        question = "Hvilken ophørspensionsordning modtog den tidligere indbetaling?",
+        help = "Identifikationen skal findes blandt de oplyste ophørspensionsordninger.",
+        sources = personskat_kilder_37
+    )
+    ordning_identifikation: Tekst,
+    @ field(
+        label = "Afståelse for tidligere indbetaling",
+        question = "Hvilken virksomhedsafståelse hidrørte den tidligere indbetaling fra?",
+        help = "Forbindelsen bruges til at undgå dobbelt brug af samme skattepligtige fortjeneste.",
+        sources = personskat_kilder_37
+    )
+    afståelse_identifikation: Tekst,
+    @ field(
+        label = "Tidligere indbetalt beløb",
+        question = "Hvor stort et beløb blev tidligere indbetalt på ophørspensionen?",
+        help = "Beløbet reducerer både den relevante afståelses fortjenesteloft og personens fælles regulerede maksimum.",
+        unit = "kr.",
+        sources = personskat_kilder_37
+    )
+    beløb_kroner: Heltal
+)
+# Pbl15AÅrsgrundlag(
+    afståelser: List(Pbl15AAfståelsesfakta),
+    @ field(
+        label = "Ophørspensionsordninger",
+        question = "Hvilke pensionsordninger er oprettet som ophørspension efter PBL § 15 A?",
+        help = "Flere ordninger er tilladt, men de deler personens samlede regulerede maksimum.",
+        sources = personskat_kilder_37
+    )
+    ordninger: List(Pbl15AOrdningsfakta),
+    @ field(
+        label = "År som selvstændig eller hovedaktionær",
+        question = "I hvilke indkomstår drev personen kvalificerende selvstændig virksomhed eller var hovedaktionær i erhvervsvirksomhed?",
+        help = "Tilføj hvert år én gang. Dokumenterede år fra afdøde og boperioden kan angives med deres særlige successionsgrundlag.",
+        sources = personskat_kilder_37
+    )
+    kvalifikationsår: List(Pbl15AKvalifikationsår),
+    @ field(
+        label = "Tidligere indbetalinger på ophørspension",
+        question = "Hvilke § 15 A-indbetalinger er foretaget før det aktuelle indkomstår?",
+        help = "Historikken gør det muligt at aflede resterende fortjeneste og fælles maksimum uden at spørge efter et manuelt beregnet restbeløb.",
+        sources = personskat_kilder_37
+    )
+    tidligere_indbetalinger: List(Pbl15ATidligereIndbetaling)
+)
 # Pbl15AÅrsgrundlagsresultat(grundlag: Pbl15AÅrsgrundlag, afståelsesresultater: List(Pbl15AAfståelsesresultat), ordningsresultater: List(Pbl15AOrdningsresultat), identifikationer_entydige: Boolsk, kvalifikationsår_entydige: Boolsk, grundfakta_gyldige: Boolsk)
 
 | pbl15a_understøttet_indkomstår(indkomstår: Heltal) -> indkomstår >= 2009 && indkomstår <= 2026
@@ -555,3 +896,10 @@ likvideres i umiddelbar tilknytning til virksomhedsoverdragelsen.
 | pbl15a_årsgrundlag_gyldigt_for_indkomstår(resultat: Pbl15AÅrsgrundlagsresultat, indkomstår: Heltal) -> pbl15a_understøttet_indkomstår(indkomstår) && resultat.grundfakta_gyldige && all(resultat.grundlag.tidligere_indbetalinger, |indbetaling: Pbl15ATidligereIndbetaling| pbl15a_tidligere_indbetaling_gyldig(resultat, indkomstår, indbetaling)) && pbl15a_historik_inden_for_afståelseslofter(resultat) && pbl15a_historik_inden_for_samlet_loft(resultat) && pbl15a_historik_fortsætter_ikke_efter_fuldt_loft(resultat)
 
 }
+
+= pensionsbeskatningsloven_lbk1243_par18 = PensionsbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 18",
+    hentet_dato = "2026-07-18",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 18 er uændret"
+)

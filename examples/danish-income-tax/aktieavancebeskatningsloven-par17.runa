@@ -6,12 +6,6 @@
 @ importer ./kursgevinstloven-par32
 @ importer ./pengebeloeb
 
-= aktieavancebeskatningsloven_lbk1098_par17_klassifikation = AktieavancebeskatningslovKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
-    identifier = "Aktieavancebeskatningsloven § 17",
-    hentet_dato = "2026-07-18"
-)
-
 = abl_par17_klassifikation_kildemeta = Source(
     value = aktieavancebeskatningsloven_lbk1098_par17_klassifikation
 )
