@@ -299,22 +299,24 @@ fn ordinal(position: usize) -> String {
     }
 }
 
-/// Whether the parser reads rule families written before declarations: a
-/// type on every clause and any name. Only `runa fmt --migrate` reads them,
-/// to find the declarations it writes.
-static LEGACY_RULE_TYPES: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+thread_local! {
+    /// Whether the parser reads rule families written before declarations:
+    /// a type on every clause and any name. Only `runa fmt --migrate` reads
+    /// them, to find the declarations it writes. Per thread, so that a
+    /// migration never relaxes a parse running beside it.
+    static LEGACY_RULE_TYPES: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
 
-/// Run `read` with the parser accepting the types and names of rule families
-/// written before declarations (see [`LEGACY_RULE_TYPES`]).
+/// Run `read` with this thread's parser accepting the types and names of
+/// rule families written before declarations (see [`LEGACY_RULE_TYPES`]).
 pub fn with_legacy_rule_types<R>(read: impl FnOnce() -> R) -> R {
-    use std::sync::atomic::Ordering;
     struct Restore(bool);
     impl Drop for Restore {
         fn drop(&mut self) {
-            LEGACY_RULE_TYPES.store(self.0, Ordering::SeqCst);
+            LEGACY_RULE_TYPES.with(|legacy| legacy.set(self.0));
         }
     }
-    let _restore = Restore(LEGACY_RULE_TYPES.swap(true, Ordering::SeqCst));
+    let _restore = Restore(LEGACY_RULE_TYPES.with(|legacy| legacy.replace(true)));
     read()
 }
 
@@ -331,7 +333,7 @@ pub(crate) fn elaborate_rule_declarations(
     if !has_rules {
         return Vec::new();
     }
-    let legacy = LEGACY_RULE_TYPES.load(std::sync::atomic::Ordering::SeqCst);
+    let legacy = LEGACY_RULE_TYPES.with(std::cell::Cell::get);
     let mut errors = Vec::new();
     let mut families: BTreeMap<(String, usize), Declaring> = BTreeMap::new();
     // The family whose declaring clause directly follows its signature.
