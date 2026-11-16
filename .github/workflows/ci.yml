@@ -33,14 +33,32 @@ jobs:
       - run: python3 -m unittest discover -s scripts/tests -p 'test_repository_hygiene.py'
       - run: python3 scripts/repository-hygiene.py
 
+  # scripts/mint.sh and scripts/tax-audit-safeguards.sh define the steps; each
+  # shard runs some of their groups with --keep-going, so a run reports every
+  # failing command instead of the first. Together the shards run every step
+  # on both platforms. Shards are balanced by measured step durations (see
+  # docs/mint-gate.md). The safeguards follow cargo test, as in the former
+  # single job, so they find the calculation contract cache its model fixtures
+  # fill; a cold personskat schema can exceed a safeguard's 180 s limit.
   test:
-    name: Test (${{ matrix.os }})
+    name: Test (${{ matrix.os }}, ${{ matrix.shard }})
     runs-on: ${{ matrix.os }}
     strategy:
-      # Preserve both platform results when one exposes an independent failure.
+      # Preserve every platform and shard result when one fails.
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+        shard: [rust, interpreter, codegen, roundtrip]
+        include:
+          - shard: rust
+            groups: --group rust
+            safeguards: true
+          - shard: interpreter
+            groups: --group interpreter --group checks
+          - shard: codegen
+            groups: --group codegen
+          - shard: roundtrip
+            groups: --group roundtrip
 
     steps:
       - uses: actions/checkout@v4
@@ -70,85 +88,28 @@ jobs:
           unzip -q "$RUNNER_TEMP/z3.zip" -d "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/z3-${Z3_VERSION}-x64-glibc-2.35/bin" >> "$GITHUB_PATH"
 
-      - name: Mint gate
-        run: ./scripts/mint.sh
+      # Every later step needs this binary; mint's own build is then a no-op.
+      - name: Build release binary
+        id: build
+        run: cargo build --release
+
+      - name: Mint gate (${{ matrix.groups }})
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: ./scripts/mint.sh --keep-going ${{ matrix.groups }}
 
       - name: Tax-audit runtime and setup safeguards
-        run: |
-          RUNA_BIN="$PWD/target/release/runa" bash scripts/tax-audit-preflight.sh
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" python3 -m unittest discover -s scripts/tests -p 'test_calculation_input_guide.py'
-          ./target/release/runa tests/personskat_recurring_gifts_test.runa
-          ./target/release/runa run tests/personskat_recurring_gifts_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_audit_setup.test.mjs tests/pension_demo_input.test.mjs tests/tax_report_viewer.test.mjs tests/personskat_viewer.test.mjs tests/tax_municipality.test.mjs tests/green_check.test.mjs tests/personskat_green_check.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_recurring_gifts.test.mjs
-          ./target/release/runa tests/personskat_maintenance_recipient_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_maintenance_recipient.test.mjs
-          ./target/release/runa tests/personskat_ferry_test.runa
-          ./target/release/runa run tests/personskat_ferry_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test --test-concurrency=1 tests/personskat_ferry.test.mjs tests/personskat_commuting_days.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_salary_metadata.test.mjs
-          ./target/release/runa tests/personskat_salary_mapping_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_salary_mapping_metadata.test.mjs
-          ./target/release/runa tests/personskat_interest_mapping_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_interest_mapping_metadata.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_salary_input.test.mjs
-          ./target/release/runa tests/personskat_partyear_input_controls_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test --test-concurrency=1 tests/personskat_settlement_stage.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test --test-concurrency=1 tests/tax_credit_input.test.mjs tests/tax_credit_signs.test.mjs
-          ./target/release/runa tests/personskat_refund_mapping_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_refund_mapping_metadata.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_supplementary_metadata.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test --test-concurrency=1 tests/tax_report_input_metadata.test.mjs tests/tax_report_payment.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_church_input.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_spouse_input.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_interest_input.test.mjs
-          ./target/release/runa tests/personskat_bundskat_spouse_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_married_interest.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_source_input.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/pension_couple_demo.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_partyear_validity.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_partyear_birth_dates.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_partyear_spouse_settings.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_partyear_capital.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_partyear_shares.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_partyear_share_conversion.test.mjs
-          ./target/release/runa tests/personskat_work_income_route_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_work_income_route.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_property_route.test.mjs
-          ./target/release/runa tests/personskat_property_age_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_property_age.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_financial_route.test.mjs
-          ./target/release/runa tests/personskat_honorar_expenses_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_honorar_expenses.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/tax_employer_pension_conformance.test.mjs
-          ./target/release/runa tests/personskat_pension_payment_year_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_pension_payment_year.test.mjs
-          ./target/release/runa tests/personskat_pension_redeposit_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_pension_redeposit.test.mjs
-          ./target/release/runa tests/personskat_pension_bank_year_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_pension_bank_year.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_group_life.test.mjs
-          ./target/release/runa tests/personskat_group_bonus_test.runa
-          ./target/release/runa run tests/personskat_group_bonus_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_group_bonus.test.mjs
-          ./target/release/runa tests/personskat_employee_expenses_test.runa
-          ./target/release/runa run tests/personskat_employee_expenses_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_employee_expenses.test.mjs
-          ./target/release/runa tests/personskat_boligjob_rules_test.runa
-          ./target/release/runa run tests/personskat_boligjob_rules_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/boligjob_supplier_age.test.mjs
-          ./target/release/runa tests/personskat_labour_hire_age_test.runa
-          ./target/release/runa run tests/personskat_labour_hire_age_test.runa
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_labour_hire_age.test.mjs
-          FUTURUNA_MODEL_TEST_RUNA="$PWD/target/release/runa" node --test tests/personskat_dis_coverage.test.mjs
+        if: ${{ matrix.safeguards && !cancelled() && steps.build.outcome == 'success' }}
+        run: ./scripts/tax-audit-safeguards.sh --keep-going
 
       - name: From-rust transpiler validation
+        if: ${{ matrix.safeguards && !cancelled() && steps.build.outcome == 'success' }}
         run: ./target/release/runa from-rust --test examples/from-rust/
 
       # tests/formatter_preservation.rs checks formatting across tests/ in
       # mint's cargo test lane, including expected syntax-error rejections.
 
       - name: Version
+        if: ${{ matrix.safeguards && !cancelled() && steps.build.outcome == 'success' }}
         run: ./target/release/runa --version
 
   fmt:
