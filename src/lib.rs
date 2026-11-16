@@ -64,6 +64,7 @@ pub use host_effects::{audit_host_effect_diagnostics, is_host_effect_builtin};
 mod function_returns;
 mod import_scope;
 pub mod manifest;
+mod metadata_bindings;
 pub mod migrate;
 // The search runtime that compiled programs embed; the interpreter shares its
 // logic-query depth limit, and code generation builds its programs.
@@ -2877,7 +2878,25 @@ fn scan_meta_comments_with_dir_from_stmts_and_checker(
     checker: Option<&TypeChecker>,
 ) -> MetaIndex {
     let mut index = scan_meta_comment_structure_from_stmts(source, stmts, source_dir.as_deref());
-    resolve_meta_references_from_stmts_and_checker(source, stmts, source_dir, &mut index, checker);
+    resolve_meta_references_from_stmts_and_checker(
+        source,
+        stmts,
+        source_dir.clone(),
+        &mut index,
+        checker,
+    );
+    // A checked program also knows its `@ field` values: the bindings they
+    // resolve from are compile-time metadata as well.
+    if let Some(checker) = checker {
+        index
+            .resolved_binding_names
+            .extend(metadata_bindings::field_meta_binding_names(
+                source,
+                stmts,
+                source_dir.as_deref(),
+                checker,
+            ));
+    }
     index
 }
 
@@ -32795,6 +32814,17 @@ pub struct TypeChecker {
     /// `query` and `unknown` across the program (`query::check_program`).
     pub(crate) imported_modules: Vec<(String, Arc<ParsedSourceModule>)>,
     imported_body_checks: Vec<ImportedBodyCheck>,
+    /// The top-level binding whose statement is being checked, in the root
+    /// file or an imported one (`metadata_bindings`).
+    top_level_binding: Option<String>,
+    /// While checking an `@ field` value: a metadata role list there may
+    /// hold role values of different types.
+    checking_metadata_value: bool,
+    /// The list errors reported in top-level bindings, with the binding;
+    /// withdrawn for a binding only metadata reads.
+    mixed_list_bindings: Vec<(String, String)>,
+    /// `metadata_binding_candidates`, once computed.
+    metadata_binding_candidates: Option<BTreeSet<String>>,
     /// Already-resolved plain import edges for lexical rule-family diagnostics.
     /// Retain the declaration prepass's immutable syntax, never reread a file.
     rule_contract_imports: BTreeMap<(String, String), (String, Arc<ParsedSourceModule>)>,
@@ -49545,6 +49575,10 @@ impl TypeChecker {
             imported: BTreeSet::new(),
             imported_modules: Vec::new(),
             imported_body_checks: Vec::new(),
+            top_level_binding: None,
+            checking_metadata_value: false,
+            mixed_list_bindings: Vec::new(),
+            metadata_binding_candidates: None,
             rule_contract_imports: BTreeMap::new(),
             rule_contract_import_modules: BTreeMap::new(),
             import_diagnostic_anchor: None,
@@ -58860,7 +58894,7 @@ impl TypeChecker {
                     .iter()
                     .filter(|stmt| Interpreter::is_runtime_import_statement(stmt))
                 {
-                    self.check_stmt(statement);
+                    self.with_top_level_binding(statement, |checker| checker.check_stmt(statement));
                 }
                 let annotation_diagnostics = annotations::annotation_diagnostics(
                     &unit.source,
@@ -59757,6 +59791,7 @@ impl TypeChecker {
         self.check_trait_impls();
         self.check_field_meta_declarations(stmts);
         self.report_scalar_literals();
+        self.withdraw_metadata_only_list_errors(stmts);
     }
 
     /// `@ field(...)` values are ordinary expressions: their names must
@@ -59777,7 +59812,9 @@ impl TypeChecker {
                 .chain(field_meta.members.iter().map(|member| &member.meta));
             for declaration in declarations {
                 for (key, value) in &declaration.entries {
+                    self.checking_metadata_value = true;
                     self.check_expr(value, None);
+                    self.checking_metadata_value = false;
                     let Some(type_name) = self.infer_expr_type_name(value) else {
                         continue;
                     };
@@ -59885,6 +59922,10 @@ impl TypeChecker {
     fn check_stmt_with_exploration_selection(&mut self, stmt: &Stmt, selectable: bool) {
         if let Stmt::Explore(query) = stmt {
             self.check_explore_query(query, selectable);
+        } else if selectable {
+            // Only the root file's own sequence selects explorations: its
+            // bindings are top-level.
+            self.with_top_level_binding(stmt, |checker| checker.check_stmt(stmt));
         } else {
             self.check_stmt(stmt);
         }
@@ -59904,24 +59945,13 @@ impl TypeChecker {
         match &expr.kind {
             ExprKind::Lit(lit) => Some(Self::obvious_literal_ty(lit).to_string()),
             ExprKind::Unit => Some("()".to_string()),
+            // `check_list_element_types` reports elements of different types.
             ExprKind::List(items) => {
                 let mut expected: Option<String> = None;
                 for item in items {
-                    let Some(item_ty) = self.obvious_expr_ty(item) else {
-                        continue;
-                    };
-                    if let Some(expected_ty) = &expected {
-                        if expected_ty != &item_ty {
-                            self.error_at_expr(
-                                item,
-                                format!(
-                                    "list elements must have the same type; first element is `{}` but this element is `{}`",
-                                    expected_ty, item_ty
-                                ),
-                            );
-                        }
-                    } else {
-                        expected = Some(item_ty);
+                    let item_ty = self.obvious_expr_ty(item);
+                    if expected.is_none() {
+                        expected = item_ty;
                     }
                 }
                 expected.map(|inner| format!("List({})", inner))
@@ -63468,6 +63498,7 @@ impl TypeChecker {
                 for e in elems {
                     self.check_expr(e, _in_fn);
                 }
+                self.check_list_element_types(elems);
             }
             ExprKind::Tuple(elems) => {
                 for e in elems {
@@ -64414,6 +64445,11 @@ impl TypeChecker {
                 }
                 Err(mut diagnostics) => tc.diagnostics.append(&mut diagnostics),
             }
+        }
+        if collect_all_imported_metadata_bindings && tc.diagnostics.is_empty() {
+            // A Rust-emitting backend leaves out every binding only metadata
+            // reads, whether or not the program declares a calculation.
+            compile_time_metadata_bindings.extend(tc.metadata_binding_candidates(stmts));
         }
         let checked_resolutions = CheckedResolutionRecorder::record(&tc);
         let (checked_exploration_queries, checked_exploration_query_issue) =

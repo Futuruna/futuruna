@@ -1,0 +1,26 @@
+-- A binding runtime code reads holds a runtime list, whose elements have one
+-- type: role values of different types are a check error naming the
+-- binding, though `@ field` reads it too.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: list elements must have the same type; first element is `Role(Law)` but this element is `Role(Note)`
+-- expect-stderr: `shared_sources` is runtime data
+-- expect-stderr: read `shared_sources` from metadata alone
+-- expect-stderr-not: does not compile
+
+# Law(url: String)
+# Note(n: Int)
+# Role(a) = Source(value: a) | Guidance(value: a)
+# impl MetaRole for Role {}
+
+= law = Law(url = "https://example.invalid/law")
+= note = Note(n = 1)
+= shared_sources = [Source(value = law), Guidance(value = note)]
+
+# Input(
+    @ field(label = "Income", sources = shared_sources)
+    income: Int
+)
+
+= source_count = length(shared_sources)
+@ print(show(source_count))

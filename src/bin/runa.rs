@@ -27432,9 +27432,12 @@ struct RustCodegen {
     int_arithmetic_mode: RustCodegenIntArithmeticMode,
     /// Top-level bindings that can be referenced through generated getter functions
     lib_static_names: BTreeSet<String>,
-    /// Pure ground metadata bindings validated during calculation-contract extraction.
-    /// Check/build codegen may omit members that executable code cannot reach.
+    /// Pure ground metadata bindings the checker resolved (`@ meta`,
+    /// `@ section`, `@ field`). Codegen omits those executable code cannot reach.
     compile_time_metadata_bindings: BTreeSet<String>,
+    /// The compile-time metadata bindings this program omits: no statement
+    /// initializes them and no library getter returns them.
+    omitted_compile_time_metadata_bindings: BTreeSet<String>,
     /// The checked program's constructor elaboration, for comptime evaluation.
     constructor_elaboration: Option<std::sync::Arc<ConstructorElaboration>>,
     /// Emit getter calls for top-level bindings when direct local names are out of scope
@@ -32695,6 +32698,7 @@ impl RustCodegen {
             int_arithmetic_mode: RustCodegenIntArithmeticMode::LanguageDefault,
             lib_static_names: BTreeSet::new(),
             compile_time_metadata_bindings: BTreeSet::new(),
+            omitted_compile_time_metadata_bindings: BTreeSet::new(),
             constructor_elaboration: None,
             allow_global_getter_refs: false,
             getter_stream_bindings: BTreeSet::new(),
@@ -37260,25 +37264,63 @@ fn __futuruna_install_error_hook() {
             .order_statement_refs(&main_stmts)
             .unwrap_or_else(|cycle| panic!("{cycle}"));
 
-        self.lib_static_names = self.collect_top_level_binding_getter_names(&main_stmts, &fn_stmts);
-        self.lib_static_names
+        // The top-level bindings runtime code reads: from functions, rules,
+        // rule scopes and modules.
+        let mut runtime_getter_names =
+            self.collect_top_level_binding_getter_names(&main_stmts, &fn_stmts);
+        runtime_getter_names
             .extend(self.collect_rule_top_level_binding_getter_names(&main_stmts, &rule_groups));
-        self.lib_static_names
+        runtime_getter_names
             .extend(self.collect_rule_scope_top_level_binding_getter_names(&main_stmts, stmts));
-        self.lib_static_names
-            .extend(main_stmts.iter().filter_map(|stmt| {
-                if let Stmt::Defn(Defn::Module { name, .. }) = stmt {
-                    Some(name.clone())
-                } else {
-                    None
-                }
-            }));
+        runtime_getter_names.extend(main_stmts.iter().filter_map(|stmt| {
+            if let Stmt::Defn(Defn::Module { name, .. }) = stmt {
+                Some(name.clone())
+            } else {
+                None
+            }
+        }));
         let duplicate_top_level_binds = Self::duplicate_top_level_binding_names(&main_stmts);
         let omitted_compile_time_metadata = self.compile_time_metadata_bindings_to_omit(
             stmts,
             &main_stmts,
             &duplicate_top_level_binds,
+            &runtime_getter_names,
         );
+        // A library exports every top-level binding except those only
+        // metadata reads: they are compile-time data in every backend.
+        if self.lib_mode {
+            for stmt in &main_stmts {
+                let name = match stmt {
+                    Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => name,
+                    Stmt::Bind(..)
+                    | Stmt::PreludeBoundary
+                    | Stmt::Defn(..)
+                    | Stmt::TypeDecl(..)
+                    | Stmt::Rule(..)
+                    | Stmt::Use(..)
+                    | Stmt::Import(..)
+                    | Stmt::QualifiedImport(..)
+                    | Stmt::HashImport(..)
+                    | Stmt::Depend(..)
+                    | Stmt::RustBlock(..)
+                    | Stmt::Annot(..)
+                    | Stmt::MonadicBind(..)
+                    | Stmt::For(..)
+                    | Stmt::While(..)
+                    | Stmt::Send(..)
+                    | Stmt::StreamSub(..)
+                    | Stmt::Invariant { .. }
+                    | Stmt::Prove { .. }
+                    | Stmt::Explore(..)
+                    | Stmt::Expr(..) => continue,
+                };
+                if !name.starts_with("__") && !omitted_compile_time_metadata.contains(name) {
+                    runtime_getter_names.insert(name.clone());
+                }
+            }
+        }
+        self.lib_static_names = runtime_getter_names;
+        self.omitted_compile_time_metadata_bindings = omitted_compile_time_metadata.clone();
         (
             self.binary_global_env_fns,
             self.binary_global_env_fn_arities,
@@ -39873,7 +39915,10 @@ fn __futuruna_install_error_hook() {
         }
 
         for (name, rust_lit) in &self.types.comptime_values {
-            if name.starts_with("__") || rust_lit.is_empty() {
+            if name.starts_with("__")
+                || rust_lit.is_empty()
+                || self.omitted_compile_time_metadata_bindings.contains(name)
+            {
                 continue;
             }
             if !emit_all && !self.lib_static_names.contains(name.as_str()) {
@@ -39899,7 +39944,10 @@ fn __futuruna_install_error_hook() {
 
         for stmt in main_stmts {
             if let Stmt::Bind(Pat::Var(name), ty_ann, expr) = stmt {
-                if name.starts_with("__") || self.types.comptime_values.contains_key(name) {
+                if name.starts_with("__")
+                    || self.types.comptime_values.contains_key(name)
+                    || self.omitted_compile_time_metadata_bindings.contains(name)
+                {
                     continue;
                 }
                 if !emit_all && !self.lib_static_names.contains(name.as_str()) {
@@ -39965,10 +40013,6 @@ fn __futuruna_install_error_hook() {
             }
         }
 
-        if self.lib_mode {
-            return bind_counts.keys().cloned().collect();
-        }
-
         let top_level_names: BTreeSet<String> = bind_counts.keys().cloned().collect();
         let mut getter_names = BTreeSet::new();
 
@@ -40019,6 +40063,7 @@ fn __futuruna_install_error_hook() {
         all_stmts: &[Stmt],
         main_stmts: &[&Stmt],
         duplicate_top_level_binds: &BTreeSet<String>,
+        runtime_getter_names: &BTreeSet<String>,
     ) -> BTreeSet<String> {
         if self.compile_time_metadata_bindings.is_empty() {
             return BTreeSet::new();
@@ -40056,8 +40101,7 @@ fn __futuruna_install_error_hook() {
             .cloned()
             .collect::<BTreeSet<_>>();
 
-        let mut runtime_required = self
-            .lib_static_names
+        let mut runtime_required = runtime_getter_names
             .intersection(&top_level_names)
             .cloned()
             .collect::<BTreeSet<_>>();
@@ -47169,6 +47213,9 @@ fn __futuruna_install_error_hook() {
                 let saved_rule_inference_environment_revision =
                     self.rule_inference_environment_revision;
                 let saved_lib_static_names = self.lib_static_names.clone();
+                // A module's own bindings are not the program's top-level ones.
+                let saved_omitted_compile_time_metadata_bindings =
+                    std::mem::take(&mut self.omitted_compile_time_metadata_bindings);
                 let saved_allow_global_getter_refs = self.allow_global_getter_refs;
                 self.types.exported_names.clear();
                 let rule_groups = Self::collect_rule_groups_from_stmts(body);
@@ -47759,6 +47806,8 @@ fn __futuruna_install_error_hook() {
                 self.indent = 0;
                 out.push_str("}\n");
                 self.lib_static_names = saved_lib_static_names;
+                self.omitted_compile_time_metadata_bindings =
+                    saved_omitted_compile_time_metadata_bindings;
                 self.allow_global_getter_refs = saved_allow_global_getter_refs;
                 let module_rule_scopes = self.types.module_rule_scopes.clone();
                 self.types = saved_types;
@@ -67025,6 +67074,32 @@ fn main() {{
         assert!(rust.contains("let metadata_leaf = 41i64;"), "{rust}");
         assert!(rust.contains("let metadata_root ="), "{rust}");
         assert!(rust.contains("metadata_root: Option<i64>"), "{rust}");
+    }
+
+    #[test]
+    fn lib_codegen_exports_no_unreachable_compile_time_metadata_bindings() {
+        // A library exports its top-level bindings, but not those only
+        // metadata reads: WebAssembly omits them as native code does.
+        let source = r#"
+= metadata_leaf = 40
+= metadata_root = metadata_leaf + 2
+= runtime_value = 7
+> read_runtime() -> Int { runtime_value }
+"#;
+        let stmts = Parser::new(Lexer::new(source).tokenize(), source)
+            .parse_program()
+            .expect("parse failed");
+        let mut cg = RustCodegen::new();
+        cg.lib_mode = true;
+        cg.scan_declarations(&stmts);
+        cg.compile_time_metadata_bindings =
+            BTreeSet::from(["metadata_leaf".to_string(), "metadata_root".to_string()]);
+
+        let rust = cg.emit_program(&stmts);
+
+        assert!(!rust.contains("fn metadata_leaf("), "{rust}");
+        assert!(!rust.contains("fn metadata_root("), "{rust}");
+        assert!(rust.contains("fn runtime_value("), "{rust}");
     }
 
     #[test]

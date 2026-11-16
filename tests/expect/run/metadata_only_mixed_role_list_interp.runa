@@ -1,0 +1,23 @@
+-- A top-level binding only `@ field` reads is compile-time metadata: its
+-- role list may hold role values of different types, and the interpreter
+-- runs the program as native code does (`_compiled`).
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: income 2
+
+# Law(url: String)
+# Note(n: Int)
+# Role(a) = Source(value: a) | Guidance(value: a)
+# impl MetaRole for Role {}
+
+= law = Law(url = "https://example.invalid/law")
+= note = Note(n = 1)
+= shared_sources = [Source(value = law), Guidance(value = note)]
+
+# Input(
+    @ field(label = "Income", sources = shared_sources)
+    income: Int
+)
+
+= input = Input(income = 2)
+@ print(concat("income ", show(input.income)))

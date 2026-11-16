@@ -1,0 +1,10 @@
+-- An imported file's binding only `@ field` reads is compile-time metadata
+-- too: the importing program compiles without it.
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: income 3
+
+@ import ./metadata_only_mixed_role_list_lib
+
+= input = Input(income = 3)
+@ print(concat("income ", show(input.income)))
