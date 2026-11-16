@@ -5,25 +5,80 @@
 -- Additiv helårsgrænse: den eksisterende PersonskatInput ændres ikke.
 -- Beløb til grøn check kommer fra Personskat, ikke fra rapportens konklusion.
 # PersonskatGrønCheckSamliv = GrønCheckSamlivUoplyst | GrønCheckIkkeSamlevendeVedÅrsslut | GrønCheckSamlevendeHeleÅret | GrønCheckSamlivKunDelAfÅret
-# PersonskatGrønCheckFakta(skattepligt_den_1_januar: GrønCheckSkattepligt, forskerordning: Boolsk?, modtager_førtids_senior_eller_tidlig_pension_ved_årets_udløb: Boolsk?, årsforløb: GrønCheckÅrsforløb, samliv: PersonskatGrønCheckSamliv, pbl16_tillæg_kroner: Heltal?, børneforhold: GrønCheckBørneforhold, kildereference: Tekst)
-# PersonskatGrønCheckInput(personskat: PersonskatInput, grøn_check_fakta: PersonskatGrønCheckFakta, oplyst_samlet_grøn_check_øre: Heltal?)
+= personskat_grøn_check_kilder = [
+    Source(value = grøn_check_kilder),
+    Source(value = GrønCheckKilde(url = "https://www.retsinformation.dk/eli/lta/2024/460", identifier = "KSL § 60 og § 62, stk. 2: grøn check indgår én gang, uden procentgodtgørelse", kontrolleret = "2026-09-25")),
+    Warning(value = "Forskningsmodel med afgrænset dækning. Ændrer ikke den gamle indgang eller en eksisterende rapportafstemning automatisk.")
+]
+# PersonskatGrønCheckFakta(
+    @ field(
+        label = "Skattepligt 1. januar",
+        question = "Var du fuldt skattepligtig til Danmark 1. januar?",
+        help = "Ukendt er et selvstændigt valg. Denne samlede indgang dækker kun ordinære helår med fuld skattepligt, ikke migration eller grænsegængere.",
+        sources = personskat_grøn_check_kilder
+    )
+    skattepligt_den_1_januar: GrønCheckSkattepligt,
+    @ field(
+        label = "Forskerskatteordning",
+        question = "Har du valgt beskatning efter KSL §§ 48 E–F?",
+        help = "false betyder kendt nej; null betyder ukendt. Samlet forskerbeskatning er ikke dækket af denne indgang.",
+        sources = personskat_grøn_check_kilder
+    )
+    forskerordning: Boolsk?,
+    @ field(
+        label = "Offentlig tidlig pension ved årets udløb",
+        question = "Modtog du førtids-, senior- eller tidlig pension ved årets udløb?",
+        help = "Efter socialpensionslovene, ikke blot privat pensionsudbetaling. Folkepensionsalderen udledes allerede af fødselsdatoen i Personskat. Ukendt kan angives som null.",
+        sources = personskat_grøn_check_kilder
+    )
+    modtager_førtids_senior_eller_tidlig_pension_ved_årets_udløb: Boolsk?,
+    @ field(
+        label = "Årets skatteforløb",
+        help = "Ordinært helår uden migration eller dødsfald. Et delår må ikke indtastes som helår for at få et beløb.",
+        sources = personskat_grøn_check_kilder
+    )
+    årsforløb: GrønCheckÅrsforløb,
+    @ field(
+        label = "Skattemæssigt samliv med ægtefælle",
+        question = "Var I skattemæssigt samlevende hele året, kun en del af året eller ikke ved årets udløb?",
+        help = "Kontrolleres mod Personskats ægtefællefakta. Ukendt må ikke erstattes af ugift. Ægtefællens nettokapitalindkomst udledes fra de allerede oplyste kildefakta; et rapporttal skal ikke indtastes igen.",
+        sources = personskat_grøn_check_kilder
+    )
+    samliv: PersonskatGrønCheckSamliv,
+    @ field(
+        label = "Eventuelt PBL § 16-tillæg",
+        question = "Er der et tillæg for fradragne eller bortseede kapitalpensionsbeløb efter PBL § 16?",
+        help = "0 kun ved kendt intet tillæg; null ved ukendt. Personskats almindelige PSL § 7-beregning modellerer 0. Et positivt tillæg kræver særskilt modeldækning og tilbageholder derfor hele denne afstemning; det sættes ikke stiltiende til nul.",
+        unit = "DKK",
+        sources = personskat_grøn_check_kilder
+    )
+    pbl16_tillæg_kroner: Heltal?,
+    børneforhold: GrønCheckBørneforhold,
+    @ field(
+        label = "Kilde til supplerende fakta",
+        help = "Lokal reference til bekræftede fakta, ikke CPR-nummer. Referencen autentificerer ikke dokumentet.",
+        sources = personskat_grøn_check_kilder
+    )
+    kildereference: Tekst
+)
+# PersonskatGrønCheckInput(
+    personskat: PersonskatInput,
+    grøn_check_fakta: PersonskatGrønCheckFakta,
+    @ field(
+        label = "Rapportens grønne check, valgfri",
+        help = "Samlet observation for pensionistbeløb, børn og tillæg i øre. Bruges kun til sammenligning, aldrig til at bestemme kreditten. null ved ukendt.",
+        unit = "øre",
+        sources = personskat_grøn_check_kilder
+    )
+    oplyst_samlet_grøn_check_øre: Heltal?
+)
 # PersonskatGrønCheckResultat(vurdering: PersonskatBeregningsvurdering, grøn_check_grundlag: GrønCheckInput, grøn_check: GrønCheckResultat, årsopgørelse: PersonskatÅrsopgørelseResultat?, forbehold: List(Tekst))
 
 = personskat_grøn_check_meta = Beregningsmeta(
     felter = [
-        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::personskat::årsopgørelse::$variant), label = "Personskats årsopgørelse", question = None, help = Some("Samme fakta som i personskat.calculate.runa. Vælg MedEksaktÅrsopgørelse. Grøn check og dens godtgørelsesudelukkelse skal stå som 0 her, fordi denne indgang udleder dem. Det er ikke en antagelse om manglende fakta."), unit = None),
-        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::skattepligt_den_1_januar), label = "Skattepligt 1. januar", question = Some("Var du fuldt skattepligtig til Danmark 1. januar?"), help = Some("Ukendt er et selvstændigt valg. Denne samlede indgang dækker kun ordinære helår med fuld skattepligt, ikke migration eller grænsegængere."), unit = None),
-        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::forskerordning), label = "Forskerskatteordning", question = Some("Har du valgt beskatning efter KSL §§ 48 E–F?"), help = Some("false betyder kendt nej; null betyder ukendt. Samlet forskerbeskatning er ikke dækket af denne indgang."), unit = None),
-        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::modtager_førtids_senior_eller_tidlig_pension_ved_årets_udløb), label = "Offentlig tidlig pension ved årets udløb", question = Some("Modtog du førtids-, senior- eller tidlig pension ved årets udløb?"), help = Some("Efter socialpensionslovene, ikke blot privat pensionsudbetaling. Folkepensionsalderen udledes allerede af fødselsdatoen i Personskat. Ukendt kan angives som null."), unit = None),
-        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::årsforløb), label = "Årets skatteforløb", question = None, help = Some("Ordinært helår uden migration eller dødsfald. Et delår må ikke indtastes som helår for at få et beløb."), unit = None),
-        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::samliv), label = "Skattemæssigt samliv med ægtefælle", question = Some("Var I skattemæssigt samlevende hele året, kun en del af året eller ikke ved årets udløb?"), help = Some("Kontrolleres mod Personskats ægtefællefakta. Ukendt må ikke erstattes af ugift. Ægtefællens nettokapitalindkomst udledes fra de allerede oplyste kildefakta; et rapporttal skal ikke indtastes igen."), unit = None),
-        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::pbl16_tillæg_kroner), label = "Eventuelt PBL § 16-tillæg", question = Some("Er der et tillæg for fradragne eller bortseede kapitalpensionsbeløb efter PBL § 16?"), help = Some("0 kun ved kendt intet tillæg; null ved ukendt. Personskats almindelige PSL § 7-beregning modellerer 0. Et positivt tillæg kræver særskilt modeldækning og tilbageholder derfor hele denne afstemning; det sættes ikke stiltiende til nul."), unit = Some("DKK")),
-        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::børneforhold::$variant), label = "Børneforhold", question = Some("Kendes alle børne- og ydelsesforhold?"), help = Some("Uoplyst er ikke ingen børn. OplysteBørn kræver en fuldstændig liste og kilde, også når listen er tom. Børne-/ungeydelse er ikke ekstra børnetilskud til enlige forsørgere. Se groen-check.md for barnets ophold og ydelsesret."), unit = None),
-        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::grøn_check_fakta::kildereference), label = "Kilde til supplerende fakta", question = None, help = Some("Lokal reference til bekræftede fakta, ikke CPR-nummer. Referencen autentificerer ikke dokumentet."), unit = None),
-        Beregningsfelt(path = pathof(PersonskatGrønCheckInput::oplyst_samlet_grøn_check_øre), label = "Rapportens grønne check, valgfri", question = None, help = Some("Samlet observation for pensionistbeløb, børn og tillæg i øre. Bruges kun til sammenligning, aldrig til at bestemme kreditten. null ved ukendt."), unit = Some("øre"))
+        Beregningsfelt(path = refof(PersonskatGrønCheckInput::personskat::årsopgørelse::$variant), label = "Personskats årsopgørelse", question = None, help = Some("Samme fakta som i personskat.calculate.runa. Vælg MedEksaktÅrsopgørelse. Grøn check og dens godtgørelsesudelukkelse skal stå som 0 her, fordi denne indgang udleder dem. Det er ikke en antagelse om manglende fakta."), unit = None),
+        Beregningsfelt(path = refof(PersonskatGrønCheckInput::grøn_check_fakta::børneforhold::$variant), label = "Børneforhold", question = Some("Kendes alle børne- og ydelsesforhold?"), help = Some("Uoplyst er ikke ingen børn. OplysteBørn kræver en fuldstændig liste og kilde, også når listen er tom. Børne-/ungeydelse er ikke ekstra børnetilskud til enlige forsørgere. Se groen-check.md for barnets ophold og ydelsesret."), unit = None)
     ],
-    spørgsmål = [],
-    beløbsfelter = [],
     attachments = (
         Source(value = grøn_check_kilder),
         Source(value = GrønCheckKilde(url = "https://www.retsinformation.dk/eli/lta/2024/460", identifier = "KSL § 60 og § 62, stk. 2: grøn check indgår én gang, uden procentgodtgørelse", kontrolleret = "2026-09-25")),

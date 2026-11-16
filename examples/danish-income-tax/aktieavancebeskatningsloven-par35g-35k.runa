@@ -5,17 +5,6 @@
 @ importer ./selskabsskatteloven
 @ importer ./pengebeloeb
 
-= aktieavancebeskatningsloven_lov1755_par35g_til_par35k = AktieavancebeskatningslovKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1755",
-    identifier = "LOV nr. 1755 af 29/12/2025, § 2 og § 8: ABL §§ 35 G-35 K med virkning fra 1. januar 2026",
-    hentet_dato = "2026-07-18"
-)
-= aktieavancebeskatningsloven_lsf71_par35g_til_par35k = AktieavancebeskatningslovKildeInfo(
-    url = "https://www.retsinformation.dk/eli/ft/202512L00071",
-    identifier = "2025/1 LSF 71, bemærkningerne til ABL §§ 35 G-35 K",
-    hentet_dato = "2026-07-18"
-)
-
 = abl_lov1755_par8_stk1_kildemeta = Source(
     value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k
 )
@@ -82,8 +71,194 @@ opgørelsen af overdragerens skattepligtige indkomst.
 
 # AktieavancePar35GHjemsted = AblPar35GDanmark | AblPar35GFærøerne | AblPar35GGrønland | AblPar35GEU | AblPar35GEØS | AblPar35GTredjeland
 # AktieavancePar35GSikkerhedsform = AblPar35GIngenSikkerhed | AblPar35GSikkerhedIAktier | AblPar35GSikkerhedIReguleredeObligationer | AblPar35GBankgaranti | AblPar35GAndenBetryggendeSikkerhed
-# AktieavancePar35GOverdragelsesparti(identifikation: Tekst, selskabsidentifikation: Tekst, aktieserie: Tekst, erhvervelsesrækkefølge: Heltal, antal: Heltal, skattemæssig_anskaffelsessum_kroner: Heltal, handelsværdi_kroner: Heltal)
-# AktieavancePar35GValg(overdragelsesår: Heltal, overdrager_er_fysisk_person: Boolsk, hjemsted: AktieavancePar35GHjemsted, dansk_virksomhed_omfattet_af_sel_par1_stk1_nr2j: Boolsk, udenlandsk_virksomhed_svarer_til_sel_par1_stk1_nr2j: Boolsk, udenlandsk_virksomhed_opfylder_erhvervsvirksomhedslov_kap5c: Boolsk, udenlandsk_virksomhed_forpligter_sig_til_overdragerskat: Boolsk, udenlandsk_virksomhed_forpligter_sig_til_årsoplysninger: Boolsk, aktier_opfylder_par34_stk1_nr3: Boolsk, parterne_har_valgt_ordningen: Boolsk, meddelelse_rettidig: Boolsk, beholdningsoversigt_vedlagt: Boolsk, saldo_vedlagt: Boolsk, land_omfattet_af_inddrivelsesbistand: Boolsk, sikkerhedsform: AktieavancePar35GSikkerhedsform, sikkerhed_står_i_passende_forhold: Boolsk, partier: List(AktieavancePar35GOverdragelsesparti))
+= personskat_kilder_4 = [
+    Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par26),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par17_klassifikation),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par44),
+    Source(value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par37),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par38),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39a),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39b),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par40),
+    PreparatoryWork(value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
+    DependencySource(value = aktieavancebeskatningsloven_lbk835_par4_stk2),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par44),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par23),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par37),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_beholdningsoversigt),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_prioritet),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_alle_afstået),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_årsoplysninger),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39b)
+]
+# AktieavancePar35GOverdragelsesparti(
+    @ field(
+        label = "Aktiepartiets identifikation",
+        question = "Hvilken entydig identifikation har aktiepartiet?",
+        help = "Identifikationen bruges af senere udbytte- og afståelseshændelser.",
+        sources = personskat_kilder_4
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Aktiepartiets selskab",
+        question = "Hvilket selskab vedrører aktiepartiet?",
+        sources = personskat_kilder_4
+    )
+    selskabsidentifikation: Tekst,
+    @ field(
+        label = "Aktiepartiets serie",
+        question = "Hvilken aktieserie tilhører partiet?",
+        sources = personskat_kilder_4
+    )
+    aktieserie: Tekst,
+    @ field(
+        label = "Aktiepartiets erhvervelsesrækkefølge",
+        question = "Hvilken placering har partiet i den skattemæssige erhvervelsesrækkefølge?",
+        help = "Rækkefølgen skal være entydig og anvendes ved FIFO-henføring.",
+        sources = personskat_kilder_4
+    )
+    erhvervelsesrækkefølge: Heltal,
+    @ field(
+        label = "Antal aktier i partiet",
+        question = "Hvor mange aktier omfattede partiet ved overdragelsen?",
+        unit = "aktier",
+        sources = personskat_kilder_4
+    )
+    antal: Heltal,
+    @ field(
+        label = "Aktiepartiets skattemæssige anskaffelsessum",
+        question = "Hvad var partiets skattemæssige anskaffelsessum ved overdragelsen?",
+        help = "En negativ anskaffelsessum angives som et negativt beløb og kan udløse straksindkomst efter ABL § 35 H.",
+        unit = "kr.",
+        sources = personskat_kilder_4
+    )
+    skattemæssig_anskaffelsessum_kroner: Heltal,
+    @ field(
+        label = "Aktiepartiets handelsværdi ved overdragelsen",
+        question = "Hvad var partiets handelsværdi ved overdragelsen?",
+        unit = "kr.",
+        sources = personskat_kilder_4
+    )
+    handelsværdi_kroner: Heltal
+)
+# AktieavancePar35GValg(
+    @ field(
+        label = "År for overdragelsen til medarbejderejevirksomheden",
+        question = "I hvilket indkomstår blev aktierne overdraget til medarbejderejevirksomheden?",
+        unit = "år",
+        sources = personskat_kilder_4
+    )
+    overdragelsesår: Heltal,
+    @ field(
+        label = "Overdrageren er en fysisk person",
+        question = "Er overdrageren en fysisk person?",
+        help = "ABL § 35 G kan kun vælges ved en fysisk persons overdragelse.",
+        sources = personskat_kilder_4
+    )
+    overdrager_er_fysisk_person: Boolsk,
+    @ field(
+        label = "Medarbejderejevirksomhedens hjemsted",
+        question = "Hvor havde medarbejderejevirksomheden hjemsted ved overdragelsen?",
+        help = "Hjemstedet bestemmer de supplerende krav til virksomhedstype, tilsagn og sikkerhed.",
+        sources = personskat_kilder_4
+    )
+    hjemsted: AktieavancePar35GHjemsted,
+    @ field(
+        label = "Dansk medarbejderejevirksomhed efter SEL § 1, stk. 1, nr. 2 j",
+        question = "Er den danske modtager omfattet af selskabsskattelovens § 1, stk. 1, nr. 2 j?",
+        sources = personskat_kilder_4
+    )
+    dansk_virksomhed_omfattet_af_sel_par1_stk1_nr2j: Boolsk,
+    @ field(
+        label = "Udenlandsk virksomhed svarer til en dansk medarbejderejevirksomhed",
+        question = "Er det godtgjort, at den udenlandske virksomhed svarer til en virksomhed efter SEL § 1, stk. 1, nr. 2 j?",
+        sources = personskat_kilder_4
+    )
+    udenlandsk_virksomhed_svarer_til_sel_par1_stk1_nr2j: Boolsk,
+    @ field(
+        label = "Udenlandsk virksomhed opfylder krav svarende til kapitel 5 c",
+        question = "Opfylder den udenlandske virksomhed hjemlandets krav svarende til erhvervsvirksomhedslovens kapitel 5 c?",
+        sources = personskat_kilder_4
+    )
+    udenlandsk_virksomhed_opfylder_erhvervsvirksomhedslov_kap5c: Boolsk,
+    @ field(
+        label = "Tilsagn om betaling af overdragerskat",
+        question = "Har den udenlandske virksomhed forpligtet sig over for Skatteforvaltningen til at betale overdragerskatten?",
+        sources = personskat_kilder_4
+    )
+    udenlandsk_virksomhed_forpligter_sig_til_overdragerskat: Boolsk,
+    @ field(
+        label = "Tilsagn om årlige oplysninger",
+        question = "Har den udenlandske virksomhed forpligtet sig til at afgive årlige oplysninger efter ABL § 35 K?",
+        sources = personskat_kilder_4
+    )
+    udenlandsk_virksomhed_forpligter_sig_til_årsoplysninger: Boolsk,
+    @ field(
+        label = "Aktierne opfylder ABL § 34, stk. 1, nr. 3",
+        question = "Opfylder de overdragne aktier betingelserne i ABL § 34, stk. 1, nr. 3?",
+        sources = personskat_kilder_4
+    )
+    aktier_opfylder_par34_stk1_nr3: Boolsk,
+    @ field(
+        label = "Parterne har valgt §§ 35 H-35 K",
+        question = "Har overdrageren og medarbejderejevirksomheden valgt at anvende ABL §§ 35 H-35 K?",
+        sources = personskat_kilder_4
+    )
+    parterne_har_valgt_ordningen: Boolsk,
+    @ field(
+        label = "Valget er meddelt rettidigt",
+        question = "Blev valget meddelt Skatteforvaltningen inden fristen i ABL § 35 G, stk. 2?",
+        sources = personskat_kilder_4
+    )
+    meddelelse_rettidig: Boolsk,
+    @ field(
+        label = "Beholdningsoversigt vedlagt meddelelsen",
+        question = "Var beholdningsoversigten vedlagt meddelelsen om valget?",
+        sources = personskat_kilder_4
+    )
+    beholdningsoversigt_vedlagt: Boolsk,
+    @ field(
+        label = "Opgørelse af overdragerskat vedlagt meddelelsen",
+        question = "Var opgørelsen af overdragerskatten vedlagt meddelelsen om valget?",
+        help = "Angiv ikke selve saldoen som input; Futuruna afleder den fra de overdragne aktiepartier.",
+        sources = personskat_kilder_4
+    )
+    saldo_vedlagt: Boolsk,
+    @ field(
+        label = "Hjemstedslandet er omfattet af inddrivelsesbistand",
+        question = "Er hjemstedslandet omfattet af en aftale om bistand til inddrivelse af skattekrav?",
+        help = "Manglende inddrivelsesbistand kan udløse krav om betryggende sikkerhed.",
+        sources = personskat_kilder_4
+    )
+    land_omfattet_af_inddrivelsesbistand: Boolsk,
+    @ field(
+        label = "Sikkerhed for overdragerskatten",
+        question = "Hvilken form for sikkerhed er stillet for overdragerskatten?",
+        sources = personskat_kilder_4
+    )
+    sikkerhedsform: AktieavancePar35GSikkerhedsform,
+    @ field(
+        label = "Sikkerheden står i passende forhold til saldoen",
+        question = "Står den stillede sikkerhed i passende forhold til overdragerskattens saldo?",
+        sources = personskat_kilder_4
+    )
+    sikkerhed_står_i_passende_forhold: Boolsk,
+    @ field(
+        label = "Overdragne aktiepartier",
+        question = "Hvilke aktiepartier blev overdraget til medarbejderejevirksomheden?",
+        help = "Tilføj hvert skattemæssigt parti særskilt og bevar erhvervelsesrækkefølgen.",
+        sources = personskat_kilder_4
+    )
+    partier: List(AktieavancePar35GOverdragelsesparti)
+)
 # AktieavancePar35GValgResultat(indenlandsk: Boolsk, tilladt_udenlandsk_hjemsted: Boolsk, virksomhedsform_opfyldt: Boolsk, meddelelseskrav_opfyldt: Boolsk, udenlandske_tilsagn_opfyldt: Boolsk, sikkerhed_påkrævet: Boolsk, sikkerhed_opfyldt: Boolsk, kan_anvende_par35h_til_par35k: Boolsk)
 # AktieavancePar35GOmvurderingsvalg(værdiansættelse_ændret_af_skatteforvaltningen: Boolsk, overdrager_har_modtaget_meddelelse: Boolsk, nyt_valg_meddelt_inden_tre_måneder: Boolsk)
 # AktieavancePar35GOmvurderingsresultat(omvalg_aktuelt: Boolsk, kan_træffe_nyt_valg: Boolsk)
@@ -266,13 +441,89 @@ til 0.
 # AktieavancePar35IForfaldspost(identifikation: Tekst, indkomstår: Heltal, grund: AktieavancePar35IForfaldsgrund, fristregel: AktieavancePar35IForfaldsfristregel, oprindeligt_beløb_kroner: Heltal, resterende_beløb_kroner: Heltal)
 # AktieavancePar35ITilstand(overdragelsesår: Heltal, beholdning: List(AktieavancePar35IBeholdningsparti), oprindelig_overdragelsesværdi_kroner: Heltal, overdragerskat_saldo_kroner: Heltal, forfaldsposter: List(AktieavancePar35IForfaldspost), behandlede_udbytteår: List(Heltal), ordning_aktiv: Boolsk, hjemsted: AktieavancePar35GHjemsted, land_omfattet_af_inddrivelsesbistand: Boolsk, sikkerhedsform: AktieavancePar35GSikkerhedsform, sikkerhed_står_i_passende_forhold: Boolsk)
 # AktieavancePar35IFifoResultat(resterende_antal_at_henføre: Heltal, gevinst_kroner: Heltal, tab_kroner: Heltal, fritaget_udbytte_tillagt_afståelsessum_kroner: Heltal, resterende_beholdning: List(AktieavancePar35IBeholdningsparti))
-# AktieavancePar35IAfståelsesdata(hændelsesidentifikation: Tekst, selskabsidentifikation: Tekst, aktieserie: Tekst, antal: Heltal, afståelsessum_kroner: Heltal, indkomstår: Heltal, anden_betalt_skat_kroner: Heltal, godkendt_fradrag_efter_ligningslov_par33_kroner: Heltal)
+# AktieavancePar35IAfståelsesdata(
+    @ field(
+        label = "Afståelsens identifikation",
+        question = "Hvilken entydig identifikation har afståelsen?",
+        help = "Brug en stabil reference, som en senere betaling kan knyttes til.",
+        sources = personskat_kilder_4
+    )
+    hændelsesidentifikation: Tekst,
+    @ field(
+        label = "Afståelsens selskab",
+        question = "Hvilket selskabs aktier blev afstået?",
+        sources = personskat_kilder_4
+    )
+    selskabsidentifikation: Tekst,
+    @ field(
+        label = "Afståelsens aktieserie",
+        question = "Hvilken aktieserie blev afstået?",
+        sources = personskat_kilder_4
+    )
+    aktieserie: Tekst,
+    @ field(
+        label = "Antal afståede aktier",
+        question = "Hvor mange aktier blev afstået ved hændelsen?",
+        unit = "aktier",
+        sources = personskat_kilder_4
+    )
+    antal: Heltal,
+    @ field(
+        label = "Afståelsessum for aktierne",
+        question = "Hvad var den samlede afståelsessum for aktierne?",
+        unit = "kr.",
+        sources = personskat_kilder_4
+    )
+    afståelsessum_kroner: Heltal,
+    @ field(
+        label = "Afståelsens indkomstår",
+        question = "I hvilket indkomstår skete afståelsen?",
+        unit = "år",
+        sources = personskat_kilder_4
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Anden betalt skat af afståelsesgevinsten",
+        question = "Hvor meget anden skat er dokumenteret betalt af den samme afståelsesgevinst?",
+        unit = "kr.",
+        sources = personskat_kilder_4
+    )
+    anden_betalt_skat_kroner: Heltal,
+    @ field(
+        label = "Godkendt fradrag efter ligningslovens § 33",
+        question = "Hvor stort et fradrag efter ligningslovens § 33 er godkendt for afståelsen?",
+        unit = "kr.",
+        sources = personskat_kilder_4
+    )
+    godkendt_fradrag_efter_ligningslov_par33_kroner: Heltal
+)
 # AktieavancePar35IAfståelsesresultat(tilstand_før: AktieavancePar35ITilstand, data: AktieavancePar35IAfståelsesdata, forfaldsgrund: AktieavancePar35IForfaldsgrund, hændelse_gyldig: Boolsk, gevinst_kroner: Heltal, tab_kroner: Heltal, fritaget_udbytte_tillagt_afståelsessum_kroner: Heltal, beregnet_skat_kroner: Heltal, skattefradrag_kroner: Heltal, nyt_forfald_kroner: Heltal, saldobortfald_kroner: Heltal, tilstand_efter: AktieavancePar35ITilstand)
 # AktieavancePar35IUdbyttefordeling(parti_identifikation: Tekst, fritaget_udbytte_kroner: Heltal)
-# AktieavancePar35IÅrsudbytte(hændelsesidentifikation: Tekst, indkomstår: Heltal, samlet_udbytte_kroner: Heltal, anden_betalt_skat_kroner: Heltal, godkendt_fradrag_efter_ligningslov_par33_kroner: Heltal, fritaget_udbyttefordeling: List(AktieavancePar35IUdbyttefordeling))
+# AktieavancePar35IÅrsudbytte(
+    @ field(
+        label = "Årsudbyttets hændelsesidentifikation",
+        question = "Hvilken entydig identifikation har årets udbyttehændelse?",
+        sources = personskat_kilder_4
+    )
+    hændelsesidentifikation: Tekst,
+    indkomstår: Heltal,
+    samlet_udbytte_kroner: Heltal,
+    anden_betalt_skat_kroner: Heltal,
+    godkendt_fradrag_efter_ligningslov_par33_kroner: Heltal,
+    fritaget_udbyttefordeling: List(AktieavancePar35IUdbyttefordeling)
+)
 # AktieavancePar35IÅrsudbytteresultat(tilstand_før: AktieavancePar35ITilstand, data: AktieavancePar35IÅrsudbytte, hændelse_gyldig: Boolsk, otte_pct_grænse_kroner: Heltal, fritaget_udbytte_kroner: Heltal, afdragsgrundlag_kroner: Heltal, beregnet_skat_kroner: Heltal, skattefradrag_kroner: Heltal, nyt_forfald_kroner: Heltal, tilstand_efter: AktieavancePar35ITilstand)
 # AktieavancePar35IBetalingsart = AblPar35IBetalingAfForfald(forfaldsidentifikation: Tekst) | AblPar35IFrivilligBetaling
-# AktieavancePar35IBetaling(hændelsesidentifikation: Tekst, beløb_kroner: Heltal, art: AktieavancePar35IBetalingsart)
+# AktieavancePar35IBetaling(
+    @ field(
+        label = "Betalingens hændelsesidentifikation",
+        question = "Hvilken entydig identifikation har betalingen af overdragerskat?",
+        sources = personskat_kilder_4
+    )
+    hændelsesidentifikation: Tekst,
+    beløb_kroner: Heltal,
+    art: AktieavancePar35IBetalingsart
+)
 # AktieavancePar35IBetalingsresultat(tilstand_før: AktieavancePar35ITilstand, data: AktieavancePar35IBetaling, hændelse_gyldig: Boolsk, saldo_nedskrevet_kroner: Heltal, tilstand_efter: AktieavancePar35ITilstand)
 # AktieavancePar35IOmstruktureringsresultat(tilstand_før: AktieavancePar35ITilstand, skattefri_med_succession: Boolsk, ny_beholdning: List(AktieavancePar35IBeholdningsparti), hændelse_gyldig: Boolsk, tilstand_efter: AktieavancePar35ITilstand)
 
@@ -464,7 +715,21 @@ overdragerskatten nedskrives med beløbet, når det er betalt.
 # AktieavancePar35JTvangsforløbstilstand(tilstand: AktieavancePar35ITilstand, resultater: List(AktieavancePar35IAfståelsesresultat), alle_afståelser_gyldige: Boolsk, samlet_nyt_forfald_kroner: Heltal, samlet_saldobortfald_kroner: Heltal)
 # AktieavancePar35JTvangsafståelsesdata(udløsning: AktieavancePar35JTvangsudløsning, afståelser_til_handelsværdi: List(AktieavancePar35IAfståelsesdata))
 # AktieavancePar35JTvangsafståelsesresultat(tilstand_før: AktieavancePar35ITilstand, data: AktieavancePar35JTvangsafståelsesdata, tvangsresultat: AktieavancePar35JTvangsresultat, hændelse_gyldig: Boolsk, resultater: List(AktieavancePar35IAfståelsesresultat), samlet_nyt_forfald_kroner: Heltal, samlet_saldobortfald_kroner: Heltal, tilstand_efter: AktieavancePar35ITilstand)
-# AktieavancePar35JVærdinedgangsdisposition(hændelsesidentifikation: Tekst, indkomstår: Heltal, beregningsgrundlag_kroner: Heltal, kan_påvirke_kursværdi_nedad: Boolsk, udlodning_til_medarbejderejevirksomheden: Boolsk, disposition_i_medarbejderejevirksomhedens_interesse: Boolsk, anden_betalt_skat_kroner: Heltal, godkendt_fradrag_efter_ligningslov_par33_kroner: Heltal)
+# AktieavancePar35JVærdinedgangsdisposition(
+    @ field(
+        label = "Værdinedgangsdispositionens hændelsesidentifikation",
+        question = "Hvilken entydig identifikation har dispositionen, der kan påvirke aktiernes værdi?",
+        sources = personskat_kilder_4
+    )
+    hændelsesidentifikation: Tekst,
+    indkomstår: Heltal,
+    beregningsgrundlag_kroner: Heltal,
+    kan_påvirke_kursværdi_nedad: Boolsk,
+    udlodning_til_medarbejderejevirksomheden: Boolsk,
+    disposition_i_medarbejderejevirksomhedens_interesse: Boolsk,
+    anden_betalt_skat_kroner: Heltal,
+    godkendt_fradrag_efter_ligningslov_par33_kroner: Heltal
+)
 # AktieavancePar35JVærdinedgangsresultat(tilstand_før: AktieavancePar35ITilstand, data: AktieavancePar35JVærdinedgangsdisposition, omfattet: Boolsk, hændelse_gyldig: Boolsk, beregnet_skat_kroner: Heltal, skattefradrag_kroner: Heltal, nyt_forfald_kroner: Heltal, tilstand_efter: AktieavancePar35ITilstand)
 
 | aktieavance_par35j_pengetank_tvang(data: AktieavancePar35JPengetankkontrol) -> aktieavance_par35g_til_par35k_har_virkning(data.overdragelsesår) && data.kontrolår >= data.overdragelsesår && data.kontrolår < data.overdragelsesår + 5 && data.betingelse_i_par34_stk1_nr3_opfyldt == Falskt
@@ -563,9 +828,37 @@ medarbejderejevirksomhedens hjemsted indebærer, at betingelserne i § 35 G, stk
 @ meta(aktieavancebeskatningsloven_par35k_metadata)
 @ section aktieavancebeskatningsloven_par35k {
 
-# AktieavancePar35KÅrsoplysninger(hændelsesidentifikation: Tekst, indkomstår: Heltal, indgivet_rettidigt: Boolsk, fristoverskridelse_tilsidesat_af_skatteforvaltningen: Boolsk, ajourført_beholdningsoversigt_indgivet: Boolsk, ajourført_saldo_indgivet: Boolsk, forfaldsforhold_efter_par35i_og_par35j_indgivet: Boolsk, udenlandsk_adresse_indgivet: Boolsk)
+# AktieavancePar35KÅrsoplysninger(
+    @ field(
+        label = "Årsoplysningernes hændelsesidentifikation",
+        question = "Hvilken entydig identifikation har indgivelsen af årets oplysninger efter ABL § 35 K?",
+        sources = personskat_kilder_4
+    )
+    hændelsesidentifikation: Tekst,
+    indkomstår: Heltal,
+    indgivet_rettidigt: Boolsk,
+    fristoverskridelse_tilsidesat_af_skatteforvaltningen: Boolsk,
+    ajourført_beholdningsoversigt_indgivet: Boolsk,
+    ajourført_saldo_indgivet: Boolsk,
+    forfaldsforhold_efter_par35i_og_par35j_indgivet: Boolsk,
+    udenlandsk_adresse_indgivet: Boolsk
+)
 # AktieavancePar35KÅrsoplysningsresultat(tilstand_før: AktieavancePar35ITilstand, data: AktieavancePar35KÅrsoplysninger, oplysninger_påkrævet: Boolsk, oplysninger_fuldstændige: Boolsk, rettidige_eller_tilsidesat: Boolsk, hændelse_gyldig: Boolsk, nyt_forfald_kroner: Heltal, tilstand_efter: AktieavancePar35ITilstand)
-# AktieavancePar35KHjemstedsflytning(hændelsesidentifikation: Tekst, indkomstår: Heltal, nyt_hjemsted: AktieavancePar35GHjemsted, nyt_land_omfattet_af_inddrivelsesbistand: Boolsk, ny_sikkerhedsform: AktieavancePar35GSikkerhedsform, ny_sikkerhed_står_i_passende_forhold: Boolsk, betingelserne_i_par35g_fortsat_opfyldt: Boolsk, frigivelse_af_sikkerhed_anmodet: Boolsk)
+# AktieavancePar35KHjemstedsflytning(
+    @ field(
+        label = "Hjemstedsflytningens hændelsesidentifikation",
+        question = "Hvilken entydig identifikation har ændringen af medarbejderejevirksomhedens hjemsted?",
+        sources = personskat_kilder_4
+    )
+    hændelsesidentifikation: Tekst,
+    indkomstår: Heltal,
+    nyt_hjemsted: AktieavancePar35GHjemsted,
+    nyt_land_omfattet_af_inddrivelsesbistand: Boolsk,
+    ny_sikkerhedsform: AktieavancePar35GSikkerhedsform,
+    ny_sikkerhed_står_i_passende_forhold: Boolsk,
+    betingelserne_i_par35g_fortsat_opfyldt: Boolsk,
+    frigivelse_af_sikkerhed_anmodet: Boolsk
+)
 # AktieavancePar35KHjemstedsresultat(tilstand_før: AktieavancePar35ITilstand, data: AktieavancePar35KHjemstedsflytning, sikkerhed_påkrævet: Boolsk, sikkerhed_opfyldt: Boolsk, sikkerhed_frigives: Boolsk, saldo_forfalder: Boolsk, hændelse_gyldig: Boolsk, nyt_forfald_kroner: Heltal, tilstand_efter: AktieavancePar35ITilstand)
 
 | aktieavance_par35k_hjemsted_udenlandsk(hjemsted: AktieavancePar35GHjemsted) -> hjemsted != AblPar35GDanmark
@@ -604,13 +897,71 @@ medarbejderejevirksomhedens hjemsted indebærer, at betingelserne i § 35 G, stk
 
 | aktieavance_par35k_hjemstedsresultat(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35KHjemstedsflytning) -> AktieavancePar35KHjemstedsSag(tilstand, data).resultat()
 
-# AktieavancePar35IOmstruktureringsdata(hændelsesidentifikation: Tekst, indkomstår: Heltal, skattefri_med_succession: Boolsk, ny_beholdning: List(AktieavancePar35IBeholdningsparti))
-# AktieavancePar35JTvangshændelse(hændelsesidentifikation: Tekst, indkomstår: Heltal, data: AktieavancePar35JTvangsafståelsesdata)
+# AktieavancePar35IOmstruktureringsdata(
+    @ field(
+        label = "Omstruktureringens hændelsesidentifikation",
+        question = "Hvilken entydig identifikation har omstruktureringen?",
+        sources = personskat_kilder_4
+    )
+    hændelsesidentifikation: Tekst,
+    indkomstår: Heltal,
+    skattefri_med_succession: Boolsk,
+    ny_beholdning: List(AktieavancePar35IBeholdningsparti)
+)
+# AktieavancePar35JTvangshændelse(
+    @ field(
+        label = "Tvangsafståelsens hændelsesidentifikation",
+        question = "Hvilken entydig identifikation har tvangsafståelsen?",
+        sources = personskat_kilder_4
+    )
+    hændelsesidentifikation: Tekst,
+    indkomstår: Heltal,
+    data: AktieavancePar35JTvangsafståelsesdata
+)
+@ field(
+    label = "Hændelse i overdragerskatteforløbet",
+    question = "Hvilken type hændelse skal registreres efter ABL §§ 35 I-35 K?",
+    help = "Vælg den dokumenterede kildehændelse; Futuruna afleder selv forfald, betaling og saldo.",
+    sources = personskat_kilder_4
+)
 # AktieavancePar35Hændelse = AblPar35HændelseAfståelse(data: AktieavancePar35IAfståelsesdata) | AblPar35HændelseÅrsudbytte(data: AktieavancePar35IÅrsudbytte) | AblPar35HændelseBetaling(indkomstår: Heltal, data: AktieavancePar35IBetaling) | AblPar35HændelseOmstrukturering(data: AktieavancePar35IOmstruktureringsdata) | AblPar35HændelseTvangsafståelse(data: AktieavancePar35JTvangshændelse) | AblPar35HændelseVærdinedgang(data: AktieavancePar35JVærdinedgangsdisposition) | AblPar35HændelseÅrsoplysninger(data: AktieavancePar35KÅrsoplysninger) | AblPar35HændelseHjemstedsflytning(data: AktieavancePar35KHjemstedsflytning)
-# AktieavancePar35Hændelsespost(rækkefølge_i_indkomståret: Heltal, hændelse: AktieavancePar35Hændelse)
+# AktieavancePar35Hændelsespost(
+    @ field(
+        label = "Hændelsens rækkefølge i indkomståret",
+        question = "Hvilket løbenummer har hændelsen blandt årets hændelser?",
+        help = "Nummereringen skal være strengt stigende inden for hvert indkomstår.",
+        sources = personskat_kilder_4
+    )
+    rækkefølge_i_indkomståret: Heltal,
+    hændelse: AktieavancePar35Hændelse
+)
 # AktieavancePar35Hændelsesresultat = AblPar35ResultatAfståelse(resultat: AktieavancePar35IAfståelsesresultat) | AblPar35ResultatÅrsudbytte(resultat: AktieavancePar35IÅrsudbytteresultat) | AblPar35ResultatBetaling(resultat: AktieavancePar35IBetalingsresultat) | AblPar35ResultatOmstrukturering(resultat: AktieavancePar35IOmstruktureringsresultat) | AblPar35ResultatTvangsafståelse(resultat: AktieavancePar35JTvangsafståelsesresultat) | AblPar35ResultatVærdinedgang(resultat: AktieavancePar35JVærdinedgangsresultat) | AblPar35ResultatÅrsoplysninger(resultat: AktieavancePar35KÅrsoplysningsresultat) | AblPar35ResultatHjemstedsflytning(resultat: AktieavancePar35KHjemstedsresultat)
 # AktieavancePar35Hændelsespostresultat(post: AktieavancePar35Hændelsespost, post_strukturelt_gyldig: Boolsk, resultat: AktieavancePar35Hændelsesresultat, hændelse_gyldig: Boolsk, nyt_forfald_kroner: Heltal, betalt_overdragerskat_kroner: Heltal, saldobortfald_kroner: Heltal, tilstand_før: AktieavancePar35ITilstand, tilstand_efter: AktieavancePar35ITilstand)
-# AktieavancePar35Forløbsinput(identifikation: Tekst, opgørelsesår: Heltal, overdragelse: AktieavancePar35GValg, hændelsesposter: List(AktieavancePar35Hændelsespost))
+# AktieavancePar35Forløbsinput(
+    @ field(
+        label = "Medarbejderejeordningens identifikation",
+        question = "Hvilken entydig identifikation skal forløbet efter ABL §§ 35 G-35 K have?",
+        help = "Brug en stabil reference, der forbinder valget og alle senere hændelser i samme overdragerskatteforløb.",
+        sources = personskat_kilder_4
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Opgørelsesår for medarbejderejeordningen",
+        question = "Hvilket indkomstår skal forløbet efter ABL §§ 35 G-35 K opgøres for?",
+        help = "Medtag kildens hændelseshistorik fra overdragelsen til og med dette år.",
+        unit = "år",
+        sources = personskat_kilder_4
+    )
+    opgørelsesår: Heltal,
+    overdragelse: AktieavancePar35GValg,
+    @ field(
+        label = "Hændelser i overdragerskatteforløbet",
+        question = "Hvilke hændelser er indtruffet fra overdragelsen til og med opgørelsesåret?",
+        help = "Tilføj hændelser i kronologisk rækkefølge. Brug rækkefølgen til flere hændelser i samme indkomstår.",
+        sources = personskat_kilder_4
+    )
+    hændelsesposter: List(AktieavancePar35Hændelsespost)
+)
 # AktieavancePar35Forløbstilstand(tilstand: AktieavancePar35ITilstand, resultater: List(AktieavancePar35Hændelsespostresultat), alle_hændelser_gyldige: Boolsk)
 # AktieavancePar35Forløbsresultat(input: AktieavancePar35Forløbsinput, overdragelsesresultat: AktieavancePar35GOverdragelsesresultat, hændelsesresultater: List(AktieavancePar35Hændelsespostresultat), input_gyldigt: Boolsk, umiddelbar_skattepligtig_gevinst_kroner: Heltal, årets_nye_forfald_kroner: Heltal, årets_betalte_overdragerskat_kroner: Heltal, årets_saldobortfald_kroner: Heltal, tilstand_ultimo: AktieavancePar35ITilstand, aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
 

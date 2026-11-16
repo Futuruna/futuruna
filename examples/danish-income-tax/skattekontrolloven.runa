@@ -1,4 +1,5 @@
 @ sprog da
+@ importer ./metadata
 
 -- Skattekontrolloven — selected deadline dependency for Personskatteloven.
 --
@@ -38,7 +39,44 @@ førstkommende hverdag kl. 9.00.
 ----
 
 # SkattekontrollovOplysningsfristKilde = SkattekontrollovenLbk12Af2024Par10Stk2 | SkattekontrollovenLbk12Af2024Par11
-# SkattekontrollovOplysningsfristInput(indkomstår: Heltal, kilde: SkattekontrollovOplysningsfristKilde, fristdag_dagen_før_eller_på_lørdag_søndag_helligdag: Boolsk, førstkommende_hverdag_yyyymmdd: Heltal, handling_yyyymmdd: Heltal)
+= personskat_oplysningsfrist_kilder = [Source(value = skattekontrolloven_lbk12_2024)]
+# SkattekontrollovOplysningsfristInput(
+    @ field(
+        label = "Indkomstår for oplysningsfristen",
+        question = "Hvilket indkomstår vedrører overførslen af kapitalafkastet?",
+        unit = "år",
+        sources = personskat_oplysningsfrist_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Oplysningsfristens hjemmel",
+        question = "Følger oplysningsfristen skattekontrollovens § 10, stk. 2, eller § 11?",
+        sources = personskat_oplysningsfrist_kilder
+    )
+    kilde: SkattekontrollovOplysningsfristKilde,
+    @ field(
+        label = "Fristdag ved weekend eller helligdag",
+        question = "Ligger dagen før eller selve fristdagen på en lørdag, søndag eller helligdag?",
+        sources = personskat_oplysningsfrist_kilder
+    )
+    fristdag_dagen_før_eller_på_lørdag_søndag_helligdag: Boolsk,
+    @ field(
+        label = "Førstkommende hverdag",
+        question = "Hvilken dato er den førstkommende hverdag efter den ordinære frist?",
+        help = "Angiv 0, når § 13 ikke udskyder fristen.",
+        unit = "YYYYMMDD",
+        sources = personskat_oplysningsfrist_kilder
+    )
+    førstkommende_hverdag_yyyymmdd: Heltal,
+    @ field(
+        label = "Dato for overførsel til den skattepligtige",
+        question = "Hvornår blev kapitalafkastet overført til den skattepligtige?",
+        help = "Angiv 0, hvis der ikke blev foretaget en overførsel.",
+        unit = "YYYYMMDD",
+        sources = personskat_oplysningsfrist_kilder
+    )
+    handling_yyyymmdd: Heltal
+)
 # SkattekontrollovOplysningsfristResultat(kilde: SkattekontrollovOplysningsfristKilde, indkomstår: Heltal, ordinær_frist_yyyymmdd: Heltal, par13_udskyder_frist: Boolsk, frist_efter_par13_yyyymmdd: Heltal, handling_yyyymmdd: Heltal, rettidigt: Boolsk)
 
 | skattekontrollov_oplysningsfrist_ordinær_yyyymmdd(indkomstår: Heltal, kilde: SkattekontrollovOplysningsfristKilde) -> match kilde {

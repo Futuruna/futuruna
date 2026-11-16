@@ -25,8 +25,59 @@
 @ section personskat_folkepension {
 
 # PersonskatFolkepensionArt = FolkepensionsartUoplystEllerUdenForModellen | FolkepensionGrundbeløb | FolkepensionPensionstillæg | FolkepensionÆldrecheck | FolkepensionPersonligtTillægEfterPar14 | FolkepensionVarmetillægEfterPar14 | FolkepensionHelbredstillægEfterPar14A
-@ meta(personskat_folkepension_felter)
-# PersonskatFolkepensionFakta(identifikation: Tekst, indkomstår: Heltal, kildereference: Tekst, art: PersonskatFolkepensionArt, beløb_før_skat_kroner: Heltal, ordinær_dansk_udbetaling_uden_korrektioner: Boolsk)
+= personskat_folkepension_kilder = [
+    Guidance(value = personskat_folkepension_skat_kilde),
+    Guidance(value = personskat_folkepension_personlig_kilde),
+    Source(value = personskat_folkepension_fritagelse_kilde),
+    Source(value = personskat_folkepension_tillæg_kilde),
+    Guidance(value = personskat_folkepension_am_kilde)
+]
+# PersonskatFolkepensionFakta(
+    @ field(
+        label = "Folkepensionspostens identifikation",
+        question = "Hvilken entydig identifikation har denne post?",
+        help = "Opdel beløb efter ydelsesart. En samlet udbetaling og dens bestanddele må ikke tælles to gange.",
+        sources = personskat_folkepension_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Udbetalingens indkomstår",
+        question = "I hvilket indkomstår blev det ordinære beløb udbetalt?",
+        help = "2023–2026. Brug udbetalingsoplysningerne; tidligere år, tilbagebetaling og omkontering kræver særskilt behandling.",
+        unit = "år",
+        sources = personskat_folkepension_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Kilde til folkepensionsposten",
+        question = "Hvilken pensionsmeddelelse eller tillægsafgørelse dokumenterer art, modtager og beløb?",
+        help = "En lokal reference er nok; ikke CPR. Brug ikke en restdifference i årsopgørelsen som uafhængig kilde.",
+        sources = personskat_folkepension_kilder
+    )
+    kildereference: Tekst,
+    @ field(
+        label = "Folkepension eller særskilt tillæg",
+        question = "Er dette grundbeløb, pensionstillæg, ældrecheck, personligt tillæg, varmetillæg eller helbredstillæg efter socialpensionsloven?",
+        help = "Pensionstillæg og ældrecheck er skattepligtige; personligt tillæg, varme og helbred efter de angivne paragraffer er skattefri. Ordene tillæg eller pension alene afgør ikke grenen. Privat pension, ATP-udbetaling, førtids-/seniorpension og opsat pension bruger ikke denne indgang.",
+        sources = personskat_folkepension_kilder
+    )
+    art: PersonskatFolkepensionArt,
+    @ field(
+        label = "Årets udbetaling før skat",
+        question = "Hvad er årets dokumenterede beløb før A-skat for netop denne ydelsesart?",
+        help = "Ikke månedsbeløbet eller bankens nettobeløb. Skattefri tillæg står særskilt med det faktisk ydede beløb. Indsæt ikke en maksimal pensionssats i stedet for din udbetaling.",
+        unit = "kr./år",
+        sources = personskat_folkepension_kilder
+    )
+    beløb_før_skat_kroner: Heltal,
+    @ field(
+        label = "Ordinær dansk folkepensionspost afklaret",
+        question = "Er dette afklaret som ordinær dansk folkepension eller dækket tillæg, uden udland, opsat pension, efterlevelsespension, tilbagebetaling eller omperiodisering?",
+        help = "Bekræft kun efter gennemgang. Falsk bevarer sagen som uafklaret/uden for modellen. Folkepensionens størrelse eller ret til tillæg beregnes ikke her.",
+        sources = personskat_folkepension_kilder
+    )
+    ordinær_dansk_udbetaling_uden_korrektioner: Boolsk
+)
 # PersonskatFolkepensionResultat(fakta: PersonskatFolkepensionFakta, input_gyldigt: Boolsk, personlig_indkomst_uden_am_kroner: Heltal, skattefrit_tillæg_kroner: Heltal, ll9c_aftrapningsindkomst_kroner: Option(Heltal))
 
 | personskat_folkepension_input_gyldigt(fakta: PersonskatFolkepensionFakta) -> trim(fakta.identifikation) != "" && trim(fakta.kildereference) != "" && fakta.indkomstår >= 2023 && fakta.indkomstår <= 2026 && fakta.beløb_før_skat_kroner >= 0 && fakta.ordinær_dansk_udbetaling_uden_korrektioner && fakta.art != FolkepensionsartUoplystEllerUdenForModellen
@@ -48,17 +99,3 @@
 )
 
 }
-
-= personskat_folkepension_felter = TypetBeregningsmeta(
-    felter = [
-        TypetBeregningsfelt(path = refof(PersonskatFolkepensionFakta::identifikation), label = "Folkepensionspostens identifikation", question = Some("Hvilken entydig identifikation har denne post?"), help = Some("Opdel beløb efter ydelsesart. En samlet udbetaling og dens bestanddele må ikke tælles to gange."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatFolkepensionFakta::indkomstår), label = "Udbetalingens indkomstår", question = Some("I hvilket indkomstår blev det ordinære beløb udbetalt?"), help = Some("2023–2026. Brug udbetalingsoplysningerne; tidligere år, tilbagebetaling og omkontering kræver særskilt behandling."), unit = Some("år")),
-        TypetBeregningsfelt(path = refof(PersonskatFolkepensionFakta::kildereference), label = "Kilde til folkepensionsposten", question = Some("Hvilken pensionsmeddelelse eller tillægsafgørelse dokumenterer art, modtager og beløb?"), help = Some("En lokal reference er nok; ikke CPR. Brug ikke en restdifference i årsopgørelsen som uafhængig kilde."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatFolkepensionFakta::art::$variant), label = "Folkepension eller særskilt tillæg", question = Some("Er dette grundbeløb, pensionstillæg, ældrecheck, personligt tillæg, varmetillæg eller helbredstillæg efter socialpensionsloven?"), help = Some("Pensionstillæg og ældrecheck er skattepligtige; personligt tillæg, varme og helbred efter de angivne paragraffer er skattefri. Ordene tillæg eller pension alene afgør ikke grenen. Privat pension, ATP-udbetaling, førtids-/seniorpension og opsat pension bruger ikke denne indgang."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatFolkepensionFakta::beløb_før_skat_kroner), label = "Årets udbetaling før skat", question = Some("Hvad er årets dokumenterede beløb før A-skat for netop denne ydelsesart?"), help = Some("Ikke månedsbeløbet eller bankens nettobeløb. Skattefri tillæg står særskilt med det faktisk ydede beløb. Indsæt ikke en maksimal pensionssats i stedet for din udbetaling."), unit = Some("kr./år")),
-        TypetBeregningsfelt(path = refof(PersonskatFolkepensionFakta::ordinær_dansk_udbetaling_uden_korrektioner), label = "Ordinær dansk folkepensionspost afklaret", question = Some("Er dette afklaret som ordinær dansk folkepension eller dækket tillæg, uden udland, opsat pension, efterlevelsespension, tilbagebetaling eller omperiodisering?"), help = Some("Bekræft kun efter gennemgang. Falsk bevarer sagen som uafklaret/uden for modellen. Folkepensionens størrelse eller ret til tillæg beregnes ikke her."), unit = None)
-    ],
-    spørgsmål = [],
-    beløbsfelter = [],
-    attachments = (Guidance(value = personskat_folkepension_skat_kilde), Guidance(value = personskat_folkepension_personlig_kilde), Source(value = personskat_folkepension_fritagelse_kilde), Source(value = personskat_folkepension_tillæg_kilde), Guidance(value = personskat_folkepension_am_kilde))
-)

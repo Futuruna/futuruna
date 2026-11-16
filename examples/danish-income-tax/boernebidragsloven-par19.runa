@@ -4,14 +4,6 @@
 @ importer ./ligningsloven-par10-par11-underhold
 @ importer ./metadata
 
-# Børnebidragslov19KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
-
-= børnebidragsloven_lbk773_par19 = Børnebidragslov19KildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2019/773",
-    identifier = "Børnebidragsloven § 19 i LBK nr. 773 af 07/08/2019",
-    hentet_dato = "2026-08-10",
-    ændringsstatus = "Gældende konsolidering kontrolleret på Retsinformation"
-)
 = børnebidragsloven_bidrag_vejledning = Børnebidragslov19KildeInfo(
     url = "https://www.retsinformation.dk/eli/retsinfo/2020/9424",
     identifier = "Vejledning om børne- og ægtefællebidrag, pkt. 6.1.4 og 6.2.10",
@@ -51,18 +43,258 @@ offentlige myndighed eller institution, der har afholdt de pågældende udgifter
 @ section børnebidragsloven_par19 {
 
 # Børnebidragslov19Fødselsudfald = Levendefødt | Dødfødt
-# Børnebidragslov19Hændelse = Fødsel(fødselsdato: Dato, udfald: Børnebidragslov19Fødselsudfald) | Abort(abortdato: Dato)
-# Børnebidragslov19Barselsperiode = AlmindeligBarselsperiode(måneder_før_fødslen: Heltal, måneder_efter_fødslen: Heltal) | ForlængetBarselsperiode(måneder_før_fødslen: Heltal, måneder_efter_fødslen: Heltal, særlige_omstændigheder_dokumentreference: Tekst)
-# Børnebidragslov19Bidragsart = Fødselsbidrag | NavngivningsbidragHerunderDåb | Barselsbidrag(periode: Børnebidragslov19Barselsperiode) | Abortudgiftsbidrag(dokumenterede_særlige_udgifter_kroner: Heltal)
+= personskat_personlig_indkomst_kilder = [
+    Source(value = personskatteloven_lbk1284_par3),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par4),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par19_stk1),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par56),
+    DependencySource(value = ligningsloven_lbk1500_par10_par11),
+    DependencySource(value = børnebidragsloven_lbk773_par19),
+    DependencySource(value = børnebidragsbekendtgørelsen_bek285_par3_par4_par9_par10_par11),
+    Guidance(value = skat_gruppeliv_vejledning),
+    Guidance(value = skat_gruppeliv_eindkomst_20260925),
+    Guidance(value = skat_gruppeliv_rubrik347_20260925),
+    Guidance(value = skat_honorar_vejledning),
+    Guidance(value = skat_underholdsbidrag_børn_vejledning),
+    Guidance(value = skat_underholdsbidrag_ægtefælle_vejledning),
+    Guidance(value = skat_underholdsbidrag_børn_beskatning_vejledning),
+    Guidance(value = skat_børnebidrag_modtagerskat_20260925),
+    Guidance(value = skat_børnebidrag_fødsel_vejledning),
+    Guidance(value = skat_børnebidrag_engangsbeløb_vejledning),
+    ParameterSource(value = børnebidragsloven_satser_2025),
+    ParameterSource(value = børnebidragsloven_satser_2026)
+]
+@ field(
+    label = "§ 19-hændelsen",
+    question = "Vedrører bidraget en fødsel eller en abort?",
+    sources = personskat_personlig_indkomst_kilder
+)
+# Børnebidragslov19Hændelse =
+    Fødsel(
+        fødselsdato: Dato,
+        @ field(
+            label = "Fødslens udfald",
+            question = "Var barnet levendefødt eller dødfødt?",
+            help = "§ 19, stk. 1, tillader bidrag, selv om barnet er dødfødt.",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        udfald: Børnebidragslov19Fødselsudfald
+    ) |
+    Abort(abortdato: Dato)
+# Børnebidragslov19Barselsperiode =
+    AlmindeligBarselsperiode(
+        @ field(
+            label = "Almindelige barselsmåneder før fødslen",
+            question = "Hvor mange af de normale to måneder før fødslen omfatter bidraget?",
+            unit = "måneder",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        måneder_før_fødslen: Heltal,
+        @ field(
+            label = "Almindelige barselsmåneder efter fødslen",
+            question = "Hvor mange af den normale ene måned efter fødslen omfatter bidraget?",
+            unit = "måneder",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        måneder_efter_fødslen: Heltal
+    ) |
+    ForlængetBarselsperiode(
+        @ field(
+            label = "Forlængede barselsmåneder før fødslen",
+            question = "Hvor mange måneder før fødslen er fastsat under særlige omstændigheder?",
+            help = "§ 19, stk. 1, tillader højst fire måneder før fødslen.",
+            unit = "måneder",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        måneder_før_fødslen: Heltal,
+        @ field(
+            label = "Forlængede barselsmåneder efter fødslen",
+            question = "Hvor mange måneder efter fødslen er fastsat under særlige omstændigheder?",
+            help = "§ 19, stk. 1, tillader højst ni måneder efter fødslen.",
+            unit = "måneder",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        måneder_efter_fødslen: Heltal,
+        @ field(
+            label = "Dokumentation for forlænget barselsperiode",
+            question = "Hvilken afgørelse dokumenterer de særlige omstændigheder og den forlængede periode?",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        særlige_omstændigheder_dokumentreference: Tekst
+    )
+@ field(
+    label = "§ 19-bidragets art",
+    question = "Er beløbet et fødselsbidrag, navngivningsbidrag, barselsbidrag eller bidrag til særlige abortudgifter?",
+    sources = personskat_personlig_indkomst_kilder
+)
+# Børnebidragslov19Bidragsart =
+    Fødselsbidrag |
+    NavngivningsbidragHerunderDåb |
+    Barselsbidrag(periode: Børnebidragslov19Barselsperiode) |
+    Abortudgiftsbidrag(
+        @ field(
+            label = "Dokumenterede særlige abortudgifter",
+            question = "Hvor store særlige udgifter som følge af aborten er dokumenteret?",
+            unit = "kr.",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        dokumenterede_særlige_udgifter_kroner: Heltal
+    )
 # Børnebidragslov19Bidragsydergrundlag = Far | Medmor | HarEllerKanHaveBesvangretKvinden | SamtykkedeTilAssisteretReproduktion
-# Børnebidragslov19RetligModtager = Moderen | OffentligMyndighedEllerInstitution(identifikation: Tekst)
-# Børnebidragslov19Fastsættelse = FastsatAfFamilieretshuset | DokumenteretBindendeAftale(dokumentreference: Tekst) | Par19UdenDokumenteretFastsættelse
-# Børnebidragslov19Forfaldsgrundlag = StraksVedFastsættelsenEfterFødslen | VedFødslenEfterFastsættelseFørFødslen | AndetTidspunktFastsatIAfgørelsen(dokumentreference: Tekst) | StraksVedAbortbidragetsFastsættelse
-# Børnebidragslov19Skatterolle = BørnebidragsBidragsyder(modtageridentitet_oplyst: Boolsk, betalt_af_bidragsyderen_selv: Boolsk) | MorSomRetligBidragsmodtager | BarnMedSkattemæssigHenføring
-# Børnebidragslov19Navngivningsskattekontekst = UdenNavngivningsskattekontekst | MedNavngivningsskattekontekst(retsgrundlag: Ligningslov10Og11Retsgrundlag, barnets_bopæl: Ligningslov10Og11BarnetsBopæl, forsørger_eller_bidragspligt_over_for_det_offentlige: Boolsk)
-# Børnebidragslov19BidragFakta(identifikation: Tekst, indkomstår: Heltal, rolle: Børnebidragslov19Skatterolle, hændelse: Børnebidragslov19Hændelse, bidragsart: Børnebidragslov19Bidragsart, bidragsydergrundlag: Børnebidragslov19Bidragsydergrundlag, retlig_modtager: Børnebidragslov19RetligModtager, fastsættelse: Børnebidragslov19Fastsættelse, ansøgningsgrundlag: Børnebidragslov19Ansøgningsgrundlag, fastsættelsesdato: Dato, forfaldsgrundlag: Børnebidragslov19Forfaldsgrundlag, forfaldsdato: Dato, betalingsdato: Dato, beløb_kroner: Heltal, barnets_identifikation: Tekst, navngivningsskattekontekst: Børnebidragslov19Navngivningsskattekontekst)
+@ field(
+    label = "§ 19-bidragets retlige modtager",
+    question = "Tilkommer bidraget moren eller en offentlig myndighed eller institution, som afholdt udgiften?",
+    help = "Modtageren følger § 19, stk. 4, og er ikke barnet.",
+    sources = personskat_personlig_indkomst_kilder
+)
+# Børnebidragslov19RetligModtager =
+    Moderen |
+    OffentligMyndighedEllerInstitution(
+        @ field(
+            label = "Offentlig modtagers identifikation",
+            question = "Hvilken myndighed eller institution afholdt udgiften og modtog bidraget?",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        identifikation: Tekst
+    )
+@ field(
+    label = "§ 19-bidragets fastsættelse",
+    question = "Er bidraget fastsat af Familieretshuset, dokumenteret ved en bindende aftale eller uden dokumenteret fastsættelse?",
+    sources = personskat_personlig_indkomst_kilder
+)
+# Børnebidragslov19Fastsættelse =
+    FastsatAfFamilieretshuset |
+    DokumenteretBindendeAftale(
+        @ field(
+            label = "Dokumentation for bindende § 19-aftale",
+            question = "Hvilken dokumentreference viser den bindende aftale?",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        dokumentreference: Tekst
+    ) |
+    Par19UdenDokumenteretFastsættelse
+@ field(
+    label = "§ 19-bidragets forfaldsgrundlag",
+    question = "Forfaldt bidraget straks efter fødslen, ved fødslen efter en tidligere fastsættelse, på et andet fastsat tidspunkt eller straks som abortbidrag?",
+    sources = personskat_personlig_indkomst_kilder
+)
+# Børnebidragslov19Forfaldsgrundlag =
+    StraksVedFastsættelsenEfterFødslen |
+    VedFødslenEfterFastsættelseFørFødslen |
+    AndetTidspunktFastsatIAfgørelsen(
+        @ field(
+            label = "Dokumentation for andet forfaldstidspunkt",
+            question = "Hvilken afgørelse fastsætter det andet forfaldstidspunkt?",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        dokumentreference: Tekst
+    ) |
+    StraksVedAbortbidragetsFastsættelse
+@ field(
+    label = "Personens skattemæssige rolle i § 19-bidraget",
+    question = "Er personen bidragsyder, moren som retlig modtager eller barnet med skattemæssig henføring af et navngivningsbidrag?",
+    help = "Barnet er ikke den retlige modtager efter § 19, stk. 4. Barnets variant bruges kun til den særskilte skattemæssige henføring efter LL §§ 10-11.",
+    sources = personskat_personlig_indkomst_kilder
+)
+# Børnebidragslov19Skatterolle =
+    BørnebidragsBidragsyder(
+        @ field(
+            label = "Modtageridentiteten er oplyst",
+            question = "Er den krævede modtageridentitet oplyst til Skatteforvaltningen?",
+            help = "Oplysningen bruges kun, hvor navngivningsbidraget prøves som et fradragsberettiget børnebidrag.",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        modtageridentitet_oplyst: Boolsk,
+        @ field(
+            label = "§ 19-bidraget er betalt af yderen selv",
+            question = "Er beløbet faktisk afholdt af den person, som opgørelsen vedrører?",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        betalt_af_bidragsyderen_selv: Boolsk
+    ) |
+    MorSomRetligBidragsmodtager |
+    BarnMedSkattemæssigHenføring
+@ field(
+    label = "Navngivningsbidragets skattekontekst",
+    question = "Skal navngivningsbidraget prøves efter LL §§ 10-11, eller er denne skattekontekst ikke relevant for posten?",
+    sources = personskat_personlig_indkomst_kilder
+)
+# Børnebidragslov19Navngivningsskattekontekst =
+    UdenNavngivningsskattekontekst |
+    MedNavngivningsskattekontekst(
+        retsgrundlag: Ligningslov10Og11Retsgrundlag,
+        @ field(
+            label = "Barnets bopæl ved navngivningsbidraget",
+            question = "Hvor boede barnet i relation til bidragsyderen?",
+            help = "Bidragsyderens fradrag kræver, at barnet ikke opholder sig hos yderen.",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        barnets_bopæl: Ligningslov10Og11BarnetsBopæl,
+        @ field(
+            label = "Offentlig forsørger- eller bidragspligt ved navngivningsbidrag",
+            question = "Har bidragsyderen forsørger- eller bidragspligt over for det offentlige for barnet?",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        forsørger_eller_bidragspligt_over_for_det_offentlige: Boolsk
+    )
+# Børnebidragslov19BidragFakta(
+    @ field(
+        label = "§ 19-bidragets identifikation",
+        question = "Hvilken entydig identifikation har bidraget?",
+        help = "Brug en stabil reference fra afgørelsen, aftalen eller betalingsbilaget.",
+        sources = personskat_personlig_indkomst_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "§ 19-bidragets indkomstår",
+        question = "I hvilket indkomstår blev bidraget betalt eller modtaget?",
+        unit = "år",
+        sources = personskat_personlig_indkomst_kilder
+    )
+    indkomstår: Heltal,
+    rolle: Børnebidragslov19Skatterolle,
+    hændelse: Børnebidragslov19Hændelse,
+    bidragsart: Børnebidragslov19Bidragsart,
+    @ field(
+        label = "§ 19-bidragsyderens retlige grundlag",
+        question = "Er yderen far, medmor, en person der har eller kan have besvangret kvinden, eller en person der samtykkede til assisteret reproduktion?",
+        sources = personskat_personlig_indkomst_kilder
+    )
+    bidragsydergrundlag: Børnebidragslov19Bidragsydergrundlag,
+    retlig_modtager: Børnebidragslov19RetligModtager,
+    fastsættelse: Børnebidragslov19Fastsættelse,
+    ansøgningsgrundlag: Børnebidragslov19Ansøgningsgrundlag,
+    fastsættelsesdato: Dato,
+    forfaldsgrundlag: Børnebidragslov19Forfaldsgrundlag,
+    forfaldsdato: Dato,
+    betalingsdato: Dato,
+    @ field(
+        label = "Betalt eller modtaget § 19-bidrag",
+        question = "Hvor stort et § 19-bidrag blev faktisk betalt eller modtaget?",
+        unit = "kr.",
+        sources = personskat_personlig_indkomst_kilder
+    )
+    beløb_kroner: Heltal,
+    @ field(
+        label = "Barnets identifikation ved navngivningsskat",
+        question = "Hvilken stabil identifikation har barnet, når navngivningsbidraget skal prøves efter LL §§ 10-11?",
+        help = "Feltet kræves kun for navngivningsbidrag med skattemæssig henføring til yderen eller barnet.",
+        sources = personskat_personlig_indkomst_kilder
+    )
+    barnets_identifikation: Tekst,
+    navngivningsskattekontekst: Børnebidragslov19Navngivningsskattekontekst
+)
 # Børnebidragslov19BidragResultat(fakta: Børnebidragslov19BidragFakta, input_gyldigt: Boolsk, hændelse_og_bidragsart_svarer: Boolsk, bidragsydergrundlag_opfyldt: Boolsk, retlig_modtager_gyldig: Boolsk, fastsættelse_dokumenteret: Boolsk, ansøgningsgrundlag_gyldigt: Boolsk, barselsperiode_gyldig: Boolsk, forfaldsgrundlag_opfyldt: Boolsk, satsår_understøttet: Boolsk, officiel_sats_kroner: Heltal, beløb_svarer_til_offentlig_fastsættelse: Boolsk, navngivningsskattekontekst_gyldig: Boolsk, navngivningsskat: Ligningslov10Og11BidragResultat?, modtagerbeskatning_kildeafklaret: Boolsk, ligningsmæssigt_fradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal, kan_sammensættes: Boolsk)
-# Børnebidragslov19Årsinput(bidrag: List(Børnebidragslov19BidragFakta))
+# Børnebidragslov19Årsinput(
+    @ field(
+        label = "Bidrag ved fødsel, barsel, navngivning eller abort",
+        question = "Hvilke bidrag efter børnebidragslovens § 19 har personen betalt, retligt modtaget eller fået skattemæssigt henført i indkomståret?",
+        help = "Disse poster tilkommer retligt moren eller en offentlig myndighed og skal holdes adskilt fra løbende børnebidrag. Opret én række pr. særskilt fastsat bidrag.",
+        sources = personskat_personlig_indkomst_kilder
+    )
+    bidrag: List(Børnebidragslov19BidragFakta)
+)
 # Børnebidragslov19Årsresultat(indkomstår: Heltal, input: Børnebidragslov19Årsinput, resultater: List(Børnebidragslov19BidragResultat), identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, alle_modtagerbeskatninger_kildeafklarede: Boolsk, samlet_ligningsmæssigt_fradrag_kroner: Heltal, samlet_personlig_indkomst_kroner: Heltal, kan_sammensættes: Boolsk)
 
 | børnebidragslov19_tomt_årsinput() -> Børnebidragslov19Årsinput(bidrag = [])
@@ -176,12 +408,6 @@ offentlige myndighed eller institution, der har afholdt de pågældende udgifter
 
 }
 
-= børnebidragsbekendtgørelsen_bek285_par3_par4_par9_par10_par11 = Børnebidragslov19KildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2019/285",
-    identifier = "Bidragsbekendtgørelsen §§ 3-4 og 9-11 i BEK nr. 285 af 20/03/2019",
-    hentet_dato = "2026-08-10",
-    ændringsstatus = "Gældende bekendtgørelse; fristerne styrer offentlig fastsættelse af § 19-bidrag"
-)
 = børnebidragsbekendtgørelsen_par19_frist_metadata = Metadata(
     attachments = (
         Source(value = børnebidragsbekendtgørelsen_bek285_par3_par4_par9_par10_par11),
@@ -220,7 +446,38 @@ er indgivet inden 2 måneder efter aborten.
 @ meta(børnebidragsbekendtgørelsen_par19_frist_metadata)
 @ section børnebidragsbekendtgørelsen_par19_frist {
 
-# Børnebidragslov19Fristgrundlag = FødslenSomFristgrundlag | FaderskabEllerMedmoderskabIndledtVedFødslen(sagsafslutningsdato: Dato, sagsreference: Tekst) | AbortenSomFristgrundlag | HeltSærligeOmstændigheder(afgørelsesreference: Tekst)
+@ field(
+    label = "§ 19-ansøgningens fristgrundlag",
+    question = "Regnes fristen fra fødslen, en fødselsnær faderskabs- eller medmoderskabssag, aborten eller dokumenterede helt særlige omstændigheder?",
+    help = "Futuruna afleder fristens overholdelse fra de angivne ISO-datoer.",
+    sources = personskat_personlig_indkomst_kilder
+)
+# Børnebidragslov19Fristgrundlag =
+    FødslenSomFristgrundlag |
+    FaderskabEllerMedmoderskabIndledtVedFødslen(
+        sagsafslutningsdato: Dato,
+        @ field(
+            label = "Dokumentation for fødselsnær faderskabs- eller medmoderskabssag",
+            question = "Hvilken sagsreference viser, at sagen blev indledt i forbindelse med fødslen?",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        sagsreference: Tekst
+    ) |
+    AbortenSomFristgrundlag |
+    HeltSærligeOmstændigheder(
+        @ field(
+            label = "Afgørelse om helt særlige fristomstændigheder",
+            question = "Hvilken afgørelse dokumenterer fravigelsen af den almindelige ansøgningsfrist?",
+            sources = personskat_personlig_indkomst_kilder
+        )
+        afgørelsesreference: Tekst
+    )
+@ field(
+    label = "§ 19-bidragets ansøgningsvej",
+    question = "Blev bidraget fastsat efter en myndighedsansøgning, eller følger det alene af en privat bindende aftale?",
+    help = "En offentlig fastsættelse kræver daterede fristfakta; en privat aftale har ingen myndighedsansøgning.",
+    sources = personskat_personlig_indkomst_kilder
+)
 # Børnebidragslov19Ansøgningsgrundlag = Myndighedsansøgning(ansøgningsdato: Dato, fristgrundlag: Børnebidragslov19Fristgrundlag) | PrivatAftaleUdenMyndighedsansøgning
 
 | børnebidragslov19_fødselsfrist_gyldig(fødselsdato: Dato, ansøgningsdato: Dato, fastsættelsesdato: Dato, fristgrundlag: Børnebidragslov19Fristgrundlag) -> match fristgrundlag {
@@ -249,18 +506,6 @@ er indgivet inden 2 måneder efter aborten.
 
 }
 
-= skat_børnebidrag_fødsel_vejledning = Børnebidragslov19KildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=2061803",
-    identifier = "Den juridiske vejledning C.A.9.5: Bidrag ved fødslen",
-    hentet_dato = "2026-08-10",
-    ændringsstatus = "Vejledningen afskærer fradrag for § 19-fødselsudgifter og moderens underhold"
-)
-= skat_børnebidrag_engangsbeløb_vejledning = Børnebidragslov19KildeInfo(
-    url = "https://info.skat.dk/data.aspx?chk=220619&oid=1976900",
-    identifier = "Den juridiske vejledning C.A.8.5.2.2: Engangsbeløb",
-    hentet_dato = "2026-08-10",
-    ændringsstatus = "Vejledningen dokumenterer fradragspraksis for dåbs- og navngivningsbidrag"
-)
 = børnebidragsloven_par19_skat_metadata = Metadata(
     attachments = (
         Guidance(value = skat_børnebidrag_fødsel_vejledning),
@@ -426,18 +671,6 @@ udgør et beløb svarende til det månedlige normalbidrags grundbeløb.
     identifier = "Indkomstoversigt for fastsættelse af børne- og ægtefællebidrag i 2024, pkt. 2.5",
     hentet_dato = "2026-08-10",
     ændringsstatus = "Fødselsbidrag 942 kr.; barselsbidrag 1.640 kr. pr. måned; navngivningsbidrag 1.370 kr."
-)
-= børnebidragsloven_satser_2025 = Børnebidragslov19KildeInfo(
-    url = "https://www.retsinformation.dk/eli/retsinfo/2024/10046",
-    identifier = "Indkomstoversigt for fastsættelse af børne- og ægtefællebidrag i 2025, pkt. 2.5",
-    hentet_dato = "2026-08-10",
-    ændringsstatus = "Fødselsbidrag 976 kr.; barselsbidrag 1.699 kr. pr. måned; navngivningsbidrag 1.419 kr."
-)
-= børnebidragsloven_satser_2026 = Børnebidragslov19KildeInfo(
-    url = "https://www.retsinformation.dk/eli/retsinfo/2025/10225",
-    identifier = "Indkomstoversigt for fastsættelse af børne- og ægtefællebidrag i 2026, pkt. 2.5",
-    hentet_dato = "2026-08-10",
-    ændringsstatus = "Fødselsbidrag 1.020 kr.; barselsbidrag 1.775 kr. pr. måned; navngivningsbidrag 1.483 kr."
 )
 = børnebidragsloven_par19_satser_metadata = Metadata(
     attachments = (

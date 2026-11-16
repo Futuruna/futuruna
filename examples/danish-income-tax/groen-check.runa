@@ -68,12 +68,87 @@ I tilfælde, hvor børne- og ungeydelsen for et barn udbetales delvis til barnet
 # GrønCheckIndkomst(personlig_indkomst_efter_am_kroner: Heltal, pbl16_tillæg_kroner: Heltal, nettokapitalindkomst_kroner: Heltal, kildereference: Tekst)
 -- Den dækkede ægtefællegren kræver begge individuelle kapitalindkomster under
 -- eller lig grundbeløbet; fælles kapital alene er ikke tilstrækkeligt (td-5f8fb4).
-# GrønCheckÆgtefælle = GrønCheckUgiftEllerIkkeSamlevendeVedÅrsslut | GrønCheckSamlevendeHelår(ægtefælles_nettokapitalindkomst_kroner: Heltal, kildereference: Tekst) | GrønCheckAndetÆgtefælleforløb | GrønCheckÆgtefælleforholdUkendt
+= grøn_check_kilder_2 = [
+    Source(value = grøn_check_kilder),
+    Warning(value = "Kompakt delberegning; ændrer ikke Personskats årsopgørelse eller den betingede rapportafstemning automatisk.")
+]
+@ field(
+    label = "Ægtefælle- og samlivsforløb",
+    question = "Var I gift og skattemæssigt samlevende hele året?",
+    help = "Ukendt er en særskilt mulighed. En ægtefælles fulde rapport er ikke nødvendig, men nettokapitalindkomst og kilde skal kendes for den dækkede helårsgren. Positiv kapital over det individuelle grundbeløb tilbageholdes indtil den dokumenterede uoverensstemmelse er afklaret.",
+    sources = grøn_check_kilder_2
+)
+# GrønCheckÆgtefælle =
+    GrønCheckUgiftEllerIkkeSamlevendeVedÅrsslut |
+    GrønCheckSamlevendeHelår(
+        @ field(
+            label = "Ægtefællens nettokapitalindkomst",
+            question = "Hvad er ægtefællens samlede nettokapitalindkomst for indkomståret?",
+            help = "Hele DKK med fortegn. Ukendt må ikke erstattes med 0; vælg i stedet ukendte ægtefælleforhold.",
+            unit = "DKK",
+            sources = grøn_check_kilder_2
+        )
+        ægtefælles_nettokapitalindkomst_kroner: Heltal,
+        kildereference: Tekst
+    ) |
+    GrønCheckAndetÆgtefælleforløb |
+    GrønCheckÆgtefælleforholdUkendt
 # GrønCheckBarnOphold = GrønCheckBarnIDanmark | GrønCheckBarnKortvarigtUdland | GrønCheckBarnUddannelsesophold | GrønCheckBarnAndetUdland | GrønCheckBarnOpholdUkendt
 # GrønCheckBørneydelse = GrønCheckIngenBørneydelse | GrønCheckHalvBørneydelse | GrønCheckHelBørneydelse | GrønCheckRestEfterYdelseTilBarnet | GrønCheckBørneydelseUkendt
-# GrønCheckBarn(lokal_reference: Tekst, fødselsdato: Dato, ophold_den_1_januar: GrønCheckBarnOphold, har_indgået_ægteskab_den_1_januar: Boolsk?, anbragt_døgnforanstaltning_eller_offentligt_forsørget_den_1_januar: Boolsk?, børneydelse_ved_årets_udløb: GrønCheckBørneydelse, kildereference: Tekst)
+# GrønCheckBarn(
+    @ field(
+        label = "Barnets lokale reference",
+        help = "Entydigt lokalt navn, fx barn-1; ingen CPR-numre. Brug samme reference kun én gang.",
+        sources = grøn_check_kilder_2
+    )
+    lokal_reference: Tekst,
+    fødselsdato: Dato,
+    @ field(
+        label = "Barnets ophold 1. januar",
+        help = "Kortvarigt udlandsophold eller midlertidigt uddannelsesophold efter § 1, stk. 3, kan opfylde betingelsen; uddannelsesopholdet skal forbedre mulighederne for fortsat ophold i Danmark. Brug ukendt ved tvivl.",
+        sources = grøn_check_kilder_2
+    )
+    ophold_den_1_januar: GrønCheckBarnOphold,
+    har_indgået_ægteskab_den_1_januar: Boolsk?,
+    anbragt_døgnforanstaltning_eller_offentligt_forsørget_den_1_januar: Boolsk?,
+    børneydelse_ved_årets_udløb: GrønCheckBørneydelse,
+    kildereference: Tekst
+)
 # GrønCheckBørneforhold = GrønCheckBørnUoplyst | GrønCheckOplysteBørn(børn: List(GrønCheckBarn), oplysninger_komplette: Boolsk, kildereference: Tekst)
-# GrønCheckInput(skatteår: Heltal, person: GrønCheckPerson?, indkomst: GrønCheckIndkomst?, ægtefælle: GrønCheckÆgtefælle, børneforhold: GrønCheckBørneforhold, oplyst_samlet_grøn_check_øre: Heltal?)
+# GrønCheckInput(
+    @ field(
+        label = "Indkomstår",
+        question = "Hvilket indkomstår gælder den grønne check?",
+        help = "2023–2026, ikke året hvor årsopgørelsen blev udskrevet.",
+        sources = grøn_check_kilder_2
+    )
+    skatteår: Heltal,
+    @ field(
+        label = "Personens kildefakta",
+        question = "Kendes fødselsdato, skattepligt 1. januar, forskerordning og årets forløb?",
+        help = "JSON eller null ved manglende personfakta. Pensionsstatus gælder ved årets udløb: førtids-, senior- eller tidlig pension efter socialpensionslovene, ikke blot en privat pensionsudbetaling. Folkepensionsalderen udledes af datoen, også hvis folkepension er udskudt. null for et ukendt boolesk faktum; false er kendt nej. OrdinærtHelår kræver et helt almindeligt indkomstår uden dødsfald eller migration.",
+        sources = grøn_check_kilder_2
+    )
+    person: GrønCheckPerson?,
+    @ field(
+        label = "Indkomsttal før grøn-check-aftrapning",
+        question = "Hvad er personlig indkomst efter AM, PBL § 16-tillæg og nettokapitalindkomst?",
+        help = "JSON med hele DKK og kildereference, eller null. Brug det relevante PSL § 7-grundlag før bundfradraget: ikke bruttoløn, skattepligtig indkomst efter ligningsmæssige fradrag eller alene beløbet over topskattegrænsen. Et reporttal er en oplyst observation, ikke en selvstændigt efterprøvet indkomstberegning. Beløb begrænses til ±1 mia. DKK; tillæg skal være ikke-negativt.",
+        unit = "DKK",
+        sources = grøn_check_kilder_2
+    )
+    indkomst: GrønCheckIndkomst?,
+    ægtefælle: GrønCheckÆgtefælle,
+    børneforhold: GrønCheckBørneforhold,
+    @ field(
+        label = "Rapportens samlede grønne check, valgfri",
+        question = "Hvilken sum viser rapporten for grøn check, børnekompensation og tillæg?",
+        help = "Oplyst observation til sammenligning, aldrig input til beregningen af retten. Summér de tre poster én gang. null hvis ikke oplyst; 0 kun ved kendt nul. 1.005,00 DKK skrives 100500 øre.",
+        unit = "øre",
+        sources = grøn_check_kilder_2
+    )
+    oplyst_samlet_grøn_check_øre: Heltal?
+)
 # GrønCheckStatus = GrønCheckBeregnet | GrønCheckAfviger | GrønCheckUfuldstændig | GrønCheckUgyldigtInput | GrønCheckUdenForDækning
 # GrønCheckBeregning(adgang_til_kompensation: Boolsk, pensionistregel: Boolsk, indkomstgrundlag_kroner: Heltal, pensionist_før_aftrapning_øre: Heltal, pensionist_efter_aftrapning_øre: Heltal, berettigede_børn: Heltal, børn_med_dobbeltydelse: Heltal, børn_før_aftrapning_øre: Heltal, børn_efter_aftrapning_øre: Heltal, pensionist_aftrapningsgrænse_kroner: Heltal, børn_aftrapningsgrænse_kroner: Heltal, tillægsgrænse_kroner: Heltal, tillæg_øre: Heltal, samlet_kredit_øre: Heltal)
 # GrønCheckResultat(status: GrønCheckStatus, beregning: GrønCheckBeregning?, oplyst_samlet_grøn_check_øre: Heltal?, difference_øre: Heltal?, uafklaret: List(Tekst), forbehold: List(Tekst))

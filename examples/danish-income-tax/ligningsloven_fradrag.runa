@@ -6,6 +6,8 @@
 @ importer ./ligningsloven-par9j-senior
 @ importer ./ligningsloven-par9j-enlig
 @ importer ./kapitel-04-omregning-skatteloft
+@ importer ./delte-kilder
+@ importer ./source-status
 
 -- Ligningsloven — fradragsregler og afhængige henvisninger fra personskatteloven.
 --
@@ -97,7 +99,65 @@ udgifter.
 @ section ligningsloven_par8 {
 
 # Ligningslov8Stk1Udgiftsart = Ll8Stk1Rejse | Ll8Stk1Reklame | Ll8Stk1LignendeSalgsudgift | Ll8Stk1Repræsentation | Ll8Stk1AndenUdgift
-# Ligningslov8Stk1Input(indkomstår: Heltal, afholdelsesår: Heltal, udgiftsart: Ligningslov8Stk1Udgiftsart, afholdt_udgift_kroner: Heltal, afholdt_i_forbindelse_med_skattepligtiges_erhverv: Boolsk, formål_at_opnå_salg_af_varer_eller_tjenesteydelser: Boolsk, foreningsindkomst_opgjort_som_procent_af_formue: Boolsk)
+= personskat_par3_nr2_kilder = [
+    Source(value = personskatteloven_lbk1284_par3),
+    DependencySource(value = ligningsloven_lbk1500_par8),
+    DependencySource(value = ligningsloven_lbk1500_par8b),
+    DependencySource(value = ligningsloven_lbk1500_par8k),
+    DependencySource(value = ligningsloven_lbk1500_par8l),
+    DependencySource(value = ligningsloven_lbk1500_par8n),
+    DependencySource(value = ligningsloven_lbk1500_par14),
+    DependencySource(value = ligningsloven_lbk1500_par14f),
+    DependencySource(value = ligningsloven_lbk1500_par30a)
+]
+# Ligningslov8Stk1Input(
+    @ field(
+        label = "§ 8, stk. 1 - indkomstår",
+        question = "Hvilket indkomstår skal udgiften vurderes i?",
+        unit = "år",
+        sources = personskat_par3_nr2_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "§ 8, stk. 1 - udgiftens afholdelsesår",
+        question = "I hvilket år blev udgiften afholdt?",
+        unit = "år",
+        sources = personskat_par3_nr2_kilder
+    )
+    afholdelsesår: Heltal,
+    @ field(
+        label = "§ 8, stk. 1 - udgiftsart",
+        question = "Hvilken type salgs-, reklame-, rejse- eller repræsentationsudgift er afholdt?",
+        sources = personskat_par3_nr2_kilder
+    )
+    udgiftsart: Ligningslov8Stk1Udgiftsart,
+    @ field(
+        label = "§ 8, stk. 1 - afholdt udgift",
+        question = "Hvor stor var den afholdte udgift?",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder
+    )
+    afholdt_udgift_kroner: Heltal,
+    @ field(
+        label = "§ 8, stk. 1 - forbindelse med erhvervet",
+        question = "Blev udgiften afholdt i forbindelse med den skattepligtiges erhverv?",
+        sources = personskat_par3_nr2_kilder
+    )
+    afholdt_i_forbindelse_med_skattepligtiges_erhverv: Boolsk,
+    @ field(
+        label = "§ 8, stk. 1 - salgsformål",
+        question = "Var formålet at opnå salg af varer eller tjenesteydelser i indkomståret eller senere?",
+        sources = personskat_par3_nr2_kilder
+    )
+    formål_at_opnå_salg_af_varer_eller_tjenesteydelser: Boolsk,
+    @ field(
+        label = "§ 8, stk. 1 - foreningsindkomst efter formueprocent",
+        question = "Er indkomsten opgjort som en procentdel af formuen for en forening eller institution?",
+        help = "Sådanne indkomster er afskåret efter § 8, stk. 2.",
+        sources = personskat_par3_nr2_kilder
+    )
+    foreningsindkomst_opgjort_som_procent_af_formue: Boolsk
+)
 # Ligningslov8Stk1Resultat(indkomstår: Heltal, udgiftsart: Ligningslov8Stk1Udgiftsart, udgift_omfattet_af_stk1: Boolsk, afskåret_efter_stk2: Boolsk, begrænset_som_repræsentation_efter_stk4: Boolsk, fradragssats_basispoint: Heltal, afholdt_udgift_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, ikke_fradraget_kroner: Heltal)
 
 # Ligningslov8Stk1Sag(input: Ligningslov8Stk1Input) {
@@ -205,7 +265,22 @@ deles med 100.000.
 
 # Ligningslov8BUdgiftsart = Ll8BForsøgsOgForskningsvirksomhed | Ll8BGrundforskning | Ll8BRåstofefterforskning | Ll8BMaskineInventarEllerDriftsmiddel | Ll8BSkib | Ll8BFastEjendom | Ll8BAndenUdgift
 # Ligningslov8BValg = Ll8BStraksfradrag | Ll8BLineærAfskrivningOverFemÅr
-# Ligningslov8BErhvervsstart = Ll8BKendtErhvervspåbegyndelsesår(år: Heltal) | Ll8BErhvervEndnuIkkePåbegyndt
+@ field(
+    label = "§ 8 B - virksomhedens startstatus",
+    question = "Er erhvervet påbegyndt, og kendes påbegyndelsesåret?",
+    sources = personskat_par3_nr2_kilder
+)
+# Ligningslov8BErhvervsstart =
+    Ll8BKendtErhvervspåbegyndelsesår(
+        @ field(
+            label = "§ 8 B - erhvervets påbegyndelsesår",
+            question = "I hvilket år blev erhvervet påbegyndt?",
+            unit = "år",
+            sources = personskat_par3_nr2_kilder
+        )
+        år: Heltal
+    ) |
+    Ll8BErhvervEndnuIkkePåbegyndt
 # Ligningslov8BInput(indkomstår: Heltal, afholdelsesår: Heltal, erhvervsstart: Ligningslov8BErhvervsstart, udgiftsart: Ligningslov8BUdgiftsart, valg: Ligningslov8BValg, afholdt_udgift_kroner: Heltal, tilknytning_til_skattepligtiges_erhverv: Boolsk, igangværende_virksomhed: Boolsk, aktie_eller_anpartsselskab: Boolsk, told_skat_tillader_fradrag_før_erhvervsstart: Boolsk, selvstændigt_overskud_før_stk2_fradrag_kroner: Heltal, renteudgifter_og_valutakurstab_i_overskud_kroner: Heltal, rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner: Heltal, told_skat_tillader_straksfradrag_for_stort_råstofbeløb: Boolsk, tidligere_stk4_udgifter_under_koncernloft_kroner: Heltal, reguleringstal_tiendedele: Heltal)
 # Ligningslov8BResultat(indkomstår: Heltal, afholdelsesår: Heltal, udgiftsart: Ligningslov8BUdgiftsart, omfattet_af_stk1: Boolsk, omfattet_af_stk2: Boolsk, henvist_til_afskrivningsloven_efter_stk3: Boolsk, afholdt_før_erhvervsstart: Boolsk, afventer_fastlagt_erhvervspåbegyndelsesår: Boolsk, råstofudgift_over_tredive_procent_af_overskud: Boolsk, fradragsstartår: Heltal, lineær_afskrivning_påkrævet_eller_valgt: Boolsk, stk4_loft_kroner: Heltal, udgift_under_stk4_loft_kroner: Heltal, udgift_over_stk4_loft_kroner: Heltal, forhøjet_fradragsgrundlag_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, henvist_til_afskrivningsloven_kroner: Heltal)
 
@@ -382,7 +457,95 @@ om skattemæssige afskrivninger mv.
 # Ligningslov8KPlantningsart = Ll8KNyplantningAfFredskov | Ll8KGenplantningAfSkov | Ll8KKortOmdriftJuletræEllerPyntegrønt | Ll8KFrugttræEllerFrugtbusk | Ll8KGenplantningAfJuletræEllerPyntegrøntISkov | Ll8KLæhegnEllerSupplerendeLæplantning | Ll8KEnergiafgrødeAsk | Ll8KEnergiafgrødeEl | Ll8KEnergiafgrødeElefantgræs | Ll8KEnergiafgrødeHassel | Ll8KEnergiafgrødePil | Ll8KEnergiafgrødePoppel | Ll8KEnergiafgrødePræriegræs | Ll8KAndenPlantning
 # Ligningslov8KHændelse = Ll8KIngenSærhændelse | Ll8KEjendomSolgt | Ll8KArealRyddetEfterBrand | Ll8KArealRyddetAfAndenGrund | Ll8KLejeEllerForpagtningOphørt
 # Ligningslov8KOmråde = Ll8KEuEøs | Ll8KGrønlandEllerFærøerne | Ll8KUdenforTilladtOmråde
-# Ligningslov8KInput(indkomstår: Heltal, afholdelsesår: Heltal, plantningsart: Ligningslov8KPlantningsart, hændelse: Ligningslov8KHændelse, område: Ligningslov8KOmråde, afholdt_udgift_kroner: Heltal, tidligere_fradraget_kroner: Heltal, årets_samlede_udgifter_pr_ejendom_kroner: Heltal, valgt_fradrag_kroner: Heltal, fredskovspligt_pålagt_og_registreret: Boolsk, energiafgrødeareal_kvadratmeter: Heltal, lejet_eller_forpagtet_jord: Boolsk, udgift_til_maskine_inventar_driftsmiddel_eller_fast_ejendom: Boolsk)
+# Ligningslov8KInput(
+    @ field(
+        label = "§ 8 K - indkomstår",
+        question = "Hvilket indkomstår skal plantningsudgiften vurderes i?",
+        unit = "år",
+        sources = personskat_par3_nr2_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "§ 8 K - udgiftens afholdelsesår",
+        question = "I hvilket år blev plantningsudgiften afholdt?",
+        unit = "år",
+        sources = personskat_par3_nr2_kilder
+    )
+    afholdelsesår: Heltal,
+    @ field(
+        label = "§ 8 K - plantningsart",
+        question = "Hvilken type plantning eller genplantning vedrører udgiften?",
+        sources = personskat_par3_nr2_kilder
+    )
+    plantningsart: Ligningslov8KPlantningsart,
+    @ field(
+        label = "§ 8 K - særlig hændelse",
+        question = "Er ejendommen solgt, arealet ryddet eller leje- eller forpagtningsforholdet ophørt?",
+        sources = personskat_par3_nr2_kilder
+    )
+    hændelse: Ligningslov8KHændelse,
+    @ field(
+        label = "§ 8 K - geografisk område",
+        question = "Ligger plantningsarealet i EU/EØS, Grønland, Færøerne eller uden for disse områder?",
+        sources = personskat_par3_nr2_kilder
+    )
+    område: Ligningslov8KOmråde,
+    @ field(
+        label = "§ 8 K - afholdt plantningsudgift",
+        question = "Hvor stor var den afholdte plantningsudgift?",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder
+    )
+    afholdt_udgift_kroner: Heltal,
+    @ field(
+        label = "§ 8 K - tidligere fradraget beløb",
+        question = "Hvor meget af udgiften er fradraget i tidligere indkomstår?",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder
+    )
+    tidligere_fradraget_kroner: Heltal,
+    @ field(
+        label = "§ 8 K - årets samlede udgifter pr. ejendom",
+        question = "Hvor store er indkomstårets samlede omfattede plantningsudgifter på ejendommen?",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder
+    )
+    årets_samlede_udgifter_pr_ejendom_kroner: Heltal,
+    @ field(
+        label = "§ 8 K - valgt fradrag",
+        question = "Hvor stort et fradrag ønskes anvendt i indkomståret?",
+        help = "Futuruna begrænser beløbet efter lovens årsgrænse og det resterende grundlag.",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder
+    )
+    valgt_fradrag_kroner: Heltal,
+    @ field(
+        label = "§ 8 K - fredskovspligt registreret",
+        question = "Er fredskovspligten pålagt og registreret?",
+        sources = personskat_par3_nr2_kilder
+    )
+    fredskovspligt_pålagt_og_registreret: Boolsk,
+    @ field(
+        label = "§ 8 K - energiafgrødeareal",
+        question = "Hvor stort er det tilplantede energiafgrødeareal?",
+        unit = "m²",
+        sources = personskat_par3_nr2_kilder
+    )
+    energiafgrødeareal_kvadratmeter: Heltal,
+    @ field(
+        label = "§ 8 K - lejet eller forpagtet jord",
+        question = "Er plantningen foretaget på lejet eller forpagtet jord?",
+        sources = personskat_par3_nr2_kilder
+    )
+    lejet_eller_forpagtet_jord: Boolsk,
+    @ field(
+        label = "§ 8 K - udgift til anlægsaktiv",
+        question = "Vedrører udgiften en maskine, inventar, et driftsmiddel eller fast ejendom?",
+        help = "Sådanne udgifter henvises til afskrivningsreglerne frem for direkte fradrag efter § 8 K.",
+        sources = personskat_par3_nr2_kilder
+    )
+    udgift_til_maskine_inventar_driftsmiddel_eller_fast_ejendom: Boolsk
+)
 # Ligningslov8KResultat(indkomstår: Heltal, plantningsart: Ligningslov8KPlantningsart, omfattet_af_stk1: Boolsk, omfattet_af_stk2: Boolsk, omfattet_af_stk3: Boolsk, omfattet_af_stk4: Boolsk, straksfradrag_tilladt: Boolsk, højeste_fradrag_i_indkomståret_kroner: Heltal, valgt_fradrag_kroner: Heltal, valgt_fradrag_begrænset: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal, resterende_ikke_fradraget_kroner: Heltal, fradrag_udelukket_fra_ejendommens_anskaffelsessum: Boolsk, henvist_til_afskrivningsloven_kroner: Heltal)
 
 # Ligningslov8KSag(input: Ligningslov8KInput) {
@@ -467,7 +630,41 @@ anden anvendelse efter kapitel 9 i lov om friplejeboliger.
 @ section ligningsloven_par8l {
 
 # Ligningslov8LIndbetalingsgrundlag = Ll8LHuslejeindtægterOverstigerBygningsudgifter | Ll8LSalgAfFriplejeboligEllerServiceareal | Ll8LAndenAnvendelseAfFriplejeboligEllerServiceareal | Ll8LAndenIndbetaling
-# Ligningslov8LInput(indkomstår: Heltal, indbetalingsår: Heltal, indbetalingsgrundlag: Ligningslov8LIndbetalingsgrundlag, indbetalt_til_landsbyggefonden_kroner: Heltal, omfattet_af_lov_om_friplejeboliger: Boolsk)
+# Ligningslov8LInput(
+    @ field(
+        label = "§ 8 L - indkomstår",
+        question = "Hvilket indkomstår skal indbetalingen vurderes i?",
+        unit = "år",
+        sources = personskat_par3_nr2_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "§ 8 L - indbetalingsår",
+        question = "I hvilket år blev beløbet indbetalt til Landsbyggefonden?",
+        unit = "år",
+        sources = personskat_par3_nr2_kilder
+    )
+    indbetalingsår: Heltal,
+    @ field(
+        label = "§ 8 L - indbetalingsgrundlag",
+        question = "Hvad udløste indbetalingen til Landsbyggefonden?",
+        sources = personskat_par3_nr2_kilder
+    )
+    indbetalingsgrundlag: Ligningslov8LIndbetalingsgrundlag,
+    @ field(
+        label = "§ 8 L - indbetalt til Landsbyggefonden",
+        question = "Hvor stort et beløb blev indbetalt til Landsbyggefonden?",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder
+    )
+    indbetalt_til_landsbyggefonden_kroner: Heltal,
+    @ field(
+        label = "§ 8 L - omfattet af friplejeboligloven",
+        question = "Er boligen eller servicearealet omfattet af lov om friplejeboliger?",
+        sources = personskat_par3_nr2_kilder
+    )
+    omfattet_af_lov_om_friplejeboliger: Boolsk
+)
 # Ligningslov8LResultat(indkomstår: Heltal, indbetalingsgrundlag: Ligningslov8LIndbetalingsgrundlag, omfattet_af_stk1: Boolsk, omfattet_af_stk2: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal)
 
 # Ligningslov8LSag(input: Ligningslov8LInput) {
@@ -541,7 +738,44 @@ af bidrag efter stk. 4.
 # Ligningslov8MArbejdsmarkedsbidragHjemmel = Ll8MAmblPar2Stk1Nr1 | Ll8MAmblPar2Stk1Nr2 | Ll8MAmblPar4 | Ll8MAmblPar5 | Ll8MAmblIkkeOmfattet
 # Ligningslov8MKildeskattepligt = Ll8MKildeskattelovPar1 | Ll8MKildeskattelovPar2Stk1Nr1 | Ll8MKildeskattelovPar2Stk1Nr3 | Ll8MAndenKildeskattepligt
 # Ligningslov8MArbejdsmarkedsbidragInput(hjemmel: Ligningslov8MArbejdsmarkedsbidragHjemmel, bidrag_kroner: Heltal, bidrag_vedrører_indkomstår: Heltal, arbejdsgiver_indeholdelsespligtig: Boolsk)
-# Ligningslov8MUdenlandskSocialtBidragInput(bidrag_kroner: Heltal, bidrag_vedrører_indkomstår: Heltal, obligatorisk: Boolsk, ikke_hjemmehørende_i_fremmed_stat_grønland_eller_færøerne_efter_dbo: Boolsk, omfattet_af_eu_socialsikringsforordning: Boolsk, omfattet_af_mellemfolkelig_aftale_som_danmark_har_tiltrådt: Boolsk)
+= personskat_udenlandske_sociale_bidrag_kilder = [
+    Source(value = ligningsloven_2025_1500),
+    DependencySource(value = personskatteloven_2021_1284)
+]
+# Ligningslov8MUdenlandskSocialtBidragInput(
+    bidrag_kroner: Heltal,
+    @ field(
+        label = "Indkomstår for udenlandsk socialt bidrag",
+        question = "Hvilket indkomstår vedrører det udenlandske sociale bidrag?",
+        unit = "år",
+        sources = personskat_udenlandske_sociale_bidrag_kilder
+    )
+    bidrag_vedrører_indkomstår: Heltal,
+    @ field(
+        label = "Udenlandsk socialt bidrag er obligatorisk",
+        question = "Er det udenlandske sociale bidrag obligatorisk?",
+        sources = personskat_udenlandske_sociale_bidrag_kilder
+    )
+    obligatorisk: Boolsk,
+    @ field(
+        label = "Ikke hjemmehørende i udlandet efter DBO",
+        question = "Er personen efter en eventuel dobbeltbeskatningsoverenskomst ikke hjemmehørende i en fremmed stat, Grønland eller Færøerne?",
+        sources = personskat_udenlandske_sociale_bidrag_kilder
+    )
+    ikke_hjemmehørende_i_fremmed_stat_grønland_eller_færøerne_efter_dbo: Boolsk,
+    @ field(
+        label = "Omfattet af EU-socialsikring",
+        question = "Er personen omfattet af udenlandsk social sikring efter EU's socialsikringsforordning?",
+        sources = personskat_udenlandske_sociale_bidrag_kilder
+    )
+    omfattet_af_eu_socialsikringsforordning: Boolsk,
+    @ field(
+        label = "Omfattet af mellemfolkelig aftale",
+        question = "Er personen omfattet af udenlandsk social sikring efter en mellemfolkelig aftale, som Danmark har tiltrådt?",
+        sources = personskat_udenlandske_sociale_bidrag_kilder
+    )
+    omfattet_af_mellemfolkelig_aftale_som_danmark_har_tiltrådt: Boolsk
+)
 # Ligningslov8MUdenlandskArbejdsgiverbidragInput(bidrag_kroner: Heltal, bidrag_vedrører_indkomstår: Heltal, obligatorisk: Boolsk, omfattet_af_eu_socialsikringsforordning: Boolsk, aftale_om_at_bidrag_påhviler_lønmodtageren: Boolsk)
 # Ligningslov8MInput(indkomstår: Heltal, kildeskattepligt: Ligningslov8MKildeskattepligt, arbejdsmarkedsbidrag: Ligningslov8MArbejdsmarkedsbidragInput, udenlandsk_socialt_bidrag: Ligningslov8MUdenlandskSocialtBidragInput, udenlandsk_arbejdsgiverbidrag: Ligningslov8MUdenlandskArbejdsgiverbidragInput)
 # Ligningslov8MResultat(indkomstår: Heltal, kildeskattepligt: Ligningslov8MKildeskattepligt, arbejdsmarkedsbidrag_omfattet_af_stk1: Boolsk, arbejdsmarkedsbidrag_fradrag_kroner: Heltal, udenlandsk_socialt_bidrag_omfattet_af_stk2: Boolsk, udenlandsk_socialt_bidrag_omfattet_af_stk3: Boolsk, udenlandsk_socialt_bidrag_fradrag_kroner: Heltal, udenlandsk_arbejdsgiverbidrag_omfattet_af_stk4: Boolsk, udenlandsk_arbejdsgiverbidrag_fradrag_kroner: Heltal, samlet_fradrag_kroner: Heltal, skatteministeren_bemyndiget_efter_stk5: Boolsk)
@@ -640,7 +874,79 @@ udstedt til.
 @ section ligningsloven_par8n {
 
 # Ligningslov8NUdgiftsart = Ll8NErhvervsmæssigLøn | Ll8NBestyrelseshonorar | Ll8NErhvervsmæssigUdgiftTilknyttetAnsættelse | Ll8NErhvervsmæssigUdgiftTilknyttetBestyrelseserhverv | Ll8NArbejdsgiverbetaltBefordringEfterPar9CStk7 | Ll8NKøberetEllerTegningsretEfterPar28Stk3 | Ll8NAndenUdgift
-# Ligningslov8NInput(indkomstår: Heltal, udgiftsart: Ligningslov8NUdgiftsart, udgift_kroner: Heltal, erhvervsmæssig: Boolsk, betalende_selskab_fradrager_for_modtagende_selskab: Boolsk, betalende_og_modtagende_selskab_sambeskattes_eller_kan_sambeskattes: Boolsk, personen_beskattes_af_udgiften_eller_arbejdsmarkedsbidragspligtig_ydelse: Boolsk, ikke_skattepligtig_person_ville_være_arbejdsmarkedsbidragspligtig: Boolsk, samlede_omfattede_udgifter_før_denne_kroner: Heltal, grundbeløbsandel_basispoint: Heltal, køberet_eller_tegningsret_oprindelig_udstedt_til_personen: Boolsk)
+# Ligningslov8NInput(
+    @ field(
+        label = "§ 8 N - indkomstår",
+        question = "Hvilket indkomstår vedrører selskabsudgiften?",
+        unit = "år",
+        sources = personskat_par3_nr2_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "§ 8 N - udgiftsart",
+        question = "Hvilken type løn-, honorar- eller ansættelsesrelateret udgift er afholdt?",
+        sources = personskat_par3_nr2_kilder
+    )
+    udgiftsart: Ligningslov8NUdgiftsart,
+    @ field(
+        label = "§ 8 N - afholdt udgift",
+        question = "Hvor stor var udgiften?",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder
+    )
+    udgift_kroner: Heltal,
+    @ field(
+        label = "§ 8 N - erhvervsmæssig udgift",
+        question = "Er udgiften erhvervsmæssig?",
+        sources = personskat_par3_nr2_kilder
+    )
+    erhvervsmæssig: Boolsk,
+    @ field(
+        label = "§ 8 N - betalende selskab kræver fradraget",
+        question = "Kræver det betalende selskab fradrag for en udgift, der vedrører det modtagende selskab?",
+        sources = personskat_par3_nr2_kilder
+    )
+    betalende_selskab_fradrager_for_modtagende_selskab: Boolsk,
+    @ field(
+        label = "§ 8 N - selskaberne kan sambeskattes",
+        question = "Sambeskattes de betalende og modtagende selskaber, eller kan de sambeskattes?",
+        sources = personskat_par3_nr2_kilder
+    )
+    betalende_og_modtagende_selskab_sambeskattes_eller_kan_sambeskattes: Boolsk,
+    @ field(
+        label = "§ 8 N - personen beskattes af ydelsen",
+        question = "Beskattes personen af udgiften, eller er ydelsen arbejdsmarkedsbidragspligtig?",
+        sources = personskat_par3_nr2_kilder
+    )
+    personen_beskattes_af_udgiften_eller_arbejdsmarkedsbidragspligtig_ydelse: Boolsk,
+    @ field(
+        label = "§ 8 N - hypotetisk AM-pligt for ikke-skattepligtig person",
+        question = "Ville en ikke-skattepligtig modtager være arbejdsmarkedsbidragspligtig af ydelsen?",
+        sources = personskat_par3_nr2_kilder
+    )
+    ikke_skattepligtig_person_ville_være_arbejdsmarkedsbidragspligtig: Boolsk,
+    @ field(
+        label = "§ 8 N - omfattede udgifter før denne post",
+        question = "Hvor store omfattede udgifter er allerede medregnet før denne post?",
+        help = "Beløbet bruges til den rækkefølgeafhængige loftsberegning i stk. 3.",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder
+    )
+    samlede_omfattede_udgifter_før_denne_kroner: Heltal,
+    @ field(
+        label = "§ 8 N - andel af grundbeløbet",
+        question = "Hvilken andel af grundbeløbet tilhører dette selskab?",
+        unit = "basispoint; 10.000 = 100 pct.",
+        sources = personskat_par3_nr2_kilder
+    )
+    grundbeløbsandel_basispoint: Heltal,
+    @ field(
+        label = "§ 8 N - køberet eller tegningsret udstedt til personen",
+        question = "Blev køberetten eller tegningsretten oprindeligt udstedt til den pågældende person?",
+        sources = personskat_par3_nr2_kilder
+    )
+    køberet_eller_tegningsret_oprindelig_udstedt_til_personen: Boolsk
+)
 # Ligningslov8NResultat(indkomstår: Heltal, udgiftsart: Ligningslov8NUdgiftsart, omfattet_af_stk1: Boolsk, omfattet_af_stk2: Boolsk, stk3_loft_finder_anvendelse: Boolsk, reguleret_grundbeløb_kroner: Heltal, fordelt_grundbeløb_kroner: Heltal, resterende_loft_før_udgiften_kroner: Heltal, udgift_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, afskåret_efter_stk3_kroner: Heltal)
 
 # Ligningslov8NSag(input: Ligningslov8NInput) {
@@ -1070,12 +1376,114 @@ stk. 5.
 # Ligningslov9BKøretøj = Ll9BEgenBil | Ll9BEgenMotorcykel | Ll9BEgenCykelKnallertScooterEllerElløbehjul | Ll9BIkkeEgetKøretøj
 # Ligningslov9BFradragsmetode = Ll9BFaktiskeUdgifter | Ll9BSkatteraadetsKilometersatser
 # Ligningslov9BGodtgørelsesform = Ll9BKilometerafregnet | Ll9BAcontoRettidigtAfregnet | Ll9BAcontoIkkeRettidigtAfregnet | Ll9BFastMånedligEllerÅrlig
-# Ligningslov9B60DagesForhold(arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder: Heltal, sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen: Heltal, mange_forskellige_arbejdspladser: Boolsk, ikke_sandsynligt_over_60_dage: Boolsk, skriftligt_kørselsregnskabspålæg_aktivt: Boolsk, kørselsregnskab_dokumenterer_erhvervsmæssig_befordring: Boolsk)
+# Ligningslov9B60DagesForhold(
+    arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder: Heltal,
+    sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen: Heltal,
+    mange_forskellige_arbejdspladser: Boolsk,
+    ikke_sandsynligt_over_60_dage: Boolsk,
+    skriftligt_kørselsregnskabspålæg_aktivt: Boolsk,
+    @ field(
+        label = "Kørselsregnskab dokumenterer kørslen",
+        question = "Dokumenterer kørselsregnskabet, at befordringen er erhvervsmæssig?",
+        help = "Feltet er materielt, når et skriftligt kørselsregnskabspålæg er aktivt.",
+        sources = [
+            Source(value = ligningsloven_lbk1500_par9b),
+            Guidance(value = ligningsloven_juridisk_vejledning_par9b_godtgørelse)
+        ]
+    )
+    kørselsregnskab_dokumenterer_erhvervsmæssig_befordring: Boolsk
+)
 # Ligningslov9BKilometerhistorik(tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret: Heltal, tidligere_erhvervsmæssige_kilometer_til_direkte_fradrag_i_indkomståret: Heltal)
 # Ligningslov9BBefordring(art: Ligningslov9BBefordringsart, kilometer_i_sagen: Heltal, kilometerhistorik: Ligningslov9BKilometerhistorik, tres_dages_forhold: Ligningslov9B60DagesForhold)
-# Ligningslov9BUdgifter(har_afholdt_befordringsudgifter: Boolsk, dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner: Heltal, dokumenterede_bro_tunnel_udgifter_kroner: Heltal)
+# Ligningslov9BUdgifter(
+    har_afholdt_befordringsudgifter: Boolsk,
+    dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner: Heltal,
+    @ field(
+        label = "Dokumenterede bro- og tunneludgifter",
+        question = "Hvor store dokumenterede bro- og tunneludgifter vedrører kørslen?",
+        help = "Bro- og tunneludgifter ligger uden for kilometersatsen og kan indgå særskilt i et direkte fradrag.",
+        unit = "kr./år",
+        sources = [
+            Source(value = ligningsloven_lbk1500_par9b),
+            Source(value = personskatteloven_lbk1284_par3),
+            Guidance(value = ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere)
+        ]
+    )
+    dokumenterede_bro_tunnel_udgifter_kroner: Heltal
+)
 # Ligningslov9BFradragsforhold(personrolle: Ligningslov9BPersonrolle, metode: Ligningslov9BFradragsmetode, kundeopsøgende_aktivitet: Boolsk, antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang: Heltal)
-# Ligningslov9BGodtgørelsesforhold(udbetalt_godtgørelse_kroner: Heltal, form: Ligningslov9BGodtgørelsesform, arbejdsgiver_har_kontrolleret_kilometer: Boolsk, bogføringsbilag_opfylder_par6: Boolsk, modregnet_i_forud_aftalt_bruttoløn: Boolsk, firmabil_stillet_til_rådighed: Boolsk, dokumenteret_kørsel_i_eget_køretøj: Boolsk, fuldt_vederlag_betalt_for_firmabilskørsel_for_anden_arbejdsgiver: Boolsk, overskydende_beløb_behandlet_som_løn_ved_endelig_opgørelse: Boolsk, eventuel_godtgørelse_valgt_medregnet_i_indkomsten: Boolsk)
+= personskat_kilder_31 = [
+    Source(value = ligningsloven_lbk1500_par9b),
+    Source(value = skatteraadet_bek1333_par4_par14),
+    Guidance(value = ligningsloven_juridisk_vejledning_par9b_godtgørelse)
+]
+= personskat_kilder_32 = [
+    Source(value = ligningsloven_lbk1500_par9b),
+    Source(value = skatteraadet_bek1333_par4_par14),
+    Guidance(value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
+    DependencySource(value = arbejdsmarkedsbidragsloven_2020_121)
+]
+# Ligningslov9BGodtgørelsesforhold(
+    @ field(
+        label = "Udbetalt kørselsgodtgørelse",
+        question = "Hvor meget kørselsgodtgørelse er der udbetalt for kørslen, før opdeling i skattefri godtgørelse og løn?",
+        help = "Angiv hele godtgørelsen her og medtag den ikke også i den almindelige bruttoløn. Futuruna udleder, hvilken del der er skattefri, og hvilken del der skal behandles som AM-bidragspligtig løn.",
+        unit = "kr./år",
+        sources = personskat_kilder_31
+    )
+    udbetalt_godtgørelse_kroner: Heltal,
+    @ field(
+        label = "Form for kørselsgodtgørelse",
+        question = "Hvordan blev kørselsgodtgørelsen opgjort og afregnet?",
+        help = "Fast godtgørelse og ikke rettidigt afregnet a conto-godtgørelse er ikke skattefri efter bekendtgørelsen.",
+        sources = personskat_kilder_31
+    )
+    form: Ligningslov9BGodtgørelsesform,
+    @ field(
+        label = "Arbejdsgiveren har kontrolleret kilometer",
+        question = "Har arbejdsgiveren kontrolleret antallet af erhvervsmæssigt kørte kilometer?",
+        help = "Arbejdsgiverkontrol er en betingelse for skattefri kørselsgodtgørelse.",
+        sources = personskat_kilder_31
+    )
+    arbejdsgiver_har_kontrolleret_kilometer: Boolsk,
+    @ field(
+        label = "Bogføringsbilag opfylder kravene",
+        question = "Indeholder bogføringsbilaget de krævede oplysninger om kørslen?",
+        help = "Bilaget skal blandt andet identificere modtager, formål, dato, mål, kilometer, sats og beregning.",
+        sources = personskat_kilder_31
+    )
+    bogføringsbilag_opfylder_par6: Boolsk,
+    @ field(
+        label = "Godtgørelse modregnet i bruttoløn",
+        question = "Er kørselsgodtgørelsen modregnet i en på forhånd aftalt bruttoløn?",
+        help = "Modregning i bruttoløn afskærer skattefriheden.",
+        sources = personskat_kilder_31
+    )
+    modregnet_i_forud_aftalt_bruttoløn: Boolsk,
+    firmabil_stillet_til_rådighed: Boolsk,
+    dokumenteret_kørsel_i_eget_køretøj: Boolsk,
+    @ field(
+        label = "Fuldt vederlag betalt for firmabilskørsel",
+        question = "Er der betalt fuldt vederlag for firmabilskørsel udført for en anden arbejdsgiver?",
+        help = "Dette er bekendtgørelsens særlige undtagelse til firmabilbetingelsen.",
+        sources = personskat_kilder_32
+    )
+    fuldt_vederlag_betalt_for_firmabilskørsel_for_anden_arbejdsgiver: Boolsk,
+    @ field(
+        label = "Overskydende godtgørelse behandlet som løn",
+        question = "Blev beløbet over Skatterådets sats behandlet som løn ved den endelige opgørelse?",
+        help = "Når kun overskuddet behandles som løn med A-skat og AM-bidrag, kan resten fortsat være skattefri.",
+        sources = personskat_kilder_32
+    )
+    overskydende_beløb_behandlet_som_løn_ved_endelig_opgørelse: Boolsk,
+    @ field(
+        label = "Godtgørelse medregnet i indkomsten",
+        question = "Skal en eventuel kørselsgodtgørelse medregnes i indkomsten for at anvende det direkte fradrag?",
+        help = "Ved kundeopsøgende kørsel for flere arbejdsgivere er direkte fradrag betinget af, at en eventuel godtgørelse medregnes i indkomsten.",
+        sources = personskat_kilder_32
+    )
+    eventuel_godtgørelse_valgt_medregnet_i_indkomsten: Boolsk
+)
 # Ligningslov9BInput(indkomstår: Heltal, køretøj: Ligningslov9BKøretøj, befordring: Ligningslov9BBefordring, udgifter: Ligningslov9BUdgifter, fradragsforhold: Ligningslov9BFradragsforhold, godtgørelsesforhold: Ligningslov9BGodtgørelsesforhold)
 # Ligningslov9BSatser(indkomstår: Heltal, lovversion: Ligningslov9BLovversion, satsversion: Ligningslov9BSatsversion, skatteår_understøttet: Boolsk, bil_motorcykel_høj_øre_pr_km: Heltal, bil_motorcykel_lav_øre_pr_km: Heltal, cykel_knallert_scooter_elløbehjul_øre_pr_km: Heltal, høj_sats_kilometerloft: Heltal)
 # Ligningslov9BResultat(indkomstår: Heltal, lovversion: Ligningslov9BLovversion, satsversion: Ligningslov9BSatsversion, skatteår_understøttet: Boolsk, ny_60_dages_periode: Boolsk, stk3_formodning_anvendt: Boolsk, erhvervsmæssig_befordring: Boolsk, erhvervsmæssige_kilometer: Heltal, godtgørelses_høj_sats_kilometer: Heltal, godtgørelses_lav_sats_kilometer: Heltal, direkte_fradrags_høj_sats_kilometer: Heltal, direkte_fradrags_lav_sats_kilometer: Heltal, maksimal_skattefri_godtgørelse_kroner: Heltal, satsbaseret_direkte_fradrag_før_bro_tunnel_kroner: Heltal, administrative_godtgørelsesbetingelser_opfyldt: Boolsk, skattefri_godtgørelse_kroner: Heltal, godtgørelse_personlig_indkomst_kroner: Heltal, kundeopsøgende_flere_arbejdsgivere: Boolsk, direkte_fradragsberettiget_efter_par9b: Boolsk, fradrag_i_personlig_indkomst_kroner: Heltal, henvises_til_par9c: Boolsk)
@@ -1691,16 +2099,91 @@ for den befordring, som har dannet grundlag for rabatten eller godtgørelsen.
 # Ligningslov9CKilde = LigningslovLbk1500Af2025Par9C | SkatteraadetBek1449Af2022Par1Til3 | SkatteraadetBek1312Af2023Par1Til3 | SkatteraadetBek1189Af2024Par1Til3 | SkatteraadetBek1333Af2025Par1Til3 | LigningslovLov109Af2024Par1Nr7Til9 | Lov616Af2026Par1 | SkatteministerietPsl20Beloebsgraenser2023_2024 | SkatteministerietPsl20Beloebsgraenser2024_2025 | SkatteministerietPsl20Beloebsgraenser2025_2026 | SkatDkKoerselsfradrag2026 | Ll9cDenJuridiskeVejledning2026_2CA43313
 # Ligningslov9CBefordringsformål = IndtægtsgivendeArbejdsplads | SuUddannelsessted | AndetBefordringsformål
 # Ligningslov9CBroPassager(storebælt_bil_motorcykel_passager: Heltal, storebælt_kollektiv_passager: Heltal, øresund_bil_motorcykel_passager: Heltal, øresund_kollektiv_passager: Heltal, dokumenteret_og_afholdt_af_skattepligtige: Boolsk)
-# Ligningslov9CSærligTransport(faktisk_dokumenteret_udgift_kroner: Heltal, geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten: Boolsk)
+= personskat_befordring_rejsedage_kilder = [
+    Source(value = ligningsloven_lbk1500_par9c_par9d),
+    Guidance(value = ligningsloven_vejledning_par9c_færge_fly),
+    Guidance(value = personskat_befordring_rejsedage_kilde)
+]
+# Ligningslov9CSærligTransport(
+    @ field(
+        label = "Dokumenterede færge-/flybilletter før bundgrænse",
+        question = "Hvad var den samlede dokumenterede billetudgift for rækkens faktiske rejsedage i indkomståret?",
+        help = "Oplys den fulde dokumenterede udgift før bundgrænse, ikke årsopgørelsens fradrag. Ved under 24 km daglig landtransport trækker modellen den resterende bundgrænse fra billetudgiften, dog højst til nul. Brug ensartede dage pr. række; forskellige billetpriser omkring nulgrænsen må ikke skjules i et gennemsnit. Se personskat-faerge-og-fly.md.",
+        unit = "kr./år for rækkens dage",
+        sources = personskat_befordring_rejsedage_kilder
+    )
+    faktisk_dokumenteret_udgift_kroner: Heltal,
+    @ field(
+        label = "Nødvendig færge-/flytransport efter § 9 C",
+        question = "Kræver geografiske forhold, tidsforbrug og økonomisk rimelighed denne færge-/flytransport?",
+        help = "Vurder betingelserne i LL § 9 C, stk. 1, ud fra ruten og dokumentationen. En købt billet alene godtgør ikke fradragsretten. Uafklarede forhold skal undersøges, ikke sættes til sandt for at få et bestemt fradrag.",
+        sources = personskat_befordring_rejsedage_kilder
+    )
+    geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten: Boolsk
+)
 # Ligningslov9DBefordringsformål = Par9DArbejdsplads | Par9DUddannelsesstedForSuModtagerIYderkommuneEllerPåOmfattetØ | Par9DIkkeOmfattet
 # Ligningslov9DKvalifikationsgrundlag = Par9DKvalifikationIkkeGodtgjort | Par9DVarigtNedsatFunktionsevneMedNødvendigeSærligeUdgifter | Par9DKroniskSygdomMedNødvendigeSærligeUdgifter
-# Ligningslov9DNormaludgiftsgrundlag = Ll9dBilligsteOffentligeBefordringsmiddel(årlig_udgift_kroner: Heltal) | Ll9dEgetBefordringsmiddelNårOffentligBefordringIkkeKanAnvendes(årlige_kilometer: Heltal)
-# Ligningslov9DFaktiskUdgiftsgrundlag = Ll9dDokumenteredeFaktiskeBefordringsudgifter(beløb_kroner: Heltal) | Ll9dErhvervssatsForNødvendigEgenBil(årlige_kilometer: Heltal)
+= personskat_kilder_33 = [
+    Source(value = ligningsloven_2025_1500),
+    DependencySource(value = arbejdsmarkedsbidragsloven_2020_121),
+    Practice(value = ligningsloven_skm2019_292_lsr),
+    Guidance(value = ligningsloven_vejledning_par9c_frikort_offentlig_befordring),
+    Practice(value = ligningsloven_skm2025_537_br_fri_bil)
+]
+# Ligningslov9DNormaludgiftsgrundlag =
+    Ll9dBilligsteOffentligeBefordringsmiddel(
+        @ field(
+            label = "Årlig udgift til billigste offentlige befordring",
+            question = "Hvad kostede årets billigste anvendelige offentlige befordring på strækningen?",
+            help = "Angiv den normale årlige befordringsudgift, ikke den dokumenterede særlige udgift.",
+            unit = "kr./år",
+            sources = personskat_kilder_33
+        )
+        årlig_udgift_kroner: Heltal
+    ) |
+    Ll9dEgetBefordringsmiddelNårOffentligBefordringIkkeKanAnvendes(årlige_kilometer: Heltal)
+# Ligningslov9DFaktiskUdgiftsgrundlag =
+    Ll9dDokumenteredeFaktiskeBefordringsudgifter(
+        @ field(
+            label = "Dokumenteret faktisk befordringsudgift",
+            question = "Hvor stor var årets dokumenterede faktiske udgift til den særlige befordring?",
+            help = "Angiv den fulde dokumenterede udgift før et eventuelt skattefrit servicelovstilskud.",
+            unit = "kr./år",
+            sources = personskat_kilder_33
+        )
+        beløb_kroner: Heltal
+    ) |
+    Ll9dErhvervssatsForNødvendigEgenBil(årlige_kilometer: Heltal)
 # Ligningslov9DSkattefritTilskud = Ll9dIntetSkattefritTilskud | Ll9dSkattefritServicelovstilskud(beløb_kroner: Heltal)
 # Ligningslov9DBetalingsforhold = Ll9dIngenUdgiftAfholdt | Ll9dSkattepligtigeHarSelvAfholdtUdgiften(skattefrit_tilskud: Ligningslov9DSkattefritTilskud) | Ll9dArbejdsgiverHarBetaltBefordringen | Ll9dSkattefriGodtgørelseEfterPar9BModtaget
 # Ligningslov9DKilde = Ll9dLigningslovLbk1500Af2025Par9D | Ll9dSkatteraadetBek1449Af2022Par1Par4 | Ll9dSkatteraadetBek1312Af2023Par1Par4 | Ll9dSkatteraadetBek1189Af2024Par1Par4 | Ll9dSkatteraadetBek1333Af2025Par1Par4 | Ll9dLov616Af2026Par1 | Ll9dDenJuridiskeVejledning2026_2CA43324 | Ll9dSkm2019_292Lsr
 # Ligningslov9DSatser(skatteår: Heltal, normalfradrag_øre_pr_km: Heltal, erhverv_høj_øre_pr_km: Heltal, erhverv_lav_øre_pr_km: Heltal, erhverv_høj_kilometerloft: Heltal, normalfradrag_kilde: Ligningslov9DKilde, erhvervssats_kilde: Ligningslov9DKilde)
-# Ligningslov9DInput(skatteår: Heltal, befordringsformål: Ligningslov9DBefordringsformål, kvalifikationsgrundlag: Ligningslov9DKvalifikationsgrundlag, normaludgiftsgrundlag: Ligningslov9DNormaludgiftsgrundlag, faktisk_udgiftsgrundlag: Ligningslov9DFaktiskUdgiftsgrundlag)
+# Ligningslov9DInput(
+    @ field(
+        label = "Skatteår for § 9 D-forholdet",
+        question = "Hvilket skatteår vedrører det særlige befordringsforhold?",
+        help = "Skatteåret skal være det samme som skatteåret for den samlede Personskat-beregning.",
+        unit = "år",
+        sources = personskat_kilder_33
+    )
+    skatteår: Heltal,
+    @ field(
+        label = "Formål med den særlige befordring",
+        question = "Gik befordringen til en arbejdsplads eller et uddannelsessted omfattet af § 9 D?",
+        help = "Uddannelsesgrenen gælder fra 2026 for en SU-modtager med bopæl i en omfattet yderkommune eller på en omfattet ø.",
+        sources = personskat_kilder_33
+    )
+    befordringsformål: Ligningslov9DBefordringsformål,
+    @ field(
+        label = "Helbredsmæssigt grundlag for § 9 D",
+        question = "Hvilket helbredsmæssigt grundlag gjorde de særlige befordringsudgifter nødvendige?",
+        help = "Grundlaget skal være godtgjort som varigt nedsat funktionsevne eller kronisk sygdom med nødvendige særlige befordringsudgifter.",
+        sources = personskat_kilder_33
+    )
+    kvalifikationsgrundlag: Ligningslov9DKvalifikationsgrundlag,
+    normaludgiftsgrundlag: Ligningslov9DNormaludgiftsgrundlag,
+    faktisk_udgiftsgrundlag: Ligningslov9DFaktiskUdgiftsgrundlag
+)
 # Ligningslov9DResultat(input_gyldigt: Boolsk, omfattet_af_par9d: Boolsk, betalingsforhold: Ligningslov9DBetalingsforhold, betalingsforhold_gyldigt: Boolsk, fradragsbetingelser_opfyldt: Boolsk, afskærer_par9c_stk1_8: Boolsk, afskærer_par9c_stk10: Boolsk, normal_befordringsudgift_kroner: Heltal, normal_befordringsudgift_over_2000_kroner: Heltal, faktisk_befordringsudgift_kroner: Heltal, skattefrit_servicelovstilskud_kroner: Heltal, egen_afholdt_faktisk_befordringsudgift_kroner: Heltal, faktisk_udgift_over_normal_kroner: Heltal, fradrag_før_skattefrit_tilskud_kroner: Heltal, fradrag_kroner: Heltal, normal_befordringsudgift_kilde: Ligningslov9DKilde, faktisk_befordringsudgift_kilde: Ligningslov9DKilde)
 # Ligningslov9CInput(skatteår: Heltal, arbejdsdage: Heltal, daglige_befordringskilometer: Heltal, bopæl_i_yderkommune_eller_lille_ø: Boolsk, aftrapningsindkomst_kroner: Heltal, befordringsformål: Ligningslov9CBefordringsformål, modtaget_skattefri_befordringsgodtgørelse_for_strækning: Boolsk, modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning: Boolsk, par9d: Ligningslov9DResultat, fradrag_udelukket_folketingshverv_m_v: Boolsk, fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen: Boolsk, broer: Ligningslov9CBroPassager, særlig_transport: Ligningslov9CSærligTransport)
 # Ligningslov9CSatser(skatteår: Heltal, almindelig_op_til_120_øre_pr_km: Heltal, almindelig_over_120_øre_pr_km: Heltal, yderkommune_op_til_120_øre_pr_km: Heltal, yderkommune_over_120_øre_pr_km: Heltal, lavindkomst_tillæg_basispoint: Heltal, lavindkomst_aftrapning_basispoint_pr_1000: Heltal, lavindkomst_maks_kroner: Heltal, lavindkomst_indkomstgrænse_kroner: Heltal, almindelig_satskilder: List(Ligningslov9CKilde), yderkommune_satskilder: List(Ligningslov9CKilde), lavindkomst_satskilder: List(Ligningslov9CKilde))
@@ -2862,7 +3345,61 @@ og 6. pkt., finder tilsvarende anvendelse.
 # Ligningslov14Udgiftsart = Ll14Ejendomsskat | Ll14AndenSkatEllerAfgiftPåFastEjendomOgNæring | Ll14Forpagtningsafgift | Ll14LignendeByrde | Ll14Ejendomsværdiskat | Ll14AndenUdgift
 # Ligningslov14Stk2Ejendomsart = Ll14IngenStk2Begrænsning | Ll14EnEllerToLejlighederTjentTilEjerbolig | Ll14StuehusPåLandbrugsejendomTjentTilEjerbolig | Ll14EjendomOmfattetAfEjendomsskattelov3 | Ll14TilsvarendeEjendomIUlandetFærøerneEllerGrønland | Ll14UbebyggetGrundErhvervetTilPrivatBrug
 # Ligningslov14Fordelingsgrundlag = Ll14FordelingEfterEabl4EllerAfskrivningslov45 | Ll14BoligdelensEjendomsværdiModKontantAnskaffelsessum | Ll14IngenBlandetFordeling
-# Ligningslov14Input(indkomstår: Heltal, anvendelsesår: Heltal, udgiftsart: Ligningslov14Udgiftsart, ejendomsart: Ligningslov14Stk2Ejendomsart, fordelingsgrundlag: Ligningslov14Fordelingsgrundlag, anvendt_beløb_kroner: Heltal, erhvervsandel_basispoint: Heltal, fordeling_fortsat_retvisende: Boolsk)
+# Ligningslov14Input(
+    @ field(
+        label = "§ 14, stk. 1 - indkomstår",
+        question = "Hvilket indkomstår skal ejendomsudgiften vurderes i?",
+        unit = "år",
+        sources = personskat_par3_nr2_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "§ 14, stk. 1 - udgiftens anvendelsesår",
+        question = "I hvilket år blev beløbet anvendt?",
+        unit = "år",
+        sources = personskat_par3_nr2_kilder
+    )
+    anvendelsesår: Heltal,
+    @ field(
+        label = "§ 14, stk. 1 - udgiftsart",
+        question = "Hvilken ejendomsskat, forpagtningsafgift eller lignende byrde er betalt?",
+        sources = personskat_par3_nr2_kilder
+    )
+    udgiftsart: Ligningslov14Udgiftsart,
+    @ field(
+        label = "§ 14 - ejendommens art efter stk. 2",
+        question = "Hvilken ejendomstype vedrører udgiften?",
+        help = "Ejendomstypen afgør, om begrænsningen i § 14, stk. 2 finder anvendelse.",
+        sources = personskat_par3_nr2_kilder
+    )
+    ejendomsart: Ligningslov14Stk2Ejendomsart,
+    @ field(
+        label = "§ 14 - grundlag for fordeling mellem bolig og erhverv",
+        question = "Hvilket grundlag er brugt til at fordele ejendommen mellem bolig og erhverv?",
+        sources = personskat_par3_nr2_kilder
+    )
+    fordelingsgrundlag: Ligningslov14Fordelingsgrundlag,
+    @ field(
+        label = "§ 14, stk. 1 - anvendt beløb",
+        question = "Hvor stort et beløb er anvendt i indkomståret?",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder
+    )
+    anvendt_beløb_kroner: Heltal,
+    @ field(
+        label = "§ 14 - ejendommens erhvervsandel",
+        question = "Hvor stor en andel af ejendommen anvendes erhvervsmæssigt?",
+        unit = "basispoint; 10.000 = 100 pct.",
+        sources = personskat_par3_nr2_kilder
+    )
+    erhvervsandel_basispoint: Heltal,
+    @ field(
+        label = "§ 14 - fordelingen er fortsat retvisende",
+        question = "Er den anvendte fordeling fortsat retvisende i indkomståret?",
+        sources = personskat_par3_nr2_kilder
+    )
+    fordeling_fortsat_retvisende: Boolsk
+)
 # Ligningslov14Resultat(indkomstår: Heltal, udgiftsart: Ligningslov14Udgiftsart, stk1_udgift_omfattet: Boolsk, stk2_begrænsning_finder_anvendelse: Boolsk, erhvervsmæssig_benyttelse_væsentlig: Boolsk, fradragsandel_basispoint: Heltal, anvendt_beløb_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, ikke_fradraget_kroner: Heltal)
 
 # Ligningslov14Sag(input: Ligningslov14Input) {
@@ -2928,7 +3465,60 @@ stk. 2.
 @ section ligningsloven_par14f {
 
 # Ligningslov14FBidragsform = Ll14FKontantBidrag | Ll14FGældsforpligtelseOverForFonden
-# Ligningslov14FInput(indkomstår: Heltal, bidragsform: Ligningslov14FBidragsform, kontant_bidrag_kroner: Heltal, fordringens_kursværdi_ved_stiftelsen_kroner: Heltal, fondens_formål_betrygger_eller_forbedrer_ansatte_tidligere_ansatte_eller_pårørendes_kår: Boolsk, fonden_udbetaler_pensionslignende_ydelser: Boolsk, bestyrelsesflertal_valgt_af_og_blandt_omfattede_ansatte: Boolsk, samme_bidrag_fradraget_efter_par12_stk2: Boolsk)
+# Ligningslov14FInput(
+    @ field(
+        label = "§ 14 F - indkomstår",
+        question = "Hvilket indkomstår vedrører bidraget til medarbejderfonden?",
+        unit = "år",
+        sources = personskat_par3_nr2_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "§ 14 F - bidragets form",
+        question = "Er bidraget kontant eller ydet som en gældsforpligtelse over for fonden?",
+        sources = personskat_par3_nr2_kilder
+    )
+    bidragsform: Ligningslov14FBidragsform,
+    @ field(
+        label = "§ 14 F - kontant bidrag",
+        question = "Hvor stort er det kontante bidrag?",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder
+    )
+    kontant_bidrag_kroner: Heltal,
+    @ field(
+        label = "§ 14 F - fordringens kursværdi ved stiftelsen",
+        question = "Hvad var fordringens kursværdi, da gældsforpligtelsen blev stiftet?",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder
+    )
+    fordringens_kursværdi_ved_stiftelsen_kroner: Heltal,
+    @ field(
+        label = "§ 14 F - fondens medarbejderformål",
+        question = "Har fonden til formål at betrygge eller forbedre kårene for ansatte, tidligere ansatte eller deres pårørende?",
+        sources = personskat_par3_nr2_kilder
+    )
+    fondens_formål_betrygger_eller_forbedrer_ansatte_tidligere_ansatte_eller_pårørendes_kår: Boolsk,
+    @ field(
+        label = "§ 14 F - fonden udbetaler pensionslignende ydelser",
+        question = "Udbetaler fonden pensionslignende ydelser?",
+        sources = personskat_par3_nr2_kilder
+    )
+    fonden_udbetaler_pensionslignende_ydelser: Boolsk,
+    @ field(
+        label = "§ 14 F - medarbejdervalgt bestyrelsesflertal",
+        question = "Er et flertal i fondsbestyrelsen valgt af og blandt de omfattede ansatte?",
+        sources = personskat_par3_nr2_kilder
+    )
+    bestyrelsesflertal_valgt_af_og_blandt_omfattede_ansatte: Boolsk,
+    @ field(
+        label = "§ 14 F - samme bidrag fradraget efter § 12, stk. 2",
+        question = "Er det samme bidrag allerede fradraget efter ligningslovens § 12, stk. 2?",
+        help = "Det samme bidrag kan ikke fradrages efter begge bestemmelser.",
+        sources = personskat_par3_nr2_kilder
+    )
+    samme_bidrag_fradraget_efter_par12_stk2: Boolsk
+)
 # Ligningslov14FResultat(indkomstår: Heltal, bidragsform: Ligningslov14FBidragsform, betingelser_opfyldt: Boolsk, bidragsværdi_kroner: Heltal, dobbeltfradrag_efter_par12_stk2_afskåret: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal)
 
 # Ligningslov14FSag(input: Ligningslov14FInput) {
@@ -3573,7 +4163,125 @@ i stk. 1, 2, 4 og 5. § 30, stk. 2, finder tilsvarende anvendelse.
 # Ligningslov30APerson = Ll30ASelvstændigtErhvervsdrivende | Ll30AMedarbejdendeÆgtefælleEfterKildeskattelov25AStk3 | Ll30AAndenPerson
 # Ligningslov30AUdgiftsart = Ll30ABehandlingAfMedicinmisbrug | Ll30ABehandlingAfAlkoholmisbrug | Ll30ABehandlingAfAndetRusmiddelmisbrug | Ll30ARygeafvænning | Ll30AMedicinudgiftVedMisbrugsbehandling | Ll30AForsikringspræmieTilOmfattetBehandling | Ll30AAndenUdgift
 # Ligningslov30AMedicinforhold = Ll30AIngenMedicinudgift | Ll30AMedicinudgiftIndenForSeksMånedersperioden | Ll30AMedicinudgiftEfterSeksMånedersperioden | Ll30AMedicinudgiftUnderIndlæggelse
-# Ligningslov30AInput(indkomstår: Heltal, afholdelsesår: Heltal, person: Ligningslov30APerson, udgiftsart: Ligningslov30AUdgiftsart, afholdt_udgift_kroner: Heltal, driver_selvstændig_erhvervsvirksomhed: Boolsk, ægtefælle_modtager_overskud_efter_kildeskattelov25a_stk3: Boolsk, ægtefælle_driver_ikke_i_overvejende_grad: Boolsk, personlig_arbejdsindsats_ikke_uvæsentlig: Boolsk, har_eventuelle_medarbejdere: Boolsk, virksomhed_undtaget_som_par4_stk1_nr9_eller_11_med_mindst_to_ejere: Boolsk, tilsvarende_ordning_tilbudt_medarbejderne_rettidigt: Boolsk, generelt_anciennitetskrav_opfyldt: Boolsk, selvstændige_har_valgt_forsikringsordning: Boolsk, tilsvarende_forsikring_tegnet_for_medarbejderne: Boolsk, person_kan_ikke_forsikres_af_forsikringsmæssige_grunde: Boolsk, ydelse_svarer_til_medarbejderforsikringens_ydelser: Boolsk, medicinforhold: Ligningslov30AMedicinforhold, skriftlig_lægeerklæring_om_behandlingsbehov: Boolsk, forsikringsbetingelser_kræver_lægeerklæring: Boolsk, præmieandel_for_medicin_ud_over_seks_måneder_kroner: Heltal)
+# Ligningslov30AInput(
+    @ field(
+        label = "§ 30 A - indkomstår",
+        question = "Hvilket indkomstår skal behandlingsudgiften vurderes i?",
+        unit = "år",
+        sources = personskat_par3_nr2_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "§ 30 A - udgiftens afholdelsesår",
+        question = "I hvilket år blev udgiften afholdt?",
+        unit = "år",
+        sources = personskat_par3_nr2_kilder
+    )
+    afholdelsesår: Heltal,
+    person: Ligningslov30APerson,
+    @ field(
+        label = "§ 30 A - behandlings- eller forsikringsudgift",
+        question = "Hvilken type behandling, medicin, rygeafvænning eller forsikringspræmie vedrører udgiften?",
+        sources = personskat_par3_nr2_kilder
+    )
+    udgiftsart: Ligningslov30AUdgiftsart,
+    @ field(
+        label = "§ 30 A - afholdt udgift",
+        question = "Hvor stor var den afholdte udgift eller forsikringspræmie?",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder
+    )
+    afholdt_udgift_kroner: Heltal,
+    @ field(
+        label = "§ 30 A - driver selvstændig erhvervsvirksomhed",
+        question = "Driver personen selvstændig erhvervsvirksomhed?",
+        sources = personskat_par3_nr2_kilder
+    )
+    driver_selvstændig_erhvervsvirksomhed: Boolsk,
+    ægtefælle_modtager_overskud_efter_kildeskattelov25a_stk3: Boolsk,
+    ægtefælle_driver_ikke_i_overvejende_grad: Boolsk,
+    @ field(
+        label = "§ 30 A - personlig arbejdsindsats er ikke uvæsentlig",
+        question = "Er personens arbejdsindsats i virksomheden ikke uvæsentlig?",
+        sources = personskat_par3_nr2_kilder
+    )
+    personlig_arbejdsindsats_ikke_uvæsentlig: Boolsk,
+    @ field(
+        label = "§ 30 A - virksomheden har medarbejdere",
+        question = "Har virksomheden medarbejdere ud over de selvstændige?",
+        sources = personskat_par3_nr2_kilder
+    )
+    har_eventuelle_medarbejdere: Boolsk,
+    @ field(
+        label = "§ 30 A - virksomhed undtaget efter § 4, stk. 1, nr. 9 eller 11",
+        question = "Er virksomheden omfattet af undtagelsen for § 4, stk. 1, nr. 9 eller 11 med mindst to ejere?",
+        sources = personskat_par3_nr2_kilder
+    )
+    virksomhed_undtaget_som_par4_stk1_nr9_eller_11_med_mindst_to_ejere: Boolsk,
+    @ field(
+        label = "§ 30 A - tilsvarende ordning tilbudt medarbejderne rettidigt",
+        question = "Er en tilsvarende ordning tilbudt alle medarbejdere senest samtidig med den selvstændiges ordning?",
+        sources = personskat_par3_nr2_kilder
+    )
+    tilsvarende_ordning_tilbudt_medarbejderne_rettidigt: Boolsk,
+    @ field(
+        label = "§ 30 A - generelt anciennitetskrav opfyldt",
+        question = "Opfylder medarbejderordningen et eventuelt generelt anciennitetskrav?",
+        sources = personskat_par3_nr2_kilder
+    )
+    generelt_anciennitetskrav_opfyldt: Boolsk,
+    @ field(
+        label = "§ 30 A - de selvstændige har valgt en forsikringsordning",
+        question = "Har den selvstændige eller de selvstændige valgt en forsikringsordning til behandlingen?",
+        sources = personskat_par3_nr2_kilder
+    )
+    selvstændige_har_valgt_forsikringsordning: Boolsk,
+    @ field(
+        label = "§ 30 A - tilsvarende forsikring tegnet for medarbejderne",
+        question = "Er en tilsvarende forsikring tegnet for virksomhedens medarbejdere?",
+        sources = personskat_par3_nr2_kilder
+    )
+    tilsvarende_forsikring_tegnet_for_medarbejderne: Boolsk,
+    @ field(
+        label = "§ 30 A - personen kan ikke forsikres",
+        question = "Kan personen ikke forsikres af forsikringsmæssige grunde?",
+        sources = personskat_par3_nr2_kilder
+    )
+    person_kan_ikke_forsikres_af_forsikringsmæssige_grunde: Boolsk,
+    @ field(
+        label = "§ 30 A - ydelsen svarer til medarbejderforsikringens ydelser",
+        question = "Svarer den direkte ydelse til de ydelser, som medarbejdernes forsikring dækker?",
+        sources = personskat_par3_nr2_kilder
+    )
+    ydelse_svarer_til_medarbejderforsikringens_ydelser: Boolsk,
+    @ field(
+        label = "§ 30 A - medicinudgiftens periode",
+        question = "Ligger medicinudgiften inden for seks måneder, efter seks måneder eller under indlæggelse?",
+        help = "Vælg ingen medicinudgift, når udgiftsarten ikke er medicin.",
+        sources = personskat_par3_nr2_kilder
+    )
+    medicinforhold: Ligningslov30AMedicinforhold,
+    @ field(
+        label = "§ 30 A - skriftlig lægeerklæring om behandlingsbehov",
+        question = "Foreligger der en skriftlig lægeerklæring om behovet for behandlingen?",
+        sources = personskat_par3_nr2_kilder
+    )
+    skriftlig_lægeerklæring_om_behandlingsbehov: Boolsk,
+    @ field(
+        label = "§ 30 A - forsikringsbetingelserne kræver lægeerklæring",
+        question = "Kræver forsikringsbetingelserne en skriftlig lægeerklæring før behandling?",
+        sources = personskat_par3_nr2_kilder
+    )
+    forsikringsbetingelser_kræver_lægeerklæring: Boolsk,
+    @ field(
+        label = "§ 30 A - præmieandel for medicin ud over seks måneder",
+        question = "Hvor stor en del af forsikringspræmien vedrører medicin ud over seks måneder?",
+        help = "Denne del er ikke fradragsberettiget, medmindre medicinen gives under indlæggelse.",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder
+    )
+    præmieandel_for_medicin_ud_over_seks_måneder_kroner: Heltal
+)
 # Ligningslov30AResultat(indkomstår: Heltal, person: Ligningslov30APerson, udgiftsart: Ligningslov30AUdgiftsart, person_omfattet: Boolsk, personalepolitisk_betingelse_opfyldt: Boolsk, behandlingsydelse_omfattet: Boolsk, forsikringspræmie_omfattet: Boolsk, seksmånedersgrænse_opfyldt: Boolsk, lægeerklæringskrav_opfyldt: Boolsk, afholdt_udgift_kroner: Heltal, ikke_fradragsberettiget_præmieandel_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, ægtefælleydelse_ikke_medregnet_i_skattepligtig_indkomst_kroner: Heltal)
 
 # Ligningslov30ASag(input: Ligningslov30AInput) {
@@ -3623,3 +4331,9 @@ i stk. 1, 2, 4 og 5. § 30, stk. 2, finder tilsvarende anvendelse.
 | ligningslov30a_resultat(input: Ligningslov30AInput) -> ligningslov30a_sag(input).resultat()
 
 }
+
+= personskat_befordring_rejsedage_kilde = LigningslovFradragKildeInfo(
+    url = "https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradrag",
+    identifier = "SKAT, faktiske rejsedage og flere ture/arbejdspladser samme dag",
+    hentet_dato = "2026-09-26"
+)

@@ -14,6 +14,15 @@
 @ meta(personskat_etableringskonto_kildefakta_metadata)
 @ section personskat_etableringskonto_kildefakta {
 
+@ field(
+    label = "Etablerings- eller iværksætterkonto",
+    question = "Har du indskud på en etableringskonto eller iværksætterkonto, som skal vurderes i indkomståret?",
+    help = "Futuruna afleder selv fradraget og placerer de to kontotyper i hver sin indkomstopgørelse.",
+    sources = [
+        Source(value = etableringskontoloven_lbk1307_par1_par4),
+        DependencySource(value = personskatteloven_lbk1284_par3)
+    ]
+)
 # PersonskatEtableringskontoInput = UdenEtableringskontoindskud | MedEtableringskontoindskud(input: EtableringskontoIndskudInput)
 # PersonskatEtableringskontoResultat = IngenEtableringskontoindskud | UgyldigtEtableringskontoindskud(input: EtableringskontoIndskudInput, etableringskontolov_resultat: EtableringskontoIndskudResultat, skatteår_matcher: Boolsk, grundfakta_gyldige: Boolsk) | BeregnetEtableringskontoindskud(input: EtableringskontoIndskudInput, etableringskontolov_resultat: EtableringskontoIndskudResultat, par3_stk2_nr11_resultat: Par3Stk2Nr11Resultat)
 

@@ -62,11 +62,154 @@ kontingentudgiften til told- og skatteforvaltningen.
 # Ligningslov13Foreningsart = Ll13Arbejdsgiverforening | Ll13Fagforening | Ll13AndenFagligSammenslutning | Ll13AndenForening
 # Ligningslov13Indberetningsstatus = Ll13IkkeIndberetningspligtig | Ll13IndberettetEfterSkatteindberetningslov31 | Ll13IkkeIndberettetEfterSkatteindberetningslov31
 # Ligningslov13Kontingentperiode(fra_dato: Dato, til_dato: Dato)
-# Ligningslov13KontingentFakta(identifikation: Tekst, forening_identifikation: Tekst, indkomstår: Heltal, periode: Ligningslov13Kontingentperiode, foreningsart: Ligningslov13Foreningsart, betalt_kontingent_kroner: Heltal, foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner: Heltal, foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser: Boolsk, skatteyder_hører_til_erhvervsgruppen: Boolsk, indberetningsstatus: Ligningslov13Indberetningsstatus)
-# Ligningslov13Årsinput(skatteyderstatus: Ligningslov13Skatteyderstatus, kontingenter: List(Ligningslov13KontingentFakta))
+= personskat_ll13_kilder = [
+    Source(value = ligningsloven_lbk1500_par13),
+    Guidance(value = skat_fagforening_akasse_vejledning),
+    Guidance(value = juridisk_vejledning_ligningslov13)
+]
+# Ligningslov13KontingentFakta(
+    @ field(
+        label = "Kontingentets identifikation",
+        question = "Hvilken entydig identifikation har kontingentbetalingen?",
+        help = "Brug en stabil reference fra kontingentopgørelsen, så samme betaling ikke medregnes to gange.",
+        sources = personskat_ll13_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Den faglige forenings identifikation",
+        question = "Hvilken faglig forening er kontingentet betalt til?",
+        help = "Brug samme stabile identifikation på alle betalinger til den samme forening. § 9 G samordner medlemskabets arbejdstilknytning på foreningsniveau.",
+        sources = personskat_ll13_kilder
+    )
+    forening_identifikation: Tekst,
+    @ field(
+        label = "Kontingentets indkomstår",
+        question = "Hvilket indkomstår vedrører kontingentet?",
+        unit = "år",
+        sources = personskat_ll13_kilder
+    )
+    indkomstår: Heltal,
+    periode: Ligningslov13Kontingentperiode,
+    @ field(
+        label = "Foreningens art",
+        question = "Er modtageren en arbejdsgiverforening, fagforening, anden faglig sammenslutning eller en anden forening?",
+        help = "Klassifikationen skal følge foreningens vedtægter og faktiske hovedformål.",
+        sources = personskat_ll13_kilder
+    )
+    foreningsart: Ligningslov13Foreningsart,
+    @ field(
+        label = "Betalt fagligt kontingent",
+        question = "Hvor meget kontingent er betalt i indkomståret?",
+        unit = "kr./år",
+        sources = personskat_ll13_kilder
+    )
+    betalt_kontingent_kroner: Heltal,
+    @ field(
+        label = "Foreningens faglige økonomiske andel",
+        question = "Hvor stor en del af kontingentet har foreningen opgjort som anvendt til faglige økonomiske interesser?",
+        help = "Brug foreningens fordeling. Ved et uopdelt rent fagligt kontingent er beløbet det samme som det betalte kontingent; en anden andel kan høre under andre regler end LL § 13.",
+        unit = "kr./år",
+        sources = personskat_ll13_kilder
+    )
+    foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner: Heltal,
+    @ field(
+        label = "Foreningens hovedformål er erhvervsgruppens økonomiske interesser",
+        question = "Har foreningen som hovedformål at varetage erhvervsgruppens økonomiske interesser?",
+        help = "Brug vedtægter eller anden dokumentation for foreningens hovedformål.",
+        sources = personskat_ll13_kilder
+    )
+    foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser: Boolsk,
+    @ field(
+        label = "Skatteyderen tilhører erhvervsgruppen",
+        question = "Tilhører skatteyderen den erhvervsgruppe, hvis økonomiske interesser foreningen varetager?",
+        sources = personskat_ll13_kilder
+    )
+    skatteyder_hører_til_erhvervsgruppen: Boolsk,
+    @ field(
+        label = "Indberetning af fagligt kontingent",
+        question = "Var foreningen ikke indberetningspligtig, eller blev kontingentet indberettet efter skatteindberetningslovens § 31?",
+        help = "En indberetningspligtig forenings manglende indberetning afskærer fradraget.",
+        sources = personskat_ll13_kilder
+    )
+    indberetningsstatus: Ligningslov13Indberetningsstatus
+)
+# Ligningslov13Årsinput(
+    @ field(
+        label = "Skatteyderens status for faglige kontingenter",
+        question = "Er skatteyderen lønmodtager, selvstændigt erhvervsdrivende eller en juridisk person?",
+        help = "Årsloftet på 7.000 kr. gælder ikke for selvstændigt erhvervsdrivende og juridiske personer.",
+        sources = personskat_ll13_kilder
+    )
+    skatteyderstatus: Ligningslov13Skatteyderstatus,
+    @ field(
+        label = "Faglige kontingenter",
+        question = "Hvilke kontingenter til arbejdsgiverforeninger, fagforeninger eller andre faglige sammenslutninger er betalt i indkomståret?",
+        help = "Opret én række pr. betaling eller årsopgørelse fra foreningen.",
+        sources = personskat_ll13_kilder
+    )
+    kontingenter: List(Ligningslov13KontingentFakta)
+)
 # Ligningslov13KontingentResultat(fakta: Ligningslov13KontingentFakta, input_gyldigt: Boolsk, periode_gyldig: Boolsk, foreningens_opgjorte_andel_gyldig: Boolsk, foreningsart_omfattet: Boolsk, hovedformål_og_erhvervsgruppe_opfyldt: Boolsk, indberetningsbetingelse_opfyldt: Boolsk, fradragsberettiget: Boolsk, fradragsberettiget_før_årsloft_kroner: Heltal)
 # Ligningslov13Årsresultat(indkomstår: Heltal, input: Ligningslov13Årsinput, kontingentresultater: List(Ligningslov13KontingentResultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, foreningsfakta_konsistente: Boolsk, kontingentperioder_ikke_overlappende: Boolsk, alle_input_gyldige: Boolsk, fradrag_før_årsloft_kroner: Heltal, årsloft_kroner: Heltal, samlet_fradrag_kroner: Heltal, ikke_fradraget_kroner: Heltal)
-# Ligningslov13ForeningsydelseFakta(identifikation: Tekst, indkomstår: Heltal, foreningsart: Ligningslov13Foreningsart, beløb_kroner: Heltal, foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser: Boolsk, modtager_hører_til_erhvervsgruppen: Boolsk, modtager_er_medlem: Boolsk, undtagelse: Ligningslov30Og31Undtagelse)
+= personskat_foreningsydelse_kilder = [
+    Source(value = ligningsloven_lbk1500_par13),
+    DependencySource(value = ligningsloven_lbk1500_par30),
+    DependencySource(value = ligningsloven_lbk1500_par31),
+    Guidance(value = juridisk_vejledning_ligningslov13)
+]
+# Ligningslov13ForeningsydelseFakta(
+    @ field(
+        label = "Foreningsydelsens identifikation",
+        question = "Hvilken entydig identifikation har foreningsydelsen?",
+        help = "Brug en stabil reference fra udbetalingsbilaget, så samme ydelse ikke medregnes to gange.",
+        sources = personskat_foreningsydelse_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Foreningsydelsens indkomstår",
+        question = "Hvilket indkomstår vedrører foreningsydelsen?",
+        help = "Indkomståret skal være det samme som skatteåret i Personskat-beregningen.",
+        unit = "år",
+        sources = personskat_foreningsydelse_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Den udbetalende forenings art",
+        question = "Er udbetaleren en arbejdsgiverforening, fagforening, anden faglig sammenslutning eller anden forening?",
+        help = "Klassifikationen skal følge foreningens vedtægter og faktiske hovedformål.",
+        sources = personskat_foreningsydelse_kilder
+    )
+    foreningsart: Ligningslov13Foreningsart,
+    @ field(
+        label = "Modtaget foreningsydelse",
+        question = "Hvor stort et beløb er modtaget fra foreningen?",
+        help = "Angiv bruttobeløbet for denne særskilte ydelse eller identificerede del.",
+        unit = "kr./år",
+        sources = personskat_foreningsydelse_kilder
+    )
+    beløb_kroner: Heltal,
+    @ field(
+        label = "Foreningens hovedformål er erhvervsgruppens økonomiske interesser",
+        question = "Har foreningen som hovedformål at varetage erhvervsgruppens økonomiske interesser?",
+        help = "Brug vedtægter eller anden dokumentation for foreningens hovedformål.",
+        sources = personskat_foreningsydelse_kilder
+    )
+    foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser: Boolsk,
+    @ field(
+        label = "Modtageren tilhører erhvervsgruppen",
+        question = "Tilhører modtageren den erhvervsgruppe, hvis økonomiske interesser foreningen varetager?",
+        sources = personskat_foreningsydelse_kilder
+    )
+    modtager_hører_til_erhvervsgruppen: Boolsk,
+    @ field(
+        label = "Modtageren er medlem af foreningen",
+        question = "Var modtageren medlem af foreningen, da ydelsen blev udbetalt?",
+        help = "LL § 13's indkomstregel gælder erstatninger og ydelser, som udbetales til medlemmerne.",
+        sources = personskat_foreningsydelse_kilder
+    )
+    modtager_er_medlem: Boolsk,
+    undtagelse: Ligningslov30Og31Undtagelse
+)
 # Ligningslov13ForeningsydelseResultat(fakta: Ligningslov13ForeningsydelseFakta, input_gyldigt: Boolsk, foreningsart_omfattet: Boolsk, hovedformål_og_erhvervsgruppe_opfyldt: Boolsk, modtager_er_medlem: Boolsk, undtagelsesresultat: Ligningslov30Og31Undtagelsesresultat, kan_sammensættes: Boolsk, skattefri_beløb_kroner: Heltal, skattepligtigt_beløb_kroner: Heltal)
 
 | ligningslov13_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
@@ -287,14 +430,241 @@ Stk. 4. Gaver, der er fradraget efter § 8 S, kan ikke fradrages efter stk. 1 og
 
 # LigningslovGavemodtagerHjemsted = LlGaveDanmark | LlGaveAndetEUEØSLand | LlGaveUdenForEUEØS
 # LigningslovReligiøsAnerkendelse = LlGaveAnerkendtTrossamfund | LlGaveAnerkendtMenighedForsamlingEllerKreds | LlGaveAnerkendtValgmenighed | LlGaveIkkeAnerkendtReligiøstSamfund
-# LigningslovGavemodtagerFormål = LlGaveAlmenvelgørendeØkonomiskTrængte | LlGaveAlmennyttigtTilStørreKreds | LlGaveAlmennyttigForskning | LlGaveBeskyttelseAfNaturmiljøet | LlGaveReligiøstSamfund(anerkendelse: LigningslovReligiøsAnerkendelse) | LlGaveAndetFormål
-# LigningslovGavemodtagerGodkendelse = LlGaveIkkeGodkendt | LlGaveGodkendtEfterPar8A(godkendelsesår: Heltal) | LlGaveGodkendtEfterPar8H(godkendelsesår: Heltal, forskningsfondsudtalelse_indhentet: Boolsk) | LlGaveGodkendtEfterPar12(godkendelsesår: Heltal)
-# LigningslovGavemodtagerFakta(identifikation: Tekst, hjemsted: LigningslovGavemodtagerHjemsted, formål: LigningslovGavemodtagerFormål, godkendelse: LigningslovGavemodtagerGodkendelse, likvidationsprovenu_til_anden_velgørende_forening: Boolsk)
+= personskat_gave_kilder = [
+    Source(value = ligningsloven_lbk1500_par8a),
+    Source(value = ligningsloven_lbk1500_par8h),
+    Source(value = ligningsloven_lbk1500_par12_stk1_til4),
+    Guidance(value = skat_ligningslov12_aftalesamordning_20260925),
+    Guidance(value = juridisk_vejledning_ligningslov12_generelt_20260925),
+    Guidance(value = skat_gavefradrag_vejledning),
+    Guidance(value = juridisk_vejledning_ligningslov12),
+    Guidance(value = skat_ligningslov12_indberetningsvejledning)
+]
+@ field(
+    label = "Gavemodtagerens formål",
+    question = "Hvilket almenvelgørende, almennyttigt, forskningsmæssigt, naturbeskyttende eller religiøst formål har modtageren?",
+    help = "Formålet skal dokumenteres ud fra modtagerens vedtægter og godkendelsesgrundlag.",
+    sources = personskat_gave_kilder
+)
+# LigningslovGavemodtagerFormål =
+    LlGaveAlmenvelgørendeØkonomiskTrængte |
+    LlGaveAlmennyttigtTilStørreKreds |
+    LlGaveAlmennyttigForskning |
+    LlGaveBeskyttelseAfNaturmiljøet |
+    LlGaveReligiøstSamfund(
+        @ field(
+            label = "Det religiøse samfunds anerkendelse",
+            question = "Er trossamfundet registreret som anerkendt efter trossamfundsloven, er menigheden omfattet af en anerkendelse, er der tale om en anerkendt valgmenighed, eller mangler relevant anerkendelse?",
+            sources = personskat_gave_kilder
+        )
+        anerkendelse: LigningslovReligiøsAnerkendelse
+    ) |
+    LlGaveAndetFormål
+@ field(
+    label = "Gavemodtagerens skattemæssige godkendelse",
+    question = "Er modtageren godkendt efter ligningslovens § 8 A, § 8 H eller § 12, eller er modtageren ikke godkendt?",
+    help = "Vælg den godkendelse, der gælder for den konkrete betalingstype og det konkrete indkomstår.",
+    sources = personskat_gave_kilder
+)
+# LigningslovGavemodtagerGodkendelse =
+    LlGaveIkkeGodkendt |
+    LlGaveGodkendtEfterPar8A(
+        @ field(
+            label = "Godkendelsesår efter ligningslovens § 8 A",
+            question = "For hvilket år er modtageren godkendt efter § 8 A?",
+            unit = "år",
+            sources = personskat_gave_kilder
+        )
+        godkendelsesår: Heltal
+    ) |
+    LlGaveGodkendtEfterPar8H(
+        @ field(
+            label = "Godkendelsesår efter ligningslovens § 8 H",
+            question = "For hvilket år er modtageren godkendt til forskningsgaver efter § 8 H?",
+            unit = "år",
+            sources = personskat_gave_kilder
+        )
+        godkendelsesår: Heltal,
+        @ field(
+            label = "Udtalelse fra Danmarks Frie Forskningsfond",
+            question = "Er den krævede udtalelse fra Danmarks Frie Forskningsfond indhentet for forskningsgodkendelsen?",
+            sources = personskat_gave_kilder
+        )
+        forskningsfondsudtalelse_indhentet: Boolsk
+    ) |
+    LlGaveGodkendtEfterPar12(
+        @ field(
+            label = "Godkendelsesår efter ligningslovens § 12",
+            question = "For hvilket år er modtageren godkendt til bindende løbende ydelser efter § 12?",
+            unit = "år",
+            sources = personskat_gave_kilder
+        )
+        godkendelsesår: Heltal
+    )
+# LigningslovGavemodtagerFakta(
+    @ field(
+        label = "Gavemodtagerens identifikation",
+        question = "Hvilken entydig identifikation har gavemodtageren?",
+        help = "Brug navn og eventuelt CVR-nummer eller den identifikation, som fremgår af godkendelsen.",
+        sources = personskat_gave_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Gavemodtagerens hjemsted",
+        question = "Har modtageren hjemsted i Danmark, et andet EU/EØS-land eller uden for EU/EØS?",
+        sources = personskat_gave_kilder
+    )
+    hjemsted: LigningslovGavemodtagerHjemsted,
+    formål: LigningslovGavemodtagerFormål,
+    godkendelse: LigningslovGavemodtagerGodkendelse,
+    @ field(
+        label = "Likvidationsprovenu går til et andet velgørende formål",
+        question = "Bestemmer vedtægterne, at et likvidationsprovenu tilfalder en anden almenvelgørende eller almennyttig forening?",
+        sources = personskat_gave_kilder
+    )
+    likvidationsprovenu_til_anden_velgørende_forening: Boolsk
+)
 # Ligningslov12Ydelsesfastsættelse = Ll12FastÅrligtBeløb | Ll12ProcentdelAfIndkomst
-# Ligningslov12Aftalevarighed = Ll12BestemtAftaleperiode(aftaleperiode_år: Heltal) | Ll12SåLængeYderenLever
-# LigningslovGaveart = Ll8AAlmindeligGave(fradraget_efter_par8s: Boolsk) | Ll8HForskningsgave(giver_og_modtager_interesseforbundne_efter_par2: Boolsk) | Ll12BindendeLøbendeYdelse(aftale_identifikation: Tekst, ordinært_betalingsforløb_bekræftet: Boolsk, ydelsesfastsættelse: Ligningslov12Ydelsesfastsættelse, forfalden_årlig_ydelse_efter_aftalen_kroner: Heltal, aftale_skriftlig: Boolsk, ingen_modydelse: Boolsk, aftalevarighed: Ligningslov12Aftalevarighed, aftalen_kan_ikke_uden_videre_ophæves: Boolsk, navn_og_cpr_på_aftalen: Boolsk) | LlGaveKontingentEllerVarekøb
-# LigningslovGaveFakta(identifikation: Tekst, indkomstår: Heltal, betalt_beløb_kroner: Heltal, modtager: LigningslovGavemodtagerFakta, indberettet_efter_skatteindberetningslov26: Boolsk, art: LigningslovGaveart)
-# LigningslovGaveÅrsinput(gaver: List(LigningslovGaveFakta))
+@ field(
+    label = "Den bindende aftales varighed",
+    question = "Løber aftalen i en bestemt årrække eller så længe giveren lever?",
+    help = "Skattestyrelsens praksis kræver mindst 10 år eller resten af giverens levetid.",
+    sources = personskat_gave_kilder
+)
+# Ligningslov12Aftalevarighed =
+    Ll12BestemtAftaleperiode(
+        @ field(
+            label = "Den tidsbegrænsede aftales løbetid",
+            question = "Hvor mange år løber den tidsbegrænsede aftale?",
+            help = "En tidsbegrænset aftale skal løbe i mindst 10 år.",
+            unit = "år",
+            sources = personskat_gave_kilder
+        )
+        aftaleperiode_år: Heltal
+    ) |
+    Ll12SåLængeYderenLever
+@ field(
+    label = "Gavens retlige art",
+    question = "Er betalingen en almindelig § 8 A-gave, en forskningsgave efter § 8 H, en bindende løbende ydelse efter § 12 eller kontingent/varekøb?",
+    help = "Betalingstypen bestemmer både modtagerkrav og årsloft.",
+    sources = personskat_gave_kilder
+)
+# LigningslovGaveart =
+    Ll8AAlmindeligGave(
+        @ field(
+            label = "Gaven er allerede fradraget efter ligningslovens § 8 S",
+            question = "Er betalingen allerede fradraget efter ligningslovens § 8 S?",
+            help = "Samme betaling kan ikke også fradrages efter § 8 A.",
+            sources = personskat_gave_kilder
+        )
+        fradraget_efter_par8s: Boolsk
+    ) |
+    Ll8HForskningsgave(
+        @ field(
+            label = "Giver og forskningsmodtager er interesseforbundne",
+            question = "Er giver og modtager interesseforbundne efter ligningslovens § 2?",
+            help = "Interesseforbundne forskningsgaver er ikke omfattet af § 8 H-fradraget.",
+            sources = personskat_gave_kilder
+        )
+        giver_og_modtager_interesseforbundne_efter_par2: Boolsk
+    ) |
+    Ll12BindendeLøbendeYdelse(
+        @ field(
+            label = "Den bindende aftales identifikation",
+            question = "Hvilken bindende aftale hører betalingen til?",
+            help = "Brug samme stabile reference for alle årets betalinger under samme aftale. Forskellige aftaler skal have forskellige referencer, også hos samme modtager. Ingen indledende eller afsluttende mellemrum. Referencen er ikke betalings-id og behøver ikke indeholde CPR.",
+            sources = personskat_gave_kilder
+        )
+        aftale_identifikation: Tekst,
+        @ field(
+            label = "Ordinært betalingsforløb under årets reelle forpligtelse er bekræftet",
+            question = "Er der kun tale om betalinger under årets fortsat reelle forpligtelse, uden tidligere års restancer, aconto eller andre særlige aftaleforløb?",
+            help = "Bekræft kun efter kildegennemgang. False betyder uafklaret eller uden for denne model, ikke ingen fradragsret. Procentaftalers aconto og efterregulering samt tidligere års restancer kræver særskilt vurdering. Et beløb ud over årets aftaleloft bliver ikke automatisk en § 8 A-gave.",
+            sources = personskat_gave_kilder
+        )
+        ordinært_betalingsforløb_bekræftet: Boolsk,
+        @ field(
+            label = "Den løbende ydelses fastsættelse",
+            question = "Er den løbende ydelse aftalt som et fast årligt beløb eller som en procentdel af giverens indkomst?",
+            sources = personskat_gave_kilder
+        )
+        ydelsesfastsættelse: Ligningslov12Ydelsesfastsættelse,
+        @ field(
+            label = "Forfalden årlig ydelse efter aftalen",
+            question = "Hvilket beløb er forfaldet efter den bindende aftale for indkomståret?",
+            help = "Oplys årets samlede forfaldne forpligtelse under aftalen på hver delbetaling, ikke kun denne betalings andel. Beløbet og øvrige aftalefakta skal være ens for samme aftale; modellen anvender aftaleloftet én gang. Medtag ikke tidligere års restancer eller aconto i denne ordinære gren.",
+            unit = "kr./år",
+            sources = personskat_gave_kilder
+        )
+        forfalden_årlig_ydelse_efter_aftalen_kroner: Heltal,
+        @ field(
+            label = "Aftalen er skriftlig",
+            question = "Foreligger den bindende aftale skriftligt?",
+            sources = personskat_gave_kilder
+        )
+        aftale_skriftlig: Boolsk,
+        @ field(
+            label = "Ingen modydelse for den løbende ydelse",
+            question = "Er den løbende ydelse ensidig og uden modydelse?",
+            sources = personskat_gave_kilder
+        )
+        ingen_modydelse: Boolsk,
+        aftalevarighed: Ligningslov12Aftalevarighed,
+        @ field(
+            label = "Aftalen kan ikke uden videre ophæves",
+            question = "Er aftalen bindende, så ingen af parterne uden videre kan ophæve den?",
+            sources = personskat_gave_kilder
+        )
+        aftalen_kan_ikke_uden_videre_ophæves: Boolsk,
+        @ field(
+            label = "Navn og CPR-nummer fremgår af aftalen",
+            question = "Fremgår giverens navn og CPR-nummer af den bindende aftale?",
+            sources = personskat_gave_kilder
+        )
+        navn_og_cpr_på_aftalen: Boolsk
+    ) |
+    LlGaveKontingentEllerVarekøb
+# LigningslovGaveFakta(
+    @ field(
+        label = "Gavens identifikation",
+        question = "Hvilken entydig identifikation har gaven eller ydelsen?",
+        help = "Brug en stabil reference fra kvitteringen eller indberetningen.",
+        sources = personskat_gave_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Gavens indkomstår",
+        question = "Hvilket indkomstår vedrører betalingen?",
+        unit = "år",
+        sources = personskat_gave_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Betalt gave eller løbende ydelse",
+        question = "Hvor meget blev betalt til modtageren i indkomståret?",
+        unit = "kr./år",
+        sources = personskat_gave_kilder
+    )
+    betalt_beløb_kroner: Heltal,
+    modtager: LigningslovGavemodtagerFakta,
+    @ field(
+        label = "Gaven er indberettet",
+        question = "Er gaven indberettet efter skatteindberetningslovens § 26?",
+        help = "Den lovpligtige indberetning er en betingelse for fradraget.",
+        sources = personskat_gave_kilder
+    )
+    indberettet_efter_skatteindberetningslov26: Boolsk,
+    art: LigningslovGaveart
+)
+# LigningslovGaveÅrsinput(
+    @ field(
+        label = "Gaver og bindende løbende ydelser",
+        question = "Hvilke gaver eller bindende løbende ydelser er betalt i indkomståret?",
+        help = "Opret én række pr. betaling og bevar godkendelses- og indberetningsfakta. Delbetalinger under samme § 12-aftale skal dele aftaleidentifikation og årets samlede aftalebeløb; de får ikke hvert sit aftaleloft.",
+        sources = personskat_gave_kilder
+    )
+    gaver: List(LigningslovGaveFakta)
+)
 # Ligningslov12Indkomstgrundlag = UdenLigningslov12Indkomstgrundlag | MedLigningslov12Indkomstgrundlag(personlig_indkomst_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal)
 # LigningslovGavehjemmel = LlIngenGavehjemmel | LlPar8AGavefradrag | LlPar8HForskningsgavefradrag | LlPar12LøbendeYdelsesfradrag
 # LigningslovGaveResultat(fakta: LigningslovGaveFakta, input_gyldigt: Boolsk, modtagerhjemsted_opfyldt: Boolsk, modtagerformål_opfyldt: Boolsk, godkendelse_opfyldt: Boolsk, indberetning_opfyldt: Boolsk, fradragsberettiget: Boolsk, hjemmel: LigningslovGavehjemmel, fradragsgrundlag_før_årsloft_kroner: Heltal)

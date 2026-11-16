@@ -110,11 +110,166 @@ Bundgrænse for visse lønmodtagerfradrag
 # Ligningslov9Stk1Kursusformål = Ll9Stk1VedligeholdelseEllerAjourføringAfFagligUddannelse | Ll9Stk1GrundEllerVidereuddannelse | Ll9Stk1AndetKursusformål
 # Ligningslov9Stk1Litteraturart = Ll9Stk1FagligtTidsskrift | Ll9Stk1VidenskabeligtVærk | Ll9Stk1PopulærvidenskabeligtVærk | Ll9Stk1AndenLitteratur
 # Ligningslov9Stk1Arbejdsforbindelse = Ll9Stk1DirekteUdførelseAfIndtægtsgivendeArbejde | Ll9Stk1EfterfølgendeSikringAfAlleredeErhvervetIndkomst | Ll9Stk1PrivatEllerUtilstrækkeligtArbejdsrelateret
-# Ligningslov9Stk1Udgiftsart = Ll9Stk1Kursus(formål: Ligningslov9Stk1Kursusformål) | Ll9Stk1Faglitteratur(art: Ligningslov9Stk1Litteraturart, nødvendig_for_at_varetage_arbejdet_i_året: Boolsk) | Ll9Stk1SærligtArbejdstøj(særligt_til_arbejdet: Boolsk, kan_anvendes_som_almindeligt_tøj: Boolsk) | Ll9Stk1ErhvervsmæssigeTelefonsamtaler | Ll9Stk1Arbejdsværelse(arbejdets_art_eller_omfang_gør_rummet_uegnet_som_almindeligt_opholdsrum: Boolsk) | Ll9Stk1DriftsmiddelAfskrivning(erhvervsmæssig_andel_basispoint: Heltal) | Ll9Stk1Repræsentation(aflønningsform_giver_mulighed_for_at_påvirke_indtægten: Boolsk) | Ll9Stk1AndenUdgift(beskrivelse: Tekst, forbindelse: Ligningslov9Stk1Arbejdsforbindelse) | Ll9Stk1BefordringOmfattetAfPar9B | Ll9Stk1BefordringEfterStatsskattelov6LitraA
-# Ligningslov9Stk1Udgiftsfakta(identifikation: Tekst, indkomstår: Heltal, arbejdsforhold_identifikation: Tekst, udgiftsart: Ligningslov9Stk1Udgiftsart, afholdt_eller_beregnet_beløb_kroner: Heltal, arbejdsgiver_refunderet_efter_regning_kroner: Heltal, dokumentation: Ligningslov9Stk1Dokumentation)
+= personskat_ll9_stk1_kilder = [
+    Source(value = ligningsloven_lbk1500_par9_stk1),
+    Source(value = ligningsloven_lbk1500_par9_stk3),
+    RateSource(value = skatteministeriet_ligningsloven_beloebsgraenser_2025_2026),
+    Guidance(value = juridisk_vejledning_ligningslov9_stk1),
+    Guidance(value = skat_arbejdstoej_faglitteratur_og_kurser)
+]
+@ field(
+    label = "Lønmodtagerudgiftens art",
+    question = "Er udgiften et kursus, faglitteratur, særligt arbejdstøj, erhvervstelefoni, arbejdsværelse, driftsmiddel, repræsentation eller en anden arbejdsudgift?",
+    help = "Transportudgifter omfattet af § 9 B eller statsskattelovens § 6, litra a, er udtrykkeligt undtaget fra denne fradragsregel.",
+    sources = personskat_ll9_stk1_kilder
+)
+# Ligningslov9Stk1Udgiftsart =
+    Ll9Stk1Kursus(
+        @ field(
+            label = "Kursets faglige formål",
+            question = "Vedligeholder eller ajourfører kurset en eksisterende faglig uddannelse, er det grund- eller videreuddannelse, eller har det et andet formål?",
+            help = "Grund- og videreuddannelse giver ikke fradrag som en almindelig lønmodtagerudgift.",
+            sources = personskat_ll9_stk1_kilder
+        )
+        formål: Ligningslov9Stk1Kursusformål
+    ) |
+    Ll9Stk1Faglitteratur(
+        @ field(
+            label = "Faglitteraturens art",
+            question = "Er materialet et fagligt tidsskrift, et videnskabeligt værk, et populærvidenskabeligt værk eller anden litteratur?",
+            sources = personskat_ll9_stk1_kilder
+        )
+        art: Ligningslov9Stk1Litteraturart,
+        @ field(
+            label = "Faglitteraturen var nødvendig for arbejdet",
+            question = "Var litteraturen nødvendig for at varetage det konkrete arbejde i indkomståret?",
+            sources = personskat_ll9_stk1_kilder
+        )
+        nødvendig_for_at_varetage_arbejdet_i_året: Boolsk
+    ) |
+    Ll9Stk1SærligtArbejdstøj(
+        @ field(
+            label = "Tøjet er særligt til arbejdet",
+            question = "Er tøjet særligt fremstillet eller nødvendigt til det konkrete arbejde?",
+            sources = personskat_ll9_stk1_kilder
+        )
+        særligt_til_arbejdet: Boolsk,
+        @ field(
+            label = "Tøjet kan anvendes som almindeligt tøj",
+            question = "Kan tøjet også anvendes som almindeligt privat tøj?",
+            sources = personskat_ll9_stk1_kilder
+        )
+        kan_anvendes_som_almindeligt_tøj: Boolsk
+    ) |
+    Ll9Stk1ErhvervsmæssigeTelefonsamtaler |
+    Ll9Stk1Arbejdsværelse(
+        @ field(
+            label = "Arbejdsværelset er uegnet som almindeligt opholdsrum",
+            question = "Gør arbejdets art eller omfang rummet uegnet som almindeligt opholdsrum?",
+            sources = personskat_ll9_stk1_kilder
+        )
+        arbejdets_art_eller_omfang_gør_rummet_uegnet_som_almindeligt_opholdsrum: Boolsk
+    ) |
+    Ll9Stk1DriftsmiddelAfskrivning(
+        @ field(
+            label = "Driftsmidlets erhvervsmæssige andel",
+            question = "Hvor stor en andel af driftsmidlets beregnede afskrivning vedrører arbejdet?",
+            help = "Angiv et heltal fra 0 til 10000 basispoint: 50 % skrives som 5000, 60 % som 6000 og 100 % som 10000. Brug den underbyggede erhvervsmæssige andel af den samlede brug, ikke afskrivningssatsen. Futuruna anvender andelen på den oplyste afskrivning; reducer ikke beløbet med samme andel først. Negative andele eller andele over 100 % er inputfejl. 0 betyder afklaret ingen erhvervsmæssig brug, ikke ukendt. Kan andelen ikke afklares, skal den uafhængige sammenligning vente.",
+            unit = "basispoint",
+            sources = personskat_ll9_stk1_kilder
+        )
+        erhvervsmæssig_andel_basispoint: Heltal
+    ) |
+    Ll9Stk1Repræsentation(
+        @ field(
+            label = "Aflønningsformen kan påvirkes af repræsentationen",
+            question = "Giver aflønningsformen personen en direkte mulighed for at påvirke sin indtægt gennem repræsentationen?",
+            help = "En omfattet repræsentationsudgift medregnes kun med 25 procent før den fælles bundgrænse.",
+            sources = personskat_ll9_stk1_kilder
+        )
+        aflønningsform_giver_mulighed_for_at_påvirke_indtægten: Boolsk
+    ) |
+    Ll9Stk1AndenUdgift(
+        @ field(
+            label = "Beskrivelse af anden lønmodtagerudgift",
+            question = "Hvad består den anden udgift af?",
+            help = "Beskrivelsen skal være konkret nok til at efterprøve forbindelsen til arbejdet.",
+            sources = personskat_ll9_stk1_kilder
+        )
+        beskrivelse: Tekst,
+        @ field(
+            label = "Den anden udgifts forbindelse til arbejdet",
+            question = "Vedrører udgiften direkte udførelse af det indtægtsgivende arbejde, efterfølgende sikring af allerede erhvervet indkomst eller private forhold?",
+            sources = personskat_ll9_stk1_kilder
+        )
+        forbindelse: Ligningslov9Stk1Arbejdsforbindelse
+    ) |
+    Ll9Stk1BefordringOmfattetAfPar9B |
+    Ll9Stk1BefordringEfterStatsskattelov6LitraA
+# Ligningslov9Stk1Udgiftsfakta(
+    @ field(
+        label = "Lønmodtagerudgiftens identifikation",
+        question = "Hvilken entydig identifikation har udgiften?",
+        help = "Brug en stabil bilags- eller postreference, så udgiften kan knyttes til det rette arbejdsforhold og ikke medregnes to gange.",
+        sources = personskat_ll9_stk1_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Lønmodtagerudgiftens indkomstår",
+        question = "Hvilket indkomstår vedrører udgiften?",
+        unit = "år",
+        sources = personskat_ll9_stk1_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Arbejdsforhold for lønmodtagerudgiften",
+        question = "Hvilket arbejdsforhold vedrører udgiften?",
+        help = "Brug samme stabile reference som for arbejdsperioden. Del udgiften op, hvis den vedrører flere arbejdsforhold.",
+        sources = personskat_ll9_stk1_kilder
+    )
+    arbejdsforhold_identifikation: Tekst,
+    udgiftsart: Ligningslov9Stk1Udgiftsart,
+    @ field(
+        label = "Afholdt eller beregnet lønmodtagerudgift",
+        question = "Hvor stort er det afholdte udgiftsbeløb eller den beregnede afskrivning?",
+        help = "Oplys udgiften før arbejdsgiverens refusion og den fælles bundgrænse. For driftsmidler oplyses årets beregnede afskrivning før erhvervsandel, ikke automatisk hele købsprisen; afskrivningsgrundlag og adgang til afskrivning skal være afklaret særskilt. Futuruna trækker refusionen fra og anvender andel og bundgrænse. Årsopgørelsens rubrik 58 er allerede efter bundgrænsen og må ikke genbruges som rå udgift. Et rapportfradrag uden de nødvendige udgiftsfakta er ikke et uafhængigt beregningsgrundlag. Se personskat-validity.md#øvrige-lønmodtagerudgifter.",
+        unit = "kr./år",
+        sources = personskat_ll9_stk1_kilder
+    )
+    afholdt_eller_beregnet_beløb_kroner: Heltal,
+    @ field(
+        label = "Arbejdsgiverens refusion efter regning",
+        question = "Hvor meget har arbejdsgiveren refunderet efter regning?",
+        help = "Kun personens egen udgift efter refusion kan indgå i fradragsgrundlaget.",
+        unit = "kr./år",
+        sources = personskat_ll9_stk1_kilder
+    )
+    arbejdsgiver_refunderet_efter_regning_kroner: Heltal,
+    @ field(
+        label = "Dokumentation for lønmodtagerudgiften",
+        question = "Er udgiften dokumenteret med bilag, på anden kontrollerbar måde eller ikke tilstrækkeligt dokumenteret?",
+        sources = personskat_ll9_stk1_kilder
+    )
+    dokumentation: Ligningslov9Stk1Dokumentation
+)
 # Ligningslov9Stk1Udgiftsresultat(fakta: Ligningslov9Stk1Udgiftsfakta, input_gyldigt: Boolsk, lønmodtager: Boolsk, dokumenteret: Boolsk, udgiftsart_omfattet: Boolsk, egen_udgift_kroner: Heltal, fradragsandel_basispoint: Heltal, fradragsgrundlag_før_bundgrænse_kroner: Heltal)
 # Ligningslov9Stk1Grundbeløbsresultat(indkomstår: Heltal, lovversion: Ligningslov9Stk1Lovversion, reguleringstal: Par20ReguleringstalResultat, regulering: Par20ReguleringResultat)
-# Ligningslov9Stk1Årsinput(skatteyderstatus: Ligningslov9Stk1Skatteyderstatus, udgifter: List(Ligningslov9Stk1Udgiftsfakta))
+# Ligningslov9Stk1Årsinput(
+    @ field(
+        label = "Status for øvrige lønmodtagerudgifter",
+        question = "Er personen lønmodtager for de oplyste udgifter?",
+        help = "Fradraget efter ligningslovens § 9, stk. 1, vedrører lønmodtagerens udgifter til det indtægtsgivende arbejde.",
+        sources = personskat_ll9_stk1_kilder
+    )
+    skatteyderstatus: Ligningslov9Stk1Skatteyderstatus,
+    @ field(
+        label = "Øvrige lønmodtagerudgifter",
+        question = "Hvilke dokumenterede udgifter havde personen i forbindelse med udførelsen af det indtægtsgivende arbejde?",
+        help = "Opret én række pr. udgift og pr. arbejdsforhold. Befordring efter § 9 B eller statsskattelovens § 6, litra a, skal ikke oplyses her.",
+        sources = personskat_ll9_stk1_kilder
+    )
+    udgifter: List(Ligningslov9Stk1Udgiftsfakta)
+)
 # Ligningslov9Stk1Årsresultat(indkomstår: Heltal, input: Ligningslov9Stk1Årsinput, udgiftsresultater: List(Ligningslov9Stk1Udgiftsresultat), grundbeløbsresultat: Ligningslov9Stk1Grundbeløbsresultat?, skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, grundbeløb_kroner: Heltal, samlet_fradragsgrundlag_før_bundgrænse_kroner: Heltal, samlet_fradrag_kroner: Heltal)
 
 | ligningslov9_stk1_intet_årsinput() -> Ligningslov9Stk1Årsinput(

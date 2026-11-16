@@ -10,50 +10,6 @@
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
 -- XML: https://www.retsinformation.dk/eli/lta/2025/1500/dan/xml
 
-# Ligningslov33KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
-
-= ligningsloven_lbk1500_par33 = Ligningslov33KildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
-    identifier = "Ligningsloven § 33, stk. 1-2, 6 og 8-9, og § 33 F i LBK nr. 1500 af 24/11/2025",
-    hentet_dato = "2026-08-08"
-)
-
-= ligningsloven_vejledning_par33_credit = Ligningslov33KildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1977310&chk=221020",
-    identifier = "Den juridiske vejledning 2026-2, C.F.4.1 LL § 33",
-    hentet_dato = "2026-08-08"
-)
-
-= ligningsloven_vejledning_par33_personberegning = Ligningslov33KildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1977330&chk=221020",
-    identifier = "Den juridiske vejledning 2026-2, C.F.4.3.1 Generelt om lempelsesberegningerne",
-    hentet_dato = "2026-08-08"
-)
-
-= ligningsloven_vejledning_par33f_nettoprincip = Ligningslov33KildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1977823&chk=221020",
-    identifier = "Den juridiske vejledning 2026-2, C.F.2.3 Nettoprincippet",
-    hentet_dato = "2026-08-10"
-)
-
-= ligningsloven_praksis_skm2018_370_sr = Ligningslov33KildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=2273666",
-    identifier = "SKM2018.370.SR, credit i dansk aktieavanceskat for betalt udenlandsk indkomstskat",
-    hentet_dato = "2026-08-08"
-)
-
-= ligningsloven_lov487_1996_par33_fragtskat = Ligningslov33KildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/1996/487",
-    identifier = "LOV nr. 487 af 12/06/1996, § 1, nr. 8 - indførelse af fragtskattereglen",
-    hentet_dato = "2026-08-08"
-)
-
-= ligningsloven_lov313_2002_par33_fragtskat = Ligningslov33KildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2002/313",
-    identifier = "LOV nr. 313 af 21/05/2002, § 8, nr. 6-7 - ophævelse af femårsfristen og rækkefølgereglerne",
-    hentet_dato = "2026-08-08"
-)
-
 = ligningsloven_par33_metadata = Metadata(
     attachments = (
         Source(value = ligningsloven_lbk1500_par33),
@@ -87,12 +43,105 @@ forbindelse hermed ikke fragå ved opgørelsen af den udenlandske indkomst.
 @ meta(ligningsloven_par33_metadata)
 @ section ligningsloven_par33f {
 
-# Ligningslov33Skatteområde = Ll33FremmedStat(landekode: Tekst) | Ll33Grønland | Ll33Færøerne
+= personskat_kilder_29 = [
+    Source(value = ligningsloven_lbk1500_par33),
+    Source(value = ligningsloven_lbk1500_par33a),
+    AmendmentSource(value = ligningsloven_lov487_1996_par33_fragtskat),
+    AmendmentSource(value = ligningsloven_lov313_2002_par33_fragtskat),
+    DependencySource(value = kildeskatteloven_lbk460_par10),
+    Guidance(value = ligningsloven_vejledning_par33_credit),
+    Guidance(value = ligningsloven_vejledning_par33_personberegning),
+    Guidance(value = ligningsloven_vejledning_par33f_nettoprincip),
+    Guidance(value = ligningsloven_vejledning_par33a_stk1),
+    Guidance(value = ligningsloven_vejledning_par33a_42_dages_regel),
+    Guidance(value = ligningsloven_ligningsvejledning_2003_par33a_opholdseksempel),
+    Guidance(value = ligningsloven_vejledning_par33a_stk2),
+    Guidance(value = ligningsloven_vejledning_par33a_stk3),
+    Guidance(value = ligningsloven_vejledning_par33a_beregning),
+    Practice(value = ligningsloven_praksis_skm2018_370_sr),
+    Practice(value = ligningsloven_styresignal_2023_10299),
+    Practice(value = ligningsloven_skm2026_158_vlr)
+]
+# Ligningslov33Skatteområde =
+    Ll33FremmedStat(
+        @ field(
+            label = "Landekode",
+            question = "Hvilken landekode identificerer den fremmede stat?",
+            help = "Brug den dokumenterede ISO-landekode, når den er tilgængelig.",
+            sources = personskat_kilder_29
+        )
+        landekode: Tekst
+    ) |
+    Ll33Grønland |
+    Ll33Færøerne
 # Ligningslov33Opkrævningsmåde = Ll33DirektePåligning | Ll33Indeholdelse
 # Ligningslov33UdenlandskSkatteart = Ll33Indkomstskat | Ll33SærligIndkomstskat | Ll33FragtskatPåBruttofortjenesteVedInternationalSkibstrafik | Ll33Formueskat
-# Ligningslov33Overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst | Ll33OverenskomstensUbetingedeKrav(maksimal_skat_øre: Heltal, dokumentreference: Tekst) | Ll33SkatteforvaltningenFastsatSkat(fradragsberettiget_udenlandsk_skat_øre: Heltal, dokumentreference: Tekst)
+# Ligningslov33Overenskomstgrundlag =
+    Ll33IngenDobbeltbeskatningsoverenskomst |
+    Ll33OverenskomstensUbetingedeKrav(
+        @ field(
+            label = "Overenskomstens maksimale udenlandske skat",
+            question = "Hvor stort et skattebeløb har den fremmede stat ubetinget krav på efter overenskomsten?",
+            unit = "øre",
+            sources = personskat_kilder_29
+        )
+        maksimal_skat_øre: Heltal,
+        @ field(
+            label = "Dokumentation for overenskomstloftet",
+            question = "Hvilken overenskomstbestemmelse dokumenterer den fremmede stats ubetingede skattekrav?",
+            help = "Angiv overenskomst og artikel som en stabil reference.",
+            sources = personskat_kilder_29
+        )
+        dokumentreference: Tekst
+    ) |
+    Ll33SkatteforvaltningenFastsatSkat(
+        @ field(
+            label = "Myndighedsfastsat udenlandsk skat",
+            question = "Hvor stort et udenlandsk skattebeløb har Skatteforvaltningen godkendt til lempelse?",
+            unit = "øre",
+            sources = personskat_kilder_29
+        )
+        fradragsberettiget_udenlandsk_skat_øre: Heltal,
+        @ field(
+            label = "Dokumentation for myndighedsfastsættelsen",
+            question = "Hvilket dokument og hvilken side viser det godkendte udenlandske skattebeløb?",
+            help = "Brug en stabil reference uden personfølsomme oplysninger.",
+            sources = personskat_kilder_29
+        )
+        dokumentreference: Tekst
+    )
 # Ligningslov33Indkomstfakta(område: Ligningslov33Skatteområde, udenlandsk_bruttoindkomst_kroner: Heltal, direkte_henførbare_udgifter_kroner: Heltal)
-# Ligningslov33Skattebetaling(opkrævningsmåde: Ligningslov33Opkrævningsmåde, betalt_udenlandsk_skat_øre: Heltal, skatteart: Ligningslov33UdenlandskSkatteart, betalingsdokumentreference: Tekst, overenskomstgrundlag: Ligningslov33Overenskomstgrundlag)
+# Ligningslov33Skattebetaling(
+    @ field(
+        label = "Opkrævningsmåde for udenlandsk skat",
+        question = "Blev den udenlandske skat pålignet direkte eller indeholdt ved udbetalingen?",
+        sources = personskat_kilder_29
+    )
+    opkrævningsmåde: Ligningslov33Opkrævningsmåde,
+    @ field(
+        label = "Betalt udenlandsk skat",
+        question = "Hvor meget udenlandsk skat er dokumenteret betalt eller indeholdt?",
+        help = "Angiv det præcise beløb i øre, så små nedslag ikke tabes ved afrunding.",
+        unit = "øre",
+        sources = personskat_kilder_29
+    )
+    betalt_udenlandsk_skat_øre: Heltal,
+    @ field(
+        label = "Den udenlandske skats art",
+        question = "Er den betalte skat en indkomstskat, en særlig indkomstskat, fragtskat på bruttofortjeneste ved international skibstrafik eller en formueskat?",
+        help = "§ 33 omfatter indkomstskatter og særlige indkomstskatter, men ikke formueskatter. Fragtskat har en særskilt fremførselsregel i stk. 9.",
+        sources = personskat_kilder_29
+    )
+    skatteart: Ligningslov33UdenlandskSkatteart,
+    @ field(
+        label = "Dokumentation for betalt udenlandsk skat",
+        question = "Hvilket dokument viser, at den udenlandske skat er betalt eller indeholdt?",
+        help = "Brug en stabil reference uden personfølsomme oplysninger.",
+        sources = personskat_kilder_29
+    )
+    betalingsdokumentreference: Tekst,
+    overenskomstgrundlag: Ligningslov33Overenskomstgrundlag
+)
 # Ligningslov33LandelinjeFakta(indkomstfakta: Ligningslov33Indkomstfakta, skattebetaling: Ligningslov33Skattebetaling)
 # Ligningslov33Årsinput(dansk_bruttoindkomst_kroner: Heltal, ikke_henførbare_udgifter_kroner: Heltal, eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner: Heltal, landelinjer: List(Ligningslov33LandelinjeFakta))
 # Ligningslov33Par33FÅrsgrundlag(dansk_bruttoindkomst_kroner: Heltal, ikke_henførbare_udgifter_kroner: Heltal, eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner: Heltal, udenlandske_indkomstfakta: List(Ligningslov33Indkomstfakta))
@@ -248,8 +297,41 @@ samme tidspunkt.
 @ meta(ligningsloven_par33_metadata)
 @ section ligningsloven_par33_stk6 {
 
-# Ligningslov33Par6Aktivgrundlag = Ll33Par6AktivIFastDriftssted(dokumentreference: Tekst) | Ll33Par6FastEjendomEfterEjendomsavancebeskatningsloven
-# Ligningslov33Par6Kreditgrundlag(kildeskat10_aktivfakta: Kildeskat10Aktivfakta, aktivgrundlag: Ligningslov33Par6Aktivgrundlag, udenlandsk_skat_som_kunne_være_pålignet_øre: Heltal, dokumentreference: Tekst)
+@ field(
+    label = "Fast driftssted eller fast ejendom",
+    question = "Knytter fortjenesten sig til et aktiv i et fast driftssted eller til en fast ejendom?",
+    help = "Ligningslovens § 33, stk. 6 omfatter kun disse to aktivgrundlag. Fast ejendom afstemmes mod ejendomsavanceberegningen via aktivets identifikation.",
+    sources = personskat_kilder_29
+)
+# Ligningslov33Par6Aktivgrundlag =
+    Ll33Par6AktivIFastDriftssted(
+        @ field(
+            label = "Dokumentation for fast driftssted",
+            question = "Hvilket dokument viser, at aktivet indgår i et fast driftssted?",
+            sources = personskat_kilder_29
+        )
+        dokumentreference: Tekst
+    ) |
+    Ll33Par6FastEjendomEfterEjendomsavancebeskatningsloven
+# Ligningslov33Par6Kreditgrundlag(
+    kildeskat10_aktivfakta: Kildeskat10Aktivfakta,
+    aktivgrundlag: Ligningslov33Par6Aktivgrundlag,
+    @ field(
+        label = "Udenlandsk skat ved samtidig fiktiv afståelse",
+        question = "Hvor meget skat kunne den anden stat have pålignet, hvis det faste driftssted eller den faste ejendom var afstået samtidig?",
+        help = "Angiv den dokumenterede beregning i øre. Futuruna anvender derefter overenskomstloftet og det danske forholdsmæssige skatteloft.",
+        unit = "øre",
+        sources = personskat_kilder_29
+    )
+    udenlandsk_skat_som_kunne_være_pålignet_øre: Heltal,
+    @ field(
+        label = "Dokumentation for mulig udenlandsk skat",
+        question = "Hvilket dokument viser den skat, den anden stat kunne have pålignet?",
+        help = "Angiv en stabil reference til skatteberegningen og dens forudsætninger.",
+        sources = personskat_kilder_29
+    )
+    dokumentreference: Tekst
+)
 
 | ligningslov33_par6_kildeskat10_resultat(grundlag: Ligningslov33Par6Kreditgrundlag) -> kildeskat10_aktivresultat(grundlag.kildeskat10_aktivfakta)
 | ligningslov33_par6_aktivgrundlag_gyldigt(aktivgrundlag: Ligningslov33Par6Aktivgrundlag) -> match aktivgrundlag {
@@ -299,7 +381,32 @@ bruttofortjenesten ved international skibstrafik.
 @ meta(ligningsloven_par33_metadata)
 @ section ligningsloven_par33_stk9 {
 
-# Ligningslov33FragtskatSaldo(område: Ligningslov33Skatteområde, indkomstår: Heltal, saldo_øre: Heltal, dokumentreferencer: List(Tekst))
+# Ligningslov33FragtskatSaldo(
+    område: Ligningslov33Skatteområde,
+    @ field(
+        label = "Fremførselsår for fragtskat",
+        question = "Fra hvilket indkomstår overføres fragtskattesaldoen?",
+        help = "Saldoen skal komme fra det umiddelbart foregående indkomstår.",
+        unit = "år",
+        sources = personskat_kilder_29
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Fremført fragtskat",
+        question = "Hvor meget uudnyttet fragtskat fremføres?",
+        help = "Angiv saldoen fra det foregående års beregningsresultat.",
+        unit = "øre",
+        sources = personskat_kilder_29
+    )
+    saldo_øre: Heltal,
+    @ field(
+        label = "Dokumentation for fremført fragtskat",
+        question = "Hvilke dokumenter underbygger den fremførte fragtskattesaldo?",
+        help = "Bevar referencerne fra tidligere års saldo og den udenlandske skattebetaling.",
+        sources = personskat_kilder_29
+    )
+    dokumentreferencer: List(Tekst)
+)
 
 | ligningslov33_er_fragtskat(skatteart: Ligningslov33UdenlandskSkatteart) -> skatteart == Ll33FragtskatPåBruttofortjenesteVedInternationalSkibstrafik
 | ligningslov33_fragtskat_område_gyldigt(område: Ligningslov33Skatteområde) -> match område {
@@ -371,15 +478,185 @@ lempelsesbrøkens tæller.
 # Ligningslov33PersonDanskSkattekreds(komponenter: List(Ligningslov33DanskSkattekomponent), samlet_dansk_indkomstskat_tilgængelig_øre: Heltal)
 # Ligningslov33DanskIndkomstkategori = Ll33SkattepligtigIndkomstkategori | Ll33PersonligIndkomstkategori | Ll33PositivKapitalindkomstkategori | Ll33Aktieindkomstkategori | Ll33CfcIndkomstkategori | Ll33Arbejdsmarkedsbidragskategori
 # Ligningslov33Indkomstpostart = Ll33UdenlandskBruttoindtægt | Ll33DirekteHenførbarUdgift
-# Ligningslov33Indkomstpost(identifikation: Tekst, art: Ligningslov33Indkomstpostart, beløb_kroner: Heltal, indkomstkategorier: List(Ligningslov33DanskIndkomstkategori), dokumentreference: Tekst)
+# Ligningslov33Indkomstpost(
+    @ field(
+        label = "Indkomstpostens identifikation",
+        question = "Hvilken entydig identifikation skal indkomst- eller udgiftsposten have?",
+        help = "Brug en stabil reference, som kan afstemmes mod postens bilag.",
+        sources = personskat_kilder_29
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Indkomstpostens art",
+        question = "Er posten en udenlandsk bruttoindtægt eller en direkte henførbar udgift?",
+        sources = personskat_kilder_29
+    )
+    art: Ligningslov33Indkomstpostart,
+    @ field(
+        label = "Indkomstpostens beløb",
+        question = "Hvor stort er postens dokumenterede beløb?",
+        help = "Angiv beløbet positivt; postens art afgør, om beløbet er en indtægt eller udgift.",
+        unit = "kr./år",
+        sources = personskat_kilder_29
+    )
+    beløb_kroner: Heltal,
+    @ field(
+        label = "Indkomstpostens danske indkomstgrundlag",
+        question = "Hvilke danske indkomstgrundlag indgår posten i?",
+        help = "En lønindtægt kan eksempelvis indgå i skattepligtig indkomst, personlig indkomst og AM-bidragsgrundlaget, mens en direkte udgift kun markeres i de grundlag, den faktisk reducerer.",
+        sources = personskat_kilder_29
+    )
+    indkomstkategorier: List(Ligningslov33DanskIndkomstkategori),
+    @ field(
+        label = "Dokumentation for indkomstposten",
+        question = "Hvilket dokument underbygger postens beløb og kategorisering?",
+        sources = personskat_kilder_29
+    )
+    dokumentreference: Tekst
+)
 # Ligningslov33IkkeHenførbarUdgiftsbehandling = Ll33FordelesEfterPar33FStk2 | Ll33EksportkreditrenteUndtagetEfterPar33FStk3
-# Ligningslov33IkkeHenførbarUdgift(identifikation: Tekst, beløb_kroner: Heltal, behandling: Ligningslov33IkkeHenførbarUdgiftsbehandling, indkomstkategorier: List(Ligningslov33DanskIndkomstkategori), dokumentreference: Tekst)
+# Ligningslov33IkkeHenførbarUdgift(
+    @ field(
+        label = "Fællesudgiftens identifikation",
+        question = "Hvilken entydig identifikation skal fællesudgiften have?",
+        help = "Brug en stabil reference, som kan afstemmes mod udgiftsbilaget.",
+        sources = personskat_kilder_29
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Fællesudgiftens beløb",
+        question = "Hvor stort er det dokumenterede udgiftsbeløb?",
+        unit = "kr./år",
+        sources = personskat_kilder_29
+    )
+    beløb_kroner: Heltal,
+    @ field(
+        label = "Fællesudgiftens behandling",
+        question = "Skal udgiften fordeles efter § 33 F, stk. 2, eller er den en eksportkreditrente undtaget efter stk. 3?",
+        help = "Eksportkreditrenter omfattet af stk. 3 registreres, men fragår ikke ved opgørelsen af den udenlandske indkomst.",
+        sources = personskat_kilder_29
+    )
+    behandling: Ligningslov33IkkeHenførbarUdgiftsbehandling,
+    @ field(
+        label = "Indkomstkategorier for fællesudgiften",
+        question = "Hvilke danske indkomstgrundlag vedrører fællesudgiften?",
+        help = "Vælg kun de indkomstkategorier, hvor udgiften skal indgå i den særskilte lempelsesbrøk.",
+        sources = personskat_kilder_29
+    )
+    indkomstkategorier: List(Ligningslov33DanskIndkomstkategori),
+    @ field(
+        label = "Dokumentation for fællesudgiften",
+        question = "Hvilket dokument underbygger udgiften og dens behandling?",
+        sources = personskat_kilder_29
+    )
+    dokumentreference: Tekst
+)
 # Ligningslov33Indkomstkategoriresultat(kategori: Ligningslov33DanskIndkomstkategori, input_gyldigt: Boolsk, udenlandsk_bruttoindkomst_kroner: Heltal, direkte_henførbare_udgifter_kroner: Heltal, fordelt_ikke_henførbar_udgift_kroner: Heltal, nettoindkomst_efter_par33f_kroner: Heltal)
 # Ligningslov33UdenlandskIndkomstEfterDanskeRegler(skattepligtig_nettoindkomst_efter_par33f_kroner: Heltal, personlig_nettoindkomst_efter_par33f_kroner: Heltal, positiv_kapitalnettoindkomst_efter_par33f_kroner: Heltal, aktienettoindkomst_efter_par33f_kroner: Heltal, cfc_nettoindkomst_efter_par33f_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal)
-# Ligningslov33Kreditgrupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet | Ll33SærskiltKildebeskattetCredit(dokumentreference: Tekst)
-# Ligningslov33PersonKreditgruppe(identifikation: Tekst, grupperingsgrundlag: Ligningslov33Kreditgrupperingsgrundlag, område: Ligningslov33Skatteområde, indkomstposter: List(Ligningslov33Indkomstpost), skattebetalinger: List(Ligningslov33Skattebetaling), lønlempelsesstatus: Ligningslov33Lønlempelsesstatus)
-# Ligningslov33Par6Kreditfakta(grundlag: Ligningslov33Par6Kreditgrundlag, identifikation: Tekst, grupperingsgrundlag: Ligningslov33Kreditgrupperingsgrundlag, område: Ligningslov33Skatteområde, indkomstposter: List(Ligningslov33Indkomstpost), overenskomstgrundlag: Ligningslov33Overenskomstgrundlag, lønlempelsesstatus: Ligningslov33Lønlempelsesstatus)
-# Ligningslov33PersonÅrsinput(indkomstår: Heltal, dansk_bruttoindkomst_kroner: Heltal, ikke_henførbare_udgifter: List(Ligningslov33IkkeHenførbarUdgift), kreditgrupper: List(Ligningslov33PersonKreditgruppe), par6_kreditter: List(Ligningslov33Par6Kreditfakta), fragtskat_åbningssaldi: List(Ligningslov33FragtskatSaldo))
+# Ligningslov33Kreditgrupperingsgrundlag =
+    Ll33SamletIndkomstFraSkatteområdet |
+    Ll33SærskiltKildebeskattetCredit(
+        @ field(
+            label = "Dokumentation for særskilt kildebeskatning",
+            question = "Hvilket dokument viser, at indkomsten er særskilt kildebeskattet?",
+            help = "Brug en stabil reference uden personfølsomme oplysninger.",
+            sources = personskat_kilder_29
+        )
+        dokumentreference: Tekst
+    )
+# Ligningslov33PersonKreditgruppe(
+    @ field(
+        label = "Kreditgruppens identifikation",
+        question = "Hvilken entydig identifikation skal den udenlandske indkomstgruppe have?",
+        help = "Brug en stabil dokumentreference. Indkomster fra samme skatteområde samles som udgangspunkt i én gruppe.",
+        sources = personskat_kilder_29
+    )
+    identifikation: Tekst,
+    grupperingsgrundlag: Ligningslov33Kreditgrupperingsgrundlag,
+    område: Ligningslov33Skatteområde,
+    @ field(
+        label = "Indkomst- og udgiftsposter i kreditgruppen",
+        question = "Hvilke dokumenterede bruttoindtægter og direkte henførbare udgifter indgår i kreditgruppen?",
+        help = "Registrer posterne efter danske regler og markér de indkomstgrundlag, som hver post indgår i. Futuruna afleder herefter alle § 33 F-nettobeløb.",
+        sources = personskat_kilder_29
+    )
+    indkomstposter: List(Ligningslov33Indkomstpost),
+    skattebetalinger: List(Ligningslov33Skattebetaling),
+    @ field(
+        label = "Lønindkomstens lempelsesstatus",
+        question = "Indeholder gruppen løn, og er lønnen omfattet af almindelig creditlempelse, § 33 A eller sømandsbeskatningslovens §§ 5-8?",
+        help = "§ 33 kan ikke anvendes på lønindkomst, der lempes efter § 33 A eller sømandsbeskatningslovens §§ 5-8.",
+        sources = personskat_kilder_29
+    )
+    lønlempelsesstatus: Ligningslov33Lønlempelsesstatus
+)
+# Ligningslov33Par6Kreditfakta(
+    grundlag: Ligningslov33Par6Kreditgrundlag,
+    @ field(
+        label = "Fraflytningskredittens identifikation",
+        question = "Hvilken entydig identifikation skal fraflytningskreditten have?",
+        help = "Brug en stabil reference til aktivet og den udenlandske skatteberegning.",
+        sources = personskat_kilder_29
+    )
+    identifikation: Tekst,
+    grupperingsgrundlag: Ligningslov33Kreditgrupperingsgrundlag,
+    område: Ligningslov33Skatteområde,
+    @ field(
+        label = "Indkomst- og udgiftsposter ved den fiktive afståelse",
+        question = "Hvilke dokumenterede bruttoindtægter og direkte henførbare udgifter knytter sig til den fiktive afståelse?",
+        help = "Bruttoindtægten bruges til § 33 F-fordelingen og er ikke nødvendigvis aktivets handelsværdi. Markér de danske indkomstgrundlag for hver post.",
+        sources = personskat_kilder_29
+    )
+    indkomstposter: List(Ligningslov33Indkomstpost),
+    overenskomstgrundlag: Ligningslov33Overenskomstgrundlag,
+    @ field(
+        label = "Lønstatus i fraflytningskreditten",
+        question = "Indeholder kreditgruppen lønindkomst, som er omfattet af § 33 A eller sømandsbeskatningslovens §§ 5-8?",
+        help = "En ren aktivfortjeneste angives uden lønindkomst.",
+        sources = personskat_kilder_29
+    )
+    lønlempelsesstatus: Ligningslov33Lønlempelsesstatus
+)
+# Ligningslov33PersonÅrsinput(
+    @ field(
+        label = "Indkomstår for udenlandsk skattenedslag",
+        question = "Hvilket indkomstår vedrører den udenlandske indkomst, skat og eventuelle fremførte fragtskat?",
+        help = "Året skal være det samme som skatteåret i den samlede Personskat-beregning.",
+        unit = "år",
+        sources = personskat_kilder_29
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Dansk bruttoindkomst i lempelsesberegningen",
+        question = "Hvor stor var den danske bruttoindkomst, der indgår i samme lempelsesberegning?",
+        help = "Beløbet bruges sammen med den udenlandske bruttoindkomst til at fordele udgifter efter § 33 F.",
+        unit = "kr./år",
+        sources = personskat_kilder_29
+    )
+    dansk_bruttoindkomst_kroner: Heltal,
+    @ field(
+        label = "Ikke direkte henførbare udgifter",
+        question = "Hvilke dokumenterede udgifter kan ikke henføres direkte til dansk eller udenlandsk indkomst?",
+        help = "Registrer hver udgift særskilt. Futuruna fordeler almindelige fællesudgifter efter forholdet mellem dansk og udenlandsk bruttoindkomst.",
+        sources = personskat_kilder_29
+    )
+    ikke_henførbare_udgifter: List(Ligningslov33IkkeHenførbarUdgift),
+    @ field(
+        label = "Udenlandske kreditgrupper",
+        question = "Hvilke udenlandske indkomster og skatter skal lempelsesberegningen omfatte?",
+        help = "Tilføj én samlet indkomstgruppe pr. skatteområde. Gruppens dokumenterede skattebetalinger registreres særskilt under samme danske skatteloft. Opret kun flere indkomstgrupper for samme område, når en indkomst er særskilt kildebeskattet og dokumenteret.",
+        sources = personskat_kilder_29
+    )
+    kreditgrupper: List(Ligningslov33PersonKreditgruppe),
+    @ field(
+        label = "Fraflytningskreditter efter ligningslovens § 33, stk. 6",
+        question = "Skal Danmark give nedslag for skat, som en anden stat kunne have pålignet en fiktiv aktivafståelse ved fraflytning?",
+        help = "Tilføj kun aktiver, der anses for afstået efter kildeskattelovens § 10, stk. 1. Aktier efter ABL § 38, fordringer mv. efter KGL § 37 og rettigheder efter LL § 28 behandles efter deres særregler.",
+        sources = personskat_kilder_29
+    )
+    par6_kreditter: List(Ligningslov33Par6Kreditfakta),
+    fragtskat_åbningssaldi: List(Ligningslov33FragtskatSaldo)
+)
 # Ligningslov33PersonPar33FResultat(indkomstfakta: Ligningslov33Indkomstfakta, input_gyldigt: Boolsk, fordelt_ikke_henførbar_udgift_kroner: Heltal, nettoindkomst_efter_par33f_kroner: Heltal, kategoriresultater: List(Ligningslov33Indkomstkategoriresultat), udenlandsk_indkomst_efter_danske_regler: Ligningslov33UdenlandskIndkomstEfterDanskeRegler)
 # Ligningslov33PersonSkattebetalingsresultat(betaling: Ligningslov33Skattebetaling, input_gyldigt: Boolsk, udenlandsk_skat_efter_overenskomst_øre: Heltal)
 # Ligningslov33PersonKomponentresultat(komponent: Ligningslov33DanskSkattekomponent, udenlandsk_nettoindkomst_i_beregningsgrundlaget_kroner: Heltal, forholdsmæssig_beregning: PengeØreBeregning, proportionalt_dansk_skatteloft_øre: Heltal)

@@ -93,11 +93,133 @@ Stk. 6. Det er en betingelse for fradrag efter stk. 1, 2, 4 og 5, at fartøjet e
 # Sømandsbeskatningslov3AStatsborgerskab = StatsborgerIEUEØS | StatsborgerISchweiz | BritiskStatsborgerOmfattetAfUdtrædelsesaftalen | AndetStatsborgerskab
 # Sømandsbeskatningslov3AAnvendelse = Søbl3AIkkeRegelmæssigPassagersejlads | Søbl3AAnsættelsesforholdPåbegyndtFør2022 | Søbl3AAnsættelsesforholdPåbegyndtFra2022 | Søbl3AUgyldigAnsættelsesstart
 # Sømandsbeskatningslov3Og4Lovversion = Søbl3Og4Lbk1181Af2023MedSenereÆndringer | Søbl3Og4LovversionUdenKildedækning
-# Sømandsbeskatningslov3Passagerrute = IkkeRegelmæssigPassagersejladsMellemEUEØSHavne | RegelmæssigPassagersejladsMellemEUEØSHavne(skattepligt: Sømandsbeskatningslov3ASkattepligt, statsborgerskab: Sømandsbeskatningslov3AStatsborgerskab)
+= personskat_sømandsfradrag_kilder = [
+    Source(value = sømandsbeskatningsloven_lbk1181_par3_til4),
+    AmendmentSource(value = sømandsbeskatningsloven_lov2613_par3_stk3),
+    DependencySource(value = sømandsbeskatningsbekendtgørelsen_bek940_par3),
+    Guidance(value = juridisk_vejledning_sømandsfradrag_2026_1),
+    Guidance(value = skat_sømandsfradrag_vejledning)
+]
+@ field(
+    label = "Passagerrutens EU/EØS-status",
+    question = "Sejlede skibet regelmæssigt med passagerer mellem havne i EU- eller EØS-medlemsstater?",
+    help = "En sådan rute afskærer det forhøjede fradrag og udløser de særlige personbetingelser i § 3 a.",
+    sources = personskat_sømandsfradrag_kilder
+)
+# Sømandsbeskatningslov3Passagerrute =
+    IkkeRegelmæssigPassagersejladsMellemEUEØSHavne |
+    RegelmæssigPassagersejladsMellemEUEØSHavne(
+        @ field(
+            label = "Skattepligt ved regelmæssig EU/EØS-passagersejlads",
+            question = "Er personen skattepligtig efter kildeskattelovens § 1 eller § 2, stk. 2?",
+            help = "Andre skattepligtspositioner opfylder ikke § 3 a.",
+            sources = personskat_sømandsfradrag_kilder
+        )
+        skattepligt: Sømandsbeskatningslov3ASkattepligt,
+        @ field(
+            label = "Statsborgerskab ved regelmæssig EU/EØS-passagersejlads",
+            question = "Hvilken statsborgerskabsposition har personen efter § 3 a?",
+            help = "EU/EØS, Schweiz og omfattede britiske statsborgere kan opfylde betingelsen.",
+            sources = personskat_sømandsfradrag_kilder
+        )
+        statsborgerskab: Sømandsbeskatningslov3AStatsborgerskab
+    )
+@ field(
+    label = "Skibets udelukkende anvendelse",
+    question = "Hvilken lovbestemt anvendelse havde skibet i beskæftigelsesperioden?",
+    help = "Vælg kun en omfattet anvendelse, når skibet i perioden udelukkende blev anvendt til det angivne formål.",
+    sources = personskat_sømandsfradrag_kilder
+)
 # Sømandsbeskatningslov3Skibsanvendelse = ErhvervsmæssigBefordringAfPassagerer(rute: Sømandsbeskatningslov3Passagerrute) | ErhvervsmæssigBefordringAfGods | BugserOgBjærgningsfartøj | Kabellægningsfartøj | StenfiskerfartøjOmfattetAfPar8 | StenfiskerfartøjOmfattetAfPar10 | KulbrinteEfterforskningEllerUdvindingUdenForDanskOmråde | SkoleEllerØvelsesskibEfterLovOmMaritimeUddannelser | ForskningsEllerHavundersøgelsesskib | AndenSkibsanvendelse
-# Sømandsbeskatningslov3Arbejdssted = ArbejdePåSkib(bruttotonnage: Heltal, anvendelse: Sømandsbeskatningslov3Skibsanvendelse) | ArbejdePåKulbrinteinstallationUdenForDanskOmråde
-# Sømandsbeskatningslov3Beskæftigelsesfakta(identifikation: Tekst, indkomstår: Heltal, ansættelsesforhold_startdato: Dato, arbejdssted: Sømandsbeskatningslov3Arbejdssted, fart: Sømandsbeskatningslov3Fart, hjemsted: Sømandsbeskatningslov3Hjemsted, flag: Sømandsbeskatningslov3Flag, forhyringsvilkår: Sømandsbeskatningslov3Forhyringsvilkår, fuldtidsomregnede_sødage_hundrededele: Heltal)
-# Sømandsbeskatningslov3Årsinput(valg: Sømandsbeskatningslov3Fradragsvalg, beskæftigelser: List(Sømandsbeskatningslov3Beskæftigelsesfakta))
+@ field(
+    label = "Arbejdssted til søs",
+    question = "Blev arbejdet udført på et skib eller på en kulbrinteinstallation uden for dansk område?",
+    help = "Installationsvarianten må kun bruges ved efterforskning eller udvinding uden for dansk søterritorium og kontinentalsokkelområde.",
+    sources = personskat_sømandsfradrag_kilder
+)
+# Sømandsbeskatningslov3Arbejdssted =
+    ArbejdePåSkib(
+        @ field(
+            label = "Skibets bruttotonnage",
+            question = "Hvad er skibets bruttotonnage?",
+            help = "En bruttotonnage på mindst 500 t kan udløse det forhøjede fradrag, bortset fra de lovbestemte undtagelser.",
+            unit = "t",
+            sources = personskat_sømandsfradrag_kilder
+        )
+        bruttotonnage: Heltal,
+        anvendelse: Sømandsbeskatningslov3Skibsanvendelse
+    ) |
+    ArbejdePåKulbrinteinstallationUdenForDanskOmråde
+# Sømandsbeskatningslov3Beskæftigelsesfakta(
+    @ field(
+        label = "Beskæftigelsens identifikation",
+        question = "Hvilken entydig identifikation har sømandsbeskæftigelsen?",
+        help = "Brug en stabil reference fra arbejdsgiverens indberetning eller ansættelsesforholdet.",
+        sources = personskat_sømandsfradrag_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Sømandsbeskæftigelsens indkomstår",
+        question = "Hvilket indkomstår vedrører beskæftigelsen?",
+        unit = "år",
+        sources = personskat_sømandsfradrag_kilder
+    )
+    indkomstår: Heltal,
+    ansættelsesforhold_startdato: Dato,
+    arbejdssted: Sømandsbeskatningslov3Arbejdssted,
+    @ field(
+        label = "Fart uden for eller inden for begrænset fart",
+        question = "Foregik beskæftigelsen uden for begrænset fart?",
+        help = "Stenfiskerfartøjer omfattet af § 3, stk. 2, og den særskilte kulbrintegren behandles efter deres egne betingelser.",
+        sources = personskat_sømandsfradrag_kilder
+    )
+    fart: Sømandsbeskatningslov3Fart,
+    @ field(
+        label = "Fartøjets eller installationens registrerede hjemsted",
+        question = "Er arbejdsstedet registreret med hjemsted i Danmark, en anden EU/EØS-stat eller uden for EU/EØS?",
+        help = "§ 3, stk. 6, kræver hjemsted i Danmark eller en anden EU/EØS-medlemsstat.",
+        sources = personskat_sømandsfradrag_kilder
+    )
+    hjemsted: Sømandsbeskatningslov3Hjemsted,
+    @ field(
+        label = "Fartøjets flag",
+        question = "Sejler fartøjet under flag fra en EU- eller EØS-medlemsstat?",
+        help = "Brug installationsvarianten alene for et arbejdssted, som ikke er et fartøj.",
+        sources = personskat_sømandsfradrag_kilder
+    )
+    flag: Sømandsbeskatningslov3Flag,
+    @ field(
+        label = "Forhyringsvilkår",
+        question = "Svarer forhyringsvilkårene til, hvad der sædvanligvis gælder for søfolk?",
+        help = "Vurderingen skal følge løn-, arbejds- og ansættelsesvilkårene for arbejde af den pågældende karakter.",
+        sources = personskat_sømandsfradrag_kilder
+    )
+    forhyringsvilkår: Sømandsbeskatningslov3Forhyringsvilkår,
+    @ field(
+        label = "Fuldtidsomregnede sødage",
+        question = "Hvor mange sødage har arbejdsgiveren omregnet til sædvanlige forhyringsvilkår på fuld tid?",
+        help = "Angiv hundrededele af en dag: 365,00 dage skrives som 36500, og 273,75 dage som 27375.",
+        unit = "hundrededele dag",
+        sources = personskat_sømandsfradrag_kilder
+    )
+    fuldtidsomregnede_sødage_hundrededele: Heltal
+)
+# Sømandsbeskatningslov3Årsinput(
+    @ field(
+        label = "Valg af sømandsfradrag",
+        question = "Skal sømandsfradraget anvendes for indkomståret?",
+        help = "Et fravalg bevarer de almindelige lønmodtagerfradrag. Futuruna afgør ud fra beskæftigelserne, om et valg kan gennemføres.",
+        sources = personskat_sømandsfradrag_kilder
+    )
+    valg: Sømandsbeskatningslov3Fradragsvalg,
+    @ field(
+        label = "Sømandsbeskæftigelser",
+        question = "Hvilke beskæftigelser til søs eller på en omfattet installation havde personen i indkomståret?",
+        help = "Opret én række pr. særskilt beskæftigelse eller satsperiode. Arbejdsgiverens fuldtidsomregnede sødage styrer delårs- og deltidsberegningen.",
+        sources = personskat_sømandsfradrag_kilder
+    )
+    beskæftigelser: List(Sømandsbeskatningslov3Beskæftigelsesfakta)
+)
 # Sømandsbeskatningslov3Beskæftigelsesresultat(fakta: Sømandsbeskatningslov3Beskæftigelsesfakta, input_gyldigt: Boolsk, arbejdssted_og_anvendelse_omfattet: Boolsk, fartkrav_opfyldt: Boolsk, par3a_anvendelse: Sømandsbeskatningslov3AAnvendelse, par3a_opfyldt: Boolsk, hjemsted_opfyldt: Boolsk, flag_opfyldt: Boolsk, forhyringsvilkår_opfyldt: Boolsk, fradragsbetingelser_opfyldt: Boolsk, årligt_fradragsgrundlag_kroner: Heltal, forholdsmæssigt_fradrag_kroner: Heltal)
 # Sømandsbeskatningslov3Årsresultat(indkomstår: Heltal, lovversion: Sømandsbeskatningslov3Og4Lovversion, input: Sømandsbeskatningslov3Årsinput, beskæftigelsesresultater: List(Sømandsbeskatningslov3Beskæftigelsesresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, sødage_inden_for_årsgrænse: Boolsk, alle_input_gyldige: Boolsk, kan_foretage_fradrag_efter_par3: Boolsk, fradrag_før_valg_kroner: Heltal, fradrag_foretaget_efter_par3: Boolsk, samlet_fradrag_kroner: Heltal, sødage_med_fradrag_hundrededele: Heltal, almindelige_fradragsdage_hundrededele: Heltal, ligningslov9a_stk1_til9_afskåret: Boolsk)
 
@@ -300,10 +422,92 @@ Stk. 2. Personer, som kan foretage fradrag efter § 3, er ikke omfattet af ligni
 @ meta(sømandsbeskatningsloven_par4_metadata)
 @ section sømandsbeskatningsloven_par4 {
 
-# Sømandsbeskatningslov4Fradragskilde = Søbl4Ligningslov9Stk1Lønmodtagerudgift(kildeidentifikation: Tekst) | Søbl4Ligningslov9BErhvervsbefordring(kildeidentifikation: Tekst) | Søbl4Ligningslov9COg9DBefordringsforhold(kildeidentifikation: Tekst) | Søbl4Ligningslov13Årsfradrag | Søbl4Pensionsbeskatningslov49Stk1Bidrag(kildeidentifikation: Tekst)
-# Sømandsbeskatningslov4Arbejdstilknytning = Søbl4Sømandsbeskæftigelsesperiode(beskæftigelsesidentifikation: Tekst) | Søbl4AndetArbejdsforhold(arbejdsforhold_identifikation: Tekst) | Søbl4ÅrsbeløbUdenPeriodeopdeling
+= personskat_søbl4_kilder = [
+    Source(value = sømandsbeskatningsloven_lbk1181_par3_til4),
+    Guidance(value = juridisk_vejledning_sømandsfradrag_2026_1),
+    Guidance(value = skat_sømandsfradrag_vejledning),
+    Practice(value = landsskatteretten_skm2025_442_lsr)
+]
+@ field(
+    label = "Fradragskilde omfattet af § 4",
+    question = "Er kilden en § 9, stk. 1-lønmodtagerudgift, en § 9 B-kørsel, et identificeret §§ 9 C-9 D-befordringsforhold, årets § 13-kontingentfradrag eller et § 49, stk. 1-bidrag?",
+    help = "Kildetypen bruges kun til at forbinde allerede oplyste kildefakta med det arbejdsforhold, de vedrører.",
+    sources = personskat_søbl4_kilder
+)
+# Sømandsbeskatningslov4Fradragskilde =
+    Søbl4Ligningslov9Stk1Lønmodtagerudgift(
+        @ field(
+            label = "Identifikation for § 9, stk. 1-lønmodtagerudgiften",
+            question = "Hvilken oplyst lønmodtagerudgift vedrører denne arbejdsperiode?",
+            help = "Identifikationen skal svare præcist til udgiftens identifikation. Opret en særskilt udgift for hvert arbejdsforhold.",
+            sources = personskat_søbl4_kilder
+        )
+        kildeidentifikation: Tekst
+    ) |
+    Søbl4Ligningslov9BErhvervsbefordring(
+        @ field(
+            label = "Identifikation for § 9 B-kørselssagen",
+            question = "Hvilken oplyst § 9 B-kørselssag vedrører denne arbejdsperiode?",
+            help = "Identifikationen skal svare præcist til kørselssagens identifikation. Del en kørselssag op, hvis kørslerne vedrører forskellige arbejdsperioder.",
+            sources = personskat_søbl4_kilder
+        )
+        kildeidentifikation: Tekst
+    ) |
+    Søbl4Ligningslov9COg9DBefordringsforhold(
+        @ field(
+            label = "Identifikation for §§ 9 C-9 D-befordringsforholdet",
+            question = "Hvilket oplyst befordringsforhold vedrører denne arbejdsperiode?",
+            help = "Identifikationen skal svare præcist til befordringsforholdets identifikation, og dets befordringsmål skal være samme arbejdsforhold. Opret særskilte forhold for sømandsarbejde og andet arbejde.",
+            sources = personskat_søbl4_kilder
+        )
+        kildeidentifikation: Tekst
+    ) |
+    Søbl4Ligningslov13Årsfradrag |
+    Søbl4Pensionsbeskatningslov49Stk1Bidrag(
+        @ field(
+            label = "Identifikation for § 49, stk. 1-bidraget",
+            question = "Hvilket oplyst A-kasse- eller arbejdsløshedsforsikringsbidrag vedrører denne arbejdsperiode?",
+            help = "Identifikationen skal svare præcist til bidragets identifikation. Efterløns- og fleksydelsesbidrag efter §§ 49 A-49 B skal ikke henføres her.",
+            sources = personskat_søbl4_kilder
+        )
+        kildeidentifikation: Tekst
+    )
+@ field(
+    label = "Arbejdsperiodens faktiske tilknytning",
+    question = "Vedrører kilden en oplyst sømandsbeskæftigelse, et andet navngivet arbejdsforhold eller et årsbeløb uden periodeopdeling?",
+    help = "Vælg ud fra bilaget og arbejdsperioden. Futuruna udleder selv, om beløbet bevares, afskæres eller fordeles efter sødage.",
+    sources = personskat_søbl4_kilder
+)
+# Sømandsbeskatningslov4Arbejdstilknytning =
+    Søbl4Sømandsbeskæftigelsesperiode(
+        @ field(
+            label = "Tilknyttet sømandsbeskæftigelse",
+            question = "Hvilken oplyst sømandsbeskæftigelse vedrører kilden?",
+            help = "Identifikationen skal svare præcist til en beskæftigelse, der opfylder betingelserne for sømandsfradrag.",
+            sources = personskat_søbl4_kilder
+        )
+        beskæftigelsesidentifikation: Tekst
+    ) |
+    Søbl4AndetArbejdsforhold(
+        @ field(
+            label = "Tilknyttet andet arbejdsforhold",
+            question = "Hvilket andet arbejdsforhold vedrører kilden?",
+            help = "Brug en stabil arbejdsgiver- eller ansættelsesreference, som ikke også er brugt som sømandsbeskæftigelsens identifikation.",
+            sources = personskat_søbl4_kilder
+        )
+        arbejdsforhold_identifikation: Tekst
+    ) |
+    Søbl4ÅrsbeløbUdenPeriodeopdeling
 # Sømandsbeskatningslov4Kildetilknytning(kilde: Sømandsbeskatningslov4Fradragskilde, arbejdstilknytning: Sømandsbeskatningslov4Arbejdstilknytning)
-# Sømandsbeskatningslov4Årsinput(kildetilknytninger: List(Sømandsbeskatningslov4Kildetilknytning))
+# Sømandsbeskatningslov4Årsinput(
+    @ field(
+        label = "Arbejdsperioder for almindelige fradrag",
+        question = "Hvilket arbejdsforhold eller hvilken årsfordeling vedrører hvert fradrag, som kan blive berørt af sømandsfradraget?",
+        help = "Opret én række pr. fradragskilde. En § 9 B-kørsel skal være opdelt pr. arbejdsperiode; årsfordeling må kun bruges til kilder, der reelt foreligger som et samlet årsbeløb.",
+        sources = personskat_søbl4_kilder
+    )
+    kildetilknytninger: List(Sømandsbeskatningslov4Kildetilknytning)
+)
 
 | sømandsbeskatningslov4_intet_årsinput() -> Sømandsbeskatningslov4Årsinput(kildetilknytninger = [])
 | sømandsbeskatningslov4_stk1_samordning_aktiv(resultat: Sømandsbeskatningslov3Årsresultat) -> resultat.fradrag_foretaget_efter_par3

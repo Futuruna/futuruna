@@ -7,20 +7,11 @@
 @ importer ./ligningsloven-par9a-perioder
 @ importer ./statsskatteloven-par6-dobbelt-husfoerelse
 
-# Ligningslov9AKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
-# Ligningslov9AÅrsfordelingsforudsætning(princip: Tekst, begrundelse: Tekst)
-
 = ligningsloven_lbk42_par9a = Ligningslov9AKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2023/42",
     identifier = "Ligningsloven § 9 A i LBK nr. 42 af 13/01/2023",
     hentet_dato = "2026-08-10",
     ændringsstatus = "§ 9 A er ordret identisk med den modellerede tekst i LBK nr. 1500 af 24/11/2025"
-)
-= ligningsloven_lbk1500_par9a = Ligningslov9AKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
-    identifier = "Ligningsloven § 9 A i LBK nr. 1500 af 24/11/2025",
-    hentet_dato = "2026-08-04",
-    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; § 9 A er uændret"
 )
 = ligningsloven_lbk42_par9_stk2_og_stk4 = Ligningslov9AKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2023/42",
@@ -28,23 +19,11 @@
     hentet_dato = "2026-08-10",
     ændringsstatus = "De modellerede bestemmelser er ordret identiske med LBK nr. 1500 af 24/11/2025"
 )
-= ligningsloven_lbk1500_par9_stk2_og_stk4 = Ligningslov9AKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
-    identifier = "Ligningsloven § 9, stk. 2 og 4, i LBK nr. 1500 af 24/11/2025",
-    hentet_dato = "2026-08-04",
-    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; de anvendte bestemmelser er uændrede"
-)
 = ligningsloven_lbk42_par9c_stk3_tredje_punktum = Ligningslov9AKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2023/42",
     identifier = "Ligningsloven § 9 C, stk. 3, 3. pkt., i LBK nr. 42 af 13/01/2023",
     hentet_dato = "2026-08-10",
     ændringsstatus = "Den modellerede geografiske liste er ordret identisk med LBK nr. 1500 af 24/11/2025"
-)
-= ligningsloven_lbk1500_par9c_stk3 = Ligningslov9AKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
-    identifier = "Ligningsloven § 9 C, stk. 3, 3. pkt.: kommuner og småøer omfattet af den forhøjede kilometertakst",
-    hentet_dato = "2026-08-06",
-    ændringsstatus = "Gældende geografisk afgrænsning anvendt af § 9 A, stk. 12, kontrolleret 06/08/2026"
 )
 = ligningsloven_lbk1500_par9a_stk2_og_stk3 = Ligningslov9AKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
@@ -64,12 +43,6 @@
     hentet_dato = "2026-08-10",
     ændringsstatus = "Historisk 2024-satsmeddelelse"
 )
-= skatteforvaltningen_rejsesatser_2025 = Ligningslov9AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=2437004",
-    identifier = "SKM2024.643.SKTST: Skattefri godtgørelse til dækning af rejseudgifter mv. gældende for 2025",
-    hentet_dato = "2026-08-04",
-    ændringsstatus = "Historisk 2025-satsmeddelelse"
-)
 = skatteministeriet_par20_historiske_reguleringstal_ll9a = Ligningslov9AKildeInfo(
     url = "https://skm.dk/tal-og-metode/satser/skattehistorik/reguleringstallet-i-psl-20-en-historisk-oversigt",
     identifier = "Skatteministeriets historiske reguleringstal i personskattelovens § 20",
@@ -82,81 +55,11 @@
     hentet_dato = "2026-08-10",
     ændringsstatus = "Reguleringstallene 131,0 og 137,3 anvendes for 2025 og 2026"
 )
-= skatteforvaltningen_rejsesatser_2026 = Ligningslov9AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=2460063",
-    identifier = "SKM2025.725.SKTST: Skattefri godtgørelse til dækning af rejseudgifter mv. gældende for 2026",
-    hentet_dato = "2026-08-04",
-    ændringsstatus = "Gældende 2026-satsmeddelelse"
-)
 = skat_rejsefradrag_2026 = Ligningslov9AKildeInfo(
     url = "https://skat.dk/borger/fradrag/arbejdsrelaterede-fradrag/rejsefradrag-godtgoerelse-kost-og-logi/rejsefradrag",
     identifier = "Skattestyrelsen: Arbejdsrelaterede rejsefradrag",
     hentet_dato = "2026-08-04",
     ændringsstatus = "Vejledning og årslofter for 2025-2026 kontrolleret 04/08/2026"
-)
-= juridisk_vejledning_ligningslov9a_rejsebegreb = Ligningslov9AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1976854",
-    identifier = "Den juridiske vejledning C.A.7.1.1: Hvad vil det sige at være på rejse?",
-    hentet_dato = "2026-08-04",
-    ændringsstatus = "Gældende vejledning kontrolleret 04/08/2026"
-)
-= juridisk_vejledning_ligningslov9a_midlertidigt_arbejdssted = Ligningslov9AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1976857",
-    identifier = "Den juridiske vejledning C.A.7.1.4: Betingelse om midlertidigt arbejdssted",
-    hentet_dato = "2026-08-04",
-    ændringsstatus = "Gældende vejledning kontrolleret 04/08/2026"
-)
-= juridisk_vejledning_ligningslov9a_fradrag = Ligningslov9AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1976873",
-    identifier = "Den juridiske vejledning C.A.7.3.1: Generelt om fradrag for rejseudgifter",
-    hentet_dato = "2026-08-04",
-    ændringsstatus = "Gældende vejledning og årslofter for 2025-2026 kontrolleret 04/08/2026"
-)
-= juridisk_vejledning_ligningslov9a_øfradrag = Ligningslov9AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=2289990",
-    identifier = "Den juridiske vejledning C.A.7.3.4.3: Fradrag for logiudgifter for beboere på visse ikke-brofaste øer (Ø-fradrag)",
-    hentet_dato = "2026-08-06",
-    ændringsstatus = "Gældende 2026-vejledning om personkreds, fulde logidøgn, satser og fælles fradragsloft kontrolleret 06/08/2026"
-)
-= juridisk_vejledning_ligningslov9_udlandsfradrag = Ligningslov9AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1977822",
-    identifier = "Den juridiske vejledning C.F.2.2: Fradrag for udgifter ved arbejde i udlandet",
-    hentet_dato = "2026-08-06",
-    ændringsstatus = "Gældende vejledning om det fælles indkomstloft for fradrag ved samme udenlandske indkomsterhvervelse kontrolleret 06/08/2026"
-)
-= juridisk_vejledning_ligningslov9a_kostgodtgørelse = Ligningslov9AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1976865",
-    identifier = "Den juridiske vejledning C.A.7.2.5.1: Rejsegodtgørelse med standardsats for kost og småfornødenheder",
-    hentet_dato = "2026-08-06",
-    ændringsstatus = "Gældende vejledning om samlet kostprincip og opsplitning af overskydende godtgørelse kontrolleret 06/08/2026"
-)
-= juridisk_vejledning_ligningslov9a_logigodtgørelse = Ligningslov9AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1976866",
-    identifier = "Den juridiske vejledning C.A.7.2.5.2: Rejsegodtgørelse med standardsats for logi",
-    hentet_dato = "2026-08-06",
-    ændringsstatus = "Gældende vejledning om døgnvis dækning af logi kontrolleret 06/08/2026"
-)
-= juridisk_vejledning_ligningslov9a_udlæg_efter_regning = Ligningslov9AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1976867",
-    identifier = "Den juridiske vejledning C.A.7.2.6: Godtgørelse af den dokumenterede faktiske udgift",
-    hentet_dato = "2026-08-06",
-    ændringsstatus = "Gældende vejledning om hel og delvis dækning efter regning kontrolleret 06/08/2026"
-)
-= juridisk_vejledning_ligningslov9a_dækningsprincip = Ligningslov9AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1976869",
-    identifier = "Den juridiske vejledning C.A.7.2.7: Dækningsprincip for rejseudgifter",
-    hentet_dato = "2026-08-06",
-    ændringsstatus = "Gældende vejledning om samlet kostprincip og døgnvist logiprincip kontrolleret 06/08/2026"
-)
-= juridisk_vejledning_ligningslov9a_kontrol = Ligningslov9AKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1976870",
-    identifier = "Den juridiske vejledning C.A.7.2.8: Betingelse om kontrol",
-    hentet_dato = "2026-08-04",
-    ændringsstatus = "Gældende vejledning, inklusive SKM2026.318.LSR, kontrolleret 04/08/2026"
-)
-= ligningslov9a_ølogi_årsfordeling = Ligningslov9AÅrsfordelingsforudsætning(
-    princip = "Et fuldt 24-timers-logidøgn henføres til det indkomstår, hvor døgnets starttidspunkt ligger",
-    begrundelse = "De officielle kilder fastlægger fulde 24-timers-døgn og årlige satser, men ikke den tekniske fordeling af et enkelt døgn over årsskiftet; starttidspunktet giver én deterministisk henføring uden dobbelt medregning"
 )
 
 = ligningsloven_par9a_metadata = Metadata(
@@ -337,33 +240,474 @@ kr. i indkomståret 2024.
 # Ligningslov9ARejseudelukkelse(rejseidentifikation: Tekst, årsag: Ligningslov9AEksternUdelukkelse)
 # Ligningslov9AUdelukkelseskontekst(generel_rejseudelukkelse: Ligningslov9AEksternUdelukkelse, rejseudelukkelser: List(Ligningslov9ARejseudelukkelse), ølogiudelukkelse: Ligningslov9AEksternUdelukkelse)
 # Ligningslov9ARejseart = Ll9ASelvvalgtRejse | Ll9ATjenesterejse
-# Ligningslov9AOvernatningsforhold = Ll9AIngenMulighedForOvernatningPåSædvanligBopæl(afstand_ad_normal_transportvej_kilometer: Heltal, korteste_transporttid_hver_vej_minutter: Heltal) | Ll9AMulighedForOvernatningPåSædvanligBopæl
+= personskat_ll9a_kilder_2 = [
+    Source(value = ligningsloven_lbk1500_par9a),
+    Source(value = ligningsloven_lbk1500_par9a_stk5_og_stk6),
+    DependencySource(value = ligningsloven_lbk1500_par9c_stk3),
+    AmendmentSource(value = lovforslag_l196_2010_2011_ligningslov9a_korte_tjenesterejser),
+    DependencySource(value = ligningsloven_lbk1500_par9_stk2_og_stk4),
+    RateSource(value = skatteforvaltningen_rejsesatser_2025),
+    RateSource(value = skatteforvaltningen_rejsesatser_2026),
+    Guidance(value = juridisk_vejledning_ligningslov9a_rejsebegreb),
+    Guidance(value = juridisk_vejledning_ligningslov9a_midlertidigt_arbejdssted),
+    Guidance(value = juridisk_vejledning_ligningslov9a_fradrag),
+    Guidance(value = juridisk_vejledning_ligningslov9_udlandsfradrag),
+    Guidance(value = juridisk_vejledning_ligningslov9a_kostgodtgørelse),
+    Guidance(value = juridisk_vejledning_ligningslov9a_logigodtgørelse),
+    Guidance(value = juridisk_vejledning_ligningslov9a_udlæg_efter_regning),
+    Guidance(value = juridisk_vejledning_ligningslov9a_dækningsprincip),
+    Guidance(value = juridisk_vejledning_ligningslov9a_kontrol),
+    Guidance(value = juridisk_vejledning_ligningslov9a_standardperioder),
+    Guidance(value = juridisk_vejledning_ligningslov9a_øfradrag),
+    Assumption(value = ligningslov9a_ølogi_årsfordeling),
+    DependencySource(value = statsskatteloven_lov149_par6_litra_a_dobbelt_husførelse),
+    Guidance(value = juridisk_vejledning_dobbelt_husførelse_2026),
+    Practice(value = skatterådet_skm2021_130_sr)
+]
+@ field(
+    label = "Mulighed for at overnatte hjemme",
+    question = "Var det på grund af afstanden umuligt at overnatte på den sædvanlige bopæl?",
+    help = "Vurderingen skal bygge på den normale transportvej, transporttiden og arbejdsforholdene, ikke alene på et frit valg om at overnatte ude.",
+    sources = personskat_ll9a_kilder_2
+)
+# Ligningslov9AOvernatningsforhold =
+    Ll9AIngenMulighedForOvernatningPåSædvanligBopæl(
+        @ field(
+            label = "Afstand mellem bopæl og arbejdssted",
+            question = "Hvor lang er afstanden ad normal transportvej mellem bopælen og arbejdsstedet?",
+            unit = "km",
+            sources = personskat_ll9a_kilder_2
+        )
+        afstand_ad_normal_transportvej_kilometer: Heltal,
+        @ field(
+            label = "Korteste transporttid hver vej",
+            question = "Hvor lang var den korteste realistiske transporttid hver vej?",
+            unit = "minutter",
+            sources = personskat_ll9a_kilder_2
+        )
+        korteste_transporttid_hver_vej_minutter: Heltal
+    ) |
+    Ll9AMulighedForOvernatningPåSædvanligBopæl
 # Ligningslov9ATidsbegrænsning = Ll9ATidsbegrænsetTilBestemtPeriode | Ll9ATidsbegrænsetTilKonkretOpgavesFærdiggørelse | Ll9ATidsbegrænsetPrøveperiode | Ll9AUbegrænsetArbejdssted
-# Ligningslov9AArbejdsstedskarakter = Ll9AMobiltArbejdssted | Ll9AFlyttendeArbejdssted(flyttet_ad_normal_transportvej_kilometer: Heltal) | Ll9AStedbundetArbejdssted(tidsbegrænsning: Ligningslov9ATidsbegrænsning)
+@ field(
+    label = "Arbejdsstedets karakter",
+    question = "Er arbejdsstedet mobilt, flyttende eller stedbundet?",
+    help = "Arbejdsstedets faktiske karakter afgør midlertidighed og de stedbaserede undtagelser; korte tjenesterejser udledes særskilt af rejsemønsteret.",
+    sources = personskat_ll9a_kilder_2
+)
+# Ligningslov9AArbejdsstedskarakter =
+    Ll9AMobiltArbejdssted |
+    Ll9AFlyttendeArbejdssted(
+        @ field(
+            label = "Flyttet arbejdssted",
+            question = "Hvor langt har det flyttende arbejdssted flyttet sig ad normal transportvej?",
+            help = "En flytning på mindst 8 km undtager stedet fra 12-månedersbegrænsningen.",
+            unit = "km",
+            sources = personskat_ll9a_kilder_2
+        )
+        flyttet_ad_normal_transportvej_kilometer: Heltal
+    ) |
+    Ll9AStedbundetArbejdssted(
+        @ field(
+            label = "Det stedbundne arbejdssteds tidsbegrænsning",
+            question = "Hvorfor er det stedbundne arbejdssted tidsbegrænset?",
+            help = "Et ubegrænset stedbundet arbejdssted opfylder ikke rejsebegrebets krav om et midlertidigt arbejdssted.",
+            sources = personskat_ll9a_kilder_2
+        )
+        tidsbegrænsning: Ligningslov9ATidsbegrænsning
+    )
 # Ligningslov9AHverv = Ll9AAlmindeligtHverv | Ll9ATuristchaufførIDanmark | Ll9ATuristchaufførIUdlandet | Ll9ATransportAfVarerEllerPersoner | Ll9ATjenesteOmBordPåSkib | Ll9AArbejdePåLuftfartøj | Ll9ANaturforekomstfartøjEllerInstallation
 # Ligningslov9AGodtgørelseskontrol = Ll9AArbejdsgiverkontrolUdført | Ll9AArbejdsgiverkontrolIkkeUdført
 # Ligningslov9ALønomlægning = Ll9AGodtgørelseUdenLønomlægning | Ll9AGodtgørelseModLøbendeLønnedgang
 # Ligningslov9AGodtgørelsesudbetaling = Ll9AUopdeltGodtgørelse(udbetalt_kroner: Heltal) | Ll9AEndeligtOpdeltGodtgørelse(godtgørelse_efter_sats_kroner: Heltal, supplerende_løn_kroner: Heltal)
-# Ligningslov9AKostdækning = Ll9AKostIkkeDækketEfterRegning | Ll9AKostHeltEllerDelvistDækketEfterRegning(arbejdsgiverbetalt_kroner: Heltal)
+@ field(
+    label = "Arbejdsgiverens dækningsprincip for kost",
+    question = "Blev rejsens kost dækket efter regning, eller blev den ikke dækket efter regning?",
+    help = "Samme dækningsprincip skal gælde for alle udgifter til kost og småfornødenheder på den enkelte rejse.",
+    sources = personskat_ll9a_kilder_2
+)
+# Ligningslov9AKostdækning =
+    Ll9AKostIkkeDækketEfterRegning |
+    Ll9AKostHeltEllerDelvistDækketEfterRegning(
+        @ field(
+            label = "Kost dækket efter regning",
+            question = "Hvor meget af rejsens kost dækkede arbejdsgiveren efter regning?",
+            help = "Hel eller delvis dækning efter regning begrænser standardsatsen til 25 pct.-beløbet for hele rejsen.",
+            unit = "kr.",
+            sources = personskat_ll9a_kilder_2
+        )
+        arbejdsgiverbetalt_kroner: Heltal
+    )
 # Ligningslov9AKostfradragsprincip = Ll9AIntetKostfradrag | Ll9AKostfradragMedStandardsats | Ll9AKostfradragMedDokumenteredeUdgifter
-# Ligningslov9AKostfakta(dækning: Ligningslov9AKostdækning, godtgørelsesudbetaling: Ligningslov9AGodtgørelsesudbetaling, fri_morgenmad_antal: Heltal, fri_frokost_antal: Heltal, fri_aftensmad_antal: Heltal, dokumenterede_kostudgifter_før_arbejdsgiverdækning_kroner: Heltal, fradragsprincip: Ligningslov9AKostfradragsprincip)
-# Ligningslov9ALogidækning = Ll9ALogiIkkeDækketAfArbejdsgiver | Ll9ALogiHeltEllerDelvistDækketEfterRegning(arbejdsgiverbetalt_kroner: Heltal) | Ll9AHeltEllerDelvistFritLogi
+# Ligningslov9AKostfakta(
+    dækning: Ligningslov9AKostdækning,
+    godtgørelsesudbetaling: Ligningslov9AGodtgørelsesudbetaling,
+    @ field(
+        label = "Antal måltider med fri morgenmad",
+        question = "Hvor mange morgenmåltider blev stillet gratis til rådighed?",
+        unit = "måltider",
+        sources = personskat_ll9a_kilder_2
+    )
+    fri_morgenmad_antal: Heltal,
+    @ field(
+        label = "Antal måltider med fri frokost",
+        question = "Hvor mange frokostmåltider blev stillet gratis til rådighed?",
+        unit = "måltider",
+        sources = personskat_ll9a_kilder_2
+    )
+    fri_frokost_antal: Heltal,
+    @ field(
+        label = "Antal måltider med fri aftensmad",
+        question = "Hvor mange aftensmåltider blev stillet gratis til rådighed?",
+        unit = "måltider",
+        sources = personskat_ll9a_kilder_2
+    )
+    fri_aftensmad_antal: Heltal,
+    @ field(
+        label = "Dokumenterede kostudgifter før arbejdsgiverdækning",
+        question = "Hvor store dokumenterede kostudgifter betalte personen før refusion eller anden arbejdsgiverdækning?",
+        help = "Futuruna fratrækker dækning efter regning og skattefri godtgørelse ved valg af dokumenterede udgifter.",
+        unit = "kr.",
+        sources = personskat_ll9a_kilder_2
+    )
+    dokumenterede_kostudgifter_før_arbejdsgiverdækning_kroner: Heltal,
+    @ field(
+        label = "Fradragsprincip for rejsens kost",
+        question = "Skal alle kostudgifter på rejsen opgøres uden fradrag, med standardsats eller med dokumenterede udgifter?",
+        help = "Det valgte princip gælder for alle kostudgifter på den enkelte rejse.",
+        sources = personskat_ll9a_kilder_2
+    )
+    fradragsprincip: Ligningslov9AKostfradragsprincip
+)
+@ field(
+    label = "Arbejdsgiverens dækning af logidøgnet",
+    question = "Var logiet udækket, dækket efter regning eller helt eller delvist stillet frit til rådighed dette døgn?",
+    help = "Hel eller delvis dækning efter regning eller frit logi afskærer standardsatsen for det pågældende døgn.",
+    sources = personskat_ll9a_kilder_2
+)
+# Ligningslov9ALogidækning =
+    Ll9ALogiIkkeDækketAfArbejdsgiver |
+    Ll9ALogiHeltEllerDelvistDækketEfterRegning(
+        @ field(
+            label = "Logi dækket efter regning dette døgn",
+            question = "Hvor meget af logiudgiften dækkede arbejdsgiveren efter regning dette døgn?",
+            unit = "kr.",
+            sources = personskat_ll9a_kilder_2
+        )
+        arbejdsgiverbetalt_kroner: Heltal
+    ) |
+    Ll9AHeltEllerDelvistFritLogi
 # Ligningslov9ALogifradragsprincip = Ll9AIntetLogifradrag | Ll9ALogifradragMedStandardsats | Ll9ALogifradragMedDokumenteredeUdgifter
-# Ligningslov9ALogidøgn(rejsedøgnsnummer: Heltal, dækning: Ligningslov9ALogidækning, godtgørelsesudbetaling: Ligningslov9AGodtgørelsesudbetaling, dokumenteret_logiudgift_betalt_før_refusion_kroner: Heltal, fradragsprincip: Ligningslov9ALogifradragsprincip)
-# Ligningslov9AUdenlandskIndkomstkilde(identifikation: Tekst, lønindkomst_medregnet_i_danmark_kroner: Heltal, øvrige_fradrag_vedrørende_indkomsten_kroner: Heltal)
-# Ligningslov9AIndkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst | Ll9AUdenlandskSkattepligtigArbejdsindkomst(indkomstkilde_identifikation: Tekst) | Ll9AArbejdsindkomstUndtagetFraDanskSkattepligt
-# Ligningslov9ARejsefakta(identifikation: Tekst, indkomstår: Heltal, startdato: Dato, rejseart: Ligningslov9ARejseart, arbejdssted_identifikation: Tekst, arbejdsstedskarakter: Ligningslov9AArbejdsstedskarakter, overnatningsforhold: Ligningslov9AOvernatningsforhold, hverv: Ligningslov9AHverv, varighed_minutter: Heltal, kost: Ligningslov9AKostfakta, logidøgn: List(Ligningslov9ALogidøgn), kontrol: Ligningslov9AGodtgørelseskontrol, lønomlægning: Ligningslov9ALønomlægning, indkomstforhold: Ligningslov9AIndkomstforhold)
-# Ligningslov9AØnavn = Ll9ABaagø | Ll9AEgholm | Ll9AEndelave | Ll9AHjarnø | Ll9AMandø | Ll9ANekselø | Ll9AOrø | Ll9ASejerø | Ll9ATunø | Ll9AAarø | Ll9AAndenDanskØ(navn: Tekst)
+# Ligningslov9ALogidøgn(
+    @ field(
+        label = "Rejsedøgnets nummer",
+        question = "Hvilket fuldt døgn i rejsen beskriver rækken?",
+        help = "Nummerér de fulde rejsedøgn fortløbende fra 1.",
+        unit = "døgn",
+        sources = personskat_ll9a_kilder_2
+    )
+    rejsedøgnsnummer: Heltal,
+    dækning: Ligningslov9ALogidækning,
+    godtgørelsesudbetaling: Ligningslov9AGodtgørelsesudbetaling,
+    @ field(
+        label = "Dokumenteret logiudgift før refusion dette døgn",
+        question = "Hvor stor en dokumenteret logiudgift betalte personen før refusion dette døgn?",
+        help = "Futuruna fratrækker dækning efter regning og skattefri logigodtgørelse ved valg af dokumenterede udgifter.",
+        unit = "kr.",
+        sources = personskat_ll9a_kilder_2
+    )
+    dokumenteret_logiudgift_betalt_før_refusion_kroner: Heltal,
+    @ field(
+        label = "Fradragsprincip for logidøgnet",
+        question = "Skal dette døgn opgøres uden logifradrag, med standardsats eller med dokumenterede udgifter?",
+        help = "Fradragsprincippet kan vælges særskilt for hvert fuldt rejsedøgn.",
+        sources = personskat_ll9a_kilder_2
+    )
+    fradragsprincip: Ligningslov9ALogifradragsprincip
+)
+# Ligningslov9AUdenlandskIndkomstkilde(
+    @ field(
+        label = "Den udenlandske indkomstkildes identifikation",
+        question = "Hvilken entydig identifikation har den udenlandske lønindkomstkilde?",
+        help = "Identifikationen forbinder kilden med én eller flere rejser.",
+        sources = personskat_ll9a_kilder_2
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Udenlandsk løn medregnet i Danmark",
+        question = "Hvor stor en løn fra denne udenlandske indkomstkilde medregnes i den danske indkomstopgørelse?",
+        unit = "kr.",
+        sources = personskat_ll9a_kilder_2
+    )
+    lønindkomst_medregnet_i_danmark_kroner: Heltal,
+    @ field(
+        label = "Øvrige fradrag vedrørende den udenlandske løn",
+        question = "Hvor store øvrige fradrag vedrører denne udenlandske lønindkomst?",
+        help = "Beløbet reserverer den del af indkomstloftet, der allerede bruges af andre fradrag vedrørende samme udenlandske arbejde.",
+        unit = "kr.",
+        sources = personskat_ll9a_kilder_2
+    )
+    øvrige_fradrag_vedrørende_indkomsten_kroner: Heltal
+)
+@ field(
+    label = "Arbejdsindkomstens danske skatteforhold",
+    question = "Er arbejdsindkomsten dansk skattepligtig, udenlandsk arbejde med dansk skattepligtig løn eller undtaget fra dansk skattepligt?",
+    help = "En rejse ved udenlandsk arbejde skal henvise til en identificeret årlig indkomstkilde, så flere rejser ikke kan genbruge samme indkomstloft.",
+    sources = personskat_ll9a_kilder_2
+)
+# Ligningslov9AIndkomstforhold =
+    Ll9ADanskSkattepligtigArbejdsindkomst |
+    Ll9AUdenlandskSkattepligtigArbejdsindkomst(
+        @ field(
+            label = "Indkomstkilde for den udenlandske rejse",
+            question = "Hvilken identificeret udenlandsk indkomstkilde vedrører rejsen?",
+            help = "Brug samme identifikation på alle rejser, der vedrører samme udenlandske lønindkomst.",
+            sources = personskat_ll9a_kilder_2
+        )
+        indkomstkilde_identifikation: Tekst
+    ) |
+    Ll9AArbejdsindkomstUndtagetFraDanskSkattepligt
+# Ligningslov9ARejsefakta(
+    @ field(
+        label = "Rejsens identifikation",
+        question = "Hvilken entydig identifikation har rejsen?",
+        help = "Brug en stabil reference fra rejseafregningen, så samme rejse ikke medregnes to gange.",
+        sources = personskat_ll9a_kilder_2
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Rejsens indkomstår",
+        question = "Hvilket indkomstår vedrører rejsen?",
+        unit = "år",
+        sources = personskat_ll9a_kilder_2
+    )
+    indkomstår: Heltal,
+    startdato: Dato,
+    @ field(
+        label = "Rejsens art",
+        question = "Er rejsen selvvalgt eller en tjenesterejse på arbejdsgiverens initiativ?",
+        help = "Futuruna bruger rejsearten sammen med dato, destination, varighed og månedens øvrige rejser til at udlede reglen om enkeltstående kortvarige tjenesterejser.",
+        sources = personskat_ll9a_kilder_2
+    )
+    rejseart: Ligningslov9ARejseart,
+    @ field(
+        label = "Arbejdsstedets identifikation",
+        question = "Hvilket arbejdssted vedrører rejsen?",
+        help = "Brug samme stabile identifikation for gentagne rejser til samme arbejdssted.",
+        sources = personskat_ll9a_kilder_2
+    )
+    arbejdssted_identifikation: Tekst,
+    arbejdsstedskarakter: Ligningslov9AArbejdsstedskarakter,
+    overnatningsforhold: Ligningslov9AOvernatningsforhold,
+    @ field(
+        label = "Hverv under rejsen",
+        question = "Hvilket hverv blev udført under rejsen?",
+        help = "Turistchauffører har særlige kostsatser, og visse transport-, skibs-, luftfarts- og naturforekomsthverv kan ikke anvende logisatsen.",
+        sources = personskat_ll9a_kilder_2
+    )
+    hverv: Ligningslov9AHverv,
+    @ field(
+        label = "Rejsens samlede varighed",
+        question = "Hvor mange minutter varede rejsen fra afrejse til hjemkomst?",
+        help = "Rejsen skal vare mindst 24 timer; efter fulde døgn beregnes kostsatsen pr. påbegyndt time.",
+        unit = "minutter",
+        sources = personskat_ll9a_kilder_2
+    )
+    varighed_minutter: Heltal,
+    kost: Ligningslov9AKostfakta,
+    @ field(
+        label = "Logi pr. fuldt rejsedøgn",
+        question = "Hvordan blev logiet dækket og fradraget for hvert fuldt rejsedøgn?",
+        help = "Opret én række for hvert fuldt døgn. Dæknings- og fradragsprincip kan skifte fra døgn til døgn.",
+        sources = personskat_ll9a_kilder_2
+    )
+    logidøgn: List(Ligningslov9ALogidøgn),
+    @ field(
+        label = "Arbejdsgiverens kontrol af rejseafregningen",
+        question = "Har arbejdsgiveren kontrolleret rejsens formål, mål, varighed, satser og beregning?",
+        help = "Manglende arbejdsgiverkontrol gør den udbetalte godtgørelse skattepligtig.",
+        sources = personskat_ll9a_kilder_2
+    )
+    kontrol: Ligningslov9AGodtgørelseskontrol,
+    @ field(
+        label = "Godtgørelse og lønomlægning",
+        question = "Er godtgørelsen finansieret ved en løbende nedgang i kontantlønnen?",
+        help = "Godtgørelse mod løbende lønnedgang skal medregnes i indkomsten.",
+        sources = personskat_ll9a_kilder_2
+    )
+    lønomlægning: Ligningslov9ALønomlægning,
+    indkomstforhold: Ligningslov9AIndkomstforhold
+)
+@ field(
+    label = "Øen med den sædvanlige bopæl",
+    question = "På hvilken ø ligger den sædvanlige bopæl?",
+    help = "Baagø, Egholm, Endelave, Hjarnø, Mandø, Nekselø, Orø, Sejerø, Tunø og Aarø er særskilt omfattet; andre øer vurderes via kommunen.",
+    sources = personskat_ll9a_kilder_2
+)
+# Ligningslov9AØnavn =
+    Ll9ABaagø |
+    Ll9AEgholm |
+    Ll9AEndelave |
+    Ll9AHjarnø |
+    Ll9AMandø |
+    Ll9ANekselø |
+    Ll9AOrø |
+    Ll9ASejerø |
+    Ll9ATunø |
+    Ll9AAarø |
+    Ll9AAndenDanskØ(
+        @ field(
+            label = "Navn på anden dansk ø",
+            question = "Hvad hedder øen?",
+            help = "Udfyldes, når øen ikke vælges blandt de særskilt nævnte småøer.",
+            sources = personskat_ll9a_kilder_2
+        )
+        navn: Tekst
+    )
 # Ligningslov9AØvejforbindelse = Ll9AIngenFastVejforbindelseFraØen | Ll9AFastVejforbindelseFraØen
-# Ligningslov9AØbopæl(kommune: Kommune, ø: Ligningslov9AØnavn, vejforbindelse: Ligningslov9AØvejforbindelse)
+# Ligningslov9AØbopæl(
+    @ field(
+        label = "Bopælskommunen for øboeren",
+        question = "I hvilken kommune ligger den sædvanlige bopæl på øen?",
+        help = "Kommunen bruges sammen med øen til at afgøre, om bopælen er omfattet af § 9 C, stk. 3.",
+        sources = personskat_ll9a_kilder_2
+    )
+    kommune: Kommune,
+    ø: Ligningslov9AØnavn,
+    @ field(
+        label = "Fast vejforbindelse fra øen",
+        question = "Har øen en fast vejforbindelse til fastlandet eller en brofast ø?",
+        help = "Fradraget kræver, at bopælen ligger på en ikkebrofast ø.",
+        sources = personskat_ll9a_kilder_2
+    )
+    vejforbindelse: Ligningslov9AØvejforbindelse
+)
 # Ligningslov9AØlogiArbejdsstedskarakter = Ll9AØlogiFastArbejdssted | Ll9AØlogiMidlertidigtArbejdssted
-# Ligningslov9AØlogiOvernatningsforhold = Ll9AØlogiIngenMulighedForOvernatningPåSædvanligBopæl(afstand_ad_normal_transportvej_kilometer: Heltal, korteste_transporttid_hver_vej_minutter: Heltal) | Ll9AØlogiMulighedForOvernatningPåSædvanligBopæl
+@ field(
+    label = "Mulighed for hjemmeovernatning fra arbejdsstedet",
+    question = "Gjorde afstanden mellem arbejdsstedet og øbopælen det umuligt at overnatte hjemme?",
+    help = "Vurderingen skal bygge på normal transportvej, realistisk transporttid og arbejdsforholdene.",
+    sources = personskat_ll9a_kilder_2
+)
+# Ligningslov9AØlogiOvernatningsforhold =
+    Ll9AØlogiIngenMulighedForOvernatningPåSædvanligBopæl(
+        @ field(
+            label = "Afstand mellem øbopæl og fast arbejdssted",
+            question = "Hvor lang er afstanden ad normal transportvej mellem øbopælen og arbejdsstedet?",
+            unit = "km",
+            sources = personskat_ll9a_kilder_2
+        )
+        afstand_ad_normal_transportvej_kilometer: Heltal,
+        @ field(
+            label = "Korteste transporttid fra øbopælen hver vej",
+            question = "Hvor lang var den korteste realistiske transporttid hver vej?",
+            unit = "minutter",
+            sources = personskat_ll9a_kilder_2
+        )
+        korteste_transporttid_hver_vej_minutter: Heltal
+    ) |
+    Ll9AØlogiMulighedForOvernatningPåSædvanligBopæl
 # Ligningslov9AØlogiUdgiftsforhold = Ll9AØlogiEgenUdgiftAfholdt | Ll9AØlogiUdenEgenUdgift
-# Ligningslov9AØlogiophold(identifikation: Tekst, starttidspunkt: DatoTidspunkt, sluttidspunkt_eksklusiv: DatoTidspunkt, udgiftsforhold: Ligningslov9AØlogiUdgiftsforhold)
-# Ligningslov9AØlogiArbejdsforhold(arbejdssted_identifikation: Tekst, arbejdsstedskarakter: Ligningslov9AØlogiArbejdsstedskarakter, overnatningsforhold: Ligningslov9AØlogiOvernatningsforhold, hverv: Ligningslov9AHverv, ophold: List(Ligningslov9AØlogiophold))
-# Ligningslov9AØlogiInput = UdenØlogifradrag | MedØlogifradrag(bopæl: Ligningslov9AØbopæl, arbejdsforhold: List(Ligningslov9AØlogiArbejdsforhold))
+# Ligningslov9AØlogiophold(
+    @ field(
+        label = "Ølogiopholdets identifikation",
+        question = "Hvilken entydig identifikation har logiopholdet?",
+        help = "Brug en stabil reference fra logidokumentationen.",
+        sources = personskat_ll9a_kilder_2
+    )
+    identifikation: Tekst,
+    starttidspunkt: DatoTidspunkt,
+    sluttidspunkt_eksklusiv: DatoTidspunkt,
+    @ field(
+        label = "Egen logiudgift under øopholdet",
+        question = "Har personen selv afholdt en logiudgift under opholdet?",
+        help = "Standardsatsfradraget kræver en egen logiudgift; arbejdsgiverbetalt eller frit logi giver ikke fradrag.",
+        sources = personskat_ll9a_kilder_2
+    )
+    udgiftsforhold: Ligningslov9AØlogiUdgiftsforhold
+)
+# Ligningslov9AØlogiArbejdsforhold(
+    @ field(
+        label = "Arbejdsstedets identifikation for ølogi",
+        question = "Hvilken entydig identifikation har arbejdsstedet?",
+        help = "Brug en stabil identifikation, så ophold ved samme arbejdssted samles og arbejdssteder ikke medregnes dobbelt.",
+        sources = personskat_ll9a_kilder_2
+    )
+    arbejdssted_identifikation: Tekst,
+    @ field(
+        label = "Fast eller midlertidigt arbejdssted for ølogi",
+        question = "Er arbejdsstedet fast eller midlertidigt?",
+        help = "Denne særregel gælder et fast arbejdssted; midlertidige arbejdssteder vurderes efter de almindelige rejseregler.",
+        sources = personskat_ll9a_kilder_2
+    )
+    arbejdsstedskarakter: Ligningslov9AØlogiArbejdsstedskarakter,
+    overnatningsforhold: Ligningslov9AØlogiOvernatningsforhold,
+    @ field(
+        label = "Hverv under ølogiopholdene",
+        question = "Hvilket hverv blev udført ved arbejdsstedet?",
+        help = "Transport-, skibs-, luftfarts- og naturforekomsthverv kan ikke anvende logisatsen.",
+        sources = personskat_ll9a_kilder_2
+    )
+    hverv: Ligningslov9AHverv,
+    @ field(
+        label = "Logiophold ved det faste arbejdssted",
+        question = "Hvilke sammenhængende logiophold vedrører arbejdsstedet?",
+        help = "Opret én række pr. sammenhængende ophold. Overlappende ophold afvises.",
+        sources = personskat_ll9a_kilder_2
+    )
+    ophold: List(Ligningslov9AØlogiophold)
+)
+@ field(
+    label = "Logifradrag for bopæl på ikkebrofast ø",
+    question = "Skal der opgøres logifradrag for arbejde fra en sædvanlig bopæl på en ikkebrofast ø?",
+    help = "Vælg kun fradraget, når bopælen er omfattet af ligningslovens § 9 C, stk. 3, og logiet vedrører et fast arbejdssted, hvor afstanden gør hjemmeovernatning umulig.",
+    sources = personskat_ll9a_kilder_2
+)
+# Ligningslov9AØlogiInput =
+    UdenØlogifradrag |
+    MedØlogifradrag(
+        bopæl: Ligningslov9AØbopæl,
+        @ field(
+            label = "Arbejdsforhold med logi fra øbopælen",
+            question = "Hvilke arbejdsforhold har medført logi væk fra øbopælen?",
+            help = "Opret én række pr. arbejdssted og registrer de tilhørende ophold særskilt.",
+            sources = personskat_ll9a_kilder_2
+        )
+        arbejdsforhold: List(Ligningslov9AØlogiArbejdsforhold)
+    )
+@ field(
+    label = "Fradrag for dobbelt husførelse",
+    question = "Skal der beregnes fradrag for dobbelt husførelse ud fra årets arbejds- og boligforhold?",
+    help = "Futuruna udleder fradraget af de faktiske perioder og betingelser. Dobbelt husførelse, rejsefradrag og ølogi deler det regulerede årsloft.",
+    sources = personskat_ll9a_kilder_2
+)
 # Ligningslov9ADobbeltHusførelse = Ll9AIntetFradragForDobbeltHusførelse | Ll9ADobbeltHusførelseEfterStatsskattelov6(input: Statsskattelov6DobbeltHusførelseÅrsinput)
-# Ligningslov9AÅrsinput(personrolle: Ligningslov9APersonrolle, rejser: List(Ligningslov9ARejsefakta), udenlandske_indkomstkilder: List(Ligningslov9AUdenlandskIndkomstkilde), arbejdshistorik: Ligningslov9AArbejdshistorik, ølogi: Ligningslov9AØlogiInput, dobbelt_husførelse: Ligningslov9ADobbeltHusførelse)
+# Ligningslov9AÅrsinput(
+    @ field(
+        label = "Personens rolle ved rejserne",
+        question = "I hvilken rolle er rejserne foretaget?",
+        help = "Rollen afgør, om personen kan modtage skattefri rejsegodtgørelse og vælge standard- eller udgiftsfradrag.",
+        sources = personskat_ll9a_kilder_2
+    )
+    personrolle: Ligningslov9APersonrolle,
+    @ field(
+        label = "Arbejdsrejser med overnatning",
+        question = "Hvilke arbejdsrejser med overnatning skal indgå i årsopgørelsen?",
+        help = "Opret én række pr. sammenhængende rejse til samme midlertidige arbejdssted.",
+        sources = personskat_ll9a_kilder_2
+    )
+    rejser: List(Ligningslov9ARejsefakta),
+    @ field(
+        label = "Udenlandske lønindkomstkilder",
+        question = "Hvilke udenlandske lønindkomstkilder vedrører årets rejser?",
+        help = "Opret én række pr. udenlandsk lønindkomstkilde og henvis til dens identifikation fra de berørte rejser.",
+        sources = personskat_ll9a_kilder_2
+    )
+    udenlandske_indkomstkilder: List(Ligningslov9AUdenlandskIndkomstkilde),
+    arbejdshistorik: Ligningslov9AArbejdshistorik,
+    ølogi: Ligningslov9AØlogiInput,
+    dobbelt_husførelse: Ligningslov9ADobbeltHusførelse
+)
 # Ligningslov9ASatsregulering(grundbeløb_2010_niveau_kroner: Heltal, reguleringstal_tiendedele: Heltal, reguleret_tusindedele_kroner: Heltal, reguleret_og_oprundet_kroner: Heltal)
 # Ligningslov9ASatser(indkomstår: Heltal, lovversion: Ligningslov9ALovversion, satsversion: Ligningslov9ASatsversion, reguleringstal: Par20ReguleringstalResultat?, kostregulering: Ligningslov9ASatsregulering?, logiregulering: Ligningslov9ASatsregulering?, fradragsloftregulering: Par20ReguleringResultat?, skatteår_understøttet: Boolsk, kost_og_småfornødenheder_pr_døgn_kroner: Heltal, logi_pr_døgn_kroner: Heltal, årligt_fælles_fradragsloft_kroner: Heltal)
 # Ligningslov9ALogidøgnresultat(fakta: Ligningslov9ALogidøgn, input_gyldigt: Boolsk, standardsats_logi_kroner: Heltal, udbetalt_godtgørelse_kroner: Heltal, supplerende_løn_kroner: Heltal, skattefri_godtgørelse_kroner: Heltal, skattepligtigt_rejsebeløb_kroner: Heltal, fradrag_kroner: Heltal)

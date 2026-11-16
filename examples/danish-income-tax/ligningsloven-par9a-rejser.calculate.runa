@@ -4,41 +4,34 @@
 @ importer ./ligningsloven-par9a-rejser
 @ importer ./personskat-rejsefradrag-beregningsmeta
 
-@ meta(ligningslov9a_beregningsmeta)
-# Ligningslov9ABeregningsinput(indkomstår: Heltal, årsinput: Ligningslov9AÅrsinput, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse)
-
-= ligningslov9a_beregning_felt_indkomstår = TypetBeregningsfelt(
-    path = refof(Ligningslov9ABeregningsinput::indkomstår),
-    label = "Indkomstår for § 9 A-opgørelsen",
-    question = Some("Hvilket indkomstår skal rejsegodtgørelse, rejsefradrag, logifradrag for ikkebrofaste øer og fradrag for dobbelt husførelse beregnes for?"),
-    help = Some("Satserne og det fælles årsloft afhænger af indkomståret."),
-    unit = Some("år")
-)
-= ligningslov9a_beregning_felt_ekstern_udelukkelse = TypetBeregningsfelt(
-    path = refof(Ligningslov9ABeregningsinput::ekstern_udelukkelse),
-    label = "Ekstern udelukkelse fra § 9 A",
-    question = Some("Er personen udelukket fra § 9 A efter sømands- eller fiskerreglerne?"),
-    help = Some("I den kanoniske personskatteberegning udledes sømandsudelukkelsen automatisk af beskæftigelsesfakta. Det selvstændige rejseark kræver den retlige status som et typet input."),
-    unit = None
-)
-= ligningslov9a_beregningsmeta = TypetBeregningsmeta(
-    felter = [
-        ligningslov9a_beregning_felt_indkomstår,
-        ligningslov9a_beregning_felt_ekstern_udelukkelse
-    ],
-    spørgsmål = [],
-    beløbsfelter = [],
-    attachments = (
-        Source(value = ligningsloven_lbk1500_par9a),
-        DependencySource(value = ligningsloven_lbk1500_par9c_stk3),
-        DependencySource(value = ligningsloven_lbk1500_par9_stk2_og_stk4),
-        DependencySource(value = statsskatteloven_lov149_par6_litra_a_dobbelt_husførelse),
-        RateSource(value = skatteforvaltningen_rejsesatser_2025),
-        RateSource(value = skatteforvaltningen_rejsesatser_2026),
-        Guidance(value = juridisk_vejledning_ligningslov9a_øfradrag),
-        Practice(value = statsskattedirektoratets_cirkulære_18254_dobbelt_husførelse),
-        Guidance(value = juridisk_vejledning_dobbelt_husførelse_2026),
+= ligningslov9a_kilder = [
+    Source(value = ligningsloven_lbk1500_par9a),
+    DependencySource(value = ligningsloven_lbk1500_par9c_stk3),
+    DependencySource(value = ligningsloven_lbk1500_par9_stk2_og_stk4),
+    DependencySource(value = statsskatteloven_lov149_par6_litra_a_dobbelt_husførelse),
+    RateSource(value = skatteforvaltningen_rejsesatser_2025),
+    RateSource(value = skatteforvaltningen_rejsesatser_2026),
+    Guidance(value = juridisk_vejledning_ligningslov9a_øfradrag),
+    Practice(value = statsskattedirektoratets_cirkulære_18254_dobbelt_husførelse),
+    Guidance(value = juridisk_vejledning_dobbelt_husførelse_2026)
+]
+# Ligningslov9ABeregningsinput(
+    @ field(
+        label = "Indkomstår for § 9 A-opgørelsen",
+        question = "Hvilket indkomstår skal rejsegodtgørelse, rejsefradrag, logifradrag for ikkebrofaste øer og fradrag for dobbelt husførelse beregnes for?",
+        help = "Satserne og det fælles årsloft afhænger af indkomståret.",
+        unit = "år",
+        sources = ligningslov9a_kilder
     )
+    indkomstår: Heltal,
+    årsinput: Ligningslov9AÅrsinput,
+    @ field(
+        label = "Ekstern udelukkelse fra § 9 A",
+        question = "Er personen udelukket fra § 9 A efter sømands- eller fiskerreglerne?",
+        help = "I den kanoniske personskatteberegning udledes sømandsudelukkelsen automatisk af beskæftigelsesfakta. Det selvstændige rejseark kræver den retlige status som et typet input.",
+        sources = ligningslov9a_kilder
+    )
+    ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse
 )
 
 @ calculate("Rejse-, logi- og dobbelt-husførelsesopgørelse")

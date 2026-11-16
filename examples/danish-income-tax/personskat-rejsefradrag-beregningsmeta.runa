@@ -3,1200 +3,499 @@
 @ importer ./metadata
 @ importer ./ligningsloven-par9a-rejser
 
-= personskat_ll9a_felt_personrolle = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::personrolle),
-    label = "Personens rolle ved rejserne",
-    question = Some("I hvilken rolle er rejserne foretaget?"),
-    help = Some("Rollen afgør, om personen kan modtage skattefri rejsegodtgørelse og vælge standard- eller udgiftsfradrag."),
-    unit = None
-)
-= personskat_ll9a_felt_rejser = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser),
-    label = "Arbejdsrejser med overnatning",
-    question = Some("Hvilke arbejdsrejser med overnatning skal indgå i årsopgørelsen?"),
-    help = Some("Opret én række pr. sammenhængende rejse til samme midlertidige arbejdssted."),
-    unit = None
-)
-= personskat_ll9a_felt_identifikation = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::identifikation),
-    label = "Rejsens identifikation",
-    question = Some("Hvilken entydig identifikation har rejsen?"),
-    help = Some("Brug en stabil reference fra rejseafregningen, så samme rejse ikke medregnes to gange."),
-    unit = None
-)
-= personskat_ll9a_felt_indkomstår = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::indkomstår),
-    label = "Rejsens indkomstår",
-    question = Some("Hvilket indkomstår vedrører rejsen?"),
-    help = None,
-    unit = Some("år")
-)
-= personskat_ll9a_felt_startdato_år = TypetBeregningsfelt(
+= personskat_ll9a_felt_startdato_år = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::rejser::startdato::år),
     label = "Rejsens startdato - år",
     question = Some("I hvilket år begyndte rejsen?"),
     help = Some("Startdatoen bruges til at udlede den gældende 12-månedersperiode."),
     unit = Some("år")
 )
-= personskat_ll9a_felt_startdato_måned = TypetBeregningsfelt(
+= personskat_ll9a_felt_startdato_måned = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::rejser::startdato::måned),
     label = "Rejsens startdato - måned",
     question = Some("I hvilken måned begyndte rejsen?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_ll9a_felt_startdato_dag = TypetBeregningsfelt(
+= personskat_ll9a_felt_startdato_dag = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::rejser::startdato::dag),
     label = "Rejsens startdato - dag",
     question = Some("På hvilken dag i måneden begyndte rejsen?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_ll9a_felt_rejseart = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::rejseart),
-    label = "Rejsens art",
-    question = Some("Er rejsen selvvalgt eller en tjenesterejse på arbejdsgiverens initiativ?"),
-    help = Some("Futuruna bruger rejsearten sammen med dato, destination, varighed og månedens øvrige rejser til at udlede reglen om enkeltstående kortvarige tjenesterejser."),
-    unit = None
-)
-= personskat_ll9a_felt_arbejdssted_identifikation = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::arbejdssted_identifikation),
-    label = "Arbejdsstedets identifikation",
-    question = Some("Hvilket arbejdssted vedrører rejsen?"),
-    help = Some("Brug samme stabile identifikation for gentagne rejser til samme arbejdssted."),
-    unit = None
-)
-= personskat_ll9a_felt_arbejdsstedskarakter = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::arbejdsstedskarakter::$variant),
-    label = "Arbejdsstedets karakter",
-    question = Some("Er arbejdsstedet mobilt, flyttende eller stedbundet?"),
-    help = Some("Arbejdsstedets faktiske karakter afgør midlertidighed og de stedbaserede undtagelser; korte tjenesterejser udledes særskilt af rejsemønsteret."),
-    unit = None
-)
-= personskat_ll9a_felt_flyttet_arbejdssted_kilometer = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::arbejdsstedskarakter::Ll9AFlyttendeArbejdssted::flyttet_ad_normal_transportvej_kilometer),
-    label = "Flyttet arbejdssted",
-    question = Some("Hvor langt har det flyttende arbejdssted flyttet sig ad normal transportvej?"),
-    help = Some("En flytning på mindst 8 km undtager stedet fra 12-månedersbegrænsningen."),
-    unit = Some("km")
-)
-= personskat_ll9a_felt_tidsbegrænsning = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::arbejdsstedskarakter::Ll9AStedbundetArbejdssted::tidsbegrænsning),
-    label = "Det stedbundne arbejdssteds tidsbegrænsning",
-    question = Some("Hvorfor er det stedbundne arbejdssted tidsbegrænset?"),
-    help = Some("Et ubegrænset stedbundet arbejdssted opfylder ikke rejsebegrebets krav om et midlertidigt arbejdssted."),
-    unit = None
-)
-= personskat_ll9a_felt_overnatningsforhold = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::overnatningsforhold::$variant),
-    label = "Mulighed for at overnatte hjemme",
-    question = Some("Var det på grund af afstanden umuligt at overnatte på den sædvanlige bopæl?"),
-    help = Some("Vurderingen skal bygge på den normale transportvej, transporttiden og arbejdsforholdene, ikke alene på et frit valg om at overnatte ude."),
-    unit = None
-)
-= personskat_ll9a_felt_bopælsafstand = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::overnatningsforhold::Ll9AIngenMulighedForOvernatningPåSædvanligBopæl::afstand_ad_normal_transportvej_kilometer),
-    label = "Afstand mellem bopæl og arbejdssted",
-    question = Some("Hvor lang er afstanden ad normal transportvej mellem bopælen og arbejdsstedet?"),
-    help = None,
-    unit = Some("km")
-)
-= personskat_ll9a_felt_transporttid = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::overnatningsforhold::Ll9AIngenMulighedForOvernatningPåSædvanligBopæl::korteste_transporttid_hver_vej_minutter),
-    label = "Korteste transporttid hver vej",
-    question = Some("Hvor lang var den korteste realistiske transporttid hver vej?"),
-    help = None,
-    unit = Some("minutter")
-)
-= personskat_ll9a_felt_tidligere_rejser = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::tidligere_rejser),
-    label = "Tidligere rejser til de samme arbejdssteder",
-    question = Some("Hvilke tidligere rejser er nødvendige for at fastlægge rejsemønstre og aktuelle 12-månedersperioder?"),
-    help = Some("Medtag både korte og længere tidligere rejser til de berørte stedbundne arbejdssteder. Rejserne skal begynde før de aktuelle rejser; Futuruna udleder selv, hvilke der indgår i perioderne."),
-    unit = None
-)
-= personskat_ll9a_felt_tidligere_rejse_identifikation = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::tidligere_rejser::identifikation),
-    label = "Tidligere rejses identifikation",
-    question = Some("Hvilken entydig identifikation har den tidligere rejse?"),
-    help = Some("Identifikationen skal være forskellig fra alle aktuelle og øvrige tidligere rejser."),
-    unit = None
-)
-= personskat_ll9a_felt_tidligere_rejse_startår = TypetBeregningsfelt(
+= personskat_ll9a_felt_tidligere_rejse_startår = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::arbejdshistorik::tidligere_rejser::startdato::år),
     label = "Tidligere rejses startdato - år",
     question = Some("I hvilket år begyndte den tidligere rejse?"),
     help = None,
     unit = Some("år")
 )
-= personskat_ll9a_felt_tidligere_rejse_startmåned = TypetBeregningsfelt(
+= personskat_ll9a_felt_tidligere_rejse_startmåned = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::arbejdshistorik::tidligere_rejser::startdato::måned),
     label = "Tidligere rejses startdato - måned",
     question = Some("I hvilken måned begyndte den tidligere rejse?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_ll9a_felt_tidligere_rejse_startdag = TypetBeregningsfelt(
+= personskat_ll9a_felt_tidligere_rejse_startdag = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::arbejdshistorik::tidligere_rejser::startdato::dag),
     label = "Tidligere rejses startdato - dag",
     question = Some("På hvilken dag i måneden begyndte den tidligere rejse?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_ll9a_felt_tidligere_rejse_arbejdssted = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::tidligere_rejser::arbejdssted_identifikation),
-    label = "Tidligere rejses arbejdssted",
-    question = Some("Hvilket arbejdssted vedrørte den tidligere rejse?"),
-    help = Some("Brug samme stabile arbejdsstedsidentifikation som på aktuelle rejser og arbejdsdage."),
-    unit = None
-)
-= personskat_ll9a_felt_tidligere_rejseart = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::tidligere_rejser::rejseart),
-    label = "Tidligere rejses art",
-    question = Some("Var den tidligere rejse en tjenesterejse eller selvvalgt?"),
-    help = Some("Kun tjenesterejser kan omfattes af undtagelsen for enkeltstående kortvarige rejser."),
-    unit = None
-)
-= personskat_ll9a_felt_tidligere_rejse_varighed = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::tidligere_rejser::varighed_minutter),
-    label = "Tidligere rejses samlede varighed",
-    question = Some("Hvor mange minutter varede den tidligere rejse fra afrejse til hjemkomst?"),
-    help = Some("Varigheden indgår sammen med månedens rejsehyppighed i den afledte vurdering af enkeltstående kortvarige tjenesterejser."),
-    unit = Some("minutter")
-)
-= personskat_ll9a_felt_arbejdsdage = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsdage),
-    label = "Daterede arbejdsdage mellem rejser",
-    question = Some("Hvilke arbejdsdage mellem rejserne er nødvendige for at vurdere en tilbagevenden?"),
-    help = Some("Registrer arbejdsdage mellem rejser, men dupliker ikke dage, der allerede er dækket af en rejserække. Arbejde på en privat bopæl tæller ikke som arbejde på et andet arbejdssted."),
-    unit = None
-)
-= personskat_ll9a_felt_arbejdsdag_år = TypetBeregningsfelt(
+= personskat_ll9a_felt_arbejdsdag_år = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsdage::dato::år),
     label = "Arbejdsdagens dato - år",
     question = Some("I hvilket år lå arbejdsdagen?"),
     help = None,
     unit = Some("år")
 )
-= personskat_ll9a_felt_arbejdsdag_måned = TypetBeregningsfelt(
+= personskat_ll9a_felt_arbejdsdag_måned = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsdage::dato::måned),
     label = "Arbejdsdagens dato - måned",
     question = Some("I hvilken måned lå arbejdsdagen?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_ll9a_felt_arbejdsdag_dag = TypetBeregningsfelt(
+= personskat_ll9a_felt_arbejdsdag_dag = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsdage::dato::dag),
     label = "Arbejdsdagens dato - dag",
     question = Some("På hvilken dag i måneden lå arbejdsdagen?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_ll9a_felt_arbejdsdag_stedstype = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsdage::sted::$variant),
-    label = "Arbejdsdagens stedstype",
-    question = Some("Blev arbejdet udført på et reelt arbejdssted eller på den private bopæl?"),
-    help = Some("Kun arbejde på et reelt andet arbejdssted kan indgå i de 40 arbejdsdage."),
-    unit = None
-)
-= personskat_ll9a_felt_arbejdsdag_arbejdssted = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsdage::sted::Ll9AArbejdePåReeltArbejdssted::arbejdssted_identifikation),
-    label = "Arbejdsdagens reelle arbejdssted",
-    question = Some("På hvilket reelt arbejdssted blev arbejdet udført?"),
-    help = Some("Feltet udfyldes kun, når stedstypen er et reelt arbejdssted."),
-    unit = None
-)
-= personskat_ll9a_felt_arbejdsstedsafstande = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsstedsafstande),
-    label = "Afstande mellem arbejdssteder",
-    question = Some("Hvilke afstande ad normal transportvej gælder mellem de berørte arbejdssteder?"),
-    help = Some("Registrer en ny række, når en afstand ændrer sig; Futuruna anvender den seneste række, der var gældende på rejsens startdato."),
-    unit = None
-)
-= personskat_ll9a_felt_afstand_fra_arbejdssted = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsstedsafstande::fra_arbejdssted_identifikation),
-    label = "Afstand fra arbejdssted",
-    question = Some("Hvilket arbejdssted måles afstanden fra?"),
-    help = None,
-    unit = None
-)
-= personskat_ll9a_felt_afstand_til_arbejdssted = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsstedsafstande::til_arbejdssted_identifikation),
-    label = "Afstand til arbejdssted",
-    question = Some("Hvilket arbejdssted måles afstanden til?"),
-    help = None,
-    unit = None
-)
-= personskat_ll9a_felt_afstand_gældende_fra_år = TypetBeregningsfelt(
+= personskat_ll9a_felt_afstand_gældende_fra_år = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsstedsafstande::gældende_fra::år),
     label = "Afstand gældende fra - år",
     question = Some("Fra hvilket år gælder afstanden?"),
     help = None,
     unit = Some("år")
 )
-= personskat_ll9a_felt_afstand_gældende_fra_måned = TypetBeregningsfelt(
+= personskat_ll9a_felt_afstand_gældende_fra_måned = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsstedsafstande::gældende_fra::måned),
     label = "Afstand gældende fra - måned",
     question = Some("Fra hvilken måned gælder afstanden?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_ll9a_felt_afstand_gældende_fra_dag = TypetBeregningsfelt(
+= personskat_ll9a_felt_afstand_gældende_fra_dag = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsstedsafstande::gældende_fra::dag),
     label = "Afstand gældende fra - dag",
     question = Some("Fra hvilken dag i måneden gælder afstanden?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_ll9a_felt_afstand_kilometer = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsstedsafstande::afstand_ad_normal_transportvej_kilometer),
-    label = "Afstand ad normal transportvej",
-    question = Some("Hvor mange kilometer er der mellem arbejdsstederne ad normal transportvej?"),
-    help = Some("Mindst 8 km starter en ny 12-månedersperiode ved skift til et nyt midlertidigt arbejdssted."),
-    unit = Some("km")
-)
-= personskat_ll9a_felt_hverv = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::hverv),
-    label = "Hverv under rejsen",
-    question = Some("Hvilket hverv blev udført under rejsen?"),
-    help = Some("Turistchauffører har særlige kostsatser, og visse transport-, skibs-, luftfarts- og naturforekomsthverv kan ikke anvende logisatsen."),
-    unit = None
-)
-= personskat_ll9a_felt_varighed = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::varighed_minutter),
-    label = "Rejsens samlede varighed",
-    question = Some("Hvor mange minutter varede rejsen fra afrejse til hjemkomst?"),
-    help = Some("Rejsen skal vare mindst 24 timer; efter fulde døgn beregnes kostsatsen pr. påbegyndt time."),
-    unit = Some("minutter")
-)
-= personskat_ll9a_felt_kostdækning = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::kost::dækning::$variant),
-    label = "Arbejdsgiverens dækningsprincip for kost",
-    question = Some("Blev rejsens kost dækket efter regning, eller blev den ikke dækket efter regning?"),
-    help = Some("Samme dækningsprincip skal gælde for alle udgifter til kost og småfornødenheder på den enkelte rejse."),
-    unit = None
-)
-= personskat_ll9a_felt_kost_efter_regning = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::kost::dækning::Ll9AKostHeltEllerDelvistDækketEfterRegning::arbejdsgiverbetalt_kroner),
-    label = "Kost dækket efter regning",
-    question = Some("Hvor meget af rejsens kost dækkede arbejdsgiveren efter regning?"),
-    help = Some("Hel eller delvis dækning efter regning begrænser standardsatsen til 25 pct.-beløbet for hele rejsen."),
-    unit = Some("kr.")
-)
-= personskat_ll9a_felt_kostudbetaling = TypetBeregningsfelt(
+= personskat_ll9a_felt_kostudbetaling = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::rejser::kost::godtgørelsesudbetaling::$variant),
     label = "Afregning af kostgodtgørelsen",
     question = Some("Blev kostgodtgørelsen udbetalt som ét uopdelt beløb eller rettidigt opdelt i satsgodtgørelse og supplerende løn?"),
     help = Some("En efterfølgende opdeling er ikke tilstrækkelig; valget om opdelt afregning forudsætter, at arbejdsgiveren foretog opdelingen ved den endelige opgørelse."),
     unit = None
 )
-= personskat_ll9a_felt_kostudbetaling_uopdelt = TypetBeregningsfelt(
+= personskat_ll9a_felt_kostudbetaling_uopdelt = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::rejser::kost::godtgørelsesudbetaling::Ll9AUopdeltGodtgørelse::udbetalt_kroner),
     label = "Uopdelt kostgodtgørelse",
     question = Some("Hvor meget blev udbetalt som uopdelt kostgodtgørelse?"),
     help = Some("Overstiger et uopdelt beløb satsen, er hele beløbet skattepligtigt."),
     unit = Some("kr.")
 )
-= personskat_ll9a_felt_kostudbetaling_satsdel = TypetBeregningsfelt(
+= personskat_ll9a_felt_kostudbetaling_satsdel = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::rejser::kost::godtgørelsesudbetaling::Ll9AEndeligtOpdeltGodtgørelse::godtgørelse_efter_sats_kroner),
     label = "Kostgodtgørelse opgjort efter sats",
     question = Some("Hvor stor en del blev ved den endelige afregning specificeret som godtgørelse efter sats?"),
     help = Some("Denne del kan være skattefri, hvis den ikke overstiger den beregnede sats og de øvrige betingelser er opfyldt."),
     unit = Some("kr.")
 )
-= personskat_ll9a_felt_kostudbetaling_løntillæg = TypetBeregningsfelt(
+= personskat_ll9a_felt_kostudbetaling_løntillæg = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::rejser::kost::godtgørelsesudbetaling::Ll9AEndeligtOpdeltGodtgørelse::supplerende_løn_kroner),
     label = "Supplerende løn ved kostafregningen",
     question = Some("Hvor stort et overskydende beløb blev behandlet som supplerende løn med A-skat og arbejdsmarkedsbidrag?"),
     help = None,
     unit = Some("kr.")
 )
-= personskat_ll9a_felt_fri_morgenmad = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::kost::fri_morgenmad_antal),
-    label = "Antal måltider med fri morgenmad",
-    question = Some("Hvor mange morgenmåltider blev stillet gratis til rådighed?"),
-    help = None,
-    unit = Some("måltider")
-)
-= personskat_ll9a_felt_fri_frokost = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::kost::fri_frokost_antal),
-    label = "Antal måltider med fri frokost",
-    question = Some("Hvor mange frokostmåltider blev stillet gratis til rådighed?"),
-    help = None,
-    unit = Some("måltider")
-)
-= personskat_ll9a_felt_fri_aftensmad = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::kost::fri_aftensmad_antal),
-    label = "Antal måltider med fri aftensmad",
-    question = Some("Hvor mange aftensmåltider blev stillet gratis til rådighed?"),
-    help = None,
-    unit = Some("måltider")
-)
-= personskat_ll9a_felt_kontrol = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::kontrol),
-    label = "Arbejdsgiverens kontrol af rejseafregningen",
-    question = Some("Har arbejdsgiveren kontrolleret rejsens formål, mål, varighed, satser og beregning?"),
-    help = Some("Manglende arbejdsgiverkontrol gør den udbetalte godtgørelse skattepligtig."),
-    unit = None
-)
-= personskat_ll9a_felt_lønomlægning = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::lønomlægning),
-    label = "Godtgørelse og lønomlægning",
-    question = Some("Er godtgørelsen finansieret ved en løbende nedgang i kontantlønnen?"),
-    help = Some("Godtgørelse mod løbende lønnedgang skal medregnes i indkomsten."),
-    unit = None
-)
-= personskat_ll9a_felt_egne_kostudgifter = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::kost::dokumenterede_kostudgifter_før_arbejdsgiverdækning_kroner),
-    label = "Dokumenterede kostudgifter før arbejdsgiverdækning",
-    question = Some("Hvor store dokumenterede kostudgifter betalte personen før refusion eller anden arbejdsgiverdækning?"),
-    help = Some("Futuruna fratrækker dækning efter regning og skattefri godtgørelse ved valg af dokumenterede udgifter."),
-    unit = Some("kr.")
-)
-= personskat_ll9a_felt_kostfradragsprincip = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::kost::fradragsprincip),
-    label = "Fradragsprincip for rejsens kost",
-    question = Some("Skal alle kostudgifter på rejsen opgøres uden fradrag, med standardsats eller med dokumenterede udgifter?"),
-    help = Some("Det valgte princip gælder for alle kostudgifter på den enkelte rejse."),
-    unit = None
-)
-= personskat_ll9a_felt_logidøgn = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn),
-    label = "Logi pr. fuldt rejsedøgn",
-    question = Some("Hvordan blev logiet dækket og fradraget for hvert fuldt rejsedøgn?"),
-    help = Some("Opret én række for hvert fuldt døgn. Dæknings- og fradragsprincip kan skifte fra døgn til døgn."),
-    unit = None
-)
-= personskat_ll9a_felt_logidøgnsnummer = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::rejsedøgnsnummer),
-    label = "Rejsedøgnets nummer",
-    question = Some("Hvilket fuldt døgn i rejsen beskriver rækken?"),
-    help = Some("Nummerér de fulde rejsedøgn fortløbende fra 1."),
-    unit = Some("døgn")
-)
-= personskat_ll9a_felt_logidækning = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::dækning::$variant),
-    label = "Arbejdsgiverens dækning af logidøgnet",
-    question = Some("Var logiet udækket, dækket efter regning eller helt eller delvist stillet frit til rådighed dette døgn?"),
-    help = Some("Hel eller delvis dækning efter regning eller frit logi afskærer standardsatsen for det pågældende døgn."),
-    unit = None
-)
-= personskat_ll9a_felt_logi_efter_regning = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::dækning::Ll9ALogiHeltEllerDelvistDækketEfterRegning::arbejdsgiverbetalt_kroner),
-    label = "Logi dækket efter regning dette døgn",
-    question = Some("Hvor meget af logiudgiften dækkede arbejdsgiveren efter regning dette døgn?"),
-    help = None,
-    unit = Some("kr.")
-)
-= personskat_ll9a_felt_logiudbetaling = TypetBeregningsfelt(
+= personskat_ll9a_felt_logiudbetaling = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::godtgørelsesudbetaling::$variant),
     label = "Afregning af logigodtgørelsen dette døgn",
     question = Some("Blev logigodtgørelsen udbetalt uopdelt eller rettidigt opdelt i satsgodtgørelse og supplerende løn?"),
     help = None,
     unit = None
 )
-= personskat_ll9a_felt_logiudbetaling_uopdelt = TypetBeregningsfelt(
+= personskat_ll9a_felt_logiudbetaling_uopdelt = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::godtgørelsesudbetaling::Ll9AUopdeltGodtgørelse::udbetalt_kroner),
     label = "Uopdelt logigodtgørelse dette døgn",
     question = Some("Hvor meget blev udbetalt som uopdelt logigodtgørelse dette døgn?"),
     help = None,
     unit = Some("kr.")
 )
-= personskat_ll9a_felt_logiudbetaling_satsdel = TypetBeregningsfelt(
+= personskat_ll9a_felt_logiudbetaling_satsdel = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::godtgørelsesudbetaling::Ll9AEndeligtOpdeltGodtgørelse::godtgørelse_efter_sats_kroner),
     label = "Logigodtgørelse opgjort efter sats dette døgn",
     question = Some("Hvor meget blev ved den endelige afregning specificeret som logigodtgørelse efter sats dette døgn?"),
     help = None,
     unit = Some("kr.")
 )
-= personskat_ll9a_felt_logiudbetaling_løntillæg = TypetBeregningsfelt(
+= personskat_ll9a_felt_logiudbetaling_løntillæg = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::godtgørelsesudbetaling::Ll9AEndeligtOpdeltGodtgørelse::supplerende_løn_kroner),
     label = "Supplerende løn ved logiafregningen dette døgn",
     question = Some("Hvor meget blev behandlet som supplerende løn med A-skat og arbejdsmarkedsbidrag dette døgn?"),
     help = None,
     unit = Some("kr.")
 )
-= personskat_ll9a_felt_egne_logiudgifter = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::dokumenteret_logiudgift_betalt_før_refusion_kroner),
-    label = "Dokumenteret logiudgift før refusion dette døgn",
-    question = Some("Hvor stor en dokumenteret logiudgift betalte personen før refusion dette døgn?"),
-    help = Some("Futuruna fratrækker dækning efter regning og skattefri logigodtgørelse ved valg af dokumenterede udgifter."),
-    unit = Some("kr.")
-)
-= personskat_ll9a_felt_logifradragsprincip = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::fradragsprincip),
-    label = "Fradragsprincip for logidøgnet",
-    question = Some("Skal dette døgn opgøres uden logifradrag, med standardsats eller med dokumenterede udgifter?"),
-    help = Some("Fradragsprincippet kan vælges særskilt for hvert fuldt rejsedøgn."),
-    unit = None
-)
-= personskat_ll9a_felt_indkomstforhold = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::indkomstforhold::$variant),
-    label = "Arbejdsindkomstens danske skatteforhold",
-    question = Some("Er arbejdsindkomsten dansk skattepligtig, udenlandsk arbejde med dansk skattepligtig løn eller undtaget fra dansk skattepligt?"),
-    help = Some("En rejse ved udenlandsk arbejde skal henvise til en identificeret årlig indkomstkilde, så flere rejser ikke kan genbruge samme indkomstloft."),
-    unit = None
-)
-= personskat_ll9a_felt_udlandsindkomstkilde_reference = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::indkomstforhold::Ll9AUdenlandskSkattepligtigArbejdsindkomst::indkomstkilde_identifikation),
-    label = "Indkomstkilde for den udenlandske rejse",
-    question = Some("Hvilken identificeret udenlandsk indkomstkilde vedrører rejsen?"),
-    help = Some("Brug samme identifikation på alle rejser, der vedrører samme udenlandske lønindkomst."),
-    unit = None
-)
-= personskat_ll9a_felt_udlandsindkomstkilder = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::udenlandske_indkomstkilder),
-    label = "Udenlandske lønindkomstkilder",
-    question = Some("Hvilke udenlandske lønindkomstkilder vedrører årets rejser?"),
-    help = Some("Opret én række pr. udenlandsk lønindkomstkilde og henvis til dens identifikation fra de berørte rejser."),
-    unit = None
-)
-= personskat_ll9a_felt_udlandsindkomstkilde_identifikation = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::udenlandske_indkomstkilder::identifikation),
-    label = "Den udenlandske indkomstkildes identifikation",
-    question = Some("Hvilken entydig identifikation har den udenlandske lønindkomstkilde?"),
-    help = Some("Identifikationen forbinder kilden med én eller flere rejser."),
-    unit = None
-)
-= personskat_ll9a_felt_udlandsløn = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::udenlandske_indkomstkilder::lønindkomst_medregnet_i_danmark_kroner),
-    label = "Udenlandsk løn medregnet i Danmark",
-    question = Some("Hvor stor en løn fra denne udenlandske indkomstkilde medregnes i den danske indkomstopgørelse?"),
-    help = None,
-    unit = Some("kr.")
-)
-= personskat_ll9a_felt_udlandsøvrige_fradrag = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::udenlandske_indkomstkilder::øvrige_fradrag_vedrørende_indkomsten_kroner),
-    label = "Øvrige fradrag vedrørende den udenlandske løn",
-    question = Some("Hvor store øvrige fradrag vedrører denne udenlandske lønindkomst?"),
-    help = Some("Beløbet reserverer den del af indkomstloftet, der allerede bruges af andre fradrag vedrørende samme udenlandske arbejde."),
-    unit = Some("kr.")
-)
-= personskat_ll9a_felt_ølogi = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::$variant),
-    label = "Logifradrag for bopæl på ikkebrofast ø",
-    question = Some("Skal der opgøres logifradrag for arbejde fra en sædvanlig bopæl på en ikkebrofast ø?"),
-    help = Some("Vælg kun fradraget, når bopælen er omfattet af ligningslovens § 9 C, stk. 3, og logiet vedrører et fast arbejdssted, hvor afstanden gør hjemmeovernatning umulig."),
-    unit = None
-)
-= personskat_ll9a_felt_ølogi_kommune = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::bopæl::kommune),
-    label = "Bopælskommunen for øboeren",
-    question = Some("I hvilken kommune ligger den sædvanlige bopæl på øen?"),
-    help = Some("Kommunen bruges sammen med øen til at afgøre, om bopælen er omfattet af § 9 C, stk. 3."),
-    unit = None
-)
-= personskat_ll9a_felt_ølogi_ø = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::bopæl::ø::$variant),
-    label = "Øen med den sædvanlige bopæl",
-    question = Some("På hvilken ø ligger den sædvanlige bopæl?"),
-    help = Some("Baagø, Egholm, Endelave, Hjarnø, Mandø, Nekselø, Orø, Sejerø, Tunø og Aarø er særskilt omfattet; andre øer vurderes via kommunen."),
-    unit = None
-)
-= personskat_ll9a_felt_ølogi_anden_ø_navn = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::bopæl::ø::Ll9AAndenDanskØ::navn),
-    label = "Navn på anden dansk ø",
-    question = Some("Hvad hedder øen?"),
-    help = Some("Udfyldes, når øen ikke vælges blandt de særskilt nævnte småøer."),
-    unit = None
-)
-= personskat_ll9a_felt_ølogi_vejforbindelse = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::bopæl::vejforbindelse),
-    label = "Fast vejforbindelse fra øen",
-    question = Some("Har øen en fast vejforbindelse til fastlandet eller en brofast ø?"),
-    help = Some("Fradraget kræver, at bopælen ligger på en ikkebrofast ø."),
-    unit = None
-)
-= personskat_ll9a_felt_ølogi_arbejdsforhold = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold),
-    label = "Arbejdsforhold med logi fra øbopælen",
-    question = Some("Hvilke arbejdsforhold har medført logi væk fra øbopælen?"),
-    help = Some("Opret én række pr. arbejdssted og registrer de tilhørende ophold særskilt."),
-    unit = None
-)
-= personskat_ll9a_felt_ølogi_arbejdssted_identifikation = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::arbejdssted_identifikation),
-    label = "Arbejdsstedets identifikation for ølogi",
-    question = Some("Hvilken entydig identifikation har arbejdsstedet?"),
-    help = Some("Brug en stabil identifikation, så ophold ved samme arbejdssted samles og arbejdssteder ikke medregnes dobbelt."),
-    unit = None
-)
-= personskat_ll9a_felt_ølogi_arbejdsstedskarakter = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::arbejdsstedskarakter),
-    label = "Fast eller midlertidigt arbejdssted for ølogi",
-    question = Some("Er arbejdsstedet fast eller midlertidigt?"),
-    help = Some("Denne særregel gælder et fast arbejdssted; midlertidige arbejdssteder vurderes efter de almindelige rejseregler."),
-    unit = None
-)
-= personskat_ll9a_felt_ølogi_overnatningsforhold = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::overnatningsforhold::$variant),
-    label = "Mulighed for hjemmeovernatning fra arbejdsstedet",
-    question = Some("Gjorde afstanden mellem arbejdsstedet og øbopælen det umuligt at overnatte hjemme?"),
-    help = Some("Vurderingen skal bygge på normal transportvej, realistisk transporttid og arbejdsforholdene."),
-    unit = None
-)
-= personskat_ll9a_felt_ølogi_bopælsafstand = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::overnatningsforhold::Ll9AØlogiIngenMulighedForOvernatningPåSædvanligBopæl::afstand_ad_normal_transportvej_kilometer),
-    label = "Afstand mellem øbopæl og fast arbejdssted",
-    question = Some("Hvor lang er afstanden ad normal transportvej mellem øbopælen og arbejdsstedet?"),
-    help = None,
-    unit = Some("km")
-)
-= personskat_ll9a_felt_ølogi_transporttid = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::overnatningsforhold::Ll9AØlogiIngenMulighedForOvernatningPåSædvanligBopæl::korteste_transporttid_hver_vej_minutter),
-    label = "Korteste transporttid fra øbopælen hver vej",
-    question = Some("Hvor lang var den korteste realistiske transporttid hver vej?"),
-    help = None,
-    unit = Some("minutter")
-)
-= personskat_ll9a_felt_ølogi_hverv = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::hverv),
-    label = "Hverv under ølogiopholdene",
-    question = Some("Hvilket hverv blev udført ved arbejdsstedet?"),
-    help = Some("Transport-, skibs-, luftfarts- og naturforekomsthverv kan ikke anvende logisatsen."),
-    unit = None
-)
-= personskat_ll9a_felt_ølogi_ophold = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold),
-    label = "Logiophold ved det faste arbejdssted",
-    question = Some("Hvilke sammenhængende logiophold vedrører arbejdsstedet?"),
-    help = Some("Opret én række pr. sammenhængende ophold. Overlappende ophold afvises."),
-    unit = None
-)
-= personskat_ll9a_felt_ølogi_ophold_identifikation = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::identifikation),
-    label = "Ølogiopholdets identifikation",
-    question = Some("Hvilken entydig identifikation har logiopholdet?"),
-    help = Some("Brug en stabil reference fra logidokumentationen."),
-    unit = None
-)
-= personskat_ll9a_felt_ølogi_ophold_startår = TypetBeregningsfelt(
+= personskat_ll9a_felt_ølogi_ophold_startår = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::starttidspunkt::dato::år),
     label = "Ølogiopholdets startdato (ISO 8601) - år",
     question = Some("I hvilket år begyndte logiopholdet?"),
     help = None,
     unit = Some("år")
 )
-= personskat_ll9a_felt_ølogi_ophold_startmåned = TypetBeregningsfelt(
+= personskat_ll9a_felt_ølogi_ophold_startmåned = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::starttidspunkt::dato::måned),
     label = "Ølogiopholdets startdato (ISO 8601) - måned",
     question = Some("I hvilken måned begyndte logiopholdet?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_ll9a_felt_ølogi_ophold_startdag = TypetBeregningsfelt(
+= personskat_ll9a_felt_ølogi_ophold_startdag = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::starttidspunkt::dato::dag),
     label = "Ølogiopholdets startdato (ISO 8601) - dag",
     question = Some("På hvilken dag i måneden begyndte logiopholdet?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_ll9a_felt_ølogi_ophold_starttime = TypetBeregningsfelt(
+= personskat_ll9a_felt_ølogi_ophold_starttime = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::starttidspunkt::klokkeslæt::time),
     label = "Ølogiopholdets starttidspunkt - time",
     question = Some("I hvilken time begyndte logiopholdet?"),
     help = Some("Angiv timen fra 0 til 23."),
     unit = Some("time")
 )
-= personskat_ll9a_felt_ølogi_ophold_startminut = TypetBeregningsfelt(
+= personskat_ll9a_felt_ølogi_ophold_startminut = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::starttidspunkt::klokkeslæt::minut),
     label = "Ølogiopholdets starttidspunkt - minut",
     question = Some("I hvilket minut begyndte logiopholdet?"),
     help = Some("Angiv minuttet fra 0 til 59."),
     unit = Some("minut")
 )
-= personskat_ll9a_felt_ølogi_ophold_slutår = TypetBeregningsfelt(
+= personskat_ll9a_felt_ølogi_ophold_slutår = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::sluttidspunkt_eksklusiv::dato::år),
     label = "Ølogiopholdets slutdato (ISO 8601) - år",
     question = Some("I hvilket år sluttede logiopholdet?"),
     help = Some("Sluttidspunktet er eksklusivt: opholdet varer frem til, men ikke med, dette tidspunkt."),
     unit = Some("år")
 )
-= personskat_ll9a_felt_ølogi_ophold_slutmåned = TypetBeregningsfelt(
+= personskat_ll9a_felt_ølogi_ophold_slutmåned = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::sluttidspunkt_eksklusiv::dato::måned),
     label = "Ølogiopholdets slutdato (ISO 8601) - måned",
     question = Some("I hvilken måned sluttede logiopholdet?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_ll9a_felt_ølogi_ophold_slutdag = TypetBeregningsfelt(
+= personskat_ll9a_felt_ølogi_ophold_slutdag = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::sluttidspunkt_eksklusiv::dato::dag),
     label = "Ølogiopholdets slutdato (ISO 8601) - dag",
     question = Some("På hvilken dag i måneden sluttede logiopholdet?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_ll9a_felt_ølogi_ophold_sluttime = TypetBeregningsfelt(
+= personskat_ll9a_felt_ølogi_ophold_sluttime = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::sluttidspunkt_eksklusiv::klokkeslæt::time),
     label = "Ølogiopholdets sluttidspunkt - time",
     question = Some("I hvilken time sluttede logiopholdet?"),
     help = Some("Angiv timen fra 0 til 23."),
     unit = Some("time")
 )
-= personskat_ll9a_felt_ølogi_ophold_slutminut = TypetBeregningsfelt(
+= personskat_ll9a_felt_ølogi_ophold_slutminut = Beregningsfelt(
     path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::sluttidspunkt_eksklusiv::klokkeslæt::minut),
     label = "Ølogiopholdets sluttidspunkt - minut",
     question = Some("I hvilket minut sluttede logiopholdet?"),
     help = Some("Futuruna udleder opholdets varighed og fulde 24-timers-døgn af start- og sluttidspunktet."),
     unit = Some("minut")
 )
-= personskat_ll9a_felt_ølogi_ophold_udgift = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::udgiftsforhold),
-    label = "Egen logiudgift under øopholdet",
-    question = Some("Har personen selv afholdt en logiudgift under opholdet?"),
-    help = Some("Standardsatsfradraget kræver en egen logiudgift; arbejdsgiverbetalt eller frit logi giver ikke fradrag."),
-    unit = None
-)
-= personskat_ll9a_felt_dobbelt_husførelse = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::dobbelt_husførelse::$variant),
-    label = "Fradrag for dobbelt husførelse",
-    question = Some("Skal der beregnes fradrag for dobbelt husførelse ud fra årets arbejds- og boligforhold?"),
-    help = Some("Futuruna udleder fradraget af de faktiske perioder og betingelser. Dobbelt husførelse, rejsefradrag og ølogi deler det regulerede årsloft."),
-    unit = None
-)
 
-= personskat_sl6dh_felt_personkreds = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::personkreds::$variant),
-    label = "Familieforhold ved dobbelt husførelse",
-    question = Some("Er personen gift, ugift samlevende eller enlig forsørger?"),
-    help = Some("Personkredsen følger praksis efter statsskattelovens § 6, litra a."),
-    unit = None
-)
-= personskat_sl6dh_felt_samliv_startår = TypetBeregningsfelt(
+= personskat_sl6dh_felt_samliv_startår = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::personkreds::Sl6DhUgiftSamlevende::samliv_startdato::år),
     label = "Samlivets startdato - år",
     question = Some("I hvilket år begyndte samlivet?"),
     help = Some("Et samliv på mindst ét år er som udgangspunkt omfattet uden en særskilt konkret vurdering."),
     unit = Some("år")
 )
-= personskat_sl6dh_felt_samliv_startmåned = TypetBeregningsfelt(
+= personskat_sl6dh_felt_samliv_startmåned = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::personkreds::Sl6DhUgiftSamlevende::samliv_startdato::måned),
     label = "Samlivets startdato - måned",
     question = Some("I hvilken måned begyndte samlivet?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_sl6dh_felt_samliv_startdag = TypetBeregningsfelt(
+= personskat_sl6dh_felt_samliv_startdag = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::personkreds::Sl6DhUgiftSamlevende::samliv_startdato::dag),
     label = "Samlivets startdato - dag",
     question = Some("På hvilken dag begyndte samlivet?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_sl6dh_felt_kort_samlivsvurdering = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::personkreds::Sl6DhUgiftSamlevende::kort_samlivsvurdering::$variant),
-    label = "Konkret vurdering af kortere samliv",
-    question = Some("Er et samliv under ét år godkendt efter en konkret vurdering?"),
-    help = Some("Vælg kun godkendelse, når en konkret myndighedsvurdering foreligger."),
-    unit = None
-)
-= personskat_sl6dh_felt_kort_samlivskilde = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::personkreds::Sl6DhUgiftSamlevende::kort_samlivsvurdering::Sl6DhKortSamlivGodkendtEfterKonkretVurdering::kildeidentifikation),
-    label = "Kilde til vurdering af kortere samliv",
-    question = Some("Hvilken afgørelse eller vurdering godkender det kortere samliv?"),
-    help = Some("Brug en stabil dokumentreference."),
-    unit = None
-)
-= personskat_sl6dh_felt_børn = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::personkreds::Sl6DhEnligForsørger::børn),
-    label = "Børn hos den enlige forsørger",
-    question = Some("Hvilke børn indgår i vurderingen ved indkomstårets begyndelse?"),
-    help = Some("Opret én række pr. barn; mindst ét barn skal være under 18 år ved årets begyndelse."),
-    unit = None
-)
-= personskat_sl6dh_felt_barn_identifikation = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::personkreds::Sl6DhEnligForsørger::børn::identifikation),
-    label = "Barnets identifikation",
-    question = Some("Hvilken entydig reference har barnet?"),
-    help = Some("Brug en intern stabil reference; følsomme personnumre er ikke nødvendige."),
-    unit = None
-)
-= personskat_sl6dh_felt_barn_fødselsår = TypetBeregningsfelt(
+= personskat_sl6dh_felt_barn_fødselsår = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::personkreds::Sl6DhEnligForsørger::børn::fødselsdato::år),
     label = "Barnets fødselsdato - år",
     question = Some("I hvilket år blev barnet født?"),
     help = None,
     unit = Some("år")
 )
-= personskat_sl6dh_felt_barn_fødselsmåned = TypetBeregningsfelt(
+= personskat_sl6dh_felt_barn_fødselsmåned = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::personkreds::Sl6DhEnligForsørger::børn::fødselsdato::måned),
     label = "Barnets fødselsdato - måned",
     question = Some("I hvilken måned blev barnet født?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_sl6dh_felt_barn_fødselsdag = TypetBeregningsfelt(
+= personskat_sl6dh_felt_barn_fødselsdag = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::personkreds::Sl6DhEnligForsørger::børn::fødselsdato::dag),
     label = "Barnets fødselsdato - dag",
     question = Some("På hvilken dag blev barnet født?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_sl6dh_felt_ophold = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold),
-    label = "Perioder med dobbelt husførelse",
-    question = Some("Hvilke sammenhængende perioder med uændrede forhold skal vurderes?"),
-    help = Some("Opret en ny række, når arbejdsforhold, dækning eller opgørelsesmetode ændres. Perioder må ikke overlappe."),
-    unit = None
-)
-= personskat_sl6dh_felt_ophold_identifikation = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::identifikation),
-    label = "Periodens identifikation",
-    question = Some("Hvilken entydig identifikation har perioden?"),
-    help = Some("Brug en stabil reference, så samme periode ikke medregnes to gange."),
-    unit = None
-)
-= personskat_sl6dh_felt_arbejdssted_identifikation = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::arbejdssted_identifikation),
-    label = "Arbejdsstedets identifikation ved dobbelt husførelse",
-    question = Some("Hvilket arbejdssted gjorde den ekstra bolig nødvendig?"),
-    help = Some("Brug en stabil reference til arbejdsstedet eller opgaven."),
-    unit = None
-)
-= personskat_sl6dh_felt_oprindelig_startår = TypetBeregningsfelt(
+= personskat_sl6dh_felt_oprindelig_startår = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::oprindelig_startdato::år),
     label = "Dobbelt husførelses oprindelige startdato - år",
     question = Some("I hvilket år begyndte den samlede dobbelte husførelse?"),
     help = Some("Den oprindelige startdato bruges til at håndhæve den almindelige toårsgrænse på tværs af indkomstår."),
     unit = Some("år")
 )
-= personskat_sl6dh_felt_oprindelig_startmåned = TypetBeregningsfelt(
+= personskat_sl6dh_felt_oprindelig_startmåned = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::oprindelig_startdato::måned),
     label = "Dobbelt husførelses oprindelige startdato - måned",
     question = Some("I hvilken måned begyndte den samlede dobbelte husførelse?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_sl6dh_felt_oprindelig_startdag = TypetBeregningsfelt(
+= personskat_sl6dh_felt_oprindelig_startdag = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::oprindelig_startdato::dag),
     label = "Dobbelt husførelses oprindelige startdato - dag",
     question = Some("På hvilken dag begyndte den samlede dobbelte husførelse?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_sl6dh_felt_periode_fra_år = TypetBeregningsfelt(
+= personskat_sl6dh_felt_periode_fra_år = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::fradragsperiode_fra_dato::år),
     label = "Fradragsperiodens startdato - år",
     question = Some("I hvilket år begynder denne fradragsperiode?"),
     help = None,
     unit = Some("år")
 )
-= personskat_sl6dh_felt_periode_fra_måned = TypetBeregningsfelt(
+= personskat_sl6dh_felt_periode_fra_måned = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::fradragsperiode_fra_dato::måned),
     label = "Fradragsperiodens startdato - måned",
     question = Some("I hvilken måned begynder denne fradragsperiode?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_sl6dh_felt_periode_fra_dag = TypetBeregningsfelt(
+= personskat_sl6dh_felt_periode_fra_dag = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::fradragsperiode_fra_dato::dag),
     label = "Fradragsperiodens startdato - dag",
     question = Some("På hvilken dag begynder denne fradragsperiode?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_sl6dh_felt_periode_til_år = TypetBeregningsfelt(
+= personskat_sl6dh_felt_periode_til_år = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::fradragsperiode_til_dato::år),
     label = "Fradragsperiodens slutdato - år",
     question = Some("I hvilket år slutter denne fradragsperiode?"),
     help = None,
     unit = Some("år")
 )
-= personskat_sl6dh_felt_periode_til_måned = TypetBeregningsfelt(
+= personskat_sl6dh_felt_periode_til_måned = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::fradragsperiode_til_dato::måned),
     label = "Fradragsperiodens slutdato - måned",
     question = Some("I hvilken måned slutter denne fradragsperiode?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_sl6dh_felt_periode_til_dag = TypetBeregningsfelt(
+= personskat_sl6dh_felt_periode_til_dag = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::fradragsperiode_til_dato::dag),
     label = "Fradragsperiodens slutdato - dag",
     question = Some("På hvilken dag slutter denne fradragsperiode?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_sl6dh_felt_erhvervsårsag = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::erhvervsårsag::$variant),
-    label = "Årsag til den dobbelte husførelse",
-    question = Some("Hvilket forhold er årsag til, at to husførelser opretholdes?"),
-    help = Some("Det skal være personens eget arbejde eller et i øvrigt fradragsberettiget kursus; familiens eller private forhold er ikke tilstrækkelige."),
-    unit = None
-)
-= personskat_sl6dh_felt_kursuskilde = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::erhvervsårsag::Sl6DhSkatteydersFradragsberettigedeKursus::kildeidentifikation),
-    label = "Kilde til fradragsberettiget kursus",
-    question = Some("Hvilken dokumentation viser, at kursusudgiften er en fradragsberettiget driftsudgift?"),
-    help = Some("Brug en stabil reference til kursus- og arbejdsdokumentationen."),
-    unit = None
-)
-= personskat_sl6dh_felt_midlertidighed = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::midlertidighed::$variant),
-    label = "Arbejdsforholdets varighed",
-    question = Some("Er arbejdet objektivt midlertidigt eller en fast varig stilling?"),
-    help = Some("Midlertidigheden skal være aftalt eller stå klart ved arbejdsforholdets begyndelse."),
-    unit = None
-)
-= personskat_sl6dh_felt_midlertidighedsart = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::midlertidighed::Sl6DhMidlertidigtArbejde::art),
-    label = "Det midlertidige arbejdes art",
-    question = Some("Skyldes midlertidigheden tidsbegrænset ansættelse, reel prøvetid, forflyttelse eller turnusstilling?"),
-    help = None,
-    unit = None
-)
-= personskat_sl6dh_felt_aftalt_fra_år = TypetBeregningsfelt(
+= personskat_sl6dh_felt_aftalt_fra_år = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::midlertidighed::Sl6DhMidlertidigtArbejde::aftalt_fra_dato::år),
     label = "Midlertidigt arbejde aftalt fra - år",
     question = Some("I hvilket år begynder den aftalte midlertidige periode?"),
     help = None,
     unit = Some("år")
 )
-= personskat_sl6dh_felt_aftalt_fra_måned = TypetBeregningsfelt(
+= personskat_sl6dh_felt_aftalt_fra_måned = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::midlertidighed::Sl6DhMidlertidigtArbejde::aftalt_fra_dato::måned),
     label = "Midlertidigt arbejde aftalt fra - måned",
     question = Some("I hvilken måned begynder den aftalte midlertidige periode?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_sl6dh_felt_aftalt_fra_dag = TypetBeregningsfelt(
+= personskat_sl6dh_felt_aftalt_fra_dag = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::midlertidighed::Sl6DhMidlertidigtArbejde::aftalt_fra_dato::dag),
     label = "Midlertidigt arbejde aftalt fra - dag",
     question = Some("På hvilken dag begynder den aftalte midlertidige periode?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_sl6dh_felt_aftalt_til_år = TypetBeregningsfelt(
+= personskat_sl6dh_felt_aftalt_til_år = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::midlertidighed::Sl6DhMidlertidigtArbejde::aftalt_til_dato::år),
     label = "Midlertidigt arbejde aftalt til - år",
     question = Some("I hvilket år slutter den aftalte midlertidige periode?"),
     help = None,
     unit = Some("år")
 )
-= personskat_sl6dh_felt_aftalt_til_måned = TypetBeregningsfelt(
+= personskat_sl6dh_felt_aftalt_til_måned = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::midlertidighed::Sl6DhMidlertidigtArbejde::aftalt_til_dato::måned),
     label = "Midlertidigt arbejde aftalt til - måned",
     question = Some("I hvilken måned slutter den aftalte midlertidige periode?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_sl6dh_felt_aftalt_til_dag = TypetBeregningsfelt(
+= personskat_sl6dh_felt_aftalt_til_dag = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::midlertidighed::Sl6DhMidlertidigtArbejde::aftalt_til_dato::dag),
     label = "Midlertidigt arbejde aftalt til - dag",
     question = Some("På hvilken dag slutter den aftalte midlertidige periode?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_sl6dh_felt_transportvurdering = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::daglig_transport::vurdering),
-    label = "Vurdering af daglig transport mellem boligerne",
-    question = Some("Er daglig transport konkret vurderet som rimelig mulig?"),
-    help = Some("Vurderingen skal bygge på arbejdstid, afstand og samlet transporttid; Futuruna anvender ikke en opdigtet kilometergrænse."),
-    unit = None
-)
-= personskat_sl6dh_felt_boligafstand = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::daglig_transport::afstand_mellem_boliger_kilometer),
-    label = "Afstand mellem boligerne",
-    question = Some("Hvor stor er afstanden mellem boligerne ad normal transportvej?"),
-    help = None,
-    unit = Some("km")
-)
-= personskat_sl6dh_felt_daglig_transporttid = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::daglig_transport::samlet_transporttid_pr_dag_minutter),
-    label = "Samlet daglig transporttid mellem boligerne",
-    question = Some("Hvor mange minutters transport ville en daglig tur frem og tilbage kræve?"),
-    help = None,
-    unit = Some("minutter/dag")
-)
-= personskat_sl6dh_felt_arbejdstid = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::daglig_transport::arbejdstid_pr_dag_minutter),
-    label = "Arbejdstid pr. dag",
-    question = Some("Hvor mange minutter arbejdes der normalt pr. dag?"),
-    help = Some("Arbejdstiden indgår sammen med afstand og transporttid i den konkrete vurdering."),
-    unit = Some("minutter/dag")
-)
-= personskat_sl6dh_felt_hjemmebolig = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::$variant),
-    label = "Opretholdt familiebolig",
-    question = Some("Er familieboligen i Danmark eller udlandet reelt opretholdt?"),
-    help = Some("En udenlandsk familiebolig kræver dokumentation for familieforbindelse, bopæl og afholdte udgifter."),
-    unit = None
-)
-= personskat_sl6dh_felt_udenlandsk_familieplacering = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::$variant),
-    label = "Familiens placering ved udenlandsk familiebolig",
-    question = Some("Opholder personen sig alene i Danmark, er begge parter i Danmark, eller foreligger der flere ægtefæller?"),
-    help = Some("Placeringen afgør, hvilke supplerende fakta der kræves efter C.A.7.4."),
-    unit = None
-)
-= personskat_sl6dh_felt_udenlandsk_familiedokumentation = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::dokumentation::familieforbindelse_kildeidentifikation),
-    label = "Dokumentation for familieforbindelsen i hjemlandet",
-    question = Some("Hvilke dokumenter viser forbindelsen og det fortsatte samliv med familien i hjemlandet?"),
-    help = Some("Brug en stabil reference til fx vielses-, samlivs- eller fødselsdokumenter."),
-    unit = None
-)
-= personskat_sl6dh_felt_udenlandsk_bopælsregistrering = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::dokumentation::bopælsregistrering_kildeidentifikation),
-    label = "Dokumentation for bopælen i hjemlandet",
-    question = Some("Hvilken registrering viser den opretholdte familiebolig i hjemlandet?"),
-    help = Some("Brug en stabil reference til offentlige bopælsoplysninger eller tilsvarende dokumentation."),
-    unit = None
-)
-= personskat_sl6dh_felt_udenlandske_boligudgifter = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::dokumentation::boligudgifter_kildeidentifikation),
-    label = "Dokumentation for boligudgifter i hjemlandet",
-    question = Some("Hvilke bilag viser personens udgifter til at opretholde familieboligen i hjemlandet?"),
-    help = Some("Brug en stabil reference til fx huslejekvitteringer eller tilsvarende udgiftsbilag."),
-    unit = None
-)
-= personskat_sl6dh_felt_parophold_fra_år = TypetBeregningsfelt(
+= personskat_sl6dh_felt_parophold_fra_år = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhBeggeParterIDanmarkBørnIHjemlandet::parophold::fra_dato::år),
     label = "Begge parters midlertidige ophold i Danmark fra - år",
     question = Some("I hvilket år begyndte begge parters ophold i Danmark?"),
     help = None,
     unit = Some("år")
 )
-= personskat_sl6dh_felt_parophold_fra_måned = TypetBeregningsfelt(
+= personskat_sl6dh_felt_parophold_fra_måned = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhBeggeParterIDanmarkBørnIHjemlandet::parophold::fra_dato::måned),
     label = "Begge parters midlertidige ophold i Danmark fra - måned",
     question = Some("I hvilken måned begyndte begge parters ophold i Danmark?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_sl6dh_felt_parophold_fra_dag = TypetBeregningsfelt(
+= personskat_sl6dh_felt_parophold_fra_dag = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhBeggeParterIDanmarkBørnIHjemlandet::parophold::fra_dato::dag),
     label = "Begge parters midlertidige ophold i Danmark fra - dag",
     question = Some("På hvilken dag begyndte begge parters ophold i Danmark?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_sl6dh_felt_parophold_til_år = TypetBeregningsfelt(
+= personskat_sl6dh_felt_parophold_til_år = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhBeggeParterIDanmarkBørnIHjemlandet::parophold::forventet_til_dato::år),
     label = "Begge parters midlertidige ophold i Danmark til - år",
     question = Some("I hvilket år forventes begge parters ophold i Danmark afsluttet?"),
     help = None,
     unit = Some("år")
 )
-= personskat_sl6dh_felt_parophold_til_måned = TypetBeregningsfelt(
+= personskat_sl6dh_felt_parophold_til_måned = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhBeggeParterIDanmarkBørnIHjemlandet::parophold::forventet_til_dato::måned),
     label = "Begge parters midlertidige ophold i Danmark til - måned",
     question = Some("I hvilken måned forventes begge parters ophold i Danmark afsluttet?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_sl6dh_felt_parophold_til_dag = TypetBeregningsfelt(
+= personskat_sl6dh_felt_parophold_til_dag = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhBeggeParterIDanmarkBørnIHjemlandet::parophold::forventet_til_dato::dag),
     label = "Begge parters midlertidige ophold i Danmark til - dag",
     question = Some("På hvilken dag forventes begge parters ophold i Danmark afsluttet?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_sl6dh_felt_parophold_dokumentation = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhBeggeParterIDanmarkBørnIHjemlandet::parophold::dokumentationsidentifikation),
-    label = "Dokumentation for begge parters midlertidige ophold",
-    question = Some("Hvilken dokumentation viser, at begge parters ophold i Danmark er midlertidigt?"),
-    help = Some("Brug en stabil reference til de tidsbegrænsede opholdsforhold."),
-    unit = None
-)
-= personskat_sl6dh_felt_antal_hustruer_i_hjemlandet = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhFlereHustruerKunIHjemlandet::antal_hustruer),
-    label = "Antal hustruer, som kun opholder sig i hjemlandet",
-    question = Some("Hvor mange hustruer opholder sig i hjemlandet, når ingen hustru opholder sig i Danmark?"),
-    help = Some("Praksis tillader højst ét fradrag uanset antallet."),
-    unit = Some("personer")
-)
-= personskat_sl6dh_felt_hjemlandsophold = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold),
-    label = "Ferie og lignende ophold i hjemlandet",
-    question = Some("Hvilke ferieophold eller lignende ophold i hjemlandet ligger i fradragsperioden?"),
-    help = Some("Opret én række pr. ophold. Et ophold over to kalendermåneder afbryder fradraget for sit eget datospand."),
-    unit = None
-)
-= personskat_sl6dh_felt_hjemlandsophold_identifikation = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold::identifikation),
-    label = "Hjemlandsopholdets identifikation",
-    question = Some("Hvilken entydig reference har hjemlandsopholdet?"),
-    help = None,
-    unit = None
-)
-= personskat_sl6dh_felt_hjemlandsophold_fra_år = TypetBeregningsfelt(
+= personskat_sl6dh_felt_hjemlandsophold_fra_år = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold::fra_dato::år),
     label = "Hjemlandsophold fra - år",
     question = Some("I hvilket år begyndte hjemlandsopholdet?"),
     help = None,
     unit = Some("år")
 )
-= personskat_sl6dh_felt_hjemlandsophold_fra_måned = TypetBeregningsfelt(
+= personskat_sl6dh_felt_hjemlandsophold_fra_måned = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold::fra_dato::måned),
     label = "Hjemlandsophold fra - måned",
     question = Some("I hvilken måned begyndte hjemlandsopholdet?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_sl6dh_felt_hjemlandsophold_fra_dag = TypetBeregningsfelt(
+= personskat_sl6dh_felt_hjemlandsophold_fra_dag = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold::fra_dato::dag),
     label = "Hjemlandsophold fra - dag",
     question = Some("På hvilken dag begyndte hjemlandsopholdet?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_sl6dh_felt_hjemlandsophold_til_år = TypetBeregningsfelt(
+= personskat_sl6dh_felt_hjemlandsophold_til_år = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold::til_dato::år),
     label = "Hjemlandsophold til - år",
     question = Some("I hvilket år sluttede hjemlandsopholdet?"),
     help = None,
     unit = Some("år")
 )
-= personskat_sl6dh_felt_hjemlandsophold_til_måned = TypetBeregningsfelt(
+= personskat_sl6dh_felt_hjemlandsophold_til_måned = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold::til_dato::måned),
     label = "Hjemlandsophold til - måned",
     question = Some("I hvilken måned sluttede hjemlandsopholdet?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_sl6dh_felt_hjemlandsophold_til_dag = TypetBeregningsfelt(
+= personskat_sl6dh_felt_hjemlandsophold_til_dag = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold::til_dato::dag),
     label = "Hjemlandsophold til - dag",
     question = Some("På hvilken dag sluttede hjemlandsopholdet?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_sl6dh_felt_arbejdsboligform = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::arbejdsboligform),
-    label = "Boligform ved arbejdsstedet",
-    question = Some("Bor personen på pensionat, privat eller under tilsvarende forhold ved arbejdsstedet?"),
-    help = Some("Standardsatsen på 400 kr. pr. uge kræver pensionat, privat indkvartering eller tilsvarende forhold."),
-    unit = None
-)
-= personskat_sl6dh_felt_merudgiftsforhold = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::merudgiftsforhold),
-    label = "Merudgifter ved dobbelt husførelse",
-    question = Some("Har personen selv haft merudgifter til kost eller bolig i perioden?"),
-    help = Some("Fradraget kræver reelle merudgifter; almindeligt privatforbrug er ikke nok."),
-    unit = None
-)
-= personskat_sl6dh_felt_arbejdsgiverdækning = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::arbejdsgiverdækning),
-    label = "Arbejdsgiverens dækning i perioden",
-    question = Some("Har arbejdsgiveren stillet kost eller logi til rådighed, udbetalt skattefri godtgørelse eller dækket udgifter efter regning?"),
-    help = Some("Sådan dækning afskærer fradrag for dobbelt husførelse for samme periode."),
-    unit = None
-)
-= personskat_sl6dh_felt_opgørelsesmetode = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::$variant),
-    label = "Opgørelsesmetode for dobbelt husførelse",
-    question = Some("Anvendes standardbeløbet eller dokumenterede merudgifter?"),
-    help = Some("Standardbeløbet er 400 kr. pr. hel uge; et større eller anderledes fradrag kræver dokumentation."),
-    unit = None
-)
-= personskat_sl6dh_felt_standarduger = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhStandardbeløb::antal_hele_uger),
-    label = "Hele uger med standardbeløb",
-    question = Some("Hvor mange hele uger i perioden skal beregnes med standardbeløbet?"),
-    help = Some("Antallet kan ikke overstige periodens antal hele syvdagesforløb."),
-    unit = Some("uger")
-)
-= personskat_sl6dh_felt_udgifter = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter),
-    label = "Dokumenterede merudgifter",
-    question = Some("Hvilke dokumenterede merudgifter til kost og logi er afholdt?"),
-    help = Some("Opret én række pr. udgift eller dokumenteret opgørelsespost."),
-    unit = None
-)
-= personskat_sl6dh_felt_udgift_identifikation = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::identifikation),
-    label = "Udgiftens identifikation",
-    question = Some("Hvilken entydig bilags- eller opgørelsesreference har udgiften?"),
-    help = None,
-    unit = None
-)
-= personskat_sl6dh_felt_udgiftsart = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::art),
-    label = "Merudgiftens art",
-    question = Some("Er posten en dokumenteret kost- eller logimerudgift?"),
-    help = None,
-    unit = None
-)
-= personskat_sl6dh_felt_udgift_fra_år = TypetBeregningsfelt(
+= personskat_sl6dh_felt_udgift_fra_år = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::fra_dato::år),
     label = "Merudgiftens periode fra - år",
     question = Some("I hvilket år begynder den periode, merudgiften vedrører?"),
     help = Some("En post, der krydser grænsen til et afbrudt hjemlandsophold, skal opdeles i entydige perioder."),
     unit = Some("år")
 )
-= personskat_sl6dh_felt_udgift_fra_måned = TypetBeregningsfelt(
+= personskat_sl6dh_felt_udgift_fra_måned = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::fra_dato::måned),
     label = "Merudgiftens periode fra - måned",
     question = Some("I hvilken måned begynder den periode, merudgiften vedrører?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_sl6dh_felt_udgift_fra_dag = TypetBeregningsfelt(
+= personskat_sl6dh_felt_udgift_fra_dag = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::fra_dato::dag),
     label = "Merudgiftens periode fra - dag",
     question = Some("På hvilken dag begynder den periode, merudgiften vedrører?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_sl6dh_felt_udgift_til_år = TypetBeregningsfelt(
+= personskat_sl6dh_felt_udgift_til_år = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::til_dato::år),
     label = "Merudgiftens periode til - år",
     question = Some("I hvilket år slutter den periode, merudgiften vedrører?"),
     help = None,
     unit = Some("år")
 )
-= personskat_sl6dh_felt_udgift_til_måned = TypetBeregningsfelt(
+= personskat_sl6dh_felt_udgift_til_måned = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::til_dato::måned),
     label = "Merudgiftens periode til - måned",
     question = Some("I hvilken måned slutter den periode, merudgiften vedrører?"),
     help = None,
     unit = Some("måned")
 )
-= personskat_sl6dh_felt_udgift_til_dag = TypetBeregningsfelt(
+= personskat_sl6dh_felt_udgift_til_dag = Beregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::til_dato::dag),
     label = "Merudgiftens periode til - dag",
     question = Some("På hvilken dag slutter den periode, merudgiften vedrører?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_sl6dh_felt_udgiftsbeløb = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::beløb_kroner),
-    label = "Dokumenteret merudgift",
-    question = Some("Hvor stort er det dokumenterede merudgiftsbeløb?"),
-    help = None,
-    unit = Some("kr.")
-)
-= personskat_sl6dh_felt_toårsgrænse = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::toårsgrænse::$variant),
-    label = "Toårsgrænsen",
-    question = Some("Gælder den almindelige toårsgrænse, eller foreligger dokumenterede særlige omstændigheder?"),
-    help = Some("Fradrag gives normalt ikke ud over to år. En undtagelse kræver særlige omstændigheder og en konkret kilde."),
-    unit = None
-)
-= personskat_sl6dh_felt_toårsundtagelse_kilde = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::toårsgrænse::Sl6DhSærligeOmstændighederUdOverToÅr::kildeidentifikation),
-    label = "Kilde til undtagelse fra toårsgrænsen",
-    question = Some("Hvilken afgørelse dokumenterer de særlige omstændigheder?"),
-    help = Some("Brug en stabil reference til den konkrete myndighedsvurdering."),
-    unit = None
-)
 
-= personskat_sl6dh_beregningsmeta = TypetBeregningsmeta(
+= personskat_sl6dh_beregningsmeta = Beregningsmeta(
     felter = [
-        personskat_sl6dh_felt_personkreds,
         personskat_sl6dh_felt_samliv_startår,
         personskat_sl6dh_felt_samliv_startmåned,
         personskat_sl6dh_felt_samliv_startdag,
-        personskat_sl6dh_felt_kort_samlivsvurdering,
-        personskat_sl6dh_felt_kort_samlivskilde,
-        personskat_sl6dh_felt_børn,
-        personskat_sl6dh_felt_barn_identifikation,
         personskat_sl6dh_felt_barn_fødselsår,
         personskat_sl6dh_felt_barn_fødselsmåned,
         personskat_sl6dh_felt_barn_fødselsdag,
-        personskat_sl6dh_felt_ophold,
-        personskat_sl6dh_felt_ophold_identifikation,
-        personskat_sl6dh_felt_arbejdssted_identifikation,
         personskat_sl6dh_felt_oprindelig_startår,
         personskat_sl6dh_felt_oprindelig_startmåned,
         personskat_sl6dh_felt_oprindelig_startdag,
@@ -1206,61 +505,31 @@
         personskat_sl6dh_felt_periode_til_år,
         personskat_sl6dh_felt_periode_til_måned,
         personskat_sl6dh_felt_periode_til_dag,
-        personskat_sl6dh_felt_erhvervsårsag,
-        personskat_sl6dh_felt_kursuskilde,
-        personskat_sl6dh_felt_midlertidighed,
-        personskat_sl6dh_felt_midlertidighedsart,
         personskat_sl6dh_felt_aftalt_fra_år,
         personskat_sl6dh_felt_aftalt_fra_måned,
         personskat_sl6dh_felt_aftalt_fra_dag,
         personskat_sl6dh_felt_aftalt_til_år,
         personskat_sl6dh_felt_aftalt_til_måned,
         personskat_sl6dh_felt_aftalt_til_dag,
-        personskat_sl6dh_felt_transportvurdering,
-        personskat_sl6dh_felt_boligafstand,
-        personskat_sl6dh_felt_daglig_transporttid,
-        personskat_sl6dh_felt_arbejdstid,
-        personskat_sl6dh_felt_hjemmebolig,
-        personskat_sl6dh_felt_udenlandsk_familieplacering,
-        personskat_sl6dh_felt_udenlandsk_familiedokumentation,
-        personskat_sl6dh_felt_udenlandsk_bopælsregistrering,
-        personskat_sl6dh_felt_udenlandske_boligudgifter,
         personskat_sl6dh_felt_parophold_fra_år,
         personskat_sl6dh_felt_parophold_fra_måned,
         personskat_sl6dh_felt_parophold_fra_dag,
         personskat_sl6dh_felt_parophold_til_år,
         personskat_sl6dh_felt_parophold_til_måned,
         personskat_sl6dh_felt_parophold_til_dag,
-        personskat_sl6dh_felt_parophold_dokumentation,
-        personskat_sl6dh_felt_antal_hustruer_i_hjemlandet,
-        personskat_sl6dh_felt_hjemlandsophold,
-        personskat_sl6dh_felt_hjemlandsophold_identifikation,
         personskat_sl6dh_felt_hjemlandsophold_fra_år,
         personskat_sl6dh_felt_hjemlandsophold_fra_måned,
         personskat_sl6dh_felt_hjemlandsophold_fra_dag,
         personskat_sl6dh_felt_hjemlandsophold_til_år,
         personskat_sl6dh_felt_hjemlandsophold_til_måned,
         personskat_sl6dh_felt_hjemlandsophold_til_dag,
-        personskat_sl6dh_felt_arbejdsboligform,
-        personskat_sl6dh_felt_merudgiftsforhold,
-        personskat_sl6dh_felt_arbejdsgiverdækning,
-        personskat_sl6dh_felt_opgørelsesmetode,
-        personskat_sl6dh_felt_standarduger,
-        personskat_sl6dh_felt_udgifter,
-        personskat_sl6dh_felt_udgift_identifikation,
-        personskat_sl6dh_felt_udgiftsart,
         personskat_sl6dh_felt_udgift_fra_år,
         personskat_sl6dh_felt_udgift_fra_måned,
         personskat_sl6dh_felt_udgift_fra_dag,
         personskat_sl6dh_felt_udgift_til_år,
         personskat_sl6dh_felt_udgift_til_måned,
-        personskat_sl6dh_felt_udgift_til_dag,
-        personskat_sl6dh_felt_udgiftsbeløb,
-        personskat_sl6dh_felt_toårsgrænse,
-        personskat_sl6dh_felt_toårsundtagelse_kilde
+        personskat_sl6dh_felt_udgift_til_dag
     ],
-    spørgsmål = [],
-    beløbsfelter = [],
     attachments = (
         Source(value = statsskatteloven_lov149_par6_litra_a_dobbelt_husførelse),
         Practice(value = statsskattedirektoratets_cirkulære_18254_dobbelt_husførelse),
@@ -1272,89 +541,28 @@
 
 @ meta(personskat_sl6dh_beregningsmeta) for Statsskattelov6DobbeltHusførelseÅrsinput
 
-= personskat_ll9a_beregningsmeta = TypetBeregningsmeta(
+= personskat_ll9a_beregningsmeta = Beregningsmeta(
     felter = [
-        personskat_ll9a_felt_personrolle,
-        personskat_ll9a_felt_rejser,
-        personskat_ll9a_felt_identifikation,
-        personskat_ll9a_felt_indkomstår,
         personskat_ll9a_felt_startdato_år,
         personskat_ll9a_felt_startdato_måned,
         personskat_ll9a_felt_startdato_dag,
-        personskat_ll9a_felt_rejseart,
-        personskat_ll9a_felt_arbejdssted_identifikation,
-        personskat_ll9a_felt_arbejdsstedskarakter,
-        personskat_ll9a_felt_flyttet_arbejdssted_kilometer,
-        personskat_ll9a_felt_tidsbegrænsning,
-        personskat_ll9a_felt_overnatningsforhold,
-        personskat_ll9a_felt_bopælsafstand,
-        personskat_ll9a_felt_transporttid,
-        personskat_ll9a_felt_tidligere_rejser,
-        personskat_ll9a_felt_tidligere_rejse_identifikation,
         personskat_ll9a_felt_tidligere_rejse_startår,
         personskat_ll9a_felt_tidligere_rejse_startmåned,
         personskat_ll9a_felt_tidligere_rejse_startdag,
-        personskat_ll9a_felt_tidligere_rejse_arbejdssted,
-        personskat_ll9a_felt_tidligere_rejseart,
-        personskat_ll9a_felt_tidligere_rejse_varighed,
-        personskat_ll9a_felt_arbejdsdage,
         personskat_ll9a_felt_arbejdsdag_år,
         personskat_ll9a_felt_arbejdsdag_måned,
         personskat_ll9a_felt_arbejdsdag_dag,
-        personskat_ll9a_felt_arbejdsdag_stedstype,
-        personskat_ll9a_felt_arbejdsdag_arbejdssted,
-        personskat_ll9a_felt_arbejdsstedsafstande,
-        personskat_ll9a_felt_afstand_fra_arbejdssted,
-        personskat_ll9a_felt_afstand_til_arbejdssted,
         personskat_ll9a_felt_afstand_gældende_fra_år,
         personskat_ll9a_felt_afstand_gældende_fra_måned,
         personskat_ll9a_felt_afstand_gældende_fra_dag,
-        personskat_ll9a_felt_afstand_kilometer,
-        personskat_ll9a_felt_hverv,
-        personskat_ll9a_felt_varighed,
-        personskat_ll9a_felt_kostdækning,
-        personskat_ll9a_felt_kost_efter_regning,
         personskat_ll9a_felt_kostudbetaling,
         personskat_ll9a_felt_kostudbetaling_uopdelt,
         personskat_ll9a_felt_kostudbetaling_satsdel,
         personskat_ll9a_felt_kostudbetaling_løntillæg,
-        personskat_ll9a_felt_fri_morgenmad,
-        personskat_ll9a_felt_fri_frokost,
-        personskat_ll9a_felt_fri_aftensmad,
-        personskat_ll9a_felt_kontrol,
-        personskat_ll9a_felt_lønomlægning,
-        personskat_ll9a_felt_egne_kostudgifter,
-        personskat_ll9a_felt_kostfradragsprincip,
-        personskat_ll9a_felt_logidøgn,
-        personskat_ll9a_felt_logidøgnsnummer,
-        personskat_ll9a_felt_logidækning,
-        personskat_ll9a_felt_logi_efter_regning,
         personskat_ll9a_felt_logiudbetaling,
         personskat_ll9a_felt_logiudbetaling_uopdelt,
         personskat_ll9a_felt_logiudbetaling_satsdel,
         personskat_ll9a_felt_logiudbetaling_løntillæg,
-        personskat_ll9a_felt_egne_logiudgifter,
-        personskat_ll9a_felt_logifradragsprincip,
-        personskat_ll9a_felt_indkomstforhold,
-        personskat_ll9a_felt_udlandsindkomstkilde_reference,
-        personskat_ll9a_felt_udlandsindkomstkilder,
-        personskat_ll9a_felt_udlandsindkomstkilde_identifikation,
-        personskat_ll9a_felt_udlandsløn,
-        personskat_ll9a_felt_udlandsøvrige_fradrag,
-        personskat_ll9a_felt_ølogi,
-        personskat_ll9a_felt_ølogi_kommune,
-        personskat_ll9a_felt_ølogi_ø,
-        personskat_ll9a_felt_ølogi_anden_ø_navn,
-        personskat_ll9a_felt_ølogi_vejforbindelse,
-        personskat_ll9a_felt_ølogi_arbejdsforhold,
-        personskat_ll9a_felt_ølogi_arbejdssted_identifikation,
-        personskat_ll9a_felt_ølogi_arbejdsstedskarakter,
-        personskat_ll9a_felt_ølogi_overnatningsforhold,
-        personskat_ll9a_felt_ølogi_bopælsafstand,
-        personskat_ll9a_felt_ølogi_transporttid,
-        personskat_ll9a_felt_ølogi_hverv,
-        personskat_ll9a_felt_ølogi_ophold,
-        personskat_ll9a_felt_ølogi_ophold_identifikation,
         personskat_ll9a_felt_ølogi_ophold_startår,
         personskat_ll9a_felt_ølogi_ophold_startmåned,
         personskat_ll9a_felt_ølogi_ophold_startdag,
@@ -1364,12 +572,8 @@
         personskat_ll9a_felt_ølogi_ophold_slutmåned,
         personskat_ll9a_felt_ølogi_ophold_slutdag,
         personskat_ll9a_felt_ølogi_ophold_sluttime,
-        personskat_ll9a_felt_ølogi_ophold_slutminut,
-        personskat_ll9a_felt_ølogi_ophold_udgift,
-        personskat_ll9a_felt_dobbelt_husførelse
+        personskat_ll9a_felt_ølogi_ophold_slutminut
     ],
-    spørgsmål = [],
-    beløbsfelter = [],
     attachments = (
         Source(value = ligningsloven_lbk1500_par9a),
         Source(value = ligningsloven_lbk1500_par9a_stk5_og_stk6),

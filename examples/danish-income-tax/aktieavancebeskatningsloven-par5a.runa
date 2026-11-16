@@ -101,14 +101,142 @@ statusskifte sker inden den 24. november 2010.
 
 # AktieavancePar5AAnvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere | AblPar5AAfståelseFørDen24November2010 | AblPar5AStatusskifteFørDen24November2010EfterLov254Par14Stk11 | AblPar5AUndtagetEfterPar22Stk6
 # AktieavancePar5ASkatteydergrundlag = AblPar5ASelskabSkattepligtigtEfterPar17 | AblPar5ASelskabOmfattetAfPar43Stk4 | AblPar5APersonSkattepligtigEfterPar7 | AblPar5AAndenSkattepligtig
-# AktieavancePar5AEjertidsudbytte = AblPar5ASkattefritUdbytteAfPågældendeAktier(beløb_kroner: Heltal) | AblPar5AUdbytteMedDobbeltbeskatningslempelse(beløb_kroner: Heltal, lempelse_kroner: Heltal, betalt_skat_i_fremmed_stat_kroner: Heltal) | AblPar5AAndetUdbytteAfPågældendeAktier(beløb_kroner: Heltal)
-# AktieavancePar5APræferenceposition(modtaget_tilsvarende_udbytte_kroner: Heltal, allerede_anvendt_til_tabsreduktion_kroner: Heltal)
+= personskat_kilder_8 = [Source(value = aktieavancebeskatningsloven_lbk1098_par5a)]
+@ field(
+    label = "Udbyttets art efter ABL § 5 A",
+    question = "Var udbyttet skattefrit, omfattet af en forøget dobbeltbeskatningslempelse eller et andet udbytte?",
+    help = "Klassifikationen bestemmer, om og med hvilket beløb udbyttet indgår i tabsreduktionen.",
+    sources = personskat_kilder_8
+)
+# AktieavancePar5AEjertidsudbytte =
+    AblPar5ASkattefritUdbytteAfPågældendeAktier(
+        @ field(
+            label = "Skattefrit udbytte af de afståede aktier",
+            question = "Hvor stort var det skattefrie udbytte?",
+            help = "Beløbet indgår i reduktionsgrundlaget efter ABL § 5 A, stk. 1, nr. 1.",
+            unit = "kr.",
+            sources = personskat_kilder_8
+        )
+        beløb_kroner: Heltal
+    ) |
+    AblPar5AUdbytteMedDobbeltbeskatningslempelse(
+        @ field(
+            label = "Udbytte med dobbeltbeskatningslempelse",
+            question = "Hvor stort var udbyttet med dobbeltbeskatningslempelse?",
+            help = "Selve udbyttet dokumenteres her; tabsreduktionen bruger kun den del af lempelsen, der overstiger den betalte udenlandske skat.",
+            unit = "kr.",
+            sources = personskat_kilder_8
+        )
+        beløb_kroner: Heltal,
+        @ field(
+            label = "Opnået dobbeltbeskatningslempelse",
+            question = "Hvor stor lempelse blev opnået for udbyttet?",
+            help = "Den forøgede lempelse beregnes som lempelsen minus den skat, der faktisk blev betalt i den fremmede stat.",
+            unit = "kr.",
+            sources = personskat_kilder_8
+        )
+        lempelse_kroner: Heltal,
+        @ field(
+            label = "Betalt skat i den fremmede stat",
+            question = "Hvor meget skat blev faktisk betalt i den fremmede stat af udbyttet?",
+            help = "Beløbet trækkes fra den opnåede lempelse for at finde den del, der reducerer aktietabet.",
+            unit = "kr.",
+            sources = personskat_kilder_8
+        )
+        betalt_skat_i_fremmed_stat_kroner: Heltal
+    ) |
+    AblPar5AAndetUdbytteAfPågældendeAktier(beløb_kroner: Heltal)
+# AktieavancePar5APræferenceposition(
+    @ field(
+        label = "Tilsvarende udbytte på præferenceaktier",
+        question = "Hvor meget tilsvarende udbytte er modtaget på udbyttepræferenceaktier i selskabet?",
+        help = "Det uudnyttede beløb forhøjer reduktionsgrundlaget efter ABL § 5 A, stk. 2.",
+        unit = "kr.",
+        sources = personskat_kilder_8
+    )
+    modtaget_tilsvarende_udbytte_kroner: Heltal,
+    @ field(
+        label = "Præferenceudbytte allerede anvendt",
+        question = "Hvor meget af præferenceudbyttet har allerede reduceret et tabsfradrag?",
+        help = "Kun den endnu uudnyttede del kan reducere dette tab.",
+        unit = "kr.",
+        sources = personskat_kilder_8
+    )
+    allerede_anvendt_til_tabsreduktion_kroner: Heltal
+)
 # AktieavancePar5AKoncernbeløbsart = AblPar5ATilskud | AblPar5AUdbytteAfUdbyttepræferenceaktier | AblPar5AAndetKoncernbeløb
 # AktieavancePar5AYderrelation = AblPar5AAktietabsgivendeKoncernselskab | AblPar5AKoncernselskabKontrolleretAfAktietabsgivendeKoncernselskab | AblPar5AAndetYdendeSelskab
 # AktieavancePar5AModtagerrelation = AblPar5AKoncernselskabIkkeKontrolleretAfAktietabsgivendeKoncernselskab | AblPar5AModtagerKontrolleretAfAktietabsgivendeKoncernselskab | AblPar5AIkkeKoncernselskabEfterSelskabsskattelovPar31C
 # AktieavancePar5APersonkontrol = AblPar5APersonKontrollererYderOgModtager | AblPar5APersonKontrollererIkkeBådeYderOgModtager | AblPar5APersonkontrolIkkeRelevant
-# AktieavancePar5AKoncernbeløb(art: AktieavancePar5AKoncernbeløbsart, yderrelation: AktieavancePar5AYderrelation, modtagerrelation: AktieavancePar5AModtagerrelation, personkontrol: AktieavancePar5APersonkontrol, beløb_kroner: Heltal)
-# AktieavancePar5AFakta(anvendelsesgrundlag: AktieavancePar5AAnvendelsesgrundlag, skatteydergrundlag: AktieavancePar5ASkatteydergrundlag, ejertidsudbytter: List(AktieavancePar5AEjertidsudbytte), præferenceposition: AktieavancePar5APræferenceposition, koncernbeløb: List(AktieavancePar5AKoncernbeløb))
+# AktieavancePar5AKoncernbeløb(
+    @ field(
+        label = "Koncernbeløbets art",
+        question = "Er koncernbeløbet et tilskud, et udbytte af præferenceaktier eller et andet beløb?",
+        help = "Stk. 3 omfatter tilskud og udbytte af udbyttepræferenceaktier.",
+        sources = personskat_kilder_8
+    )
+    art: AktieavancePar5AKoncernbeløbsart,
+    @ field(
+        label = "Yderens relation til det tabsgivende selskab",
+        question = "Hvilken relation har det ydende selskab til det aktietabsgivende koncernselskab?",
+        help = "Yderen skal være det aktietabsgivende selskab eller et koncernselskab, som det kontrollerer direkte eller indirekte.",
+        sources = personskat_kilder_8
+    )
+    yderrelation: AktieavancePar5AYderrelation,
+    @ field(
+        label = "Modtagerens relation til det tabsgivende selskab",
+        question = "Hvilken relation har det modtagende selskab til det aktietabsgivende koncernselskab?",
+        help = "Modtageren skal være et koncernselskab, som det aktietabsgivende selskab ikke kontrollerer direkte eller indirekte.",
+        sources = personskat_kilder_8
+    )
+    modtagerrelation: AktieavancePar5AModtagerrelation,
+    @ field(
+        label = "Personens kontrol over yder og modtager",
+        question = "Har personen direkte eller indirekte bestemmende indflydelse over både det ydende og det modtagende selskab?",
+        help = "For personer skattepligtige efter ABL § 7 medregnes beløbet kun, når personen kontrollerer begge selskaber.",
+        sources = personskat_kilder_8
+    )
+    personkontrol: AktieavancePar5APersonkontrol,
+    @ field(
+        label = "Tilskud eller præferenceudbytte mellem koncernselskaber",
+        question = "Hvor stort var koncernbeløbet?",
+        help = "Beløbet medregnes kun, når art og samtlige relationsbetingelser i ABL § 5 A, stk. 3, er opfyldt.",
+        unit = "kr.",
+        sources = personskat_kilder_8
+    )
+    beløb_kroner: Heltal
+)
+# AktieavancePar5AFakta(
+    @ field(
+        label = "Tidsmæssigt grundlag for ABL § 5 A",
+        question = "Er der tale om en afståelse den 24. november 2010 eller senere, en tidligere afståelse, et omfattende tidligere statusskifte eller en § 22-undtagelse?",
+        help = "§ 5 A anvendes på afståelser fra og med 24. november 2010 og på de udtrykkeligt omfattede tidligere statusskifter. § 22, stk. 6, hører ikke til denne ordinære gren.",
+        sources = personskat_kilder_8
+    )
+    anvendelsesgrundlag: AktieavancePar5AAnvendelsesgrundlag,
+    @ field(
+        label = "Skatteydergrundlag for ABL § 5 A",
+        question = "Hvilken skatteyderkategori gælder for den, der har afstået aktierne?",
+        help = "Personberegningen bruger normalt kategorien person skattepligtig efter ABL § 7. Kategorien afgør også, om koncernbeløb efter stk. 3 kan medregnes.",
+        sources = personskat_kilder_8
+    )
+    skatteydergrundlag: AktieavancePar5ASkatteydergrundlag,
+    @ field(
+        label = "Udbytter modtaget i ejertiden",
+        question = "Hvilke udbytter af de afståede aktier blev modtaget i ejertiden?",
+        help = "Medtag hver udlodning med dens retlige art. Kun skattefrie udbytter og en forøget dobbeltbeskatningslempelse reducerer tabet efter stk. 1.",
+        sources = personskat_kilder_8
+    )
+    ejertidsudbytter: List(AktieavancePar5AEjertidsudbytte),
+    præferenceposition: AktieavancePar5APræferenceposition,
+    @ field(
+        label = "Koncernbeløb efter ABL § 5 A, stk. 3",
+        question = "Er der tilskud eller udbytter på præferenceaktier mellem relevante koncernselskaber, som skal prøves efter stk. 3?",
+        help = "Tilføj hvert beløb med art, yder, modtager og personens kontrolforhold. Kun lovens præcise relationskæde medregnes.",
+        sources = personskat_kilder_8
+    )
+    koncernbeløb: List(AktieavancePar5AKoncernbeløb)
+)
 # AktieavancePar5AInput(bruttotab_ved_afståelse_kroner: Heltal, fakta: AktieavancePar5AFakta)
 # AktieavancePar5AResultat(input: AktieavancePar5AInput, input_gyldigt: Boolsk, reglen_finder_anvendelse: Boolsk, skattefrie_udbytter_efter_stk1_nr1_kroner: Heltal, forøget_lempelse_efter_stk1_nr2_kroner: Heltal, reduktionsgrundlag_efter_stk1_kroner: Heltal, uudnyttede_præferenceudbytter_efter_stk2_kroner: Heltal, koncernbeløb_efter_stk3_kroner: Heltal, samlet_reduktionsgrundlag_kroner: Heltal, tabsreduktion_efter_par5a_kroner: Heltal, fradragsberettiget_tab_efter_par5a_kroner: Heltal)
 # AktieavancePar5ALagerafståelsesresultat(afståelsesidentifikation: Tekst, resultat: AktieavancePar5AResultat)

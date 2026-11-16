@@ -17,10 +17,203 @@
 @ meta(personskat_cfc_kildefakta_metadata)
 @ section personskat_cfc_kildefakta {
 
-# PersonskatCfcEfterLigningslov16HFakta(fuldt_skattepligtig_eller_dødsbo: Boolsk, udenlandsk_selskab: Boolsk, direkte_indirekte_ejerandel_basispoint: Heltal, stemmerettigheder_basispoint: Heltal, fælleskontrol_med_nærtstående_fond_eller_trust: Boolsk, aftale_om_skattesats_eller_beskatningsgrundlag: Boolsk, hjemstat_regler_indrettet_efter_kontrollerende_aktionær: Boolsk, udenlandsk_indkomstskat_kroner: Heltal, selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner: Heltal, selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner: Heltal, aktier_ikke_investeringsselskab: Boolsk, eu_eøs_selskab: Boolsk, reel_etablering_og_økonomisk_virksomhed: Boolsk, dokumentation_kan_verificeres: Boolsk, medregnet_efter_selskabsskat31a_32_eller_fondsbeskatning12: Boolsk, gennemsnitlig_ejerandel_basispoint: Heltal, kontrolperiode_basispoint: Heltal, fremført_underskud_danske_regler_kroner: Heltal)
-# PersonskatCfcEfterLigningslov16IStk6Og7Fakta(fuldt_skattepligtig_eller_dødsbo: Boolsk, kontrollerer_efter_par16h_stk6: Boolsk, medstifter_eller_ledelse_i_fond: Boolsk, selskab_har_fortrinsstilling_i_fond: Boolsk, selskabets_afkast_via_fond_kroner: Heltal, standardafkast_kroner: Heltal, fremført_negativt_merafkast_kroner: Heltal, ret_til_merafkast_basispoint: Heltal)
+= personskat_cfc_kilder = [
+    Source(value = ligningsloven_2025_1500),
+    DependencySource(value = personskatteloven_2021_1284),
+    RateSource(value = selskabsskatteloven_lbk279_par17_stk1)
+]
+# PersonskatCfcEfterLigningslov16HFakta(
+    @ field(
+        label = "§ 16 H - fuld skattepligt eller dødsbo",
+        question = "Er personen fuldt skattepligtig efter kildeskattelovens § 1 eller omfattet som dødsbo?",
+        sources = personskat_cfc_kilder
+    )
+    fuldt_skattepligtig_eller_dødsbo: Boolsk,
+    @ field(
+        label = "Udenlandsk selskab",
+        question = "Er selskabet eller foreningen udenlandsk?",
+        sources = personskat_cfc_kilder
+    )
+    udenlandsk_selskab: Boolsk,
+    @ field(
+        label = "Direkte og indirekte ejerandel",
+        question = "Hvor stor en direkte eller indirekte andel af aktiekapitalen kontrolleres?",
+        help = "Medregn de ejerandele, som § 16 H, stk. 6 henfører til personen.",
+        unit = "basispoint; 10.000 = 100 pct.",
+        sources = personskat_cfc_kilder
+    )
+    direkte_indirekte_ejerandel_basispoint: Heltal,
+    @ field(
+        label = "Stemmerettigheder",
+        question = "Hvor stor en andel af stemmerettighederne råder personen over?",
+        unit = "basispoint; 10.000 = 100 pct.",
+        sources = personskat_cfc_kilder
+    )
+    stemmerettigheder_basispoint: Heltal,
+    @ field(
+        label = "Fælleskontrol med nærtstående, fond eller trust",
+        question = "Kontrolleres selskabet i fællesskab med nærtstående eller med en relevant fond eller trust?",
+        sources = personskat_cfc_kilder
+    )
+    fælleskontrol_med_nærtstående_fond_eller_trust: Boolsk,
+    @ field(
+        label = "Aftale med hjemstatens skattemyndighed",
+        question = "Har selskabet indgået aftale om skattesats eller beskatningsgrundlag med hjemstatens skattemyndigheder?",
+        sources = personskat_cfc_kilder
+    )
+    aftale_om_skattesats_eller_beskatningsgrundlag: Boolsk,
+    @ field(
+        label = "Hjemstatens regler følger aktionærens hjemsted",
+        question = "Er hjemstatens skatteregler indrettet efter, hvor den kontrollerende aktionær er hjemmehørende?",
+        sources = personskat_cfc_kilder
+    )
+    hjemstat_regler_indrettet_efter_kontrollerende_aktionær: Boolsk,
+    @ field(
+        label = "Selskabets udenlandske indkomstskat",
+        question = "Hvor stor er selskabets samlede udenlandske indkomstskat for perioden?",
+        help = "Futuruna beregner selv sammenligningen med selskabsskattelovens § 17-sats.",
+        unit = "kr.",
+        sources = personskat_cfc_kilder
+    )
+    udenlandsk_indkomstskat_kroner: Heltal,
+    @ field(
+        label = "Selskabets CFC-indkomst",
+        question = "Hvad er selskabets CFC-indkomst opgjort efter § 16 H, stk. 4, og selskabsskattelovens § 32, stk. 5?",
+        unit = "kr.",
+        sources = personskat_cfc_kilder
+    )
+    selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner: Heltal,
+    @ field(
+        label = "Selskabets samlede skattepligtige indkomst",
+        question = "Hvad er selskabets samlede skattepligtige indkomst opgjort efter § 16 H, stk. 4 og 5?",
+        help = "Beløbet bruges både til lavskatteprøven, halvdelsprøven og loftet i stk. 10.",
+        unit = "kr.",
+        sources = personskat_cfc_kilder
+    )
+    selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner: Heltal,
+    @ field(
+        label = "Aktierne er ikke i et investeringsselskab",
+        question = "Er aktierne eller investeringsbeviserne uden for aktieavancebeskatningslovens regler om investeringsselskaber?",
+        sources = personskat_cfc_kilder
+    )
+    aktier_ikke_investeringsselskab: Boolsk,
+    @ field(
+        label = "Selskab i EU eller EØS",
+        question = "Er selskabet hjemmehørende i en anden EU- eller EØS-stat?",
+        sources = personskat_cfc_kilder
+    )
+    eu_eøs_selskab: Boolsk,
+    @ field(
+        label = "Reel etablering og økonomisk virksomhed",
+        question = "Er selskabet reelt etableret i staten og udøver det reel økonomisk virksomhed dér vedrørende CFC-indkomsten?",
+        sources = personskat_cfc_kilder
+    )
+    reel_etablering_og_økonomisk_virksomhed: Boolsk,
+    @ field(
+        label = "Dokumentationen kan verificeres",
+        question = "Kan dokumentationen verificeres gennem en relevant aftale, et direktiv eller anden informationsudveksling?",
+        sources = personskat_cfc_kilder
+    )
+    dokumentation_kan_verificeres: Boolsk,
+    @ field(
+        label = "Indkomsten er allerede medregnet efter anden CFC-regel",
+        question = "Er indkomsten allerede medregnet efter selskabsskattelovens § 31 A eller § 32 eller fondsbeskatningslovens § 12?",
+        help = "Indkomst, der allerede medregnes efter disse regler, beskattes ikke igen efter § 16 H.",
+        sources = personskat_cfc_kilder
+    )
+    medregnet_efter_selskabsskat31a_32_eller_fondsbeskatning12: Boolsk,
+    @ field(
+        label = "Gennemsnitlig ejerandel i indkomståret",
+        question = "Hvad var personens gennemsnitlige andel af selskabets samlede aktiekapital i indkomståret?",
+        unit = "basispoint; 10.000 = 100 pct.",
+        sources = personskat_cfc_kilder
+    )
+    gennemsnitlig_ejerandel_basispoint: Heltal,
+    @ field(
+        label = "Andel af året med kontrol",
+        question = "Hvor stor en del af indkomståret havde personen kontrol over selskabet?",
+        unit = "basispoint; 10.000 = hele året",
+        sources = personskat_cfc_kilder
+    )
+    kontrolperiode_basispoint: Heltal,
+    @ field(
+        label = "Fremført underskud efter danske regler",
+        question = "Hvor stort et fremført eller overført underskud kan højst medregnes efter danske regler?",
+        unit = "kr.",
+        sources = personskat_cfc_kilder
+    )
+    fremført_underskud_danske_regler_kroner: Heltal
+)
+# PersonskatCfcEfterLigningslov16IStk6Og7Fakta(
+    @ field(
+        label = "§ 16 I - fuld skattepligt eller dødsbo",
+        question = "Er personen fuldt skattepligtig efter kildeskattelovens § 1 eller omfattet som dødsbo?",
+        sources = personskat_cfc_kilder
+    )
+    fuldt_skattepligtig_eller_dødsbo: Boolsk,
+    @ field(
+        label = "Kontrol efter § 16 H, stk. 6",
+        question = "Kontrollerer personen selskabet efter ligningslovens § 16 H, stk. 6?",
+        sources = personskat_cfc_kilder
+    )
+    kontrollerer_efter_par16h_stk6: Boolsk,
+    @ field(
+        label = "Medstifter eller ledelsesrolle i fonden",
+        question = "Er personen eller en nærtstående medstifter eller nuværende eller tidligere deltager i ledelsen eller driften?",
+        sources = personskat_cfc_kilder
+    )
+    medstifter_eller_ledelse_i_fond: Boolsk,
+    @ field(
+        label = "Selskabet har fortrinsstilling i fonden",
+        question = "Har selskabet en fortrinsstilling i kapital-, venture- eller infrastrukturfonden?",
+        sources = personskat_cfc_kilder
+    )
+    selskab_har_fortrinsstilling_i_fond: Boolsk,
+    @ field(
+        label = "Selskabets afkast via fonden",
+        question = "Hvilket afkast har selskabet oppebåret af kapital investeret via fonden?",
+        unit = "kr.",
+        sources = personskat_cfc_kilder
+    )
+    selskabets_afkast_via_fond_kroner: Heltal,
+    @ field(
+        label = "Standardafkast",
+        question = "Hvad er standardafkastet for den kapital, selskabet har investeret via fonden?",
+        unit = "kr.",
+        sources = personskat_cfc_kilder
+    )
+    standardafkast_kroner: Heltal,
+    @ field(
+        label = "Fremført negativt merafkast",
+        question = "Hvor stort et negativt merafkast fra tidligere indkomstår kan fremføres?",
+        unit = "kr.",
+        sources = personskat_cfc_kilder
+    )
+    fremført_negativt_merafkast_kroner: Heltal,
+    @ field(
+        label = "Personens ret til merafkastet",
+        question = "Hvor stor en direkte eller indirekte andel af selskabets positive merafkast har personen ret til?",
+        unit = "basispoint; 10.000 = 100 pct.",
+        sources = personskat_cfc_kilder
+    )
+    ret_til_merafkast_basispoint: Heltal
+)
+@ field(
+    label = "CFC-regelgrundlag",
+    question = "Skal forholdet vurderes efter ligningslovens § 16 H eller § 16 I, stk. 6 og 7?",
+    help = "§ 16 H vedrører kontrollerede udenlandske selskaber. § 16 I vedrører merafkast gennem fonde med fortrinsstilling.",
+    sources = personskat_cfc_kilder
+)
 # PersonskatCfcPostInput = PersonskatCfcEfterLigningslov16H(fakta: PersonskatCfcEfterLigningslov16HFakta) | PersonskatCfcEfterLigningslov16IStk6Og7(fakta: PersonskatCfcEfterLigningslov16IStk6Og7Fakta)
-# PersonskatCfcInput(poster: List(PersonskatCfcPostInput))
+# PersonskatCfcInput(
+    @ field(
+        label = "CFC-forhold",
+        question = "Har du kontrollerede udenlandske selskaber eller merafkast gennem en kapital-, venture- eller infrastrukturfond?",
+        help = "Opret én række for hvert forhold, der skal vurderes efter ligningslovens § 16 H eller § 16 I, stk. 6 og 7.",
+        sources = personskat_cfc_kilder
+    )
+    poster: List(PersonskatCfcPostInput)
+)
 # PersonskatCfcPostResultat = UgyldigtCfcGrundlag(input: PersonskatCfcPostInput, skatteår_understøttet: Boolsk, grundfakta_gyldige: Boolsk) | BeregnetCfcEfterLigningslov16H(fakta: PersonskatCfcEfterLigningslov16HFakta, ligningslov_input: Ligningslov16HInput, ligningslov_resultat: Ligningslov16HResultat, par4b_post: Par4bCfcIndkomstPost) | BeregnetCfcEfterLigningslov16IStk6Og7(fakta: PersonskatCfcEfterLigningslov16IStk6Og7Fakta, ligningslov_input: Ligningslov16IStk6Og7Input, ligningslov_resultat: Ligningslov16IStk6Og7Resultat, par4b_post: Par4bCfcIndkomstPost)
 # PersonskatCfcResultat(input: PersonskatCfcInput, postresultater: List(PersonskatCfcPostResultat), alle_input_gyldige: Boolsk, par4b_resultat: Par4bCfcIndkomstResultat)
 

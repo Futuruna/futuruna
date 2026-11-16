@@ -5,7 +5,6 @@
 -- Indgangens bruttobeløbskonvention for KSL § 60-kreditter og § 55-refund.
 -- Dette er ikke en regel om, at indkomst eller alle korrektionsposter er
 -- positive. Nettokredit og tilbagebetalingshistorik er særskilte spørgsmål.
-= personskat_skattekredit_fortegnsforklaring = "De rå § 60-kreditter og § 55-tilbagebetalingen skal være ikke-negative bruttobeløb. Modellen fratrækker selv tilbagebetalingen. Brug dokumenterede korrigerede årstotaler, ikke et negativt forskelsbeløb eller rapportens visningsfortegn. Omskriv ikke ukendte eller negative beløb til nul eller absolut værdi. Se personskat-skattekreditter.md."
 
 | personskat_skattekreditter_øre_ikke_negative(kreditter: KildeskatPar60KreditterØre) -> kreditter.a_skat_og_am_indeholdt_øre >= 0
     && kreditter.par68_indbetalt_øre >= 0

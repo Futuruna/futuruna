@@ -97,8 +97,68 @@ el.lign.
 # Ligningslov30Og31Yderrelation = Ll30Og31Arbejdsgiver | Ll30Og31AftaleOmPersonligtArbejde | Ll30Og31KollektivtOrgan | Ll30Og31Fagforening | Ll30Og31Arbejdsløshedskasse | Ll30Og31PensionskasseEllerLignende | Ll30Og31AndenFagligSammenslutning | Ll30Og31ArbejdsgivernesUddannelsesbidrag | Ll30Og31AndenYder
 # Ligningslov30Behandlingsformål = Ll30MisbrugAfMedicin | Ll30Alkoholmisbrug | Ll30MisbrugAfAndreRusmidler | Ll30Rygeafvænning
 # Ligningslov30Medicindækning = Ll30IngenMedicindækning | Ll30MedicinIndenForSeksMåneder | Ll30MedicinEfterSeksMånederUnderIndlæggelse | Ll30MedicinEfterSeksMånederUdenIndlæggelse
-# Ligningslov30Ydelsesart = Ll30DirekteBehandlingsudgift | Ll30RentefordelVedBehandlingslån(lånet_begrænset_til_omfattet_behandling: Boolsk) | Ll30ForsikringspræmieEllerRefusion(forsikringsvilkårene_begrænser_dækningen_til_omfattet_behandling: Boolsk)
-# Ligningslov30Behandlingsfakta(formål: Ligningslov30Behandlingsformål, ydelsesart: Ligningslov30Ydelsesart, medicindækning: Ligningslov30Medicindækning, generel_ordning_for_personkredsen: Boolsk, skriftlig_lægeerklæring: Boolsk)
+= personskat_ll30_behandlingsfakta_kilder = [
+    Source(value = ligningsloven_lbk1500_par30),
+    Guidance(value = juridisk_vejledning_ligningslov30_personkreds),
+    Guidance(value = juridisk_vejledning_ligningslov30_betingelser)
+]
+= personskat_ll30_ydelsesart_kilder = [
+    Source(value = ligningsloven_lbk1500_par30),
+    Guidance(value = juridisk_vejledning_ligningslov30_betingelser)
+]
+@ field(
+    label = "Behandlingsydelsens art",
+    question = "Dækker ydelsen en direkte behandlingsudgift, en rentefordel ved behandlingslån eller en forsikringspræmie eller refusion?",
+    sources = personskat_ll30_behandlingsfakta_kilder
+)
+# Ligningslov30Ydelsesart =
+    Ll30DirekteBehandlingsudgift |
+    Ll30RentefordelVedBehandlingslån(
+        @ field(
+            label = "Behandlingslånet er begrænset til omfattet behandling",
+            question = "Må lånet kun anvendes til behandling, som opfylder LL § 30?",
+            sources = personskat_ll30_ydelsesart_kilder
+        )
+        lånet_begrænset_til_omfattet_behandling: Boolsk
+    ) |
+    Ll30ForsikringspræmieEllerRefusion(
+        @ field(
+            label = "Forsikringen er begrænset til omfattet behandling",
+            question = "Fremgår det af forsikringsvilkårene, at forsikringen kun dækker behandling, som opfylder LL § 30?",
+            sources = personskat_ll30_ydelsesart_kilder
+        )
+        forsikringsvilkårene_begrænser_dækningen_til_omfattet_behandling: Boolsk
+    )
+# Ligningslov30Behandlingsfakta(
+    @ field(
+        label = "Behandlingens formål efter LL § 30",
+        question = "Vedrører behandlingen misbrug af medicin, alkohol, andre rusmidler eller rygeafvænning?",
+        sources = personskat_ll30_behandlingsfakta_kilder
+    )
+    formål: Ligningslov30Behandlingsformål,
+    ydelsesart: Ligningslov30Ydelsesart,
+    @ field(
+        label = "Medicindækningens periode",
+        question = "Dækker ydelsen medicin, og ligger udgiften inden for seks måneder eller senere under eller uden indlæggelse?",
+        help = "Seks-månedersbegrænsningen gælder medicinudgifter, men ikke rygeafvænning; medicin under indlæggelse er undtaget fra tidsgrænsen.",
+        sources = personskat_ll30_behandlingsfakta_kilder
+    )
+    medicindækning: Ligningslov30Medicindækning,
+    @ field(
+        label = "Behandlingen indgår i en generel ordning",
+        question = "Tilbydes behandlingsordningen generelt til den relevante personkreds efter objektive kriterier?",
+        help = "En individuel særordning opfylder ikke LL § 30, stk. 3.",
+        sources = personskat_ll30_behandlingsfakta_kilder
+    )
+    generel_ordning_for_personkredsen: Boolsk,
+    @ field(
+        label = "Skriftlig lægeerklæring foreligger",
+        question = "Foreligger der en skriftlig lægeerklæring om behovet for behandlingen?",
+        help = "Kravet gælder behandling af medicin-, alkohol- og andet rusmiddelmisbrug, men ikke rygeafvænning.",
+        sources = personskat_ll30_behandlingsfakta_kilder
+    )
+    skriftlig_lægeerklæring: Boolsk
+)
 
 | ligningslov30_yderrelation_omfattet(relation: Ligningslov30Og31Yderrelation) -> relation == Ll30Og31Arbejdsgiver || relation == Ll30Og31AftaleOmPersonligtArbejde || relation == Ll30Og31KollektivtOrgan || relation == Ll30Og31Fagforening || relation == Ll30Og31Arbejdsløshedskasse || relation == Ll30Og31PensionskasseEllerLignende || relation == Ll30Og31AndenFagligSammenslutning
 | ligningslov30_lægeerklæring_opfyldt(fakta: Ligningslov30Behandlingsfakta) -> fakta.formål == Ll30Rygeafvænning || fakta.skriftlig_lægeerklæring
@@ -303,8 +363,225 @@ I § 31, stk. 3, indsættes som nr. 5:
 @ meta(ligningsloven_par31_metadata)
 @ section ligningsloven_par31_uddannelsesydelser {
 
-# Ligningslov31Uddannelsesydelsesart = Ll31SkoleEllerDeltagerbetaling(almindeligt_kørekort: Boolsk, yder_har_lovpligt_til_at_betale_kørekortet: Boolsk) | Ll31BøgerOgMaterialer(relevante_for_uddannelsen_eller_kurset: Boolsk) | Ll31FaktiskeLogiudgifter(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, dokumenterede_udgifter_kroner: Heltal) | Ll31FaktiskeKostudgifter(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, kosten_indtages_på_uddannelses_eller_kursusstedet: Boolsk, dokumenterede_udgifter_kroner: Heltal) | Ll31SatsgodtgørelseLogi(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, fulde_døgn: Heltal, udelukket_transportarbejde_efter_par9a_stk2_nr4: Boolsk) | Ll31SatsgodtgørelseKostOgSmåfornødenheder(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, fulde_døgn: Heltal, påbegyndte_timer_efter_fulde_døgn: Heltal, opholdets_måned_nr: Heltal, fri_morgenmad_antal: Heltal, fri_frokost_antal: Heltal, fri_aftensmad_antal: Heltal) | Ll31BefordringIEgenBilEllerMotorcykel(kilometer_ad_normal_transportvej: Heltal, adgang_til_fri_befordring_for_strækningen: Boolsk, modtaget_par9b_godtgørelse_for_samme_strækning: Boolsk, tidligere_valgt_par9b_for_samme_uddannelse_eller_kursus: Boolsk) | Ll31FaktiskeUdgifterTilAndenBefordring(dokumenterede_udgifter_kroner: Heltal) | Ll31AubTilskudEllerRefusion(modtaget_fra_og_med_1_juli_2026: Boolsk)
-# Ligningslov31Uddannelsesfakta(uddannelsen_eller_kurset_udelukkende_privat: Boolsk, ydelsesart: Ligningslov31Uddannelsesydelsesart)
+= personskat_ll31_uddannelsesfakta_kilder = [
+    Source(value = ligningsloven_lbk1500_par31),
+    AmendmentSource(value = ligningsloven_lov1630_par2_og_par3),
+    Guidance(value = juridisk_vejledning_ligningslov31)
+]
+= personskat_ll31_ydelsesart_kilder = [
+    Source(value = ligningsloven_lbk1500_par31),
+    DependencySource(value = ligningsloven_lbk1500_par9a_stk2_og_stk3),
+    AmendmentSource(value = ligningsloven_lov1630_par2_og_par3),
+    RateSource(value = skatteforvaltningen_rejsesatser_2025),
+    RateSource(value = skatteforvaltningen_rejsesatser_2026),
+    RateSource(value = skatterådet_befordringssats_2026),
+    Guidance(value = juridisk_vejledning_ligningslov31)
+]
+@ field(
+    label = "Uddannelsesydelsens art",
+    question = "Dækker ydelsen skolebetaling, bøger, logi, kost, transport eller AUB-tilskud eller refusion?",
+    help = "Vælg den konkrete udgiftstype. En betaling med flere typer skal opdeles i særskilte identificerede rækker.",
+    sources = personskat_ll31_uddannelsesfakta_kilder
+)
+# Ligningslov31Uddannelsesydelsesart =
+    Ll31SkoleEllerDeltagerbetaling(
+        @ field(
+            label = "Betalingen vedrører almindeligt kørekort",
+            question = "Vedrører skole- eller deltagerbetalingen et almindeligt kørekort?",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        almindeligt_kørekort: Boolsk,
+        @ field(
+            label = "Yderen har lovpligt til at betale kørekortet",
+            question = "Har yderen efter gældende lov pligt til at afholde udgiften til kørekortet?",
+            help = "Et almindeligt kørekort omfattes kun, når yderen har en lovbestemt betalingspligt.",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        yder_har_lovpligt_til_at_betale_kørekortet: Boolsk
+    ) |
+    Ll31BøgerOgMaterialer(
+        @ field(
+            label = "Bøger og materialer er relevante for uddannelsen",
+            question = "Er bøgerne eller materialerne fagligt relevante for den konkrete uddannelse eller det konkrete kursus?",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        relevante_for_uddannelsen_eller_kurset: Boolsk
+    ) |
+    Ll31FaktiskeLogiudgifter(
+        @ field(
+            label = "Afstanden udelukker overnatning på sædvanlig bopæl",
+            question = "Udelukker afstanden mellem bopæl og uddannelses- eller kursussted, at modtageren kan overnatte på sin sædvanlige bopæl?",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk,
+        @ field(
+            label = "Dokumenterede faktiske logiudgifter",
+            question = "Hvor store dokumenterede logiudgifter er dækket?",
+            unit = "kr.",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        dokumenterede_udgifter_kroner: Heltal
+    ) |
+    Ll31FaktiskeKostudgifter(
+        @ field(
+            label = "Afstanden udelukker overnatning ved faktisk kostdækning",
+            question = "Udelukker afstanden, at modtageren kan overnatte på sin sædvanlige bopæl?",
+            help = "Afstandskravet gælder ikke, når kosten indtages på uddannelses- eller kursusstedet.",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk,
+        @ field(
+            label = "Kosten indtages på uddannelses- eller kursusstedet",
+            question = "Indtages den dækkede kost på uddannelses- eller kursusstedet?",
+            help = "Faktiske kostudgifter på stedet kan dækkes uanset afstandskravet.",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        kosten_indtages_på_uddannelses_eller_kursusstedet: Boolsk,
+        @ field(
+            label = "Dokumenterede faktiske kostudgifter",
+            question = "Hvor store dokumenterede kostudgifter er dækket?",
+            unit = "kr.",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        dokumenterede_udgifter_kroner: Heltal
+    ) |
+    Ll31SatsgodtgørelseLogi(
+        @ field(
+            label = "Afstanden udelukker hjemlig overnatning ved logisats",
+            question = "Udelukker afstanden, at modtageren kan overnatte på sin sædvanlige bopæl?",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk,
+        @ field(
+            label = "Fulde døgn med logigodtgørelse",
+            question = "Hvor mange fulde døgn varer opholdet?",
+            help = "Satsgodtgørelse kræver et ophold på mindst 24 timer.",
+            unit = "døgn",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        fulde_døgn: Heltal,
+        @ field(
+            label = "Transportarbejde er udelukket fra logisatsen",
+            question = "Medvirker personen i sit hverv til transport af varer eller personer, gør tjeneste om bord på skib, arbejder på luftfartøj eller på fartøj eller installation ved efterforskning og udnyttelse af naturforekomster?",
+            help = "Disse arbejdsformer er udtrykkeligt udelukket fra logisatsen i LL § 9 A, stk. 2, nr. 4.",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        udelukket_transportarbejde_efter_par9a_stk2_nr4: Boolsk
+    ) |
+    Ll31SatsgodtgørelseKostOgSmåfornødenheder(
+        @ field(
+            label = "Afstanden udelukker hjemlig overnatning ved kostsats",
+            question = "Udelukker afstanden, at modtageren kan overnatte på sin sædvanlige bopæl?",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk,
+        @ field(
+            label = "Fulde døgn med kostgodtgørelse",
+            question = "Hvor mange fulde døgn varer opholdet?",
+            help = "Satsgodtgørelse kræver et ophold på mindst 24 timer.",
+            unit = "døgn",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        fulde_døgn: Heltal,
+        @ field(
+            label = "Påbegyndte timer efter de fulde døgn",
+            question = "Hvor mange påbegyndte timer varer opholdet ud over de fulde døgn?",
+            unit = "timer",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        påbegyndte_timer_efter_fulde_døgn: Heltal,
+        @ field(
+            label = "Opholdets måned nummer",
+            question = "Hvilken fortløbende måned af opholdet vedrører godtgørelsen?",
+            help = "Kost- og småfornødenhedssatsen kan kun anvendes i de første 12 måneder.",
+            unit = "måned",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        opholdets_måned_nr: Heltal,
+        @ field(
+            label = "Antal fri morgenmad",
+            question = "Hvor mange gratis morgenmåltider er modtaget i perioden?",
+            help = "Fri kost reducerer satsgodtgørelsen efter de gældende rejseregler.",
+            unit = "måltider",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        fri_morgenmad_antal: Heltal,
+        @ field(
+            label = "Antal fri frokost",
+            question = "Hvor mange gratis frokostmåltider er modtaget i perioden?",
+            help = "Fri kost reducerer satsgodtgørelsen efter de gældende rejseregler.",
+            unit = "måltider",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        fri_frokost_antal: Heltal,
+        @ field(
+            label = "Antal fri aftensmad",
+            question = "Hvor mange gratis aftensmåltider er modtaget i perioden?",
+            help = "Fri kost reducerer satsgodtgørelsen efter de gældende rejseregler.",
+            unit = "måltider",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        fri_aftensmad_antal: Heltal
+    ) |
+    Ll31BefordringIEgenBilEllerMotorcykel(
+        @ field(
+            label = "Kilometer ad normal transportvej",
+            question = "Hvor mange kilometer er kørt i egen bil eller motorcykel ad den normale transportvej?",
+            help = "LL § 31 anvender Skatterådets særlige sats for denne uddannelsesbefordring.",
+            unit = "km",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        kilometer_ad_normal_transportvej: Heltal,
+        @ field(
+            label = "Adgang til fri befordring på strækningen",
+            question = "Har modtageren adgang til arbejdsgiverbetalt eller anden fri befordring på strækningen?",
+            help = "Godtgørelse for en strækning med fri befordring er skattepligtig.",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        adgang_til_fri_befordring_for_strækningen: Boolsk,
+        @ field(
+            label = "Modtaget § 9 B-godtgørelse for samme strækning",
+            question = "Er der modtaget skattefri befordringsgodtgørelse efter LL § 9 B for samme strækning?",
+            help = "Den samme strækning kan ikke godtgøres skattefrit efter begge bestemmelser.",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        modtaget_par9b_godtgørelse_for_samme_strækning: Boolsk,
+        @ field(
+            label = "Tidligere valgt § 9 B for samme uddannelse eller kursus",
+            question = "Er der tidligere anvendt LL § 9 B-godtgørelse for befordring ved samme uddannelse eller kursus?",
+            help = "Efter et valg af § 9 B kan der ikke senere skiftes til § 31 for samme uddannelse eller kursus.",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        tidligere_valgt_par9b_for_samme_uddannelse_eller_kursus: Boolsk
+    ) |
+    Ll31FaktiskeUdgifterTilAndenBefordring(
+        @ field(
+            label = "Dokumenterede udgifter til anden befordring",
+            question = "Hvor store dokumenterede udgifter til anden befordring er dækket?",
+            unit = "kr.",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        dokumenterede_udgifter_kroner: Heltal
+    ) |
+    Ll31AubTilskudEllerRefusion(
+        @ field(
+            label = "AUB-beløbet er modtaget fra og med 1. juli 2026",
+            question = "Er tilskuddet eller refusionen fra Arbejdsgivernes Uddannelsesbidrag modtaget den 1. juli 2026 eller senere?",
+            help = "Denne del af LL § 31 trådte i kraft den 1. juli 2026.",
+            sources = personskat_ll31_ydelsesart_kilder
+        )
+        modtaget_fra_og_med_1_juli_2026: Boolsk
+    )
+# Ligningslov31Uddannelsesfakta(
+    @ field(
+        label = "Uddannelsen eller kurset har udelukkende privat formål",
+        question = "Har uddannelsen eller kurset udelukkende privat karakter for modtageren?",
+        help = "Ydelser til uddannelser og kurser med udelukkende privat formål er ikke skattefri efter LL § 31.",
+        sources = personskat_ll31_uddannelsesfakta_kilder
+    )
+    uddannelsen_eller_kurset_udelukkende_privat: Boolsk,
+    ydelsesart: Ligningslov31Uddannelsesydelsesart
+)
 # Ligningslov30Og31Lovversion = Ll30Og31Lbk42Af2023 | Ll30Og31Lbk1500Af2025 | Ll30Og31LovversionUdenKildedækning
 # Ligningslov31Befordringssatsversion = Ll31Bek1449Af2022 | Ll31Bek1312Af2023 | Ll31Bek1189Af2024 | Ll31Bek1333Af2025 | Ll31BefordringssatsUdenKildedækning
 
@@ -353,6 +630,16 @@ I § 31, stk. 3, indsættes som nr. 5:
 }
 | ligningslov31_betingelser_opfyldt(indkomstår: Heltal, relation: Ligningslov30Og31Yderrelation, beløb_kroner: Heltal, fakta: Ligningslov31Uddannelsesfakta) -> ligningslov30_og_31_skatteår_understøttet(indkomstår) && ligningslov31_yderrelation_omfattet(relation) && fakta.uddannelsen_eller_kurset_udelukkende_privat == Falskt && ligningslov31_ydelsesart_input_gyldig(fakta.ydelsesart) && ligningslov31_ydelsesart_betingelser_opfyldt(indkomstår, beløb_kroner, fakta.ydelsesart)
 
+@ field(
+    label = "Påberåbt skattefri undtagelse",
+    question = "Er ydelsen ordinært skattepligtig, eller påberåbes skattefrihed for behandling efter LL § 30 eller uddannelse efter LL § 31?",
+    help = "Vælg kun en undtagelse, når udbetalingsbilaget identificerer den dækkede udgift. En sammensat betaling skal opdeles i særskilte rækker.",
+    sources = [
+        Source(value = ligningsloven_lbk1500_par30),
+        Source(value = ligningsloven_lbk1500_par31),
+        AmendmentSource(value = ligningsloven_lov1630_par2_og_par3)
+    ]
+)
 # Ligningslov30Og31Undtagelse = Ll30Og31UdenUndtagelse | Ll30Og31BehandlingsydelseEfterPar30(fakta: Ligningslov30Behandlingsfakta) | Ll30Og31UddannelsesydelseEfterPar31(fakta: Ligningslov31Uddannelsesfakta)
 # Ligningslov30Og31Undtagelseshjemmel = Ll30Og31IngenAnvendtUndtagelse | Ll30Og31UndtagelseEfterPar30 | Ll30Og31UndtagelseEfterPar31
 # Ligningslov30Og31Undtagelsesresultat(indkomstår: Heltal, yderrelation: Ligningslov30Og31Yderrelation, beløb_kroner: Heltal, undtagelse: Ligningslov30Og31Undtagelse, lovversion: Ligningslov30Og31Lovversion, befordringssatsversion: Ligningslov31Befordringssatsversion, input_gyldigt: Boolsk, yderrelation_omfattet: Boolsk, undtagelsesbetingelser_opfyldt: Boolsk, anvendt_hjemmel: Ligningslov30Og31Undtagelseshjemmel, skattefri_beløb_kroner: Heltal, skattepligtigt_beløb_kroner: Heltal)

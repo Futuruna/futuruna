@@ -7,52 +7,6 @@
 @ importer ./aktieavancebeskatningsloven-par37-39
 @ importer ./kapitel-02-statsskat
 
-= aktieavancebeskatningsloven_lbk1098_par39a = AktieavancebeskatningslovKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
-    identifier = "Aktieavancebeskatningsloven § 39 A",
-    hentet_dato = "2026-07-18"
-)
-= aktieavancebeskatningsloven_lbk1098_par39b = AktieavancebeskatningslovKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
-    identifier = "Aktieavancebeskatningsloven § 39 B",
-    hentet_dato = "2026-07-18"
-)
-= aktieavancebeskatningsloven_lbk1098_par40 = AktieavancebeskatningslovKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
-    identifier = "Aktieavancebeskatningsloven § 40",
-    hentet_dato = "2026-07-18"
-)
-= aktieavancebeskatningsloven_juridisk_vejledning_par39a_beholdningsoversigt = AktieavancebeskatningslovKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1946401",
-    identifier = "Den juridiske vejledning C.B.2.14.2.8.2: beholdningsoversigt",
-    hentet_dato = "2026-07-18"
-)
-= aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo = AktieavancebeskatningslovKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1946405",
-    identifier = "Den juridiske vejledning C.B.2.14.2.8.4.2: betaling på henstandssaldoen",
-    hentet_dato = "2026-07-18"
-)
-= aktieavancebeskatningsloven_juridisk_vejledning_par39a_prioritet = AktieavancebeskatningslovKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1946406",
-    identifier = "Den juridiske vejledning C.B.2.14.2.8.4.3: frivillige betalinger og kronologisk nedskrivning",
-    hentet_dato = "2026-07-18"
-)
-= aktieavancebeskatningsloven_juridisk_vejledning_par39a_alle_afstået = AktieavancebeskatningslovKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1946407",
-    identifier = "Den juridiske vejledning C.B.2.14.2.8.5: alle aktier afstået",
-    hentet_dato = "2026-07-18"
-)
-= aktieavancebeskatningsloven_juridisk_vejledning_par39a_årsoplysninger = AktieavancebeskatningslovKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1946408",
-    identifier = "Den juridiske vejledning C.B.2.14.2.8.6: årlige oplysninger",
-    hentet_dato = "2026-07-18"
-)
-= aktieavancebeskatningsloven_juridisk_vejledning_par39b = AktieavancebeskatningslovKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1946418",
-    identifier = "Den juridiske vejledning C.B.2.14.2.9: personen bliver igen skattepligtig til Danmark",
-    hentet_dato = "2026-07-18"
-)
-
 = aktieavancebeskatningsloven_par39a_metadata = Metadata(
     attachments = (
         Source(value = aktieavancebeskatningsloven_lbk1098_par39a),
@@ -211,8 +165,54 @@ finder tilsvarende anvendelse.
 # AktieavancePar39ALånedata(hændelsesidentifikation: Tekst, skatteår: Heltal, beholdningsselskabsidentifikation: Tekst, låneprovenu_kroner: Heltal, låntager: AktieavancePar39ALåntager, långiverrelation: AktieavancePar39ALångiverrelation, långivende_selskab_ejer_hele_låntagerselskabet: Boolsk, långivende_selskab_er_pengeinstitut: Boolsk, personens_ejerandel_i_långivende_selskab_basispoint: Heltal, beskattes_efter_ligningslov_par16e: Boolsk)
 # AktieavancePar39AÅrsoplysningsfrist = AblPar39ARettidig1Juli | AblPar39ARettidigFørstkommendeHverdagKl9 | AblPar39ARettidigUdsatFrist | AblPar39AÅrsoplysningerForSent
 # AktieavancePar39AÅrsoplysninger(hændelsesidentifikation: Tekst, indkomstår: Heltal, friststatus: AktieavancePar39AÅrsoplysningsfrist, adresse_oplyst: Boolsk)
-# AktieavancePar39AFristudsættelse(indkomstår: Heltal, udsat_oplysningsfrist: Dato)
-# AktieavancePar39AKildehistorik(opgjort_pr: Dato, fristudsættelser: List(AktieavancePar39AFristudsættelse))
+= personskat_kilder_7 = [
+    Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par26),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par17_klassifikation),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par44),
+    Source(value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par37),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par38),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39a),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39b),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par40),
+    PreparatoryWork(value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
+    DependencySource(value = aktieavancebeskatningsloven_lbk835_par4_stk2),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par44),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par23),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par37),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_beholdningsoversigt),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_prioritet),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_alle_afstået),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_årsoplysninger),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39b)
+]
+# AktieavancePar39AFristudsættelse(
+    @ field(
+        label = "Indkomstår for den udsatte oplysningsfrist",
+        question = "Hvilket indkomstårs årlige oplysninger vedrører fristudsættelsen?",
+        unit = "år",
+        sources = personskat_kilder_7
+    )
+    indkomstår: Heltal,
+    udsat_oplysningsfrist: Dato
+)
+# AktieavancePar39AKildehistorik(
+    opgjort_pr: Dato,
+    @ field(
+        label = "Udsatte frister for årlige oplysninger",
+        question = "Har Skatteforvaltningen udsat fristen for et eller flere års oplysninger efter ABL § 39 A?",
+        help = "Tilføj kun dokumenterede individuelle fristudsættelser og én frist pr. indkomstår.",
+        sources = personskat_kilder_7
+    )
+    fristudsættelser: List(AktieavancePar39AFristudsættelse)
+)
 # AktieavancePar39ADokumentationsfrist = AblPar39ADokumentationRettidig | AblPar39ADokumentationForSent | AblPar39ADokumentationFristoverskridelseTilsidesat
 # AktieavancePar39ADokumentation(hændelsesidentifikation: Tekst, indkomstår: Heltal, friststatus: AktieavancePar39ADokumentationsfrist)
 # AktieavancePar39AForfaldsgrund = AblPar39AForfaldAfståelsesgevinstStk3 | AblPar39AForfaldUdenlandskTabsfradragStk3 | AblPar39AForfaldUdenlandskTabsfradragStk4 | AblPar39AForfaldUdbytteStk5 | AblPar39AForfaldAndenUdlodningStk6 | AblPar39AForfaldLånStk7 | AblPar39AForfaldDødStk9 | AblPar39AForfaldManglendeÅrsoplysningerStk11 | AblPar39AForfaldManglendeDokumentationStk13
@@ -223,6 +223,12 @@ finder tilsvarende anvendelse.
 # AktieavancePar39ABetaling(forfaldsidentifikation: Tekst, beløb_kroner: Heltal, art: AktieavancePar39ABetalingsart, friststatus: AktieavancePar39ABetalingsfrist)
 # AktieavancePar39ASkattefriOmstrukturering(hændelsesidentifikation: Tekst, beholdning_efter: List(AktieavancePar39ABeholdningsparti), skattefri_med_succession: Boolsk)
 # AktieavancePar39ADødsdata(hændelsesidentifikation: Tekst, afståelser_til_markedsværdi: List(AktieavancePar39AAfståelsesdata))
+@ field(
+    label = "Hændelse efter ABL §§ 39 A-40",
+    question = "Hvilken dokumenteret hændelsestype skal anvendes på henstandsledgeren?",
+    help = "Vælg kildehændelsen; Futuruna afleder gevinst, forfald, betaling, nedskrivning og bortfald.",
+    sources = personskat_kilder_7
+)
 # AktieavancePar39AHændelse = AblPar39AAfståelse(data: AktieavancePar39AAfståelsesdata) | AblPar39ASkattefriOmstrukturering(data: AktieavancePar39ASkattefriOmstrukturering) | AblPar39AUdbytte(data: AktieavancePar39AUdlodningsdata) | AblPar39AAndenUdlodningEllerDisposition(data: AktieavancePar39AUdlodningsdata, kan_påvirke_kursværdi_nedad: Boolsk, til_personen_selv: Boolsk, i_personens_interesse: Boolsk) | AblPar39ALån(data: AktieavancePar39ALånedata) | AblPar39ADød(data: AktieavancePar39ADødsdata) | AblPar39AÅrsoplysninger(data: AktieavancePar39AÅrsoplysninger) | AblPar39ADokumentation(data: AktieavancePar39ADokumentation) | AblPar39ABetaling(data: AktieavancePar39ABetaling) | AblPar39ATabsfremførselAfsluttet | AblPar40BetaltSkatVedLedelsessædefraflytning(beløb_kroner: Heltal)
 # AktieavancePar39ATilstand(beholdning: List(AktieavancePar39ABeholdningsparti), henstandssaldo_kroner: Heltal, forfaldsposter: List(AktieavancePar39AForfaldspost), uudnyttede_realiserede_tab_kan_fremføres: Boolsk, henstand_aktiv: Boolsk)
 # AktieavancePar39AFifoResultat(resterende_antal_at_henføre: Heltal, gevinst_efter_stk2_kroner: Heltal, tab_efter_stk2_kroner: Heltal, tab_efter_fraflytningsværdi_for_stk3_kroner: Heltal, reguleret_tab_efter_stk4_kroner: Heltal, resterende_beholdning: List(AktieavancePar39ABeholdningsparti))
@@ -673,7 +679,21 @@ Danmark.
 @ meta(aktieavancebeskatningsloven_par39b_metadata)
 @ section aktieavancebeskatningsloven_par39b {
 
-# AktieavancePar39BTilflytningsværdi(partiidentifikation: Tekst, handelsværdi_kroner: Heltal)
+# AktieavancePar39BTilflytningsværdi(
+    @ field(
+        label = "Aktieparti ved tilbageflytningen",
+        question = "Hvilken partiidentifikation vedrører handelsværdien?",
+        sources = personskat_kilder_7
+    )
+    partiidentifikation: Tekst,
+    @ field(
+        label = "Handelsværdi ved tilbageflytningen",
+        question = "Hvad var partiets handelsværdi på tilbageflytningstidspunktet?",
+        unit = "kr.",
+        sources = personskat_kilder_7
+    )
+    handelsværdi_kroner: Heltal
+)
 # AktieavancePar39BInput(tilstand_før_tilflytning: AktieavancePar39ATilstand, tilflytningsværdier: List(AktieavancePar39BTilflytningsværdi), skatteår: Heltal, får_på_ny_skattemæssigt_hjemsted_i_danmark: Boolsk, samlevende_med_ægtefælle_ved_indkomstårets_udløb: Boolsk, oprindeligt_nettotab_ved_fraflytning_kroner: Heltal)
 # AktieavancePar39BIndgangsværdi(partiidentifikation: Tekst, handelsværdi_efter_par37_kroner: Heltal, nedsættelse_efter_stk1_til_3_kroner: Heltal, forhøjelse_efter_stk5_kroner: Heltal, reguleret_indgangsværdi_kroner: Heltal)
 # AktieavancePar39BFordelingstilstand(input: AktieavancePar39BInput, resterende_nedsættelse_kroner: Heltal, resterende_handelsværdi_til_nedsættelse_kroner: Heltal, resterende_forhøjelse_kroner: Heltal, resterende_handelsværdi_til_forhøjelse_kroner: Heltal, indgangsværdier: List(AktieavancePar39BIndgangsværdi))

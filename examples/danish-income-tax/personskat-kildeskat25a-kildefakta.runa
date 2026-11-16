@@ -4,16 +4,6 @@
 @ importer ./metadata
 @ importer ./personskat-personlig-indkomst-kildefakta
 
-= skat_ksl25a_medarbejdende_ægtefælle_vejledning = KildeskatKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1976890",
-    identifier = "Den juridiske vejledning C.A.8.4.1.2: Fordeling efter reglen om medarbejdende ægtefælle",
-    hentet_dato = "2026-08-10"
-)
-= skat_ksl25a_lønaftale_vejledning = KildeskatKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1976891",
-    identifier = "Den juridiske vejledning C.A.8.4.1.3: Lønaftale",
-    hentet_dato = "2026-08-10"
-)
 = personskat_kildeskat25a_kildefakta_metadata = Metadata(
     attachments = (
         DependencySource(value = kildeskatteloven_lbk460_par25a),
@@ -95,8 +85,66 @@ den samme fordelingsregel for alle virksomheder i indkomståret.
 # PersonskatKsl25APart = Ksl25AHovedperson | Ksl25AÆgtefælle
 # PersonskatKsl25AKildeplacering = Ksl25AKildeHosHovedperson | Ksl25AKildeHosÆgtefælle
 # PersonskatKsl25AÅrsregel = Ksl25AÅrsregelStk1 | Ksl25AÅrsregelStk3 | Ksl25AÅrsregelStk7 | Ksl25AÅrsregelStk8
-# PersonskatKsl25AVirksomhedspostperiode(kildepost_identifikation: Tekst, fra_dato: Dato, til_dato: Dato)
-# PersonskatKsl25AVirksomhedsfordelingFakta(virksomhedsidentifikation: Tekst, virksomhedens_kildeplacering: PersonskatKsl25AKildeplacering, virksomhedsdriver_før_samlivsophør: Option(PersonskatKsl25APart), samlivsforløb: Kildeskat25ASamlivsforløb, virksomhedspostperioder: List(PersonskatKsl25AVirksomhedspostperiode), ordinær_ejer_efter_samlivsophør: Option(PersonskatKsl25APart), fordeling: Kildeskat25AVirksomhedsfordelingsvalg, lønudgiftsidentifikation: Option(Tekst))
+= personskat_kildeskat25a_kilder_2 = [
+    DependencySource(value = kildeskatteloven_lbk460_par25a),
+    Guidance(value = kildeskatteloven_vejledning_samlivsstatus),
+    Guidance(value = kildeskatteloven_vejledning_par25a_samlivsophør),
+    Guidance(value = kildeskatteloven_vejledning_par25a_fri_fordeling),
+    Guidance(value = kildeskatteloven_vejledning_par25a_dødsfald),
+    Guidance(value = skat_ksl25a_medarbejdende_ægtefælle_vejledning),
+    Guidance(value = skat_ksl25a_lønaftale_vejledning)
+]
+# PersonskatKsl25AVirksomhedspostperiode(
+    @ field(
+        label = "Virksomhedspostens identifikation",
+        question = "Hvilken indtægts- eller udgiftspost vedrører perioden?",
+        help = "Ved separation eller skilsmisse skal hver kildepost dækkes præcis én gang og ligge helt før eller fra ophørsdatoen.",
+        sources = personskat_kildeskat25a_kilder_2
+    )
+    kildepost_identifikation: Tekst,
+    fra_dato: Dato,
+    til_dato: Dato
+)
+# PersonskatKsl25AVirksomhedsfordelingFakta(
+    @ field(
+        label = "Virksomhedens identifikation",
+        question = "Hvilken af ægtefællernes virksomheder vedrører denne fordeling?",
+        help = "Brug den samme entydige identifikation som på virksomhedens indtægter og udgifter. Virksomheden skal kun oplyses dér, hvor de oprindelige kildeposter er registreret.",
+        sources = personskat_kildeskat25a_kilder_2
+    )
+    virksomhedsidentifikation: Tekst,
+    @ field(
+        label = "Virksomhedens kildeplacering",
+        question = "Er virksomheden oplyst hos hovedpersonen eller ægtefællen?",
+        help = "Kildeplaceringen udpeger kun de oprindelige indtægter og udgifter. Den afgør ikke, hvem der driver eller ejer virksomheden.",
+        sources = personskat_kildeskat25a_kilder_2
+    )
+    virksomhedens_kildeplacering: PersonskatKsl25AKildeplacering,
+    @ field(
+        label = "Virksomhedsdriver før samlivsophør",
+        question = "Hvem driver virksomheden, eller driver den i overvejende grad, før et eventuelt samlivsophør?",
+        help = "Angiv hovedpersonen eller ægtefællen ved stk. 1, 3 og 7. Lad feltet være tomt ved ligelig resultatfordeling efter stk. 8.",
+        sources = personskat_kildeskat25a_kilder_2
+    )
+    virksomhedsdriver_før_samlivsophør: Option(PersonskatKsl25APart),
+    samlivsforløb: Kildeskat25ASamlivsforløb,
+    virksomhedspostperioder: List(PersonskatKsl25AVirksomhedspostperiode),
+    @ field(
+        label = "Virksomhedens ejer efter samlivsophøret",
+        question = "Hvem ejer virksomheden fra det skattemæssige samlivsophør?",
+        help = "Ved separation eller skilsmisse henføres resultatet fra ophørsdatoen efter de almindelige ejerregler.",
+        sources = personskat_kildeskat25a_kilder_2
+    )
+    ordinær_ejer_efter_samlivsophør: Option(PersonskatKsl25APart),
+    fordeling: Kildeskat25AVirksomhedsfordelingsvalg,
+    @ field(
+        label = "Identifikation for ægtefælleløn i virksomhedens udgifter",
+        question = "Hvilken virksomhedsudgift er den løn, der er betalt til ægtefællen?",
+        help = "Feltet udfyldes kun ved en lønaftale. Identifikationen og beløbet skal matche præcis én udgift i kildevirksomheden.",
+        sources = personskat_kildeskat25a_kilder_2
+    )
+    lønudgiftsidentifikation: Option(Tekst)
+)
 # PersonskatKsl25APersonregulering(selvstændig_personlig_indkomst_regulering_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_regulering_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_regulering_kroner: Heltal, lønvederlag_regulering_kroner: Heltal)
 # PersonskatKsl25AVirksomhedsfordelingsresultat(fakta: PersonskatKsl25AVirksomhedsfordelingFakta, samlivsforløbsresultat: Kildeskat25ASamlivsforløbsresultat, kildevirksomhed: Option(PersonskatOrdinærVirksomhedFakta), kildevirksomhed_fundet_entydigt: Boolsk, modpart_har_ikke_samme_virksomhed: Boolsk, virksomhedsdriver_angivet_gyldigt: Boolsk, virksomhedspostperioder_gyldige: Boolsk, delårsfordeling_understøttet: Boolsk, lønudgift_tilknyttet: Boolsk, lønperiode_respekterer_samlivsophør: Boolsk, virksomhedsresultat_før_samlivsophør: Kildeskat25AVirksomhedsbeløb, virksomhedsresultat_fra_samlivsophør: Kildeskat25AVirksomhedsbeløb, kildeskat_resultat: Kildeskat25AVirksomhedsfordelingsresultat, input_gyldigt: Boolsk, hovedpersons_regulering: PersonskatKsl25APersonregulering, ægtefælles_regulering: PersonskatKsl25APersonregulering)
 # PersonskatKsl25AForløbstilstand(resultater: List(PersonskatKsl25AVirksomhedsfordelingsresultat), hovedperson: PersonskatKsl25APersonregulering, ægtefælle: PersonskatKsl25APersonregulering, input_gyldigt: Boolsk)

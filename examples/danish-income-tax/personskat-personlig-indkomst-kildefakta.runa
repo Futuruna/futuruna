@@ -18,38 +18,6 @@
 @ importer ./personskat-par3-erhvervsposter-kildefakta
 @ importer ./soemandsbeskatningsloven-par5-par8
 
-# PersonskatPersonligIndkomstKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
-
-= pensionsbeskatningsloven_lbk1243_par56 = PersonskatPersonligIndkomstKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
-    identifier = "Pensionsbeskatningsloven § 56, stk. 5",
-    hentet_dato = "2026-08-03"
-)
-= skat_gruppeliv_vejledning = PersonskatPersonligIndkomstKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=2048498",
-    identifier = "Den juridiske vejledning C.A.10.4.3.10: Gruppelivsforsikring",
-    hentet_dato = "2026-08-03"
-)
-= skat_gruppeliv_eindkomst_20260925 = PersonskatPersonligIndkomstKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=2045911",
-    identifier = "eIndkomst 8.5, felt 91: lønfinansieret gruppeliv indgår i beskæftigelsesfradrag; pensionsbonus i felt 38, indtægtsart 37, gør ikke",
-    hentet_dato = "2026-09-25"
-)
-= skat_gruppeliv_rubrik347_20260925 = PersonskatPersonligIndkomstKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=2134461",
-    identifier = "Rubrik 347: arbejdsgiveradministrerede ikke-fradragsberettigede indskud, efter allerede indeholdt AM; den viste rategrænse bruges ikke som årsparameter",
-    hentet_dato = "2026-09-25"
-)
-= skat_honorar_vejledning = PersonskatPersonligIndkomstKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1976769",
-    identifier = "Den juridiske vejledning C.A.3.1.2: Honorar",
-    hentet_dato = "2026-08-11"
-)
-= arbejdsmarkedsbidragsloven_lbk121_par4 = PersonskatPersonligIndkomstKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2020/121",
-    identifier = "Arbejdsmarkedsbidragsloven § 4",
-    hentet_dato = "2026-08-03"
-)
 = personskat_personlig_indkomst_kildefakta_metadata = Metadata(
     attachments = (
         Source(value = personskatteloven_lbk1284_par3),
@@ -122,8 +90,134 @@ nævnt i § 29 A, stk. 1.
 @ meta(personskat_personlig_indkomst_kildefakta_metadata)
 @ section personskat_arbejdsgiverydelser {
 
-# PersonskatArbejdsgiverydelse = DirekteArbejdsgiverbetaltGruppeliv(præmie_før_arbejdsmarkedsbidrag_kroner: Heltal) | GruppelivSomUadskiltDelAfPbl19Ordning(præmie_før_indeholdt_arbejdsmarkedsbidrag_kroner: Option(Heltal), personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal) | ArbejdsgiveradministreretPensionEfterPbl19(fakta: Pbl19ArbejdsgiverindbetalingFakta) | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(indberettet_beløb_før_indeholdt_arbejdsmarkedsbidrag_kroner: Option(Heltal), indberettet_beløb_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal) | NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2(art: ArbejdsmarkedsbidragNaturaliaArt, skattepligtig_værdi_kroner: Heltal) | UklassificeretArbejdsgiverbetaltYdelse(beskrivelse: Tekst, beløb_kroner: Heltal)
-# PersonskatArbejdsgiverydelseFakta(identifikation: Tekst, indkomstår: Heltal, ydelse: PersonskatArbejdsgiverydelse)
+= personskat_personlig_indkomst_kilder_4 = [
+    Source(value = personskatteloven_lbk1284_par3),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par4),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par19_stk1),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par56),
+    DependencySource(value = ligningsloven_lbk1500_par10_par11),
+    DependencySource(value = børnebidragsloven_lbk773_par19),
+    DependencySource(value = børnebidragsbekendtgørelsen_bek285_par3_par4_par9_par10_par11),
+    Guidance(value = skat_gruppeliv_vejledning),
+    Guidance(value = skat_gruppeliv_eindkomst_20260925),
+    Guidance(value = skat_gruppeliv_rubrik347_20260925),
+    Guidance(value = skat_honorar_vejledning),
+    Guidance(value = skat_underholdsbidrag_børn_vejledning),
+    Guidance(value = skat_underholdsbidrag_ægtefælle_vejledning),
+    Guidance(value = skat_underholdsbidrag_børn_beskatning_vejledning),
+    Guidance(value = skat_børnebidrag_modtagerskat_20260925),
+    Guidance(value = skat_børnebidrag_fødsel_vejledning),
+    Guidance(value = skat_børnebidrag_engangsbeløb_vejledning),
+    ParameterSource(value = børnebidragsloven_satser_2025),
+    ParameterSource(value = børnebidragsloven_satser_2026)
+]
+@ field(
+    label = "Arbejdsgiverbetalt ydelse",
+    question = "Hvilken retlig type arbejdsgiverbetalt ydelse fremgår af kildematerialet?",
+    help = "Vælg den præcise retlige type, når kilden dokumenterer den. GruppelivSomUadskiltDelAfPbl19Ordning gælder løntræk med allerede indeholdt AM, fx eIndkomst felt 91; ikke gruppeliv finansieret af pensionsbonus i felt 38, indtægtsart 37. Brug kun den afgrænsede PBL § 19/PBL § 56-samlepost for de understøttede lønfinansierede, ikke-fradragsberettigede indskud. En rubrik 347-total kan også indeholde rateoverskud og må ikke ukritisk kopieres. Se personskat-gruppeliv.md.",
+    sources = personskat_personlig_indkomst_kilder_4
+)
+# PersonskatArbejdsgiverydelse =
+    DirekteArbejdsgiverbetaltGruppeliv(
+        @ field(
+            label = "Direkte arbejdsgiverbetalt gruppeliv før AM-bidrag",
+            question = "Hvor stor gruppelivspræmie betalte arbejdsgiveren direkte før arbejdsmarkedsbidrag?",
+            help = "Denne type er A-indkomst og AM-bidragspligtig. Brug kun feltet, når kilden viser direkte betaling til gruppelivsforsikringen, og beløbet ikke allerede er med i lønfeltet. Ellers tælles samme løn og AM to gange.",
+            unit = "kr./år",
+            sources = personskat_personlig_indkomst_kilder_4
+        )
+        præmie_før_arbejdsmarkedsbidrag_kroner: Heltal
+    ) |
+    GruppelivSomUadskiltDelAfPbl19Ordning(
+        @ field(
+            label = "Lønfinansieret gruppeliv før allerede indeholdt AM-bidrag",
+            question = "Hvad er den dokumenterede gruppelivspræmie før pensionsinstituttets indeholdelse af AM?",
+            help = "Brutto bruges kun i beskæftigelses- og jobfradragsgrundlaget, ikke til nyt AM eller ekstra pensionsfradrag. Bevar null ved ukendt brutto; Personskat tilbageholder da sammenligningsbeløbet. Udled ikke beløbet ved netto/0,92. Hvis en pensionsoversigt samler pension og forsikring, kræves en dokumenteret opdeling, så gruppeliv ikke tælles to gange. Se personskat-gruppeliv.md.",
+            unit = "kr./år",
+            sources = personskat_personlig_indkomst_kilder_4
+        )
+        præmie_før_indeholdt_arbejdsmarkedsbidrag_kroner: Option(Heltal),
+        @ field(
+            label = "Gruppeliv i PBL § 19-ordning efter AM-bidrag",
+            question = "Hvor stor personlig indkomst er indberettet for gruppeliv, der er en uadskilt del af en arbejdsgiveradministreret pensionsordning?",
+            help = "Brug den dokumenterede nettoværdi af lønfinansieret gruppeliv efter pensionsinstituttets AM, ikke hele pensionsindbetalingen eller en ukendt rubrik 347-fordeling. Beløbet er personlig indkomst uden nyt AM og giver ikke ekstra pensionsfradrag. Angiv også dokumenteret brutto til beskæftigelses- og jobfradrag. Præmien må ikke samtidig indgå i en anden pensionspost; pensionsbonus følger ikke denne løntræksgren. Se personskat-gruppeliv.md.",
+            unit = "kr./år",
+            sources = personskat_personlig_indkomst_kilder_4
+        )
+        personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal
+    ) |
+    ArbejdsgiveradministreretPensionEfterPbl19(fakta: Pbl19ArbejdsgiverindbetalingFakta) |
+    ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(
+        @ field(
+            label = "Pensions- og gruppelivssamlepost før indeholdt AM-bidrag",
+            question = "Hvilket samlet bruttobeløb før pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag fremgår af kilden?",
+            help = "Kun dokumenteret lønfinansieret, ikke-fradragsberettiget aldersopsparing/gruppeliv mv., ikke almindelig bortseelsesberettiget pension, pensionsbonus eller rateoverskud beregnet fra pensionslisten. Brutto kræves til beskæftigelses- og jobfradrag. Bevar null ved ukendt; sammenligningen tilbageholdes. Brug ikke netto/0,92 eller samme beløb både her og i andre pensionsposter. Se personskat-gruppeliv.md.",
+            unit = "kr./år",
+            sources = personskat_personlig_indkomst_kilder_4
+        )
+        indberettet_beløb_før_indeholdt_arbejdsmarkedsbidrag_kroner: Option(Heltal),
+        @ field(
+            label = "Pensions- og gruppelivssamlepost efter indeholdt AM-bidrag",
+            question = "Hvilket samlet beløb efter pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag fremgår af kilden?",
+            help = "Beløbet medregnes i personlig indkomst uden nyt AM eller ekstra pensionsfradrag. Angiv ikke en mere præcis pensionsart, end kilden dokumenterer. En samlet rubrik 347 er ikke tilstrækkelig, hvis den også omfatter fx rateoverskud, der allerede beregnes fra andre pensionsposter. Se personskat-gruppeliv.md.",
+            unit = "kr./år",
+            sources = personskat_personlig_indkomst_kilder_4
+        )
+        indberettet_beløb_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal
+    ) |
+    NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2(
+        @ field(
+            label = "Naturaliets art",
+            question = "Hvilken naturalietype efter arbejdsmarkedsbidragslovens § 2, stk. 2 har arbejdsgiveren stillet til rådighed?",
+            help = "Futuruna bruger den lovbestemte kategori til at afgøre, om den skattepligtige værdi indgår i AM-grundlaget.",
+            sources = personskat_personlig_indkomst_kilder_4
+        )
+        art: ArbejdsmarkedsbidragNaturaliaArt,
+        @ field(
+            label = "Naturaliets skattepligtige værdi",
+            question = "Hvad er naturaliets skattepligtige værdi i indkomståret?",
+            help = "Angiv den skattemæssigt opgjorte værdi, ikke arbejdsgiverens indkøbspris.",
+            unit = "kr./år",
+            sources = personskat_personlig_indkomst_kilder_4
+        )
+        skattepligtig_værdi_kroner: Heltal
+    ) |
+    UklassificeretArbejdsgiverbetaltYdelse(
+        @ field(
+            label = "Beskrivelse af uklassificeret ydelse",
+            question = "Hvordan beskriver kilden den ydelse, som endnu ikke kan klassificeres retligt?",
+            help = "En uklassificeret ydelse beregnes ikke. Beskrivelsen gør det muligt at hente den manglende dokumentation uden at bruge et frit nettobeløb.",
+            sources = personskat_personlig_indkomst_kilder_4
+        )
+        beskrivelse: Tekst,
+        @ field(
+            label = "Uklassificeret arbejdsgiverydelse",
+            question = "Hvilket beløb står i kilden for den endnu uklassificerede ydelse?",
+            help = "Beløbet bevares til dokumentation, men påvirker ikke beregningen, før ydelsens retlige art og AM-status er fastlagt.",
+            unit = "kr./år",
+            sources = personskat_personlig_indkomst_kilder_4
+        )
+        beløb_kroner: Heltal
+    )
+# PersonskatArbejdsgiverydelseFakta(
+    @ field(
+        label = "Ydelsens identifikation",
+        question = "Hvilken entydig identifikation skal denne arbejdsgiverbetalte ydelse have?",
+        help = "Brug en stabil betalingsidentifikation fra lønsedlen, eIndkomst eller pensionsoversigten. En pensionsbetaling må kun stå én gang på tværs af denne liste og pension.pbl18_indbetalinger; omdøb ikke en dublet for at få den accepteret.",
+        sources = personskat_personlig_indkomst_kilder_4
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Ydelsens indkomstår",
+        question = "Hvilket indkomstår vedrører ydelsen?",
+        help = "Indkomståret skal være det samme som skatteåret i Personskat-beregningen.",
+        unit = "år",
+        sources = personskat_personlig_indkomst_kilder_4
+    )
+    indkomstår: Heltal,
+    ydelse: PersonskatArbejdsgiverydelse
+)
 # PersonskatArbejdsgiverydelseAmKlassifikation = AnsættelsesvederlagEfterPar2Stk1Nr1 | GruppelivMedAlleredeIndeholdtArbejdsmarkedsbidrag | PensionEfterPbl19MedAlleredeIndeholdtArbejdsmarkedsbidrag(resultat: Pbl19ArbejdsgiverindbetalingResultat) | SamlepostEfterPbl19EllerPbl56MedAlleredeIndeholdtArbejdsmarkedsbidrag | NaturalieOmfattetAfPar2Stk2(resultat: ArbejdsmarkedsbidragNaturaliaResultat) | IkkeUnderstøttetArbejdsgiverydelseAmKlassifikation
 # PersonskatArbejdsgiverydelseBeregning(fakta: PersonskatArbejdsgiverydelseFakta, am_klassifikation: PersonskatArbejdsgiverydelseAmKlassifikation, par3_indkomstpost: Par3Indkomstpost, par3_indkomstresultat_for_ydelsen: Par3PersonligIndkomstResultat, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
 # PersonskatArbejdsgiverydelseResultat = UgyldigArbejdsgiverydelse(fakta: PersonskatArbejdsgiverydelseFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk, grundfakta_gyldige: Boolsk) | IkkeUnderstøttetArbejdsgiverydelse(fakta: PersonskatArbejdsgiverydelseFakta) | BeregnetArbejdsgiverydelse(beregning: PersonskatArbejdsgiverydelseBeregning)
@@ -310,8 +404,57 @@ præmie for forsikringer, der dækker de pågældende behandlinger m.v.
 @ section personskat_personligt_arbejdsvederlag {
 
 # PersonskatPersonligtArbejdsvederlagsforhold = PsArbejdeUdenAnsættelse | PsArbejdeIAnsættelse | PsSelvstændigtArbejde
-# PersonskatPersonligtArbejdsvederlagsform = PsArbejdsvederlagIPenge | PsArbejdsvederlagINaturalie(art: ArbejdsmarkedsbidragNaturaliaArt)
-# PersonskatPersonligtArbejdsvederlagFakta(identifikation: Tekst, indkomstår: Heltal, forhold: PersonskatPersonligtArbejdsvederlagsforhold, vederlagsform: PersonskatPersonligtArbejdsvederlagsform, skattepligtig_værdi_kroner: Heltal, udgifter: PersonskatHonorarudgifter)
+@ field(
+    label = "Arbejdsvederlagets form",
+    question = "Blev vederlaget modtaget i penge eller som et naturalie?",
+    help = "Naturalier skal desuden klassificeres efter den udtømmende liste i AM-lovens § 2, stk. 2.",
+    sources = personskat_personlig_indkomst_kilder_4
+)
+# PersonskatPersonligtArbejdsvederlagsform =
+    PsArbejdsvederlagIPenge |
+    PsArbejdsvederlagINaturalie(
+        @ field(
+            label = "Arbejdsvederlagets naturalietype",
+            question = "Hvilken naturalietype efter AM-lovens § 2, stk. 2 blev modtaget?",
+            help = "Vælg den dokumenterede lovkategori. En naturalie uden for § 2, stk. 2 beregnes ikke som denne type vederlag.",
+            sources = personskat_personlig_indkomst_kilder_4
+        )
+        art: ArbejdsmarkedsbidragNaturaliaArt
+    )
+# PersonskatPersonligtArbejdsvederlagFakta(
+    @ field(
+        label = "Arbejdsvederlagets identifikation",
+        question = "Hvilken entydig identifikation har vederlaget?",
+        help = "Brug en stabil reference fra aftalen, bilaget eller indberetningen, så samme vederlag ikke medregnes to gange.",
+        sources = personskat_personlig_indkomst_kilder_4
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Arbejdsvederlagets indkomstår",
+        question = "Hvilket indkomstår vedrører vederlaget?",
+        help = "Indkomståret skal være det samme som skatteåret i Personskat-beregningen.",
+        unit = "år",
+        sources = personskat_personlig_indkomst_kilder_4
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Forholdet bag arbejdsvederlaget",
+        question = "Blev arbejdet udført i et ansættelsesforhold, uden for ansættelse eller som selvstændig erhvervsvirksomhed?",
+        help = "Kun personligt arbejde uden for ansættelse og uden for selvstændig virksomhed hører til AMBL § 2, stk. 1, nr. 2 her. De andre forhold beskriver en afgrænsning, ikke automatisk omplacering: årsberegningen tilbageholder sammenligningen, indtil posten er placeret korrekt. Bevar kildefakta; vælg ikke en anden relation for at få et resultat. Ved ukendt klassifikation skal den uafhængige sammenligning afvente afklaring. Se personskat-honorar.md.",
+        sources = personskat_personlig_indkomst_kilder_4
+    )
+    forhold: PersonskatPersonligtArbejdsvederlagsforhold,
+    vederlagsform: PersonskatPersonligtArbejdsvederlagsform,
+    @ field(
+        label = "Arbejdsvederlagets skattepligtige værdi",
+        question = "Hvad er vederlagets skattepligtige værdi i indkomståret?",
+        help = "For penge angives bruttovederlaget før arbejdsmarkedsbidrag og uden modregning af udgifter eller allerede betalt B-skat. Naturalier kræver deres skattemæssigt opgjorte værdi. Brug honorarudgiftsfeltet udgifter særskilt; et nettobeløb her reducerer AM-grundlaget forkert. Samme vederlag må kun medregnes én gang. Ved fælles udgifter samles årets samme honoraraktivitet i én dokumenteret bruttoopgørelse. Se personskat-honorar.md.",
+        unit = "kr./år",
+        sources = personskat_personlig_indkomst_kilder_4
+    )
+    skattepligtig_værdi_kroner: Heltal,
+    udgifter: PersonskatHonorarudgifter
+)
 # PersonskatPersonligtArbejdsvederlagBeregning(fakta: PersonskatPersonligtArbejdsvederlagFakta, par3_indkomstpost: Par3Indkomstpost, par3_indkomstresultat_for_vederlaget: Par3PersonligIndkomstResultat, arbejdsmarkedsbidrag: ArbejdsmarkedsbidragLønmodtagerGrundlagResultat, honorarudgifter: PersonskatHonorarudgiftsresultat)
 # PersonskatPersonligtArbejdsvederlagResultat = UgyldigtPersonligtArbejdsvederlag(fakta: PersonskatPersonligtArbejdsvederlagFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk, grundfakta_gyldige: Boolsk) | PersonligtArbejdsvederlagUdenForPar2Stk1Nr2(fakta: PersonskatPersonligtArbejdsvederlagFakta) | BeregnetPersonligtArbejdsvederlag(beregning: PersonskatPersonligtArbejdsvederlagBeregning)
 
@@ -414,9 +557,128 @@ stk. 3-5, ved selvstændig erhvervsvirksomhed,
 @ meta(personskat_par3_stk2_nr2_kildefakta_metadata)
 @ section personskat_par3_stk2_nr2_kildefakta {
 
-# PersonskatPar3Nr2Ll8BFakta(indkomstår: Heltal, afholdelsesår: Heltal, erhvervsstart: Ligningslov8BErhvervsstart, udgiftsart: Ligningslov8BUdgiftsart, valg: Ligningslov8BValg, afholdt_udgift_kroner: Heltal, tilknytning_til_skattepligtiges_erhverv: Boolsk, igangværende_virksomhed: Boolsk, aktie_eller_anpartsselskab: Boolsk, told_skat_tillader_fradrag_før_erhvervsstart: Boolsk, selvstændigt_overskud_før_stk2_fradrag_kroner: Heltal, renteudgifter_og_valutakurstab_i_overskud_kroner: Heltal, rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner: Heltal, told_skat_tillader_straksfradrag_for_stort_råstofbeløb: Boolsk, tidligere_stk4_udgifter_under_koncernloft_kroner: Heltal)
+= personskat_par3_nr2_kilder_2 = [
+    Source(value = personskatteloven_lbk1284_par3),
+    DependencySource(value = ligningsloven_lbk1500_par8),
+    DependencySource(value = ligningsloven_lbk1500_par8b),
+    DependencySource(value = ligningsloven_lbk1500_par8k),
+    DependencySource(value = ligningsloven_lbk1500_par8l),
+    DependencySource(value = ligningsloven_lbk1500_par8n),
+    DependencySource(value = ligningsloven_lbk1500_par14),
+    DependencySource(value = ligningsloven_lbk1500_par14f),
+    DependencySource(value = ligningsloven_lbk1500_par30a)
+]
+# PersonskatPar3Nr2Ll8BFakta(
+    @ field(
+        label = "§ 8 B - indkomstår",
+        question = "Hvilket indkomstår skal forsknings- eller udviklingsudgiften vurderes i?",
+        unit = "år",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "§ 8 B - udgiftens afholdelsesår",
+        question = "I hvilket år blev udgiften afholdt?",
+        unit = "år",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    afholdelsesår: Heltal,
+    erhvervsstart: Ligningslov8BErhvervsstart,
+    @ field(
+        label = "§ 8 B - udgiftsart",
+        question = "Hvilken type forsøgs-, forsknings- eller råstofudgift er afholdt?",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    udgiftsart: Ligningslov8BUdgiftsart,
+    @ field(
+        label = "§ 8 B - fradragsvalg",
+        question = "Er der valgt straksfradrag eller lineær afskrivning over fem år?",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    valg: Ligningslov8BValg,
+    @ field(
+        label = "§ 8 B - afholdt udgift",
+        question = "Hvor stor var den afholdte udgift?",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    afholdt_udgift_kroner: Heltal,
+    @ field(
+        label = "§ 8 B - tilknytning til erhvervet",
+        question = "Har udgiften tilknytning til den skattepligtiges erhverv?",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    tilknytning_til_skattepligtiges_erhverv: Boolsk,
+    @ field(
+        label = "§ 8 B - igangværende virksomhed",
+        question = "Vedrører udgiften en igangværende virksomhed?",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    igangværende_virksomhed: Boolsk,
+    @ field(
+        label = "§ 8 B - aktie- eller anpartsselskab",
+        question = "Afholdes udgiften af et aktie- eller anpartsselskab?",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    aktie_eller_anpartsselskab: Boolsk,
+    @ field(
+        label = "§ 8 B - tilladelse til fradrag før erhvervsstart",
+        question = "Har Skatteforvaltningen tilladt fradrag før erhvervets påbegyndelse?",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    told_skat_tillader_fradrag_før_erhvervsstart: Boolsk,
+    @ field(
+        label = "§ 8 B - selvstændigt overskud før stk. 2-fradrag",
+        question = "Hvad er virksomhedens overskud før fradraget efter § 8 B, stk. 2?",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    selvstændigt_overskud_før_stk2_fradrag_kroner: Heltal,
+    @ field(
+        label = "§ 8 B - renter og valutakurstab i overskuddet",
+        question = "Hvor store renteudgifter og valutakurstab indgår i overskuddet?",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    renteudgifter_og_valutakurstab_i_overskud_kroner: Heltal,
+    @ field(
+        label = "§ 8 B - renter, udbytter og valutakursgevinster i overskuddet",
+        question = "Hvor store rente- og udbytteindtægter samt valutakursgevinster indgår i overskuddet?",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner: Heltal,
+    @ field(
+        label = "§ 8 B - tilladelse til stort råstofstraksfradrag",
+        question = "Har Skatteforvaltningen tilladt straksfradrag for et råstofbeløb over lovens overskudsgrænse?",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    told_skat_tillader_straksfradrag_for_stort_råstofbeløb: Boolsk,
+    @ field(
+        label = "§ 8 B - tidligere udgifter under koncernloftet",
+        question = "Hvor store tidligere § 8 B, stk. 4-udgifter er allerede medregnet under koncernloftet?",
+        unit = "kr.",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    tidligere_stk4_udgifter_under_koncernloft_kroner: Heltal
+)
+@ field(
+    label = "Fradragets bestemmelse i ligningsloven",
+    question = "Hvilken bestemmelse i ligningsloven vedrører fradragsposten?",
+    help = "Vælg § 8, stk. 1, § 8 B, § 8 K, § 8 L, § 8 N, § 14, stk. 1, § 14 F eller § 30 A.",
+    sources = personskat_par3_nr2_kilder_2
+)
 # PersonskatPar3Nr2Ligningslovskilde = PsPar3Nr2Ll8Stk1(input: Ligningslov8Stk1Input) | PsPar3Nr2Ll8B(fakta: PersonskatPar3Nr2Ll8BFakta) | PsPar3Nr2Ll8K(input: Ligningslov8KInput) | PsPar3Nr2Ll8L(input: Ligningslov8LInput) | PsPar3Nr2Ll8N(input: Ligningslov8NInput) | PsPar3Nr2Ll14Stk1(input: Ligningslov14Input) | PsPar3Nr2Ll14F(input: Ligningslov14FInput) | PsPar3Nr2Ll30A(input: Ligningslov30AInput)
-# PersonskatPar3Nr2Ligningslovsfakta(identifikation: Tekst, kilde: PersonskatPar3Nr2Ligningslovskilde)
+# PersonskatPar3Nr2Ligningslovsfakta(
+    @ field(
+        label = "Fradragspostens identifikation",
+        question = "Hvilken entydig identifikation skal fradragsposten have?",
+        help = "Brug en stabil reference fra regnskabet eller bilaget, så samme post ikke medregnes to gange.",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    identifikation: Tekst,
+    kilde: PersonskatPar3Nr2Ligningslovskilde
+)
 # PersonskatPar3Nr2Ligningslovsresultat(fakta: PersonskatPar3Nr2Ligningslovsfakta, grundlag: Par3Stk2Nr2Grundlag, par3_post: Par3Stk2Nr2Post)
 
 | personskat_par3_nr2_ll8b_erhvervsstart_gyldig(erhvervsstart: Ligningslov8BErhvervsstart) -> match erhvervsstart {
@@ -522,7 +784,43 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 # PersonskatVirksomhedsindtægtsart = OrdinærDriftsindtægt | BiblioteksafgiftEfterLovOmBiblioteksafgift | KapitalindkomstEfterPersonskattelovensPar4 | AktieindkomstEfterPersonskattelovensPar4A | UklassificeretVirksomhedsindtægt
 # PersonskatVirksomhedsindtægtFakta(identifikation: Tekst, art: PersonskatVirksomhedsindtægtsart, beløb_kroner: Heltal)
 # PersonskatVirksomhedsudgiftFakta(identifikation: Tekst, afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning, beløb_kroner: Heltal)
-# PersonskatOrdinærVirksomhedFakta(identifikation: Tekst, indkomstår: Heltal, indtægter: List(PersonskatVirksomhedsindtægtFakta), udgifter: List(PersonskatVirksomhedsudgiftFakta), ligningslovsfradrag_efter_par3_stk2_nr2: List(PersonskatPar3Nr2Ligningslovsfakta), erhvervsposter_efter_par3_stk2_nr4_til_10: List(PersonskatPar3Erhvervspostfakta))
+# PersonskatOrdinærVirksomhedFakta(
+    @ field(
+        label = "Virksomhedens identifikation",
+        question = "Hvilken entydig identifikation har virksomheden?",
+        help = "Brug eksempelvis CVR-nummer eller en stabil intern identifikation. Denne gren gælder kun virksomhed uden virksomhedsordningen.",
+        sources = personskat_personlig_indkomst_kilder_4
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Virksomhedens indkomstår",
+        question = "Hvilket indkomstår vedrører virksomhedens resultat?",
+        help = "Indkomståret skal være det samme som skatteåret i Personskat-beregningen.",
+        unit = "år",
+        sources = personskat_personlig_indkomst_kilder_4
+    )
+    indkomstår: Heltal,
+    indtægter: List(PersonskatVirksomhedsindtægtFakta),
+    udgifter: List(PersonskatVirksomhedsudgiftFakta),
+    @ field(
+        label = "Virksomhedsfradrag efter personskattelovens § 3, stk. 2, nr. 2",
+        question = "Har virksomheden udgifter eller bidrag, der kan fradrages efter en af de henviste bestemmelser i ligningsloven?",
+        help = "Opret én række pr. dokumenteret udgift eller indbetaling. Futuruna afgør fradragsretten og beløbet ud fra den valgte bestemmelse.",
+        sources = personskat_par3_nr2_kilder_2
+    )
+    ligningslovsfradrag_efter_par3_stk2_nr2: List(PersonskatPar3Nr2Ligningslovsfakta),
+    @ field(
+        label = "Andre erhvervsposter efter personskattelovens § 3, stk. 2",
+        question = "Har virksomheden husdyr, varelager, udligningshenlæggelser, tilbagebetalte offentlige ydelser eller skattemæssige afskrivninger?",
+        help = "Opret én række pr. dokumenteret post. Futuruna afleder beløbet og placeringen i personlig indkomst fra den valgte lovregel.",
+        sources = [
+            Source(value = personskatteloven_lbk1284_par3),
+            Warning(value = personskatteloven_par3_nr5_varelager_nulprocent_advarsel),
+            Warning(value = personskatteloven_par3_nr9_dynamisk_henvisning_advarsel)
+        ]
+    )
+    erhvervsposter_efter_par3_stk2_nr4_til_10: List(PersonskatPar3Erhvervspostfakta)
+)
 # PersonskatOrdinærVirksomhedBeregning(fakta: PersonskatOrdinærVirksomhedFakta, par3_stk2_nr2_resultater: List(PersonskatPar3Nr2Ligningslovsresultat), par3_erhvervspost_resultater: List(PersonskatPar3Erhvervspostresultat), par3_input_for_virksomheden: Par3PersonligIndkomstInput, par3_indkomstresultat_for_virksomheden: Par3PersonligIndkomstResultat, arbejdsmarkedsbidrag_input_for_virksomheden: ArbejdsmarkedsbidragSelvstændigInput, biblioteksafgift_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
 # PersonskatOrdinærVirksomhedResultat = UgyldigOrdinærVirksomhed(fakta: PersonskatOrdinærVirksomhedFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk, grundfakta_gyldige: Boolsk) | IkkeUnderstøttetOrdinærVirksomhed(fakta: PersonskatOrdinærVirksomhedFakta, indtægtsarter_understøttet: Boolsk, udgiftsafgrænsninger_understøttet: Boolsk) | BeregnetOrdinærVirksomhed(beregning: PersonskatOrdinærVirksomhedBeregning)
 
@@ -626,11 +924,62 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 
 @ section personskat_personlig_indkomst_kildefakta {
 
+= personskat_ydelsesudbetaling_hjemmelsmeta_kilder = [
+    Source(value = ligningsloven_lbk1500_par13),
+    Source(value = pensionsbeskatningsloven_lbk1243_par49_stk2)
+]
+@ field(
+    label = "Postens lovgren",
+    question = "Er dette ordinær dansk folkepension/tillæg, førtids-/senior-/tidlig pension, SU, dagpenge, en foreningsydelse efter LL § 13, arbejdsløshedsforsikring efter PBL § 49 eller gruppeliv betalt af pensionsbonus?",
+    help = "Vælg efter ordningens lovgrundlag og dokumentation, ikke årsopgørelsens samlelinje. Den generelle A-kassevariant under PBL § 49 afklarer ikke indkomstgrundlaget for ekstra kørselsfradrag; dokumenterede danske arbejdsløshedsdagpenge har en særskilt gren. PersonskatGruppelivFraPensionsbonus kræver dokumenteret bonus på fradragsberettiget pension, ikke løntræk/felt 91; se personskat-gruppeliv.md.",
+    sources = personskat_ydelsesudbetaling_hjemmelsmeta_kilder
+)
 # PersonskatForeningsOgArbejdsløshedsydelseFakta = PersonskatForeningsydelseEfterLigningslov13(fakta: Ligningslov13ForeningsydelseFakta) | PersonskatArbejdsløshedsforsikringsudbetalingEfterPbl49(fakta: Pbl49ArbejdsløshedsforsikringsudbetalingFakta) | PersonskatLovbestemteDagpenge(fakta: PersonskatDagpengeFakta) | PersonskatUddannelsesstøtte(fakta: PersonskatSuFakta) | PersonskatFolkepensionsudbetaling(fakta: PersonskatFolkepensionFakta) | PersonskatSocialpensionsudbetaling(fakta: PersonskatSocialpensionFakta) | PersonskatGruppelivFraPensionsbonus(fakta: PersonskatGruppelivBonusFakta)
 # PersonskatForeningsOgArbejdsløshedsydelseResultat = UgyldigForeningsEllerArbejdsløshedsydelse(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk) | BeregnetForeningsydelseEfterLigningslov13(resultat: Ligningslov13ForeningsydelseResultat) | BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(resultat: Pbl49ArbejdsløshedsforsikringsudbetalingResultat) | BeregnetLovbestemteDagpenge(resultat: PersonskatDagpengeResultat) | BeregnetUddannelsesstøtte(resultat: PersonskatSuResultat) | BeregnetFolkepensionsudbetaling(resultat: PersonskatFolkepensionResultat) | BeregnetSocialpensionsudbetaling(resultat: PersonskatSocialpensionResultat) | BeregnetGruppelivFraPensionsbonus(resultat: PersonskatGruppelivBonusResultat)
-# PersonskatOrdinærPersonligIndkomstInput(arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseFakta), personlige_arbejdsvederlag: List(PersonskatPersonligtArbejdsvederlagFakta), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedFakta), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseFakta))
+# PersonskatOrdinærPersonligIndkomstInput(
+    arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseFakta),
+    @ field(
+        label = "Honorarer og andet personligt arbejdsvederlag",
+        question = "Hvilke særskilte vederlag for personligt arbejde fremgår af kilderne ud over den almindelige løn?",
+        help = "Opret én række pr. særskilt vederlag uden for ansættelse og selvstændig virksomhed efter AMBL § 2, stk. 1, nr. 2. Beløbet må ikke også stå i bruttoløn, øvrig personlig indkomst eller virksomhedsindtægter. B-indkomst er ikke én retlig kategori, og en rubrik-total kan kræve opdeling. Se personskat-honorar.md.",
+        sources = personskat_personlig_indkomst_kilder_4
+    )
+    personlige_arbejdsvederlag: List(PersonskatPersonligtArbejdsvederlagFakta),
+    virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedFakta),
+    @ field(
+        label = "Offentlig pension, SU, dagpenge og øvrige dækkede poster uden AM",
+        question = "Har personen modtaget folkepension, førtids-/senior-/tidlig pension, særskilte tillæg, SU, arbejdsløshedsdagpenge, G-dage, syge- eller barselsdagpenge, foreningsydelser, privat lønsikring eller fået gruppeliv betalt af pensionsbonus?",
+        help = "Opret én række for hver særskilt post og retligt identificerbar del. Brug PersonskatFolkepensionsudbetaling for dansk folkepension, PersonskatSocialpensionsudbetaling for dækket førtids-/senior-/tidlig pension, PersonskatUddannelsesstøtte for SU og PersonskatLovbestemteDagpenge for dagpenge. PersonskatGruppelivFraPensionsbonus er præmier fra bonus på fradragsberettiget pension, ikke løntræk eller bonus fra selve forsikringen; se personskat-gruppeliv.md. Samme beløb må ikke også stå i løn eller PBL § 20-pension. Adskil skattepligtige og skattefri dele. Eventuelle ATP/SUPP-fakta oplyses særskilt; SU har ikke ATP.",
+        sources = personskat_ydelsesudbetaling_hjemmelsmeta_kilder
+    )
+    forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseFakta)
+)
 # PersonskatOrdinærPersonligIndkomstResultat(input: PersonskatOrdinærPersonligIndkomstInput, arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseResultat), personlige_arbejdsvederlag: List(PersonskatPersonligtArbejdsvederlagResultat), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedResultat), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseResultat), arbejdsgiverydelsesidentifikationer_entydige: Boolsk, personlige_arbejdsvederlagsidentifikationer_entydige: Boolsk, virksomhedsidentifikationer_entydige: Boolsk, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, selvstændig_personlig_indkomst_før_fremførsel_kroner: Heltal, selvstændig_biblioteksafgift_kroner: Heltal, selvstændig_arbejdsmarkedsbidragsgrundlag_før_årsaggregering_kroner: Heltal, selvstændig_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_før_årsaggregering_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
-# PersonskatPersonligIndkomstInput(etableringskonto: PersonskatEtableringskontoInput, ordinære_forhold: PersonskatOrdinærPersonligIndkomstInput, arbejdsudleje: List(KildeskattelovArbejdsudlejeInput), underholdsbidrag: Ligningslov10Og11Årsinput, børnebidragslov19_bidrag: Børnebidragslov19Årsinput, sømandsbeskatning: Søbl5Til8Årsinput)
+# PersonskatPersonligIndkomstInput(
+    etableringskonto: PersonskatEtableringskontoInput,
+    ordinære_forhold: PersonskatOrdinærPersonligIndkomstInput,
+    @ field(
+        label = "Personens arbejdsudlejeforhold",
+        question = "Hvilke af denne persons egne vederlag vedrører arbejdsudleje fra en udenlandsk arbejdsgiver til en dansk virksomhed?",
+        help = "Opret én række pr. forhold for denne persons egen indkomst, ikke en liste over virksomhedens medarbejdere. En anden persons indkomst hører til en separat personsag. Futuruna afgrænser KSL § 2, stk. 1, nr. 3 og beregner enten den endelige skat eller den ordinære Personskat-gren. Ens alder eller navn beviser ikke identitet.",
+        sources = [
+            Source(value = kildeskattelov_arbejdsudleje_lbk460),
+            HistoricalSource(value = kildeskattelov_arbejdsudleje_lbk1330),
+            AmendmentSource(value = kildeskattelov_arbejdsudleje_lov710),
+            AmendmentSource(value = kildeskattelov_arbejdsudleje_unges_am),
+            DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
+            DependencySource(value = ligningsloven_lbk1500_par8m),
+            Guidance(value = kildeskattelov_arbejdsudleje_vejledning),
+            Guidance(value = kildeskattelov_arbejdsudleje_am_vejledning),
+            Guidance(value = kildeskattelov_arbejdsudleje_skat_dk),
+            Warning(value = kildeskattelov_arbejdsudleje_par48b_henvisningsadvarsel)
+        ]
+    )
+    arbejdsudleje: List(KildeskattelovArbejdsudlejeInput),
+    underholdsbidrag: Ligningslov10Og11Årsinput,
+    børnebidragslov19_bidrag: Børnebidragslov19Årsinput,
+    sømandsbeskatning: Søbl5Til8Årsinput
+)
 # PersonskatPersonligIndkomstResultat(input: PersonskatPersonligIndkomstInput, etableringskonto: PersonskatEtableringskontoResultat, ordinære_forhold: PersonskatOrdinærPersonligIndkomstResultat, arbejdsudleje: List(KildeskattelovArbejdsudlejeResultat), arbejdsudlejeidentifikationer_entydige: Boolsk, underholdsbidrag: Ligningslov10Og11Årsresultat, børnebidragslov19_bidrag: Børnebidragslov19Årsresultat, sømandsbeskatning: Søbl5Til8Årsresultat, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, ligningsmæssigt_fradrag_kroner: Heltal, endeligt_arbejdsmarkedsbidrag_fra_arbejdsudleje_kroner: Heltal, endelig_arbejdsudlejeskat_kroner: Heltal, samlet_endelig_arbejdsudlejebeskatning_kroner: Heltal)
 
 | personskat_ingen_ordinær_personlig_indkomst() -> PersonskatOrdinærPersonligIndkomstInput(

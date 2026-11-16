@@ -8,6 +8,7 @@
 @ importer ./aktieavancebeskatningsloven-par19b-22
 @ importer ./ejendomsavancebeskatningsloven-par8-par9
 @ importer ./selskabsskatteloven
+@ importer ./delte-kilder
 
 -- Aktieavancebeskatningsloven -- Personskatteloven § 4, stk. 1, nr. 5, og § 4 a.
 --
@@ -36,11 +37,6 @@ EndDate: 2026-07-29
 = aktieavancebeskatningsloven_lov615 = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2026/615",
     identifier = "LOV nr. 615 af 30/06/2026, § 4: ændrer ABL § 34 uden at ændre dette regeludsnit",
-    hentet_dato = "2026-07-18"
-)
-= aktieavancebeskatningsloven_lbk1098_par12_til_par15 = AktieavancebeskatningslovKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
-    identifier = "Aktieavancebeskatningsloven §§ 12-15",
     hentet_dato = "2026-07-18"
 )
 = aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21 = AktieavancebeskatningslovKildeInfo(
@@ -101,11 +97,6 @@ EndDate: 2026-07-29
 = aktieavancebeskatningsloven_juridisk_vejledning_boligret = AktieavancebeskatningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1946364",
     identifier = "Den juridiske vejledning C.B.2.6: aktier og andelsbeviser med boligret",
-    hentet_dato = "2026-07-18"
-)
-= aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme = AktieavancebeskatningslovKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1948728",
-    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.15.6: boligejendomme ejet via aktier eller andelsbeviser",
     hentet_dato = "2026-07-18"
 )
 = selskabsloven_lbk331_par47 = AktieavancebeskatningslovKildeInfo(
@@ -335,33 +326,264 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
 
 # AktieavanceOrdinærMarkedsstatus = AblIkkeOptagetTilHandel | AblOptagetTilHandelPåReguleretMarked | AblOptagetTilHandelPåMultilateralHandelsfacilitet
 # AktieavanceOrdinærOplysningsstatus = AblOplystRettidigt | AblIndberettetAfAndenIndberetningspligtig | AblSkatteyderPåviserUkorrektIndberetning | AblTilflytningsbeholdningOplystRettidigt | AblIndgårIBeholdningsoversigtPar39A | AblOptagelseTilHandelOplystRettidigt | AblOptagelseTilHandelIndberettet | AblDødsboudlodningOplystMedBoopgørelse | AblOplysningsbetingelseIkkeOpfyldt
-# AktieavanceOrdinærBoligretAfståelsesform = AblPar15AlmindeligAfståelse | AblPar15Likvidationsprovenu(udloddet_i_endeligt_opløsningsår: Boolsk)
+= personskat_kilder_9 = [
+    Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+    DependencySource(value = ebl_par8_par9_lbk132)
+]
+@ field(
+    label = "Afståelsesform for boligret",
+    question = "Er værdipapiret afstået almindeligt eller som likvidationsprovenu?",
+    help = "Likvidationsprovenu er kun skattefrit efter ABL § 15, stk. 2, når det udloddes i selskabets endelige opløsningsår.",
+    sources = personskat_kilder_9
+)
+# AktieavanceOrdinærBoligretAfståelsesform =
+    AblPar15AlmindeligAfståelse |
+    AblPar15Likvidationsprovenu(
+        @ field(
+            label = "Udloddet i endeligt opløsningsår",
+            question = "Blev likvidationsprovenuet udloddet i det kalenderår, hvor selskabet endeligt blev opløst?",
+            help = "Et nej betyder, at gevinst eller tab fortsætter gennem de almindelige regler i aktieavancebeskatningsloven.",
+            sources = personskat_kilder_9
+        )
+        udloddet_i_endeligt_opløsningsår: Boolsk
+    )
+= personskat_kilder_10 = [
+    Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+    DependencySource(value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme)
+]
+@ field(
+    label = "Udsteder af værdipapiret med boligret",
+    question = "Er udstederen et registreret kapitalselskab, en forening eller en skattemæssigt transparent eller anden enhed?",
+    help = "Skattefrihed efter ABL § 15 forudsætter, at udstederen er et selvstændigt skattesubjekt efter selskabsskattelovens § 1, stk. 1, nr. 1 eller 6.",
+    sources = personskat_kilder_10
+)
 # AktieavanceOrdinærPar15UdstederInput = AblPar15Kapitalselskabsudsteder(sel_input: Selskabsskattelov1Stk1Nr1Input) | AblPar15Foreningsudsteder(sel_input: Selskabsskattelov1Stk1Nr6Input) | AblPar15TransparentEllerAndenUdsteder
 # AktieavanceOrdinærPar15Værdipapirstatus = AblPar15VærdipapirOmfattetAfAktieavancebeskatningsloven | AblPar15VærdipapirUdenForAktieavancebeskatningsloven
 # AktieavanceOrdinærPar15UdstederResultat = AblPar15KapitalselskabsudstederVurderet(sel_resultat: Selskabsskattelov1Stk1Nr1Resultat) | AblPar15ForeningsudstederVurderet(sel_resultat: Selskabsskattelov1Stk1Nr6Resultat) | AblPar15TransparentEllerAndenUdstederVurderet
 # AktieavanceOrdinærPar15Klassifikationsresultat(udsteder_resultat: AktieavanceOrdinærPar15UdstederResultat, udsteder_selvstændigt_skattesubjekt: Boolsk, værdipapir_omfattet_af_aktieavancebeskatningsloven: Boolsk, input_gyldigt: Boolsk)
-# AktieavanceOrdinærBoligretInput = AblUdenBoligret | AblBoligretEfterPar15(udsteder: AktieavanceOrdinærPar15UdstederInput, værdipapirstatus: AktieavanceOrdinærPar15Værdipapirstatus, fakta: EblPar8Stk4VærdipapirFakta, afståelsesform: AktieavanceOrdinærBoligretAfståelsesform)
+@ field(
+    label = "Boligret efter ABL § 15",
+    question = "Er værdipapiret forbundet med brugsret til en beboelseslejlighed?",
+    help = "Boligretten kan gøre både gevinst og tab skattefri, når betingelserne i ejendomsavancebeskatningslovens § 8, stk. 4, er opfyldt.",
+    sources = personskat_kilder_9
+)
+# AktieavanceOrdinærBoligretInput =
+    AblUdenBoligret |
+    AblBoligretEfterPar15(
+        udsteder: AktieavanceOrdinærPar15UdstederInput,
+        @ field(
+            label = "Værdipapirets ABL-status",
+            question = "Er aktien, anparten eller andelsbeviset omfattet af aktieavancebeskatningsloven ved afståelse?",
+            help = "Et værdipapir uden for aktieavancebeskatningsloven kan ikke behandles som en ordinær ABL-afståelse eller fritages efter ABL § 15.",
+            sources = personskat_kilder_10
+        )
+        værdipapirstatus: AktieavanceOrdinærPar15Værdipapirstatus,
+        fakta: EblPar8Stk4VærdipapirFakta,
+        afståelsesform: AktieavanceOrdinærBoligretAfståelsesform
+    )
 # AktieavanceOrdinærPar15Resultat = AblPar15IkkeRelevant | AblPar15Vurderet(klassifikation: AktieavanceOrdinærPar15Klassifikationsresultat, ebl_par8_stk4_resultat: EblPar8Stk4VærdipapirResultat, afståelsesform_opfyldt: Boolsk, skattefri_efter_par15: Boolsk)
 # AktieavanceOrdinærAfståelsesvilkår(markedsstatus: AktieavanceOrdinærMarkedsstatus, har_tidligere_været_optaget_til_handel: Boolsk, hovedaktionæraktier: Boolsk, afståede_aktiers_handelsværdi_kroner: Heltal, beholdte_aktiers_handelsværdi_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus, boligret: AktieavanceOrdinærBoligretInput)
+@ field(
+    label = "Kildedata til tabsbegrænsning efter ABL § 5 A",
+    question = "Kræver afståelsen oplysninger om skattefrie udbytter og andre beløb, der kan reducere aktietabet efter ABL § 5 A?",
+    help = "Vælg kildedata, når afståelsen giver et skattepligtigt tab. Ved gevinst eller et tab, der allerede er skattefrit efter ABL § 15, kræves de ikke.",
+    sources = [Source(value = aktieavancebeskatningsloven_lbk1098_par5a)]
+)
 # AktieavanceOrdinærPar5AKildefakta = AblOrdinærIngenPar5AFaktaPåkrævet | AblOrdinærPar5AKildefakta(fakta: AktieavancePar5AFakta)
 # AktieavanceOrdinærKapitalvægt(tæller: Heltal, nævner: Heltal)
 # AktieavanceOrdinærPålydendeKapitaldel(antal_aktier: Heltal, samlet_pålydende_kroner: Heltal)
 # AktieavanceOrdinærStykkapitaldel(antal_aktier: Heltal, kapitalvægt: AktieavanceOrdinærKapitalvægt)
 # AktieavanceOrdinærKapitalmængde = AblPålydendeAktiekapital(antal_aktier: Heltal, samlet_pålydende_kroner: Heltal) | AblAktiekapitalUdenPålydendeVærdi(antal_aktier: Heltal) | AblDokumenteretStykkapital(stykkapital_del: AktieavanceOrdinærStykkapitaldel) | AblBlandetAktiekapital(pålydende_del: AktieavanceOrdinærPålydendeKapitaldel, stykkapital_del: AktieavanceOrdinærStykkapitaldel)
-# AktieavanceOrdinærPosition(selskabsidentifikation: Tekst, kapitalmængde: AktieavanceOrdinærKapitalmængde, anskaffelsessum_kroner: Heltal)
-# AktieavancePar27Anskaffelsessum = AblPar27KendtAnskaffelsessum(kroner: Heltal) | AblPar27UkendtAnskaffelsessum
-# AktieavancePar27OprindeligAndel(selskabsidentifikation: Tekst, kapitalmængde: AktieavanceOrdinærKapitalmængde, anskaffelsestidspunkt: Dato, anskaffelsessum: AktieavancePar27Anskaffelsessum)
+= personskat_kilder_11 = [
+    Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par23_par24_par26),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par27),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22)
+]
+# AktieavanceOrdinærPosition(
+    @ field(
+        label = "Investeringsinstituttets identifikation",
+        question = "Hvilket investeringsinstitut udstedte minimumsbeviserne?",
+        help = "Brug den stabile identifikation fra depot- eller indberetningsgrundlaget.",
+        sources = personskat_kilder_11
+    )
+    selskabsidentifikation: Tekst,
+    kapitalmængde: AktieavanceOrdinærKapitalmængde,
+    anskaffelsessum_kroner: Heltal
+)
+= personskat_kilder_12 = [
+    Source(value = aktieavancebeskatningsloven_lbk1098_par23_par24_par26),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par27)
+]
+@ field(
+    label = "Dokumentation for den oprindelige anskaffelsessum",
+    question = "Kan den oprindelige anskaffelsessum fastslås?",
+    help = "Hvis anskaffelsessummen ikke kan fastslås, sætter ABL § 27, stk. 3, den til 0 kr.",
+    sources = personskat_kilder_12
+)
+# AktieavancePar27Anskaffelsessum =
+    AblPar27KendtAnskaffelsessum(
+        @ field(
+            label = "Den oprindelige anskaffelsessum",
+            question = "Hvad var den dokumenterede oprindelige anskaffelsessum før § 27-tillæg?",
+            unit = "kr.",
+            sources = personskat_kilder_12
+        )
+        kroner: Heltal
+    ) |
+    AblPar27UkendtAnskaffelsessum
+# AktieavancePar27OprindeligAndel(
+    @ field(
+        label = "Den oprindelige andels institutidentifikation",
+        question = "Hvilket investeringsinstitut har udstedt den oprindelige andel?",
+        help = "Identifikationen binder alle § 27-tillæg til den samme andel.",
+        sources = personskat_kilder_12
+    )
+    selskabsidentifikation: Tekst,
+    kapitalmængde: AktieavanceOrdinærKapitalmængde,
+    anskaffelsestidspunkt: Dato,
+    anskaffelsessum: AktieavancePar27Anskaffelsessum
+)
 # AktieavancePar27Institutsstatus = AblPar27UcitsMinimumsinstitut | AblPar27IkkeUcitsMenLagerbeskattetMinimumsinstitut | AblPar27InstitutUdenforBestemmelsen
-# AktieavancePar27Stk2Vilkår(behandles_som_nyt_indskud_med_nominel_forøgelse: Boolsk, er_likvidationsudlodning_efter_ll16a_stk3_nr1: Boolsk)
-# AktieavancePar27Hændelse(investeringsinstitut_identifikation: Tekst, minimumsindkomstens_kalenderår: Heltal, manglende_effektiv_udbetaling_kroner: Heltal, årlig_regnskabsgodkendelse: Dato, institutsstatus: AktieavancePar27Institutsstatus, stk2_vilkår: AktieavancePar27Stk2Vilkår)
+# AktieavancePar27Stk2Vilkår(
+    @ field(
+        label = "Manglende udbetaling behandlet som nyt indskud",
+        question = "Behandlede instituttet den manglende udbetaling som et nyt indskud, der forøgede de nominelle andele?",
+        help = "Dette er den første afgrænsning i ABL § 27, stk. 2.",
+        sources = personskat_kilder_12
+    )
+    behandles_som_nyt_indskud_med_nominel_forøgelse: Boolsk,
+    @ field(
+        label = "Likvidationsudlodning efter LL § 16 A",
+        question = "Er beløbet en likvidationsudlodning efter ligningslovens § 16 A, stk. 3, nr. 1?",
+        help = "Dette er den anden afgrænsning i ABL § 27, stk. 2.",
+        sources = personskat_kilder_12
+    )
+    er_likvidationsudlodning_efter_ll16a_stk3_nr1: Boolsk
+)
+# AktieavancePar27Hændelse(
+    @ field(
+        label = "Investeringsinstituttet bag minimumsindkomsten",
+        question = "Hvilket investeringsinstitut vedrører den manglende effektive udbetaling?",
+        help = "Identifikationen skal svare til den oprindelige andel, hvis anskaffelsessummen skal forhøjes.",
+        sources = personskat_kilder_12
+    )
+    investeringsinstitut_identifikation: Tekst,
+    @ field(
+        label = "Kalenderår for minimumsindkomsten",
+        question = "Hvilket kalenderår hidrører minimumsindkomsten fra?",
+        help = "Tillægstidspunktet kan senest være den 30. juni i det følgende år.",
+        unit = "år",
+        sources = personskat_kilder_12
+    )
+    minimumsindkomstens_kalenderår: Heltal,
+    @ field(
+        label = "Manglende effektiv udbetaling",
+        question = "Hvor stor en del af minimumsindkomsten blev ikke effektivt udbetalt?",
+        help = "Beløbet bliver et tillæg til anskaffelsessummen, når betingelserne i ABL § 27 er opfyldt.",
+        unit = "kr.",
+        sources = personskat_kilder_12
+    )
+    manglende_effektiv_udbetaling_kroner: Heltal,
+    årlig_regnskabsgodkendelse: Dato,
+    @ field(
+        label = "Investeringsinstituttets status efter ABL § 27",
+        question = "Er instituttet et UCITS-minimumsinstitut, et andet lagerbeskattet minimumsinstitut eller uden for bestemmelsen?",
+        help = "Stk. 1 omfatter UCITS-institutter; stk. 4 udvider reglen til visse andre lagerbeskattede minimumsinstitutter.",
+        sources = personskat_kilder_12
+    )
+    institutsstatus: AktieavancePar27Institutsstatus,
+    stk2_vilkår: AktieavancePar27Stk2Vilkår
+)
 # AktieavancePar27Tillægstidspunkt = AblIntetPar27Tillægstidspunkt | AblPar27Tillægstidspunkt(dato: Dato)
 # AktieavancePar27Resultat(andel: AktieavancePar27OprindeligAndel, hændelse: AktieavancePar27Hændelse, andel_gyldig: Boolsk, hændelse_gyldig: Boolsk, reglen_finder_anvendelse: Boolsk, anskaffelsestidspunkt_efter: Dato, tillægstidspunkt: AktieavancePar27Tillægstidspunkt, position_før: AktieavanceOrdinærPosition, position_efter: AktieavanceOrdinærPosition)
-# AktieavancePar27Kildehændelse(identifikation: Tekst, dato: Dato, rækkefølge_på_dagen: Heltal, hændelse: AktieavancePar27Hændelse)
+# AktieavancePar27Kildehændelse(
+    @ field(
+        label = "§ 27-hændelsens identifikation",
+        question = "Hvilken stabil identifikation skal denne manglende effektive udbetaling have?",
+        help = "Identifikationen skal være entydig i andelens samlede § 27-forløb.",
+        sources = personskat_kilder_12
+    )
+    identifikation: Tekst,
+    dato: Dato,
+    @ field(
+        label = "§ 27-hændelsens rækkefølge på dagen",
+        question = "Hvilket løbenummer havde § 27-hændelsen blandt samme dags tillæg?",
+        help = "Brug positive, stigende heltal, når flere tillæg har samme dato.",
+        sources = personskat_kilder_12
+    )
+    rækkefølge_på_dagen: Heltal,
+    hændelse: AktieavancePar27Hændelse
+)
 # AktieavancePar27Forløbsinput(andel_primo: AktieavancePar27OprindeligAndel, hændelser: List(AktieavancePar27Kildehændelse))
 # AktieavancePar27Forløbstilstand(position: AktieavanceOrdinærPosition, hændelsesresultater: List(AktieavancePar27Resultat), alle_hændelser_anvendt: Boolsk)
 # AktieavancePar27Forløbsresultat(input: AktieavancePar27Forløbsinput, hændelsesresultater: List(AktieavancePar27Resultat), position_ultimo: AktieavanceOrdinærPosition, hændelsesidentifikationer_entydige: Boolsk, minimumsindkomstår_entydige: Boolsk, kronologi_gyldig: Boolsk, tillægsdatoer_matcher: Boolsk, alle_hændelser_anvendt: Boolsk, input_gyldigt: Boolsk)
-# AktieavanceOrdinærHændelse = AblOrdinærAnskaffelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, anskaffelsessum_kroner: Heltal) | AblPar44Statusændring(beholdning: AktieavancePar44Beholdningsinput, aktie_identifikation: Tekst) | AblOrdinærAfståelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, afståelsessum_kroner: Heltal, vilkår: AktieavanceOrdinærAfståelsesvilkår, par5a_kildefakta: AktieavanceOrdinærPar5AKildefakta)
-# AktieavanceOrdinærKildehændelse(identifikation: Tekst, dato: Dato, rækkefølge_på_dagen: Heltal, hændelse: AktieavanceOrdinærHændelse)
+= personskat_kilder_13 = [
+    Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par26),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par17_klassifikation),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par44),
+    Source(value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par37),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par38),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39a),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par39b),
+    Source(value = aktieavancebeskatningsloven_lbk1098_par40),
+    PreparatoryWork(value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
+    DependencySource(value = aktieavancebeskatningsloven_lbk835_par4_stk2),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par44),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par23),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par37),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_beholdningsoversigt),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_prioritet),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_alle_afstået),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_årsoplysninger),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39b)
+]
+@ field(
+    label = "Aktiehændelsens art",
+    question = "Er hændelsen en anskaffelse, en statusændring efter § 44 eller en afståelse?",
+    help = "Valget bestemmer, hvilke kildeoplysninger der skal udfyldes for hændelsen.",
+    sources = personskat_kilder_12
+)
+# AktieavanceOrdinærHændelse =
+    AblOrdinærAnskaffelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, anskaffelsessum_kroner: Heltal) |
+    AblPar44Statusændring(
+        beholdning: AktieavancePar44Beholdningsinput,
+        @ field(
+            label = "Aktie for § 44-statusændringen",
+            question = "Hvilken aktie i § 44-beholdningen skal føres ind i den ordinære aktiebeholdning?",
+            help = "Brug aktiens stabile identifikation. Den må kun statusændres én gang i samme hændelsesforløb.",
+            sources = personskat_kilder_13
+        )
+        aktie_identifikation: Tekst
+    ) |
+    AblOrdinærAfståelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, afståelsessum_kroner: Heltal, vilkår: AktieavanceOrdinærAfståelsesvilkår, par5a_kildefakta: AktieavanceOrdinærPar5AKildefakta)
+# AktieavanceOrdinærKildehændelse(
+    @ field(
+        label = "Aktiehændelsens identifikation",
+        question = "Hvilken stabil identifikation skal denne aktiehændelse have?",
+        help = "Identifikationen skal være entydig på tværs af årets ordinære aktiehændelser.",
+        sources = personskat_kilder_12
+    )
+    identifikation: Tekst,
+    dato: Dato,
+    @ field(
+        label = "Aktiehændelsens rækkefølge på dagen",
+        question = "Hvilket løbenummer havde aktiehændelsen blandt samme dags hændelser?",
+        help = "Brug positive, stigende heltal, når flere hændelser har samme dato.",
+        sources = personskat_kilder_12
+    )
+    rækkefølge_på_dagen: Heltal,
+    hændelse: AktieavanceOrdinærHændelse
+)
 # AktieavanceOrdinærHændelsesresultat(position_før: AktieavanceOrdinærPosition, hændelse: AktieavanceOrdinærHændelse, position_gyldig: Boolsk, hændelse_gyldig: Boolsk, par44_statusændringsresultat: Option(AktieavancePar44Resultat), anskaffelsessum_henført_til_afståelse_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, par5a_resultat: Option(AktieavancePar5AResultat), par5a_kildefakta_gyldige: Boolsk, tabsreduktion_efter_par5a_kroner: Heltal, tab_efter_par5a_kroner: Heltal, par15_resultat: AktieavanceOrdinærPar15Resultat, skattefri_efter_par15: Boolsk, tab_behandles_efter_par13a: Boolsk, oplysningsbetingelse_efter_par14_opfyldt: Boolsk, skattepligtig_gevinst_efter_par12_kroner: Heltal, fradragsberettiget_tab_efter_par13_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, position_efter: AktieavanceOrdinærPosition)
 # AktieavanceOrdinærHændelsesforløbstilstand(position: AktieavanceOrdinærPosition, hændelsesresultater: List(AktieavanceOrdinærHændelsesresultat), alle_hændelser_gyldige: Boolsk)
 # AktieavanceOrdinærHændelsesforløbResultat(position_primo: AktieavanceOrdinærPosition, hændelser: List(AktieavanceOrdinærHændelse), hændelsesresultater: List(AktieavanceOrdinærHændelsesresultat), position_ultimo: AktieavanceOrdinærPosition, par44_statusændringsidentifikationer_entydige: Boolsk, alle_hændelser_gyldige: Boolsk)
@@ -369,12 +591,104 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
 # AktieavanceSkattepostArt = AblSkattepostOrdinærAktie | AblSkattepostAktieretEfterPar25 | AblSkattepostTegningsretEfterPar25 | AblSkattepostAkkumulerendeInvesteringsbevisEfterPar20Stk2 | AblSkattepostAktiebaseretMinimumsbevisEfterPar21
 # AktieavanceSkattepost(art: AktieavanceSkattepostArt, markedsstatus: AktieavanceOrdinærMarkedsstatus, skattepligtig_gevinst_efter_par12_kroner: Heltal, bruttotab_kroner: Heltal, fradragsberettiget_tab_efter_par13_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, gevinst_i_modregningsgrundlag_efter_par13a_kroner: Heltal)
 # AktieavancePar13AInvesteringsbevisArt = AblPar20Stk2AkkumulerendeInvesteringsbevis | AblPar21AktiebaseretMinimumsbevis
-# AktieavancePar13AInvesteringsbevisAnskaffelsesgrundlag = AblInvesteringsbevisDirekteAnskaffelsessum(kroner: Heltal) | AblInvesteringsbevisAnskaffelsessumEfterPar27(forløb: AktieavancePar27Forløbsinput, afstået_kapitalmængde: AktieavanceOrdinærKapitalmængde)
-# AktieavancePar13AInvesteringsbevisInput(indkomstår: Heltal, art: AktieavancePar13AInvesteringsbevisArt, afståelsesdato: Dato, afståelsens_rækkefølge_på_dagen: Heltal, afståelsessum_kroner: Heltal, anskaffelsesgrundlag: AktieavancePar13AInvesteringsbevisAnskaffelsesgrundlag, oplysningsstatus: AktieavanceOrdinærOplysningsstatus)
+@ field(
+    label = "Investeringsbevisets anskaffelsesgrundlag",
+    question = "Er anskaffelsessummen oplyst direkte, eller skal den afledes med tillæg efter ABL § 27?",
+    help = "Brug § 27-forløbet for et aktiebaseret minimumsbeskattet investeringsbevis med manglende effektive udbetalinger.",
+    sources = personskat_kilder_11
+)
+# AktieavancePar13AInvesteringsbevisAnskaffelsesgrundlag =
+    AblInvesteringsbevisDirekteAnskaffelsessum(
+        @ field(
+            label = "Investeringsbevisets direkte anskaffelsessum",
+            question = "Hvad var den dokumenterede anskaffelsessum, når der ikke skal afledes tillæg efter ABL § 27?",
+            unit = "kr.",
+            sources = personskat_kilder_11
+        )
+        kroner: Heltal
+    ) |
+    AblInvesteringsbevisAnskaffelsessumEfterPar27(forløb: AktieavancePar27Forløbsinput, afstået_kapitalmængde: AktieavanceOrdinærKapitalmængde)
+# AktieavancePar13AInvesteringsbevisInput(
+    @ field(
+        label = "Investeringsbevisets indkomstår",
+        question = "I hvilket indkomstår blev investeringsbeviset afstået?",
+        help = "Året skal være det samme som personskatteberegningens skatteår.",
+        unit = "år",
+        sources = personskat_kilder_11
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Investeringsbevisets art",
+        question = "Er der tale om et akkumulerende investeringsbevis efter ABL § 20, stk. 2, eller et aktiebaseret minimumsbeskattet investeringsbevis efter § 21?",
+        help = "Vælg den kategori, der fremgår af depot- eller skattedokumentationen.",
+        sources = personskat_kilder_11
+    )
+    art: AktieavancePar13AInvesteringsbevisArt,
+    afståelsesdato: Dato,
+    @ field(
+        label = "Investeringsbevisets afståelsesrækkefølge på dagen",
+        question = "Hvilket løbenummer havde afståelsen blandt samme dags § 27-tillæg og afståelser?",
+        help = "Et § 27-tillæg på afståelsesdatoen medregnes kun, når det ligger tidligere i dagens rækkefølge.",
+        sources = personskat_kilder_11
+    )
+    afståelsens_rækkefølge_på_dagen: Heltal,
+    @ field(
+        label = "Investeringsbevisets afståelsessum",
+        question = "Hvad var den dokumenterede afståelsessum for investeringsbeviset?",
+        unit = "kr.",
+        sources = personskat_kilder_11
+    )
+    afståelsessum_kroner: Heltal,
+    anskaffelsesgrundlag: AktieavancePar13AInvesteringsbevisAnskaffelsesgrundlag,
+    @ field(
+        label = "Oplysningsstatus for investeringsbeviset",
+        question = "Er oplysningsbetingelsen efter ABL § 14 opfyldt for investeringsbeviset?",
+        help = "Et tab kan kun indgå i modregningen efter § 13 A, når oplysningsbetingelsen er opfyldt.",
+        sources = personskat_kilder_11
+    )
+    oplysningsstatus: AktieavanceOrdinærOplysningsstatus
+)
 # AktieavancePar13AInvesteringsbevisResultat(input: AktieavancePar13AInvesteringsbevisInput, input_gyldigt: Boolsk, anskaffelsesgrundlag_gyldigt: Boolsk, par27_forløbsresultat: Option(AktieavancePar27Forløbsresultat), anskaffelsessum_henført_til_afståelse_kroner: Heltal, position_efter: Option(AktieavanceOrdinærPosition), bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, skattepost: AktieavanceSkattepost)
 # AktieavanceInvesteringsbevisBeholdningsgrundlag = AblInvesteringsbevisDirekteBeholdning(position: AktieavanceOrdinærPosition, anskaffelsesdato: Dato) | AblInvesteringsbevisBeholdningEfterPar27(forløb: AktieavancePar27Forløbsinput)
-# AktieavanceInvesteringsbevisAfståelse(identifikation: Tekst, dato: Dato, rækkefølge_på_dagen: Heltal, kapitalmængde: AktieavanceOrdinærKapitalmængde, afståelsessum_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus)
-# AktieavanceInvesteringsbevisBeholdningsforløbsinput(identifikation: Tekst, indkomstår: Heltal, grundlag: AktieavanceInvesteringsbevisBeholdningsgrundlag, afståelser: List(AktieavanceInvesteringsbevisAfståelse))
+# AktieavanceInvesteringsbevisAfståelse(
+    @ field(
+        label = "Afståelsens identifikation",
+        question = "Hvilken stabil og entydig identifikation har afståelsen?",
+        help = "Samme afståelse kan ikke forbruge anskaffelsessum to gange.",
+        sources = personskat_kilder_11
+    )
+    identifikation: Tekst,
+    dato: Dato,
+    @ field(
+        label = "Afståelsens rækkefølge på dagen",
+        question = "Hvilket løbenummer havde afståelsen blandt samme dags hændelser?",
+        help = "Rækkefølgen afgør, om et § 27-tillæg samme dag ligger før afståelsen.",
+        sources = personskat_kilder_11
+    )
+    rækkefølge_på_dagen: Heltal,
+    kapitalmængde: AktieavanceOrdinærKapitalmængde,
+    afståelsessum_kroner: Heltal,
+    @ field(
+        label = "Afståelsens oplysningsstatus",
+        question = "Er oplysningsbetingelsen efter ABL § 14 opfyldt?",
+        help = "Oplysningsstatussen påvirker tabsbehandlingen efter § 13 A for et § 21-bevis.",
+        sources = personskat_kilder_11
+    )
+    oplysningsstatus: AktieavanceOrdinærOplysningsstatus
+)
+# AktieavanceInvesteringsbevisBeholdningsforløbsinput(
+    identifikation: Tekst,
+    @ field(
+        label = "Minimumsbeholdningens indkomstår",
+        question = "For hvilket indkomstår opgøres beholdningens afståelser?",
+        help = "Alle afståelser i forløbet skal ligge i dette år.",
+        unit = "år",
+        sources = personskat_kilder_11
+    )
+    indkomstår: Heltal,
+    grundlag: AktieavanceInvesteringsbevisBeholdningsgrundlag,
+    afståelser: List(AktieavanceInvesteringsbevisAfståelse)
+)
 # AktieavanceInvesteringsbevisAfståelsesresultat(afståelse: AktieavanceInvesteringsbevisAfståelse, hændelsesresultat: AktieavanceOrdinærHændelsesresultat)
 # AktieavanceInvesteringsbevisBeholdningsforløbsresultat(input: AktieavanceInvesteringsbevisBeholdningsforløbsinput, par27_forløbsresultat: Option(AktieavancePar27Forløbsresultat), afståelsesresultater: List(AktieavanceInvesteringsbevisAfståelsesresultat), position_ultimo: AktieavanceOrdinærPosition, grundlag_gyldigt: Boolsk, alle_kildehændelser_før_afståelserne: Boolsk, alle_hændelser_gyldige: Boolsk, input_gyldigt: Boolsk)
 # AktieavancePar21InvesteringsbevisForløbsinput(klassifikation: AktieavancePar21Par22Input, beholdning: AktieavanceInvesteringsbevisBeholdningsforløbsinput)
@@ -383,8 +697,30 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
 # AktieavanceOrdinærÅrsinput(indkomstår: Heltal, skatteposter: List(AktieavanceSkattepost), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag)
 # AktieavanceOrdinærÅrsresultat(input: AktieavanceOrdinærÅrsinput, indkomstår: Heltal, skattepligtige_gevinster_efter_par12_kroner: Heltal, gevinster_for_aktier_optaget_til_handel_efter_par12_kroner: Heltal, gevinster_på_reguleret_marked_efter_par12_kroner: Heltal, gevinster_på_multilateral_handelsfacilitet_efter_par12_kroner: Heltal, bruttotab_kroner: Heltal, direkte_fradrag_efter_par13_kroner: Heltal, årets_tab_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, årets_og_fremførte_tab_efter_par13a_kroner: Heltal, nettogevinster_på_markedsaktier_efter_årets_par13a_tab_kroner: Heltal, eget_modregningsgrundlag_efter_par13a_kroner: Heltal, tab_modregnet_i_egne_udbytter_og_gevinster_kroner: Heltal, positivt_nettobeløb_efter_egen_modregning_kroner: Heltal, tab_overført_til_ægtefælle_kroner: Heltal, tab_modtaget_fra_ægtefælle_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal, fradragsberettiget_tab_i_egen_aktieindkomst_kroner: Heltal, netto_aktieindkomst_fra_ordinære_aktier_kroner: Heltal, medregnes_i_skattepligtig_indkomst: Boolsk)
 # AktieavanceOrdinærÅrsparResultat(par_gyldigt: Boolsk, gift_og_samlevende_ved_årets_udgang: Boolsk, hovedperson: AktieavanceOrdinærÅrsresultat, ægtefælle: AktieavanceOrdinærÅrsresultat)
-# AktieavanceOrdinærHændelsesforløbInput(position_primo: AktieavanceOrdinærPosition, hændelser: List(AktieavanceOrdinærKildehændelse))
-# AktieavanceOrdinærPersonÅrsinput(indkomstår: Heltal, hændelsesforløb: List(AktieavanceOrdinærHændelsesforløbInput), rettighedsforløb: List(AktieavancePar25HændelsesforløbInput), investeringsbeviser: List(AktieavancePar13AInvesteringsbevisInput), aktiebaserede_minimumsbevis_forløb: List(AktieavancePar21InvesteringsbevisForløbsinput), fremført_tab_efter_par13a_kroner: Heltal)
+# AktieavanceOrdinærHændelsesforløbInput(
+    position_primo: AktieavanceOrdinærPosition,
+    @ field(
+        label = "Aktiehændelser",
+        question = "Hvilke anskaffelser, statusændringer eller afståelser skete for denne aktiebeholdning?",
+        help = "Tilføj hver hændelse med stabil identifikation, dato og rækkefølge på dagen.",
+        sources = personskat_kilder_12
+    )
+    hændelser: List(AktieavanceOrdinærKildehændelse)
+)
+# AktieavanceOrdinærPersonÅrsinput(
+    indkomstår: Heltal,
+    @ field(
+        label = "Aktiebeholdninger",
+        question = "Hvilke aktiebeholdninger har haft anskaffelser eller afståelser i indkomståret?",
+        help = "Tilføj ét hændelsesforløb pr. selskab og beholdning, så gennemsnitsmetoden kan følge positionen gennem året.",
+        sources = personskat_kilder_12
+    )
+    hændelsesforløb: List(AktieavanceOrdinærHændelsesforløbInput),
+    rettighedsforløb: List(AktieavancePar25HændelsesforløbInput),
+    investeringsbeviser: List(AktieavancePar13AInvesteringsbevisInput),
+    aktiebaserede_minimumsbevis_forløb: List(AktieavancePar21InvesteringsbevisForløbsinput),
+    fremført_tab_efter_par13a_kroner: Heltal
+)
 # AktieavanceOrdinærPersonÅrsresultat(input: AktieavanceOrdinærPersonÅrsinput, hændelsesforløbsresultater: List(AktieavanceOrdinærÅrshændelsesforløbResultat), rettighedsforløbsresultater: List(AktieavancePar25HændelsesforløbResultat), investeringsbevis_resultater: List(AktieavancePar13AInvesteringsbevisResultat), aktiebaserede_minimumsbevis_forløbsresultater: List(AktieavancePar21InvesteringsbevisForløbsresultat), alle_input_gyldige: Boolsk, årsresultat: AktieavanceOrdinærÅrsresultat)
 # AktieavanceOrdinærPersonÅrsparResultat(par_gyldigt: Boolsk, gift_og_samlevende_ved_årets_udgang: Boolsk, hovedperson: AktieavanceOrdinærPersonÅrsresultat, ægtefælle: AktieavanceOrdinærPersonÅrsresultat)
 
@@ -1224,11 +1560,247 @@ regler anvendelse.
 # AktieavancePar25Rettighedsart = AblPar25Aktieret | AblPar25Tegningsret
 # AktieavancePar25Beskatningsprincip = AblPar25Realisationsprincip | AblPar25Lagerprincip
 # AktieavancePar26Tegningsretsregime = AblPar26RetEfterPar25AktieForAktie | AblPar26RetEfterPar44UdenforGennemsnit | AblPar26RetEfterPar16Stk1UdenforGennemsnit | AblPar26Stk4RetBetragtesSomAktie
-# AktieavancePar25Rettighed(underliggende_selskabsidentifikation: Tekst, rettighedsserie: Tekst, art: AktieavancePar25Rettighedsart, lovregime: AktieavanceRettighedLovregime, underliggende_aktiers_markedsstatus: AktieavanceOrdinærMarkedsstatus)
-# AktieavancePar25Parti(erhvervelsesår: Heltal, erhvervelsesrækkefølge: Heltal, resterende_rettigheder: Heltal, resterende_anskaffelsessum_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus)
-# AktieavancePar25Position(rettighed: AktieavancePar25Rettighed, beskatningsprincip: AktieavancePar25Beskatningsprincip, partier: List(AktieavancePar25Parti))
-# AktieavancePar25Hændelse = AblPar25TildelingSomAktionær(erhvervelsesår: Heltal, erhvervelsesrækkefølge: Heltal, antal_rettigheder: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus) | AblPar25Køb(erhvervelsesår: Heltal, erhvervelsesrækkefølge: Heltal, antal_rettigheder: Heltal, købesum_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus) | AblPar25AndenAnskaffelse(erhvervelsesår: Heltal, erhvervelsesrækkefølge: Heltal, antal_rettigheder: Heltal, anskaffelsessum_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus) | AblPar25Afståelse(antal_rettigheder: Heltal, afståelsessum_kroner: Heltal) | AblPar25Bortfald(antal_rettigheder: Heltal)
-# AktieavancePar25HændelsesforløbInput(position_primo: AktieavancePar25Position, hændelser: List(AktieavancePar25Hændelse))
+= personskat_kilder_14 = [
+    Source(value = aktieavancebeskatningsloven_lbk1098_par1_stk4_par5_par24_par25_par26_par30),
+    AmendmentSource(value = aktieavancebeskatningsloven_lov1563_par8_stk6),
+    Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_opgørelsesmetoder)
+]
+# AktieavancePar25Rettighed(
+    @ field(
+        label = "Selskabet bag rettigheden",
+        question = "Hvilken stabil identifikation har selskabet, hvis aktier rettigheden vedrører?",
+        help = "Brug samme identifikation for alle partier og hændelser i rettighedsserien.",
+        sources = personskat_kilder_14
+    )
+    underliggende_selskabsidentifikation: Tekst,
+    @ field(
+        label = "Rettighedsserie",
+        question = "Hvilken juridisk serie eller vilkårsidentifikation har aktie- eller tegningsretten?",
+        help = "Rettigheder med samme vilkår skal bruge samme serie på tværs af depoter. Samme selskab og serie må kun forekomme i ét årsforløb, så FIFO-beholdningen ikke deles.",
+        sources = personskat_kilder_14
+    )
+    rettighedsserie: Tekst,
+    @ field(
+        label = "Rettighedens art",
+        question = "Er der tale om en aktieret eller en tegningsret?",
+        sources = personskat_kilder_14
+    )
+    art: AktieavancePar25Rettighedsart,
+    @ field(
+        label = "Rettighedens lovregime",
+        question = "Er rettigheden omfattet af aktieavancebeskatningsloven eller af medarbejderordningen i ligningslovens § 28?",
+        help = "Tegningsretter efter ligningslovens § 28 behandles ikke i denne ABL § 25-gren.",
+        sources = personskat_kilder_14
+    )
+    lovregime: AktieavanceRettighedLovregime,
+    @ field(
+        label = "De underliggende aktiers markedsstatus",
+        question = "Er de underliggende aktier optaget til handel på et reguleret marked eller en multilateral handelsfacilitet?",
+        help = "Rettigheder til aktier på en multilateral handelsfacilitet omfattes af det aktuelle regime fra 2024.",
+        sources = personskat_kilder_14
+    )
+    underliggende_aktiers_markedsstatus: AktieavanceOrdinærMarkedsstatus
+)
+# AktieavancePar25Parti(
+    @ field(
+        label = "Partiets erhvervelsesår",
+        question = "I hvilket tidligere indkomstår blev dette rettighedsparti erhvervet?",
+        unit = "år",
+        sources = personskat_kilder_14
+    )
+    erhvervelsesår: Heltal,
+    @ field(
+        label = "Partiets erhvervelsesrækkefølge",
+        question = "Hvilket nummer i årets kronologiske erhvervelsesrækkefølge har partiet?",
+        help = "Nummeret skal være positivt og entydigt inden for erhvervelsesåret.",
+        sources = personskat_kilder_14
+    )
+    erhvervelsesrækkefølge: Heltal,
+    @ field(
+        label = "Resterende rettigheder i partiet",
+        question = "Hvor mange rettigheder var uudnyttede ved indkomstårets begyndelse?",
+        unit = "stk.",
+        sources = personskat_kilder_14
+    )
+    resterende_rettigheder: Heltal,
+    @ field(
+        label = "Resterende anskaffelsessum for partiet",
+        question = "Hvor stor en dokumenteret anskaffelsessum var knyttet til de resterende rettigheder?",
+        help = "Tildelte rettigheder i egenskab af aktionær har en anskaffelsessum på 0 kr. efter ABL § 25, stk. 2.",
+        unit = "kr.",
+        sources = personskat_kilder_14
+    )
+    resterende_anskaffelsessum_kroner: Heltal,
+    @ field(
+        label = "Oplysningsstatus for partiet",
+        question = "Er oplysningsbetingelsen efter ABL § 14 opfyldt for rettighedspartiet?",
+        help = "Status følger det konkrete FIFO-parti og afgør, om et tab kan modregnes.",
+        sources = personskat_kilder_14
+    )
+    oplysningsstatus: AktieavanceOrdinærOplysningsstatus
+)
+# AktieavancePar25Position(
+    rettighed: AktieavancePar25Rettighed,
+    @ field(
+        label = "Beskatningsprincip for rettigheden",
+        question = "Opgøres gevinst og tab efter realisationsprincippet eller lagerprincippet?",
+        help = "ABL § 25 finder ikke anvendelse, når gevinst og tab opgøres efter lagerprincippet.",
+        sources = personskat_kilder_14
+    )
+    beskatningsprincip: AktieavancePar25Beskatningsprincip,
+    @ field(
+        label = "Rettighedspartier ved årets begyndelse",
+        question = "Hvilke uudnyttede partier af rettighedsserien fandtes ved indkomstårets begyndelse?",
+        help = "Medtag kun partier erhvervet før indkomståret og anfør dem i FIFO-rækkefølge.",
+        sources = personskat_kilder_14
+    )
+    partier: List(AktieavancePar25Parti)
+)
+@ field(
+    label = "Rettighedshændelsens art",
+    question = "Er hændelsen en aktionærtildeling, et køb, en anden anskaffelse, en afståelse eller et bortfald?",
+    sources = personskat_kilder_14
+)
+# AktieavancePar25Hændelse =
+    AblPar25TildelingSomAktionær(
+        @ field(
+            label = "Tildelingens erhvervelsesår",
+            question = "I hvilket indkomstår blev rettighederne tildelt?",
+            help = "Tildelingen skal tilhøre beregningens indkomstår.",
+            unit = "år",
+            sources = personskat_kilder_14
+        )
+        erhvervelsesår: Heltal,
+        @ field(
+            label = "Tildelingens rækkefølge",
+            question = "Hvilket nummer i årets erhvervelsesrækkefølge har tildelingen?",
+            sources = personskat_kilder_14
+        )
+        erhvervelsesrækkefølge: Heltal,
+        @ field(
+            label = "Antal tildelte rettigheder",
+            question = "Hvor mange rettigheder blev tildelt i egenskab af aktionær?",
+            help = "Anskaffelsessummen afledes til 0 kr.",
+            unit = "stk.",
+            sources = personskat_kilder_14
+        )
+        antal_rettigheder: Heltal,
+        @ field(
+            label = "Oplysningsstatus for tildelingen",
+            question = "Hvordan er de tildelte rettigheder oplyst eller indberettet?",
+            sources = personskat_kilder_14
+        )
+        oplysningsstatus: AktieavanceOrdinærOplysningsstatus
+    ) |
+    AblPar25Køb(
+        @ field(
+            label = "Købets erhvervelsesår",
+            question = "I hvilket indkomstår blev rettighederne købt?",
+            help = "Købet skal tilhøre beregningens indkomstår.",
+            unit = "år",
+            sources = personskat_kilder_14
+        )
+        erhvervelsesår: Heltal,
+        @ field(
+            label = "Købets rækkefølge",
+            question = "Hvilket nummer i årets erhvervelsesrækkefølge har købet?",
+            sources = personskat_kilder_14
+        )
+        erhvervelsesrækkefølge: Heltal,
+        @ field(
+            label = "Antal købte rettigheder",
+            question = "Hvor mange rettigheder blev købt?",
+            unit = "stk.",
+            sources = personskat_kilder_14
+        )
+        antal_rettigheder: Heltal,
+        @ field(
+            label = "Købesum for rettighederne",
+            question = "Hvad var den samlede dokumenterede købesum?",
+            unit = "kr.",
+            sources = personskat_kilder_14
+        )
+        købesum_kroner: Heltal,
+        @ field(
+            label = "Oplysningsstatus for købet",
+            question = "Hvordan er de købte rettigheder oplyst eller indberettet?",
+            sources = personskat_kilder_14
+        )
+        oplysningsstatus: AktieavanceOrdinærOplysningsstatus
+    ) |
+    AblPar25AndenAnskaffelse(
+        @ field(
+            label = "Den anden anskaffelses erhvervelsesår",
+            question = "I hvilket indkomstår blev rettighederne anskaffet?",
+            help = "Anskaffelsen skal tilhøre beregningens indkomstår.",
+            unit = "år",
+            sources = personskat_kilder_14
+        )
+        erhvervelsesår: Heltal,
+        @ field(
+            label = "Den anden anskaffelses rækkefølge",
+            question = "Hvilket nummer i årets erhvervelsesrækkefølge har anskaffelsen?",
+            sources = personskat_kilder_14
+        )
+        erhvervelsesrækkefølge: Heltal,
+        @ field(
+            label = "Antal rettigheder ved anden anskaffelse",
+            question = "Hvor mange rettigheder blev anskaffet?",
+            unit = "stk.",
+            sources = personskat_kilder_14
+        )
+        antal_rettigheder: Heltal,
+        @ field(
+            label = "Anskaffelsessum ved anden anskaffelse",
+            question = "Hvad var den samlede dokumenterede anskaffelsessum?",
+            unit = "kr.",
+            sources = personskat_kilder_14
+        )
+        anskaffelsessum_kroner: Heltal,
+        @ field(
+            label = "Oplysningsstatus for den anden anskaffelse",
+            question = "Hvordan er de anskaffede rettigheder oplyst eller indberettet?",
+            sources = personskat_kilder_14
+        )
+        oplysningsstatus: AktieavanceOrdinærOplysningsstatus
+    ) |
+    AblPar25Afståelse(
+        @ field(
+            label = "Antal afståede rettigheder",
+            question = "Hvor mange rettigheder blev afstået?",
+            unit = "stk.",
+            sources = personskat_kilder_14
+        )
+        antal_rettigheder: Heltal,
+        @ field(
+            label = "Afståelsessum for rettighederne",
+            question = "Hvad var den samlede dokumenterede afståelsessum?",
+            help = "Futuruna henfører summen forholdsmæssigt til de forbrugte FIFO-partier.",
+            unit = "kr.",
+            sources = personskat_kilder_14
+        )
+        afståelsessum_kroner: Heltal
+    ) |
+    AblPar25Bortfald(
+        @ field(
+            label = "Antal bortfaldne rettigheder",
+            question = "Hvor mange rettigheder bortfaldt uden afståelsessum?",
+            help = "Bortfald behandles som afståelse med 0 kr. i afståelsessum efter ABL § 30.",
+            unit = "stk.",
+            sources = personskat_kilder_14
+        )
+        antal_rettigheder: Heltal
+    )
+# AktieavancePar25HændelsesforløbInput(
+    position_primo: AktieavancePar25Position,
+    @ field(
+        label = "Årets hændelser for rettighedsserien",
+        question = "Hvilke tildelinger, køb, andre anskaffelser, afståelser eller bortfald skete i indkomståret?",
+        help = "Tilføj hændelserne i kronologisk rækkefølge. Afståelse og bortfald henføres automatisk til de først erhvervede partier.",
+        sources = personskat_kilder_14
+    )
+    hændelser: List(AktieavancePar25Hændelse)
+)
 # AktieavancePar25FifoResultat(resterende_antal_at_henføre: Heltal, anskaffelsessum_henført_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, skattepligtig_gevinst_efter_par12_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, alle_forbrugte_partier_opfylder_par14: Boolsk, resterende_partier: List(AktieavancePar25Parti))
 # AktieavancePar25Hændelsesresultat(position_før: AktieavancePar25Position, hændelse: AktieavancePar25Hændelse, position_gyldig: Boolsk, omfattet_af_par25_stk1: Boolsk, hændelse_gyldig: Boolsk, anskaffelsessum_henført_til_afståelse_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, alle_forbrugte_partier_opfylder_oplysningsbetingelsen_efter_par14: Boolsk, skattepligtig_gevinst_efter_par12_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, position_efter: AktieavancePar25Position)
 # AktieavancePar25Hændelsesforløbstilstand(position: AktieavancePar25Position, hændelsesresultater: List(AktieavancePar25Hændelsesresultat), alle_hændelser_gyldige: Boolsk)
@@ -1607,7 +2179,25 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 # AktieavancePar17Næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier | AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier
 # AktieavancePar17Erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej | AblPar17IkkeErhvervetSomLedINæringsvej
 # AktieavancePar17Modprøve(næringsstatus: AktieavancePar17Næringsstatus, erhvervelsesstatus: AktieavancePar17Erhvervelsesstatus)
-# AktieavanceAktivklassifikationInput(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, par17_modprøve: AktieavancePar17Modprøve, investeringsklassifikation: AktieavanceInvesteringsklassifikation)
+# AktieavanceAktivklassifikationInput(
+    @ field(
+        label = "Indkomstår for ABL-klassifikationen",
+        question = "Hvilket indkomstår gælder klassifikationen af aktien eller investeringsaktivet for?",
+        help = "Året skal være det samme som personskatteberegningens skatteår.",
+        unit = "år",
+        sources = personskat_kilder_13
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Aktivets ABL-kategori",
+        question = "Hvilken kildekategori efter aktieavancebeskatningsloven beskriver aktivet?",
+        help = "Brug klassifikationsvarianten for § 19 eller minimumsbeskatning, når den endelige kategori skal udledes af underliggende aktivmasse og meddelelser.",
+        sources = personskat_kilder_13
+    )
+    aktiv: AktieavancebeskatningslovAktiv,
+    par17_modprøve: AktieavancePar17Modprøve,
+    investeringsklassifikation: AktieavanceInvesteringsklassifikation
+)
 # AktieavanceAktivklassifikationResultat(input: AktieavanceAktivklassifikationInput, input_gyldigt: Boolsk, effektiv_aktiv: AktieavancebeskatningslovAktiv, ville_være_omfattet_af_par17_uden_investeringsstatus: Boolsk)
 # AktieavancebeskatningslovInput(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, par17_modprøve: AktieavancePar17Modprøve, koncernintern_konvertibel_eller_tegningsret: Boolsk, andelsforening_stiftet_før_22_maj_1987: Boolsk, afståelse_sker_for_at_undgå_likvidationsbeskatning: Boolsk, investeringsklassifikation: AktieavanceInvesteringsklassifikation, årets_netto_med_kgl_par14_23_kroner: Heltal)
 # AktieavancebeskatningslovResultat(indkomstår: Heltal, effektiv_aktiv: AktieavancebeskatningslovAktiv, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, tab_afskåret_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, netto_efter_aktieavancebeskatningsloven_kroner: Heltal, medregnes_i_skattepligtig_indkomst: Boolsk, personskattelov_kategori: AktieavancebeskatningslovPslKategori)
@@ -1968,13 +2558,100 @@ personskattelovens § 20.
 # AktieavancePar44Ægtefællestatus2005 = AblPar44UdenSamlevendeÆgtefælle | AblPar44SamlevendeÆgtefællerHelePerioden | AblPar44SamlevendeÆgtefælleDødIPerioden
 # AktieavancePar44Beholdningsfakta(egen_kursværdi_pr_31_december_2005_kroner: Heltal, ægtefællestatus: AktieavancePar44Ægtefællestatus2005, ægtefælles_kursværdi_pr_31_december_2005_kroner: Heltal)
 # AktieavancePar44HistoriskUndtagelsesstatus = AblPar44IkkeOmfattetAfHistoriskPar2CEllerPar2E | AblPar44OmfattetAfHistoriskPar2C | AblPar44OmfattetAfHistoriskPar2E
-# AktieavancePar44Stk1Kildegrundlag(erhvervelsesdato: AktieavanceInvesteringsdato, børsstatus_pr_31_december_2005: AktieavancePar44Børsstatus2005, beholdningsfakta: AktieavancePar44Beholdningsfakta, historisk_undtagelsesstatus: AktieavancePar44HistoriskUndtagelsesstatus)
-# AktieavancePar44Erhvervelsesgrundlag = AblPar44AktieErhvervetFør2006(kildegrundlag: AktieavancePar44Stk1Kildegrundlag) | AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie(grundaktiens_identifikation: Tekst, tildelingsdato: AktieavanceInvesteringsdato)
-# AktieavancePar44Statusforløb = AblPar44FortsatOptagetTilHandelPåReguleretMarked | AblPar44StatusændretTilIkkeReguleretMarked(statusændringsdato: AktieavanceInvesteringsdato, kursværdi_på_statusændringstidspunktet_kroner: Heltal)
-# AktieavancePar44Input(identifikation: Tekst, selskabsidentifikation: Tekst, indkomstår: Heltal, kapitalmængde: AktieavanceOrdinærKapitalmængde, erhvervelsesgrundlag: AktieavancePar44Erhvervelsesgrundlag, aktivklassifikation: AktieavanceAktivklassifikationInput, statusforløb: AktieavancePar44Statusforløb)
+# AktieavancePar44Stk1Kildegrundlag(
+    erhvervelsesdato: AktieavanceInvesteringsdato,
+    @ field(
+        label = "Børsstatus den 31. december 2005",
+        question = "Var aktien børsnoteret efter de dagældende regler, kun omsat på NASDAQ med eller uden rettidigt helhedsvalg, eller ikke børsnoteret?",
+        help = "NASDAQ-aktier regnes kun med, når et rettidigt skriftligt valg omfattede hele beholdningen.",
+        sources = personskat_kilder_13
+    )
+    børsstatus_pr_31_december_2005: AktieavancePar44Børsstatus2005,
+    beholdningsfakta: AktieavancePar44Beholdningsfakta,
+    @ field(
+        label = "Historisk undtagelse efter § 2 c eller § 2 e",
+        question = "Ville aktien have været omfattet af den dagældende ABL § 2 c eller § 2 e ved en afståelse den 31. december 2005?",
+        help = "En af de to historiske kategorier afskærer § 44 efter stk. 5.",
+        sources = personskat_kilder_13
+    )
+    historisk_undtagelsesstatus: AktieavancePar44HistoriskUndtagelsesstatus
+)
+@ field(
+    label = "Erhvervelsesgrundlag efter ABL § 44",
+    question = "Er aktien erhvervet før 1. januar 2006, eller er den en fondsaktie tildelt på grundlag af en § 44-aktie?",
+    help = "Datoen eller relationen til grundaktien bruges direkte til at prøve § 44, stk. 1-2.",
+    sources = personskat_kilder_13
+)
+# AktieavancePar44Erhvervelsesgrundlag =
+    AblPar44AktieErhvervetFør2006(kildegrundlag: AktieavancePar44Stk1Kildegrundlag) |
+    AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie(
+        @ field(
+            label = "Fondsaktiens grundaktie",
+            question = "Hvilken dokumenteret § 44-aktie dannede grundlag for fondsaktien?",
+            help = "Brug grundaktiens stabile identifikation.",
+            sources = personskat_kilder_13
+        )
+        grundaktiens_identifikation: Tekst,
+        tildelingsdato: AktieavanceInvesteringsdato
+    )
+@ field(
+    label = "§ 44-aktiens statusforløb",
+    question = "Er aktien fortsat optaget til handel på et reguleret marked, eller er dens status ændret?",
+    help = "Ved statusændring afskæres skattefritagelsen, og kursværdien på ændringstidspunktet bliver aktiens anskaffelsessum efter ABL § 44, stk. 3.",
+    sources = personskat_kilder_13
+)
+# AktieavancePar44Statusforløb =
+    AblPar44FortsatOptagetTilHandelPåReguleretMarked |
+    AblPar44StatusændretTilIkkeReguleretMarked(
+        statusændringsdato: AktieavanceInvesteringsdato,
+        @ field(
+            label = "Kursværdi ved § 44-statusændringen",
+            question = "Hvad var aktiens kursværdi på statusændringstidspunktet?",
+            help = "Beløbet bliver den lovbestemte anskaffelsessum for den efterfølgende ordinære avanceopgørelse.",
+            unit = "kr.",
+            sources = personskat_kilder_13
+        )
+        kursværdi_på_statusændringstidspunktet_kroner: Heltal
+    )
+# AktieavancePar44Input(
+    @ field(
+        label = "Den historiske akties identifikation",
+        question = "Hvilken stabil identifikation har aktien, der prøves efter ABL § 44?",
+        help = "For en fondsaktie bruges identifikationen også til at forbinde den med den dokumenterede grundaktie.",
+        sources = personskat_kilder_13
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Selskabet bag § 44-aktien",
+        question = "Hvilket selskab er den historiske aktie udstedt af?",
+        help = "Brug samme stabile selskabsidentifikation som for den ordinære aktiebeholdning. En fondsaktie skal tilhøre samme selskab som sin grundaktie.",
+        sources = personskat_kilder_13
+    )
+    selskabsidentifikation: Tekst,
+    @ field(
+        label = "Indkomstår for § 44-vurderingen",
+        question = "Hvilket indkomstår gælder § 44-vurderingen for?",
+        help = "Året skal være det samme som personskatteberegningens skatteår.",
+        unit = "år",
+        sources = personskat_kilder_13
+    )
+    indkomstår: Heltal,
+    kapitalmængde: AktieavanceOrdinærKapitalmængde,
+    erhvervelsesgrundlag: AktieavancePar44Erhvervelsesgrundlag,
+    aktivklassifikation: AktieavanceAktivklassifikationInput,
+    statusforløb: AktieavancePar44Statusforløb
+)
 # AktieavancePar44Stk1Prøvelse(kildefakta_gyldige: Boolsk, erhvervet_før_2006: Boolsk, børsbetingelse_opfyldt: Boolsk, samlet_kursværdi_pr_31_december_2005_kroner: Heltal, beholdningsgrænse_pr_31_december_2005_kroner: Heltal, beholdningsbetingelse_opfyldt: Boolsk, aktivklassifikation_omfattet: Boolsk, historisk_undtagelse: Boolsk, omfattet_af_stk1_før_statusændring: Boolsk)
 # AktieavancePar44Resultat(input: AktieavancePar44Input, input_gyldigt: Boolsk, fondsaktielinje_gyldig: Boolsk, erhvervelsesgrundlag_opfyldt: Boolsk, børsbetingelse_opfyldt: Boolsk, samlet_kursværdi_pr_31_december_2005_kroner: Heltal, beholdningsgrænse_pr_31_december_2005_kroner: Heltal, beholdningsbetingelse_opfyldt: Boolsk, aktivklassifikation_omfattet: Boolsk, grundbetingelser_før_statusændring_opfyldt: Boolsk, statusforløb_gyldigt: Boolsk, statusændret_efter_stk3: Boolsk, anskaffelsessum_efter_stk3_kroner: Heltal, omfattet_af_par44: Boolsk)
-# AktieavancePar44Beholdningsinput(aktier: List(AktieavancePar44Input))
+# AktieavancePar44Beholdningsinput(
+    @ field(
+        label = "Historiske aktier efter ABL § 44",
+        question = "Hvilke historiske aktier og eventuelle fondsaktier indgår i § 44-beholdningen?",
+        help = "Tilføj én række pr. aktie. Fondsaktier forbindes med en entydig grundaktie i samme beholdning.",
+        sources = personskat_kilder_13
+    )
+    aktier: List(AktieavancePar44Input)
+)
 # AktieavancePar44Beholdningsresultat(input: AktieavancePar44Beholdningsinput, aktieresultater: List(AktieavancePar44Resultat), identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk)
 
 | aktieavance_par44_stk1_kildegrundlag_gyldigt(kildegrundlag: AktieavancePar44Stk1Kildegrundlag) -> aktieavance_investerings_dato_gyldig(kildegrundlag.erhvervelsesdato) && aktieavance_par44_beholdningsfakta_gyldige(kildegrundlag.beholdningsfakta)
@@ -2113,7 +2790,50 @@ personskattelovens § 20.
 }
 | aktieavance_par44_statusændringsanskaffelsessum_kroner(input: AktieavancePar44Beholdningsinput, identifikation: Tekst) -> match aktieavance_par44_resultat_fra_beholdning(input, identifikation) { | Some(resultat) -> resultat.anskaffelsessum_efter_stk3_kroner | None -> 0 }
 
-# AktieavancePar13AUdbytteKildefakta = AblPar13AUdbytteUdenForModregningsgrundlag | AblPar13AUdbytteForMarkedsaktieEfterPar12(markedsstatus: AktieavanceOrdinærMarkedsstatus, aktivklassifikation: AktieavanceAktivklassifikationInput) | AblPar13AUdbytteForMarkedsaktieEfterPar19B(markedsstatus: AktieavanceOrdinærMarkedsstatus, aktivklassifikation: AktieavanceAktivklassifikationInput) | AblPar13AUdbytteForAktieOmfattetAfPar44(beholdning: AktieavancePar44Beholdningsinput, aktie_identifikation: Tekst)
+= personskat_kilder_15 = [
+    Source(value = ligningsloven_par16a_lbk1500),
+    AmendmentSource(value = ligningsloven_par16a_lov1755),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22)
+]
+@ field(
+    label = "Udbyttets grundlag efter ABL § 13 A",
+    question = "Vedrører udbyttet en markedsaktie med gevinst efter § 12, en markedsaktie efter § 19 B, en historisk § 44-aktie eller ingen af disse?",
+    help = "Vælg den dokumenterbare kildegren. Futuruna udleder selve modregningsbeløbet fra udbyttet og accepterer ikke et manuelt § 13 A-totalbeløb.",
+    sources = personskat_kilder_15
+)
+# AktieavancePar13AUdbytteKildefakta =
+    AblPar13AUdbytteUdenForModregningsgrundlag |
+    AblPar13AUdbytteForMarkedsaktieEfterPar12(
+        @ field(
+            label = "Udbytteaktiens markedsstatus",
+            question = "Var aktien optaget til handel på et reguleret marked eller en multilateral handelsfacilitet?",
+            help = "§ 12- og § 19 B-grenene i ABL § 13 A kræver, at aktien er optaget til handel på en af de to markedsformer.",
+            sources = personskat_kilder_15
+        )
+        markedsstatus: AktieavanceOrdinærMarkedsstatus,
+        aktivklassifikation: AktieavanceAktivklassifikationInput
+    ) |
+    AblPar13AUdbytteForMarkedsaktieEfterPar19B(
+        @ field(
+            label = "§ 19 B-aktiens markedsstatus",
+            question = "Var § 19 B-aktien optaget til handel på et reguleret marked eller en multilateral handelsfacilitet?",
+            help = "Markedsstatus prøves sammen med den afledte § 19 B-klassifikation.",
+            sources = personskat_kilder_15
+        )
+        markedsstatus: AktieavanceOrdinærMarkedsstatus,
+        aktivklassifikation: AktieavanceAktivklassifikationInput
+    ) |
+    AblPar13AUdbytteForAktieOmfattetAfPar44(
+        beholdning: AktieavancePar44Beholdningsinput,
+        @ field(
+            label = "§ 44-aktie bag udbyttet",
+            question = "Hvilken aktie i § 44-beholdningen blev udbyttet modtaget fra?",
+            help = "Brug aktiens stabile identifikation, så § 44-betingelserne kan efterprøves i den samlede beholdning.",
+            sources = personskat_kilder_13
+        )
+        aktie_identifikation: Tekst
+    )
 # AktieavancePar13AUdbytteKilderesultat(kildefakta: AktieavancePar13AUdbytteKildefakta, input_gyldigt: Boolsk, udbytte_for_aktie_med_gevinst_efter_par12: Boolsk, udbytte_for_aktie_med_gevinst_efter_par19b: Boolsk, udbytte_for_aktie_omfattet_af_par44: Boolsk)
 
 | aktieavance_par13a_markedsstatus_omfattet(markedsstatus: AktieavanceOrdinærMarkedsstatus) -> aktieavance_ordinaer_er_optaget_til_handel(markedsstatus)
@@ -2136,3 +2856,129 @@ personskattelovens § 20.
 }
 
 }
+
+= aktieavancebeskatningsloven_juridisk_vejledning_par23 = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946308",
+    identifier = "Den juridiske vejledning C.B.2.1.7.2: realisationsprincippet eller lagerprincippet",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_juridisk_vejledning_par37 = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946389",
+    identifier = "Den juridiske vejledning C.B.2.14.1: tilflytning",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946398",
+    identifier = "Den juridiske vejledning 2026-2, C.B.2.14.2.7: gevinst og tab ved fraflytning",
+    hentet_dato = "2026-08-07"
+)
+
+= aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946393",
+    identifier = "Den juridiske vejledning C.B.2.14.2.3: personkredsen for fraflytterskat",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_juridisk_vejledning_par39 = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946400",
+    identifier = "Den juridiske vejledning C.B.2.14.2.8.1: henstand med betaling af skatten",
+    hentet_dato = "2026-08-02"
+)
+
+= aktieavancebeskatningsloven_juridisk_vejledning_par39a_alle_afstået = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946407",
+    identifier = "Den juridiske vejledning C.B.2.14.2.8.5: alle aktier afstået",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_juridisk_vejledning_par39a_beholdningsoversigt = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946401",
+    identifier = "Den juridiske vejledning C.B.2.14.2.8.2: beholdningsoversigt",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946405",
+    identifier = "Den juridiske vejledning C.B.2.14.2.8.4.2: betaling på henstandssaldoen",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_juridisk_vejledning_par39a_prioritet = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946406",
+    identifier = "Den juridiske vejledning C.B.2.14.2.8.4.3: frivillige betalinger og kronologisk nedskrivning",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_juridisk_vejledning_par39a_årsoplysninger = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946408",
+    identifier = "Den juridiske vejledning C.B.2.14.2.8.6: årlige oplysninger",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_juridisk_vejledning_par39b = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946418",
+    identifier = "Den juridiske vejledning C.B.2.14.2.9: personen bliver igen skattepligtig til Danmark",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_lbk1098_par17_klassifikation = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven § 17",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_lbk1098_par23_til_par26 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven §§ 23-26",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_lbk1098_par37 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven § 37",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_lbk1098_par38 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven § 38",
+    hentet_dato = "2026-08-02"
+)
+
+= aktieavancebeskatningsloven_lbk1098_par39 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven § 39",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_lbk1098_par39a = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven § 39 A",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_lbk1098_par39b = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven § 39 B",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_lbk1098_par40 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven § 40",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_lov1755_par35g_til_par35k = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1755",
+    identifier = "LOV nr. 1755 af 29/12/2025, § 2 og § 8: ABL §§ 35 G-35 K med virkning fra 1. januar 2026",
+    hentet_dato = "2026-07-18"
+)
+
+= aktieavancebeskatningsloven_lsf71_par35g_til_par35k = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/ft/202512L00071",
+    identifier = "2025/1 LSF 71, bemærkningerne til ABL §§ 35 G-35 K",
+    hentet_dato = "2026-07-18"
+)

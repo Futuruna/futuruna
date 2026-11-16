@@ -2,6 +2,7 @@
 
 @ importer ./pengebeloeb
 @ importer ./opkraevningsloven
+@ importer ./afskrivningsloven
 
 -- Kildeskatteloven -- slutopgoerelse, restskat og overskydende skat.
 --
@@ -112,8 +113,162 @@ henholdsvis udbetales efter reglerne i § 62.
 ----
 
 # KildeskatSlutopgørelseArt = IngenSlutopgørelsesDifference | Restskat | OverskydendeSkat
-# KildeskatPar60Kreditter(a_skat_og_am_indeholdt_kroner: Heltal, par68_indbetalt_kroner: Heltal, b_skat_betalt_kroner: Heltal, udbytteskat_modregningsberettiget_kroner: Heltal, frivillig_indbetaling_par59_kroner: Heltal, virksomhedsordning_beløb_kroner: Heltal, personskattelov_par8a_stk5_beløb_kroner: Heltal, afskrivningslov_acontoskat_kroner: Heltal, am_lov_par6_beløb_kroner: Heltal, seniornedslag_kroner: Heltal, energiafgiftskompensation_kroner: Heltal, tilbagebetalt_par55_kroner: Heltal)
-# KildeskatPar60KreditterØre(a_skat_og_am_indeholdt_øre: Heltal, par68_indbetalt_øre: Heltal, b_skat_betalt_øre: Heltal, udbytteskat_modregningsberettiget_øre: Heltal, frivillig_indbetaling_par59_øre: Heltal, virksomhedsordning_beløb_øre: Heltal, personskattelov_par8a_stk5_beløb_øre: Heltal, afskrivningslov_acontoskat_øre: Heltal, am_lov_par6_beløb_øre: Heltal, seniornedslag_øre: Heltal, energiafgiftskompensation_øre: Heltal, tilbagebetalt_par55_øre: Heltal)
+= personskat_skattekreditter_kroner_kilder = [
+    Source(value = kildeskatteloven_2024_460),
+    Warning(value = personskat_skattekredit_kildegrænse),
+    Warning(value = personskat_skattekredit_fortegnsforklaring)
+]
+# KildeskatPar60Kreditter(
+    @ field(
+        label = "Indeholdt A-skat og AM-bidrag",
+        question = personskat_skattekredit_a_skat_spørgsmål,
+        help = personskat_skattekredit_a_skat_hjælp,
+        unit = "kr.",
+        sources = personskat_skattekreditter_kroner_kilder
+    )
+    a_skat_og_am_indeholdt_kroner: Heltal,
+    @ field(
+        label = "Pligtig foreløbig skat efter KSL § 68",
+        question = personskat_skattekredit_par68_spørgsmål,
+        help = personskat_skattekredit_par68_hjælp,
+        unit = "kr.",
+        sources = personskat_skattekreditter_kroner_kilder
+    )
+    par68_indbetalt_kroner: Heltal,
+    @ field(
+        label = "Pålignet B-skat og foreløbigt AM-bidrag",
+        question = personskat_skattekredit_b_skat_spørgsmål,
+        help = personskat_skattekredit_b_skat_hjælp,
+        unit = "kr.",
+        sources = personskat_skattekreditter_kroner_kilder
+    )
+    b_skat_betalt_kroner: Heltal,
+    udbytteskat_modregningsberettiget_kroner: Heltal,
+    @ field(
+        label = "Godskrevet frivillig forskudsskat efter KSL § 59",
+        question = personskat_skattekredit_par59_spørgsmål,
+        help = personskat_skattekredit_par59_hjælp,
+        unit = "kr.",
+        sources = personskat_skattekreditter_kroner_kilder
+    )
+    frivillig_indbetaling_par59_kroner: Heltal,
+    virksomhedsordning_beløb_kroner: Heltal,
+    personskattelov_par8a_stk5_beløb_kroner: Heltal,
+    afskrivningslov_acontoskat_kroner: Heltal,
+    am_lov_par6_beløb_kroner: Heltal,
+    seniornedslag_kroner: Heltal,
+    energiafgiftskompensation_kroner: Heltal,
+    @ field(
+        label = "Tidligere tilbagebetalt efter KSL § 55",
+        question = personskat_skattekredit_par55_spørgsmål,
+        help = personskat_skattekredit_par55_hjælp,
+        unit = "kr.",
+        sources = personskat_skattekreditter_kroner_kilder
+    )
+    tilbagebetalt_par55_kroner: Heltal
+)
+= personskat_kilder_61 = [
+    Source(value = kildeskatteloven_2024_460),
+    DependencySource(value = afskrivningsloven_lbk1222)
+]
+# KildeskatPar60KreditterØre(
+    @ field(
+        label = "Indeholdt A-skat og AM-bidrag",
+        question = personskat_skattekredit_a_skat_spørgsmål,
+        help = personskat_skattekredit_a_skat_hjælp,
+        unit = "øre",
+        sources = personskat_skattekreditter_kroner_kilder
+    )
+    a_skat_og_am_indeholdt_øre: Heltal,
+    @ field(
+        label = "Pligtig foreløbig skat efter KSL § 68",
+        question = personskat_skattekredit_par68_spørgsmål,
+        help = personskat_skattekredit_par68_hjælp,
+        unit = "øre",
+        sources = personskat_skattekreditter_kroner_kilder
+    )
+    par68_indbetalt_øre: Heltal,
+    @ field(
+        label = "Pålignet B-skat og foreløbigt AM-bidrag",
+        question = personskat_skattekredit_b_skat_spørgsmål,
+        help = personskat_skattekredit_b_skat_hjælp,
+        unit = "øre",
+        sources = personskat_skattekreditter_kroner_kilder
+    )
+    b_skat_betalt_øre: Heltal,
+    @ field(
+        label = "Modregningsberettiget udbytteskat",
+        question = "Hvor meget indeholdt udbytteskat kan modregnes i slutskatten?",
+        help = "Angiv det eksakte beløb i øre efter afklaring af, at skatten ikke er endelig efter PSL § 8 a, stk. 1.",
+        unit = "øre",
+        sources = personskat_kilder_61
+    )
+    udbytteskat_modregningsberettiget_øre: Heltal,
+    @ field(
+        label = "Godskrevet frivillig forskudsskat efter KSL § 59",
+        question = personskat_skattekredit_par59_spørgsmål,
+        help = personskat_skattekredit_par59_hjælp,
+        unit = "øre",
+        sources = personskat_skattekreditter_kroner_kilder
+    )
+    frivillig_indbetaling_par59_øre: Heltal,
+    @ field(
+        label = "Kredit fra virksomhedsordningen",
+        question = "Hvor stort et beløb fra virksomhedsordningen skal modregnes efter KSL § 60?",
+        help = "Angiv det eksakte beløb i øre.",
+        unit = "øre",
+        sources = personskat_kilder_61
+    )
+    virksomhedsordning_beløb_øre: Heltal,
+    @ field(
+        label = "Kredit efter PSL § 8 a, stk. 5",
+        question = "Hvor stor negativ aktieindkomstskat skal krediteres efter PSL § 8 a, stk. 5?",
+        help = "Angiv 0. Futuruna afleder selv årets kredit og afviser en konkurrerende inputkonklusion.",
+        unit = "øre",
+        sources = personskat_kilder_61
+    )
+    personskattelov_par8a_stk5_beløb_øre: Heltal,
+    @ field(
+        label = "Afledt § 40 C-acontoskat",
+        question = "Er det rå kreditfelt for acontoskat efter afskrivningslovens § 40 C nul?",
+        help = "Angiv 0. Futuruna afleder selv kreditten fra ejendomstabet eller den fremførte position og afviser en konkurrerende inputkonklusion.",
+        unit = "øre",
+        sources = personskat_kilder_61
+    )
+    afskrivningslov_acontoskat_øre: Heltal,
+    @ field(
+        label = "Beløb efter AM-bidragslovens § 6",
+        question = "Er feltet for modregning efter arbejdsmarkedsbidragslovens § 6 nul?",
+        help = "Angiv 0. Futuruna afleder selv godtgørelsen fra biblioteksafgiften og afviser en konkurrerende inputkonklusion.",
+        unit = "øre",
+        sources = personskat_kilder_61
+    )
+    am_lov_par6_beløb_øre: Heltal,
+    @ field(
+        label = "Seniornedslag",
+        question = "Hvor stort et seniornedslag skal modregnes efter KSL § 60?",
+        help = "Angiv det eksakte beløb i øre.",
+        unit = "øre",
+        sources = personskat_kilder_61
+    )
+    seniornedslag_øre: Heltal,
+    @ field(
+        label = "Energiafgiftskompensation",
+        question = "Hvor stor kompensation for forhøjede energi- og miljøafgifter skal modregnes?",
+        help = "Angiv det eksakte beløb i øre.",
+        unit = "øre",
+        sources = personskat_kilder_61
+    )
+    energiafgiftskompensation_øre: Heltal,
+    @ field(
+        label = "Tidligere tilbagebetalt efter KSL § 55",
+        question = personskat_skattekredit_par55_spørgsmål,
+        help = personskat_skattekredit_par55_hjælp,
+        unit = "øre",
+        sources = personskat_skattekreditter_kroner_kilder
+    )
+    tilbagebetalt_par55_øre: Heltal
+)
 # KildeskatSlutopgørelseInput(slutskat_kroner: Heltal, overført_restskat_mv_kroner: Heltal, pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter)
 # KildeskatSlutopgørelseResult(slutskat_med_tillæg_kroner: Heltal, modregnede_foreløbige_skatter_kroner: Heltal, restskat_kroner: Heltal, overskydende_skat_kroner: Heltal, art: KildeskatSlutopgørelseArt)
 # KildeskatSlutopgørelseEksaktInput(slutskat_øre: Heltal, overført_restskat_mv_øre: Heltal, pensionsbeskatningsafgift_øre: Heltal, kreditter: KildeskatPar60KreditterØre)
@@ -529,7 +684,39 @@ Procentgodtgørelse på overskydende skat: 0,6 pct.
 
 # KildeskatRestskatTillægInput(restskat_kroner: Heltal, opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint: Heltal)
 # KildeskatForsinkelsesrenteInput(beløb_kroner: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal, påbegyndte_måneder: Heltal, rente_udløses: Boolsk)
-# KildeskatRestskatAfregningEksaktFakta(indkomstår: Heltal, oplysningspligt_ikke_rettidigt_opfyldt: Boolsk, påbegyndte_måneder_fra_1_september: Heltal, øvrige_skyldige_renter_øre: Heltal)
+# KildeskatRestskatAfregningEksaktFakta(
+    @ field(
+        label = "Indkomstår for restskatten",
+        question = "Hvilket indkomstår vedrører restskatten?",
+        help = "Året bruges til at hente de offentliggjorte årsopgørelsessatser og skal svare til beregningens skatteår.",
+        unit = "år",
+        sources = personskat_kilder_61
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Oplysningspligt ikke opfyldt rettidigt",
+        question = "Blev oplysningspligten efter skattekontrollovens § 2 opfyldt for sent?",
+        help = "Ved for sen opfyldelse beregner KSL § 61, stk. 2, rente fra 1. september efter indkomståret.",
+        sources = personskat_kilder_61
+    )
+    oplysningspligt_ikke_rettidigt_opfyldt: Boolsk,
+    @ field(
+        label = "Påbegyndte rentemåneder for restskat",
+        question = "Hvor mange påbegyndte måneder er der gået fra 1. september til årsopgørelsens udskrivningsdato?",
+        help = "Angiv 0, når oplysningspligten blev opfyldt rettidigt.",
+        unit = "måneder",
+        sources = personskat_kilder_61
+    )
+    påbegyndte_måneder_fra_1_september: Heltal,
+    @ field(
+        label = "Øvrige skyldige renter på restskat",
+        question = "Hvor mange øvrige skyldige renter skal indgå i opkrævningen?",
+        help = "Angiv kun renter, som ikke allerede beregnes af afregningsreglerne.",
+        unit = "øre",
+        sources = personskat_kilder_61
+    )
+    øvrige_skyldige_renter_øre: Heltal
+)
 # KildeskatRestskatAfregningEksaktResult(input_gyldigt: Boolsk, restskat_øre: Heltal, procenttillæg_basispoint: Heltal, procenttillæg_øre: Heltal, oplysningsrente_øre: Heltal, øvrige_skyldige_renter_øre: Heltal, opkrævning_før_hele_kroner_øre: Heltal, opkræves_kroner: Heltal, ikke_opkrævet_øre: Heltal)
 # KildeskatRestskatUdskrivningspostur = SenestSeptemberFørAugust | SenestSeptemberFraAugust | EfterSeptemberFørJanuar | JanuarEllerSenere
 # KildeskatRestskatOpkrævningInput(restskat_med_eventuelle_renter_kroner: Heltal, reguleret_overførselsgrænse_kroner: Heltal, udskrivningspostur: KildeskatRestskatUdskrivningspostur, skattepligtig_ved_begyndelsen_af_efterfølgende_år: Boolsk, første_resterende_b_skat_rate_nr: Heltal)
@@ -542,8 +729,78 @@ Procentgodtgørelse på overskydende skat: 0,6 pct.
 # KildeskatRestskatRateplan(art: KildeskatRestskatRateart, første_forfaldsdato: KildeskatDato, sidste_forfaldsdato: KildeskatDato, rateantal: Heltal, beløbsdeling: KildeskatRestskatBeløbsdeling, sidste_rettidige_betalingsdag: Heltal)
 # KildeskatOverskydendeGodtgørelseInput(overskydende_skat_kroner: Heltal, modsvarer_par59_indbetaling_kroner: Heltal, modsvarer_seniornedslag_kroner: Heltal, modsvarer_energiafgiftskompensation_kroner: Heltal, opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint: Heltal)
 # KildeskatOverskydendeTilbagebetalingInput(overskydende_skat_kroner: Heltal, godtgørelse_kroner: Heltal, restancer_personlig_skat_med_morarenter_kroner: Heltal, tilbagebetaling_i_ordinært_vindue: Boolsk, tilbagebetaling_efter_1_september: Boolsk, påbegyndte_måneder_efter_1_september: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal)
-# KildeskatOverskydendeAfregningEksaktFakta(indkomstår: Heltal, modsvarer_par59_indbetaling_øre: Heltal, tilbagebetalt_rente_par59_øre: Heltal, modsvarer_seniornedslag_øre: Heltal, modsvarer_energiafgiftskompensation_øre: Heltal, restancer_personlig_skat_med_morarenter_øre: Heltal, tilbagebetaling_efter_1_september: Boolsk, påbegyndte_måneder_efter_1_september: Heltal)
+# KildeskatOverskydendeAfregningEksaktFakta(
+    @ field(
+        label = "Indkomstår for overskydende skat",
+        question = "Hvilket indkomstår vedrører den overskydende skat?",
+        help = "Året bruges til at hente de offentliggjorte årsopgørelsessatser og skal svare til beregningens skatteår.",
+        unit = "år",
+        sources = personskat_kilder_61
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Overskydende skat dækket af § 59-indbetaling",
+        question = "Hvor meget af den overskydende skat modsvares af frivillige indbetalinger efter KSL § 59?",
+        help = "Der ydes ikke procentgodtgørelse af denne del.",
+        unit = "øre",
+        sources = personskat_kilder_61
+    )
+    modsvarer_par59_indbetaling_øre: Heltal,
+    @ field(
+        label = "Tilbagebetalt rente af § 59-indbetaling",
+        question = "Hvor meget betalt rente af indbetalinger efter KSL § 59 skal tilbagebetales?",
+        help = "Angiv den rente, der svarer til den del af indbetalingen, som modsvares af overskydende skat.",
+        unit = "øre",
+        sources = personskat_kilder_61
+    )
+    tilbagebetalt_rente_par59_øre: Heltal,
+    @ field(
+        label = "Overskydende skat dækket af seniornedslag",
+        question = "Hvor meget af den overskydende skat modsvares af skattenedslag for seniorer?",
+        help = "Der ydes ikke procentgodtgørelse af denne del.",
+        unit = "øre",
+        sources = personskat_kilder_61
+    )
+    modsvarer_seniornedslag_øre: Heltal,
+    @ field(
+        label = "Overskydende skat dækket af energiafgiftskompensation",
+        question = "Hvor meget af den overskydende skat modsvares af skattefri energiafgiftskompensation?",
+        help = "Der ydes ikke procentgodtgørelse af denne del.",
+        unit = "øre",
+        sources = personskat_kilder_61
+    )
+    modsvarer_energiafgiftskompensation_øre: Heltal,
+    @ field(
+        label = "Restancer til modregning",
+        question = "Hvor store restancer af personlig skat med påløbne morarenter skal modregnes før udbetaling?",
+        help = "KSL § 62, stk. 3, kræver modregning før den overskydende skat udbetales.",
+        unit = "øre",
+        sources = personskat_kilder_61
+    )
+    restancer_personlig_skat_med_morarenter_øre: Heltal,
+    @ field(
+        label = "Tilbagebetaling efter 1. september",
+        question = "Sker tilbagebetalingen efter 1. september i året efter indkomståret?",
+        help = "Sen tilbagebetaling udløser rente efter KSL § 62, stk. 3.",
+        sources = personskat_kilder_61
+    )
+    tilbagebetaling_efter_1_september: Boolsk,
+    @ field(
+        label = "Påbegyndte rentemåneder for tilbagebetaling",
+        question = "Hvor mange påbegyndte måneder efter 1. september er tilbagebetalingen forsinket?",
+        help = "Angiv 0, når tilbagebetalingen sker senest 1. september.",
+        unit = "måneder",
+        sources = personskat_kilder_61
+    )
+    påbegyndte_måneder_efter_1_september: Heltal
+)
 # KildeskatOverskydendeAfregningEksaktResult(input_gyldigt: Boolsk, overskydende_skat_øre: Heltal, godtgørelsesgrundlag_øre: Heltal, godtgørelse_basispoint: Heltal, godtgørelse_øre: Heltal, tilbagebetalt_rente_par59_øre: Heltal, forsinkelsesrente_øre: Heltal, restancemodregning_øre: Heltal, udbetaling_før_hele_kroner_øre: Heltal, udbetales_kroner: Heltal, ikke_udbetalt_øre: Heltal)
+@ field(
+    label = "Afregning af årsopgørelsen",
+    question = "Skal årsopgørelsen afregnes som restskat eller overskydende skat?",
+    help = "Vælg den gren, som den foreløbige årsopgørelse forventes at give. Futuruna afviser afregningsfakta, der ikke matcher det beregnede resultat.",
+    sources = personskat_kilder_61
+)
 # KildeskatSlutopgørelseAfregningsfakta = UdenSlutopgørelsesafregning | AfregnRestskat(fakta: KildeskatRestskatAfregningEksaktFakta) | AfregnOverskydendeSkat(fakta: KildeskatOverskydendeAfregningEksaktFakta)
 # KildeskatSlutopgørelseAfregningsresultat = IngenSlutopgørelsesafregning | RestskatAfregnet(resultat: KildeskatRestskatAfregningEksaktResult) | OverskydendeSkatAfregnet(resultat: KildeskatOverskydendeAfregningEksaktResult) | AfregningsfaktaMatcherIkkeSlutopgørelse
 # KildeskatÆndretÅrsopgørelseArt = ÆndretRestskatEllerYderligereRestskat | ÆndretOverskydendeSkatSkalTilbagebetales | ÆndretRestskatNedsatEllerBortfaldet | ÆndretOverskydendeSkatFremkommer
@@ -1305,3 +1562,27 @@ kontant, hvis det udgør 25 kr. eller derover.
 ? kildeskat_par62c_lille_restskat_opkræves_ikke
 ? kildeskat_par62c_500_kr_opkræves
 ? kildeskat_par62c_nemkonto_bortfald
+
+= personskat_skattekredit_a_skat_hjælp = "Brug kildens indeholdte A-skat plus indeholdte AM-bidrag, hver post én gang. Brug ikke den beregnede skat eller et beregnet AM-bidrag som erstatning for indeholdelsen. En subtotal for forskudsskat kan også rumme B-skat og andre kreditter og må ikke lægges oveni. Ukendt er ikke 0. Bevar indkomstår og bilags-/linjereference; se personskat-skattekreditter.md."
+
+= personskat_skattekredit_a_skat_spørgsmål = "Hvor meget A-skat og AM-bidrag er indeholdt vedrørende indkomstårets indkomst?"
+
+= personskat_skattekredit_b_skat_hjælp = "Brug det pålignede beløb efter indkomstårets skattebillet, ikke kun faktisk bankbetaling. Medtag skattebillettens foreløbige AM-bidrag én gang, også når det allerede indgår i en samlet post. Det historiske feltnavn b_skat_betalt_* ændrer ikke § 60, stk. 1, litra c. Ubetalte rater og restancer er særskilte betalingsforhold, ikke grund til at nedsætte denne kredit. Ukendt er ikke 0. Se personskat-skattekreditter.md."
+
+= personskat_skattekredit_b_skat_spørgsmål = "Hvor meget B-skat og foreløbigt AM-bidrag har skullet betales efter skattebillet for indkomståret?"
+
+= personskat_skattekredit_fortegnsforklaring = "De rå § 60-kreditter og § 55-tilbagebetalingen skal være ikke-negative bruttobeløb. Modellen fratrækker selv tilbagebetalingen. Brug dokumenterede korrigerede årstotaler, ikke et negativt forskelsbeløb eller rapportens visningsfortegn. Omskriv ikke ukendte eller negative beløb til nul eller absolut værdi. Se personskat-skattekreditter.md."
+
+= personskat_skattekredit_kildegrænse = "Vejledning, ikke dokumentkontrol: behold hver kildepost, dens indkomstår, enhed og reference i en privat kildelog. Ukendte beløb må ikke blive skabelonens nul. Øre omregnes eksakt; hele-kronefelter må ikke udfyldes ved vilkårlig afrunding. Korrekt JSON og beståede modelkontroller beviser ikke, at kreditbeløbet er korrekt klassificeret."
+
+= personskat_skattekredit_par55_hjælp = "Angiv tilbagebetalingen som et positivt beløb; Futuruna trækker den fra § 60-kreditterne. De øvrige kreditter må ikke allerede være reduceret med samme tilbagebetaling. En tidligere udbetaling af overskydende skat efter § 62 er ikke automatisk en § 55-post. Ukendt er ikke 0. Se personskat-skattekreditter.md."
+
+= personskat_skattekredit_par55_spørgsmål = "Hvor meget af årets foreløbige skat er tilbagebetalt efter KSL § 55?"
+
+= personskat_skattekredit_par59_hjælp = "Her kræves faktisk indbetalt forskudsskat efter § 59, ikke en planlagt betaling. Brug det godskrevne skattebeløb efter fradrag af den eventuelle rente, som er indeholdt i betalingen; medtag ikke renten som skattekredit og fratræk den ikke igen fra et allerede opgjort nettobeløb. Ukendt er ikke 0. Se personskat-skattekreditter.md."
+
+= personskat_skattekredit_par59_spørgsmål = "Hvor meget frivillig forskudsskat er godskrevet indkomståret efter KSL § 59?"
+
+= personskat_skattekredit_par68_hjælp = "Brug det dokumenterede pligtige beløb efter § 68, ikke kun faktisk bankbetaling. Det historiske feltnavn par68_indbetalt_* ændrer ikke grundlaget i § 60, stk. 1, litra b. Beløbet må ikke også stå som indeholdt A-skat eller B-skat. Ukendt er ikke 0; afklar grundlaget før afregning. Se personskat-skattekreditter.md."
+
+= personskat_skattekredit_par68_spørgsmål = "Hvor meget foreløbig skat har skullet indbetales efter KSL § 68 for indkomståret?"

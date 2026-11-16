@@ -92,10 +92,177 @@ Stk. 2. Loven har virkning fra og med indkomståret 2024.
 # Pbl49PrivatForsikringsminimumVersion = Pbl49Stk3IkkeAnvendeligFør2024 | Pbl49Stk3Minimum1300Fra2024 | Pbl49Stk3UdenKildedækning
 # Pbl49ArbejdsløshedskasseStatus = Pbl49DanskAnerkendtArbejdsløshedskasse | Pbl49EUEØSArbejdsløshedskasseAnerkendtEfterArbejdsløshedsforsikringslov32 | Pbl49EUEØSArbejdsløshedskasseIkkeAnerkendtEfterArbejdsløshedsforsikringslov32 | Pbl49ArbejdsløshedskasseUdenForEUEØS | Pbl49IkkeArbejdsløshedskasse
 # Pbl49DanskIndkomstgrundlag = Pbl49Kildeskattelov2Stk1Nr1Eller4 | Pbl49Kildeskattelov2Stk1Nr12Dagpenge | Pbl49AndetIndkomstgrundlag
-# Pbl49Skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark | Pbl49GrænsegængerEfterKildeskattelovensPar5ATil5D | Pbl49BegrænsetSkattepligtig(indkomstgrundlag: Pbl49DanskIndkomstgrundlag, udgiften_kan_fradrages_i_udlandet: Boolsk) | Pbl49FuldtSkattepligtigMenDobbeltbeskatningshjemmehørendeIUdlandet(indkomstgrundlag: Pbl49DanskIndkomstgrundlag, udgiften_kan_fradrages_i_udlandet: Boolsk)
-# Pbl49Til49BBidragsart = Pbl49Akassekontingent(arbejdsløshedskasse: Pbl49ArbejdsløshedskasseStatus, skatteyderen_er_medlem_og_forsikret: Boolsk) | Pbl49PrivatArbejdsløshedsforsikring(skatteyderen_er_forsikringsejer: Boolsk, skatteyderen_er_forsikret: Boolsk) | Pbl49Seniormedlemskontingent(arbejdsløshedskasse: Pbl49ArbejdsløshedskasseStatus, seniormedlem: Boolsk) | Pbl49AEfterlønsbidrag(arbejdsløshedskasse: Pbl49ArbejdsløshedskasseStatus, medlem_af_arbejdsløshedskasse: Boolsk, bidrag_efter_arbejdsløshedsforsikringslov77_stk4: Boolsk) | Pbl49BFleksydelsesbidrag(tilmeldt_fleksydelsesordningen_efter_fleksydelseslov4: Boolsk, bidrag_efter_fleksydelseslov7: Boolsk) | Pbl49AndetBidrag
-# Pbl49Til49BBidragsfakta(identifikation: Tekst, indkomstår: Heltal, betalt_beløb_kroner: Heltal, art: Pbl49Til49BBidragsart)
-# Pbl49Til49BÅrsinput(skattepligtsposition: Pbl49Skattepligtsposition, bidrag: List(Pbl49Til49BBidragsfakta))
+= personskat_pbl49_kilder = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par49),
+    Source(value = pensionsbeskatningsloven_lbk1243_par49a),
+    Source(value = pensionsbeskatningsloven_lbk1243_par49b),
+    Source(value = pensionsbeskatningsloven_lbk1243_par54_stk2),
+    Source(value = kildeskatteloven_lbk460_par2_stk9_og_par5a_5b),
+    Guidance(value = skat_pbl49_bidrag_vejledning),
+    Guidance(value = juridisk_vejledning_pbl49_bidrag),
+    Guidance(value = juridisk_vejledning_pbl49a_efterløn),
+    Guidance(value = juridisk_vejledning_pbl49b_fleksydelse)
+]
+@ field(
+    label = "Skattepligtsposition for A-kasse og lignende bidrag",
+    question = "Er personen fuldt skattepligtig og hjemmehørende i Danmark, grænsegænger efter kildeskattelovens §§ 5 A-5 D, begrænset skattepligtig eller hjemmehørende i udlandet efter en dobbeltbeskatningsoverenskomst?",
+    help = "Udenlandske skattepositioner kræver også oplysninger om det danske indkomstgrundlag og en eventuel udenlandsk fradragsret. Efterløns- og fleksydelsesbidrag kræver dansk fuld skattepligt eller et valg af grænsegængerreglerne.",
+    sources = personskat_pbl49_kilder
+)
+# Pbl49Skattepligtsposition =
+    Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark |
+    Pbl49GrænsegængerEfterKildeskattelovensPar5ATil5D |
+    Pbl49BegrænsetSkattepligtig(
+        @ field(
+            label = "Dansk indkomstgrundlag ved begrænset skattepligt",
+            question = "Hvilken dansk indkomst efter kildeskattelovens § 2 vedrører bidraget?",
+            sources = personskat_pbl49_kilder
+        )
+        indkomstgrundlag: Pbl49DanskIndkomstgrundlag,
+        @ field(
+            label = "Udgiften kan fradrages i udlandet",
+            question = "Kan udgiften fradrages ved beskatning i udlandet?",
+            help = "Dansk fradrag efter § 49 er afskåret, hvis udgiften kan fradrages efter udenlandske regler.",
+            sources = personskat_pbl49_kilder
+        )
+        udgiften_kan_fradrages_i_udlandet: Boolsk
+    ) |
+    Pbl49FuldtSkattepligtigMenDobbeltbeskatningshjemmehørendeIUdlandet(
+        @ field(
+            label = "Dansk indkomstgrundlag ved udenlandsk DBO-hjemsted",
+            question = "Hvilken dansk indkomst efter kildeskattelovens § 2 vedrører bidraget?",
+            sources = personskat_pbl49_kilder
+        )
+        indkomstgrundlag: Pbl49DanskIndkomstgrundlag,
+        @ field(
+            label = "Udgiften kan fradrages i DBO-hjemstedslandet",
+            question = "Kan udgiften fradrages ved beskatning i det land, hvor personen er hjemmehørende efter dobbeltbeskatningsoverenskomsten?",
+            sources = personskat_pbl49_kilder
+        )
+        udgiften_kan_fradrages_i_udlandet: Boolsk
+    )
+@ field(
+    label = "Bidragets retlige art",
+    question = "Er betalingen A-kassekontingent, privat arbejdsløshedsforsikring, seniormedlemskab, efterlønsbidrag, fleksydelsesbidrag eller et andet bidrag?",
+    help = "Årsopgørelsens samlelinje er ikke tilstrækkelig; brug bidragsopgørelsen til at vælge den retlige type.",
+    sources = personskat_pbl49_kilder
+)
+# Pbl49Til49BBidragsart =
+    Pbl49Akassekontingent(
+        @ field(
+            label = "A-kassens hjemsted og anerkendelsesstatus",
+            question = "Er A-kassen dansk, anerkendt i et andet EU/EØS-land efter arbejdsløshedsforsikringslovens § 32, ikke § 32-anerkendt i EU/EØS, beliggende uden for EU/EØS eller slet ikke en A-kasse?",
+            help = "§ 32-anerkendelsen er en særskilt betingelse, når et EU/EØS-medlemskab skal opfylde 1.300-kronerskravet for en privat arbejdsløshedsforsikring.",
+            sources = personskat_pbl49_kilder
+        )
+        arbejdsløshedskasse: Pbl49ArbejdsløshedskasseStatus,
+        @ field(
+            label = "Skatteyderen er medlem og forsikret i A-kassen",
+            question = "Er kontingentet betalt for skatteyderens eget medlemskab og arbejdsløshedsforsikring?",
+            help = "En betaling for en anden person er ikke skatteyderens fradragsberettigede arbejdsløshedsforsikring og tæller ikke med til 1.300-kronerskravet.",
+            sources = personskat_pbl49_kilder
+        )
+        skatteyderen_er_medlem_og_forsikret: Boolsk
+    ) |
+    Pbl49PrivatArbejdsløshedsforsikring(
+        @ field(
+            label = "Skatteyderen ejer den private arbejdsløshedsforsikring",
+            question = "Er skatteyderen ejer og forsikringstager for den private arbejdsløshedsforsikring?",
+            help = "Fradragsretten tilkommer forsikringens ejer, uanset hvem der har betalt præmien.",
+            sources = personskat_pbl49_kilder
+        )
+        skatteyderen_er_forsikringsejer: Boolsk,
+        @ field(
+            label = "Skatteyderen er forsikret af den private arbejdsløshedsforsikring",
+            question = "Er skatteyderen den person, som arbejdsløshedsforsikringen dækker?",
+            help = "PBL § 49 og § 54 forudsætter identitet mellem ejer og forsikrede.",
+            sources = personskat_pbl49_kilder
+        )
+        skatteyderen_er_forsikret: Boolsk
+    ) |
+    Pbl49Seniormedlemskontingent(
+        @ field(
+            label = "A-kasse for seniormedlemskab",
+            question = "Hvilken anerkendelsesstatus har A-kassen for seniormedlemskabet?",
+            sources = personskat_pbl49_kilder
+        )
+        arbejdsløshedskasse: Pbl49ArbejdsløshedskasseStatus,
+        @ field(
+            label = "Registreret seniormedlem",
+            question = "Var personen seniormedlem af A-kassen, da kontingentet blev betalt?",
+            sources = personskat_pbl49_kilder
+        )
+        seniormedlem: Boolsk
+    ) |
+    Pbl49AEfterlønsbidrag(
+        @ field(
+            label = "A-kasse for efterlønsbidrag",
+            question = "Hvilken anerkendelsesstatus har A-kassen, som modtog efterlønsbidraget?",
+            sources = personskat_pbl49_kilder
+        )
+        arbejdsløshedskasse: Pbl49ArbejdsløshedskasseStatus,
+        @ field(
+            label = "Medlem af A-kassen ved efterlønsbidrag",
+            question = "Var personen medlem af en arbejdsløshedskasse ved betalingen af efterlønsbidraget?",
+            sources = personskat_pbl49_kilder
+        )
+        medlem_af_arbejdsløshedskasse: Boolsk,
+        @ field(
+            label = "Efterlønsbidrag efter arbejdsløshedsforsikringslovens § 77, stk. 4",
+            question = "Er bidraget opkrævet efter arbejdsløshedsforsikringslovens § 77, stk. 4?",
+            sources = personskat_pbl49_kilder
+        )
+        bidrag_efter_arbejdsløshedsforsikringslov77_stk4: Boolsk
+    ) |
+    Pbl49BFleksydelsesbidrag(
+        @ field(
+            label = "Tilmeldt fleksydelsesordningen",
+            question = "Var personen tilmeldt fleksydelsesordningen efter fleksydelseslovens § 4?",
+            sources = personskat_pbl49_kilder
+        )
+        tilmeldt_fleksydelsesordningen_efter_fleksydelseslov4: Boolsk,
+        @ field(
+            label = "Fleksydelsesbidrag efter fleksydelseslovens § 7",
+            question = "Er bidraget indbetalt efter fleksydelseslovens § 7?",
+            sources = personskat_pbl49_kilder
+        )
+        bidrag_efter_fleksydelseslov7: Boolsk
+    ) |
+    Pbl49AndetBidrag
+# Pbl49Til49BBidragsfakta(
+    @ field(
+        label = "Bidragets identifikation",
+        question = "Hvilken entydig identifikation har bidraget?",
+        help = "Brug en stabil reference fra A-kassen, forsikringen eller ydelsesordningen.",
+        sources = personskat_pbl49_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Bidragets indkomstår",
+        question = "Hvilket indkomstår vedrører bidraget?",
+        unit = "år",
+        sources = personskat_pbl49_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Betalt bidrag",
+        question = "Hvor meget er betalt til ordningen i indkomståret?",
+        unit = "kr./år",
+        sources = personskat_pbl49_kilder
+    )
+    betalt_beløb_kroner: Heltal,
+    art: Pbl49Til49BBidragsart
+)
+# Pbl49Til49BÅrsinput(
+    skattepligtsposition: Pbl49Skattepligtsposition,
+    @ field(
+        label = "A-kasse-, arbejdsløsheds-, efterløns- og fleksydelsesbidrag",
+        question = "Hvilke bidrag er betalt i indkomståret?",
+        help = "Opret én række for hver særskilt betalingstype eller ordning.",
+        sources = personskat_pbl49_kilder
+    )
+    bidrag: List(Pbl49Til49BBidragsfakta)
+)
 # Pbl49Til49BHjemmel = Pbl49IngenFradragshjemmel | Pbl49Arbejdsløshedsforsikringsfradrag | Pbl49AEfterlønsfradrag | Pbl49BFleksydelsesfradrag
 # Pbl49Til49BBidragsresultat(fakta: Pbl49Til49BBidragsfakta, input_gyldigt: Boolsk, arbejdsløshedskasse_opfyldt: Boolsk, skattepligtsbetingelse_opfyldt: Boolsk, privat_forsikringsminimum_finder_anvendelse: Boolsk, privat_forsikrings_minimum_opfyldt: Boolsk, skatteyderrelation_opfyldt: Boolsk, ordningsbetingelser_opfyldt: Boolsk, fradragsberettiget: Boolsk, hjemmel: Pbl49Til49BHjemmel, fradrag_kroner: Heltal)
 # Pbl49Til49BÅrsresultat(indkomstår: Heltal, lovversion: Pbl49Lovversion, privat_forsikringsminimum_version: Pbl49PrivatForsikringsminimumVersion, input: Pbl49Til49BÅrsinput, bidragsresultater: List(Pbl49Til49BBidragsresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, akassemedlemskab_indbetalt_kroner: Heltal, samlet_fradrag_kroner: Heltal, ikke_fradraget_kroner: Heltal)
@@ -156,7 +323,51 @@ udbetalinger fra arbejdsløshedsforsikring, jf. dog ligningslovens §§ 30 og 31
 
 # Pbl49Arbejdsløshedsforsikringsudbetalingsart = Pbl49UdbetalingFraArbejdsløshedskasse | Pbl49UdbetalingFraPrivatArbejdsløshedsforsikring | Pbl49UdbetalingFraAndenEllerSammensatForsikring
 # Pbl49SkatteyderrelationEfterPar55 = Pbl49SkatteyderenErEjer | Pbl49SkatteyderenErBerettigetEfterEjersDød | Pbl49EnAndenErSkattepligtigEfterPar55
-# Pbl49ArbejdsløshedsforsikringsudbetalingFakta(identifikation: Tekst, indkomstår: Heltal, beløb_kroner: Heltal, art: Pbl49Arbejdsløshedsforsikringsudbetalingsart, skatteyderrelation: Pbl49SkatteyderrelationEfterPar55, undtagelse: Ligningslov30Og31Undtagelse)
+= personskat_arbejdsløshedsudbetaling_kilder = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par49_stk2),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par55),
+    Guidance(value = juridisk_vejledning_pbl49_udbetaling)
+]
+# Pbl49ArbejdsløshedsforsikringsudbetalingFakta(
+    @ field(
+        label = "Arbejdsløshedsudbetalingens identifikation",
+        question = "Hvilken entydig identifikation har arbejdsløshedsforsikringsudbetalingen?",
+        help = "Brug en stabil reference fra A-kassen eller forsikringen, så samme udbetaling ikke medregnes to gange.",
+        sources = personskat_arbejdsløshedsudbetaling_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Arbejdsløshedsudbetalingens indkomstår",
+        question = "Hvilket indkomstår vedrører arbejdsløshedsforsikringsudbetalingen?",
+        help = "Indkomståret skal være det samme som skatteåret i Personskat-beregningen.",
+        unit = "år",
+        sources = personskat_arbejdsløshedsudbetaling_kilder
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Modtaget arbejdsløshedsforsikringsudbetaling",
+        question = "Hvor stort et beløb er udbetalt fra arbejdsløshedsforsikringen?",
+        help = "Angiv bruttobeløbet, også når forsikringen betaler direkte til en kreditor og dermed frigør personen for en betalingsforpligtelse.",
+        unit = "kr./år",
+        sources = personskat_arbejdsløshedsudbetaling_kilder
+    )
+    beløb_kroner: Heltal,
+    @ field(
+        label = "Arbejdsløshedsforsikringens art",
+        question = "Kommer udbetalingen fra en A-kasse, en privat arbejdsløshedsforsikring eller en anden eller sammensat forsikring?",
+        help = "En anden eller sammensat forsikring kræver en dokumenteret retlig klassifikation. Opdel ikke et samlet forsikringsprodukt alene ud fra en regnskabsmæssig fordeling.",
+        sources = personskat_arbejdsløshedsudbetaling_kilder
+    )
+    art: Pbl49Arbejdsløshedsforsikringsudbetalingsart,
+    @ field(
+        label = "Skatteyderrelation efter PBL § 55",
+        question = "Er personen forsikringens ejer, berettiget efter ejerens død, eller er en anden person skattepligtig af udbetalingen?",
+        help = "PBL § 55 placerer indkomstskattepligten hos den retligt berettigede person, ikke nødvendigvis den praktiske betalingsmodtager.",
+        sources = personskat_arbejdsløshedsudbetaling_kilder
+    )
+    skatteyderrelation: Pbl49SkatteyderrelationEfterPar55,
+    undtagelse: Ligningslov30Og31Undtagelse
+)
 # Pbl49ArbejdsløshedsforsikringsudbetalingResultat(fakta: Pbl49ArbejdsløshedsforsikringsudbetalingFakta, lovversion: Pbl49Lovversion, input_gyldigt: Boolsk, udbetalingsart_omfattet: Boolsk, skatteyderen_er_skattepligtig_efter_par55: Boolsk, undtagelsesresultat: Ligningslov30Og31Undtagelsesresultat, kan_sammensættes: Boolsk, skattefri_beløb_kroner: Heltal, skattepligtigt_beløb_kroner: Heltal)
 
 | pbl49_udbetalingsart_omfattet(art: Pbl49Arbejdsløshedsforsikringsudbetalingsart) -> art == Pbl49UdbetalingFraArbejdsløshedskasse || art == Pbl49UdbetalingFraPrivatArbejdsløshedsforsikring

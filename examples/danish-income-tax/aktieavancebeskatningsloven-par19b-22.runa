@@ -2,6 +2,7 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
+@ importer ./delte-kilder
 
 # AktieavanceInvesteringsklassifikationKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 
@@ -250,18 +251,76 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 
 # AktieavanceInvesteringsdato(år: Heltal, måned: Heltal, dag: Heltal)
 # AktieavanceInvesteringsaktivArt = AblKvalificerendeAktieaktiv | AblAktivOmfattetAfPar19C | AblInvesteringsbevisOmfattetAfPar22 | AblAndetVærdipapir | AblAndetAktiv
-# AktieavanceInvesteringsaktiv = AblDirekteInvesteringsaktiv(art: AktieavanceInvesteringsaktivArt, gennemsnitlig_værdi_kroner: Heltal) | AblKglPar29Til33Aktiv(underliggende_art: AktieavanceInvesteringsaktivArt, underliggende_gennemsnitlig_værdi_kroner: Heltal)
-# AktieavanceInvesteringsaktivmasse(indkomstår: Heltal, direkte_aktiver: List(AktieavanceInvesteringsaktiv), ejerposter: List(AktieavanceInvesteringsEjerpost))
+= personskat_kilder_2 = [
+    Source(value = ligningsloven_par16a_lbk1500),
+    AmendmentSource(value = ligningsloven_par16a_lov1755),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22)
+]
+# AktieavanceInvesteringsaktiv =
+    AblDirekteInvesteringsaktiv(
+        @ field(
+            label = "Aktivets kategori i ABL-klassifikationen",
+            question = "Hvilken lovbestemt kategori tilhører aktivet?",
+            help = "Kategorien afgør, om aktivet tæller som kvalificerende aktieaktiv, andet værdipapir eller andet aktiv.",
+            sources = personskat_kilder_2
+        )
+        art: AktieavanceInvesteringsaktivArt,
+        @ field(
+            label = "Aktivets gennemsnitlige værdi",
+            question = "Hvad var aktivkategoriens gennemsnitlige værdi i indkomståret?",
+            help = "Angiv den dokumenterede ikke-negative værdi, som indgår i aktivmassen.",
+            unit = "kr./år",
+            sources = personskat_kilder_2
+        )
+        gennemsnitlig_værdi_kroner: Heltal
+    ) |
+    AblKglPar29Til33Aktiv(underliggende_art: AktieavanceInvesteringsaktivArt, underliggende_gennemsnitlig_værdi_kroner: Heltal)
+# AktieavanceInvesteringsaktivmasse(
+    indkomstår: Heltal,
+    @ field(
+        label = "Investeringsenhedens direkte aktiver",
+        question = "Hvilke direkte aktiver og gennemsnitlige værdier indgår i årets aktivmasse?",
+        help = "Tilføj én række pr. dokumenteret aktivkategori; Futuruna beregner selv 50-procentgrænsen.",
+        sources = personskat_kilder_2
+    )
+    direkte_aktiver: List(AktieavanceInvesteringsaktiv),
+    ejerposter: List(AktieavanceInvesteringsEjerpost)
+)
 # AktieavanceInvesteringsEjerandel(ejede_kapitalenheder: Heltal, samlede_kapitalenheder: Heltal)
 # AktieavanceInvesteringsEjerpost = AblEjerpostIPar19B(ejerandel: AktieavanceInvesteringsEjerandel, gennemsnitlig_markedsværdi_kroner: Heltal, klassifikationsinput: AktieavancePar19BPar19CInput) | AblEjerpostIPar21(ejerandel: AktieavanceInvesteringsEjerandel, gennemsnitlig_markedsværdi_kroner: Heltal, klassifikationsinput: AktieavancePar21Par22Input)
 # AktieavanceInvesteringsaktivsummering(input_gyldigt: Boolsk, medregnet_aktivmasse_kroner: Heltal, kvalificerende_aktiver_kroner: Heltal, øvrige_værdipapirer_kroner: Heltal, andre_aktiver_kroner: Heltal)
 # AktieavanceInvesteringsaktivmasseResultat(input: AktieavanceInvesteringsaktivmasse, input_gyldigt: Boolsk, medregnet_aktivmasse_kroner: Heltal, kvalificerende_aktiver_kroner: Heltal, øvrige_værdipapirer_kroner: Heltal, andre_aktiver_kroner: Heltal, kvalificerende_andel_mindst_50_pct: Boolsk, resterende_aktivmasse_kun_værdipapirer: Boolsk)
 # AktieavanceInvesteringsEjerpostKlassifikation(input_gyldigt: Boolsk, aktiebaseret: Boolsk, indkomstår: Heltal, aktivmasse_resultat: AktieavanceInvesteringsaktivmasseResultat)
 
+@ field(
+    label = "Meddelelse om aktiebaseret investeringsselskab",
+    question = "Hvilken meddelelse om aktiebaseret status efter ABL § 19 B er dokumenteret?",
+    help = "Manglende eller for sen meddelelse medfører, at status afledes efter § 19 C.",
+    sources = personskat_kilder_2
+)
 # AktieavancePar19BMeddelelse = AblIngenPar19BMeddelelse | AblPar19BOrdinærMeddelelse(virkningsår: Heltal, indsendelsesdato: AktieavanceInvesteringsdato) | AblPar19BNyoprettetMeddelelse(oprettelsesdato: AktieavanceInvesteringsdato, valg_truffet_samtidig_med_oprettelsen: Boolsk, indsendelsesdato: AktieavanceInvesteringsdato)
+@ field(
+    label = "Oplysninger om investeringsselskabets aktivmasse",
+    question = "Blev oplysningerne til Skatteforvaltningens vurdering indsendt rettidigt?",
+    help = "Futuruna prøver oplysningsdatoen mod fristen i ABL § 19 B, stk. 6.",
+    sources = personskat_kilder_2
+)
 # AktieavancePar19BOplysninger = AblPar19BOplysningerIkkeIndsendt | AblPar19BOplysningerIndsendt(indsendelsesdato: AktieavanceInvesteringsdato)
 # AktieavancePar19BPar19CStatus = AblAktiebaseretInvesteringsselskabEfterPar19B | AblObligationsbaseretInvesteringsselskabEfterPar19C
-# AktieavancePar19BPar19CInput(indkomstår: Heltal, meddelelse: AktieavancePar19BMeddelelse, aktivmasse: AktieavanceInvesteringsaktivmasse, oplysninger: AktieavancePar19BOplysninger)
+# AktieavancePar19BPar19CInput(
+    @ field(
+        label = "Investeringsselskabets klassifikationsår",
+        question = "Hvilket indkomstår gælder investeringsselskabets klassifikation for?",
+        help = "Året skal svare til personskatteberegningens skatteår.",
+        unit = "år",
+        sources = personskat_kilder_2
+    )
+    indkomstår: Heltal,
+    meddelelse: AktieavancePar19BMeddelelse,
+    aktivmasse: AktieavanceInvesteringsaktivmasse,
+    oplysninger: AktieavancePar19BOplysninger
+)
 # AktieavancePar19BPar19CResultat(input: AktieavancePar19BPar19CInput, input_gyldigt: Boolsk, aktivmasse_resultat: AktieavanceInvesteringsaktivmasseResultat, meddelelse_rettidig: Boolsk, anbringelsesbetingelser_efter_stk2_opfyldt: Boolsk, oplysninger_rettidige_efter_stk6: Boolsk, aktiebaseret_efter_par19b_stk2: Boolsk, skift_til_par19c_på_grund_af_anbringelser: Boolsk, skift_til_par19c_på_grund_af_oplysninger: Boolsk, skal_offentliggøre_manglende_overholdelse: Boolsk, effektiv_status: AktieavancePar19BPar19CStatus)
 
 # AktieavancePar21Oplysninger = AblPar21OplysningerIkkeIndsendt(frist: AktieavanceInvesteringsdato) | AblPar21OplysningerIndsendt(frist: AktieavanceInvesteringsdato, indsendelsesdato: AktieavanceInvesteringsdato)

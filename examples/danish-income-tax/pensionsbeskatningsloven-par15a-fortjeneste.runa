@@ -7,17 +7,9 @@
 @ importer ./ejendomsavancebeskatningsloven
 @ importer ./kursgevinstloven
 
-# Pbl15AFortjenesteKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
-
 = pensionsbeskatningsloven_lbk1243_par15a_fortjeneste = Pbl15AFortjenesteKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/1243",
     identifier = "Pensionsbeskatningsloven § 15 A, stk. 1 og 6",
-    hentet_dato = "2026-07-23"
-)
-
-= skat_pbl15a_fortjeneste_vejledning = Pbl15AFortjenesteKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=2048421",
-    identifier = "Den juridiske vejledning C.A.10.2.3.4, Opgørelse af fortjenesten",
     hentet_dato = "2026-07-23"
 )
 
@@ -50,26 +42,84 @@ som medregnes ved personens indkomstopgørelse.
 @ meta(pbl15a_fortjeneste_fra_kildelove_metadata)
 @ section pbl15a_fortjeneste_fra_kildelove {
 
+= personskat_kilder_42 = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+    Guidance(value = skat_pbl15a_ophørspension_vejledning),
+    GainGuidance(value = skat_pbl15a_fortjeneste_vejledning)
+]
+@ field(
+    label = "Bestemmelse i afskrivningsloven",
+    question = "Hvilken bestemmelse i afskrivningsloven skal opgøre fortjenesten eller tabet for aktivet?",
+    help = "Vælg aktivets lovbestemte kildemodel og udfyld dens faktiske anskaffelses-, afskrivnings- og afståelsesforløb.",
+    sources = personskat_kilder_42
+)
 # Pbl15AAfskrivningslovKilde = Pbl15AAl6Salg(input: Afskrivningslov6SalgInput) | Pbl15AAl9Virksomhedsophør(input: Afskrivningslov9Input) | Pbl15AAl9EfterfølgendeSalg(input: Afskrivningslov9EfterfølgendeSalgInput) | Pbl15AAl12BlandetAktiv(input: Afskrivningslov12Input) | Pbl15AAl21BygningEllerInstallation(input: Afskrivningslov21Input) | Pbl15AAl26LejetGrundEllerHjemfald(input: Afskrivningslov26Input) | Pbl15AAl39LejedeLokaler(input: Afskrivningslov39Input) | Pbl15AAl40GoodwillEllerImmaterieltAktiv(input: Afskrivningslov40Input) | Pbl15AAl40AKvote(input: Afskrivningslov40AInput) | Pbl15AAl40BLøbendeKvote(input: Afskrivningslov40BInput) | Pbl15AAl40CBetalingsrettighedEllerMælkekvote(input: Afskrivningslov40CInput) | Pbl15AAl42TelefonEllerDatakommunikation(input: Afskrivningslov42AfståelsesInput) | Pbl15AAl44AKunstneriskUdsmykning(input: Afskrivningslov44AAfståelsesInput) | Pbl15AAl44CForskudsafskrevetAktiv(input: Afskrivningslov44CInput) | Pbl15AAl50HistoriskBlandetAktiv(input: Afskrivningslov50SalgInput) | Pbl15AAl58HistoriskBygning(input: Afskrivningslov58SalgInput) | Pbl15AAl62HistoriskDriftsmiddel(input: Afskrivningslov62DriftsmiddelSalgInput) | Pbl15AAl62HistoriskMiljøanlæg(input: Afskrivningslov62MiljøanlægSalgInput)
 # Pbl15AAfskrivningslovKilderesultat = Pbl15AAl6SalgBeregnet(resultat: Afskrivningslov6SalgResultat) | Pbl15AAl9VirksomhedsophørBeregnet(resultat: Afskrivningslov9Resultat) | Pbl15AAl9EfterfølgendeSalgBeregnet(resultat: Afskrivningslov9EfterfølgendeSalgResultat) | Pbl15AAl12BlandetAktivBeregnet(resultat: Afskrivningslov12Resultat) | Pbl15AAl21BygningEllerInstallationBeregnet(resultat: Afskrivningslov21Resultat) | Pbl15AAl26LejetGrundEllerHjemfaldBeregnet(resultat: Afskrivningslov26Resultat) | Pbl15AAl39LejedeLokalerBeregnet(resultat: Afskrivningslov39Resultat) | Pbl15AAl40GoodwillEllerImmaterieltAktivBeregnet(resultat: Afskrivningslov40Resultat) | Pbl15AAl40AKvoteBeregnet(resultat: Afskrivningslov40AResultat) | Pbl15AAl40BLøbendeKvoteBeregnet(resultat: Afskrivningslov40BResultat) | Pbl15AAl40CBetalingsrettighedEllerMælkekvoteBeregnet(resultat: Afskrivningslov40CResultat) | Pbl15AAl42TelefonEllerDatakommunikationBeregnet(resultat: Afskrivningslov42AfståelsesResultat) | Pbl15AAl44AKunstneriskUdsmykningBeregnet(resultat: Afskrivningslov44AAfståelsesResultat) | Pbl15AAl44CForskudsafskrevetAktivBeregnet(resultat: Afskrivningslov44CResultat) | Pbl15AAl50HistoriskBlandetAktivBeregnet(resultat: Afskrivningslov50Resultat) | Pbl15AAl58HistoriskBygningBeregnet(resultat: Afskrivningslov58Resultat) | Pbl15AAl62HistoriskDriftsmiddelBeregnet(resultat: Afskrivningslov62DriftsmiddelSalgResultat) | Pbl15AAl62HistoriskMiljøanlægBeregnet(resultat: Afskrivningslov62MiljøanlægSalgResultat)
-# Pbl15AAfskrivningslovspost(identifikation: Tekst, kilde: Pbl15AAfskrivningslovKilde)
+# Pbl15AAfskrivningslovspost(
+    @ field(
+        label = "Afskrivningslovspost",
+        question = "Hvilken entydig identifikation skal denne afståelse efter afskrivningsloven have?",
+        help = "Identifikationen følger kilderesultatet gennem beregningen af den samlede fortjeneste.",
+        sources = personskat_kilder_42
+    )
+    identifikation: Tekst,
+    kilde: Pbl15AAfskrivningslovKilde
+)
 # Pbl15AAfskrivningslovspostresultat(identifikation: Tekst, kilde: Pbl15AAfskrivningslovKilde, kilderesultat: Pbl15AAfskrivningslovKilderesultat, indkomstår: Heltal, kilde_gyldig: Boolsk, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
 
 # Pbl15AEjendomsavancepost(identifikation: Tekst, input: EjendomsavancebeskatningslovInput)
 # Pbl15AEjendomsavancefremførsel = Pbl15AEblIngenFremførsel | Pbl15AEblFremførtTabFraForrigeÅr(fra_indkomstår: Heltal, tab_kroner: Heltal)
+@ field(
+    label = "Ejendomsavance ved afståelsen",
+    question = "Indgik en eller flere ejendomsafståelser i virksomhedsafståelsen?",
+    help = "Vælg ejendomsavance og angiv de underliggende ejendomsfakta, hvis afståelsen omfattede fast ejendom. Futuruna anvender ejendomsavancebeskatningslovens tabsrækkefølge.",
+    sources = personskat_kilder_42
+)
 # Pbl15AEjendomsavancegrundlag = Pbl15AUdenEjendomsavance | Pbl15AMedEjendomsavance(poster: List(Pbl15AEjendomsavancepost), fremførsel: Pbl15AEjendomsavancefremførsel)
 # Pbl15AEjendomsavancepostresultat(identifikation: Tekst, input: EjendomsavancebeskatningslovInput, resultat: EjendomsavancebeskatningslovResultat, kilde_gyldig: Boolsk)
 # Pbl15AEjendomsavancekilderesultat(grundlag: Pbl15AEjendomsavancegrundlag, postresultater: List(Pbl15AEjendomsavancepostresultat), tabsårsresultat: Option(EjendomsavancePar6Tabsårsresultat), kilder_gyldige: Boolsk, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
 
 # Pbl15AAktieavancepost(identifikation: Tekst, input: AktieavanceOrdinærHændelsesforløbInput)
+@ field(
+    label = "Aktieavance ved afståelsen",
+    question = "Indgik aktieafståelser i fortjenesten, herunder en afståelse af hovedaktionæraktier?",
+    help = "Angiv aktiernes faktiske positioner og hændelser. Futuruna afleder både årets nettobeløb og om alle afståede aktier opfylder hovedaktionærkravet.",
+    sources = personskat_kilder_42
+)
 # Pbl15AAktieavancegrundlag = Pbl15AUdenAktieavance | Pbl15AMedAktieavance(poster: List(Pbl15AAktieavancepost), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag)
 # Pbl15AAktieavancepostresultat(identifikation: Tekst, input: AktieavanceOrdinærHændelsesforløbInput, resultat: AktieavanceOrdinærÅrshændelsesforløbResultat, kilde_gyldig: Boolsk, indeholder_hovedaktionærafståelse: Boolsk, alle_afståelser_er_hovedaktionæraktier: Boolsk)
 # Pbl15AAktieavancekilderesultat(grundlag: Pbl15AAktieavancegrundlag, postresultater: List(Pbl15AAktieavancepostresultat), årsresultat: Option(AktieavanceOrdinærÅrsresultat), kilder_gyldige: Boolsk, indeholder_afståelse: Boolsk, alle_afståelser_er_hovedaktionæraktier: Boolsk, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
 
-# Pbl15AKursgevinstpost(identifikation: Tekst, input: KursgevinstlovInput)
+# Pbl15AKursgevinstpost(
+    @ field(
+        label = "Kursgevinstlovspost",
+        question = "Hvilken entydig identifikation skal denne fordring, gæld eller finansielle kontrakt have?",
+        help = "Identifikationen gør hver beregnet gevinst og hvert fradragsberettiget tab sporbart i resultatet.",
+        sources = personskat_kilder_42
+    )
+    identifikation: Tekst,
+    input: KursgevinstlovInput
+)
 # Pbl15AKursgevinstpostresultat(identifikation: Tekst, input: KursgevinstlovInput, resultat: KursgevinstlovResultat, kilde_gyldig: Boolsk, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
 
-# Pbl15AFortjenestegrundlag(afskrivningslovsposter: List(Pbl15AAfskrivningslovspost), ejendomsavance: Pbl15AEjendomsavancegrundlag, aktieavance: Pbl15AAktieavancegrundlag, kursgevinstposter: List(Pbl15AKursgevinstpost))
+# Pbl15AFortjenestegrundlag(
+    @ field(
+        label = "Afskrivningslovens afståelser",
+        question = "Hvilke driftsmidler, bygninger, goodwillposter eller andre afskrivningsberettigede aktiver blev afstået?",
+        help = "Tilføj de faktiske anskaffelser, afskrivninger og afståelser. Futuruna beregner hver fortjeneste eller hvert fradragsberettiget tab efter afskrivningsloven.",
+        sources = personskat_kilder_42
+    )
+    afskrivningslovsposter: List(Pbl15AAfskrivningslovspost),
+    ejendomsavance: Pbl15AEjendomsavancegrundlag,
+    aktieavance: Pbl15AAktieavancegrundlag,
+    @ field(
+        label = "Kursgevinster og kurstab ved afståelsen",
+        question = "Hvilke fordringer, gældsforhold eller finansielle kontrakter indgik i virksomhedsafståelsen?",
+        help = "Tilføj de faktiske kursgevinstlovsposter. Futuruna medregner kun lovens skattepligtige gevinster og fradragsberettigede tab i nettobeløbet før arbejdsmarkedsbidrag.",
+        sources = personskat_kilder_42
+    )
+    kursgevinstposter: List(Pbl15AKursgevinstpost)
+)
 # Pbl15AFortjenestegrundlagsresultat(indkomstår: Heltal, grundlag: Pbl15AFortjenestegrundlag, afskrivningslovsresultater: List(Pbl15AAfskrivningslovspostresultat), ejendomsavanceresultat: Pbl15AEjendomsavancekilderesultat, aktieavanceresultat: Pbl15AAktieavancekilderesultat, kursgevinstresultater: List(Pbl15AKursgevinstpostresultat), kildeidentifikationer_entydige: Boolsk, alle_kilder_gyldige: Boolsk, samlede_skattepligtige_fortjenester_før_am_kroner: Heltal, samlede_fradragsberettigede_tab_kroner: Heltal, netto_skattepligtig_fortjeneste_før_am_kroner: Heltal)
 
 | pbl15a_afskrivningslov_kilderesultat(kilde: Pbl15AAfskrivningslovKilde) -> match kilde {

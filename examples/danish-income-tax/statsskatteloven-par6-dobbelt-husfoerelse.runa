@@ -60,28 +60,335 @@ Afskrivninger;
 @ section statsskatteloven_par6_dobbelt_husførelse {
 
 # Statsskattelov6DobbeltHusførelseErhvervsstatus = Sl6DhLønmodtager | Sl6DhIkkeLønmodtager
-# Statsskattelov6DobbeltHusførelseBarn(identifikation: Tekst, fødselsdato: Dato)
-# Statsskattelov6DobbeltHusførelseKortSamlivsvurdering = Sl6DhIntetKortSamliv | Sl6DhKortSamlivGodkendtEfterKonkretVurdering(kildeidentifikation: Tekst)
-# Statsskattelov6DobbeltHusførelsePersonkreds = Sl6DhGift | Sl6DhUgiftSamlevende(samliv_startdato: Dato, kort_samlivsvurdering: Statsskattelov6DobbeltHusførelseKortSamlivsvurdering) | Sl6DhEnligForsørger(børn: List(Statsskattelov6DobbeltHusførelseBarn)) | Sl6DhUdenBerettigetPersonkreds
-# Statsskattelov6DobbeltHusførelseErhvervsårsag = Sl6DhSkatteydersEgetArbejdsforhold | Sl6DhSkatteydersFradragsberettigedeKursus(kildeidentifikation: Tekst) | Sl6DhÆgtefællesEllerSamleversArbejdsforhold | Sl6DhBørnsSkolegang | Sl6DhPersonligeForhold | Sl6DhVærnepligt
+= personskat_sl6dh_kilder = [
+    Source(value = statsskatteloven_lov149_par6_litra_a_dobbelt_husførelse),
+    Practice(value = statsskattedirektoratets_cirkulære_18254_dobbelt_husførelse),
+    Guidance(value = juridisk_vejledning_dobbelt_husførelse_2026),
+    Guidance(value = skat_dobbelt_husførelse_2026),
+    Practice(value = skatterådet_skm2013_22_sr_dobbelt_husførelse)
+]
+# Statsskattelov6DobbeltHusførelseBarn(
+    @ field(
+        label = "Barnets identifikation",
+        question = "Hvilken entydig reference har barnet?",
+        help = "Brug en intern stabil reference; følsomme personnumre er ikke nødvendige.",
+        sources = personskat_sl6dh_kilder
+    )
+    identifikation: Tekst,
+    fødselsdato: Dato
+)
+@ field(
+    label = "Konkret vurdering af kortere samliv",
+    question = "Er et samliv under ét år godkendt efter en konkret vurdering?",
+    help = "Vælg kun godkendelse, når en konkret myndighedsvurdering foreligger.",
+    sources = personskat_sl6dh_kilder
+)
+# Statsskattelov6DobbeltHusførelseKortSamlivsvurdering =
+    Sl6DhIntetKortSamliv |
+    Sl6DhKortSamlivGodkendtEfterKonkretVurdering(
+        @ field(
+            label = "Kilde til vurdering af kortere samliv",
+            question = "Hvilken afgørelse eller vurdering godkender det kortere samliv?",
+            help = "Brug en stabil dokumentreference.",
+            sources = personskat_sl6dh_kilder
+        )
+        kildeidentifikation: Tekst
+    )
+@ field(
+    label = "Familieforhold ved dobbelt husførelse",
+    question = "Er personen gift, ugift samlevende eller enlig forsørger?",
+    help = "Personkredsen følger praksis efter statsskattelovens § 6, litra a.",
+    sources = personskat_sl6dh_kilder
+)
+# Statsskattelov6DobbeltHusførelsePersonkreds =
+    Sl6DhGift |
+    Sl6DhUgiftSamlevende(samliv_startdato: Dato, kort_samlivsvurdering: Statsskattelov6DobbeltHusførelseKortSamlivsvurdering) |
+    Sl6DhEnligForsørger(
+        @ field(
+            label = "Børn hos den enlige forsørger",
+            question = "Hvilke børn indgår i vurderingen ved indkomstårets begyndelse?",
+            help = "Opret én række pr. barn; mindst ét barn skal være under 18 år ved årets begyndelse.",
+            sources = personskat_sl6dh_kilder
+        )
+        børn: List(Statsskattelov6DobbeltHusførelseBarn)
+    ) |
+    Sl6DhUdenBerettigetPersonkreds
+@ field(
+    label = "Årsag til den dobbelte husførelse",
+    question = "Hvilket forhold er årsag til, at to husførelser opretholdes?",
+    help = "Det skal være personens eget arbejde eller et i øvrigt fradragsberettiget kursus; familiens eller private forhold er ikke tilstrækkelige.",
+    sources = personskat_sl6dh_kilder
+)
+# Statsskattelov6DobbeltHusførelseErhvervsårsag =
+    Sl6DhSkatteydersEgetArbejdsforhold |
+    Sl6DhSkatteydersFradragsberettigedeKursus(
+        @ field(
+            label = "Kilde til fradragsberettiget kursus",
+            question = "Hvilken dokumentation viser, at kursusudgiften er en fradragsberettiget driftsudgift?",
+            help = "Brug en stabil reference til kursus- og arbejdsdokumentationen.",
+            sources = personskat_sl6dh_kilder
+        )
+        kildeidentifikation: Tekst
+    ) |
+    Sl6DhÆgtefællesEllerSamleversArbejdsforhold |
+    Sl6DhBørnsSkolegang |
+    Sl6DhPersonligeForhold |
+    Sl6DhVærnepligt
 # Statsskattelov6DobbeltHusførelseMidlertidighedsart = Sl6DhTidsbegrænsetAnsættelse | Sl6DhReelPrøvetid | Sl6DhMidlertidigForflyttelse | Sl6DhLægeligTurnusstilling
-# Statsskattelov6DobbeltHusførelseMidlertidighed = Sl6DhMidlertidigtArbejde(art: Statsskattelov6DobbeltHusførelseMidlertidighedsart, aftalt_fra_dato: Dato, aftalt_til_dato: Dato) | Sl6DhFastVarigStilling
+@ field(
+    label = "Arbejdsforholdets varighed",
+    question = "Er arbejdet objektivt midlertidigt eller en fast varig stilling?",
+    help = "Midlertidigheden skal være aftalt eller stå klart ved arbejdsforholdets begyndelse.",
+    sources = personskat_sl6dh_kilder
+)
+# Statsskattelov6DobbeltHusførelseMidlertidighed =
+    Sl6DhMidlertidigtArbejde(
+        @ field(
+            label = "Det midlertidige arbejdes art",
+            question = "Skyldes midlertidigheden tidsbegrænset ansættelse, reel prøvetid, forflyttelse eller turnusstilling?",
+            sources = personskat_sl6dh_kilder
+        )
+        art: Statsskattelov6DobbeltHusførelseMidlertidighedsart,
+        aftalt_fra_dato: Dato,
+        aftalt_til_dato: Dato
+    ) |
+    Sl6DhFastVarigStilling
 # Statsskattelov6DobbeltHusførelseDagligTransportvurdering = Sl6DhDagligTransportIkkeRimeligEfterKonkretVurdering | Sl6DhDagligTransportMulig
-# Statsskattelov6DobbeltHusførelseDagligTransport(vurdering: Statsskattelov6DobbeltHusførelseDagligTransportvurdering, afstand_mellem_boliger_kilometer: Heltal, samlet_transporttid_pr_dag_minutter: Heltal, arbejdstid_pr_dag_minutter: Heltal)
-# Statsskattelov6DobbeltHusførelseUdenlandskBoligdokumentation(familieforbindelse_kildeidentifikation: Tekst, bopælsregistrering_kildeidentifikation: Tekst, boligudgifter_kildeidentifikation: Tekst)
-# Statsskattelov6DobbeltHusførelseParopholdIDanmark(fra_dato: Dato, forventet_til_dato: Dato, dokumentationsidentifikation: Tekst)
-# Statsskattelov6DobbeltHusførelseUdenlandskFamilieplacering = Sl6DhSkatteyderIDanmarkFamilieIHjemlandet | Sl6DhBeggeParterIDanmarkBørnIHjemlandet(parophold: Statsskattelov6DobbeltHusførelseParopholdIDanmark) | Sl6DhFlereHustruerÉnIDanmarkAndreIHjemlandet | Sl6DhFlereHustruerKunIHjemlandet(antal_hustruer: Heltal)
+# Statsskattelov6DobbeltHusførelseDagligTransport(
+    @ field(
+        label = "Vurdering af daglig transport mellem boligerne",
+        question = "Er daglig transport konkret vurderet som rimelig mulig?",
+        help = "Vurderingen skal bygge på arbejdstid, afstand og samlet transporttid; Futuruna anvender ikke en opdigtet kilometergrænse.",
+        sources = personskat_sl6dh_kilder
+    )
+    vurdering: Statsskattelov6DobbeltHusførelseDagligTransportvurdering,
+    @ field(
+        label = "Afstand mellem boligerne",
+        question = "Hvor stor er afstanden mellem boligerne ad normal transportvej?",
+        unit = "km",
+        sources = personskat_sl6dh_kilder
+    )
+    afstand_mellem_boliger_kilometer: Heltal,
+    @ field(
+        label = "Samlet daglig transporttid mellem boligerne",
+        question = "Hvor mange minutters transport ville en daglig tur frem og tilbage kræve?",
+        unit = "minutter/dag",
+        sources = personskat_sl6dh_kilder
+    )
+    samlet_transporttid_pr_dag_minutter: Heltal,
+    @ field(
+        label = "Arbejdstid pr. dag",
+        question = "Hvor mange minutter arbejdes der normalt pr. dag?",
+        help = "Arbejdstiden indgår sammen med afstand og transporttid i den konkrete vurdering.",
+        unit = "minutter/dag",
+        sources = personskat_sl6dh_kilder
+    )
+    arbejdstid_pr_dag_minutter: Heltal
+)
+# Statsskattelov6DobbeltHusførelseUdenlandskBoligdokumentation(
+    @ field(
+        label = "Dokumentation for familieforbindelsen i hjemlandet",
+        question = "Hvilke dokumenter viser forbindelsen og det fortsatte samliv med familien i hjemlandet?",
+        help = "Brug en stabil reference til fx vielses-, samlivs- eller fødselsdokumenter.",
+        sources = personskat_sl6dh_kilder
+    )
+    familieforbindelse_kildeidentifikation: Tekst,
+    @ field(
+        label = "Dokumentation for bopælen i hjemlandet",
+        question = "Hvilken registrering viser den opretholdte familiebolig i hjemlandet?",
+        help = "Brug en stabil reference til offentlige bopælsoplysninger eller tilsvarende dokumentation.",
+        sources = personskat_sl6dh_kilder
+    )
+    bopælsregistrering_kildeidentifikation: Tekst,
+    @ field(
+        label = "Dokumentation for boligudgifter i hjemlandet",
+        question = "Hvilke bilag viser personens udgifter til at opretholde familieboligen i hjemlandet?",
+        help = "Brug en stabil reference til fx huslejekvitteringer eller tilsvarende udgiftsbilag.",
+        sources = personskat_sl6dh_kilder
+    )
+    boligudgifter_kildeidentifikation: Tekst
+)
+# Statsskattelov6DobbeltHusførelseParopholdIDanmark(
+    fra_dato: Dato,
+    forventet_til_dato: Dato,
+    @ field(
+        label = "Dokumentation for begge parters midlertidige ophold",
+        question = "Hvilken dokumentation viser, at begge parters ophold i Danmark er midlertidigt?",
+        help = "Brug en stabil reference til de tidsbegrænsede opholdsforhold.",
+        sources = personskat_sl6dh_kilder
+    )
+    dokumentationsidentifikation: Tekst
+)
+@ field(
+    label = "Familiens placering ved udenlandsk familiebolig",
+    question = "Opholder personen sig alene i Danmark, er begge parter i Danmark, eller foreligger der flere ægtefæller?",
+    help = "Placeringen afgør, hvilke supplerende fakta der kræves efter C.A.7.4.",
+    sources = personskat_sl6dh_kilder
+)
+# Statsskattelov6DobbeltHusførelseUdenlandskFamilieplacering =
+    Sl6DhSkatteyderIDanmarkFamilieIHjemlandet |
+    Sl6DhBeggeParterIDanmarkBørnIHjemlandet(parophold: Statsskattelov6DobbeltHusførelseParopholdIDanmark) |
+    Sl6DhFlereHustruerÉnIDanmarkAndreIHjemlandet |
+    Sl6DhFlereHustruerKunIHjemlandet(
+        @ field(
+            label = "Antal hustruer, som kun opholder sig i hjemlandet",
+            question = "Hvor mange hustruer opholder sig i hjemlandet, når ingen hustru opholder sig i Danmark?",
+            help = "Praksis tillader højst ét fradrag uanset antallet.",
+            unit = "personer",
+            sources = personskat_sl6dh_kilder
+        )
+        antal_hustruer: Heltal
+    )
+@ field(
+    label = "Opretholdt familiebolig",
+    question = "Er familieboligen i Danmark eller udlandet reelt opretholdt?",
+    help = "En udenlandsk familiebolig kræver dokumentation for familieforbindelse, bopæl og afholdte udgifter.",
+    sources = personskat_sl6dh_kilder
+)
 # Statsskattelov6DobbeltHusførelseHjemmebolig = Sl6DhDanskFamilieboligOpretholdt | Sl6DhUdenlandskFamilieboligOpretholdt(familieplacering: Statsskattelov6DobbeltHusførelseUdenlandskFamilieplacering, dokumentation: Statsskattelov6DobbeltHusførelseUdenlandskBoligdokumentation) | Sl6DhFamilieboligIkkeOpretholdt
-# Statsskattelov6DobbeltHusførelseHjemlandsophold(identifikation: Tekst, fra_dato: Dato, til_dato: Dato)
+# Statsskattelov6DobbeltHusførelseHjemlandsophold(
+    @ field(
+        label = "Hjemlandsopholdets identifikation",
+        question = "Hvilken entydig reference har hjemlandsopholdet?",
+        sources = personskat_sl6dh_kilder
+    )
+    identifikation: Tekst,
+    fra_dato: Dato,
+    til_dato: Dato
+)
 # Statsskattelov6DobbeltHusførelseArbejdsboligform = Sl6DhPensionat | Sl6DhPrivatIndkvartering | Sl6DhTilsvarendeArbejdsbolig | Sl6DhAndenArbejdsbolig
 # Statsskattelov6DobbeltHusførelseMerudgiftsforhold = Sl6DhMerudgifterTilKostEllerBoligAfholdt | Sl6DhIngenMerudgifter
 # Statsskattelov6DobbeltHusførelseArbejdsgiverdækning = Sl6DhIngenArbejdsgiverdækning | Sl6DhFriKost | Sl6DhFritLogi | Sl6DhFriKostOgLogi | Sl6DhSkattefriRejsegodtgørelse | Sl6DhUdgifterDækketEfterRegning
 # Statsskattelov6DobbeltHusførelseUdgiftsart = Sl6DhDokumenteretKostmerudgift | Sl6DhDokumenteretLogimerudgift
-# Statsskattelov6DobbeltHusførelseUdgift(identifikation: Tekst, art: Statsskattelov6DobbeltHusførelseUdgiftsart, fra_dato: Dato, til_dato: Dato, beløb_kroner: Heltal)
-# Statsskattelov6DobbeltHusførelseOpgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger: Heltal) | Sl6DhDokumenteredeMerudgifter(udgifter: List(Statsskattelov6DobbeltHusførelseUdgift))
-# Statsskattelov6DobbeltHusførelseToårsgrænse = Sl6DhAlmindeligToårsgrænse | Sl6DhSærligeOmstændighederUdOverToÅr(kildeidentifikation: Tekst)
-# Statsskattelov6DobbeltHusførelseOphold(identifikation: Tekst, arbejdssted_identifikation: Tekst, oprindelig_startdato: Dato, fradragsperiode_fra_dato: Dato, fradragsperiode_til_dato: Dato, erhvervsårsag: Statsskattelov6DobbeltHusførelseErhvervsårsag, midlertidighed: Statsskattelov6DobbeltHusførelseMidlertidighed, daglig_transport: Statsskattelov6DobbeltHusførelseDagligTransport, hjemmebolig: Statsskattelov6DobbeltHusførelseHjemmebolig, hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold), arbejdsboligform: Statsskattelov6DobbeltHusførelseArbejdsboligform, merudgiftsforhold: Statsskattelov6DobbeltHusførelseMerudgiftsforhold, arbejdsgiverdækning: Statsskattelov6DobbeltHusførelseArbejdsgiverdækning, opgørelsesmetode: Statsskattelov6DobbeltHusførelseOpgørelsesmetode, toårsgrænse: Statsskattelov6DobbeltHusførelseToårsgrænse)
-# Statsskattelov6DobbeltHusførelseÅrsinput(personkreds: Statsskattelov6DobbeltHusførelsePersonkreds, ophold: List(Statsskattelov6DobbeltHusførelseOphold))
+# Statsskattelov6DobbeltHusførelseUdgift(
+    @ field(
+        label = "Udgiftens identifikation",
+        question = "Hvilken entydig bilags- eller opgørelsesreference har udgiften?",
+        sources = personskat_sl6dh_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Merudgiftens art",
+        question = "Er posten en dokumenteret kost- eller logimerudgift?",
+        sources = personskat_sl6dh_kilder
+    )
+    art: Statsskattelov6DobbeltHusførelseUdgiftsart,
+    fra_dato: Dato,
+    til_dato: Dato,
+    @ field(
+        label = "Dokumenteret merudgift",
+        question = "Hvor stort er det dokumenterede merudgiftsbeløb?",
+        unit = "kr.",
+        sources = personskat_sl6dh_kilder
+    )
+    beløb_kroner: Heltal
+)
+@ field(
+    label = "Opgørelsesmetode for dobbelt husførelse",
+    question = "Anvendes standardbeløbet eller dokumenterede merudgifter?",
+    help = "Standardbeløbet er 400 kr. pr. hel uge; et større eller anderledes fradrag kræver dokumentation.",
+    sources = personskat_sl6dh_kilder
+)
+# Statsskattelov6DobbeltHusførelseOpgørelsesmetode =
+    Sl6DhStandardbeløb(
+        @ field(
+            label = "Hele uger med standardbeløb",
+            question = "Hvor mange hele uger i perioden skal beregnes med standardbeløbet?",
+            help = "Antallet kan ikke overstige periodens antal hele syvdagesforløb.",
+            unit = "uger",
+            sources = personskat_sl6dh_kilder
+        )
+        antal_hele_uger: Heltal
+    ) |
+    Sl6DhDokumenteredeMerudgifter(
+        @ field(
+            label = "Dokumenterede merudgifter",
+            question = "Hvilke dokumenterede merudgifter til kost og logi er afholdt?",
+            help = "Opret én række pr. udgift eller dokumenteret opgørelsespost.",
+            sources = personskat_sl6dh_kilder
+        )
+        udgifter: List(Statsskattelov6DobbeltHusførelseUdgift)
+    )
+@ field(
+    label = "Toårsgrænsen",
+    question = "Gælder den almindelige toårsgrænse, eller foreligger dokumenterede særlige omstændigheder?",
+    help = "Fradrag gives normalt ikke ud over to år. En undtagelse kræver særlige omstændigheder og en konkret kilde.",
+    sources = personskat_sl6dh_kilder
+)
+# Statsskattelov6DobbeltHusførelseToårsgrænse =
+    Sl6DhAlmindeligToårsgrænse |
+    Sl6DhSærligeOmstændighederUdOverToÅr(
+        @ field(
+            label = "Kilde til undtagelse fra toårsgrænsen",
+            question = "Hvilken afgørelse dokumenterer de særlige omstændigheder?",
+            help = "Brug en stabil reference til den konkrete myndighedsvurdering.",
+            sources = personskat_sl6dh_kilder
+        )
+        kildeidentifikation: Tekst
+    )
+# Statsskattelov6DobbeltHusførelseOphold(
+    @ field(
+        label = "Periodens identifikation",
+        question = "Hvilken entydig identifikation har perioden?",
+        help = "Brug en stabil reference, så samme periode ikke medregnes to gange.",
+        sources = personskat_sl6dh_kilder
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Arbejdsstedets identifikation ved dobbelt husførelse",
+        question = "Hvilket arbejdssted gjorde den ekstra bolig nødvendig?",
+        help = "Brug en stabil reference til arbejdsstedet eller opgaven.",
+        sources = personskat_sl6dh_kilder
+    )
+    arbejdssted_identifikation: Tekst,
+    oprindelig_startdato: Dato,
+    fradragsperiode_fra_dato: Dato,
+    fradragsperiode_til_dato: Dato,
+    erhvervsårsag: Statsskattelov6DobbeltHusførelseErhvervsårsag,
+    midlertidighed: Statsskattelov6DobbeltHusførelseMidlertidighed,
+    daglig_transport: Statsskattelov6DobbeltHusførelseDagligTransport,
+    hjemmebolig: Statsskattelov6DobbeltHusførelseHjemmebolig,
+    @ field(
+        label = "Ferie og lignende ophold i hjemlandet",
+        question = "Hvilke ferieophold eller lignende ophold i hjemlandet ligger i fradragsperioden?",
+        help = "Opret én række pr. ophold. Et ophold over to kalendermåneder afbryder fradraget for sit eget datospand.",
+        sources = personskat_sl6dh_kilder
+    )
+    hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold),
+    @ field(
+        label = "Boligform ved arbejdsstedet",
+        question = "Bor personen på pensionat, privat eller under tilsvarende forhold ved arbejdsstedet?",
+        help = "Standardsatsen på 400 kr. pr. uge kræver pensionat, privat indkvartering eller tilsvarende forhold.",
+        sources = personskat_sl6dh_kilder
+    )
+    arbejdsboligform: Statsskattelov6DobbeltHusførelseArbejdsboligform,
+    @ field(
+        label = "Merudgifter ved dobbelt husførelse",
+        question = "Har personen selv haft merudgifter til kost eller bolig i perioden?",
+        help = "Fradraget kræver reelle merudgifter; almindeligt privatforbrug er ikke nok.",
+        sources = personskat_sl6dh_kilder
+    )
+    merudgiftsforhold: Statsskattelov6DobbeltHusførelseMerudgiftsforhold,
+    @ field(
+        label = "Arbejdsgiverens dækning i perioden",
+        question = "Har arbejdsgiveren stillet kost eller logi til rådighed, udbetalt skattefri godtgørelse eller dækket udgifter efter regning?",
+        help = "Sådan dækning afskærer fradrag for dobbelt husførelse for samme periode.",
+        sources = personskat_sl6dh_kilder
+    )
+    arbejdsgiverdækning: Statsskattelov6DobbeltHusførelseArbejdsgiverdækning,
+    opgørelsesmetode: Statsskattelov6DobbeltHusførelseOpgørelsesmetode,
+    toårsgrænse: Statsskattelov6DobbeltHusførelseToårsgrænse
+)
+# Statsskattelov6DobbeltHusførelseÅrsinput(
+    personkreds: Statsskattelov6DobbeltHusførelsePersonkreds,
+    @ field(
+        label = "Perioder med dobbelt husførelse",
+        question = "Hvilke sammenhængende perioder med uændrede forhold skal vurderes?",
+        help = "Opret en ny række, når arbejdsforhold, dækning eller opgørelsesmetode ændres. Perioder må ikke overlappe.",
+        sources = personskat_sl6dh_kilder
+    )
+    ophold: List(Statsskattelov6DobbeltHusførelseOphold)
+)
 # Statsskattelov6DobbeltHusførelseAndenDækning(kildeidentifikation: Tekst, fra_dato: Dato, til_dato: Dato)
 # Statsskattelov6DobbeltHusførelseOpholdsresultat(fakta: Statsskattelov6DobbeltHusførelseOphold, input_gyldigt: Boolsk, personkreds_omfattet: Boolsk, erhvervsmæssig_årsag: Boolsk, arbejde_midlertidigt: Boolsk, daglig_transport_ikke_rimelig: Boolsk, familiebolig_opretholdt: Boolsk, udenlandsk_familiekonfiguration_berettiget: Boolsk, merudgifter_afholdt: Boolsk, arbejdsgiverdækning_udelukker: Boolsk, toårsgrænse_overholdt: Boolsk, samme_ophold_har_anden_dækning: Boolsk, antal_dage_i_fradragsperioden: Heltal, antal_afbrudte_dage: Heltal, antal_fradragsberettigede_dage: Heltal, antal_standarduger: Heltal, fradragsbetingelser_opfyldt: Boolsk, fradrag_før_fælles_årsloft_kroner: Heltal)
 # Statsskattelov6DobbeltHusførelseÅrsresultat(indkomstår: Heltal, input: Statsskattelov6DobbeltHusførelseÅrsinput, erhvervsstatus: Statsskattelov6DobbeltHusførelseErhvervsstatus, opholdsresultater: List(Statsskattelov6DobbeltHusførelseOpholdsresultat), identifikationer_entydige: Boolsk, perioder_ikke_overlappende: Boolsk, alle_input_gyldige: Boolsk, samlet_fradrag_før_fælles_årsloft_kroner: Heltal)

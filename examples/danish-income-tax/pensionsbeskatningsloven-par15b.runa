@@ -7,15 +7,6 @@
 @ importer ./pensionsbeskatningsloven-par20
 @ importer ./pensionsbeskatningsloven-par29
 
-# Pbl15BKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
-
-= pensionsbeskatningsloven_lbk1243_par15b = Pbl15BKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
-    identifier = "Pensionsbeskatningsloven § 15 B",
-    hentet_dato = "2026-07-23",
-    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 15 B er uændret"
-)
-
 = skatteministeriet_pbl15b_satser_2010_til_2017 = Pbl15BKildeInfo(
     url = "https://skm.dk/tal-og-metode/satser/tidsserier/centrale-beloebsgraenser-i-skattelovgivningen-2010-2017",
     identifier = "Centrale beløbsgrænser i skattelovgivningen 2010-2017",
@@ -35,13 +26,6 @@
     identifier = "Pensionsbeskatningsloven, satser og beløbsgrænser 2025-2026",
     hentet_dato = "2026-07-23",
     ændringsstatus = "Officielle 2025- og 2026-satser for PBL § 15 B"
-)
-
-= skatteforvaltningen_pbl15b_udbetalinger = Pbl15BKildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=2048292",
-    identifier = "Den juridiske vejledning C.A.10.2.2.3.6.3",
-    hentet_dato = "2026-07-24",
-    ændringsstatus = "Gældende vejledning: højst ti år, 2026-loft 469.200 kr., § 20-indkomst og 60 pct. § 29-afgift af overskridelsen"
 )
 
 # Pbl15BÅrsparameterKilde = Pbl15BSatser2010Til2017 | Pbl15BSatser2018Til2024 | Pbl15BSatser2025Til2026 | Pbl15BIngenKildedækning
@@ -170,14 +154,267 @@ Stk. 6. Fradrag for præmier og bidrag til pensionsordninger omfattet af stk. 1-
 @ section pensionsbeskatningsloven_par15b {
 
 # Pbl15BIndkomstkilde = Pbl15BIndkomstFraEgenSportsudøvelse | Pbl15BAndenIndkomst
-# Pbl15BIndkomstpost(identifikation: Tekst, erhvervelsesår: Heltal, beløb_kroner: Heltal, kilde: Pbl15BIndkomstkilde)
+= personskat_kilder_43 = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par15b),
+    RateSource(value = skatteministeriet_pbl15b_satser_2010_til_2017),
+    RateSource(value = skatteministeriet_pbl15b_satser_2018_til_2024),
+    RateSource(value = skatteministeriet_pbl15b_satser_2025_til_2026)
+]
+# Pbl15BIndkomstpost(
+    @ field(
+        label = "Indkomstpost for sportspension",
+        question = "Hvilken entydig identifikation skal denne indkomstpost have?",
+        help = "Brug en stabil identifikation, så indkomsten og dens behandling kan spores særskilt.",
+        sources = personskat_kilder_43
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "År for retserhvervelse af indkomsten",
+        question = "I hvilket indkomstår fik personen ret til denne indkomst?",
+        help = "§ 15 B-fradraget kan kun bygge på sportsindkomst, som personen fik ret til i samme indkomstår som fradraget.",
+        unit = "år",
+        sources = personskat_kilder_43
+    )
+    erhvervelsesår: Heltal,
+    beløb_kroner: Heltal,
+    kilde: Pbl15BIndkomstkilde
+)
 # Pbl15BOrdningsart = Pbl15BRateforsikring | Pbl15BRateopsparing
-# Pbl15BUdbetalingsplan = Pbl15BIngenTidligUdbetalingsplan | Pbl15BRateforsikringsplan(startår: Heltal, aftalte_rateår: Heltal, ordningsværdi_ved_start_kroner: Heltal, aftalt_forsikringssum_kroner: Heltal) | Pbl15BRateopsparingsplan(startår: Heltal, aftalte_rateår: Heltal, ordningsværdi_ved_start_kroner: Heltal, valgt_udbetalingsgrundlag_kroner: Heltal, metode: Pbl11AUdbetalingsmetode)
+= personskat_kilder_44 = [Source(value = pensionsbeskatningsloven_lbk1243_par15b)]
+@ field(
+    label = "Plan for tidlig udbetaling fra sportspensionen",
+    question = "Er der ingen tidlig udbetalingsplan, en rateforsikringsplan eller en rateopsparingsplan?",
+    help = "Oplys den faktiske plan. Futuruna udleder selv, om forløbet er påbegyndt, aktivt eller afsluttet, og hvornår nye indbetalinger igen er tilladt.",
+    sources = personskat_kilder_44
+)
+# Pbl15BUdbetalingsplan =
+    Pbl15BIngenTidligUdbetalingsplan |
+    Pbl15BRateforsikringsplan(
+        @ field(
+            label = "Første år i rateforsikringsplanen",
+            question = "I hvilket indkomstår skal den tidlige udbetaling fra rateforsikringen begynde?",
+            help = "Futuruna udleder sidste planlagte rateår ud fra startåret og antallet af rateår.",
+            unit = "år",
+            sources = personskat_kilder_44
+        )
+        startår: Heltal,
+        @ field(
+            label = "Antal år i rateforsikringsplanen",
+            question = "Over hvor mange år skal rateforsikringen udbetales?",
+            help = "Det særlige udbetalingsforløb efter § 15 B må højst vare ti år.",
+            unit = "år",
+            sources = personskat_kilder_44
+        )
+        aftalte_rateår: Heltal,
+        @ field(
+            label = "Rateforsikringens værdi ved planstart",
+            question = "Hvad var rateforsikringens samlede værdi, da den tidlige udbetalingsplan begyndte?",
+            help = "Værdien bruges til at spore den del, der ikke indgår i den aftalte forsikringssum og derfor følger de ordinære § 8-regler.",
+            unit = "kr.",
+            sources = personskat_kilder_44
+        )
+        ordningsværdi_ved_start_kroner: Heltal,
+        @ field(
+            label = "Aftalt forsikringssum til tidlige rater",
+            question = "Hvor stor en forsikringssum er aftalt udbetalt som tidlige rater?",
+            help = "Futuruna kontrollerer, at planens rater tilsammen svarer til den aftalte forsikringssum.",
+            unit = "kr.",
+            sources = personskat_kilder_44
+        )
+        aftalt_forsikringssum_kroner: Heltal
+    ) |
+    Pbl15BRateopsparingsplan(
+        @ field(
+            label = "Første år i rateopsparingsplanen",
+            question = "I hvilket indkomstår skal den tidlige udbetaling fra rateopsparingen begynde?",
+            help = "Futuruna udleder sidste planlagte rateår ud fra startåret og antallet af rateår.",
+            unit = "år",
+            sources = personskat_kilder_44
+        )
+        startår: Heltal,
+        @ field(
+            label = "Antal år i rateopsparingsplanen",
+            question = "Over hvor mange år skal rateopsparingen udbetales?",
+            help = "Det særlige udbetalingsforløb efter § 15 B må højst vare ti år.",
+            unit = "år",
+            sources = personskat_kilder_44
+        )
+        aftalte_rateår: Heltal,
+        @ field(
+            label = "Rateopsparingens værdi ved planstart",
+            question = "Hvad var rateopsparingens samlede værdi, da den tidlige udbetalingsplan begyndte?",
+            help = "Futuruna bruger værdien til at kontrollere det valgte udbetalingsgrundlag og den resterende ordinære opsparing.",
+            unit = "kr.",
+            sources = personskat_kilder_44
+        )
+        ordningsværdi_ved_start_kroner: Heltal,
+        @ field(
+            label = "Valgt grundlag for tidlige rater",
+            question = "Hvor stor en del af rateopsparingens værdi er valgt som grundlag for de tidlige rater?",
+            help = "Den resterende værdi behandles efter de ordinære regler i PBL § 11 A.",
+            unit = "kr.",
+            sources = personskat_kilder_44
+        )
+        valgt_udbetalingsgrundlag_kroner: Heltal,
+        @ field(
+            label = "Metode for beregning af rateopsparingsrater",
+            question = "Skal raterne beregnes ved division af årets begyndelsesværdi eller som en annuitet med amortisationsrente?",
+            help = "Metoden bestemmer, hvilke årlige beregningsfakta Futuruna kræver og validerer.",
+            sources = personskat_kilder_44
+        )
+        metode: Pbl11AUdbetalingsmetode
+    )
+= personskat_kilder_45 = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par15b),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par11a_stk2_og_3),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par20),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par29_par36),
+    Guidance(value = skatteforvaltningen_pbl15b_udbetalinger)
+]
+@ field(
+    label = "Beregningsgrundlag for den tidlige rate",
+    question = "Følger raten forsikringsaftalen, årets begyndelsesværdi eller annuitetsmetoden?",
+    help = "Valget skal stemme med ordningens art og den beregningsmetode, der er fastlagt i planen.",
+    sources = personskat_kilder_45
+)
 # Pbl15BRateberegningsfakta = Pbl15BForsikringsrateEfterAftale | Pbl15BRateopsparingEfterPar11A(fakta: Pbl11ARateberegningsfakta)
-# Pbl15BRateudbetaling(identifikation: Tekst, ordning_identifikation: Tekst, indkomstår: Heltal, udbetalt_kroner: Heltal, beregningsfakta: Pbl15BRateberegningsfakta)
-# Pbl15BOrdningsfakta(identifikation: Tekst, oprettelsesår: Heltal, art: Pbl15BOrdningsart, fødselsår: Heltal, påtegnet_som_sportspension: Boolsk, udbetalingsplan: Pbl15BUdbetalingsplan)
-# Pbl15BHistoriskIndbetaling(identifikation: Tekst, indbetalingsår: Heltal, ordning_identifikation: Tekst, beløb_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal)
-# Pbl15BÅrsgrundlag(indkomstposter: List(Pbl15BIndkomstpost), ordninger: List(Pbl15BOrdningsfakta), tidligere_indbetalinger: List(Pbl15BHistoriskIndbetaling), rateudbetalinger: List(Pbl15BRateudbetaling))
+# Pbl15BRateudbetaling(
+    @ field(
+        label = "Den tidlige rates identifikation",
+        question = "Hvilken entydig identifikation har denne rateudbetaling?",
+        help = "Identifikationen bruges til at afvise dubletter og bevare et entydigt auditspor.",
+        sources = personskat_kilder_45
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Sportspension for den tidlige rate",
+        question = "Fra hvilken sportspensionsordning udbetales raten?",
+        help = "Identifikationen skal svare til den oplyste § 15 B-ordning.",
+        sources = personskat_kilder_45
+    )
+    ordning_identifikation: Tekst,
+    @ field(
+        label = "Indkomstår for den tidlige rate",
+        question = "I hvilket indkomstår udbetales raten?",
+        help = "Året bruges til at placere raten i planen og hente det regulerede årlige loft.",
+        unit = "år",
+        sources = personskat_kilder_45
+    )
+    indkomstår: Heltal,
+    @ field(
+        label = "Udbetalt tidlig rate",
+        question = "Hvor stort et beløb udbetales i denne rate?",
+        help = "Beløbet behandles efter § 20 inden for årets loft; en overskridelse behandles efter § 29 og § 36.",
+        unit = "kr.",
+        sources = personskat_kilder_45
+    )
+    udbetalt_kroner: Heltal,
+    beregningsfakta: Pbl15BRateberegningsfakta
+)
+# Pbl15BOrdningsfakta(
+    @ field(
+        label = "Sportspensionsordningens identifikation",
+        question = "Hvilken entydig identifikation har sportspensionsordningen?",
+        help = "Brug samme identifikation på årets og tidligere indbetalinger til ordningen.",
+        sources = personskat_kilder_44
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Sportspensionens oprettelsesår",
+        question = "I hvilket indkomstår blev sportspensionsordningen oprettet?",
+        help = "Oprettelsesåret skal ligge senest i det aktuelle indkomstår.",
+        unit = "år",
+        sources = personskat_kilder_44
+    )
+    oprettelsesår: Heltal,
+    @ field(
+        label = "Sportspensionens art",
+        question = "Er sportspensionen en rateforsikring eller en rateopsparing?",
+        help = "Ordningens art skal svare til den art, der er valgt på den konkrete pensionsindbetaling.",
+        sources = personskat_kilder_44
+    )
+    art: Pbl15BOrdningsart,
+    @ field(
+        label = "Sportspensionsindehaverens fødselsår",
+        question = "I hvilket år blev den forsikrede eller kontohaveren født?",
+        help = "Futuruna udleder personens alder i hvert indkomstår og tidspunktet, hvor § 15 B-påtegningen skal slettes.",
+        unit = "år",
+        sources = personskat_kilder_44
+    )
+    fødselsår: Heltal,
+    @ field(
+        label = "Påtegnet som sportspension",
+        question = "Er policen eller opsparingskontrakten påtegnet som en ordning efter PBL § 15 B?",
+        help = "Påtegningen er et lovkrav ved oprettelsen og skal være aktiv i det år, hvor den særlige indbetaling foretages.",
+        sources = personskat_kilder_44
+    )
+    påtegnet_som_sportspension: Boolsk,
+    udbetalingsplan: Pbl15BUdbetalingsplan
+)
+# Pbl15BHistoriskIndbetaling(
+    @ field(
+        label = "Tidligere sportspensionsindbetaling",
+        question = "Hvilken entydig identifikation har den tidligere indbetaling?",
+        help = "Identifikationen skal være forskellig fra andre historiske indbetalinger.",
+        sources = personskat_kilder_43
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "År for tidligere sportspensionsindbetaling",
+        question = "I hvilket indkomstår blev den tidligere indbetaling foretaget?",
+        help = "Året skal ligge før det aktuelle beregningsår.",
+        unit = "år",
+        sources = personskat_kilder_43
+    )
+    indbetalingsår: Heltal,
+    @ field(
+        label = "Sportspension for tidligere indbetaling",
+        question = "Hvilken sportspensionsordning modtog den tidligere indbetaling?",
+        help = "Identifikationen skal svare til den oplyste sportspensionsordning.",
+        sources = personskat_kilder_43
+    )
+    ordning_identifikation: Tekst,
+    @ field(
+        label = "Tidligere indbetalt beløb på sportspension",
+        question = "Hvor stort et bruttobeløb blev tidligere indbetalt på sportspensionen?",
+        help = "Angiv beløbet inklusive et eventuelt arbejdsmarkedsbidrag, som oplyses særskilt.",
+        unit = "kr.",
+        sources = personskat_kilder_43
+    )
+    beløb_kroner: Heltal,
+    @ field(
+        label = "Arbejdsmarkedsbidrag i tidligere indbetaling",
+        question = "Hvor meget af den tidligere indbetaling udgjorde arbejdsmarkedsbidrag?",
+        help = "PBL § 15 B, stk. 3, kræver, at arbejdsmarkedsbidrag holdes uden for summen af indbetalinger.",
+        unit = "kr.",
+        sources = personskat_kilder_43
+    )
+    arbejdsmarkedsbidrag_kroner: Heltal
+)
+# Pbl15BÅrsgrundlag(
+    indkomstposter: List(Pbl15BIndkomstpost),
+    @ field(
+        label = "Sportspensionsordning",
+        question = "Hvilken pensionsordning skal behandles som sportspension efter PBL § 15 B?",
+        help = "Fradraget kan højst omfatte én police eller konto pr. person. Oplys ordningens faktiske forhold, ikke en konklusion om fradragsretten.",
+        sources = personskat_kilder_44
+    )
+    ordninger: List(Pbl15BOrdningsfakta),
+    @ field(
+        label = "Tidligere indbetalinger på sportspension",
+        question = "Hvilke indbetalinger er tidligere foretaget på sportspensionsordningen?",
+        help = "Historikken bruges til at udlede den resterende regulerede livstidsgrænse. Futuruna ser bort fra arbejdsmarkedsbidrag i summen.",
+        sources = personskat_kilder_43
+    )
+    tidligere_indbetalinger: List(Pbl15BHistoriskIndbetaling),
+    @ field(
+        label = "Tidlige rater fra sportspensionen",
+        question = "Hvilke tidlige rater er eller skal udbetales fra sportspensionen?",
+        help = "Oplys hele det påbegyndte forløb. Futuruna kontrollerer rækkefølge, plan, beregningsmetode, årligt loft og eventuel § 29-afgift.",
+        sources = personskat_kilder_45
+    )
+    rateudbetalinger: List(Pbl15BRateudbetaling)
+)
 # Pbl15BIndbetalingskilde = Pbl15BEgenIndbetaling | Pbl15BArbejdsgiverindbetaling | Pbl15BAndenIndbetalingskilde
 # Pbl15BÅrsindbetaling(identifikation: Tekst, ordning_identifikation: Tekst, art: Pbl15BOrdningsart, kilde: Pbl15BIndbetalingskilde, indbetalingsår: Heltal, beløb_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal)
 # Pbl15BÅrsberegningsinput(indkomstår: Heltal, grundlag: Pbl15BÅrsgrundlag, indbetalinger: List(Pbl15BÅrsindbetaling))

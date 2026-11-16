@@ -4,6 +4,7 @@
 @ importer ./pengebeloeb
 @ importer ./ejendomsavancebeskatningsloven-par5-par5a
 @ importer ./ejendomsavancebeskatningsloven-genanbringelse
+@ importer ./delte-kilder
 
 # EblPar6DKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 
@@ -136,7 +137,73 @@ Tilsvarende sker der ikke fremrykket beskatning, når ejendommen i de anførte t
 # EblPar6DFuldSkattepligtshjemmel = EblPar6DKildeskattelovensPar1 | EblPar6DSelskabsskattelovensPar1 | EblPar6DFondsbeskatningslovensPar1 | EblPar6DIkkeFuldtSkattepligtig
 # EblPar6DEjendomsplacering = EblPar6DEjendomIDanmark | EblPar6DEjendomIUdenlandskOmråde(område: EblPar6DUdenlandskOmråde, fuld_skattepligtshjemmel: EblPar6DFuldSkattepligtshjemmel, hjemmehørende_i_udlandet_efter_dobbeltbeskatningsoverenskomst: Boolsk, informationsudveksling_med_danmark: Boolsk)
 # EblPar6DÆgtefællesuccession = EblPar6DIngenÆgtefællesuccession | EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B(modtagers_fordringsdel_identifikation: Tekst, modtagers_skatteyder_identifikation: Tekst, overdrager_hjemmehørende_i_danmark: Boolsk, modtager_hjemmehørende_i_danmark: Boolsk) | EblPar6DÆgtefælleMedSuccessionVedBodelingEfterSeparationEllerSkilsmisse(modtagers_fordringsdel_identifikation: Tekst, modtagers_skatteyder_identifikation: Tekst, overdrager_hjemmehørende_i_danmark: Boolsk, modtager_hjemmehørende_i_danmark: Boolsk)
-# EblPar6DDødsbooverdragelse = EblPar6DBoetOvertagerPantebrevet(boets_fordringsdel_identifikation: Tekst, boets_skatteyder_identifikation: Tekst) | EblPar6DEfterlevendeÆgtefælleOvertagerIUskiftetBo(modtagers_fordringsdel_identifikation: Tekst, modtagers_skatteyder_identifikation: Tekst) | EblPar6DUdlodningTilEfterlevendeÆgtefælle(boets_fordringsdel_identifikation: Tekst, boets_skatteyder_identifikation: Tekst, modtagers_fordringsdel_identifikation: Tekst, modtagers_skatteyder_identifikation: Tekst, bo_ikke_fritaget_for_beskatning_efter_par6: Boolsk, bo_har_valgt_salgsbeskatning_efter_par28_stk3: Boolsk, modtager_hjemmehørende_i_danmark: Boolsk, fordringen_kan_fortsat_beskattes_i_danmark: Boolsk, fordringens_værdi_i_boopgørelsen_kroner: Heltal)
+= personskat_kilder_17 = [
+    Source(value = ebl_par6d_lov1578),
+    PreparatorySource(value = ebl_par6d_lovforslag36),
+    DependencySource(value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
+    DependencySource(value = kgl_sælgerpantebrev_dødsboskattelov_lbk426)
+]
+# EblPar6DDødsbooverdragelse =
+    EblPar6DBoetOvertagerPantebrevet(
+        @ field(
+            label = "Dødsboets fordringsdel",
+            question = "Hvilken ny og entydig identifikation skal pantebrevsdelen have i dødsboet?",
+            sources = personskat_kilder_17
+        )
+        boets_fordringsdel_identifikation: Tekst,
+        @ field(
+            label = "Dødsboets identifikation",
+            question = "Hvilken entydig identifikation har dødsboet, som overtog sælgerpantebrevet?",
+            sources = personskat_kilder_17
+        )
+        boets_skatteyder_identifikation: Tekst
+    ) |
+    EblPar6DEfterlevendeÆgtefælleOvertagerIUskiftetBo(modtagers_fordringsdel_identifikation: Tekst, modtagers_skatteyder_identifikation: Tekst) |
+    EblPar6DUdlodningTilEfterlevendeÆgtefælle(
+        @ field(
+            label = "Fordringsdel i dødsboet",
+            question = "Hvilken entydig identifikation havde pantebrevsdelen, mens den lå i dødsboet?",
+            sources = personskat_kilder_17
+        )
+        boets_fordringsdel_identifikation: Tekst,
+        @ field(
+            label = "Udloddende dødsbo",
+            question = "Hvilken entydig identifikation har dødsboet, som udloddede pantebrevet?",
+            sources = personskat_kilder_17
+        )
+        boets_skatteyder_identifikation: Tekst,
+        modtagers_fordringsdel_identifikation: Tekst,
+        modtagers_skatteyder_identifikation: Tekst,
+        @ field(
+            label = "Dødsboet er ikke skattefritaget",
+            question = "Var dødsboet omfattet af beskatning og dermed ikke fritaget efter dødsboskattelovens § 6?",
+            help = "Succession efter dødsboskattelovens § 36 forudsætter et bo, der ikke er fritaget for beskatning.",
+            sources = personskat_kilder_17
+        )
+        bo_ikke_fritaget_for_beskatning_efter_par6: Boolsk,
+        @ field(
+            label = "Boet valgte salgsbeskatning",
+            question = "Valgte dødsboet at blive beskattet som ved salg efter dødsboskattelovens § 28, stk. 3?",
+            help = "Et sådant valg afskærer succession og udløser i stedet realisation i boet.",
+            sources = personskat_kilder_17
+        )
+        bo_har_valgt_salgsbeskatning_efter_par28_stk3: Boolsk,
+        modtager_hjemmehørende_i_danmark: Boolsk,
+        @ field(
+            label = "Fordringen forbliver under dansk beskatning",
+            question = "Kan Danmark fortsat beskatte fordringen efter udlodningen?",
+            help = "Oplysningen er afgørende efter dødsboskattelovens § 38, hvis modtageren ikke er hjemmehørende i Danmark.",
+            sources = personskat_kilder_17
+        )
+        fordringen_kan_fortsat_beskattes_i_danmark: Boolsk,
+        @ field(
+            label = "Pantebrevets værdi i boopgørelsen",
+            question = "Til hvilken værdi blev sælgerpantebrevet medtaget i boopgørelsen?",
+            unit = "kr.",
+            sources = personskat_kilder_17
+        )
+        fordringens_værdi_i_boopgørelsen_kroner: Heltal
+    )
 # EblPar6DHenstandsskatteyder = EblPar6DHenstandForPerson | EblPar6DHenstandForSelskab
 # EblPar6DHjemstedsområde = EblPar6DHjemstedIEU | EblPar6DHjemstedIEØS | EblPar6DHjemstedPåFærøerne | EblPar6DHjemstedIGrønland | EblPar6DHjemstedIAndetLand
 # EblPar6DHenstandsoplysninger = EblPar6DOplysningerRettidige | EblPar6DOplysningerForSeneMenFristoverskridelseTilsidesat | EblPar6DOplysningerForSeneUdenTilsidesættelse
@@ -149,7 +216,30 @@ Tilsvarende sker der ikke fremrykket beskatning, når ejendommen i de anførte t
 # EblPar6DHenstandsresultat(henstand_valgt: Boolsk, henstandsbetingelser_opfyldt: Boolsk, input_gyldigt: Boolsk, beregnet_skat_af_fremrykket_fortjeneste_kroner: Heltal, skat_forfalder_ved_skattepligtsophør_kroner: Heltal, årsresultater: List(EblPar6DHenstandsårsresultat), tilstand_ultimo: EblPar6DHenstandstilstand)
 # EblPar6DSkattepligtsophørFakta(skatteyder: EblPar6DHenstandsskatteyder, nyt_hjemstedsområde: EblPar6DHjemstedsområde, informationsudveksling_med_danmark: Boolsk, beregnet_skat_af_fremrykket_fortjeneste_kroner: Heltal, henstandsvalg: EblPar6DHenstandsvalg)
 # EblPar6DPantebrevshændelsesart = EblPar6DPantebrevAfstået | EblPar6DPantebrevIndfriet
-# EblPar6DHændelse = EblPar6DIngenFremrykningshændelse | EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt_dels_handelsværdi_kroner: Heltal, hele_ejendommens_handelsværdi_kroner: Heltal, succession: EblPar6DÆgtefællesuccession) | EblPar6DPantebrevAfståetEllerIndfriet(berørt_fordringsdel_identifikation: Tekst, art: EblPar6DPantebrevshændelsesart, berørt_restgæld_kroner: Heltal, afståelses_eller_indfrielsesprovenu_kroner: Heltal, succession: EblPar6DÆgtefællesuccession) | EblPar6DSælgerDød(berørt_fordringsdel_identifikation: Tekst, berørt_restgæld_kroner: Heltal, overdragelse: EblPar6DDødsbooverdragelse) | EblPar6DSkattepligtOphørt(fakta: EblPar6DSkattepligtsophørFakta) | EblPar6DFlyttetTilLandUdenInddrivelsesbistand(sikkerhed: EblPar6DSikkerhed) | EblPar6DFlyttetTilLandMedInddrivelsesbistand(frigivelse_af_sikkerhed_anmodet: Boolsk) | EblPar6DIkkeUnderstøttetHændelse(beskrivelse: Tekst)
+# EblPar6DHændelse =
+    EblPar6DIngenFremrykningshændelse |
+    EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt_dels_handelsværdi_kroner: Heltal, hele_ejendommens_handelsværdi_kroner: Heltal, succession: EblPar6DÆgtefællesuccession) |
+    EblPar6DPantebrevAfståetEllerIndfriet(berørt_fordringsdel_identifikation: Tekst, art: EblPar6DPantebrevshændelsesart, berørt_restgæld_kroner: Heltal, afståelses_eller_indfrielsesprovenu_kroner: Heltal, succession: EblPar6DÆgtefællesuccession) |
+    EblPar6DSælgerDød(
+        @ field(
+            label = "Afdødes fordringsdel",
+            question = "Hvilken entydigt navngivet del af sælgerpantebrevet tilhørte afdøde ved dødsfaldet?",
+            sources = personskat_kilder_17
+        )
+        berørt_fordringsdel_identifikation: Tekst,
+        @ field(
+            label = "Hovedstol ved dødsfaldet",
+            question = "Hvor stor var hovedstolen på afdødes berørte fordringsdel?",
+            unit = "kr.",
+            sources = personskat_kilder_17
+        )
+        berørt_restgæld_kroner: Heltal,
+        overdragelse: EblPar6DDødsbooverdragelse
+    ) |
+    EblPar6DSkattepligtOphørt(fakta: EblPar6DSkattepligtsophørFakta) |
+    EblPar6DFlyttetTilLandUdenInddrivelsesbistand(sikkerhed: EblPar6DSikkerhed) |
+    EblPar6DFlyttetTilLandMedInddrivelsesbistand(frigivelse_af_sikkerhed_anmodet: Boolsk) |
+    EblPar6DIkkeUnderstøttetHændelse(beskrivelse: Tekst)
 # EblPar6DÅrsforløbspost = EblPar6DOrdinærtHovedstolsafdrag(fordringsdel_identifikation: Tekst, betalt_kroner: Heltal) | EblPar6DFremrykningshændelse(hændelse: EblPar6DHændelse) | EblPar6DUafklaretBetalingstidspunkt(betalt_kroner: Heltal, beskrivelse: Tekst)
 # EblPar6DÅrsforhold(indkomstår: Heltal, forløbsposter: List(EblPar6DÅrsforløbspost))
 # EblPar6DValgfakta(valgt_udskudt_fortjeneste_kroner: Heltal, årligt_beløb_kroner: Heltal, fordelingsår: Heltal, erhververen_erhvervede_ejendommen_som_led_i_næring: Boolsk, partrelation: EblPar6DPartrelationFakta, overdragerens_anvendelse: EblPar6DErhvervsanvendelse, erhververens_anvendelse_ved_overdragelsen: EblPar6DErhvervsanvendelse, sælgerpantebrev: EblPar6DSælgerpantebrev, meddelelse: EblPar6DValgmeddelelse, sælgers_skatteforhold: EblPar6DSælgerskatteforhold, ejendomsplacering: EblPar6DEjendomsplacering, afståelsesårets_hændelse: EblPar6DHændelse, efterfølgende_årsforhold: List(EblPar6DÅrsforhold))

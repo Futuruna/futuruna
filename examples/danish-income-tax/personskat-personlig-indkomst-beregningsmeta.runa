@@ -3,298 +3,51 @@
 @ importer ./metadata
 @ importer ./personskat-personlig-indkomst-kildefakta
 
-= personskat_personlig_indkomst_felt_arbejdsgiverydelse_id = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::identifikation),
-    label = "Ydelsens identifikation",
-    question = Some("Hvilken entydig identifikation skal denne arbejdsgiverbetalte ydelse have?"),
-    help = Some("Brug en stabil betalingsidentifikation fra lønsedlen, eIndkomst eller pensionsoversigten. En pensionsbetaling må kun stå én gang på tværs af denne liste og pension.pbl18_indbetalinger; omdøb ikke en dublet for at få den accepteret."),
-    unit = None
-)
-= personskat_personlig_indkomst_felt_arbejdsgiverydelse_år = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::indkomstår),
-    label = "Ydelsens indkomstår",
-    question = Some("Hvilket indkomstår vedrører ydelsen?"),
-    help = Some("Indkomståret skal være det samme som skatteåret i Personskat-beregningen."),
-    unit = Some("år")
-)
-= personskat_personlig_indkomst_felt_arbejdsgiverydelse_art = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::$variant),
-    label = "Arbejdsgiverbetalt ydelse",
-    question = Some("Hvilken retlig type arbejdsgiverbetalt ydelse fremgår af kildematerialet?"),
-    help = Some("Vælg den præcise retlige type, når kilden dokumenterer den. GruppelivSomUadskiltDelAfPbl19Ordning gælder løntræk med allerede indeholdt AM, fx eIndkomst felt 91; ikke gruppeliv finansieret af pensionsbonus i felt 38, indtægtsart 37. Brug kun den afgrænsede PBL § 19/PBL § 56-samlepost for de understøttede lønfinansierede, ikke-fradragsberettigede indskud. En rubrik 347-total kan også indeholde rateoverskud og må ikke ukritisk kopieres. Se personskat-gruppeliv.md."),
-    unit = None
-)
-= personskat_personlig_indkomst_felt_direkte_gruppeliv = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::DirekteArbejdsgiverbetaltGruppeliv::præmie_før_arbejdsmarkedsbidrag_kroner),
-    label = "Direkte arbejdsgiverbetalt gruppeliv før AM-bidrag",
-    question = Some("Hvor stor gruppelivspræmie betalte arbejdsgiveren direkte før arbejdsmarkedsbidrag?"),
-    help = Some("Denne type er A-indkomst og AM-bidragspligtig. Brug kun feltet, når kilden viser direkte betaling til gruppelivsforsikringen, og beløbet ikke allerede er med i lønfeltet. Ellers tælles samme løn og AM to gange."),
-    unit = Some("kr./år")
-)
-= personskat_personlig_indkomst_felt_pbl19_gruppeliv = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::GruppelivSomUadskiltDelAfPbl19Ordning::personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner),
-    label = "Gruppeliv i PBL § 19-ordning efter AM-bidrag",
-    question = Some("Hvor stor personlig indkomst er indberettet for gruppeliv, der er en uadskilt del af en arbejdsgiveradministreret pensionsordning?"),
-    help = Some("Brug den dokumenterede nettoværdi af lønfinansieret gruppeliv efter pensionsinstituttets AM, ikke hele pensionsindbetalingen eller en ukendt rubrik 347-fordeling. Beløbet er personlig indkomst uden nyt AM og giver ikke ekstra pensionsfradrag. Angiv også dokumenteret brutto til beskæftigelses- og jobfradrag. Præmien må ikke samtidig indgå i en anden pensionspost; pensionsbonus følger ikke denne løntræksgren. Se personskat-gruppeliv.md."),
-    unit = Some("kr./år")
-)
-= personskat_personlig_indkomst_felt_pbl19_gruppeliv_før_am = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::GruppelivSomUadskiltDelAfPbl19Ordning::præmie_før_indeholdt_arbejdsmarkedsbidrag_kroner),
-    label = "Lønfinansieret gruppeliv før allerede indeholdt AM-bidrag",
-    question = Some("Hvad er den dokumenterede gruppelivspræmie før pensionsinstituttets indeholdelse af AM?"),
-    help = Some("Brutto bruges kun i beskæftigelses- og jobfradragsgrundlaget, ikke til nyt AM eller ekstra pensionsfradrag. Bevar null ved ukendt brutto; Personskat tilbageholder da sammenligningsbeløbet. Udled ikke beløbet ved netto/0,92. Hvis en pensionsoversigt samler pension og forsikring, kræves en dokumenteret opdeling, så gruppeliv ikke tælles to gange. Se personskat-gruppeliv.md."),
-    unit = Some("kr./år")
-)
-= personskat_personlig_indkomst_felt_pbl19_pension_arbejdsgiverrelation = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretPensionEfterPbl19::fakta::arbejdsgiverrelation::$variant),
-    label = "Pensionsindbetalingens arbejdsgiverrelation",
-    question = Some("Blev pensionsindbetalingen foretaget af den nuværende arbejdsgiver, en tidligere arbejdsgiver eller en anden indbetaler?"),
-    help = Some("PBL § 19, stk. 1, omfatter indbetalinger fra en nuværende eller tidligere arbejdsgiver."),
-    unit = None
-)
-= personskat_personlig_indkomst_felt_pbl19_pension_ordning = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretPensionEfterPbl19::fakta::ordning::$variant),
-    label = "Den arbejdsgiveradministrerede pensionsordning",
-    question = Some("Hvilken pensionsordning blev arbejdsgiverens indbetaling ført til?"),
-    help = Some("Denne kildevej samordner almindelig ratepension og ophørende/livsvarig livrente med pension.pbl18_indbetalinger. Aldersopsparing, aldersforsikring og supplerende engangssum er skattepligtige § 19-undtagelser. Særlige ordninger, fx §§ 15, 15 A og 15 B, kræver detaljerede årsgrundlag og kan ikke afstemmes fra denne korte post alene."),
-    unit = None
-)
-= personskat_personlig_indkomst_felt_pbl19_pension_før_am = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretPensionEfterPbl19::fakta::indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner),
-    label = "Arbejdsgiveradministreret pension før indeholdt AM-bidrag",
-    question = Some("Hvilket bruttobeløb før pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag er indberettet?"),
-    help = Some("Bevar null, hvis bruttobeløbet er ukendt. Personskat kræver det dokumenterede beløb til beskæftigelses- og jobfradrag og giver ellers intet sammenligningsbeløb. Brug ikke netto/0,92 som erstatning; allerede indeholdt AM opkræves ikke igen."),
-    unit = Some("kr./år")
-)
-= personskat_personlig_indkomst_felt_pbl19_pension_efter_am = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretPensionEfterPbl19::fakta::indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner),
-    label = "Arbejdsgiveradministreret pension efter AM-bidrag",
-    question = Some("Hvor stor pensionsindbetaling er indberettet efter pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag?"),
-    help = Some("Brug pensionsudbyderens dokumenterede nettobidrag, ikke en afledt skatte- eller fradragspost. Almindelige ratebidrag samles med pensionslisten før årsloftet; overskud til rubrik 347 tilføjes automatisk uden nyt AM. Indtast ikke overskuddet igen som anden indkomst."),
-    unit = Some("kr./år")
-)
-= personskat_personlig_indkomst_felt_pbl19_pbl56_samlepost_før_am = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56::indberettet_beløb_før_indeholdt_arbejdsmarkedsbidrag_kroner),
-    label = "Pensions- og gruppelivssamlepost før indeholdt AM-bidrag",
-    question = Some("Hvilket samlet bruttobeløb før pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag fremgår af kilden?"),
-    help = Some("Kun dokumenteret lønfinansieret, ikke-fradragsberettiget aldersopsparing/gruppeliv mv., ikke almindelig bortseelsesberettiget pension, pensionsbonus eller rateoverskud beregnet fra pensionslisten. Brutto kræves til beskæftigelses- og jobfradrag. Bevar null ved ukendt; sammenligningen tilbageholdes. Brug ikke netto/0,92 eller samme beløb både her og i andre pensionsposter. Se personskat-gruppeliv.md."),
-    unit = Some("kr./år")
-)
-= personskat_personlig_indkomst_felt_pbl19_pbl56_samlepost_efter_am = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56::indberettet_beløb_efter_indeholdt_arbejdsmarkedsbidrag_kroner),
-    label = "Pensions- og gruppelivssamlepost efter indeholdt AM-bidrag",
-    question = Some("Hvilket samlet beløb efter pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag fremgår af kilden?"),
-    help = Some("Beløbet medregnes i personlig indkomst uden nyt AM eller ekstra pensionsfradrag. Angiv ikke en mere præcis pensionsart, end kilden dokumenterer. En samlet rubrik 347 er ikke tilstrækkelig, hvis den også omfatter fx rateoverskud, der allerede beregnes fra andre pensionsposter. Se personskat-gruppeliv.md."),
-    unit = Some("kr./år")
-)
-= personskat_personlig_indkomst_felt_pbl19_pension_kapitalstatus = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretPensionEfterPbl19::fakta::kapitalordningsstatus::$variant),
-    label = "Tidligere afgiftsberigtigelse af kapitalordning",
-    question = Some("Er kapitalforsikringen eller opsparingen tidligere afgiftsberigtiget efter pensionsalderen?"),
-    help = Some("Vælg ingen tidligere afgiftsberigtigelse for andre ordningstyper. Senere arbejdsgiverindbetalinger til en afgiftsberigtiget kapitalordning medregnes i indkomsten."),
-    unit = None
-)
-= personskat_personlig_indkomst_felt_pbl19_pension_afgiftsår = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretPensionEfterPbl19::fakta::kapitalordningsstatus::Pbl19AfgiftsberigtigetEfterPensionsalderen::afgiftsberigtigelsesår),
-    label = "Kapitalordningens afgiftsberigtigelsesår",
-    question = Some("I hvilket indkomstår blev kapitalordningen første gang afgiftsberigtiget efter pensionsalderen?"),
-    help = Some("Året bruges til at afgøre, om den aktuelle arbejdsgiverindbetaling ligger i et efterfølgende indkomstår."),
-    unit = Some("år")
-)
-= personskat_personlig_indkomst_felt_naturalie_art = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2::art),
-    label = "Naturaliets art",
-    question = Some("Hvilken naturalietype efter arbejdsmarkedsbidragslovens § 2, stk. 2 har arbejdsgiveren stillet til rådighed?"),
-    help = Some("Futuruna bruger den lovbestemte kategori til at afgøre, om den skattepligtige værdi indgår i AM-grundlaget."),
-    unit = None
-)
-= personskat_personlig_indkomst_felt_naturalie_værdi = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2::skattepligtig_værdi_kroner),
-    label = "Naturaliets skattepligtige værdi",
-    question = Some("Hvad er naturaliets skattepligtige værdi i indkomståret?"),
-    help = Some("Angiv den skattemæssigt opgjorte værdi, ikke arbejdsgiverens indkøbspris."),
-    unit = Some("kr./år")
-)
-= personskat_personlig_indkomst_felt_uklassificeret_ydelse_beskrivelse = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::UklassificeretArbejdsgiverbetaltYdelse::beskrivelse),
-    label = "Beskrivelse af uklassificeret ydelse",
-    question = Some("Hvordan beskriver kilden den ydelse, som endnu ikke kan klassificeres retligt?"),
-    help = Some("En uklassificeret ydelse beregnes ikke. Beskrivelsen gør det muligt at hente den manglende dokumentation uden at bruge et frit nettobeløb."),
-    unit = None
-)
-= personskat_personlig_indkomst_felt_uklassificeret_ydelse_beløb = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::UklassificeretArbejdsgiverbetaltYdelse::beløb_kroner),
-    label = "Uklassificeret arbejdsgiverydelse",
-    question = Some("Hvilket beløb står i kilden for den endnu uklassificerede ydelse?"),
-    help = Some("Beløbet bevares til dokumentation, men påvirker ikke beregningen, før ydelsens retlige art og AM-status er fastlagt."),
-    unit = Some("kr./år")
-)
-
-= personskat_personlig_indkomst_felt_arbejdsvederlag_samling = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag),
-    label = "Honorarer og andet personligt arbejdsvederlag",
-    question = Some("Hvilke særskilte vederlag for personligt arbejde fremgår af kilderne ud over den almindelige løn?"),
-    help = Some("Opret én række pr. særskilt vederlag uden for ansættelse og selvstændig virksomhed efter AMBL § 2, stk. 1, nr. 2. Beløbet må ikke også stå i bruttoløn, øvrig personlig indkomst eller virksomhedsindtægter. B-indkomst er ikke én retlig kategori, og en rubrik-total kan kræve opdeling. Se personskat-honorar.md."),
-    unit = None
-)
-= personskat_personlig_indkomst_felt_arbejdsvederlag_id = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag::identifikation),
-    label = "Arbejdsvederlagets identifikation",
-    question = Some("Hvilken entydig identifikation har vederlaget?"),
-    help = Some("Brug en stabil reference fra aftalen, bilaget eller indberetningen, så samme vederlag ikke medregnes to gange."),
-    unit = None
-)
-= personskat_personlig_indkomst_felt_arbejdsvederlag_år = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag::indkomstår),
-    label = "Arbejdsvederlagets indkomstår",
-    question = Some("Hvilket indkomstår vedrører vederlaget?"),
-    help = Some("Indkomståret skal være det samme som skatteåret i Personskat-beregningen."),
-    unit = Some("år")
-)
-= personskat_personlig_indkomst_felt_arbejdsvederlag_forhold = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag::forhold::$variant),
-    label = "Forholdet bag arbejdsvederlaget",
-    question = Some("Blev arbejdet udført i et ansættelsesforhold, uden for ansættelse eller som selvstændig erhvervsvirksomhed?"),
-    help = Some("Kun personligt arbejde uden for ansættelse og uden for selvstændig virksomhed hører til AMBL § 2, stk. 1, nr. 2 her. De andre forhold beskriver en afgrænsning, ikke automatisk omplacering: årsberegningen tilbageholder sammenligningen, indtil posten er placeret korrekt. Bevar kildefakta; vælg ikke en anden relation for at få et resultat. Ved ukendt klassifikation skal den uafhængige sammenligning afvente afklaring. Se personskat-honorar.md."),
-    unit = None
-)
-= personskat_personlig_indkomst_felt_arbejdsvederlag_form = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag::vederlagsform::$variant),
-    label = "Arbejdsvederlagets form",
-    question = Some("Blev vederlaget modtaget i penge eller som et naturalie?"),
-    help = Some("Naturalier skal desuden klassificeres efter den udtømmende liste i AM-lovens § 2, stk. 2."),
-    unit = None
-)
-= personskat_personlig_indkomst_felt_arbejdsvederlag_naturalie = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag::vederlagsform::PsArbejdsvederlagINaturalie::art::$variant),
-    label = "Arbejdsvederlagets naturalietype",
-    question = Some("Hvilken naturalietype efter AM-lovens § 2, stk. 2 blev modtaget?"),
-    help = Some("Vælg den dokumenterede lovkategori. En naturalie uden for § 2, stk. 2 beregnes ikke som denne type vederlag."),
-    unit = None
-)
-= personskat_personlig_indkomst_felt_arbejdsvederlag_værdi = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag::skattepligtig_værdi_kroner),
-    label = "Arbejdsvederlagets skattepligtige værdi",
-    question = Some("Hvad er vederlagets skattepligtige værdi i indkomståret?"),
-    help = Some("For penge angives bruttovederlaget før arbejdsmarkedsbidrag og uden modregning af udgifter eller allerede betalt B-skat. Naturalier kræver deres skattemæssigt opgjorte værdi. Brug honorarudgiftsfeltet udgifter særskilt; et nettobeløb her reducerer AM-grundlaget forkert. Samme vederlag må kun medregnes én gang. Ved fælles udgifter samles årets samme honoraraktivitet i én dokumenteret bruttoopgørelse. Se personskat-honorar.md."),
-    unit = Some("kr./år")
-)
-
-= personskat_honorarudgifter_inputmeta = TypetBeregningsmeta(
+= personskat_honorarafskrivning_inputmeta = Beregningsmeta(
     felter = [
-        TypetBeregningsfelt(path = refof(PersonskatPersonligtArbejdsvederlagFakta::udgifter::$variant), label = "Er honorarudgifterne afklaret?", question = Some("Kender du alle udgifter knyttet til årets vederlag, eller er de uoplyste?"), help = Some("Uoplyst er ikke nul. Brug Oplyst med tom liste og fuldstændige=true kun efter bekræftet ingen udgifter. Saml samme honoraraktivitets årsvederlag ved fælles udgifter; fratræk ikke udgifter i bruttofeltet. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatPersonligtArbejdsvederlagFakta::udgifter::PsHonorarudgifterOplyst::fuldstændige), label = "Honorarudgifter gennemgået", question = Some("Er alle udgiftsposter for denne honoraropgørelse gennemgået og medtaget?"), help = Some("Bekræft først efter bilagsgennemgang. Uafklarede udgifter, afskrivninger, satsberegnet kørsel og erstatninger må ikke udelades for at få et resultat. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatPersonligtArbejdsvederlagFakta::udgifter::PsHonorarudgifterOplyst::poster), label = "Udgifter til honoraraktiviteten", question = Some("Hvilke særskilte udgifter fremgår af bilagene?"), help = Some("Brug én udgift én gang, ikke både bilag og rubrik 29 som nye poster. Lønmodtagerudgifter, private pensionsindbetalinger og skat hører ikke til her. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatPersonligtArbejdsvederlagFakta::udgifter::PsHonorarudgifterMedDriftsmidler::fuldstændige), label = "Udgifter og driftsmidler gennemgået", question = Some("Er alle løbende udgifter og driftsmiddelopgørelser medtaget for honoraraktiviteten?"), help = Some("Bekræft kun efter gennemgang. Forhold uden for dækningen må ikke udelades for at få et resultat. Saml én aktivitet i én honorarrække og dens fuldt benyttede driftsmidler på én saldo. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatPersonligtArbejdsvederlagFakta::udgifter::PsHonorarudgifterMedDriftsmidler::poster), label = "Løbende honorarudgifter", question = Some("Hvilke løbende udgifter er adskilt fra driftsmidlerne?"), help = Some("Medtag ikke anskaffelsespris eller afskrivning igen her. Tom liste kræver bekræftet ingen løbende udgifter."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatPersonligtArbejdsvederlagFakta::udgifter::PsHonorarudgifterMedDriftsmidler::afskrivninger), label = "Honorarets driftsmidler", question = Some("Hvilke afklarede AL § 5-saldi og AL § 11-aktiver har du i honoraraktiviteten?"), help = Some("Højst én almindelig saldo for fuld brug i samme aktivitet; hvert blandet aktiv eller samlesæt opgøres særskilt. Brug stabile aktivreferencer på tværs af opgørelser. Beregningen udleder fradrag og restværdier, ikke ejerskab eller kildefakta. Se personskat-honorar.md."), unit = None)
-    ], spørgsmål = [], beløbsfelter = [],
-    attachments = (Guidance(value = honorarudgifter_djv), Guidance(value = honorarudgifter_skat), Source(value = honorarudgifter_dom), PreparatorySource(value = honorarudgifter_udkast), CurrentnessSource(value = honorarudgifter_udkaststatus), Warning(value = honorarudgifter_dækningsgrænse))
-)
-@ meta(personskat_honorarudgifter_inputmeta) for PersonskatPersonligtArbejdsvederlagFakta
-
-= personskat_honorarudgift_inputmeta = TypetBeregningsmeta(
-    felter = [
-        TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::identifikation), label = "Udgiftens bilagsreference", question = Some("Hvilken stabil bilagsreference identificerer udgiften?"), help = Some("Entydig på tværs af personens honorarrækker. Omdøb ikke dubletter; forskellige referencer beviser ikke forskellige udgifter."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::indkomstår), label = "Udgiftens indkomstår", question = Some("Hvilket indkomstår skal udgiften henføres til?"), help = Some("Samme år som vederlagsopgørelsen. Tidligere års udgifter og omperiodisering kræver særskilt behandling."), unit = Some("år")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::art), label = "Udgiftens art", question = Some("Er det en almindelig løbende udgift ved honoraret, en privat udgift, en anden udgift eller uafklaret?"), help = Some("Løbende egne udgifter kræver dokumenteret tilknytning. Privat giver nul fradrag; Anden eller Uoplyst tilbageholder sammenligningen. Afskrivning, satsberegnet kørsel, erstatning og udenlandske særregler er ikke almindelige udgifter i denne gren."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::egen_udgift_kroner), label = "Egen udgift i årets honoraraktivitet", question = Some("Hvad er din dokumenterede egen udgift efter refusion og efter udskillelse af privat andel?"), help = Some("Positivt beløb i hele kroner. Bevar brutto, privat andel og refusion i bilagsoversigten. Ikke årsopgørelsens samlede rubrik 29, AM-bidrag eller B-skat. Modellen reducerer personlig indkomst, ikke brutto-AM eller arbejdsfradragsgrundlag. Se personskat-honorar.md."), unit = Some("kr./år")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::dokumenteret), label = "Udgiften er dokumenteret", question = Some("Understøtter bilag beløbet og din egen udgiftsandel?"), help = Some("En beregnet difference til årsopgørelsen er ikke dokumentation."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::vedrører_vederlaget), label = "Tilknytning til honoraret", question = Some("Er udgiften afholdt for at erhverve, sikre eller vedligeholde denne honorarindtægt?"), help = Some("Afklar faktisk tilknytning; privat brug eller arbejde som lønmodtager må ikke få honorarfradrag."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarudgiftFakta::ikke_fratrukket_andetsteds), label = "Ingen dobbelt fradragsføring", question = Some("Er det bekræftet, at samme udgift ikke allerede er fratrukket i andre poster eller indkomstbeløb?"), help = Some("Kontrollér også lønmodtagerudgifter, virksomhed, erhvervsbefordring og andre honorarrækker. Feltet er en kildebekræftelse, ikke dokumentautentifikation."), unit = None)
-    ], spørgsmål = [], beløbsfelter = [],
-    attachments = (Guidance(value = honorarudgifter_djv), Guidance(value = honorarudgifter_skat), Source(value = honorarudgifter_dom), PreparatorySource(value = honorarudgifter_udkast), CurrentnessSource(value = honorarudgifter_udkaststatus), Warning(value = honorarudgifter_dækningsgrænse))
-)
-@ meta(personskat_honorarudgift_inputmeta) for PersonskatHonorarudgiftFakta
-
-= personskat_honorarafskrivning_inputmeta = TypetBeregningsmeta(
-    felter = [
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::identifikation), label = "Opgørelsens reference", question = Some("Hvilken stabil reference identificerer afskrivningsopgørelsen?"), help = Some("Entydig blandt alle personens udgifts- og afskrivningsposter; omdøb ikke en dublet. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::aktividentifikationer), label = "Identificerede driftsmidler", question = Some("Hvilke aktiver eller samlesæt indgår i denne opgørelse?"), help = Some("Brug stabile kildereferencer. Et aktiv må ikke både stå på saldo og som blandet aktiv eller i flere honoraraktiviteter. Forskellige id'er beviser ikke forskellige aktiver. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::$variant), label = "Fuld eller blandet brug", question = Some("Er dette den samlede saldo for fuld honorarbrug eller ét blandet benyttet aktiv?"), help = Some("PsHonorarAl5Saldo er én almindelig samlet saldo pr. aktivitet. PsHonorarAl11Aktiv er ét blandet aktiv eller ét afklaret samlesæt. Ingen salg, ophør eller AL § 4-overførsel i denne rute. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::dokumenteret_ejet_og_anvendt_i_aktiviteten), label = "Ejerskab og faktisk brug", question = Some("Dokumenterer kilderne ejerskab og anvendelse til honorarindtægten?"), help = Some("Privat brug giver ikke fradrag. Inventar, maskiner, andre almindelige driftsmidler og software kan omfattes; værdifaste aktiver, kunst, skibe og bygninger kræver andre regler. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::primosaldo_anskaffelser_og_samlesæt_afklaret), label = "Afklaret afskrivningsgrundlag", question = Some("Er skattemæssig primosaldo, årets anskaffelser, levering/ibrugtagning og samlesæt afklaret?"), help = Some("Historisk købspris er ikke automatisk primosaldo. Indregn kun egne afskrivningsberettigede værdier efter relevant moms/refusion; ikke et ønsket fradrag. Aktiver der fungerer sammen må ikke opdeles for at komme under småaktivgrænsen. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::ingen_salg_ophør_eller_overførsel), label = "Fortsat aktivitet uden overførsler", question = Some("Er det bekræftet, at opgørelsen ikke har salg, ophør eller AL § 4-overførsel mellem anvendelsesformer?"), help = Some("Disse hændelser kræver særskilt behandling. Almindelig ændring af brugsprocent inden for fortsat blandet brug er ikke i sig selv en AL § 4-overførsel. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::ikke_fratrukket_andetsteds), label = "Ingen dobbelt fradragsføring", question = Some("Er anskaffelsesgrundlag og årets afskrivning holdt ude af andre fradrag?"), help = Some("Kontrollér løbende honorarudgifter, andre honorarrækker, lønmodtagerudgifter og virksomhed. Kilderne skal også vise tidligere afskrivninger. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl5Saldo::input::indkomstår), label = "Afskrivningens år", question = Some("Hvilket indkomstår vedrører opgørelsen?"), help = Some("Skal matche honorarets skatteår. Årsparametre er dækket for 2023–2026. Se personskat-honorar.md."), unit = Some("år")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl5Saldo::input::saldoværdi_primo_kroner), label = "Skattemæssig saldo primo", question = Some("Hvad er det kildeafklarede beløb for skattemæssig saldo primo?"), help = Some("Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md."), unit = Some("kr.")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl5Saldo::input::øvrige_anskaffelsessummer_i_året_kroner), label = "Årets anskaffelser til saldo", question = Some("Hvad er det kildeafklarede beløb for årets anskaffelser til saldo?"), help = Some("Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md."), unit = Some("kr.")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl5Saldo::input::forbedringsudgifter_i_året_kroner), label = "Årets forbedringer", question = Some("Hvad er det kildeafklarede beløb for årets forbedringer?"), help = Some("Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md."), unit = Some("kr.")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl5Saldo::input::valg::$variant), label = "Afskrivningsvalg", question = Some("Hvilket afskrivningsvalg er faktisk truffet for året?"), help = Some("Ingen, ordinær sats eller fuld restværdi inden for årets grænse. Modellen optimerer ikke valget og ændrer ikke allerede trufne valg. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl5Saldo::input::valg::Al5OrdinærAfskrivning::sats_basispoint), label = "Valgt afskrivningssats", question = Some("Hvilken ordinær afskrivningssats er valgt?"), help = Some("0–2500 basispoint (0–25 %). For blandet brug beregnes privat andel bagefter, ikke ved at reducere satsen. Se personskat-honorar.md."), unit = Some("basispoint")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl5Saldo::input::aktivgrundlag::Al5Kapitel2Aktiv::input::skatteyder), label = "Skatteyder i honoraraktiviteten", question = Some("Er dette en fysisk persons honoraraktivitet uden selvstændig virksomhed?"), help = Some("Brug AlAndenFysiskPerson her; virksomheds- og selskabsopgørelser skal ikke flyttes ind i honorargrenen. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl5Saldo::input::aktivgrundlag::Al5Kapitel2Aktiv::input::aktivart), label = "Driftsmidlets art", question = Some("Hvilken afskrivningsberettiget art har driftsmidlet?"), help = Some("AlMaskine, AlInventar, AlAndetDriftsmiddel eller AlSoftware i denne almindelige rute. Andre arter afvises her, ikke generelt efter loven. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl5Saldo::input::aktivgrundlag::Al5Kapitel2Aktiv::input::erhvervsmæssig_anvendelsesandel_basispoint), label = "Andel anvendt i honoraraktiviteten", question = Some("Hvor stor en andel af brugen vedrører denne honoraraktivitet?"), help = Some("Her betyder AL-feltets erhvervsmæssige andel den dokumenterede honorarbrug. Skal være 10000 ved udelukkende honorarbrug; privat brug kræver AL § 11. Se personskat-honorar.md."), unit = Some("basispoint")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl5Saldo::input::aktivgrundlag::$variant), label = "Saldoens aktivgrundlag", question = Some("Er saldoen alene almindelige kapitel 2-driftsmidler?"), help = Some("Brug Al5Kapitel2Aktiv. Dok/bedding og forskudsafskrevne aktiver kræver andre regler. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl5Saldo::input::saldoordning), label = "Almindelig saldo", question = Some("Er dette den almindelige samlede AL § 5-saldo?"), help = Some("Kun AlPar5AlmindeligSaldo er omfattet; særskilte forhøjede saldi må ikke ommærkes. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl5Saldo::input::salgssummer_i_året_kroner), label = "Salg på saldoen", question = Some("Er det bekræftet, at der ingen salg er i opgørelsen?"), help = Some("Denne fortsættelsesrute kræver nul. Et faktisk salg skal afklares særskilt, ikke erstattes med nul. Se personskat-honorar.md."), unit = Some("kr.")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl11Aktiv::input::indkomstår), label = "Afskrivningens år", question = Some("Hvilket indkomstår vedrører opgørelsen?"), help = Some("Skal matche honorarets skatteår. Årsparametre er dækket for 2023–2026. Se personskat-honorar.md."), unit = Some("år")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl11Aktiv::input::uafskrevet_beløb_primo_kroner), label = "Uafskrevet beløb primo", question = Some("Hvad er det kildeafklarede beløb for uafskrevet beløb primo?"), help = Some("Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md."), unit = Some("kr.")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl11Aktiv::input::anskaffelsessum_i_året_kroner), label = "Årets anskaffelsessum", question = Some("Hvad er det kildeafklarede beløb for årets anskaffelsessum?"), help = Some("Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md."), unit = Some("kr.")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl11Aktiv::input::forbedringsudgifter_i_året_kroner), label = "Årets forbedringer", question = Some("Hvad er det kildeafklarede beløb for årets forbedringer?"), help = Some("Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md."), unit = Some("kr.")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl11Aktiv::input::valg::$variant), label = "Afskrivningsvalg", question = Some("Hvilket afskrivningsvalg er faktisk truffet for året?"), help = Some("Ingen, ordinær sats eller fuld restværdi inden for årets grænse. Modellen optimerer ikke valget og ændrer ikke allerede trufne valg. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl11Aktiv::input::valg::Al11OrdinærAfskrivning::sats_basispoint), label = "Valgt afskrivningssats", question = Some("Hvilken ordinær afskrivningssats er valgt?"), help = Some("0–2500 basispoint (0–25 %). For blandet brug beregnes privat andel bagefter, ikke ved at reducere satsen. Se personskat-honorar.md."), unit = Some("basispoint")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl11Aktiv::input::aktiv_input::skatteyder), label = "Skatteyder i honoraraktiviteten", question = Some("Er dette en fysisk persons honoraraktivitet uden selvstændig virksomhed?"), help = Some("Brug AlAndenFysiskPerson her; virksomheds- og selskabsopgørelser skal ikke flyttes ind i honorargrenen. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl11Aktiv::input::aktiv_input::aktivart), label = "Driftsmidlets art", question = Some("Hvilken afskrivningsberettiget art har driftsmidlet?"), help = Some("AlMaskine, AlInventar, AlAndetDriftsmiddel eller AlSoftware i denne almindelige rute. Andre arter afvises her, ikke generelt efter loven. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl11Aktiv::input::aktiv_input::erhvervsmæssig_anvendelsesandel_basispoint), label = "Andel anvendt i honoraraktiviteten", question = Some("Hvor stor en andel af brugen vedrører denne honoraraktivitet?"), help = Some("Her betyder AL-feltets erhvervsmæssige andel den dokumenterede honorarbrug. Skal matche årets oplyste brugsenheder; ikke også en virksomhedsandel. Se personskat-honorar.md."), unit = Some("basispoint")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl11Aktiv::input::afskrivningskategori), label = "Almindelig afskrivningskategori", question = Some("Er aktivet et almindeligt driftsmiddel efter AL § 5, stk. 1?"), help = Some("Brug Al11Par5Stk1. Infrastruktur og særlige § 5 C-aktiver behandles ikke i denne honorarrute. Se personskat-honorar.md."), unit = None),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl11Aktiv::input::årets_benyttelse::erhvervsmæssig_benyttelse_enheder), label = "Årets honorarbrug", question = Some("Hvor mange af årets dokumenterede brugsenheder vedrører honoraraktiviteten?"), help = Some("Samme enhed som samlet brug, fx timer eller kilometer. Større end nul og mindre end samlet brug; gæt ikke en andel. Se personskat-honorar.md."), unit = Some("brugsenheder")),
-        TypetBeregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl11Aktiv::input::årets_benyttelse::samlet_benyttelse_enheder), label = "Årets samlede brug", question = Some("Hvor mange brugsenheder er der i alt, inklusive privat brug?"), help = Some("Hele årets brug i samme enhed. Anskaffelsesgrundlaget må ikke allerede være reduceret med denne andel. Se personskat-honorar.md."), unit = Some("brugsenheder"))
-    ], spørgsmål = [], beløbsfelter = [],
+        Beregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl5Saldo::input::aktivgrundlag::Al5Kapitel2Aktiv::input::erhvervsmæssig_anvendelsesandel_basispoint), label = "Andel anvendt i honoraraktiviteten", question = Some("Hvor stor en andel af brugen vedrører denne honoraraktivitet?"), help = Some("Her betyder AL-feltets erhvervsmæssige andel den dokumenterede honorarbrug. Skal være 10000 ved udelukkende honorarbrug; privat brug kræver AL § 11. Se personskat-honorar.md."), unit = Some("basispoint")),
+        Beregningsfelt(path = refof(PersonskatHonorarAfskrivningFakta::grundlag::PsHonorarAl11Aktiv::input::aktiv_input::erhvervsmæssig_anvendelsesandel_basispoint), label = "Andel anvendt i honoraraktiviteten", question = Some("Hvor stor en andel af brugen vedrører denne honoraraktivitet?"), help = Some("Her betyder AL-feltets erhvervsmæssige andel den dokumenterede honorarbrug. Skal matche årets oplyste brugsenheder; ikke også en virksomhedsandel. Se personskat-honorar.md."), unit = Some("basispoint"))
+    ],
     attachments = (Source(value = afskrivningsloven_lbk1222), Guidance(value = honorarudgifter_djv), Guidance(value = afskrivningsloven_par11_par13_juridisk_vejledning), ParameterSource(value = afskrivningsloven_2023_2024_satser), ParameterSource(value = afskrivningsloven_2025_2026_satser), Warning(value = honorarudgifter_dækningsgrænse))
 )
 @ meta(personskat_honorarafskrivning_inputmeta) for PersonskatHonorarAfskrivningFakta
 
-= personskat_personlig_indkomst_felt_virksomhed_id = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::identifikation),
-    label = "Virksomhedens identifikation",
-    question = Some("Hvilken entydig identifikation har virksomheden?"),
-    help = Some("Brug eksempelvis CVR-nummer eller en stabil intern identifikation. Denne gren gælder kun virksomhed uden virksomhedsordningen."),
-    unit = None
-)
-= personskat_personlig_indkomst_felt_virksomhed_år = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::indkomstår),
-    label = "Virksomhedens indkomstår",
-    question = Some("Hvilket indkomstår vedrører virksomhedens resultat?"),
-    help = Some("Indkomståret skal være det samme som skatteåret i Personskat-beregningen."),
-    unit = Some("år")
-)
-= personskat_personlig_indkomst_felt_virksomhedsindtægt_id = TypetBeregningsfelt(
+= personskat_personlig_indkomst_felt_virksomhedsindtægt_id = Beregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::indtægter::identifikation),
     label = "Indtægtspostens identifikation",
     question = Some("Hvilken entydig identifikation har indtægtsposten i virksomhedsregnskabet?"),
     help = Some("Identifikationen skal være entydig blandt alle virksomhedens indtægts- og udgiftsposter."),
     unit = None
 )
-= personskat_personlig_indkomst_felt_virksomhedsindtægt_art = TypetBeregningsfelt(
+= personskat_personlig_indkomst_felt_virksomhedsindtægt_art = Beregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::indtægter::art),
     label = "Indtægtspostens skattemæssige art",
     question = Some("Er posten ordinær driftsindtægt, kapitalindkomst, aktieindkomst eller endnu uklassificeret?"),
     help = Some("Kun ordinær driftsindtægt beregnes i denne gren. Kapital- og aktieindkomst skal føres gennem deres egne lovregler."),
     unit = None
 )
-= personskat_personlig_indkomst_felt_virksomhedsindtægt_beløb = TypetBeregningsfelt(
+= personskat_personlig_indkomst_felt_virksomhedsindtægt_beløb = Beregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::indtægter::beløb_kroner),
     label = "Virksomhedsindtægt",
     question = Some("Hvor stort er indtægtspostens beløb?"),
     help = Some("Angiv et ikke-negativt bruttobeløb. Indtægtens skattemæssige art bestemmer den videre regelgren."),
     unit = Some("kr./år")
 )
-= personskat_personlig_indkomst_felt_virksomhedsudgift_id = TypetBeregningsfelt(
+= personskat_personlig_indkomst_felt_virksomhedsudgift_id = Beregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::udgifter::identifikation),
     label = "Udgiftspostens identifikation",
     question = Some("Hvilken entydig identifikation har udgiftsposten i virksomhedsregnskabet?"),
     help = Some("Identifikationen skal være entydig blandt alle virksomhedens indtægts- og udgiftsposter."),
     unit = None
 )
-= personskat_personlig_indkomst_felt_virksomhedsudgift_afgrænsning = TypetBeregningsfelt(
+= personskat_personlig_indkomst_felt_virksomhedsudgift_afgrænsning = Beregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::udgifter::afgrænsning),
     label = "Udgiftens afgrænsning efter PSL § 3, stk. 2, nr. 1",
     question = Some("Hvilken lovbestemt udgiftskategori tilhører posten?"),
     help = Some("Futuruna fradrager kun udgifter til at erhverve, sikre og vedligeholde selvstændig erhvervsindkomst her. Renter, kurstab og andre udtrykkeligt undtagne poster skal til deres egne regler."),
     unit = None
 )
-= personskat_personlig_indkomst_felt_virksomhedsudgift_beløb = TypetBeregningsfelt(
+= personskat_personlig_indkomst_felt_virksomhedsudgift_beløb = Beregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::udgifter::beløb_kroner),
     label = "Virksomhedsudgift",
     question = Some("Hvor stort er udgiftspostens beløb?"),
@@ -302,460 +55,127 @@
     unit = Some("kr./år")
 )
 
-= personskat_underhold_felt_samling = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag),
-    label = "Underholds- og børnebidrag",
-    question = Some("Hvilke betalte eller modtagne underholds- og børnebidrag vedrører personen i indkomståret?"),
-    help = Some("Opret én række pr. forfaldent månedsbidrag eller særligt bidrag. Flere betalinger for samme barn og måned skal samles i én række. Modtaget børnebidrag vedrører barnets skatteopgørelse, ikke en forælders opgørelse alene fordi pengene går ind på forælderens konto."),
-    unit = None
-)
-= personskat_underhold_felt_identifikation = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::identifikation),
-    label = "Bidragets identifikation",
-    question = Some("Hvilken entydig identifikation har bidraget?"),
-    help = Some("Brug en stabil reference fra aftalen, afgørelsen, betalingsbilaget eller årsopgørelsen."),
-    unit = None
-)
-= personskat_underhold_felt_indkomstår = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::indkomstår),
-    label = "Bidragets indkomstår",
-    question = Some("I hvilket indkomstår skal bidraget fradrages eller beskattes?"),
-    help = Some("For bidragsyderen er det som udgangspunkt betalingsåret, dog først forfaldsåret ved forudbetaling. For modtageren anvendes modtagelsesåret."),
-    unit = Some("år")
-)
-= personskat_underhold_felt_rolle = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::rolle::$variant),
-    label = "Personens rolle i bidraget",
-    question = Some("Er personen bidragsyder eller den skattemæssige modtager af bidraget?"),
-    help = Some("Bidragsmodtager sammen med Barn betyder, at denne skatteopgørelse vedrører barnet selv. En forælder, der tager imod børnebidrag på barnets vegne, er ikke derved den skattemæssige modtager. Brug barnets egen opgørelse og faktiske fødselsdato; ens datoer er nødvendige, men beviser ikke identitet. Ægtefællebidrag til personen selv bruger ægtefællevarianten."),
-    unit = None
-)
-= personskat_underhold_felt_modtageridentitet_oplyst = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::rolle::Bidragsyder::modtageridentitet_oplyst),
-    label = "Modtagerens identitet er oplyst",
-    question = Some("Er modtagerens identitet oplyst til Skatteforvaltningen eller anset for afgivet efter skatteindberetningslovens § 41?"),
-    help = Some("Identitetsoplysningen er en betingelse for bidragsyderens fradrag efter LL § 10, stk. 5, og § 11, stk. 2."),
-    unit = None
-)
-= personskat_underhold_felt_retsgrundlag = TypetBeregningsfelt(
+= personskat_underhold_felt_retsgrundlag = Beregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::retsgrundlag::$variant),
     label = "Bidragets familiemæssige retsgrundlag",
     question = Some("Skyldes bidraget skilsmisse, separation, faktisk adskillelse eller et barn uden for ægteskab?"),
     help = None,
     unit = None
 )
-= personskat_underhold_felt_skilsmisse_virkningstidspunkt = TypetBeregningsfelt(
+= personskat_underhold_felt_skilsmisse_virkningstidspunkt = Beregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::retsgrundlag::Skilsmisse::fastsat_eller_ændret_efter_lovens_ikrafttrædelse),
     label = "Skilsmissebidraget er omfattet af LL § 10, stk. 4",
     question = Some("Er skilsmissebidraget fastsat eller ændret efter ikrafttrædelsen af lov nr. 538 af 22. december 1941?"),
     help = Some("LL § 10, stk. 4, udelukker ældre uændrede skilsmissebidrag fra reglerne."),
     unit = None
 )
-= personskat_underhold_felt_separation_virkningstidspunkt = TypetBeregningsfelt(
+= personskat_underhold_felt_separation_virkningstidspunkt = Beregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::retsgrundlag::Separation::fastsat_eller_ændret_efter_lovens_ikrafttrædelse),
     label = "Separationsbidraget er omfattet af LL § 10, stk. 4",
     question = Some("Er separationsbidraget fastsat eller ændret efter ikrafttrædelsen af lov nr. 517 af 19. december 1942?"),
     help = Some("LL § 10, stk. 4, udelukker ældre uændrede separationsbidrag fra reglerne."),
     unit = None
 )
-= personskat_underhold_felt_faktisk_adskillelse = TypetBeregningsfelt(
+= personskat_underhold_felt_faktisk_adskillelse = Beregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::retsgrundlag::FaktiskAdskillelse::faktisk_adskillelse_dokumenteret),
     label = "Faktisk adskillelse er dokumenteret",
     question = Some("Er det dokumenteret, at ægtefællernes samliv faktisk er ophævet?"),
     help = None,
     unit = None
 )
-= personskat_underhold_felt_selvstændig_statsskat = TypetBeregningsfelt(
+= personskat_underhold_felt_selvstændig_statsskat = Beregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::retsgrundlag::FaktiskAdskillelse::ægtefællerne_ansat_selvstændigt_til_statsskat),
     label = "Ægtefællerne er ansat selvstændigt til statsskat",
     question = Some("Er ægtefællerne som følge af den faktiske adskillelse ansat selvstændigt til statsskat?"),
     help = Some("Betingelsen følger af LL § 10, stk. 3."),
     unit = None
 )
-= personskat_underhold_felt_modtager_identifikation = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager_identifikation),
-    label = "Bidragsmodtagerens identifikation",
-    question = Some("Hvilken stabil identifikation har den ægtefælle eller det barn, som bidraget vedrører?"),
-    help = Some("Brug en pseudonym eller intern identifikation i delte arbejdsbøger; CPR-nummer skal ikke indgå i kode eller scenarier."),
-    unit = None
-)
-= personskat_underhold_felt_modtagerart = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::$variant),
-    label = "Bidragsmodtagerens art",
-    question = Some("Vedrører bidraget en ægtefælle eller tidligere ægtefælle eller et barn?"),
-    help = None,
-    unit = None
-)
-= personskat_underhold_felt_ægtefæller_bor_sammen = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::ÆgtefælleEllerTidligereÆgtefælle::parterne_bor_sammen),
-    label = "Parterne bor sammen",
-    question = Some("Boede bidragsyderen og ægtefællen eller den tidligere ægtefælle sammen, da bidraget vedrørte dem?"),
-    help = Some("Der er ikke fradrag for ægtefællebidrag, mens parterne bor sammen."),
-    unit = None
-)
-= personskat_underhold_felt_barn_fødselsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::Barn::fakta::fødselsdato::år), label = "Barnets fødselsdato (ISO 8601) - år", question = Some("I hvilket år blev barnet født?"), help = Some("Fødselsdatoen bruges til at afgrænse fradraget til og med barnets 18-årsdag."), unit = Some("år"))
-= personskat_underhold_felt_barn_fødselsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::Barn::fakta::fødselsdato::måned), label = "Barnets fødselsdato (ISO 8601) - måned", question = Some("I hvilken måned blev barnet født?"), help = None, unit = Some("måned"))
-= personskat_underhold_felt_barn_fødselsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::Barn::fakta::fødselsdato::dag), label = "Barnets fødselsdato (ISO 8601) - dag", question = Some("På hvilken dag i måneden blev barnet født?"), help = None, unit = Some("dag"))
-= personskat_underhold_felt_barn_bopæl = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::Barn::fakta::bopæl),
-    label = "Barnets bopæl i bidragsperioden",
-    question = Some("Boede barnet hos bidragsyderen, hos den anden forælder eller på delt bopæl med hvilken folkeregisteradresse?"),
-    help = Some("Ved delt bopæl er folkeregisteradressen afgørende for, hvilken forælder der kan få fradrag."),
-    unit = None
-)
-= personskat_underhold_felt_offentlig_forsørgerpligt = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::Barn::fakta::forsørger_eller_bidragspligt_over_for_det_offentlige),
-    label = "Offentlig forsørger- eller bidragspligt",
-    question = Some("Påhviler der bidragsyderen forsørger- eller bidragspligt over for det offentlige for barnet?"),
-    help = Some("Betingelsen følger af LL § 10, stk. 2, og § 11, stk. 2."),
-    unit = None
-)
-= personskat_underhold_felt_fastsættelse = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::fastsættelse::$variant),
-    label = "Bidragets fastsættelse",
-    question = Some("Er bidraget fastsat i en dokumenteret privat aftale, fastsat eller godkendt af en offentlig myndighed eller ikke dokumenteret?"),
-    help = Some("Ved faktisk adskillelse kræver LL § 10, stk. 3, offentlig fastsættelse eller godkendelse."),
-    unit = None
-)
-= personskat_underhold_felt_privat_fradragsvurdering = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::fastsættelse::DokumenteretPrivatAftale::fradragsvurdering::$variant),
-    label = "Privataftalens fradragsvurdering",
-    question = Some("Hvordan er et privat aftalt børnebidrag vurderet i forhold til normalbidraget og Familieretshusets vejledende beløb?"),
-    help = Some("Vurderingen er kun relevant for bidragsyderens løbende børnebidrag. Bidrag op til normalbidraget kontrolleres automatisk; højere bidrag kræver en dokumenteret sammenligning eller konkret skattemæssig afgørelse."),
-    unit = None
-)
-= personskat_underhold_felt_privat_vejledende_månedsbeløb = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::fastsættelse::DokumenteretPrivatAftale::fradragsvurdering::DokumenteretVejledendeMånedsbeløb::vejledende_månedsbeløb_kroner),
-    label = "Dokumenteret vejledende månedsbidrag",
-    question = Some("Hvilket månedligt bidrag viser det dokumenterede sammenligningsgrundlag, at Familieretshuset vejledende ville fastsætte?"),
-    help = Some("Beløbet skal mindst være normalbidraget. Futuruna kontrollerer det faktisk betalte beløb mod grænsen, også når 18-årsmåneden allerede er forholdsmæssigt betalt."),
-    unit = Some("kr./måned")
-)
-= personskat_underhold_felt_privat_vejledende_reference = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::fastsættelse::DokumenteretPrivatAftale::fradragsvurdering::DokumenteretVejledendeMånedsbeløb::dokumentreference),
-    label = "Reference til vejledende bidragssammenligning",
-    question = Some("Hvilket dokument underbygger det vejledende månedsbidrag?"),
-    help = Some("Henvis til den relevante afgørelse, beregning eller årlige bidragsvejledning."),
-    unit = None
-)
-= personskat_underhold_felt_privat_anerkendt_beløb = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::fastsættelse::DokumenteretPrivatAftale::fradragsvurdering::KonkretSkattemæssigtAnerkendtBeløb::anerkendt_betalt_beløb_kroner),
-    label = "Konkret skattemæssigt anerkendt bidrag",
-    question = Some("Hvor stor en del af det faktisk betalte bidrag er konkret anerkendt som fradragsgrundlag?"),
-    help = Some("Angiv beløbet i samme betalingsperiode og beløbsgrundlag som det faktisk betalte bidrag. Modtagerens indkomst beregnes fortsat af det fulde modtagne beløb."),
-    unit = Some("kr.")
-)
-= personskat_underhold_felt_privat_anerkendt_reference = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::fastsættelse::DokumenteretPrivatAftale::fradragsvurdering::KonkretSkattemæssigtAnerkendtBeløb::dokumentreference),
-    label = "Reference til konkret skattemæssig vurdering",
-    question = Some("Hvilken afgørelse eller anden dokumentation fastslår det anerkendte fradragsgrundlag?"),
-    help = None,
-    unit = None
-)
-= personskat_underhold_felt_bidragstype = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::bidragsart::$variant),
-    label = "Bidragets art",
-    question = Some("Er bidraget løbende underhold, uddannelsesbidrag efter 18 år, et dåbs- eller navngivningsbidrag eller et konfirmations- eller nonfirmationsbidrag?"),
-    help = Some("Fødsels- og barselsbidrag til moren er selvstændige bidragsarter og må ikke registreres som løbende børnebidrag her."),
-    unit = None
-)
-= personskat_underhold_felt_løbende_beløbsgrundlag = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::bidragsart::LøbendeUnderholdsbidrag::beløbsgrundlag::$variant),
-    label = "Det løbende bidrags beløbsgrundlag",
-    question = Some("Er beløbet hele forfaldsmånedens bidrag eller allerede forholdsmæssigt betalt til og med barnets 18-årsdag?"),
-    help = Some("Vælg kun det forholdsmæssige grundlag i den måned, hvor barnet fylder 18 år. Futuruna fordeler da ikke kontantbeløbet endnu en gang."),
-    unit = None
-)
-= personskat_underhold_felt_uddannelsesformål = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::bidragsart::UddannelsesbidragEfter18År::dokumenteret_uddannelsesformål),
-    label = "Uddannelsesformålet er dokumenteret",
-    question = Some("Er det dokumenteret, at bidraget til barnet efter 18 år er et uddannelsesbidrag?"),
-    help = Some("Bidraget giver ikke fradrag hos yderen efter LL §§ 10-11 og er fuldt skattepligtigt hos barnet."),
-    unit = None
-)
-= personskat_underhold_felt_dåbsudgift_dokumenteret = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::bidragsart::DåbsEllerNavngivningsbidrag::dokumenteret_til_begivenhedsudgifter),
-    label = "Dåbs- eller navngivningsudgiften er dokumenteret",
-    question = Some("Er det dokumenteret, at bidraget er gået til udgifter ved barnets dåb eller navngivning?"),
-    help = None,
-    unit = None
-)
-= personskat_underhold_felt_konfirmationsudgift_dokumenteret = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::bidragsart::KonfirmationsEllerNonfirmationsbidrag::dokumenteret_til_begivenhedsudgifter),
-    label = "Konfirmations- eller nonfirmationsudgiften er dokumenteret",
-    question = Some("Er det dokumenteret, at bidraget er gået til udgifter ved barnets konfirmation eller nonfirmation?"),
-    help = None,
-    unit = None
-)
-= personskat_underhold_felt_betalingsvej = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalingsvej::$variant),
-    label = "Bidragets betalingsvej",
-    question = Some("Blev bidraget betalt til den bidragsberettigede, gennem Udbetaling Danmark, direkte til barnet eller ved dokumenteret modregning?"),
-    help = None,
-    unit = None
-)
-= personskat_underhold_felt_direkte_til_barn = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalingsvej::BetaltDirekteTilBarnet::frigørende_virkning_dokumenteret),
-    label = "Direkte betaling til barnet har frigørende virkning",
-    question = Some("Dokumenterer aftalen, at den direkte betaling til barnet sker med frigørende virkning for bidragsyderen?"),
-    help = None,
-    unit = None
-)
-= personskat_underhold_felt_modregning = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalingsvej::ModregnetIGensidigtBidrag::modregningen_dokumenteret),
-    label = "Gensidig modregning er dokumenteret",
-    question = Some("Er den gensidige bidragspligt og modregningen dokumenteret?"),
-    help = None,
-    unit = None
-)
-= personskat_underhold_felt_restancestatus = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::restancestatus::$variant),
-    label = "Bidragets restancestatus",
-    question = Some("Er betalingen ordinær eller et afdrag på en offentlig bidragsrestance?"),
-    help = None,
-    unit = None
-)
-= personskat_underhold_felt_restancerækkefølge = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::restancestatus::OffentligBidragsrestance::tidligste_forskudsvis_udbetalte_bidrag_dækket_først),
-    label = "Ældste offentlige bidragsrestance dækkes først",
-    question = Some("Er betalingen henført til de først forskudsvis udbetalte børnebidrag før senere restancer?"),
-    help = Some("Rækkefølgen følger LL § 10, stk. 2, og § 11, stk. 2."),
-    unit = None
-)
-= personskat_underhold_felt_forfaldsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::forfaldsdato::år), label = "Bidragets forfaldsdato (ISO 8601) - år", question = Some("I hvilket år forfaldt bidraget?"), help = None, unit = Some("år"))
-= personskat_underhold_felt_forfaldsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::forfaldsdato::måned), label = "Bidragets forfaldsdato (ISO 8601) - måned", question = Some("I hvilken måned forfaldt bidraget?"), help = Some("Løbende børnebidrag skal samles til én række pr. barn og forfaldsmåned."), unit = Some("måned"))
-= personskat_underhold_felt_forfaldsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::forfaldsdato::dag), label = "Bidragets forfaldsdato (ISO 8601) - dag", question = Some("På hvilken dag forfaldt bidraget?"), help = None, unit = Some("dag"))
-= personskat_underhold_felt_betalingsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalingsdato::år), label = "Bidragets betalingsdato (ISO 8601) - år", question = Some("I hvilket år blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("år"))
-= personskat_underhold_felt_betalingsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalingsdato::måned), label = "Bidragets betalingsdato (ISO 8601) - måned", question = Some("I hvilken måned blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("måned"))
-= personskat_underhold_felt_betalingsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalingsdato::dag), label = "Bidragets betalingsdato (ISO 8601) - dag", question = Some("På hvilken dag blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("dag"))
-= personskat_underhold_felt_beløb = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::beløb_kroner),
-    label = "Betalt eller modtaget bidrag",
-    question = Some("Hvor stort et bidrag blev faktisk betalt eller modtaget for denne forfaldspost?"),
-    help = Some("Angiv bruttobeløbet før Futuruna anvender tillægget, normalbidraget eller de særlige skattefri grænser."),
-    unit = Some("kr.")
-)
-= personskat_underhold_felt_betalt_af_yder = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalt_af_bidragsyderen_selv),
-    label = "Bidraget er betalt af bidragsyderen selv",
-    question = Some("Er bidraget faktisk afholdt af den person, som kræver fradraget?"),
-    help = Some("Bidrag dækket af det offentlige uden betaling fra bidragsyderen giver ikke fradrag."),
-    unit = None
-)
+= personskat_underhold_felt_barn_fødselsår = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::Barn::fakta::fødselsdato::år), label = "Barnets fødselsdato (ISO 8601) - år", question = Some("I hvilket år blev barnet født?"), help = Some("Fødselsdatoen bruges til at afgrænse fradraget til og med barnets 18-årsdag."), unit = Some("år"))
+= personskat_underhold_felt_barn_fødselsmåned = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::Barn::fakta::fødselsdato::måned), label = "Barnets fødselsdato (ISO 8601) - måned", question = Some("I hvilken måned blev barnet født?"), help = None, unit = Some("måned"))
+= personskat_underhold_felt_barn_fødselsdag = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::Barn::fakta::fødselsdato::dag), label = "Barnets fødselsdato (ISO 8601) - dag", question = Some("På hvilken dag i måneden blev barnet født?"), help = None, unit = Some("dag"))
+= personskat_underhold_felt_forfaldsår = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::forfaldsdato::år), label = "Bidragets forfaldsdato (ISO 8601) - år", question = Some("I hvilket år forfaldt bidraget?"), help = None, unit = Some("år"))
+= personskat_underhold_felt_forfaldsmåned = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::forfaldsdato::måned), label = "Bidragets forfaldsdato (ISO 8601) - måned", question = Some("I hvilken måned forfaldt bidraget?"), help = Some("Løbende børnebidrag skal samles til én række pr. barn og forfaldsmåned."), unit = Some("måned"))
+= personskat_underhold_felt_forfaldsdag = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::forfaldsdato::dag), label = "Bidragets forfaldsdato (ISO 8601) - dag", question = Some("På hvilken dag forfaldt bidraget?"), help = None, unit = Some("dag"))
+= personskat_underhold_felt_betalingsår = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalingsdato::år), label = "Bidragets betalingsdato (ISO 8601) - år", question = Some("I hvilket år blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("år"))
+= personskat_underhold_felt_betalingsmåned = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalingsdato::måned), label = "Bidragets betalingsdato (ISO 8601) - måned", question = Some("I hvilken måned blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("måned"))
+= personskat_underhold_felt_betalingsdag = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalingsdato::dag), label = "Bidragets betalingsdato (ISO 8601) - dag", question = Some("På hvilken dag blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("dag"))
 
-= personskat_par19_felt_samling = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag),
-    label = "Bidrag ved fødsel, barsel, navngivning eller abort",
-    question = Some("Hvilke bidrag efter børnebidragslovens § 19 har personen betalt, retligt modtaget eller fået skattemæssigt henført i indkomståret?"),
-    help = Some("Disse poster tilkommer retligt moren eller en offentlig myndighed og skal holdes adskilt fra løbende børnebidrag. Opret én række pr. særskilt fastsat bidrag."),
-    unit = None
-)
-= personskat_par19_felt_identifikation = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::identifikation), label = "§ 19-bidragets identifikation", question = Some("Hvilken entydig identifikation har bidraget?"), help = Some("Brug en stabil reference fra afgørelsen, aftalen eller betalingsbilaget."), unit = None)
-= personskat_par19_felt_indkomstår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::indkomstår), label = "§ 19-bidragets indkomstår", question = Some("I hvilket indkomstår blev bidraget betalt eller modtaget?"), help = None, unit = Some("år"))
-= personskat_par19_felt_rolle = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::rolle::$variant),
-    label = "Personens skattemæssige rolle i § 19-bidraget",
-    question = Some("Er personen bidragsyder, moren som retlig modtager eller barnet med skattemæssig henføring af et navngivningsbidrag?"),
-    help = Some("Barnet er ikke den retlige modtager efter § 19, stk. 4. Barnets variant bruges kun til den særskilte skattemæssige henføring efter LL §§ 10-11."),
-    unit = None
-)
-= personskat_par19_felt_modtageridentitet = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::rolle::BørnebidragsBidragsyder::modtageridentitet_oplyst), label = "Modtageridentiteten er oplyst", question = Some("Er den krævede modtageridentitet oplyst til Skatteforvaltningen?"), help = Some("Oplysningen bruges kun, hvor navngivningsbidraget prøves som et fradragsberettiget børnebidrag."), unit = None)
-= personskat_par19_felt_betalt_af_yder = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::rolle::BørnebidragsBidragsyder::betalt_af_bidragsyderen_selv), label = "§ 19-bidraget er betalt af yderen selv", question = Some("Er beløbet faktisk afholdt af den person, som opgørelsen vedrører?"), help = None, unit = None)
-= personskat_par19_felt_hændelse = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::$variant), label = "§ 19-hændelsen", question = Some("Vedrører bidraget en fødsel eller en abort?"), help = None, unit = None)
-= personskat_par19_felt_fødselsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Fødsel::fødselsdato::år), label = "Barnets fødselsdato (ISO 8601) - år", question = Some("I hvilket år blev barnet født?"), help = None, unit = Some("år"))
-= personskat_par19_felt_fødselsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Fødsel::fødselsdato::måned), label = "Barnets fødselsdato (ISO 8601) - måned", question = Some("I hvilken måned blev barnet født?"), help = None, unit = Some("måned"))
-= personskat_par19_felt_fødselsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Fødsel::fødselsdato::dag), label = "Barnets fødselsdato (ISO 8601) - dag", question = Some("På hvilken dag blev barnet født?"), help = None, unit = Some("dag"))
-= personskat_par19_felt_fødselsudfald = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Fødsel::udfald), label = "Fødslens udfald", question = Some("Var barnet levendefødt eller dødfødt?"), help = Some("§ 19, stk. 1, tillader bidrag, selv om barnet er dødfødt."), unit = None)
-= personskat_par19_felt_abortår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Abort::abortdato::år), label = "Abortdato (ISO 8601) - år", question = Some("I hvilket år fandt aborten sted?"), help = None, unit = Some("år"))
-= personskat_par19_felt_abortmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Abort::abortdato::måned), label = "Abortdato (ISO 8601) - måned", question = Some("I hvilken måned fandt aborten sted?"), help = None, unit = Some("måned"))
-= personskat_par19_felt_abortdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Abort::abortdato::dag), label = "Abortdato (ISO 8601) - dag", question = Some("På hvilken dag fandt aborten sted?"), help = None, unit = Some("dag"))
-= personskat_par19_felt_bidragsart = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsart::$variant),
-    label = "§ 19-bidragets art",
-    question = Some("Er beløbet et fødselsbidrag, navngivningsbidrag, barselsbidrag eller bidrag til særlige abortudgifter?"),
-    help = None,
-    unit = None
-)
-= personskat_par19_felt_barsel_normal_før = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsart::Barselsbidrag::periode::AlmindeligBarselsperiode::måneder_før_fødslen), label = "Almindelige barselsmåneder før fødslen", question = Some("Hvor mange af de normale to måneder før fødslen omfatter bidraget?"), help = None, unit = Some("måneder"))
-= personskat_par19_felt_barsel_normal_efter = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsart::Barselsbidrag::periode::AlmindeligBarselsperiode::måneder_efter_fødslen), label = "Almindelige barselsmåneder efter fødslen", question = Some("Hvor mange af den normale ene måned efter fødslen omfatter bidraget?"), help = None, unit = Some("måneder"))
-= personskat_par19_felt_barsel_forlænget_før = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsart::Barselsbidrag::periode::ForlængetBarselsperiode::måneder_før_fødslen), label = "Forlængede barselsmåneder før fødslen", question = Some("Hvor mange måneder før fødslen er fastsat under særlige omstændigheder?"), help = Some("§ 19, stk. 1, tillader højst fire måneder før fødslen."), unit = Some("måneder"))
-= personskat_par19_felt_barsel_forlænget_efter = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsart::Barselsbidrag::periode::ForlængetBarselsperiode::måneder_efter_fødslen), label = "Forlængede barselsmåneder efter fødslen", question = Some("Hvor mange måneder efter fødslen er fastsat under særlige omstændigheder?"), help = Some("§ 19, stk. 1, tillader højst ni måneder efter fødslen."), unit = Some("måneder"))
-= personskat_par19_felt_barsel_forlænget_reference = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsart::Barselsbidrag::periode::ForlængetBarselsperiode::særlige_omstændigheder_dokumentreference), label = "Dokumentation for forlænget barselsperiode", question = Some("Hvilken afgørelse dokumenterer de særlige omstændigheder og den forlængede periode?"), help = None, unit = None)
-= personskat_par19_felt_abortudgifter = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsart::Abortudgiftsbidrag::dokumenterede_særlige_udgifter_kroner), label = "Dokumenterede særlige abortudgifter", question = Some("Hvor store særlige udgifter som følge af aborten er dokumenteret?"), help = None, unit = Some("kr."))
-= personskat_par19_felt_bidragsydergrundlag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsydergrundlag), label = "§ 19-bidragsyderens retlige grundlag", question = Some("Er yderen far, medmor, en person der har eller kan have besvangret kvinden, eller en person der samtykkede til assisteret reproduktion?"), help = None, unit = None)
-= personskat_par19_felt_retlig_modtager = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::retlig_modtager::$variant), label = "§ 19-bidragets retlige modtager", question = Some("Tilkommer bidraget moren eller en offentlig myndighed eller institution, som afholdt udgiften?"), help = Some("Modtageren følger § 19, stk. 4, og er ikke barnet."), unit = None)
-= personskat_par19_felt_offentlig_modtager_id = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::retlig_modtager::OffentligMyndighedEllerInstitution::identifikation), label = "Offentlig modtagers identifikation", question = Some("Hvilken myndighed eller institution afholdt udgiften og modtog bidraget?"), help = None, unit = None)
-= personskat_par19_felt_fastsættelse = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelse::$variant), label = "§ 19-bidragets fastsættelse", question = Some("Er bidraget fastsat af Familieretshuset, dokumenteret ved en bindende aftale eller uden dokumenteret fastsættelse?"), help = None, unit = None)
-= personskat_par19_felt_aftalereference = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelse::DokumenteretBindendeAftale::dokumentreference), label = "Dokumentation for bindende § 19-aftale", question = Some("Hvilken dokumentreference viser den bindende aftale?"), help = None, unit = None)
-= personskat_par19_felt_ansøgningsgrundlag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::$variant), label = "§ 19-bidragets ansøgningsvej", question = Some("Blev bidraget fastsat efter en myndighedsansøgning, eller følger det alene af en privat bindende aftale?"), help = Some("En offentlig fastsættelse kræver daterede fristfakta; en privat aftale har ingen myndighedsansøgning."), unit = None)
-= personskat_par19_felt_ansøgningsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::ansøgningsdato::år), label = "§ 19-ansøgningsdato (ISO 8601) - år", question = Some("I hvilket år modtog Familieretshuset ansøgningen?"), help = None, unit = Some("år"))
-= personskat_par19_felt_ansøgningsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::ansøgningsdato::måned), label = "§ 19-ansøgningsdato (ISO 8601) - måned", question = Some("I hvilken måned modtog Familieretshuset ansøgningen?"), help = None, unit = Some("måned"))
-= personskat_par19_felt_ansøgningsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::ansøgningsdato::dag), label = "§ 19-ansøgningsdato (ISO 8601) - dag", question = Some("På hvilken dag modtog Familieretshuset ansøgningen?"), help = None, unit = Some("dag"))
-= personskat_par19_felt_fristgrundlag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::fristgrundlag::$variant), label = "§ 19-ansøgningens fristgrundlag", question = Some("Regnes fristen fra fødslen, en fødselsnær faderskabs- eller medmoderskabssag, aborten eller dokumenterede helt særlige omstændigheder?"), help = Some("Futuruna afleder fristens overholdelse fra de angivne ISO-datoer."), unit = None)
-= personskat_par19_felt_forældresagsafslutningsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::fristgrundlag::FaderskabEllerMedmoderskabIndledtVedFødslen::sagsafslutningsdato::år), label = "Faderskabs- eller medmoderskabssagens afslutning (ISO 8601) - år", question = Some("I hvilket år blev den fødselsnære faderskabs- eller medmoderskabssag afsluttet?"), help = None, unit = Some("år"))
-= personskat_par19_felt_forældresagsafslutningsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::fristgrundlag::FaderskabEllerMedmoderskabIndledtVedFødslen::sagsafslutningsdato::måned), label = "Faderskabs- eller medmoderskabssagens afslutning (ISO 8601) - måned", question = Some("I hvilken måned blev den fødselsnære faderskabs- eller medmoderskabssag afsluttet?"), help = None, unit = Some("måned"))
-= personskat_par19_felt_forældresagsafslutningsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::fristgrundlag::FaderskabEllerMedmoderskabIndledtVedFødslen::sagsafslutningsdato::dag), label = "Faderskabs- eller medmoderskabssagens afslutning (ISO 8601) - dag", question = Some("På hvilken dag blev den fødselsnære faderskabs- eller medmoderskabssag afsluttet?"), help = None, unit = Some("dag"))
-= personskat_par19_felt_forældresagsreference = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::fristgrundlag::FaderskabEllerMedmoderskabIndledtVedFødslen::sagsreference), label = "Dokumentation for fødselsnær faderskabs- eller medmoderskabssag", question = Some("Hvilken sagsreference viser, at sagen blev indledt i forbindelse med fødslen?"), help = None, unit = None)
-= personskat_par19_felt_særlig_fristreference = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::fristgrundlag::HeltSærligeOmstændigheder::afgørelsesreference), label = "Afgørelse om helt særlige fristomstændigheder", question = Some("Hvilken afgørelse dokumenterer fravigelsen af den almindelige ansøgningsfrist?"), help = None, unit = None)
-= personskat_par19_felt_fastsættelsesår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelsesdato::år), label = "Fastsættelsesdato (ISO 8601) - år", question = Some("I hvilket år blev bidraget fastsat?"), help = Some("Futuruna bruger fastsættelsesåret til den officielle sats."), unit = Some("år"))
-= personskat_par19_felt_fastsættelsesmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelsesdato::måned), label = "Fastsættelsesdato (ISO 8601) - måned", question = Some("I hvilken måned blev bidraget fastsat?"), help = None, unit = Some("måned"))
-= personskat_par19_felt_fastsættelsesdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelsesdato::dag), label = "Fastsættelsesdato (ISO 8601) - dag", question = Some("På hvilken dag blev bidraget fastsat?"), help = None, unit = Some("dag"))
-= personskat_par19_felt_forfaldsgrundlag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::forfaldsgrundlag::$variant), label = "§ 19-bidragets forfaldsgrundlag", question = Some("Forfaldt bidraget straks efter fødslen, ved fødslen efter en tidligere fastsættelse, på et andet fastsat tidspunkt eller straks som abortbidrag?"), help = None, unit = None)
-= personskat_par19_felt_andet_forfald_reference = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::forfaldsgrundlag::AndetTidspunktFastsatIAfgørelsen::dokumentreference), label = "Dokumentation for andet forfaldstidspunkt", question = Some("Hvilken afgørelse fastsætter det andet forfaldstidspunkt?"), help = None, unit = None)
-= personskat_par19_felt_forfaldsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::forfaldsdato::år), label = "§ 19-forfaldsdato (ISO 8601) - år", question = Some("I hvilket år forfaldt bidraget?"), help = None, unit = Some("år"))
-= personskat_par19_felt_forfaldsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::forfaldsdato::måned), label = "§ 19-forfaldsdato (ISO 8601) - måned", question = Some("I hvilken måned forfaldt bidraget?"), help = None, unit = Some("måned"))
-= personskat_par19_felt_forfaldsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::forfaldsdato::dag), label = "§ 19-forfaldsdato (ISO 8601) - dag", question = Some("På hvilken dag forfaldt bidraget?"), help = None, unit = Some("dag"))
-= personskat_par19_felt_betalingsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::betalingsdato::år), label = "§ 19-betalingsdato (ISO 8601) - år", question = Some("I hvilket år blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("år"))
-= personskat_par19_felt_betalingsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::betalingsdato::måned), label = "§ 19-betalingsdato (ISO 8601) - måned", question = Some("I hvilken måned blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("måned"))
-= personskat_par19_felt_betalingsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::betalingsdato::dag), label = "§ 19-betalingsdato (ISO 8601) - dag", question = Some("På hvilken dag blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("dag"))
-= personskat_par19_felt_beløb = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::beløb_kroner), label = "Betalt eller modtaget § 19-bidrag", question = Some("Hvor stort et § 19-bidrag blev faktisk betalt eller modtaget?"), help = None, unit = Some("kr."))
-= personskat_par19_felt_barn_id = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::barnets_identifikation), label = "Barnets identifikation ved navngivningsskat", question = Some("Hvilken stabil identifikation har barnet, når navngivningsbidraget skal prøves efter LL §§ 10-11?"), help = Some("Feltet kræves kun for navngivningsbidrag med skattemæssig henføring til yderen eller barnet."), unit = None)
-= personskat_par19_felt_navngivningskontekst = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::$variant), label = "Navngivningsbidragets skattekontekst", question = Some("Skal navngivningsbidraget prøves efter LL §§ 10-11, eller er denne skattekontekst ikke relevant for posten?"), help = None, unit = None)
-= personskat_par19_felt_navngivning_retsgrundlag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::retsgrundlag::$variant), label = "Navngivningsbidragets familiemæssige skattegrundlag", question = Some("Skyldes navngivningsbidragets skattebehandling skilsmisse, separation, faktisk adskillelse eller et barn uden for ægteskab?"), help = None, unit = None)
-= personskat_par19_felt_navngivning_skilsmisse = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::retsgrundlag::Skilsmisse::fastsat_eller_ændret_efter_lovens_ikrafttrædelse), label = "Navngivningsbidragets skilsmissegrundlag er historisk omfattet", question = Some("Er bidraget fastsat eller ændret efter LL § 10, stk. 4's historiske ikrafttrædelse?"), help = None, unit = None)
-= personskat_par19_felt_navngivning_separation = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::retsgrundlag::Separation::fastsat_eller_ændret_efter_lovens_ikrafttrædelse), label = "Navngivningsbidragets separationsgrundlag er historisk omfattet", question = Some("Er bidraget fastsat eller ændret efter LL § 10, stk. 4's historiske ikrafttrædelse?"), help = None, unit = None)
-= personskat_par19_felt_navngivning_adskillelse = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::retsgrundlag::FaktiskAdskillelse::faktisk_adskillelse_dokumenteret), label = "Faktisk adskillelse ved navngivningsbidrag er dokumenteret", question = Some("Er den faktiske adskillelse dokumenteret?"), help = None, unit = None)
-= personskat_par19_felt_navngivning_selvstændig_statsskat = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::retsgrundlag::FaktiskAdskillelse::ægtefællerne_ansat_selvstændigt_til_statsskat), label = "Selvstændig statsskat ved navngivningsbidrag", question = Some("Er ægtefællerne ansat selvstændigt til statsskat som følge af den faktiske adskillelse?"), help = None, unit = None)
-= personskat_par19_felt_navngivning_bopæl = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::barnets_bopæl), label = "Barnets bopæl ved navngivningsbidraget", question = Some("Hvor boede barnet i relation til bidragsyderen?"), help = Some("Bidragsyderens fradrag kræver, at barnet ikke opholder sig hos yderen."), unit = None)
-= personskat_par19_felt_navngivning_forsørgerpligt = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::forsørger_eller_bidragspligt_over_for_det_offentlige), label = "Offentlig forsørger- eller bidragspligt ved navngivningsbidrag", question = Some("Har bidragsyderen forsørger- eller bidragspligt over for det offentlige for barnet?"), help = None, unit = None)
+= personskat_par19_felt_fødselsår = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Fødsel::fødselsdato::år), label = "Barnets fødselsdato (ISO 8601) - år", question = Some("I hvilket år blev barnet født?"), help = None, unit = Some("år"))
+= personskat_par19_felt_fødselsmåned = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Fødsel::fødselsdato::måned), label = "Barnets fødselsdato (ISO 8601) - måned", question = Some("I hvilken måned blev barnet født?"), help = None, unit = Some("måned"))
+= personskat_par19_felt_fødselsdag = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Fødsel::fødselsdato::dag), label = "Barnets fødselsdato (ISO 8601) - dag", question = Some("På hvilken dag blev barnet født?"), help = None, unit = Some("dag"))
+= personskat_par19_felt_abortår = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Abort::abortdato::år), label = "Abortdato (ISO 8601) - år", question = Some("I hvilket år fandt aborten sted?"), help = None, unit = Some("år"))
+= personskat_par19_felt_abortmåned = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Abort::abortdato::måned), label = "Abortdato (ISO 8601) - måned", question = Some("I hvilken måned fandt aborten sted?"), help = None, unit = Some("måned"))
+= personskat_par19_felt_abortdag = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Abort::abortdato::dag), label = "Abortdato (ISO 8601) - dag", question = Some("På hvilken dag fandt aborten sted?"), help = None, unit = Some("dag"))
+= personskat_par19_felt_ansøgningsår = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::ansøgningsdato::år), label = "§ 19-ansøgningsdato (ISO 8601) - år", question = Some("I hvilket år modtog Familieretshuset ansøgningen?"), help = None, unit = Some("år"))
+= personskat_par19_felt_ansøgningsmåned = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::ansøgningsdato::måned), label = "§ 19-ansøgningsdato (ISO 8601) - måned", question = Some("I hvilken måned modtog Familieretshuset ansøgningen?"), help = None, unit = Some("måned"))
+= personskat_par19_felt_ansøgningsdag = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::ansøgningsdato::dag), label = "§ 19-ansøgningsdato (ISO 8601) - dag", question = Some("På hvilken dag modtog Familieretshuset ansøgningen?"), help = None, unit = Some("dag"))
+= personskat_par19_felt_forældresagsafslutningsår = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::fristgrundlag::FaderskabEllerMedmoderskabIndledtVedFødslen::sagsafslutningsdato::år), label = "Faderskabs- eller medmoderskabssagens afslutning (ISO 8601) - år", question = Some("I hvilket år blev den fødselsnære faderskabs- eller medmoderskabssag afsluttet?"), help = None, unit = Some("år"))
+= personskat_par19_felt_forældresagsafslutningsmåned = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::fristgrundlag::FaderskabEllerMedmoderskabIndledtVedFødslen::sagsafslutningsdato::måned), label = "Faderskabs- eller medmoderskabssagens afslutning (ISO 8601) - måned", question = Some("I hvilken måned blev den fødselsnære faderskabs- eller medmoderskabssag afsluttet?"), help = None, unit = Some("måned"))
+= personskat_par19_felt_forældresagsafslutningsdag = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::fristgrundlag::FaderskabEllerMedmoderskabIndledtVedFødslen::sagsafslutningsdato::dag), label = "Faderskabs- eller medmoderskabssagens afslutning (ISO 8601) - dag", question = Some("På hvilken dag blev den fødselsnære faderskabs- eller medmoderskabssag afsluttet?"), help = None, unit = Some("dag"))
+= personskat_par19_felt_fastsættelsesår = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelsesdato::år), label = "Fastsættelsesdato (ISO 8601) - år", question = Some("I hvilket år blev bidraget fastsat?"), help = Some("Futuruna bruger fastsættelsesåret til den officielle sats."), unit = Some("år"))
+= personskat_par19_felt_fastsættelsesmåned = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelsesdato::måned), label = "Fastsættelsesdato (ISO 8601) - måned", question = Some("I hvilken måned blev bidraget fastsat?"), help = None, unit = Some("måned"))
+= personskat_par19_felt_fastsættelsesdag = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelsesdato::dag), label = "Fastsættelsesdato (ISO 8601) - dag", question = Some("På hvilken dag blev bidraget fastsat?"), help = None, unit = Some("dag"))
+= personskat_par19_felt_forfaldsår = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::forfaldsdato::år), label = "§ 19-forfaldsdato (ISO 8601) - år", question = Some("I hvilket år forfaldt bidraget?"), help = None, unit = Some("år"))
+= personskat_par19_felt_forfaldsmåned = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::forfaldsdato::måned), label = "§ 19-forfaldsdato (ISO 8601) - måned", question = Some("I hvilken måned forfaldt bidraget?"), help = None, unit = Some("måned"))
+= personskat_par19_felt_forfaldsdag = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::forfaldsdato::dag), label = "§ 19-forfaldsdato (ISO 8601) - dag", question = Some("På hvilken dag forfaldt bidraget?"), help = None, unit = Some("dag"))
+= personskat_par19_felt_betalingsår = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::betalingsdato::år), label = "§ 19-betalingsdato (ISO 8601) - år", question = Some("I hvilket år blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("år"))
+= personskat_par19_felt_betalingsmåned = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::betalingsdato::måned), label = "§ 19-betalingsdato (ISO 8601) - måned", question = Some("I hvilken måned blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("måned"))
+= personskat_par19_felt_betalingsdag = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::betalingsdato::dag), label = "§ 19-betalingsdato (ISO 8601) - dag", question = Some("På hvilken dag blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("dag"))
+= personskat_par19_felt_navngivning_retsgrundlag = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::retsgrundlag::$variant), label = "Navngivningsbidragets familiemæssige skattegrundlag", question = Some("Skyldes navngivningsbidragets skattebehandling skilsmisse, separation, faktisk adskillelse eller et barn uden for ægteskab?"), help = None, unit = None)
+= personskat_par19_felt_navngivning_skilsmisse = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::retsgrundlag::Skilsmisse::fastsat_eller_ændret_efter_lovens_ikrafttrædelse), label = "Navngivningsbidragets skilsmissegrundlag er historisk omfattet", question = Some("Er bidraget fastsat eller ændret efter LL § 10, stk. 4's historiske ikrafttrædelse?"), help = None, unit = None)
+= personskat_par19_felt_navngivning_separation = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::retsgrundlag::Separation::fastsat_eller_ændret_efter_lovens_ikrafttrædelse), label = "Navngivningsbidragets separationsgrundlag er historisk omfattet", question = Some("Er bidraget fastsat eller ændret efter LL § 10, stk. 4's historiske ikrafttrædelse?"), help = None, unit = None)
+= personskat_par19_felt_navngivning_adskillelse = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::retsgrundlag::FaktiskAdskillelse::faktisk_adskillelse_dokumenteret), label = "Faktisk adskillelse ved navngivningsbidrag er dokumenteret", question = Some("Er den faktiske adskillelse dokumenteret?"), help = None, unit = None)
+= personskat_par19_felt_navngivning_selvstændig_statsskat = Beregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::retsgrundlag::FaktiskAdskillelse::ægtefællerne_ansat_selvstændigt_til_statsskat), label = "Selvstændig statsskat ved navngivningsbidrag", question = Some("Er ægtefællerne ansat selvstændigt til statsskat som følge af den faktiske adskillelse?"), help = None, unit = None)
 
-= personskat_personlig_indkomst_beregningsmeta = TypetBeregningsmeta(
+= personskat_personlig_indkomst_beregningsmeta = Beregningsmeta(
     felter = [
-        personskat_personlig_indkomst_felt_arbejdsgiverydelse_id,
-        personskat_personlig_indkomst_felt_arbejdsgiverydelse_år,
-        personskat_personlig_indkomst_felt_arbejdsgiverydelse_art,
-        personskat_personlig_indkomst_felt_direkte_gruppeliv,
-        personskat_personlig_indkomst_felt_pbl19_gruppeliv,
-        personskat_personlig_indkomst_felt_pbl19_gruppeliv_før_am,
-        personskat_personlig_indkomst_felt_pbl19_pension_arbejdsgiverrelation,
-        personskat_personlig_indkomst_felt_pbl19_pension_ordning,
-        personskat_personlig_indkomst_felt_pbl19_pension_før_am,
-        personskat_personlig_indkomst_felt_pbl19_pension_efter_am,
-        personskat_personlig_indkomst_felt_pbl19_pension_kapitalstatus,
-        personskat_personlig_indkomst_felt_pbl19_pension_afgiftsår,
-        personskat_personlig_indkomst_felt_pbl19_pbl56_samlepost_før_am,
-        personskat_personlig_indkomst_felt_pbl19_pbl56_samlepost_efter_am,
-        personskat_personlig_indkomst_felt_naturalie_art,
-        personskat_personlig_indkomst_felt_naturalie_værdi,
-        personskat_personlig_indkomst_felt_uklassificeret_ydelse_beskrivelse,
-        personskat_personlig_indkomst_felt_uklassificeret_ydelse_beløb,
-        personskat_personlig_indkomst_felt_arbejdsvederlag_samling,
-        personskat_personlig_indkomst_felt_arbejdsvederlag_id,
-        personskat_personlig_indkomst_felt_arbejdsvederlag_år,
-        personskat_personlig_indkomst_felt_arbejdsvederlag_forhold,
-        personskat_personlig_indkomst_felt_arbejdsvederlag_form,
-        personskat_personlig_indkomst_felt_arbejdsvederlag_naturalie,
-        personskat_personlig_indkomst_felt_arbejdsvederlag_værdi,
-        personskat_personlig_indkomst_felt_virksomhed_id,
-        personskat_personlig_indkomst_felt_virksomhed_år,
         personskat_personlig_indkomst_felt_virksomhedsindtægt_id,
         personskat_personlig_indkomst_felt_virksomhedsindtægt_art,
         personskat_personlig_indkomst_felt_virksomhedsindtægt_beløb,
         personskat_personlig_indkomst_felt_virksomhedsudgift_id,
         personskat_personlig_indkomst_felt_virksomhedsudgift_afgrænsning,
         personskat_personlig_indkomst_felt_virksomhedsudgift_beløb,
-        personskat_underhold_felt_samling,
-        personskat_underhold_felt_identifikation,
-        personskat_underhold_felt_indkomstår,
-        personskat_underhold_felt_rolle,
-        personskat_underhold_felt_modtageridentitet_oplyst,
         personskat_underhold_felt_retsgrundlag,
         personskat_underhold_felt_skilsmisse_virkningstidspunkt,
         personskat_underhold_felt_separation_virkningstidspunkt,
         personskat_underhold_felt_faktisk_adskillelse,
         personskat_underhold_felt_selvstændig_statsskat,
-        personskat_underhold_felt_modtager_identifikation,
-        personskat_underhold_felt_modtagerart,
-        personskat_underhold_felt_ægtefæller_bor_sammen,
         personskat_underhold_felt_barn_fødselsår,
         personskat_underhold_felt_barn_fødselsmåned,
         personskat_underhold_felt_barn_fødselsdag,
-        personskat_underhold_felt_barn_bopæl,
-        personskat_underhold_felt_offentlig_forsørgerpligt,
-        personskat_underhold_felt_fastsættelse,
-        personskat_underhold_felt_privat_fradragsvurdering,
-        personskat_underhold_felt_privat_vejledende_månedsbeløb,
-        personskat_underhold_felt_privat_vejledende_reference,
-        personskat_underhold_felt_privat_anerkendt_beløb,
-        personskat_underhold_felt_privat_anerkendt_reference,
-        personskat_underhold_felt_bidragstype,
-        personskat_underhold_felt_løbende_beløbsgrundlag,
-        personskat_underhold_felt_uddannelsesformål,
-        personskat_underhold_felt_dåbsudgift_dokumenteret,
-        personskat_underhold_felt_konfirmationsudgift_dokumenteret,
-        personskat_underhold_felt_betalingsvej,
-        personskat_underhold_felt_direkte_til_barn,
-        personskat_underhold_felt_modregning,
-        personskat_underhold_felt_restancestatus,
-        personskat_underhold_felt_restancerækkefølge,
         personskat_underhold_felt_forfaldsår,
         personskat_underhold_felt_forfaldsmåned,
         personskat_underhold_felt_forfaldsdag,
         personskat_underhold_felt_betalingsår,
         personskat_underhold_felt_betalingsmåned,
         personskat_underhold_felt_betalingsdag,
-        personskat_underhold_felt_beløb,
-        personskat_underhold_felt_betalt_af_yder,
-        personskat_par19_felt_samling,
-        personskat_par19_felt_identifikation,
-        personskat_par19_felt_indkomstår,
-        personskat_par19_felt_rolle,
-        personskat_par19_felt_modtageridentitet,
-        personskat_par19_felt_betalt_af_yder,
-        personskat_par19_felt_hændelse,
         personskat_par19_felt_fødselsår,
         personskat_par19_felt_fødselsmåned,
         personskat_par19_felt_fødselsdag,
-        personskat_par19_felt_fødselsudfald,
         personskat_par19_felt_abortår,
         personskat_par19_felt_abortmåned,
         personskat_par19_felt_abortdag,
-        personskat_par19_felt_bidragsart,
-        personskat_par19_felt_barsel_normal_før,
-        personskat_par19_felt_barsel_normal_efter,
-        personskat_par19_felt_barsel_forlænget_før,
-        personskat_par19_felt_barsel_forlænget_efter,
-        personskat_par19_felt_barsel_forlænget_reference,
-        personskat_par19_felt_abortudgifter,
-        personskat_par19_felt_bidragsydergrundlag,
-        personskat_par19_felt_retlig_modtager,
-        personskat_par19_felt_offentlig_modtager_id,
-        personskat_par19_felt_fastsættelse,
-        personskat_par19_felt_aftalereference,
-        personskat_par19_felt_ansøgningsgrundlag,
         personskat_par19_felt_ansøgningsår,
         personskat_par19_felt_ansøgningsmåned,
         personskat_par19_felt_ansøgningsdag,
-        personskat_par19_felt_fristgrundlag,
         personskat_par19_felt_forældresagsafslutningsår,
         personskat_par19_felt_forældresagsafslutningsmåned,
         personskat_par19_felt_forældresagsafslutningsdag,
-        personskat_par19_felt_forældresagsreference,
-        personskat_par19_felt_særlig_fristreference,
         personskat_par19_felt_fastsættelsesår,
         personskat_par19_felt_fastsættelsesmåned,
         personskat_par19_felt_fastsættelsesdag,
-        personskat_par19_felt_forfaldsgrundlag,
-        personskat_par19_felt_andet_forfald_reference,
         personskat_par19_felt_forfaldsår,
         personskat_par19_felt_forfaldsmåned,
         personskat_par19_felt_forfaldsdag,
         personskat_par19_felt_betalingsår,
         personskat_par19_felt_betalingsmåned,
         personskat_par19_felt_betalingsdag,
-        personskat_par19_felt_beløb,
-        personskat_par19_felt_barn_id,
-        personskat_par19_felt_navngivningskontekst,
         personskat_par19_felt_navngivning_retsgrundlag,
         personskat_par19_felt_navngivning_skilsmisse,
         personskat_par19_felt_navngivning_separation,
         personskat_par19_felt_navngivning_adskillelse,
-        personskat_par19_felt_navngivning_selvstændig_statsskat,
-        personskat_par19_felt_navngivning_bopæl,
-        personskat_par19_felt_navngivning_forsørgerpligt
+        personskat_par19_felt_navngivning_selvstændig_statsskat
     ],
-    spørgsmål = [],
-    beløbsfelter = [],
     attachments = (
         Source(value = personskatteloven_lbk1284_par3),
         DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
@@ -781,520 +201,3 @@
 )
 
 @ meta(personskat_personlig_indkomst_beregningsmeta) for PersonskatPersonligIndkomstInput
-
-= personskat_ydelsesudbetaling_felt_samling = TypetBeregningsfelt(
-    path = refof(PersonskatOrdinærPersonligIndkomstInput::forenings_og_arbejdsløshedsydelser),
-    label = "Offentlig pension, SU, dagpenge og øvrige dækkede poster uden AM",
-    question = Some("Har personen modtaget folkepension, førtids-/senior-/tidlig pension, særskilte tillæg, SU, arbejdsløshedsdagpenge, G-dage, syge- eller barselsdagpenge, foreningsydelser, privat lønsikring eller fået gruppeliv betalt af pensionsbonus?"),
-    help = Some("Opret én række for hver særskilt post og retligt identificerbar del. Brug PersonskatFolkepensionsudbetaling for dansk folkepension, PersonskatSocialpensionsudbetaling for dækket førtids-/senior-/tidlig pension, PersonskatUddannelsesstøtte for SU og PersonskatLovbestemteDagpenge for dagpenge. PersonskatGruppelivFraPensionsbonus er præmier fra bonus på fradragsberettiget pension, ikke løntræk eller bonus fra selve forsikringen; se personskat-gruppeliv.md. Samme beløb må ikke også stå i løn eller PBL § 20-pension. Adskil skattepligtige og skattefri dele. Eventuelle ATP/SUPP-fakta oplyses særskilt; SU har ikke ATP."),
-    unit = None
-)
-= personskat_ydelsesudbetaling_felt_hjemmel = TypetBeregningsfelt(
-    path = refof(PersonskatForeningsOgArbejdsløshedsydelseFakta::$variant),
-    label = "Postens lovgren",
-    question = Some("Er dette ordinær dansk folkepension/tillæg, førtids-/senior-/tidlig pension, SU, dagpenge, en foreningsydelse efter LL § 13, arbejdsløshedsforsikring efter PBL § 49 eller gruppeliv betalt af pensionsbonus?"),
-    help = Some("Vælg efter ordningens lovgrundlag og dokumentation, ikke årsopgørelsens samlelinje. Den generelle A-kassevariant under PBL § 49 afklarer ikke indkomstgrundlaget for ekstra kørselsfradrag; dokumenterede danske arbejdsløshedsdagpenge har en særskilt gren. PersonskatGruppelivFraPensionsbonus kræver dokumenteret bonus på fradragsberettiget pension, ikke løntræk/felt 91; se personskat-gruppeliv.md."),
-    unit = None
-)
-
-= personskat_foreningsydelse_felt_id = TypetBeregningsfelt(
-    path = refof(Ligningslov13ForeningsydelseFakta::identifikation),
-    label = "Foreningsydelsens identifikation",
-    question = Some("Hvilken entydig identifikation har foreningsydelsen?"),
-    help = Some("Brug en stabil reference fra udbetalingsbilaget, så samme ydelse ikke medregnes to gange."),
-    unit = None
-)
-= personskat_foreningsydelse_felt_år = TypetBeregningsfelt(
-    path = refof(Ligningslov13ForeningsydelseFakta::indkomstår),
-    label = "Foreningsydelsens indkomstår",
-    question = Some("Hvilket indkomstår vedrører foreningsydelsen?"),
-    help = Some("Indkomståret skal være det samme som skatteåret i Personskat-beregningen."),
-    unit = Some("år")
-)
-= personskat_foreningsydelse_felt_art = TypetBeregningsfelt(
-    path = refof(Ligningslov13ForeningsydelseFakta::foreningsart),
-    label = "Den udbetalende forenings art",
-    question = Some("Er udbetaleren en arbejdsgiverforening, fagforening, anden faglig sammenslutning eller anden forening?"),
-    help = Some("Klassifikationen skal følge foreningens vedtægter og faktiske hovedformål."),
-    unit = None
-)
-= personskat_foreningsydelse_felt_beløb = TypetBeregningsfelt(
-    path = refof(Ligningslov13ForeningsydelseFakta::beløb_kroner),
-    label = "Modtaget foreningsydelse",
-    question = Some("Hvor stort et beløb er modtaget fra foreningen?"),
-    help = Some("Angiv bruttobeløbet for denne særskilte ydelse eller identificerede del."),
-    unit = Some("kr./år")
-)
-= personskat_foreningsydelse_felt_hovedformål = TypetBeregningsfelt(
-    path = refof(Ligningslov13ForeningsydelseFakta::foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser),
-    label = "Foreningens hovedformål er erhvervsgruppens økonomiske interesser",
-    question = Some("Har foreningen som hovedformål at varetage erhvervsgruppens økonomiske interesser?"),
-    help = Some("Brug vedtægter eller anden dokumentation for foreningens hovedformål."),
-    unit = None
-)
-= personskat_foreningsydelse_felt_erhvervsgruppe = TypetBeregningsfelt(
-    path = refof(Ligningslov13ForeningsydelseFakta::modtager_hører_til_erhvervsgruppen),
-    label = "Modtageren tilhører erhvervsgruppen",
-    question = Some("Tilhører modtageren den erhvervsgruppe, hvis økonomiske interesser foreningen varetager?"),
-    help = None,
-    unit = None
-)
-= personskat_foreningsydelse_felt_medlem = TypetBeregningsfelt(
-    path = refof(Ligningslov13ForeningsydelseFakta::modtager_er_medlem),
-    label = "Modtageren er medlem af foreningen",
-    question = Some("Var modtageren medlem af foreningen, da ydelsen blev udbetalt?"),
-    help = Some("LL § 13's indkomstregel gælder erstatninger og ydelser, som udbetales til medlemmerne."),
-    unit = None
-)
-
-= personskat_arbejdsløshedsudbetaling_felt_id = TypetBeregningsfelt(
-    path = refof(Pbl49ArbejdsløshedsforsikringsudbetalingFakta::identifikation),
-    label = "Arbejdsløshedsudbetalingens identifikation",
-    question = Some("Hvilken entydig identifikation har arbejdsløshedsforsikringsudbetalingen?"),
-    help = Some("Brug en stabil reference fra A-kassen eller forsikringen, så samme udbetaling ikke medregnes to gange."),
-    unit = None
-)
-= personskat_arbejdsløshedsudbetaling_felt_år = TypetBeregningsfelt(
-    path = refof(Pbl49ArbejdsløshedsforsikringsudbetalingFakta::indkomstår),
-    label = "Arbejdsløshedsudbetalingens indkomstår",
-    question = Some("Hvilket indkomstår vedrører arbejdsløshedsforsikringsudbetalingen?"),
-    help = Some("Indkomståret skal være det samme som skatteåret i Personskat-beregningen."),
-    unit = Some("år")
-)
-= personskat_arbejdsløshedsudbetaling_felt_beløb = TypetBeregningsfelt(
-    path = refof(Pbl49ArbejdsløshedsforsikringsudbetalingFakta::beløb_kroner),
-    label = "Modtaget arbejdsløshedsforsikringsudbetaling",
-    question = Some("Hvor stort et beløb er udbetalt fra arbejdsløshedsforsikringen?"),
-    help = Some("Angiv bruttobeløbet, også når forsikringen betaler direkte til en kreditor og dermed frigør personen for en betalingsforpligtelse."),
-    unit = Some("kr./år")
-)
-= personskat_arbejdsløshedsudbetaling_felt_art = TypetBeregningsfelt(
-    path = refof(Pbl49ArbejdsløshedsforsikringsudbetalingFakta::art),
-    label = "Arbejdsløshedsforsikringens art",
-    question = Some("Kommer udbetalingen fra en A-kasse, en privat arbejdsløshedsforsikring eller en anden eller sammensat forsikring?"),
-    help = Some("En anden eller sammensat forsikring kræver en dokumenteret retlig klassifikation. Opdel ikke et samlet forsikringsprodukt alene ud fra en regnskabsmæssig fordeling."),
-    unit = None
-)
-= personskat_arbejdsløshedsudbetaling_felt_skatteyderrelation = TypetBeregningsfelt(
-    path = refof(Pbl49ArbejdsløshedsforsikringsudbetalingFakta::skatteyderrelation),
-    label = "Skatteyderrelation efter PBL § 55",
-    question = Some("Er personen forsikringens ejer, berettiget efter ejerens død, eller er en anden person skattepligtig af udbetalingen?"),
-    help = Some("PBL § 55 placerer indkomstskattepligten hos den retligt berettigede person, ikke nødvendigvis den praktiske betalingsmodtager."),
-    unit = None
-)
-
-= personskat_ydelsesundtagelse_felt_hjemmel = TypetBeregningsfelt(
-    path = refof(Ligningslov30Og31Undtagelse::$variant),
-    label = "Påberåbt skattefri undtagelse",
-    question = Some("Er ydelsen ordinært skattepligtig, eller påberåbes skattefrihed for behandling efter LL § 30 eller uddannelse efter LL § 31?"),
-    help = Some("Vælg kun en undtagelse, når udbetalingsbilaget identificerer den dækkede udgift. En sammensat betaling skal opdeles i særskilte rækker."),
-    unit = None
-)
-= personskat_ll30_felt_formål = TypetBeregningsfelt(
-    path = refof(Ligningslov30Behandlingsfakta::formål),
-    label = "Behandlingens formål efter LL § 30",
-    question = Some("Vedrører behandlingen misbrug af medicin, alkohol, andre rusmidler eller rygeafvænning?"),
-    help = None,
-    unit = None
-)
-= personskat_ll30_felt_ydelsesart = TypetBeregningsfelt(
-    path = refof(Ligningslov30Behandlingsfakta::ydelsesart::$variant),
-    label = "Behandlingsydelsens art",
-    question = Some("Dækker ydelsen en direkte behandlingsudgift, en rentefordel ved behandlingslån eller en forsikringspræmie eller refusion?"),
-    help = None,
-    unit = None
-)
-= personskat_ll30_felt_medicindækning = TypetBeregningsfelt(
-    path = refof(Ligningslov30Behandlingsfakta::medicindækning),
-    label = "Medicindækningens periode",
-    question = Some("Dækker ydelsen medicin, og ligger udgiften inden for seks måneder eller senere under eller uden indlæggelse?"),
-    help = Some("Seks-månedersbegrænsningen gælder medicinudgifter, men ikke rygeafvænning; medicin under indlæggelse er undtaget fra tidsgrænsen."),
-    unit = None
-)
-= personskat_ll30_felt_generel_ordning = TypetBeregningsfelt(
-    path = refof(Ligningslov30Behandlingsfakta::generel_ordning_for_personkredsen),
-    label = "Behandlingen indgår i en generel ordning",
-    question = Some("Tilbydes behandlingsordningen generelt til den relevante personkreds efter objektive kriterier?"),
-    help = Some("En individuel særordning opfylder ikke LL § 30, stk. 3."),
-    unit = None
-)
-= personskat_ll30_felt_lægeerklæring = TypetBeregningsfelt(
-    path = refof(Ligningslov30Behandlingsfakta::skriftlig_lægeerklæring),
-    label = "Skriftlig lægeerklæring foreligger",
-    question = Some("Foreligger der en skriftlig lægeerklæring om behovet for behandlingen?"),
-    help = Some("Kravet gælder behandling af medicin-, alkohol- og andet rusmiddelmisbrug, men ikke rygeafvænning."),
-    unit = None
-)
-= personskat_ll30_felt_lån_begrænset = TypetBeregningsfelt(
-    path = refof(Ligningslov30Ydelsesart::Ll30RentefordelVedBehandlingslån::lånet_begrænset_til_omfattet_behandling),
-    label = "Behandlingslånet er begrænset til omfattet behandling",
-    question = Some("Må lånet kun anvendes til behandling, som opfylder LL § 30?"),
-    help = None,
-    unit = None
-)
-= personskat_ll30_felt_forsikring_begrænset = TypetBeregningsfelt(
-    path = refof(Ligningslov30Ydelsesart::Ll30ForsikringspræmieEllerRefusion::forsikringsvilkårene_begrænser_dækningen_til_omfattet_behandling),
-    label = "Forsikringen er begrænset til omfattet behandling",
-    question = Some("Fremgår det af forsikringsvilkårene, at forsikringen kun dækker behandling, som opfylder LL § 30?"),
-    help = None,
-    unit = None
-)
-
-= personskat_ll31_felt_privat = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesfakta::uddannelsen_eller_kurset_udelukkende_privat),
-    label = "Uddannelsen eller kurset har udelukkende privat formål",
-    question = Some("Har uddannelsen eller kurset udelukkende privat karakter for modtageren?"),
-    help = Some("Ydelser til uddannelser og kurser med udelukkende privat formål er ikke skattefri efter LL § 31."),
-    unit = None
-)
-= personskat_ll31_felt_ydelsesart = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesfakta::ydelsesart::$variant),
-    label = "Uddannelsesydelsens art",
-    question = Some("Dækker ydelsen skolebetaling, bøger, logi, kost, transport eller AUB-tilskud eller refusion?"),
-    help = Some("Vælg den konkrete udgiftstype. En betaling med flere typer skal opdeles i særskilte identificerede rækker."),
-    unit = None
-)
-= personskat_ll31_felt_kørekort_almindeligt = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SkoleEllerDeltagerbetaling::almindeligt_kørekort),
-    label = "Betalingen vedrører almindeligt kørekort",
-    question = Some("Vedrører skole- eller deltagerbetalingen et almindeligt kørekort?"),
-    help = None,
-    unit = None
-)
-= personskat_ll31_felt_kørekort_lovpligt = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SkoleEllerDeltagerbetaling::yder_har_lovpligt_til_at_betale_kørekortet),
-    label = "Yderen har lovpligt til at betale kørekortet",
-    question = Some("Har yderen efter gældende lov pligt til at afholde udgiften til kørekortet?"),
-    help = Some("Et almindeligt kørekort omfattes kun, når yderen har en lovbestemt betalingspligt."),
-    unit = None
-)
-= personskat_ll31_felt_bøger_relevante = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31BøgerOgMaterialer::relevante_for_uddannelsen_eller_kurset),
-    label = "Bøger og materialer er relevante for uddannelsen",
-    question = Some("Er bøgerne eller materialerne fagligt relevante for den konkrete uddannelse eller det konkrete kursus?"),
-    help = None,
-    unit = None
-)
-= personskat_ll31_felt_faktisk_logi_afstand = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31FaktiskeLogiudgifter::afstand_udelukker_overnatning_på_sædvanlig_bopæl),
-    label = "Afstanden udelukker overnatning på sædvanlig bopæl",
-    question = Some("Udelukker afstanden mellem bopæl og uddannelses- eller kursussted, at modtageren kan overnatte på sin sædvanlige bopæl?"),
-    help = None,
-    unit = None
-)
-= personskat_ll31_felt_faktisk_logi_beløb = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31FaktiskeLogiudgifter::dokumenterede_udgifter_kroner),
-    label = "Dokumenterede faktiske logiudgifter",
-    question = Some("Hvor store dokumenterede logiudgifter er dækket?"),
-    help = None,
-    unit = Some("kr.")
-)
-= personskat_ll31_felt_faktisk_kost_afstand = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31FaktiskeKostudgifter::afstand_udelukker_overnatning_på_sædvanlig_bopæl),
-    label = "Afstanden udelukker overnatning ved faktisk kostdækning",
-    question = Some("Udelukker afstanden, at modtageren kan overnatte på sin sædvanlige bopæl?"),
-    help = Some("Afstandskravet gælder ikke, når kosten indtages på uddannelses- eller kursusstedet."),
-    unit = None
-)
-= personskat_ll31_felt_faktisk_kost_på_stedet = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31FaktiskeKostudgifter::kosten_indtages_på_uddannelses_eller_kursusstedet),
-    label = "Kosten indtages på uddannelses- eller kursusstedet",
-    question = Some("Indtages den dækkede kost på uddannelses- eller kursusstedet?"),
-    help = Some("Faktiske kostudgifter på stedet kan dækkes uanset afstandskravet."),
-    unit = None
-)
-= personskat_ll31_felt_faktisk_kost_beløb = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31FaktiskeKostudgifter::dokumenterede_udgifter_kroner),
-    label = "Dokumenterede faktiske kostudgifter",
-    question = Some("Hvor store dokumenterede kostudgifter er dækket?"),
-    help = None,
-    unit = Some("kr.")
-)
-= personskat_ll31_felt_logisats_afstand = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseLogi::afstand_udelukker_overnatning_på_sædvanlig_bopæl),
-    label = "Afstanden udelukker hjemlig overnatning ved logisats",
-    question = Some("Udelukker afstanden, at modtageren kan overnatte på sin sædvanlige bopæl?"),
-    help = None,
-    unit = None
-)
-= personskat_ll31_felt_logisats_døgn = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseLogi::fulde_døgn),
-    label = "Fulde døgn med logigodtgørelse",
-    question = Some("Hvor mange fulde døgn varer opholdet?"),
-    help = Some("Satsgodtgørelse kræver et ophold på mindst 24 timer."),
-    unit = Some("døgn")
-)
-= personskat_ll31_felt_logisats_transportarbejde = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseLogi::udelukket_transportarbejde_efter_par9a_stk2_nr4),
-    label = "Transportarbejde er udelukket fra logisatsen",
-    question = Some("Medvirker personen i sit hverv til transport af varer eller personer, gør tjeneste om bord på skib, arbejder på luftfartøj eller på fartøj eller installation ved efterforskning og udnyttelse af naturforekomster?"),
-    help = Some("Disse arbejdsformer er udtrykkeligt udelukket fra logisatsen i LL § 9 A, stk. 2, nr. 4."),
-    unit = None
-)
-= personskat_ll31_felt_kostsats_afstand = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseKostOgSmåfornødenheder::afstand_udelukker_overnatning_på_sædvanlig_bopæl),
-    label = "Afstanden udelukker hjemlig overnatning ved kostsats",
-    question = Some("Udelukker afstanden, at modtageren kan overnatte på sin sædvanlige bopæl?"),
-    help = None,
-    unit = None
-)
-= personskat_ll31_felt_kostsats_døgn = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseKostOgSmåfornødenheder::fulde_døgn),
-    label = "Fulde døgn med kostgodtgørelse",
-    question = Some("Hvor mange fulde døgn varer opholdet?"),
-    help = Some("Satsgodtgørelse kræver et ophold på mindst 24 timer."),
-    unit = Some("døgn")
-)
-= personskat_ll31_felt_kostsats_timer = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseKostOgSmåfornødenheder::påbegyndte_timer_efter_fulde_døgn),
-    label = "Påbegyndte timer efter de fulde døgn",
-    question = Some("Hvor mange påbegyndte timer varer opholdet ud over de fulde døgn?"),
-    help = None,
-    unit = Some("timer")
-)
-= personskat_ll31_felt_kostsats_måned = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseKostOgSmåfornødenheder::opholdets_måned_nr),
-    label = "Opholdets måned nummer",
-    question = Some("Hvilken fortløbende måned af opholdet vedrører godtgørelsen?"),
-    help = Some("Kost- og småfornødenhedssatsen kan kun anvendes i de første 12 måneder."),
-    unit = Some("måned")
-)
-= personskat_ll31_felt_fri_morgenmad = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseKostOgSmåfornødenheder::fri_morgenmad_antal),
-    label = "Antal fri morgenmad",
-    question = Some("Hvor mange gratis morgenmåltider er modtaget i perioden?"),
-    help = Some("Fri kost reducerer satsgodtgørelsen efter de gældende rejseregler."),
-    unit = Some("måltider")
-)
-= personskat_ll31_felt_fri_frokost = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseKostOgSmåfornødenheder::fri_frokost_antal),
-    label = "Antal fri frokost",
-    question = Some("Hvor mange gratis frokostmåltider er modtaget i perioden?"),
-    help = Some("Fri kost reducerer satsgodtgørelsen efter de gældende rejseregler."),
-    unit = Some("måltider")
-)
-= personskat_ll31_felt_fri_aftensmad = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseKostOgSmåfornødenheder::fri_aftensmad_antal),
-    label = "Antal fri aftensmad",
-    question = Some("Hvor mange gratis aftensmåltider er modtaget i perioden?"),
-    help = Some("Fri kost reducerer satsgodtgørelsen efter de gældende rejseregler."),
-    unit = Some("måltider")
-)
-= personskat_ll31_felt_befordring_kilometer = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31BefordringIEgenBilEllerMotorcykel::kilometer_ad_normal_transportvej),
-    label = "Kilometer ad normal transportvej",
-    question = Some("Hvor mange kilometer er kørt i egen bil eller motorcykel ad den normale transportvej?"),
-    help = Some("LL § 31 anvender Skatterådets særlige sats for denne uddannelsesbefordring."),
-    unit = Some("km")
-)
-= personskat_ll31_felt_befordring_fri = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31BefordringIEgenBilEllerMotorcykel::adgang_til_fri_befordring_for_strækningen),
-    label = "Adgang til fri befordring på strækningen",
-    question = Some("Har modtageren adgang til arbejdsgiverbetalt eller anden fri befordring på strækningen?"),
-    help = Some("Godtgørelse for en strækning med fri befordring er skattepligtig."),
-    unit = None
-)
-= personskat_ll31_felt_befordring_par9b = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31BefordringIEgenBilEllerMotorcykel::modtaget_par9b_godtgørelse_for_samme_strækning),
-    label = "Modtaget § 9 B-godtgørelse for samme strækning",
-    question = Some("Er der modtaget skattefri befordringsgodtgørelse efter LL § 9 B for samme strækning?"),
-    help = Some("Den samme strækning kan ikke godtgøres skattefrit efter begge bestemmelser."),
-    unit = None
-)
-= personskat_ll31_felt_befordring_tidligere_par9b = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31BefordringIEgenBilEllerMotorcykel::tidligere_valgt_par9b_for_samme_uddannelse_eller_kursus),
-    label = "Tidligere valgt § 9 B for samme uddannelse eller kursus",
-    question = Some("Er der tidligere anvendt LL § 9 B-godtgørelse for befordring ved samme uddannelse eller kursus?"),
-    help = Some("Efter et valg af § 9 B kan der ikke senere skiftes til § 31 for samme uddannelse eller kursus."),
-    unit = None
-)
-= personskat_ll31_felt_anden_befordring_beløb = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31FaktiskeUdgifterTilAndenBefordring::dokumenterede_udgifter_kroner),
-    label = "Dokumenterede udgifter til anden befordring",
-    question = Some("Hvor store dokumenterede udgifter til anden befordring er dækket?"),
-    help = None,
-    unit = Some("kr.")
-)
-= personskat_ll31_felt_aub_ikrafttræden = TypetBeregningsfelt(
-    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31AubTilskudEllerRefusion::modtaget_fra_og_med_1_juli_2026),
-    label = "AUB-beløbet er modtaget fra og med 1. juli 2026",
-    question = Some("Er tilskuddet eller refusionen fra Arbejdsgivernes Uddannelsesbidrag modtaget den 1. juli 2026 eller senere?"),
-    help = Some("Denne del af LL § 31 trådte i kraft den 1. juli 2026."),
-    unit = None
-)
-
-= personskat_ydelsesudbetaling_samlingsmeta = TypetBeregningsmeta(
-    felter = [
-        personskat_ydelsesudbetaling_felt_samling
-    ],
-    spørgsmål = [],
-    beløbsfelter = [],
-    attachments = (
-        Source(value = ligningsloven_lbk1500_par13),
-        Source(value = pensionsbeskatningsloven_lbk1243_par49_stk2),
-    )
-)
-
-@ meta(personskat_ydelsesudbetaling_samlingsmeta) for PersonskatOrdinærPersonligIndkomstInput
-
-= personskat_ydelsesudbetaling_hjemmelsmeta = TypetBeregningsmeta(
-    felter = [
-        personskat_ydelsesudbetaling_felt_hjemmel
-    ],
-    spørgsmål = [],
-    beløbsfelter = [],
-    attachments = (
-        Source(value = ligningsloven_lbk1500_par13),
-        Source(value = pensionsbeskatningsloven_lbk1243_par49_stk2),
-    )
-)
-
-@ meta(personskat_ydelsesudbetaling_hjemmelsmeta) for PersonskatForeningsOgArbejdsløshedsydelseFakta
-
-= personskat_foreningsydelse_beregningsmeta = TypetBeregningsmeta(
-    felter = [
-        personskat_foreningsydelse_felt_id,
-        personskat_foreningsydelse_felt_år,
-        personskat_foreningsydelse_felt_art,
-        personskat_foreningsydelse_felt_beløb,
-        personskat_foreningsydelse_felt_hovedformål,
-        personskat_foreningsydelse_felt_erhvervsgruppe,
-        personskat_foreningsydelse_felt_medlem
-    ],
-    spørgsmål = [],
-    beløbsfelter = [],
-    attachments = (
-        Source(value = ligningsloven_lbk1500_par13),
-        DependencySource(value = ligningsloven_lbk1500_par30),
-        DependencySource(value = ligningsloven_lbk1500_par31),
-        Guidance(value = juridisk_vejledning_ligningslov13),
-    )
-)
-
-@ meta(personskat_foreningsydelse_beregningsmeta) for Ligningslov13ForeningsydelseFakta
-
-= personskat_arbejdsløshedsudbetaling_beregningsmeta = TypetBeregningsmeta(
-    felter = [
-        personskat_arbejdsløshedsudbetaling_felt_id,
-        personskat_arbejdsløshedsudbetaling_felt_år,
-        personskat_arbejdsløshedsudbetaling_felt_beløb,
-        personskat_arbejdsløshedsudbetaling_felt_art,
-        personskat_arbejdsløshedsudbetaling_felt_skatteyderrelation
-    ],
-    spørgsmål = [],
-    beløbsfelter = [],
-    attachments = (
-        Source(value = pensionsbeskatningsloven_lbk1243_par49_stk2),
-        DependencySource(value = pensionsbeskatningsloven_lbk1243_par55),
-        Guidance(value = juridisk_vejledning_pbl49_udbetaling),
-    )
-)
-
-@ meta(personskat_arbejdsløshedsudbetaling_beregningsmeta) for Pbl49ArbejdsløshedsforsikringsudbetalingFakta
-
-= personskat_ydelsesundtagelse_beregningsmeta = TypetBeregningsmeta(
-    felter = [
-        personskat_ydelsesundtagelse_felt_hjemmel
-    ],
-    spørgsmål = [],
-    beløbsfelter = [],
-    attachments = (
-        Source(value = ligningsloven_lbk1500_par30),
-        Source(value = ligningsloven_lbk1500_par31),
-        AmendmentSource(value = ligningsloven_lov1630_par2_og_par3),
-    )
-)
-
-@ meta(personskat_ydelsesundtagelse_beregningsmeta) for Ligningslov30Og31Undtagelse
-
-= personskat_ll30_behandlingsfakta_beregningsmeta = TypetBeregningsmeta(
-    felter = [
-        personskat_ll30_felt_formål,
-        personskat_ll30_felt_ydelsesart,
-        personskat_ll30_felt_medicindækning,
-        personskat_ll30_felt_generel_ordning,
-        personskat_ll30_felt_lægeerklæring
-    ],
-    spørgsmål = [],
-    beløbsfelter = [],
-    attachments = (
-        Source(value = ligningsloven_lbk1500_par30),
-        Guidance(value = juridisk_vejledning_ligningslov30_personkreds),
-        Guidance(value = juridisk_vejledning_ligningslov30_betingelser),
-    )
-)
-
-@ meta(personskat_ll30_behandlingsfakta_beregningsmeta) for Ligningslov30Behandlingsfakta
-
-= personskat_ll30_ydelsesart_beregningsmeta = TypetBeregningsmeta(
-    felter = [
-        personskat_ll30_felt_lån_begrænset,
-        personskat_ll30_felt_forsikring_begrænset
-    ],
-    spørgsmål = [],
-    beløbsfelter = [],
-    attachments = (
-        Source(value = ligningsloven_lbk1500_par30),
-        Guidance(value = juridisk_vejledning_ligningslov30_betingelser),
-    )
-)
-
-@ meta(personskat_ll30_ydelsesart_beregningsmeta) for Ligningslov30Ydelsesart
-
-= personskat_ll31_uddannelsesfakta_beregningsmeta = TypetBeregningsmeta(
-    felter = [
-        personskat_ll31_felt_privat,
-        personskat_ll31_felt_ydelsesart
-    ],
-    spørgsmål = [],
-    beløbsfelter = [],
-    attachments = (
-        Source(value = ligningsloven_lbk1500_par31),
-        AmendmentSource(value = ligningsloven_lov1630_par2_og_par3),
-        Guidance(value = juridisk_vejledning_ligningslov31),
-    )
-)
-
-@ meta(personskat_ll31_uddannelsesfakta_beregningsmeta) for Ligningslov31Uddannelsesfakta
-
-= personskat_ll31_ydelsesart_beregningsmeta = TypetBeregningsmeta(
-    felter = [
-        personskat_ll31_felt_kørekort_almindeligt,
-        personskat_ll31_felt_kørekort_lovpligt,
-        personskat_ll31_felt_bøger_relevante,
-        personskat_ll31_felt_faktisk_logi_afstand,
-        personskat_ll31_felt_faktisk_logi_beløb,
-        personskat_ll31_felt_faktisk_kost_afstand,
-        personskat_ll31_felt_faktisk_kost_på_stedet,
-        personskat_ll31_felt_faktisk_kost_beløb,
-        personskat_ll31_felt_logisats_afstand,
-        personskat_ll31_felt_logisats_døgn,
-        personskat_ll31_felt_logisats_transportarbejde,
-        personskat_ll31_felt_kostsats_afstand,
-        personskat_ll31_felt_kostsats_døgn,
-        personskat_ll31_felt_kostsats_timer,
-        personskat_ll31_felt_kostsats_måned,
-        personskat_ll31_felt_fri_morgenmad,
-        personskat_ll31_felt_fri_frokost,
-        personskat_ll31_felt_fri_aftensmad,
-        personskat_ll31_felt_befordring_kilometer,
-        personskat_ll31_felt_befordring_fri,
-        personskat_ll31_felt_befordring_par9b,
-        personskat_ll31_felt_befordring_tidligere_par9b,
-        personskat_ll31_felt_anden_befordring_beløb,
-        personskat_ll31_felt_aub_ikrafttræden
-    ],
-    spørgsmål = [],
-    beløbsfelter = [],
-    attachments = (
-        Source(value = ligningsloven_lbk1500_par31),
-        DependencySource(value = ligningsloven_lbk1500_par9a_stk2_og_stk3),
-        AmendmentSource(value = ligningsloven_lov1630_par2_og_par3),
-        RateSource(value = skatteforvaltningen_rejsesatser_2025),
-        RateSource(value = skatteforvaltningen_rejsesatser_2026),
-        RateSource(value = skatterådet_befordringssats_2026),
-        Guidance(value = juridisk_vejledning_ligningslov31),
-    )
-)
-
-@ meta(personskat_ll31_ydelsesart_beregningsmeta) for Ligningslov31Uddannelsesydelsesart

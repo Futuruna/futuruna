@@ -37,7 +37,65 @@
 @ meta(personskat_pbl53a_kildefakta_metadata)
 @ section personskat_pbl53a_kildefakta {
 
-# PersonskatPbl53AOrdningFakta(identifikation: Tekst, skatteyder_identifikation: Tekst, omfangsfakta: Pbl53AOmfangsfakta, afkastforløbsåbning: Pbl53AAfkastforløbsåbning, afkastår: List(Pbl53AAfkastårFakta), hændelser: List(Pbl53AHændelse))
+= personskat_pbl53a_kilder_2 = [
+    Source(value = pensionsbeskatningsloven_lbk1243_par53a),
+    HistoricalSource(value = pensionsbeskatningsloven_lov569_par1_nr11_og_par6_stk1),
+    Source(value = aftaleloven_lbk193_par6),
+    PreparatorySource(value = pensionsbeskatningsloven_lsf229_1992_par6),
+    TransitionSource(value = pensionsbeskatningsloven_lov1388_par5_nr2_og_par7_stk1),
+    HistoricalSource(value = pensionsbeskatningsloven_historisk_lbk1120_par53a_stk3),
+    AmendmentSource(value = pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3),
+    TransitionSource(value = pensionsbeskatningsloven_lov1534_par1_nr37_og_par11_stk7),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par53b),
+    DependencySource(value = pensionsbeskatningsloven_lbk1243_par20),
+    DependencySource(value = personskatteloven_lbk1284_par3),
+    DependencySource(value = personskatteloven_lbk1284_par4),
+    DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
+    Guidance(value = skat_juridisk_vejledning_pbl53a_indbetalinger),
+    Guidance(value = skat_juridisk_vejledning_pbl53a_udbetalinger),
+    Guidance(value = skat_juridisk_vejledning_pbl53a_afkast),
+    Guidance(value = skat_juridisk_vejledning_pbl53a_overgang),
+    Guidance(value = skat_juridisk_vejledning_pbl53a_overgangsvalg),
+    Guidance(value = skat_juridisk_vejledning_pbl53a_ordningstyper),
+    Guidance(value = skat_juridisk_vejledning_pbl53b_omfang),
+    Practice(value = skat_skm2023_171_sr_pbl53a_arvevalg),
+    Practice(value = skat_skm2025_658_lsr_pbl53a_blanketvalg),
+    Practice(value = skat_skm2013_481_sr_pbl53a_produktændring),
+    Practice(value = skat_skm2023_406_lsr_pbl53a_overflytning),
+    PreparatorySource(value = pensionsbeskatningsloven_lsf24_2007_par53a_stk5)
+]
+# PersonskatPbl53AOrdningFakta(
+    @ field(
+        label = "§ 53 A-ordningens identifikation",
+        question = "Hvilken entydig identifikation skal pensionsordningen have?",
+        help = "Brug en stabil identifikation, så afkast og fremført negativt afkast ikke blandes mellem ordninger.",
+        sources = personskat_pbl53a_kilder_2
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Skatteyder på § 53 A-ordningen",
+        question = "Hvilken skatteyder skal ordningens afkast henføres til?",
+        help = "Identifikationen sammenholdes med de berettigede ved hvert års udgang.",
+        sources = personskat_pbl53a_kilder_2
+    )
+    skatteyder_identifikation: Tekst,
+    omfangsfakta: Pbl53AOmfangsfakta,
+    afkastforløbsåbning: Pbl53AAfkastforløbsåbning,
+    @ field(
+        label = "Årlige afkastfakta for § 53 A-ordningen",
+        question = "Hvilke indkomstår skal indgå i ordningens afkastforløb?",
+        help = "Angiv sammenhængende år kronologisk. Til og med 2009 kræves kapitalværdimetoden; fra 2010 udleder Futuruna det bindende metodevalg og de daterede tabsbalancer inden for den stabile ordning.",
+        sources = personskat_pbl53a_kilder_2
+    )
+    afkastår: List(Pbl53AAfkastårFakta),
+    @ field(
+        label = "Hændelser på § 53 A-ordningen",
+        question = "Hvilke indbetalinger og udbetalinger er sket på ordningen?",
+        help = "Angiv hændelserne kronologisk. Brug en entydig identifikation og rækkefølge for hver hændelse.",
+        sources = personskat_pbl53a_kilder_2
+    )
+    hændelser: List(Pbl53AHændelse)
+)
 # PersonskatPbl53AInput(ordninger: List(PersonskatPbl53AOrdningFakta))
 # PersonskatPbl53AOrdningsresultat = UgyldigtPbl53AGrundlag(fakta: PersonskatPbl53AOrdningFakta, skatteår_understøttet: Boolsk, identifikation_unik: Boolsk, grundfakta_gyldige: Boolsk, omfangsresultat: Pbl53AOmfangsresultat, aktuelt_afkastår_findes_entydigt: Boolsk, afkastmetode_tilladt_efter_udbyderopgørelse: Boolsk, metodevalg_bindende_opfyldt: Boolsk, forløbsresultat: Pbl53AForløbsresultat, afkastforløbsresultat: Pbl53AAfkastforløbsresultat) | BeregnetPbl53AOrdning(fakta: PersonskatPbl53AOrdningFakta, omfangsresultat: Pbl53AOmfangsresultat, pensionsbeskatningslov_input: Pensionsbeskatningslov53AInput, pensionsbeskatningslov_resultat: Pensionsbeskatningslov53AResultat, par4_input: Par4Stk1Nr13Input, par4_resultat: Par4Stk1Nr13Resultat, forløbsinput: Pbl53AForløbsinput, forløbsresultat: Pbl53AForløbsresultat, par3_input: Par3Pbl53AStk2Og5Input, par3_resultat: Par3Pbl53AStk2Og5Resultat, afkastforløbsinput: Pbl53AAfkastforløbsinput, afkastforløbsresultat: Pbl53AAfkastforløbsresultat)
 # PersonskatPbl53AResultat(input: PersonskatPbl53AInput, ordningsresultater: List(PersonskatPbl53AOrdningsresultat), identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, kapitalposter: List(Par4Kapitalpost), personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal, arbejdsgiverfradrag_kroner: Heltal, udenlandsk_indkomstskat_til_ligningslov33_kroner: Heltal)

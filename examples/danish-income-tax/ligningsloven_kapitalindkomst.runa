@@ -4,6 +4,9 @@
 @ importer ./pengebeloeb
 @ importer ./opkraevningsloven
 @ importer ./kalenderdato
+@ importer ./afskrivningsloven
+@ importer ./aktieavancebeskatningsloven-par19b-22
+@ importer ./selskabsskatteloven
 
 -- Ligningsloven — kapitalindkomstrelevante afhængigheder (§§ 5 C, 6, 6 A, 7 N, 8, 12 B, 14 A og 16 A).
 --
@@ -22,18 +25,6 @@ EndDate: 2026-07-01
 ----
 
 # LigningslovKapitalindkomstKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
-# Ligningslov16AKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
-
-= ligningsloven_par16a_lbk1500 = Ligningslov16AKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
-    identifier = "Ligningsloven § 16 A i LBK nr. 1500 af 24/11/2025",
-    hentet_dato = "2026-08-01"
-)
-= ligningsloven_par16a_lov1755 = Ligningslov16AKildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1755",
-    identifier = "LOV nr. 1755 af 29/12/2025, § 4, nr. 2, og § 8, stk. 1",
-    hentet_dato = "2026-08-01"
-)
 
 = ligningsloven_par16a_metadata = Metadata(
     attachments = (
@@ -260,7 +251,77 @@ m.v. omfattet af § 8, stk. 3, litra a og b.
 
 # Ligningslov5CRolle = Ll5CKravPåVederlag | Ll5CForpligtetTilAtBetaleVederlag
 # Ligningslov5CVederlagsart = Ll5CVedhængendeEllerGodskrevneRenter | Ll5CProvisionerOgPræmierPar8Stk3
-# Ligningslov5CInput(indkomstår: Heltal, rolle: Ligningslov5CRolle, art: Ligningslov5CVederlagsart, vederlag_kroner: Heltal, handelsafviklingsår: Heltal, tilsvarende_renter_forfaldsår: Heltal, tilsvarende_renter_kroner: Heltal, anvender_par5_stk5_fordeling: Boolsk, erhvervelse_af_rentebærende_fordring_eller_gæld: Boolsk, dba_afskærer_rente_eller_kursgevinst: Boolsk)
+= personskat_par4_særlige_kapitalposter_kilder = [
+    Source(value = personskatteloven_lbk1284_par4),
+    DependencySource(value = ligningsloven_par14a_lbk1500),
+    DependencySource(value = ligningsloven_par5c_lbk1500),
+    DependencySource(value = ligningslov12b_lbk1500),
+    AmendmentSource(value = ligningslov12b_lov749),
+    DependencySource(value = afskrivningsloven_lbk1222)
+]
+# Ligningslov5CInput(
+    indkomstår: Heltal,
+    @ field(
+        label = "Rolle ved vederlaget",
+        question = "Har personen krav på vederlaget eller pligt til at betale det?",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    rolle: Ligningslov5CRolle,
+    @ field(
+        label = "Vederlagets art efter ligningslovens § 5 C",
+        question = "Vedrører vederlaget renter eller provisioner og præmier?",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    art: Ligningslov5CVederlagsart,
+    @ field(
+        label = "Vederlag efter ligningslovens § 5 C",
+        question = "Hvor stort er vederlaget?",
+        unit = "DKK",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    vederlag_kroner: Heltal,
+    @ field(
+        label = "Handlens afviklingsår",
+        question = "I hvilket år blev handlen afviklet?",
+        unit = "år",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    handelsafviklingsår: Heltal,
+    @ field(
+        label = "De tilsvarende renters forfaldsår",
+        question = "I hvilket år forfalder de tilsvarende renter?",
+        unit = "år",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    tilsvarende_renter_forfaldsår: Heltal,
+    @ field(
+        label = "Tilsvarende renter",
+        question = "Hvor stort er det tilsvarende rentebeløb?",
+        unit = "DKK",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    tilsvarende_renter_kroner: Heltal,
+    @ field(
+        label = "Anvender fordeling efter ligningslovens § 5, stk. 5",
+        question = "Fordeles renterne efter § 5, stk. 5?",
+        help = "Denne fordeling undtager vederlaget fra § 5 C, stk. 1.",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    anvender_par5_stk5_fordeling: Boolsk,
+    @ field(
+        label = "Erhvervelse af rentebærende fordring eller gæld",
+        question = "Vedrører betalingen erhvervelse af en rentebærende fordring eller gæld?",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    erhvervelse_af_rentebærende_fordring_eller_gæld: Boolsk,
+    @ field(
+        label = "Dobbeltbeskatningsoverenskomst afskærer indkomsten",
+        question = "Afskærer en dobbeltbeskatningsoverenskomst rente- eller kursgevinstbeskatningen?",
+        help = "Det kan afskære betalerens fradrag efter § 5 C, stk. 3.",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    dba_afskærer_rente_eller_kursgevinst: Boolsk
+)
 # Ligningslov5CResultat(indkomstår: Heltal, rolle: Ligningslov5CRolle, art: Ligningslov5CVederlagsart, omfattet_af_stk1: Boolsk, vederlag_i_afviklingsåret: Boolsk, tilsvarende_renter_i_forfaldsåret: Boolsk, fradrag_afskåret_efter_stk3: Boolsk, vederlag_medregnes_kroner: Heltal, vederlag_fradrages_kroner: Heltal, afskåret_fradrag_kroner: Heltal, netto_vederlag_kroner: Heltal)
 
 | ligningslov5c_vederlag_omfattet(art: Ligningslov5CVederlagsart) -> Sandt
@@ -756,7 +817,39 @@ løbetiden er mindre end 2 år.
 @ section ligningsloven_par8_stk3_kapitalindkomst {
 
 # Ligningslov8Stk3Art = Ll8Stk3LøbendeProvisionEllerPræmieForLånEllerSikring | Ll8Stk3LøbendeKautionspræmie | Ll8Stk3StiftelsesprovisionEllerEngangspræmie
-# Ligningslov8Stk3Input(indkomstår: Heltal, art: Ligningslov8Stk3Art, udgift_kroner: Heltal, løbetid_måneder: Heltal)
+= personskat_par4_finansielle_poster_kilder = [
+    Source(value = personskatteloven_lbk1284_par4),
+    DependencySource(value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22),
+    DependencySource(value = ligningsloven_par8_stk3_lbk1500),
+    Guidance(value = personskat_par4_finansiel_investeringsvejledning),
+    Warning(value = personskat_par4_finansiel_indkomstrute_advarsel),
+    Warning(value = personskat_par4_abl_mellemklassifikation_advarsel)
+]
+# Ligningslov8Stk3Input(
+    indkomstår: Heltal,
+    @ field(
+        label = "Provisionens eller præmiens art",
+        question = "Hvilken type provision, præmie eller kautionsydelse har du betalt?",
+        sources = personskat_par4_finansielle_poster_kilder
+    )
+    art: Ligningslov8Stk3Art,
+    @ field(
+        label = "Betalt provision eller præmie",
+        question = "Hvor stor var udgiften?",
+        unit = "DKK",
+        sources = personskat_par4_finansielle_poster_kilder
+    )
+    udgift_kroner: Heltal,
+    @ field(
+        label = "Lånets eller kautionens løbetid",
+        question = "Hvor mange måneder er løbetiden?",
+        help = "For stiftelsesprovisioner og andre engangsydelser kræver ligningslovens § 8, stk. 3, en løbetid under to år.",
+        unit = "måneder",
+        sources = personskat_par4_finansielle_poster_kilder
+    )
+    løbetid_måneder: Heltal
+)
 # Ligningslov8Stk3Resultat(indkomstår: Heltal, art: Ligningslov8Stk3Art, omfattet_af_litra_a: Boolsk, omfattet_af_litra_b: Boolsk, omfattet_af_litra_c: Boolsk, løbetid_under_to_år: Boolsk, fradragsberettiget_efter_stk3: Boolsk, fradrag_kroner: Heltal, afskåret_kroner: Heltal)
 
 | ligningslov8_stk3_litra_a(art: Ligningslov8Stk3Art) -> art == Ll8Stk3LøbendeProvisionEllerPræmieForLånEllerSikring
@@ -849,7 +942,38 @@ af 6. juli 1988, medregnes ved opgørelsen af den skattepligtige indkomst.
 @ meta(ligningsloven_par14a_metadata)
 @ section ligningsloven_par14a {
 
-# Ligningslov14AInput(indkomstår: Heltal, indbetalingsår: Heltal, indbetaling_kroner: Heltal, indbetaling_efter_realkreditinstitutlov10b_stk3_4pkt: Boolsk, indbetaling_efter_landbrugsfinansieringsinstitut4b: Boolsk, udbetalingsår: Heltal, udbetaling_kroner: Heltal, udbetaling_fra_restgældsreguleringsfond: Boolsk)
+# Ligningslov14AInput(
+    indkomstår: Heltal,
+    @ field(
+        label = "Indbetalingens år",
+        question = "I hvilket år blev indbetalingen foretaget?",
+        unit = "år",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    indbetalingsår: Heltal,
+    @ field(
+        label = "Indbetaling efter ligningslovens § 14 A",
+        question = "Hvor stort er det indbetalte beløb?",
+        unit = "DKK",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    indbetaling_kroner: Heltal,
+    @ field(
+        label = "Indbetaling efter realkreditinstitutlovens § 10 b",
+        question = "Er indbetalingen omfattet af den henviste realkreditbestemmelse?",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    indbetaling_efter_realkreditinstitutlov10b_stk3_4pkt: Boolsk,
+    @ field(
+        label = "Indbetaling efter landbrugsfinansieringsinstitutlovens § 4 b",
+        question = "Er indbetalingen omfattet af den henviste landbrugsfinansieringsbestemmelse?",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    indbetaling_efter_landbrugsfinansieringsinstitut4b: Boolsk,
+    udbetalingsår: Heltal,
+    udbetaling_kroner: Heltal,
+    udbetaling_fra_restgældsreguleringsfond: Boolsk
+)
 # Ligningslov14AResultat(indkomstår: Heltal, indbetaling_omfattet_af_stk1: Boolsk, indbetaling_i_indbetalingsåret: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal, udbetaling_omfattet_af_stk2: Boolsk, udbetaling_i_udbetalingsåret: Boolsk, skattepligtig_udbetaling_kroner: Heltal, netto_skattepligtig_indkomst_kroner: Heltal)
 
 # Ligningslov14ASag(input: Ligningslov14AInput) {
@@ -1275,13 +1399,87 @@ indgået den 1. januar 2026 eller senere.
 # Ligningslov12BRegime = Ll12BUdenForAnvendelsesperioden | Ll12B1Juli1999Til18Marts2025 | Ll12B19Marts2025Til31December2025 | Ll12BFra1Januar2026
 # Ligningslov12BParter(mindst_en_part_skattepligtig_ved_aftalen: Boolsk, anden_part_senere_fuldt_skattepligtig: Boolsk, ydelser_betalt_før_skattepligtsindtræden_kroner: Heltal, yder_betaler_til_selvejende_institution_med_stifterindflydelse: Boolsk)
 # Ligningslov12BOplysninger(kapitalisering_foretaget_rettidigt: Boolsk, aktiver_og_fordeling_fremgår_af_aftalen: Boolsk, aftale_meddelt_rettidigt: Boolsk, saldo_oplyst_rettidigt: Boolsk)
-# Ligningslov12BAftale(aftaledato: Dato, gensidigt_bebyrdende: Boolsk, antal_overdragne_aktiver: Heltal, løbende_ydelse_helt_eller_delvist_vederlag: Boolsk, usikker_varighed: Boolsk, usikker_årlig_størrelse: Boolsk, løber_ud_over_aftaleåret: Boolsk, anden_lov_regulerer_beskatningen: Boolsk, kun_aktier_omfattet_af_abl8_for_begge_parter: Boolsk, kapitaliseret_værdi_kroner: Heltal, parter: Ligningslov12BParter, oplysninger: Ligningslov12BOplysninger)
+# Ligningslov12BAftale(
+    aftaledato: Dato,
+    gensidigt_bebyrdende: Boolsk,
+    antal_overdragne_aktiver: Heltal,
+    løbende_ydelse_helt_eller_delvist_vederlag: Boolsk,
+    usikker_varighed: Boolsk,
+    usikker_årlig_størrelse: Boolsk,
+    løber_ud_over_aftaleåret: Boolsk,
+    anden_lov_regulerer_beskatningen: Boolsk,
+    kun_aktier_omfattet_af_abl8_for_begge_parter: Boolsk,
+    @ field(
+        label = "Den løbende ydelses kapitaliserede værdi",
+        question = "Hvad er den kapitaliserede værdi af den løbende ydelse?",
+        unit = "DKK",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    kapitaliseret_værdi_kroner: Heltal,
+    parter: Ligningslov12BParter,
+    oplysninger: Ligningslov12BOplysninger
+)
+@ field(
+    label = "Ubetalt henstandsgrundlag",
+    question = "Findes der et ubetalt henstandsgrundlag, som skal fragå?",
+    sources = personskat_par4_særlige_kapitalposter_kilder
+)
 # Ligningslov12BHenstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag | Ll12BUbetaltAfskrivningslov40Stk7(grundlag_kroner: Heltal) | Ll12BUbetaltLigningslov12BStk10(grundlag_kroner: Heltal)
-# Ligningslov12BPosition(saldo_primo_kroner: Heltal, henstandsgrundlag: Ligningslov12BHenstandsgrundlag)
-# Ligningslov12BBegivenhed = Ll12BÅrligBetaling(betalte_ydelser_kroner: Heltal) | Ll12BYdelseOphører(betalte_ydelser_kroner: Heltal) | Ll12BModtagerAfstårRet(kontantomregnet_vederlag_kroner: Heltal) | Ll12BModtagerAfstårRetTilYder(kontantomregnet_vederlag_kroner: Heltal) | Ll12BYderOverdragerForpligtelse(kontantomregnet_vederlag_kroner: Heltal) | Ll12BTredjemandModtagerYdelse(betalte_ydelser_kroner: Heltal)
+# Ligningslov12BPosition(
+    @ field(
+        label = "Saldo ved årets begyndelse",
+        question = "Hvad er saldoen før årets begivenhed?",
+        help = "Saldoen kan være negativ efter reglerne om løbende ydelser.",
+        unit = "DKK",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    saldo_primo_kroner: Heltal,
+    henstandsgrundlag: Ligningslov12BHenstandsgrundlag
+)
+@ field(
+    label = "Årets begivenhed for den løbende ydelse",
+    question = "Hvilken betaling, afståelse, overdragelse eller ophør skete i året?",
+    sources = personskat_par4_særlige_kapitalposter_kilder
+)
+# Ligningslov12BBegivenhed =
+    Ll12BÅrligBetaling(
+        @ field(
+            label = "Årets betalte løbende ydelser",
+            question = "Hvor meget blev betalt i løbende ydelser i året?",
+            unit = "DKK",
+            sources = personskat_par4_særlige_kapitalposter_kilder
+        )
+        betalte_ydelser_kroner: Heltal
+    ) |
+    Ll12BYdelseOphører(
+        @ field(
+            label = "Betalte ydelser i ophørsåret",
+            question = "Hvor meget blev betalt, da den løbende ydelse ophørte?",
+            unit = "DKK",
+            sources = personskat_par4_særlige_kapitalposter_kilder
+        )
+        betalte_ydelser_kroner: Heltal
+    ) |
+    Ll12BModtagerAfstårRet(kontantomregnet_vederlag_kroner: Heltal) |
+    Ll12BModtagerAfstårRetTilYder(kontantomregnet_vederlag_kroner: Heltal) |
+    Ll12BYderOverdragerForpligtelse(kontantomregnet_vederlag_kroner: Heltal) |
+    Ll12BTredjemandModtagerYdelse(betalte_ydelser_kroner: Heltal)
 # Ligningslov12BÅrsfordeling(modtager_ikke_skattepligtig_aktivandel_kroner: Heltal, yder_fradrag_helt_afskåret_kroner: Heltal, yder_anskaffelsessum_forhøjes_i_stedet_kroner: Heltal, overtager_nærtstående_fradrag_afskåret_kroner: Heltal)
 # Ligningslov12BOphørsfordeling(modtager_ikke_skattepligtig_aktivandel_kroner: Heltal, yder_ophør_ikke_medregnes_kroner: Heltal, yder_ophør_nedsætter_anskaffelsessum_kroner: Heltal)
-# Ligningslov12BInput(indkomstår: Heltal, rolle: Ligningslov12BRolle, aftale: Ligningslov12BAftale, position: Ligningslov12BPosition, begivenhed: Ligningslov12BBegivenhed, årsfordeling: Ligningslov12BÅrsfordeling, ophørsfordeling: Ligningslov12BOphørsfordeling)
+# Ligningslov12BInput(
+    indkomstår: Heltal,
+    @ field(
+        label = "Rolle i aftalen om løbende ydelse",
+        question = "Er personen modtager, yder, forpligtelses-overtager eller tredjemand?",
+        sources = personskat_par4_særlige_kapitalposter_kilder
+    )
+    rolle: Ligningslov12BRolle,
+    aftale: Ligningslov12BAftale,
+    position: Ligningslov12BPosition,
+    begivenhed: Ligningslov12BBegivenhed,
+    årsfordeling: Ligningslov12BÅrsfordeling,
+    ophørsfordeling: Ligningslov12BOphørsfordeling
+)
 # Ligningslov12BResultat(indkomstår: Heltal, rolle: Ligningslov12BRolle, begivenhed: Ligningslov12BBegivenhed, regime: Ligningslov12BRegime, aftaledato_gyldig: Boolsk, input_gyldigt: Boolsk, omfattet_af_par12b: Boolsk, kapitalisering_påkrævet: Boolsk, saldo_påkrævet: Boolsk, saldo_indgangsværdi_ved_skattepligtsindtræden_kroner: Heltal, oplysningspligter_overholdt: Boolsk, henstandsgrundlag_gyldigt: Boolsk, omfattet_af_stk4_til_7_eller_9: Boolsk, saldo_reduktion_kroner: Heltal, saldo_efter_reduktion_kroner: Heltal, negativ_saldo_beløb_kroner: Heltal, efterfølgende_betalte_ydelser_kroner: Heltal, ophørs_saldo_kroner: Heltal, modtager_skattepligtigt_kroner: Heltal, modtager_fradrag_kroner: Heltal, yder_fradrag_kroner: Heltal, yder_skattepligtigt_kroner: Heltal, tredjemand_skattepligtigt_kroner: Heltal, anskaffelsessum_forhøjes_kroner: Heltal, anskaffelsessum_nedsættes_kroner: Heltal, overtager_indgangsværdi_kroner: Heltal, netto_skattepligtigt_eller_fradragsberettiget_kroner: Heltal)
 
 | ll12b_regime(dato: Dato) -> hvis dato_gyldig(dato) == Falskt || dato_nøgle(dato) < 19990701 { Ll12BUdenForAnvendelsesperioden } ellers { hvis dato_nøgle(dato) < 20250319 { Ll12B1Juli1999Til18Marts2025 } ellers { hvis dato_nøgle(dato) < 20260101 { Ll12B19Marts2025Til31December2025 } ellers { Ll12BFra1Januar2026 } } }
@@ -1813,3 +2011,19 @@ indgået den 1. januar 2026 eller senere.
 | ll12b_stk6_afståelse_anvender_stk4: ll12b_stk6_afståelse_fixture -> ll12b_stk6_afståelse_fixture.negativ_saldo_beløb_kroner == 3000 && ll12b_stk6_afståelse_fixture.modtager_skattepligtigt_kroner == 3000
 | ll12b_stk9_overtager_efterfølgende_fradrag_begrænses: ll12b_stk9_overtager_fixture -> ll12b_stk9_overtager_fixture.overtager_indgangsværdi_kroner == 0 && ll12b_stk9_overtager_fixture.yder_fradrag_kroner == 11000
 | ll12b_anden_lov_udelukker_par12b: ll12b_anden_lov_fixture -> ll12b_anden_lov_fixture.omfattet_af_par12b == Falskt && ll12b_anden_lov_fixture.netto_skattepligtigt_eller_fradragsberettiget_kroner == 0
+
+= personskat_par4_abl_mellemklassifikation_advarsel = PersonskattelovKildeAdvarsel(
+    kode = "PSL-PAR4-ABL-MELLEMKLASSIFIKATION",
+    besked = "AblUdenforDenneSlice og AblIkkeMedregnetISlice er bevidste mellemklassifikationer i aktieavancekaskaden. En afsluttende kilde efter personskattelovens § 4, stk. 1, nr. 5 b, skal derimod være kildeklassificeret som aktieavancebeskatningslovens § 19 C eller § 22; ellers afvises hele den kanoniske postliste uden beløbspåvirkning."
+)
+
+= personskat_par4_finansiel_indkomstrute_advarsel = PersonskattelovKildeAdvarsel(
+    kode = "PSL-PAR4-FINANSIEL-INDKOMSTRUTE",
+    besked = "Et ikke-nul indkomstbeløb uden for den valgte gren efter PSL § 4, stk. 1, nr. 5 a eller 5 b, er ikke automatisk skattefrit. Årssammenligningen tilbageholdes, indtil den korrekte understøttede behandling er afklaret. Bevar beløb og klassifikationsfakta; ret ruten ud fra kilderne, ikke fakta for at få et resultat. Se personskat-finansielle-poster.md. Provisioner efter nr. 7 kan derimod lovligt give nul fradrag."
+)
+
+= personskat_par4_finansiel_investeringsvejledning = PersonskattelovIndkomstKildeInfo(
+    url = "https://skat.dk/borger/aktier-og-andre-vaerdipapirer/skat-af-investeringsbeviser-udstedt-af-investeringsforeninger-og-investeringsselskaber",
+    identifier = "Skattestyrelsen: investeringsbeviser, særskilt klassifikation og indkomstbehandling",
+    hentet_dato = "2026-09-25"
+)

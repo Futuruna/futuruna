@@ -3,20 +3,6 @@
 @ importer ./kapitel-01-indkomst
 @ importer ./metadata
 
-= personskat_par4_finansiel_indkomstrute_advarsel = PersonskattelovKildeAdvarsel(
-    kode = "PSL-PAR4-FINANSIEL-INDKOMSTRUTE",
-    besked = "Et ikke-nul indkomstbeløb uden for den valgte gren efter PSL § 4, stk. 1, nr. 5 a eller 5 b, er ikke automatisk skattefrit. Årssammenligningen tilbageholdes, indtil den korrekte understøttede behandling er afklaret. Bevar beløb og klassifikationsfakta; ret ruten ud fra kilderne, ikke fakta for at få et resultat. Se personskat-finansielle-poster.md. Provisioner efter nr. 7 kan derimod lovligt give nul fradrag."
-)
-= personskat_par4_finansiel_investeringsvejledning = PersonskattelovIndkomstKildeInfo(
-    url = "https://skat.dk/borger/aktier-og-andre-vaerdipapirer/skat-af-investeringsbeviser-udstedt-af-investeringsforeninger-og-investeringsselskaber",
-    identifier = "Skattestyrelsen: investeringsbeviser, særskilt klassifikation og indkomstbehandling",
-    hentet_dato = "2026-09-25"
-)
-= personskat_par4_abl_mellemklassifikation_advarsel = PersonskattelovKildeAdvarsel(
-    kode = "PSL-PAR4-ABL-MELLEMKLASSIFIKATION",
-    besked = "AblUdenforDenneSlice og AblIkkeMedregnetISlice er bevidste mellemklassifikationer i aktieavancekaskaden. En afsluttende kilde efter personskattelovens § 4, stk. 1, nr. 5 b, skal derimod være kildeklassificeret som aktieavancebeskatningslovens § 19 C eller § 22; ellers afvises hele den kanoniske postliste uden beløbspåvirkning."
-)
-
 = personskat_par4_finansielle_poster_kildefakta_metadata = Metadata(
     attachments = (
         Source(value = personskatteloven_lbk1284_par4),
@@ -47,8 +33,77 @@ i en aktie eller et investeringsbevis omfattet af aktieavancebeskatningslovens
 @ meta(personskat_par4_finansielle_poster_kildefakta_metadata)
 @ section personskat_par4_finansielle_poster_kildefakta {
 
-# PersonskatPar4FinansielPostkilde = PsPar4Nr5AMedlemsbevis(opgjort_gevinst_eller_tab_kroner: Heltal, selskabsskattelov1_stk1_nr6_input: Selskabsskattelov1Stk1Nr6Input) | PsPar4Nr5BFormidlerbeløb(modtaget_beløb_kroner: Heltal, formidler: Par4Stk1Nr5bFormidler, formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut: Boolsk, aktieavance_aktivklassifikation_input: AktieavanceAktivklassifikationInput) | PsPar4Nr7Provision(input: Ligningslov8Stk3Input)
-# PersonskatPar4FinansielPostfakta(identifikation: Tekst, indkomstår: Heltal, kilde: PersonskatPar4FinansielPostkilde)
+= personskat_par4_finansielle_poster_kilder_2 = [
+    Source(value = personskatteloven_lbk1284_par4),
+    DependencySource(value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22),
+    DependencySource(value = ligningsloven_par8_stk3_lbk1500),
+    Guidance(value = personskat_par4_finansiel_investeringsvejledning),
+    Warning(value = personskat_par4_finansiel_indkomstrute_advarsel),
+    Warning(value = personskat_par4_abl_mellemklassifikation_advarsel)
+]
+@ field(
+    label = "Finansiel posts hjemmel",
+    question = "Vedrører posten medlemsbevis, formidlerbetaling eller provision?",
+    help = "Vælg ud fra dokumenteret skattemæssig klassifikation, ikke alene ordene bevis eller provision. Et ikke-nul indkomstbeløb uden for nr. 5 a/5 b tilbageholder sammenligningen; det er ikke en fritagelse. Udgifter efter nr. 7 kan lovligt give nul fradrag. Se personskat-finansielle-poster.md.",
+    sources = personskat_par4_finansielle_poster_kilder_2
+)
+# PersonskatPar4FinansielPostkilde =
+    PsPar4Nr5AMedlemsbevis(
+        @ field(
+            label = "Opgjort gevinst eller tab på medlemsbevis",
+            question = "Hvad er den opgjorte gevinst eller det fradragsberettigede tab?",
+            help = "Angiv kildeopgjort skattepligtig gevinst positivt og fradragsberettiget tab negativt, ikke salgssum eller depotværdi. Beløbet beregnes ikke fra købs- og salgsbilag her. Ikke-nul beløb uden for nr. 5 a tilbageholder sammenligningen; brug ikke nul eller en anden enhedstype for at skjule beløbet. Se personskat-finansielle-poster.md.",
+            unit = "DKK",
+            sources = personskat_par4_finansielle_poster_kilder_2
+        )
+        opgjort_gevinst_eller_tab_kroner: Heltal,
+        selskabsskattelov1_stk1_nr6_input: Selskabsskattelov1Stk1Nr6Input
+    ) |
+    PsPar4Nr5BFormidlerbeløb(
+        @ field(
+            label = "Beløb modtaget fra investeringsformidler",
+            question = "Hvor meget har du modtaget fra formidleren?",
+            help = "Angiv det dokumenterede modtagne beløb, ikke en betalt udgift. Ikke-nul beløb uden for nr. 5 b tilbageholder sammenligningen, også hvis formidleren eller betalingsårsagen ikke omfattes. Dækket omklassifikation efter § 4, stk. 6, bevares. Se personskat-finansielle-poster.md.",
+            unit = "DKK",
+            sources = personskat_par4_finansielle_poster_kilder_2
+        )
+        modtaget_beløb_kroner: Heltal,
+        @ field(
+            label = "Type investeringsformidler",
+            question = "Hvilken type formidler udbetalte beløbet?",
+            help = "Kun de nævnte formidlertyper omfattes af nr. 5 b. Ikke nævnt betyder ikke skattefrit; et ikke-nul beløb kræver anden afklaret behandling. Vælg den faktiske formidlertype. Se personskat-finansielle-poster.md.",
+            sources = personskat_par4_finansielle_poster_kilder_2
+        )
+        formidler: Par4Stk1Nr5bFormidler,
+        @ field(
+            label = "Formidleren modtog betaling fra investeringsinstituttet",
+            question = "Skyldes din udbetaling, at formidleren modtog gebyr, provision eller anden pengeydelse fra investeringsinstituttet?",
+            help = "Bekræft den dokumenterede sammenhæng. Falsk betyder, at denne betingelse ikke er opfyldt, ikke at beløbet er skattefrit. Hvis sammenhængen er ukendt, afklar den før indsendelse; feltet kan ikke repræsentere ukendt. Se personskat-finansielle-poster.md.",
+            sources = personskat_par4_finansielle_poster_kilder_2
+        )
+        formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut: Boolsk,
+        aktieavance_aktivklassifikation_input: AktieavanceAktivklassifikationInput
+    ) |
+    PsPar4Nr7Provision(input: Ligningslov8Stk3Input)
+# PersonskatPar4FinansielPostfakta(
+    @ field(
+        label = "Postens identifikation",
+        question = "Hvilken entydig bilags- eller kontoreference har posten?",
+        help = "Brug en stabil reference, så samme beløb ikke kan medregnes to gange.",
+        sources = personskat_par4_finansielle_poster_kilder_2
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Postens indkomstår",
+        question = "Hvilket indkomstår vedrører posten?",
+        help = "Året skal svare til skatteåret og til eventuelle delegerede klassifikationer.",
+        unit = "år",
+        sources = personskat_par4_finansielle_poster_kilder_2
+    )
+    indkomstår: Heltal,
+    kilde: PersonskatPar4FinansielPostkilde
+)
 # PersonskatPar4FinansielPostLovresultat = PsPar4Nr5ALovresultat(resultat: Par4Stk1Nr5aResultat) | PsPar4Nr5BLovresultat(resultat: Par4Stk1Nr5bResultat) | PsPar4Nr7Lovresultat(resultat: Par4Stk1Nr7Resultat)
 # PersonskatPar4FinansielPostresultat(fakta: PersonskatPar4FinansielPostfakta, identifikation_unik: Boolsk, grundfakta_gyldige: Boolsk, input_gyldigt: Boolsk, lovresultat: PersonskatPar4FinansielPostLovresultat, kapitalpost: Par4Kapitalpost)
 

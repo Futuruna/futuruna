@@ -3,6 +3,7 @@
 @ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./kalenderdato
+@ importer ./delte-kilder
 
 # KursgevinstlovGældKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 
@@ -91,7 +92,35 @@ ligningslovens § 16 E.
 # KursgevinstlovGældErhvervsforhold = KglGældUdenFinansieringsnæring | KglGældFinansieringsnæringUdenVirksomhedstilknytning | KglGældFinansieringsnæringMedVirksomhedstilknytning
 # KursgevinstlovGældFrigørelsesart = KglGældOrdinærIndfrielse | KglGældEftergivelse | KglGældForældelse | KglGældKonfusion | KglGældPræklusion
 # KursgevinstlovPar21Stk2Selskabsfakta = KglIngenPar21Stk2Selskabsgæld | KglAktuelGældTilSelskab(personen_eller_nærtstående_har_ejet_aktier_siden_gældspåtagelsen: Boolsk, långiver_er_pengeinstitut: Boolsk, personens_største_direkte_og_indirekte_ejerandel_basispoint: Heltal, forpligtelse_omfattet_af_ligningslov16e: Boolsk) | KglOverdragetGældFraSelskab(personen_eller_nærtstående_har_ejet_aktier_i_det_tidligere_selskab_siden_gældspåtagelsen: Boolsk, debitor_insolvent_ved_overdragelsen: Boolsk, tidligere_långiver_var_pengeinstitut: Boolsk, personens_største_direkte_og_indirekte_ejerandel_i_det_tidligere_selskab_basispoint: Heltal, forpligtelse_omfattet_af_ligningslov16e: Boolsk)
-# KursgevinstlovGældBeløb(gældens_værdi_ved_påtagelse_kroner: Heltal, gældens_værdi_ved_frigørelse_eller_indfrielse_kroner: Heltal, fordringens_værdi_for_kreditor_kroner: Heltal)
+= personskat_kilder_25 = [
+    Source(value = kgl_sælgerpantebrev_lbk1176),
+    Source(value = kursgevinstloven_lbk1176_gæld),
+    Source(value = kursgevinstloven_lbk1176_årsnetto),
+    DependencySource(value = aktieavancebeskatningsloven_lbk1098_par22_årsnetto),
+    DependencySource(value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
+    DependencySource(value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
+    Guidance(value = kgl_ebl_par6d_vejledning_2026),
+    Guidance(value = kursgevinstloven_vejledning_par24),
+    Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_realisering),
+    Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_gennemsnit)
+]
+# KursgevinstlovGældBeløb(
+    gældens_værdi_ved_påtagelse_kroner: Heltal,
+    @ field(
+        label = "Gældens værdi ved frigørelse eller indfrielse",
+        question = "Hvilken værdi blev gælden frigjort eller indfriet til?",
+        unit = "kr.",
+        sources = personskat_kilder_25
+    )
+    gældens_værdi_ved_frigørelse_eller_indfrielse_kroner: Heltal,
+    @ field(
+        label = "Fordringens værdi for kreditor",
+        question = "Hvad var fordringens værdi for kreditor på tidspunktet for en eventuel gældseftergivelse?",
+        unit = "kr.",
+        sources = personskat_kilder_25
+    )
+    fordringens_værdi_for_kreditor_kroner: Heltal
+)
 
 | kgl_gæld_tom_par21_stk2_selskabsfakta() -> KglIngenPar21Stk2Selskabsgæld
 
@@ -346,17 +375,149 @@ selskabskapital medregnes ikke ved opgørelsen af den skattepligtige indkomst.
 @ meta(kursgevinstloven_gæld_par23_par24a_metadata)
 @ section kursgevinstloven_gæld_par23_par24a {
 
-# KursgevinstlovUdeladtKravsSmåkravsgrundlag = KglUdeladtKravUdenSmåkravsdokumentation | KglUdeladtKravDokumenteretSomSmåkrav(afgørelsesreference: Tekst) | KglUdeladtKravDokumenteretSomIkkeSmåkrav(afgørelsesreference: Tekst)
-# KursgevinstlovFrivilligKreditorordningsdeltagelse = KglKreditorTiltrådtFrivilligOrdning(aftalt_restkrav_kroner: Heltal) | KglKreditorUdenforFrivilligOrdning(småkravsgrundlag: KursgevinstlovUdeladtKravsSmåkravsgrundlag)
-# KursgevinstlovFrivilligKreditorkrav(krav_identifikation: Tekst, kreditor_identifikation: Tekst, samlet_krav_kroner: Heltal, værdi_af_tilstrækkelig_sikkerhed_kroner: Heltal, deltagelse: KursgevinstlovFrivilligKreditorordningsdeltagelse)
-# KursgevinstlovFrivilligKreditorordningFakta(ordningsidentifikation: Tekst, alle_usikrede_krav_oplyst: Boolsk, krav: List(KursgevinstlovFrivilligKreditorkrav))
+@ field(
+    label = "Dokumentation for et udeladt krav",
+    question = "Er det ved en skatteafgørelse eller et bindende svar dokumenteret, om det udeladte usikrede krav er et småkrav?",
+    help = "Der findes ingen generel beløbsgrænse. Uden dokumentation fejler Futuruna lukket, når ordningen ellers afhænger af, at udeladte krav er små.",
+    sources = personskat_kilder_25
+)
+# KursgevinstlovUdeladtKravsSmåkravsgrundlag =
+    KglUdeladtKravUdenSmåkravsdokumentation |
+    KglUdeladtKravDokumenteretSomSmåkrav(
+        @ field(
+            label = "Reference, som dokumenterer småkravet",
+            question = "Hvilken afgørelse eller hvilket bindende svar dokumenterer, at kravet kan holdes udenfor som småkrav?",
+            sources = personskat_kilder_25
+        )
+        afgørelsesreference: Tekst
+    ) |
+    KglUdeladtKravDokumenteretSomIkkeSmåkrav(
+        @ field(
+            label = "Reference, som dokumenterer et væsentligt krav",
+            question = "Hvilken afgørelse eller hvilket bindende svar dokumenterer, at kravet ikke er et småkrav?",
+            sources = personskat_kilder_25
+        )
+        afgørelsesreference: Tekst
+    )
+@ field(
+    label = "Kreditors faktiske deltagelse",
+    question = "Tiltrådte kreditoren ordningen med et nedsat restkrav, eller stod kravet udenfor?",
+    help = "Futuruna beregner den deltagende andel af den usikrede gæld. Angiv ikke selv, om kreditoren er en hovedkreditor.",
+    sources = personskat_kilder_25
+)
+# KursgevinstlovFrivilligKreditorordningsdeltagelse =
+    KglKreditorTiltrådtFrivilligOrdning(
+        @ field(
+            label = "Aftalt restkrav efter ordningen",
+            question = "Hvilket restkrav accepterede den deltagende kreditor efter aftalen?",
+            unit = "kr.",
+            sources = personskat_kilder_25
+        )
+        aftalt_restkrav_kroner: Heltal
+    ) |
+    KglKreditorUdenforFrivilligOrdning(småkravsgrundlag: KursgevinstlovUdeladtKravsSmåkravsgrundlag)
+# KursgevinstlovFrivilligKreditorkrav(
+    @ field(
+        label = "Kreditorkravets identifikation",
+        question = "Hvilken entydig gældsidentifikation vedrører kreditorkravet?",
+        sources = personskat_kilder_25
+    )
+    krav_identifikation: Tekst,
+    @ field(
+        label = "Kreditorens identifikation",
+        question = "Hvilken entydig identifikation bruges for kreditoren?",
+        sources = personskat_kilder_25
+    )
+    kreditor_identifikation: Tekst,
+    @ field(
+        label = "Kreditors samlede krav før ordningen",
+        question = "Hvor stort var kreditors krav umiddelbart før den frivillige ordning?",
+        unit = "kr.",
+        sources = personskat_kilder_25
+    )
+    samlet_krav_kroner: Heltal,
+    @ field(
+        label = "Værdi af tilstrækkelig sikkerhed",
+        question = "Hvor stor en del af kravet var dækket af pant, kaution eller anden tilstrækkelig sikkerhed på aftaletidspunktet?",
+        unit = "kr.",
+        sources = personskat_kilder_25
+    )
+    værdi_af_tilstrækkelig_sikkerhed_kroner: Heltal,
+    deltagelse: KursgevinstlovFrivilligKreditorordningsdeltagelse
+)
+# KursgevinstlovFrivilligKreditorordningFakta(
+    @ field(
+        label = "Den frivillige kreditorordnings identifikation",
+        question = "Hvilken entydig identifikation har aftalen med kreditorerne?",
+        sources = personskat_kilder_25
+    )
+    ordningsidentifikation: Tekst,
+    @ field(
+        label = "Alle usikrede krav er oplyst",
+        question = "Omfatter kreditoropgørelsen alle krav eller dele af krav, som var usikrede på aftaletidspunktet?",
+        help = "Futuruna fejler lukket, hvis kreditormassen ikke er komplet. Kun den del af et krav, som ikke var dækket af tilstrækkelig sikkerhed, indgår i § 24-vurderingen.",
+        sources = personskat_kilder_25
+    )
+    alle_usikrede_krav_oplyst: Boolsk,
+    @ field(
+        label = "Kreditorkrav ved den frivillige ordning",
+        question = "Hvilke kreditorers krav fandtes på aftaletidspunktet, hvilken sikkerhed dækkede hvert krav, og hvem tiltrådte aftalen?",
+        help = "Tilføj ét krav pr. række. Kravets identifikation skal svare til gældspostens identifikation for den gæld, der eftergives.",
+        sources = personskat_kilder_25
+    )
+    krav: List(KursgevinstlovFrivilligKreditorkrav)
+)
 # KursgevinstlovFrivilligKreditorordningVurdering = KglFrivilligOrdningUafklaret | KglFrivilligOrdningIkkeSamlet | KglFrivilligOrdningSamlet
 # KursgevinstlovFrivilligKreditorordningResultat(fakta_gyldige: Boolsk, aktuel_gæld_deltager: Boolsk, samlet_usikret_gæld_kroner: Heltal, deltagende_usikret_gæld_kroner: Heltal, deltagende_andel_basispoint: Heltal, udeladte_usikrede_krav_antal: Heltal, alle_udeladte_krav_dokumenteret_som_småkrav: Boolsk, mindst_et_udeladt_krav_dokumenteret_som_ikke_småkrav: Boolsk, vurdering: KursgevinstlovFrivilligKreditorordningVurdering)
+@ field(
+    label = "Gældsordningens dokumenterede form",
+    question = "Foreligger der ingen dokumenteret gældsordning, en retslig tvangsakkord, en frivillig aftale med kreditorer eller en gældssanering?",
+    help = "Vælg den dokumenterede procedure eller aftale. Ved en frivillig aftale udleder Futuruna selv, om kreditorordningen er samlet efter KGL § 24.",
+    sources = personskat_kilder_25
+)
 # KursgevinstlovGældsordning = KglIngenDokumenteretGældsordning | KglTvangsakkordIRekonstruktion | KglFrivilligKreditorordning(fakta: KursgevinstlovFrivilligKreditorordningFakta) | KglGældssanering
+@ field(
+    label = "Særlig lånehændelse efter KGL § 22",
+    question = "Er der tale om stiftelse eller refinansiering med overkurs, frigørelse fra et lån med varierende rente, ekstraordinær indfrielse af et kontantlån eller årlig § 22 A-beskatning?",
+    help = "Vælg ingen særlig hændelse for almindelig indfrielse, valutagæld eller gældseftergivelse uden et § 22-forhold.",
+    sources = personskat_kilder_25
+)
 # KursgevinstlovPar22Hændelse = KglIngenPar22Hændelse | KglPar22Stk1Stiftelse(fakta: KursgevinstlovPar22Stk1Fakta) | KglPar22Stk2Frigørelse(fakta: KursgevinstlovPar22Stk2Fakta) | KglPar22Stk3Indfrielse(fakta: KursgevinstlovPar22Stk3Fakta) | KglPar22AÅrsbeskatning(fakta: KursgevinstlovPar22AFakta)
 # KursgevinstlovGældHjemmel = KglGældPar19 | KglGældPar20 | KglGældPar21Stk1 | KglGældPar21Stk2 | KglGældPar22Stk1 | KglGældPar22Stk2 | KglGældPar22Stk3 | KglGældPar22Stk3Undtagelse | KglGældPar22Stk4Undtagelse | KglGældPar22A | KglGældPar23 | KglGældPar24Stk1 | KglGældPar24Stk2 | KglGældPar24Stk3 | KglGældPar24A
 # KursgevinstlovGældBehandling = KglGældUgyldigtGrundlag | KglGældBehandlesEfterPar19 | KglGældBehandlesEfterPar20 | KglGældBehandlesEfterPar21Stk1 | KglGældBehandlesEfterPar21Stk2 | KglGældBehandlesEfterPar22 | KglGældBehandlesEfterPar23 | KglGældBehandlesEfterPar24 | KglGældBehandlesEfterPar24A
-# KursgevinstlovGældFakta(identifikation: Tekst, beløb: KursgevinstlovGældBeløb, frigørelsesart: KursgevinstlovGældFrigørelsesart, erhvervsforhold: KursgevinstlovGældErhvervsforhold, valuta: KursgevinstlovGældValuta, selskabsfakta: KursgevinstlovPar21Stk2Selskabsfakta, gældsordning: KursgevinstlovGældsordning, vedrører_ikke_indbetalt_selskabskapital: Boolsk, par22_hændelse: KursgevinstlovPar22Hændelse)
+# KursgevinstlovGældFakta(
+    @ field(
+        label = "Gældens identifikation",
+        question = "Hvilken entydig identifikation skal bruges for gældsforholdet?",
+        sources = personskat_kilder_25
+    )
+    identifikation: Tekst,
+    beløb: KursgevinstlovGældBeløb,
+    @ field(
+        label = "Hvordan gælden ophørte eller blev reduceret",
+        question = "Blev gælden indfriet, eftergivet, forældet, sammenfaldt den med kreditors krav, eller blev den prækluderet?",
+        sources = personskat_kilder_25
+    )
+    frigørelsesart: KursgevinstlovGældFrigørelsesart,
+    erhvervsforhold: KursgevinstlovGældErhvervsforhold,
+    @ field(
+        label = "Gældens valuta og regulering",
+        question = "Er gælden i danske kroner eller fremmed valuta, og reguleres restgælden efter en anden valuta?",
+        help = "Dansk gæld, som valutareguleres, behandles som fremmed valuta. Fremmed gæld, som reguleres efter danske kroner, behandles som dansk gæld.",
+        sources = personskat_kilder_25
+    )
+    valuta: KursgevinstlovGældValuta,
+    selskabsfakta: KursgevinstlovPar21Stk2Selskabsfakta,
+    gældsordning: KursgevinstlovGældsordning,
+    @ field(
+        label = "Ikke indbetalt selskabskapital",
+        question = "Vedrører gælden selskabskapital, som ikke er indbetalt?",
+        help = "Gevinst og tab på denne gæld medregnes ikke efter KGL § 24 A.",
+        sources = personskat_kilder_25
+    )
+    vedrører_ikke_indbetalt_selskabskapital: Boolsk,
+    par22_hændelse: KursgevinstlovPar22Hændelse
+)
 # KursgevinstlovGældInput(indkomstår: Heltal, fakta: KursgevinstlovGældFakta)
 # KursgevinstlovGældResultat(input: KursgevinstlovGældInput, input_gyldigt: Boolsk, behandling: KursgevinstlovGældBehandling, hjemler: List(KursgevinstlovGældHjemmel), behandles_som_fremmed_valuta: Boolsk, par21_stk2_anvendes: Boolsk, par22_anvendes: Boolsk, par24_anvendes: Boolsk, par24a_anvendes: Boolsk, frivillig_ordning_resultat: Option(KursgevinstlovFrivilligKreditorordningResultat), bagatelgrænse_afskærer: Boolsk, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, ikke_medregnet_gevinst_kroner: Heltal, netto_efter_kursgevinstloven_kroner: Heltal, personlig_indkomst_efter_par19: Boolsk)
 
@@ -587,3 +748,43 @@ selskabskapital medregnes ikke ved opgørelsen af den skattepligtige indkomst.
 ))
 
 }
+
+# KglEblPar6DKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+# KursgevinstlovÅrsnettoKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= aktieavancebeskatningsloven_lbk1098_par22_årsnetto = KursgevinstlovÅrsnettoKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "LBK nr. 1098 af 27/08/2025: Aktieavancebeskatningslovens § 22",
+    hentet_dato = "2026-08-03"
+)
+
+= kgl_ebl_par6d_vejledning_2026 = KglEblPar6DKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2292757",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.11.9: EBL § 6 D-sælgerpantebreve og kursgevinstloven",
+    hentet_dato = "2026-07-18"
+)
+
+= kgl_sælgerpantebrev_lbk1176 = KglSælgerpantebrevKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1176",
+    identifier = "LBK nr. 1176 af 19/09/2025: Kursgevinstlovens §§ 1, 12, 14, 17, 25 og 26",
+    hentet_dato = "2026-07-18"
+)
+
+= kursgevinstloven_lbk1176_årsnetto = KursgevinstlovÅrsnettoKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1176",
+    identifier = "LBK nr. 1176 af 19/09/2025: Kursgevinstlovens §§ 1, 12-18, 23, 25-26 og 42",
+    hentet_dato = "2026-08-07"
+)
+
+= kursgevinstloven_vejledning_årsnetto_par26_gennemsnit = KursgevinstlovÅrsnettoKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948966",
+    identifier = "Den juridiske vejledning 2026-2, C.B.1.7.6: gennemsnitsmetoden",
+    hentet_dato = "2026-08-07"
+)
+
+= kursgevinstloven_vejledning_årsnetto_par26_realisering = KursgevinstlovÅrsnettoKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948965",
+    identifier = "Den juridiske vejledning 2026-2, C.B.1.7.5: realisations- og lagerprincippet",
+    hentet_dato = "2026-08-07"
+)
