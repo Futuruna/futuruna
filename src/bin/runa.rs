@@ -33394,7 +33394,29 @@ impl RustCodegen {
                 {
                     Some(name.clone())
                 }
-                _ => None,
+                // Only a function can leave a builtin of its name visible.
+                Stmt::Defn(Defn::Fn { .. } | Defn::Actor { .. } | Defn::Module { .. })
+                | Stmt::TypeDecl(_)
+                | Stmt::PreludeBoundary
+                | Stmt::Rule(_)
+                | Stmt::Use(_)
+                | Stmt::Import(_)
+                | Stmt::QualifiedImport(..)
+                | Stmt::HashImport(..)
+                | Stmt::Depend(..)
+                | Stmt::RustBlock(_)
+                | Stmt::Annot(..)
+                | Stmt::Bind(..)
+                | Stmt::MonadicBind(..)
+                | Stmt::For(..)
+                | Stmt::While(..)
+                | Stmt::Send(..)
+                | Stmt::StreamBind(..)
+                | Stmt::StreamSub(..)
+                | Stmt::Invariant { .. }
+                | Stmt::Prove { .. }
+                | Stmt::Explore(_)
+                | Stmt::Expr(_) => None,
             })
             .collect();
         for (index, stmt) in stmts.iter().enumerate() {
