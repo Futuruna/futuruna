@@ -1,0 +1,6 @@
+-- expect-skip: dependency-only fixture: a second module binding `law_source`, with another type
+
+# LawA(url: String)
+
+= seen_in_a = law_source
+= law_source = LawA(url = "a")

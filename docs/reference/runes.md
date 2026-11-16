@@ -834,6 +834,14 @@ clause joins the imported family, so a rule and a function of one name that
 one file's scope reaches are an error that names the line of each, as in one
 file. A local type declaration replaces an imported type with the same name,
 including its constructors.
+A top-level binding name follows the same rule as a function name: it means
+the file's own binding, else the one its plain imports provide, a later
+import's over an earlier one's, and never a binding of a file that imports it
+(a name only an importing file binds is an error in the imported file). So
+modules written apart may each bind `sats` or `kilder`: each reads its own,
+and a file importing both reads the later import's unless it binds its own.
+Within one file, binding a name twice is still an error unless the second
+binding reads the first.
 Two types in the merged scope may declare the same constructor name. A use of
 such a name takes its owner from the type the context expects (a pattern from
 the matched value, an argument, field or result from its declared type, one
@@ -841,9 +849,13 @@ side of `==` from the other side), or names it as `Type.Constructor` in an
 expression or a pattern. A shared name with no expected type is an error that
 names both types; the owner is never chosen by arity or fields. Types inside
 one inline module keep distinct constructor names.
-Imported initializers call their own file's functions, like the file's other
-calls. Unique bindings across the
-merged scope follow the dependency order described above. A canonical source
+Imported initializers call their own file's functions and read their own
+file's bindings, like the file's other code. Bindings across the merged scope
+follow the dependency order described above, so a binding may be written
+before the bindings it reads, in its file or another, and a binding is
+initialized before every statement that reads it, directly or through a
+function. A name bound more than once is read in statement order: reading it
+before its first binding is an error. A canonical source
 is imported once per namespace, including when several dependencies import it.
 Standalone executable statements in an imported file are not run; its binding
 initializers are part of the merged program.

@@ -1,0 +1,11 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `rate` (line 3) names no binding of this file or of the files it imports, but line 9 of the file being checked binds `rate` and imports this file
+-- expect-stderr: import_scope_importer_binding_lib.runa:3:
+
+@ import ./import_scope_importer_binding_lib
+
+-- A file's names never reach a file that imports it.
+= rate = 21
+
+@ print(show(doubled_rate))

@@ -1,0 +1,13 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `limit` in import_scope_bindings_written_names_lib.runa is bound twice at top level (line 3 and line 4)
+-- expect-stderr-not: __
+
+@ import ./import_scope_bindings_written_names_lib
+
+-- The root binds `limit` too, so the module's `limit` gets an internal
+-- name; the module's own error about binding it twice still holds and
+-- shows the name it was written with and its file.
+= limit = 3
+
+@ print(show(limit + module_limit))

@@ -1,0 +1,17 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: root: LawA(url: a)
+-- expect-stdout: b binding: LawB(url: b)
+-- expect-stdout: b function: LawB(url: b)
+-- expect-stdout: a binding: LawA(url: a)
+
+@ import ./import_scope_bindings_b_lib
+@ import ./import_scope_bindings_a_lib
+
+-- Both modules bind `law_source`, with different types. A binding name
+-- means what a function name means: each module reads its own, written
+-- after its readers, and the root reads the later import's.
+@ print(concat("root: ", show(law_source)))
+@ print(concat("b binding: ", show(seen_in_b)))
+@ print(concat("b function: ", read_in_b()))
+@ print(concat("a binding: ", show(seen_in_a)))

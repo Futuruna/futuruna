@@ -1,0 +1,16 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: root: LawB(url: b)
+-- expect-stdout: b binding: LawB(url: b)
+-- expect-stdout: b function: LawB(url: b)
+-- expect-stdout: a binding: LawA(url: a)
+
+@ import ./import_scope_bindings_a_lib
+@ import ./import_scope_bindings_b_lib
+
+-- The imports of import_scope_bindings_interp.runa reversed: the root reads
+-- the later import's `law_source`, each module still its own.
+@ print(concat("root: ", show(law_source)))
+@ print(concat("b binding: ", show(seen_in_b)))
+@ print(concat("b function: ", read_in_b()))
+@ print(concat("a binding: ", show(seen_in_a)))

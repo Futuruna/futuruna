@@ -1,0 +1,20 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: root: LawC(url: c)
+-- expect-stdout: b binding: LawB(url: b)
+-- expect-stdout: b function: LawB(url: b)
+-- expect-stdout: a binding: LawA(url: a)
+
+@ import ./import_scope_bindings_b_lib
+@ import ./import_scope_bindings_a_lib
+
+-- The root binds `law_source` too, after its readers: the root reads its
+-- own, each module its own.
+# LawC(url: String)
+
+@ print(concat("root: ", show(law_source)))
+@ print(concat("b binding: ", show(seen_in_b)))
+@ print(concat("b function: ", read_in_b()))
+@ print(concat("a binding: ", show(seen_in_a)))
+
+= law_source = LawC(url = "c")

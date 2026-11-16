@@ -4046,9 +4046,11 @@ mod regional_stream_acceptance_tests {
             None,
         )
         .err()
-        .expect("checked preparation must preserve imported binding prefixes");
+        .expect("checked preparation must reject an imported capture of a root binding");
+        // An imported file never reads a binding of a file that imports it,
+        // so the check rejects the capture.
         assert!(
-            failure.to_string().contains("depends on later declaration"),
+            failure.to_string().contains("type-check diagnostic"),
             "{failure}"
         );
     }
