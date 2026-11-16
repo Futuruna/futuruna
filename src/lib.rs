@@ -32825,6 +32825,10 @@ pub struct TypeChecker {
     mixed_list_bindings: Vec<(String, String)>,
     /// `metadata_binding_candidates`, once computed.
     metadata_binding_candidates: Option<BTreeSet<String>>,
+    /// The metadata binding candidates of qualified-import modules, from
+    /// their own checkers: their bindings join the generated program under
+    /// their own names.
+    qualified_metadata_binding_candidates: BTreeSet<String>,
     /// Already-resolved plain import edges for lexical rule-family diagnostics.
     /// Retain the declaration prepass's immutable syntax, never reread a file.
     rule_contract_imports: BTreeMap<(String, String), (String, Arc<ParsedSourceModule>)>,
@@ -49579,6 +49583,7 @@ impl TypeChecker {
             checking_metadata_value: false,
             mixed_list_bindings: Vec::new(),
             metadata_binding_candidates: None,
+            qualified_metadata_binding_candidates: BTreeSet::new(),
             rule_contract_imports: BTreeMap::new(),
             rule_contract_import_modules: BTreeMap::new(),
             import_diagnostic_anchor: None,
@@ -57973,6 +57978,8 @@ impl TypeChecker {
         child.collect_declarations(statements);
         child.prepare_rule_dispatch_metadata(statements);
         child.check_program(statements);
+        self.qualified_metadata_binding_candidates
+            .extend(child.metadata_binding_candidates(statements));
         if !child.diagnostics.is_empty() {
             let start = self.diagnostics.len();
             self.diagnostics.extend(child.diagnostics);

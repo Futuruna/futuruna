@@ -33,6 +33,7 @@ impl TypeChecker {
             self.source_dir.as_deref(),
             self,
         ));
+        candidates.extend(self.qualified_metadata_binding_candidates.iter().cloned());
         self.metadata_binding_candidates = Some(candidates.clone());
         candidates
     }

@@ -1,0 +1,9 @@
+-- A qualified-import module's binding only `@ field` reads is compile-time
+-- metadata as a plain import's is: the importing program compiles without it.
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: income 4
+
+@ import Roles from ./metadata_only_mixed_role_list_qualified_lib
+
+@ print(concat("income ", show(Roles.doubled_income(2))))
