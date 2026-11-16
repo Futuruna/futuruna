@@ -892,9 +892,9 @@ round. Queries run in the interpreter, as `runa call --partial` does.
 = first = query household_tax(Household(income = 500, married = True, spouse = unknown))
 = asked = interview(|c| query household_tax(c), Household(income = 500, married = True, spouse = unknown), with_spouse)
 
-@ print(match first { | Needs -> map(first.needs, |n| n.path) == [pathof(Household::spouse)] | Complete -> False }) -- True
-@ print(asked.rounds == [[pathof(Household::spouse)], [pathof(Household::spouse::cohabiting), pathof(Household::spouse::income)]]) -- True
-@ print(asked.result == household_tax(with_spouse)) -- True
+@ print(match first { | Needs -> map(first.needs, |n| n.path) == [pathof(Household::spouse)] | Complete -> False }) -- true
+@ print(asked.rounds == [[pathof(Household::spouse)], [pathof(Household::spouse::cohabiting), pathof(Household::spouse::income)]]) -- true
+@ print(asked.result == household_tax(with_spouse)) -- true
 ```
 
 **`unknown`** is a value not known yet. It means what a left-out field means
