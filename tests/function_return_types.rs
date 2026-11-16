@@ -136,17 +136,22 @@ fn native_inout_push_returns_unit_and_persistent_push_keeps_its_list() {
     ]);
 }
 
+/// A binding that holds a function and takes a function's name makes a call
+/// by that name ambiguous: the check refuses the program and names both
+/// lines, so no backend has to choose (the interpreter and native code used
+/// to choose differently).
 #[test]
-fn a_value_binding_shadows_a_same_named_function_signature() {
+fn a_function_binding_named_like_a_function_is_a_check_error() {
     let source = r#"
 > selected(value: Int) -> String { "outer" }
 = selected = |value| value
 > invoke(value: Int) -> Int { selected(value) }
 @ print(show(invoke(42)))
 "#;
-    assert_eq!(
-        eval_source_with_prelude(source, false).unwrap().trim(),
-        "42"
+    let error = eval_source_with_prelude(source, false).unwrap_err();
+    assert!(
+        error.contains("the binding `selected` holds a function and takes the name of the function `selected` declared at line 2"),
+        "{error}"
     );
 }
 
