@@ -28,9 +28,10 @@
 @ importer ./personskat-ligningslov7n-beregningsmeta
 @ importer ./personskat-kildeskat25a-beregningsmeta
 @ importer ./personskat-kildeskat25a-kildefakta
-@ importer ./personskat-pbl53a-beregningsmeta
+@ importer ./pensionsbeskatningsloven
+@ importer ./kapitel-01-indkomst
+@ importer ./arbejdsmarkedsbidragsloven
 @ importer ./personskat-pbl53a-kildefakta
-@ importer ./personskat-udenlandske-sociale-bidrag-beregningsmeta
 @ importer ./personskat-udenlandske-sociale-bidrag-kildefakta
 @ importer ./personskat-virksomhedskapital-beregningsmeta
 @ importer ./personskat-virksomhedskapital-kildefakta
@@ -58,7 +59,7 @@
 @ importer ./aktieavancebeskatningsloven-par37-40-forloeb
 
 # PersonskatMetadata(a) = PersonskatMetadata(attachments: a)
-# PersonskatBeregningsmetadata(k, p, e, g, kapital, ejendom, kurs, aktie, udenlandsk_skat, negativ_aktieskat, årsopgørelse) = PersonskatBeregningsmetadata(kilder: k, pension: p, erhvervsbefordring: e, grundforhold: g, kapitalindkomst: kapital, ejendomsavance: ejendom, kursgevinst: kurs, aktieavance: aktie, udenlandsk_skat: udenlandsk_skat, negativ_aktieskat: negativ_aktieskat, årsopgørelse: årsopgørelse)
+# PersonskatBeregningsmetadata(k, p, e, g, kapital, ejendom, kurs, aktie, udenlandsk_skat, udenlandske_sociale_bidrag, negativ_aktieskat, årsopgørelse) = PersonskatBeregningsmetadata(kilder: k, pension: p, erhvervsbefordring: e, grundforhold: g, kapitalindkomst: kapital, ejendomsavance: ejendom, kursgevinst: kurs, aktieavance: aktie, udenlandsk_skat: udenlandsk_skat, udenlandske_sociale_bidrag: udenlandske_sociale_bidrag, negativ_aktieskat: negativ_aktieskat, årsopgørelse: årsopgørelse)
 # impl Meta for PersonskatMetadata {}
 # impl Meta for PersonskatBeregningsmetadata {}
 
@@ -8985,6 +8986,443 @@
     )
 )
 
+= personskat_pbl53a_felt_ordninger = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger),
+    label = "Pensionsordninger efter PBL § 53 A",
+    question = Some("Har du en eller flere pensionsordninger, hvis afkast skal behandles efter pensionsbeskatningslovens § 53 A?"),
+    help = Some("Tilføj hver ordning særskilt. Negativt afkast fremføres inden for den samme identificerede ordning."),
+    unit = None
+)
+
+# PersonskatPbl53AFelttekst(path: ProgramReference, label: Tekst, question: Tekst, unit: Tekst?)
+# PersonskatPbl53ADatofelttekst(år: ProgramReference, måned: ProgramReference, dag: ProgramReference, label: Tekst, question: Tekst)
+# PersonskatPbl53ABerettigedefelttekst(path: ProgramReference, label: Tekst)
+
+| personskat_pbl53a_felt_fra_tekst(felt: PersonskatPbl53AFelttekst) -> Beregningsfelt(
+    path = felt.path,
+    label = felt.label,
+    question = Some(felt.question),
+    help = None,
+    unit = felt.unit
+)
+| personskat_pbl53a_datofelter(felt: PersonskatPbl53ADatofelttekst) -> [
+    Beregningsfelt(path = felt.år, label = felt.label + " - år", question = Some(felt.question + " Angiv året."), help = None, unit = Some("år")),
+    Beregningsfelt(path = felt.måned, label = felt.label + " - måned", question = Some(felt.question + " Angiv måneden."), help = None, unit = None),
+    Beregningsfelt(path = felt.dag, label = felt.label + " - dag", question = Some(felt.question + " Angiv dagen i måneden."), help = None, unit = None)
+]
+| personskat_pbl53a_berettigedefelt(felt: PersonskatPbl53ABerettigedefelttekst) -> Beregningsfelt(
+    path = felt.path,
+    label = felt.label,
+    question = Some("Hvem er berettiget efter direktørens pensionstilsagn?"),
+    help = Some("Angiv direktøren og alle efterladte, som kan modtage udbetalinger."),
+    unit = None
+)
+
+= personskat_pbl53a_omfang_enkeltfelter = map([
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::virkningstidspunkt::rækkefølge_på_dagen), label = "Kontraktændringens rækkefølge på dagen", question = "I hvilken rækkefølge fik kontraktændringen virkning blandt ordningens hændelser samme dag?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::erhvervelser::tidspunkt::rækkefølge_på_dagen), label = "Erhvervelsens rækkefølge på dagen", question = "I hvilken rækkefølge skete erhvervelsen blandt ordningens hændelser samme dag?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::kapitel1fakta::$variant), label = "Livsforsikringens status efter PBL kapitel 1", question = "Er livsforsikringen omfattet af kapitel 1, uden for kapitel 1 eller tidligere godkendt efter § 15 D?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::direktørsikkerhed::$variant), label = "Livsforsikring stillet til sikkerhed for direktørpension", question = "Er livsforsikringen stillet til sikkerhed for et pensionstilsagn til en direktør eller dennes efterladte?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::direktørsikkerhed::Pbl53ASikkerhedForDirektørpensionstilsagn::tilsagn::identifikation), label = "Direktørpensionstilsagn sikret ved livsforsikring", question = "Hvilket pensionstilsagn sikrer livsforsikringen?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::direktørsikkerhed::Pbl53ASikkerhedForDirektørpensionstilsagn::tilsagn::ansættelsesforhold_identifikation), label = "Ansættelsesforhold for det sikrede pensionstilsagn", question = "Hvilket ansættelsesforhold blev det sikrede pensionstilsagn afgivet i?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APensionskasseprodukt::kapitel1fakta::$variant), label = "Pensionskassens status efter PBL kapitel 1", question = "Er pensionskasseordningen omfattet af kapitel 1, uden for kapitel 1 eller tidligere godkendt efter § 15 D?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APensionskasseprodukt::direktørsikkerhed::$variant), label = "Pensionskasseordning stillet til sikkerhed for direktørpension", question = "Er pensionskasseordningen stillet til sikkerhed for et pensionstilsagn til en direktør eller dennes efterladte?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APensionskasseprodukt::direktørsikkerhed::Pbl53ASikkerhedForDirektørpensionstilsagn::tilsagn::identifikation), label = "Direktørpensionstilsagn sikret ved pensionskasseordning", question = "Hvilket pensionstilsagn sikrer pensionskasseordningen?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APensionskasseprodukt::direktørsikkerhed::Pbl53ASikkerhedForDirektørpensionstilsagn::tilsagn::ansættelsesforhold_identifikation), label = "Ansættelsesforhold for pensionskassens sikkerhed", question = "Hvilket ansættelsesforhold blev det sikrede pensionstilsagn afgivet i?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53AGarantiforsikringsprodukt::tilsagn::identifikation), label = "Pensionstilsagn dækket af garantiforsikringen", question = "Hvilket direktørpensionstilsagn dækkes af garantiforsikringen?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53AGarantiforsikringsprodukt::tilsagn::ansættelsesforhold_identifikation), label = "Ansættelsesforhold for garantiforsikringen", question = "Hvilket ansættelsesforhold blev pensionstilsagnet bag garantiforsikringen afgivet i?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APengeEllerKreditinstitutprodukt::kapitel1fakta::$variant), label = "Pengeinstitutordningens status efter PBL kapitel 1", question = "Er pengeinstitutordningen omfattet af kapitel 1, uden for kapitel 1 eller tidligere godkendt efter § 15 D?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::par53b_oprettelsesposition::Pbl53BOprettetUdenFuldDanskSkattepligt::hjemsted::$variant), label = "Hjemsted uden fuld dansk skattepligt", question = "Var hjemstedet en fremmed stat, Færøerne eller Grønland?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::par53b_oprettelsesposition::Pbl53BOprettetUdenFuldDanskSkattepligt::hjemsted::Pbl53BFremmedStat::stat), label = "Fremmed stat uden fuld dansk skattepligt", question = "I hvilken fremmed stat var personen skattepligtig eller hjemmehørende?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::par53b_oprettelsesposition::Pbl53BOprettetMedDboHjemstedIUdlandet::hjemsted::$variant), label = "Hjemsted efter dobbeltbeskatningsoverenskomst", question = "Var hjemstedet efter overenskomsten en fremmed stat, Færøerne eller Grønland?", unit = None),
+    PersonskatPbl53AFelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::par53b_oprettelsesposition::Pbl53BOprettetMedDboHjemstedIUdlandet::hjemsted::Pbl53BFremmedStat::stat), label = "Fremmed stat efter dobbeltbeskatningsoverenskomst", question = "I hvilken fremmed stat var personen hjemmehørende efter overenskomsten?", unit = None)
+    ], personskat_pbl53a_felt_fra_tekst)
+
+= personskat_pbl53a_omfang_datofelter = flat_map([
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::oprettelsesdato::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::oprettelsesdato::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::oprettelsesdato::dag), label = "Ordningens oprettelsesdato", question = "Hvornår blev ordningen oprettet?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::ændringsdato::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::ændringsdato::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::ændringsdato::dag), label = "Dato hvor kontraktændringen blev aftalt", question = "Hvornår blev kontraktændringen aftalt?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::virkningstidspunkt::dato::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::virkningstidspunkt::dato::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::virkningstidspunkt::dato::dag), label = "Dato hvor kontraktændringen fik virkning", question = "Hvornår fik kontraktændringen virkning?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::forhåndsaftale::Pbl53ADokumenteretForhåndsaftale::bindende_fra_dato::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::forhåndsaftale::Pbl53ADokumenteretForhåndsaftale::bindende_fra_dato::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::forhåndsaftale::Pbl53ADokumenteretForhåndsaftale::bindende_fra_dato::dag), label = "Dato for bindende forhåndsaftale", question = "Fra hvilken dato var forhåndsaftalen endelig og bindende?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::art::Pbl53APræmiebetalingsperiodeForlænget::oprindelig_præmiebetalingsperiodes_slutdato::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::art::Pbl53APræmiebetalingsperiodeForlænget::oprindelig_præmiebetalingsperiodes_slutdato::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::art::Pbl53APræmiebetalingsperiodeForlænget::oprindelig_præmiebetalingsperiodes_slutdato::dag), label = "Oprindelig slutdato for præmiebetalingen", question = "Hvornår skulle præmiebetalingen oprindeligt være ophørt?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::art::Pbl53ASelvvalgtOverflytningTilNyUdbyder::modtagende_ordnings_oprettelsesdato::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::art::Pbl53ASelvvalgtOverflytningTilNyUdbyder::modtagende_ordnings_oprettelsesdato::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::kontraktændringer::art::Pbl53ASelvvalgtOverflytningTilNyUdbyder::modtagende_ordnings_oprettelsesdato::dag), label = "Oprettelsesdato for modtagende ordning", question = "Hvornår blev ordningen hos den modtagende udbyder oprettet?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::erhvervelser::tidspunkt::dato::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::erhvervelser::tidspunkt::dato::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::erhvervelser::tidspunkt::dato::dag), label = "Dato for senere erhvervelse", question = "Hvornår overgik ordningen til den nye rettighedshaver?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalgfristfakta::Pbl53ASenereIndtrådtFuldSkattepligt::indtrædelsesdato::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalgfristfakta::Pbl53ASenereIndtrådtFuldSkattepligt::indtrædelsesdato::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalgfristfakta::Pbl53ASenereIndtrådtFuldSkattepligt::indtrædelsesdato::dag), label = "Dato for senere fuld dansk skattepligt", question = "Hvornår indtrådte den fulde danske skattepligt?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalgfristfakta::Pbl53ASenereIndtrådtFuldSkattepligt::oplysningsfrist::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalgfristfakta::Pbl53ASenereIndtrådtFuldSkattepligt::oplysningsfrist::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalgfristfakta::Pbl53ASenereIndtrådtFuldSkattepligt::oplysningsfrist::dag), label = "Oplysningsfrist efter senere fuld skattepligt", question = "Hvornår udløb oplysningsfristen for indtrædelsesåret?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalgfristfakta::Pbl53ASenereArvUnderFuldSkattepligt::arvedato::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalgfristfakta::Pbl53ASenereArvUnderFuldSkattepligt::arvedato::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalgfristfakta::Pbl53ASenereArvUnderFuldSkattepligt::arvedato::dag), label = "Arvedato for det senere overgangsvalg", question = "Hvornår blev den historiske livsforsikring arvet?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalgfristfakta::Pbl53ASenereArvUnderFuldSkattepligt::oplysningsfrist::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalgfristfakta::Pbl53ASenereArvUnderFuldSkattepligt::oplysningsfrist::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalgfristfakta::Pbl53ASenereArvUnderFuldSkattepligt::oplysningsfrist::dag), label = "Oplysningsfrist efter senere arv", question = "Hvornår udløb oplysningsfristen for det år, hvor forsikringen blev arvet?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalg::beslutningsdato::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalg::beslutningsdato::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalg::beslutningsdato::dag), label = "Beslutningsdato for overgangsvalget", question = "Hvornår blev beslutningen om overgangsvalget truffet?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalg::modtagelsesdato::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalg::modtagelsesdato::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::overgangsvalg::modtagelsesdato::dag), label = "Modtagelsesdato for overgangsvalget", question = "Hvornår modtog Skattestyrelsen eller den indberettende pensionsudbyder valget?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::historiske_blanket49020_indsendelser::indsendelsesdato::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::historiske_blanket49020_indsendelser::indsendelsesdato::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::historiske_blanket49020_indsendelser::indsendelsesdato::dag), label = "Indsendelsesdato for historisk blanket 49.020", question = "Hvornår blev den historiske blanket 49.020 indsendt?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::historiske_blanket49020_indsendelser::modtagelsesdato::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::historiske_blanket49020_indsendelser::modtagelsesdato::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::historiske_blanket49020_indsendelser::modtagelsesdato::dag), label = "Modtagelsesdato for historisk blanket 49.020", question = "Hvornår modtog Skattestyrelsen den historiske blanket 49.020?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_fra::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_fra::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_fra::dag), label = "Start på livsforsikringens § 15 D-godkendelse", question = "Hvornår begyndte livsforsikringens tidligere § 15 D-godkendelse?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_til::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_til::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_til::dag), label = "Slut på livsforsikringens § 15 D-godkendelse", question = "Hvornår udløb livsforsikringens tidligere § 15 D-godkendelse?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::vilkår::aftalt_udløbsdato::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::vilkår::aftalt_udløbsdato::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::vilkår::aftalt_udløbsdato::dag), label = "Livsforsikringens aftalte udløbsdato", question = "Hvornår udløber livsforsikringen efter aftalen?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::vilkår::første_policedag_efter_fyldte_80_år::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::vilkår::første_policedag_efter_fyldte_80_år::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::vilkår::første_policedag_efter_fyldte_80_år::dag), label = "Første policedag efter det fyldte 80. år", question = "Hvornår er den første policedag efter den forsikredes fyldte 80. år?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APensionskasseprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_fra::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APensionskasseprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_fra::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APensionskasseprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_fra::dag), label = "Start på pensionskassens § 15 D-godkendelse", question = "Hvornår begyndte pensionskasseordningens tidligere § 15 D-godkendelse?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APensionskasseprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_til::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APensionskasseprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_til::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APensionskasseprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_til::dag), label = "Slut på pensionskassens § 15 D-godkendelse", question = "Hvornår udløb pensionskasseordningens tidligere § 15 D-godkendelse?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APengeEllerKreditinstitutprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_fra::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APengeEllerKreditinstitutprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_fra::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APengeEllerKreditinstitutprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_fra::dag), label = "Start på pengeinstitutordningens § 15 D-godkendelse", question = "Hvornår begyndte pengeinstitutordningens tidligere § 15 D-godkendelse?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APengeEllerKreditinstitutprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_til::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APengeEllerKreditinstitutprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_til::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APengeEllerKreditinstitutprodukt::kapitel1fakta::Pbl53ATidligereGodkendtEfterPar15D::godkendt_til::dag), label = "Slut på pengeinstitutordningens § 15 D-godkendelse", question = "Hvornår udløb pengeinstitutordningens tidligere § 15 D-godkendelse?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::afsnit_i_valg::Pbl53AAfkaldPåAfsnitI::afgivet_dato::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::afsnit_i_valg::Pbl53AAfkaldPåAfsnitI::afgivet_dato::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::afsnit_i_valg::Pbl53AAfkaldPåAfsnitI::afgivet_dato::dag), label = "Dato for afkald på afsnit I", question = "Hvornår blev afkaldet på beskatning efter afsnit I afgivet?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::par53b_oprettelsesposition::Pbl53BOprettetUdenFuldDanskSkattepligt::sidste_dato_uden_dansk_skattepligt::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::par53b_oprettelsesposition::Pbl53BOprettetUdenFuldDanskSkattepligt::sidste_dato_uden_dansk_skattepligt::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::par53b_oprettelsesposition::Pbl53BOprettetUdenFuldDanskSkattepligt::sidste_dato_uden_dansk_skattepligt::dag), label = "Sidste dato uden fuld dansk skattepligt", question = "Hvornår sluttede perioden uden fuld dansk skattepligt?"),
+    PersonskatPbl53ADatofelttekst(år = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::par53b_oprettelsesposition::Pbl53BOprettetMedDboHjemstedIUdlandet::sidste_dato_med_dbo_hjemsted_i_udlandet::år), måned = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::par53b_oprettelsesposition::Pbl53BOprettetMedDboHjemstedIUdlandet::sidste_dato_med_dbo_hjemsted_i_udlandet::måned), dag = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::par53b_oprettelsesposition::Pbl53BOprettetMedDboHjemstedIUdlandet::sidste_dato_med_dbo_hjemsted_i_udlandet::dag), label = "Sidste dato med overenskomstmæssigt hjemsted i udlandet", question = "Hvornår sluttede perioden med hjemsted i udlandet efter dobbeltbeskatningsoverenskomsten?")
+    ], personskat_pbl53a_datofelter)
+
+= personskat_pbl53a_omfang_berettigedefelter = map([
+    PersonskatPbl53ABerettigedefelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53ALivsforsikringsprodukt::direktørsikkerhed::Pbl53ASikkerhedForDirektørpensionstilsagn::tilsagn::berettigede), label = "Berettigede efter pensionstilsagn sikret ved livsforsikring"),
+    PersonskatPbl53ABerettigedefelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53APensionskasseprodukt::direktørsikkerhed::Pbl53ASikkerhedForDirektørpensionstilsagn::tilsagn::berettigede), label = "Berettigede efter pensionstilsagn sikret ved pensionskasseordning"),
+    PersonskatPbl53ABerettigedefelttekst(path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::omfangsfakta::produkt::Pbl53AGarantiforsikringsprodukt::tilsagn::berettigede), label = "Berettigede efter pensionstilsagn dækket af garantiforsikring")
+    ], personskat_pbl53a_berettigedefelt)
+
+= personskat_pbl53a_omfangsfelter = concat(personskat_pbl53a_omfang_enkeltfelter, concat(personskat_pbl53a_omfang_datofelter, personskat_pbl53a_omfang_berettigedefelter))
+
+= personskat_pbl53a_felt_grænsehændelse_år = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::afkastår::grænsehændelser::tidspunkt::dato::år),
+    label = "År for ændringen",
+    question = Some("I hvilket år skete ændringen?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_pbl53a_felt_grænsehændelse_måned = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::afkastår::grænsehændelser::tidspunkt::dato::måned),
+    label = "Måned for ændringen",
+    question = Some("I hvilken måned skete ændringen?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_grænsehændelse_dag = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::afkastår::grænsehændelser::tidspunkt::dato::dag),
+    label = "Dag for ændringen",
+    question = Some("På hvilken dag skete ændringen?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_grænsehændelse_rækkefølge = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::afkastår::grænsehændelser::tidspunkt::rækkefølge_på_dagen),
+    label = "Ændringens rækkefølge på dagen",
+    question = Some("Hvilken rækkefølge havde ændringen blandt samme dags hændelser?"),
+    help = Some("Brug 1, 2 og så videre, når flere ændringer har samme dato."),
+    unit = None
+)
+= personskat_pbl53a_felt_indbetaling_år = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AIndbetaling::fakta::tidspunkt::dato::år),
+    label = "Indbetalingens år",
+    question = Some("I hvilket år blev indbetalingen foretaget?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_pbl53a_felt_indbetaling_måned = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AIndbetaling::fakta::tidspunkt::dato::måned),
+    label = "Indbetalingens måned",
+    question = Some("I hvilken måned blev indbetalingen foretaget?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_indbetaling_dag = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AIndbetaling::fakta::tidspunkt::dato::dag),
+    label = "Indbetalingens dag",
+    question = Some("På hvilken dag blev indbetalingen foretaget?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_indbetaling_rækkefølge = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AIndbetaling::fakta::tidspunkt::rækkefølge_på_dagen),
+    label = "Indbetalingens rækkefølge på dagen",
+    question = Some("Hvilken rækkefølge havde indbetalingen blandt samme dags hændelser?"),
+    help = Some("Brug 1, 2 og så videre, når flere hændelser har samme dato."),
+    unit = None
+)
+= personskat_pbl53a_felt_udsendelse_startår = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AIndbetaling::fakta::indbetaler::Pbl53AÆgtefællesEllerSamleversArbejdsgiver::udsendelse::startdato::år),
+    label = "Udsendelsens startår",
+    question = Some("I hvilket år begyndte ægtefællens eller samleverens udsendelse?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udsendelse_startmåned = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AIndbetaling::fakta::indbetaler::Pbl53AÆgtefællesEllerSamleversArbejdsgiver::udsendelse::startdato::måned),
+    label = "Udsendelsens startmåned",
+    question = Some("I hvilken måned begyndte udsendelsen?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udsendelse_startdag = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AIndbetaling::fakta::indbetaler::Pbl53AÆgtefællesEllerSamleversArbejdsgiver::udsendelse::startdato::dag),
+    label = "Udsendelsens startdag",
+    question = Some("På hvilken dag i måneden begyndte udsendelsen?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udsendelse_slutår = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AIndbetaling::fakta::indbetaler::Pbl53AÆgtefællesEllerSamleversArbejdsgiver::udsendelse::slutdato::år),
+    label = "Udsendelsens slutår",
+    question = Some("I hvilket år sluttede ægtefællens eller samleverens udsendelse?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udsendelse_slutmåned = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AIndbetaling::fakta::indbetaler::Pbl53AÆgtefællesEllerSamleversArbejdsgiver::udsendelse::slutdato::måned),
+    label = "Udsendelsens slutmåned",
+    question = Some("I hvilken måned sluttede udsendelsen?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udsendelse_slutdag = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AIndbetaling::fakta::indbetaler::Pbl53AÆgtefællesEllerSamleversArbejdsgiver::udsendelse::slutdato::dag),
+    label = "Udsendelsens slutdag",
+    question = Some("På hvilken dag i måneden sluttede udsendelsen?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udsendelsessted = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AIndbetaling::fakta::indbetaler::Pbl53AÆgtefællesEllerSamleversArbejdsgiver::udsendelse::sted),
+    label = "Udsendelsessted",
+    question = Some("Hvor var ægtefællen eller samleveren udsendt?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_indbetaling_til_afsnit_i_eller_iia = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AIndbetaling::fakta::indbetaler::Pbl53AÆgtefællesEllerSamleversArbejdsgiver::udsendelse::indbetaling_til_afsnit_i_eller_iia_under_udsendelsen),
+    label = "Indbetaling til ordning i afsnit I eller II A",
+    question = Some("Foretog ægtefællens eller samleverens arbejdsgiver under udsendelsen indbetaling til en pensionsordning omfattet af afsnit I eller II A?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udbetaling_år = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AUdbetaling::fakta::tidspunkt::dato::år),
+    label = "Udbetalingens år",
+    question = Some("I hvilket år blev udbetalingen foretaget?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_pbl53a_felt_udbetaling_måned = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AUdbetaling::fakta::tidspunkt::dato::måned),
+    label = "Udbetalingens måned",
+    question = Some("I hvilken måned blev udbetalingen foretaget?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udbetaling_dag = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AUdbetaling::fakta::tidspunkt::dato::dag),
+    label = "Udbetalingens dag",
+    question = Some("På hvilken dag blev udbetalingen foretaget?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udbetaling_rækkefølge = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AUdbetaling::fakta::tidspunkt::rækkefølge_på_dagen),
+    label = "Udbetalingens rækkefølge på dagen",
+    question = Some("Hvilken rækkefølge havde udbetalingen blandt samme dags hændelser?"),
+    help = Some("Brug 1, 2 og så videre, når flere hændelser har samme dato."),
+    unit = None
+)
+= personskat_pbl53a_felt_stk6_skattepligt = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AUdbetaling::fakta::art::Pbl53AUdbetalingFraOrdningen::pbl20_stk6_kildefakta::skattepligt),
+    label = "Skattepligt for PBL § 20, stk. 6",
+    question = Some("Er personen skattepligtig efter kildeskattelovens § 1 eller hjemmehørende i Danmark efter en dobbeltbeskatningsoverenskomst?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_stk6_stat = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AUdbetaling::fakta::art::Pbl53AUdbetalingFraOrdningen::pbl20_stk6_kildefakta::stat),
+    label = "Stat for PBL § 20, stk. 6",
+    question = Some("Ligger den anden stat inden for EU eller EØS?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_stk6_erklæring = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AUdbetaling::fakta::art::Pbl53AUdbetalingFraOrdningen::pbl20_stk6_kildefakta::erklæring),
+    label = "Erklæring for PBL § 20, stk. 6",
+    question = Some("Er der afgivet en erklæring svarende til PBL § 15 C, stk. 1, nr. 3, litra a?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_stk6_udenlandsk_skat = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AUdbetaling::fakta::art::Pbl53AUdbetalingFraOrdningen::pbl20_stk6_kildefakta::indkomstskat_betalt_til_staten_kroner),
+    label = "Indkomstskat betalt til den anden stat",
+    question = Some("Hvor meget indkomstskat blev betalt til den anden stat i medfør af erklæringen?"),
+    help = Some("Beløbet føres særskilt til mulig lempelse efter ligningslovens § 33, stk. 1."),
+    unit = Some("kr.")
+)
+= personskat_pbl53a_felt_afkastskat_dokumentationsår = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AUdbetaling::fakta::art::Pbl53AUdbetalingTilAfkastskat::dokumentationsdato::år),
+    label = "År for dokumentation af afkastskatten",
+    question = Some("I hvilket år forelå dokumentationen for den endelige afkastskat?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_pbl53a_felt_afkastskat_dokumentationsmåned = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AUdbetaling::fakta::art::Pbl53AUdbetalingTilAfkastskat::dokumentationsdato::måned),
+    label = "Måned for dokumentation af afkastskatten",
+    question = Some("I hvilken måned forelå dokumentationen?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_afkastskat_dokumentationsdag = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AUdbetaling::fakta::art::Pbl53AUdbetalingTilAfkastskat::dokumentationsdato::dag),
+    label = "Dag for dokumentation af afkastskatten",
+    question = Some("På hvilken dag forelå dokumentationen?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_afkastskat_stk6_skattepligt = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AUdbetaling::fakta::art::Pbl53AUdbetalingTilAfkastskat::pbl20_stk6_kildefakta::skattepligt),
+    label = "Skattepligt ved afkastskatteudbetaling",
+    question = Some("Er personen omfattet af skattepligten i PBL § 20, stk. 6?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_afkastskat_stk6_stat = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AUdbetaling::fakta::art::Pbl53AUdbetalingTilAfkastskat::pbl20_stk6_kildefakta::stat),
+    label = "Stat ved afkastskatteudbetaling",
+    question = Some("Ligger den anden stat inden for EU eller EØS?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_afkastskat_stk6_erklæring = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AUdbetaling::fakta::art::Pbl53AUdbetalingTilAfkastskat::pbl20_stk6_kildefakta::erklæring),
+    label = "Erklæring ved afkastskatteudbetaling",
+    question = Some("Er der afgivet den krævede EU/EØS-erklæring?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_afkastskat_stk6_udenlandsk_skat = Beregningsfelt(
+    path = refof(PersonskatInput::kapitalindkomst::pbl53a::ordninger::hændelser::Pbl53AUdbetaling::fakta::art::Pbl53AUdbetalingTilAfkastskat::pbl20_stk6_kildefakta::indkomstskat_betalt_til_staten_kroner),
+    label = "Udenlandsk indkomstskat ved afkastskatteudbetaling",
+    question = Some("Hvor meget indkomstskat blev betalt til den anden stat?"),
+    help = Some("Beløbet føres særskilt til mulig lempelse efter ligningslovens § 33, stk. 1."),
+    unit = Some("kr.")
+)
+
+= personskat_pbl53a_beregningsmeta = Beregningsmeta(
+    felter = concat([
+        personskat_pbl53a_felt_ordninger,
+        personskat_pbl53a_felt_grænsehændelse_år,
+        personskat_pbl53a_felt_grænsehændelse_måned,
+        personskat_pbl53a_felt_grænsehændelse_dag,
+        personskat_pbl53a_felt_grænsehændelse_rækkefølge,
+        personskat_pbl53a_felt_indbetaling_år,
+        personskat_pbl53a_felt_indbetaling_måned,
+        personskat_pbl53a_felt_indbetaling_dag,
+        personskat_pbl53a_felt_indbetaling_rækkefølge,
+        personskat_pbl53a_felt_udsendelse_startår,
+        personskat_pbl53a_felt_udsendelse_startmåned,
+        personskat_pbl53a_felt_udsendelse_startdag,
+        personskat_pbl53a_felt_udsendelse_slutår,
+        personskat_pbl53a_felt_udsendelse_slutmåned,
+        personskat_pbl53a_felt_udsendelse_slutdag,
+        personskat_pbl53a_felt_udsendelsessted,
+        personskat_pbl53a_felt_indbetaling_til_afsnit_i_eller_iia,
+        personskat_pbl53a_felt_udbetaling_år,
+        personskat_pbl53a_felt_udbetaling_måned,
+        personskat_pbl53a_felt_udbetaling_dag,
+        personskat_pbl53a_felt_udbetaling_rækkefølge,
+        personskat_pbl53a_felt_stk6_skattepligt,
+        personskat_pbl53a_felt_stk6_stat,
+        personskat_pbl53a_felt_stk6_erklæring,
+        personskat_pbl53a_felt_stk6_udenlandsk_skat,
+        personskat_pbl53a_felt_afkastskat_dokumentationsår,
+        personskat_pbl53a_felt_afkastskat_dokumentationsmåned,
+        personskat_pbl53a_felt_afkastskat_dokumentationsdag,
+        personskat_pbl53a_felt_afkastskat_stk6_skattepligt,
+        personskat_pbl53a_felt_afkastskat_stk6_stat,
+        personskat_pbl53a_felt_afkastskat_stk6_erklæring,
+        personskat_pbl53a_felt_afkastskat_stk6_udenlandsk_skat
+        ], personskat_pbl53a_omfangsfelter),
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1243_par53a),
+        HistoricalSource(value = pensionsbeskatningsloven_lov569_par1_nr11_og_par6_stk1),
+        Source(value = aftaleloven_lbk193_par6),
+        PreparatorySource(value = pensionsbeskatningsloven_lsf229_1992_par6),
+        TransitionSource(value = pensionsbeskatningsloven_lov1388_par5_nr2_og_par7_stk1),
+        HistoricalSource(value = pensionsbeskatningsloven_historisk_lbk1120_par53a_stk3),
+        AmendmentSource(value = pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3),
+        TransitionSource(value = pensionsbeskatningsloven_lov1534_par1_nr37_og_par11_stk7),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par53b),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par20),
+        DependencySource(value = personskatteloven_lbk1284_par3),
+        DependencySource(value = personskatteloven_lbk1284_par4),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_indbetalinger),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_udbetalinger),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_afkast),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_overgang),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_overgangsvalg),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_ordningstyper),
+        Guidance(value = skat_juridisk_vejledning_pbl53b_omfang),
+        Practice(value = skat_skm2023_171_sr_pbl53a_arvevalg),
+        Practice(value = skat_skm2025_658_lsr_pbl53a_blanketvalg),
+        Practice(value = skat_skm2013_481_sr_pbl53a_produktændring),
+        Practice(value = skat_skm2023_406_lsr_pbl53a_overflytning),
+        PreparatorySource(value = pensionsbeskatningsloven_lsf24_2007_par53a_stk5),
+    )
+)
+
+= personskat_socialbidrag_felt_art = Beregningsfelt(
+    path = refof(PersonskatInput::udenlandske_sociale_bidrag::$variant),
+    label = "Udenlandske sociale bidrag",
+    question = Some("Har du betalt udenlandske sociale bidrag, som skal vurderes efter ligningslovens § 8 M?"),
+    help = Some("Arbejdsmarkedsbidrag af den almindelige løn beregnes allerede af Futuruna. Her oplyses kun fakta om udenlandske sociale bidrag."),
+    unit = None
+)
+= personskat_socialbidrag_felt_udenlandsk_beløb = Beregningsfelt(
+    path = refof(PersonskatInput::udenlandske_sociale_bidrag::MedUdenlandskeSocialeBidragEfterLigningslov8M::fakta::udenlandsk_socialt_bidrag::bidrag_kroner),
+    label = "Udenlandsk socialt bidrag",
+    question = Some("Hvor meget har du betalt i obligatorisk udenlandsk socialt bidrag?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_socialbidrag_felt_arbejdsgiver_beløb = Beregningsfelt(
+    path = refof(PersonskatInput::udenlandske_sociale_bidrag::MedUdenlandskeSocialeBidragEfterLigningslov8M::fakta::udenlandsk_arbejdsgiverbidrag::bidrag_kroner),
+    label = "Udenlandsk socialt arbejdsgiverbidrag",
+    question = Some("Hvor meget udgør det udenlandske obligatoriske sociale arbejdsgiverbidrag?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_socialbidrag_felt_arbejdsgiver_år = Beregningsfelt(
+    path = refof(PersonskatInput::udenlandske_sociale_bidrag::MedUdenlandskeSocialeBidragEfterLigningslov8M::fakta::udenlandsk_arbejdsgiverbidrag::bidrag_vedrører_indkomstår),
+    label = "Indkomstår for arbejdsgiverbidrag",
+    question = Some("Hvilket indkomstår vedrører det udenlandske arbejdsgiverbidrag?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_socialbidrag_felt_arbejdsgiver_obligatorisk = Beregningsfelt(
+    path = refof(PersonskatInput::udenlandske_sociale_bidrag::MedUdenlandskeSocialeBidragEfterLigningslov8M::fakta::udenlandsk_arbejdsgiverbidrag::obligatorisk),
+    label = "Arbejdsgiverbidraget er obligatorisk",
+    question = Some("Er det udenlandske sociale arbejdsgiverbidrag obligatorisk?"),
+    help = None,
+    unit = None
+)
+= personskat_socialbidrag_felt_arbejdsgiver_eu = Beregningsfelt(
+    path = refof(PersonskatInput::udenlandske_sociale_bidrag::MedUdenlandskeSocialeBidragEfterLigningslov8M::fakta::udenlandsk_arbejdsgiverbidrag::omfattet_af_eu_socialsikringsforordning),
+    label = "Arbejdsgiverbidrag efter EU-socialsikring",
+    question = Some("Er arbejdsgiverbidraget omfattet af EU's socialsikringsforordning?"),
+    help = None,
+    unit = None
+)
+= personskat_socialbidrag_felt_arbejdsgiver_aftale = Beregningsfelt(
+    path = refof(PersonskatInput::udenlandske_sociale_bidrag::MedUdenlandskeSocialeBidragEfterLigningslov8M::fakta::udenlandsk_arbejdsgiverbidrag::aftale_om_at_bidrag_påhviler_lønmodtageren),
+    label = "Aftale om at bidraget påhviler lønmodtageren",
+    question = Some("Er der indgået en aftale efter EU-reglerne om, at arbejdsgiverbidraget påhviler lønmodtageren?"),
+    help = None,
+    unit = None
+)
+
+= personskat_udenlandske_sociale_bidrag_beregningsmeta = Beregningsmeta(
+    felter = [
+        personskat_socialbidrag_felt_art,
+        personskat_socialbidrag_felt_udenlandsk_beløb,
+        personskat_socialbidrag_felt_arbejdsgiver_beløb,
+        personskat_socialbidrag_felt_arbejdsgiver_år,
+        personskat_socialbidrag_felt_arbejdsgiver_obligatorisk,
+        personskat_socialbidrag_felt_arbejdsgiver_eu,
+        personskat_socialbidrag_felt_arbejdsgiver_aftale
+    ],
+    attachments = (
+        Source(value = ligningsloven_2025_1500),
+        DependencySource(value = personskatteloven_2021_1284),
+    )
+)
+
 = personskat_beregningsmetadata = PersonskatBeregningsmetadata(
     kilder = personskat_lønmodtagerberegning_metadata,
     pension = (
@@ -9008,6 +9446,7 @@
         personskat_meta_pbl15b_historik,
         personskat_meta_pbl15b_rateudbetalinger,
         personskat_meta_pbl18_pbl54_personkreds,
+        personskat_pbl53a_beregningsmeta,
     ),
     erhvervsbefordring = (
         personskat_meta_erhvervsbefordring,
@@ -9098,6 +9537,7 @@
         personskat_metadata_aktie_boligret_værdipapir,
     ),
     udenlandsk_skat = personskat_metadata_ligningslov33,
+    udenlandske_sociale_bidrag = personskat_udenlandske_sociale_bidrag_beregningsmeta,
     negativ_aktieskat = personskat_metadata_negativ_aktieskat,
     årsopgørelse = personskat_metadata_årsopgørelse
 )

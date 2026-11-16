@@ -85,5 +85,3 @@
         Warning(value = kildeskattelov_arbejdsudleje_par48b_henvisningsadvarsel),
     )
 )
-
-@ meta(personskat_arbejdsudleje_beregningsmeta) for PersonskatPersonligIndkomstInput

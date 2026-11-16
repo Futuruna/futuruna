@@ -24,7 +24,7 @@ Scenarierne er ikke lovtekst. De fastholder samspillet mellem ligningslovens
 Personskat-beregning.
 ----
 
-@ meta(personskat_lønmodtagerudgift_scenarier_metadata) for personskat_lønmodtagerudgift_scenarier
+-- Kilde: personskat_lønmodtagerudgift_scenarier_metadata.
 
 # PersonskatLønmodtagerudgiftÅrsforventning(indkomstår: Heltal, lovversion: Ligningslov9Stk1Lovversion, reguleringstalskilde: Par20ReguleringstalKilde, grundbeløb_kroner: Heltal, fradrag_kroner: Heltal)
 

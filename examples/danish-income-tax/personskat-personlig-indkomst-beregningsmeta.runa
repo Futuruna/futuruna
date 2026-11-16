@@ -1,6 +1,8 @@
 @ sprog da
 
 @ importer ./metadata
+@ importer ./personskat-arbejdsudleje-beregningsmeta
+@ importer ./personskat-par3-stk2-nr2-beregningsmeta
 @ importer ./personskat-personlig-indkomst-kildefakta
 
 = personskat_honorarafskrivning_inputmeta = Beregningsmeta(
@@ -223,3 +225,5 @@
 )
 
 @ meta(personskat_personlig_indkomst_beregningsmeta) for PersonskatPersonligIndkomstInput
+@ meta(personskat_arbejdsudleje_beregningsmeta) for PersonskatPersonligIndkomstInput
+@ meta(personskat_par3_nr2_beregningsmeta) for PersonskatPersonligIndkomstInput
