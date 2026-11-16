@@ -1,0 +1,12 @@
+-- Generated Rust declares the copy of a check that is a rule family with the
+-- family's RuleDispatch contract, also in a file that imports the named
+-- scalar, declares a rule of its own and never reaches the check.
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: 7
+
+@ import ./rule_check_import_lib
+
+| one(n: Int): Int -> n
+
+@ print(show(one(7)))

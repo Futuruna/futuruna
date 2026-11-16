@@ -888,6 +888,7 @@ impl TypeChecker {
         elaboration: &mut ConstructorElaboration,
     ) {
         let mut functions: BTreeMap<Option<PathBuf>, Vec<Stmt>> = BTreeMap::new();
+        let mut copied_rules: Vec<(String, String, usize)> = Vec::new();
         for (name, scalar) in &self.scalar_types {
             let declared = functions.entry(scalar.module.clone()).or_default();
             for (index, check) in scalar.checks.iter().enumerate() {
@@ -900,6 +901,16 @@ impl TypeChecker {
                 let callee = match definition {
                     Some(mut definition) => {
                         let copy = scalar_check_definition(name, index);
+                        if let Some(Stmt::Rule(
+                            Rule::Clause { head, .. }
+                            | Rule::Default { head, .. }
+                            | Rule::Exception { head, .. },
+                        )) = definition.first()
+                        {
+                            if let Some((original, arity)) = rule_head_name_arity(head) {
+                                copied_rules.push((original, copy.clone(), arity));
+                            }
+                        }
                         for statement in &mut definition {
                             rename_definition(statement, &copy);
                         }
@@ -910,6 +921,22 @@ impl TypeChecker {
                 };
                 declared.push(check_function(name, scalar, index, check, &callee));
             }
+        }
+        // The copy of a rule family is the same family under another name:
+        // code generation reads its RuleDispatch contract by that name.
+        for (original, copy, arity) in copied_rules {
+            self.alias_rule_dispatch_metadata(
+                &RuleDispatchKey {
+                    scope: None,
+                    name: original,
+                    arity,
+                },
+                RuleDispatchKey {
+                    scope: None,
+                    name: copy,
+                    arity,
+                },
+            );
         }
         for (module, functions) in functions.into_iter().filter(|(_, f)| !f.is_empty()) {
             elaboration.rewrite_file(module.as_deref(), root, |statements| {
@@ -922,6 +949,64 @@ impl TypeChecker {
                 rewrite_stmts(statements, &mut rewrite)
             });
         }
+    }
+
+    /// Give `copy` every RuleDispatch fact the checker established for
+    /// `original`, the family it copies.
+    fn alias_rule_dispatch_metadata(&mut self, original: &RuleDispatchKey, copy: RuleDispatchKey) {
+        fn alias_map<V: Clone>(
+            map: &mut BTreeMap<RuleDispatchKey, V>,
+            original: &RuleDispatchKey,
+            copy: &RuleDispatchKey,
+        ) {
+            if let Some(value) = map.get(original).cloned() {
+                map.insert(copy.clone(), value);
+            }
+        }
+        fn alias_set(
+            set: &mut BTreeSet<RuleDispatchKey>,
+            original: &RuleDispatchKey,
+            copy: &RuleDispatchKey,
+        ) {
+            if set.contains(original) {
+                set.insert(copy.clone());
+            }
+        }
+        alias_map(&mut self.rule_dispatch_return_types, original, &copy);
+        alias_map(&mut self.rule_dispatch_return_issues, original, &copy);
+        alias_map(&mut self.rule_dispatch_type_return_types, original, &copy);
+        alias_map(&mut self.rule_dispatch_type_return_issues, original, &copy);
+        alias_map(
+            &mut self.rule_dispatch_backend_return_types,
+            original,
+            &copy,
+        );
+        alias_map(
+            &mut self.rule_dispatch_backend_return_issues,
+            original,
+            &copy,
+        );
+        alias_map(&mut self.rule_dispatch_parameter_types, original, &copy);
+        alias_map(&mut self.rule_dispatch_parameter_names, original, &copy);
+        alias_map(&mut self.declared_rule_results, original, &copy);
+        alias_set(
+            &mut self.rule_dispatch_boolean_miss_safe_keys,
+            original,
+            &copy,
+        );
+        alias_set(
+            &mut self.rule_dispatch_runtime_boolean_miss_keys,
+            original,
+            &copy,
+        );
+        alias_set(&mut self.rule_dispatch_parameter_issues, original, &copy);
+        alias_set(&mut self.rule_dispatch_irrefutable_keys, original, &copy);
+        alias_set(
+            &mut self.rule_dispatch_runtime_irrefutable_keys,
+            original,
+            &copy,
+        );
+        alias_set(&mut self.rule_dispatch_keys, original, &copy);
     }
 }
 

@@ -1,0 +1,8 @@
+-- expect-skip: dependency-only fixture: named scalars whose checks are rule families
+# Code: String "a short code" where short
+# Tag: String "a tag" where tag_ok
+
+| short(text: String) -> string_length(text) < 5
+-- A family with a declared result type and a guarded clause.
+| tag_ok(text: String): Bool -> string_length(text) > 0
+| tag_ok(text) -> False under text == "none"

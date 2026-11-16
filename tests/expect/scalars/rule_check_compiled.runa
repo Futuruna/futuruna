@@ -1,0 +1,24 @@
+-- The checks of a named scalar that are rule families run natively, through
+-- an imported file that converts. The root adds a clause to `short`; the check
+-- is the family as the declaring file writes it, so "abcdef" is still refused.
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: abc/x
+-- expect-stdout: refused: `"abcdef"` is not a `Code`: `short` is false
+-- expect-stdout: refused: `"none"` is not a `Tag`: `tag_ok` is false
+
+@ import ./rule_check_import_lib
+@ import ./rule_check_convert_lib
+
+| short(text) -> True under text == "abcdef"
+
+> shown(result: Result(Code, String)) -> String {
+    match result {
+        Ok(code) -> String(code)
+        Err(message) -> "refused: " + message
+    }
+}
+
+@ print(String(make_code("abc")) + "/" + String(make_tag("x")))
+@ print(shown(parse(Code, "abcdef")))
+@ print(match parse(Tag, "none") { Ok(tag) -> String(tag) Err(message) -> "refused: " + message })
