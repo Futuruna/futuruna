@@ -1,0 +1,20 @@
+-- `shared_sources` is read by `@ field` alone, and is written before the
+-- `law_source` it lists, a name the program binds twice
+-- (see law_a.runa).
+
+@ import ./roles
+
+# LawB(url: String)
+# Note(n: Int)
+
+= shared_sources = [Source(value = law_source), Guidance(value = note)]
+
+# Input(
+    @ field(label = "Income", sources = shared_sources)
+    income: Int
+)
+
+> doubled_income(input: Input) -> Int { input.income * 2 }
+
+= law_source = LawB(url = "https://example.invalid/b")
+= note = Note(n = 1)

@@ -70,7 +70,10 @@ impl TypeChecker {
     /// update that reads it (`= m = map_insert(m, "k", 1)`): each statement
     /// reads the latest binding. A second binding that does not read the
     /// name replaces the earlier value unseen, so it is an error naming both
-    /// lines. Bindings in a body may be rebound freely.
+    /// lines. A name bound once is initialized before every statement that
+    /// reads it, wherever it is written; a rebound name is read in statement
+    /// order, so reading it before its first binding is an error. Bindings
+    /// in a body may be rebound freely.
     pub(super) fn check_top_level_bindings(&mut self, statements: &[Stmt]) {
         let mut latest: BTreeMap<String, Span> = BTreeMap::new();
         for statement in statements {
@@ -99,6 +102,49 @@ impl TypeChecker {
                 latest.insert(name, value.span);
             }
         }
+        self.check_reads_before_first_binding(statements);
+    }
+
+    /// A statement that reads a rebound top-level name, directly or through
+    /// the functions and rules it calls, before the name's first binding.
+    fn check_reads_before_first_binding(&mut self, statements: &[Stmt]) {
+        let start = statements
+            .iter()
+            .rposition(|statement| matches!(statement, Stmt::PreludeBoundary))
+            .map_or(0, |boundary| boundary + 1);
+        let mut first = BTreeMap::<&str, (Span, usize)>::new();
+        for statement in &statements[start..] {
+            if let Stmt::Bind(Pat::Var(name), _, value) = statement {
+                first.entry(name.as_str()).or_insert((value.span, 0)).1 += 1;
+            }
+        }
+        if first.values().all(|(_, count)| *count < 2) {
+            return;
+        }
+        let plan = analyze_top_level_binding_dependencies(statements);
+        let mut bound = BTreeSet::new();
+        for statement in &statements[start..] {
+            let Some(span) = executed_statement_span(statement) else {
+                continue;
+            };
+            for name in plan.statement_reads(statement) {
+                let Some(&(binding, count)) = first.get(name.as_str()) else {
+                    continue;
+                };
+                if count < 2 || bound.contains(&name) {
+                    continue;
+                }
+                let message = format!(
+                    "`{name}` is read here ({}) before its first binding ({}): a name bound more than once is read in statement order, so bind it before this statement",
+                    self.source_line_label(span),
+                    self.source_line_label(binding)
+                );
+                self.error_at_span(span, message);
+            }
+            if let Stmt::Bind(pattern, _, _) | Stmt::MonadicBind(pattern, _, _) = statement {
+                collect_pattern_names(pattern, &mut bound);
+            }
+        }
     }
 
     /// `line N` of a span in the source being checked.
@@ -113,6 +159,23 @@ impl TypeChecker {
             .filter(|character| *character == '\n')
             .count();
         format!("line {line}")
+    }
+}
+
+/// The place of a top-level statement that runs where it is written; `None`
+/// for a declaration.
+fn executed_statement_span(statement: &Stmt) -> Option<Span> {
+    match statement {
+        Stmt::Expr(expr)
+        | Stmt::Bind(_, _, expr)
+        | Stmt::MonadicBind(_, _, expr)
+        | Stmt::StreamBind(_, expr)
+        | Stmt::For(_, expr, _)
+        | Stmt::While(expr, _)
+        | Stmt::Send(expr, _)
+        | Stmt::StreamSub(expr, _)
+        | Stmt::Invariant { subject: expr, .. } => Some(expr.span),
+        _ => None,
     }
 }
 

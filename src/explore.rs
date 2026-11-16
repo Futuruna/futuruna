@@ -5598,9 +5598,18 @@ mod tests {
 }
 "#;
         let artifacts = artifacts_with_dir(capture, &directory);
-        // Collection producers are retained symbolically at elaboration; their
-        // initialized dependency prefix is checked when the domain is evaluated.
-        assert_eq!(artifacts.exploration_universes.len(), 1);
+        // An imported file never reads a binding of a file that imports it:
+        // the check rejects the capture before any domain is elaborated.
+        assert!(
+            artifacts.diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("`root_values` (line 1) names no binding of this file")),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        assert!(artifacts.exploration_universes.is_empty());
+        // The ground evaluator, which reads the merged program unchecked,
+        // still refuses the capture on its own.
         let mut lexer = Lexer::new(capture);
         let statements = Parser::new(lexer.tokenize(), capture)
             .parse_program()

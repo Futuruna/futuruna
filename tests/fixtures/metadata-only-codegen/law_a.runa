@@ -1,0 +1,5 @@
+-- A second `law_source`, of another type, in another module.
+
+# LawA(url: String)
+
+= law_source = LawA(url = "https://example.invalid/a")

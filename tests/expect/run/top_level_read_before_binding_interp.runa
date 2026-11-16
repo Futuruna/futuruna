@@ -1,0 +1,15 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: later: 5
+-- expect-stdout: doubled: 10
+-- expect-stdout-not: later: later
+
+-- A binding is initialized before every statement that reads it, directly
+-- or through a function, wherever it is written: the statements never see
+-- the bare name.
+> doubled_later() -> Int { later * 2 }
+
+@ print(concat("later: ", show(later)))
+@ print(concat("doubled: ", show(doubled_later())))
+
+= later = 5

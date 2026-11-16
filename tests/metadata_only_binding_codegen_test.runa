@@ -1,0 +1,11 @@
+-- A binding only `@ field` reads is compile-time metadata in every Rust
+-- backend, `runa test --check-codegen` included. `shared_sources` lists role
+-- values of different types and is written before `law_source`, which the
+-- program binds twice: emitted, it would be a mixed list (E0308) or read
+-- `law_source` before it is bound (E0425).
+
+@ import ./fixtures/metadata-only-codegen/law_b
+@ import ./fixtures/metadata-only-codegen/law_a
+
+= metadata_only_input = Input(income = 21)
+| metadata_only_doubled: metadata_only_input -> doubled_income(metadata_only_input) == 42

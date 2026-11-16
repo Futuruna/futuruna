@@ -8196,6 +8196,14 @@ impl fmt::Display for TopLevelInitializationCycle {
 pub struct TopLevelBindingDependencyPlan {
     binding_names: BTreeSet<String>,
     dependencies: BTreeMap<String, BTreeSet<String>>,
+    /// Every name a top-level `= name = …` binds, once or more often.
+    bound_names: BTreeSet<String>,
+    callable_dependencies: BTreeMap<String, FreeSymbolUses>,
+    binding_positions: BTreeMap<String, usize>,
+    binding_rule_scopes: BTreeMap<String, String>,
+    rule_scope_names: BTreeSet<String>,
+    /// The bound names each callable reads, through the callables it calls.
+    callable_reads: RefCell<BTreeMap<String, Rc<BTreeSet<String>>>>,
 }
 
 impl TopLevelBindingDependencyPlan {
@@ -8298,10 +8306,120 @@ impl TopLevelBindingDependencyPlan {
                     continue;
                 }
             }
+            // A statement that runs in place reads the bindings it needs
+            // initialized first, wherever they are written.
+            for name in self.statement_reads(stmt) {
+                if bindings.contains_key(&name) {
+                    append_binding(
+                        &name,
+                        self,
+                        &bindings,
+                        &mut emitted,
+                        &mut active,
+                        &mut ordered,
+                    )?;
+                }
+            }
             ordered.push(*stmt);
         }
 
         Ok(ordered)
+    }
+
+    /// The top-level bindings `stmt` reads when it runs in place, directly or
+    /// through the functions and rules it calls; nothing for a declaration.
+    pub fn statement_reads(&self, stmt: &Stmt) -> BTreeSet<String> {
+        if self.bound_names.is_empty()
+            || matches!(
+                stmt,
+                Stmt::PreludeBoundary
+                    | Stmt::Defn(_)
+                    | Stmt::TypeDecl(_)
+                    | Stmt::Rule(_)
+                    | Stmt::Use(_)
+                    | Stmt::Import(_)
+                    | Stmt::QualifiedImport(..)
+                    | Stmt::HashImport(..)
+                    | Stmt::Depend(..)
+                    | Stmt::RustBlock(_)
+                    | Stmt::Annot(..)
+                    | Stmt::Explore(_)
+            )
+        {
+            return BTreeSet::new();
+        }
+        let mut uses = FreeSymbolUses::default();
+        collect_true_free_symbol_uses_stmt(stmt, &mut uses, &BTreeSet::new(), &BTreeMap::new());
+        let mut reads = uses
+            .values
+            .iter()
+            .filter(|name| self.bound_names.contains(*name))
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        for callable in self.called(&uses) {
+            reads.extend(self.callable_reads(&callable).iter().cloned());
+        }
+        reads
+    }
+
+    /// The callables `uses` calls. A statement before a binding named like a
+    /// function calls the function.
+    fn called(&self, uses: &FreeSymbolUses) -> Vec<String> {
+        let mut called = uses.calls.iter().cloned().collect::<Vec<_>>();
+        called.extend(uses.member_calls.iter().filter_map(|(receiver, member)| {
+            resolve_rule_scope_member_callable(
+                receiver,
+                member,
+                usize::MAX,
+                &self.binding_positions,
+                &self.binding_rule_scopes,
+                &self.rule_scope_names,
+            )
+        }));
+        called.extend(
+            uses.typed_member_calls
+                .iter()
+                .map(|(scope, member)| rule_scope_member_callable_name(scope, member)),
+        );
+        called
+    }
+
+    /// The bound names a call of `symbol` reads: through a function, rule
+    /// or constructor and everything it calls, or the binding itself when
+    /// no static callable has the name.
+    fn callable_reads(&self, symbol: &str) -> Rc<BTreeSet<String>> {
+        if let Some(reads) = self.callable_reads.borrow().get(symbol) {
+            return reads.clone();
+        }
+        let mut reads = BTreeSet::new();
+        let mut visited = BTreeSet::new();
+        let mut stack = vec![symbol.to_string()];
+        while let Some(symbol) = stack.pop() {
+            if !visited.insert(symbol.clone()) {
+                continue;
+            }
+            match self.callable_dependencies.get(&symbol) {
+                Some(callable) => {
+                    reads.extend(
+                        callable
+                            .values
+                            .iter()
+                            .filter(|name| self.bound_names.contains(*name))
+                            .cloned(),
+                    );
+                    stack.extend(self.called(callable));
+                }
+                None if self.bound_names.contains(&symbol) => {
+                    reads.insert(symbol);
+                }
+                None => {}
+            }
+        }
+        let reads = Rc::new(reads);
+        self.callable_reads
+            .borrow_mut()
+            .insert(symbol.to_string(), reads.clone());
+        reads
     }
 }
 
@@ -8481,6 +8599,7 @@ pub fn analyze_top_level_binding_dependencies(stmts: &[Stmt]) -> TopLevelBinding
         }
     }
 
+    let bound_names = counts.keys().cloned().collect::<BTreeSet<_>>();
     let binding_names = counts
         .into_iter()
         .filter_map(|(name, count)| (count == 1).then_some(name))
@@ -8762,6 +8881,12 @@ pub fn analyze_top_level_binding_dependencies(stmts: &[Stmt]) -> TopLevelBinding
     TopLevelBindingDependencyPlan {
         binding_names,
         dependencies,
+        bound_names,
+        callable_dependencies,
+        binding_positions,
+        binding_rule_scopes,
+        rule_scope_names,
+        callable_reads: RefCell::default(),
     }
 }
 

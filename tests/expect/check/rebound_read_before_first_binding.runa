@@ -1,0 +1,13 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `total` is read here (line 10) before its first binding (line 12): a name bound more than once is read in statement order
+-- expect-stderr: `total` is read here (line 11) before its first binding (line 12)
+
+-- A rebound name is read in statement order: reading it before its first
+-- binding, directly or through a function, is an error.
+> current_total() -> Int { total }
+
+@ print(show(total))
+@ print(show(current_total()))
+= total = 1
+= total = total + 1

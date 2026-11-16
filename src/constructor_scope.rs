@@ -216,13 +216,13 @@ pub struct ConstructorElaboration {
     display: BTreeMap<String, String>,
     /// (owner type, constructor name as written) -> internal name.
     internal: BTreeMap<(String, String), String>,
-    /// Internal name of a function renamed for its import scope -> its
-    /// written name and file.
+    /// Internal name of a function or top-level binding renamed for its
+    /// import scope -> its written name and file.
     functions: BTreeMap<String, ScopedFunction>,
 }
 
-/// A function an import scope renamed: its name as written and the file
-/// declaring it, relative to the root file's directory.
+/// A function or top-level binding an import scope renamed: its name as
+/// written and the file declaring it, relative to the root file's directory.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ScopedFunction {
     pub(crate) name: String,
