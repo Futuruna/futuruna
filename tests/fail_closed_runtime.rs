@@ -109,13 +109,23 @@ fn value_rule_misses_and_non_boolean_guards_fail_closed() {
     );
 }
 
+/// A rule-scope field is the nearest binder of its name, as a parameter is:
+/// `income()` inside `Case` calls the field, which holds no function, so the
+/// program is refused before either mode runs it, never routed to the global
+/// function.
 #[test]
-fn rule_scope_call_syntax_reaches_the_global_function_in_both_modes() {
+fn rule_scope_field_hides_a_global_function_of_its_name_in_both_modes() {
     let source = "> income() -> Int { 7 }\n# Case(income: Int) {\n    | tax() -> income() * 2\n}\n@ print(show(Case(100).tax()))\n";
     for compiled in [false, true] {
         let output = run("scope_call", source, compiled);
-        assert!(output.status.success(), "compiled={compiled}: {output:?}");
-        assert_eq!(stdout(&output), "14", "compiled={compiled}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(!output.status.success(), "compiled={compiled}: {output:?}");
+        assert!(
+            stderr.contains("value `income` is not callable")
+                && stderr.contains("rule-scope field")
+                && stderr.contains("hides the function or rule `income`"),
+            "compiled={compiled}: {stderr}"
+        );
     }
 }
 
