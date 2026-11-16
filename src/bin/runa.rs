@@ -57811,9 +57811,11 @@ mod tests {
             output: calculate::CalculationTypeRef::Primitive {
                 name: "String".to_string(),
                 unit: None,
+                scalar: None,
             },
             definitions: Vec::new(),
             units: Vec::new(),
+            scalars: Vec::new(),
             metadata: Vec::new(),
             field_metadata: Vec::new(),
             schema_hash: "test-schema-hash".to_string(),
@@ -60261,6 +60263,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             TypeDecl::ImplBlock { .. } => "ImplBlock",
             TypeDecl::RuleScope { .. } => "RuleScope",
             TypeDecl::Unit { .. } => "Unit",
+            TypeDecl::Scalar { .. } => "Scalar",
         }
     }
 
@@ -61696,6 +61699,11 @@ match stmt {
                     "{}unit {} {:?}{}\n",
                     pad, name, description, scale
                 ));
+            }
+            Stmt::TypeDecl(TypeDecl::Scalar {
+                name, primitive, ..
+            }) => {
+                out.push_str(&format!("{}scalar {}: {}\n", pad, name, primitive));
             }
             Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
                 out.push_str(&format!("{}effect {}/{}\n", pad, name, ops.len()));
