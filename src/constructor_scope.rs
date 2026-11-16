@@ -207,7 +207,9 @@ pub fn clear_constructor_elaboration() {
 /// The checked program with every shared constructor given its internal name,
 /// every `Type.Constructor` written as the constructor alone, and every unit
 /// conversion (`to_nearest(Ore, amount)`) written as its `Int` arithmetic.
-#[derive(Debug, Clone, Default)]
+/// Serialisable, so a host can keep it beside the checked program and run
+/// that program again without a check.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ConstructorElaboration {
     root: Option<Vec<Stmt>>,
     /// Rewritten imported modules, by canonical path.
@@ -215,15 +217,33 @@ pub struct ConstructorElaboration {
     /// Internal name -> constructor name as written.
     display: BTreeMap<String, String>,
     /// (owner type, constructor name as written) -> internal name.
+    #[serde(with = "pair_keyed")]
     internal: BTreeMap<(String, String), String>,
     /// Internal name of a function or top-level binding renamed for its
     /// import scope -> its written name and file.
     functions: BTreeMap<String, ScopedFunction>,
 }
 
+/// A map keyed by pairs, as a list of entries: JSON keys are strings.
+mod pair_keyed {
+    use serde::{Deserialize, Deserializer, Serializer};
+    use std::collections::BTreeMap;
+
+    type Map = BTreeMap<(String, String), String>;
+
+    pub(super) fn serialize<S: Serializer>(map: &Map, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(map.iter())
+    }
+
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Map, D::Error> {
+        Vec::<((String, String), String)>::deserialize(deserializer)
+            .map(|entries| entries.into_iter().collect())
+    }
+}
+
 /// A function or top-level binding an import scope renamed: its name as
 /// written and the file declaring it, relative to the root file's directory.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct ScopedFunction {
     pub(crate) name: String,
     pub(crate) file: String,
@@ -347,8 +367,10 @@ impl ConstructorElaboration {
     /// Make this elaboration current on this thread: the interpreter, the
     /// backends and every data edge that runs its program here read its
     /// imports and constructor names. One that renames nothing leaves no
-    /// elaboration current.
-    pub(crate) fn install(self: &Arc<Self>) {
+    /// elaboration current. A successful check installs its own; a host
+    /// that kept a checked program and its elaboration installs that one,
+    /// as the check would have.
+    pub fn install(self: &Arc<Self>) {
         let renames = !self.display.is_empty() || !self.modules.is_empty();
         replace_current(renames.then(|| self.clone()));
     }
