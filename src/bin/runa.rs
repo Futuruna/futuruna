@@ -5932,6 +5932,21 @@ fn backend_type_check_artifacts(
     type_check_artifacts_with_backend_metadata(stmts, source, filename, true)
 }
 
+/// The Rust code generator for a checked program. Every backend that emits
+/// Rust from a source file (`runa run`/`build`, `runa check`, `--emit
+/// rust`/`lib`, `runa wasm`, `runa test --check-codegen`) starts here, so all
+/// of them leave out the same bindings only metadata reads: the checker's
+/// metadata set, which also decides which mixed role lists are no error.
+fn checked_rust_codegen(type_check: &mut TypeCheckArtifacts, filename: &str) -> RustCodegen {
+    let mut cg = RustCodegen::new();
+    cg.install_canonical_rule_metadata(type_check);
+    cg.compile_time_metadata_bindings =
+        std::mem::take(&mut type_check.compile_time_metadata_bindings);
+    cg.constructor_elaboration = type_check.constructor_elaboration.clone();
+    cg.source_dir = source_dir_for(filename);
+    cg
+}
+
 fn type_check_artifacts_with_backend_metadata(
     stmts: &[Stmt],
     source: &str,
@@ -6022,7 +6037,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
             };
             // A query runs in the interpreter only.
             // Pre-codegen type checking (M16)
-            let type_check = backend_type_check_artifacts(&stmts, source, filename);
+            let mut type_check = backend_type_check_artifacts(&stmts, source, filename);
             if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
             }
@@ -6032,12 +6047,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
             }
             let stmts = type_check.program().clone();
 
-            let mut cg = RustCodegen::new();
-            cg.install_canonical_rule_metadata(&type_check);
-            cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
-            cg.constructor_elaboration = type_check.constructor_elaboration.clone();
-            // Set source directory for @ import resolution
-            cg.source_dir = source_dir_for(filename);
+            let mut cg = checked_rust_codegen(&mut type_check, filename);
             let code = cg.emit_program(&stmts);
 
             let stem = file_stem_for_source(filename, "tau_out");
@@ -6308,7 +6318,7 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool, target: WasmTarge
             // The same pre-codegen type check as `runa build`: a type error is
             // reported against the source, and the checked rule metadata
             // drives code generation.
-            let type_check = backend_type_check_artifacts(&stmts, source, filename);
+            let mut type_check = backend_type_check_artifacts(&stmts, source, filename);
             if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
             }
@@ -6333,13 +6343,9 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool, target: WasmTarge
                 std::process::exit(1);
             }
 
-            let mut cg = RustCodegen::new();
+            let mut cg = checked_rust_codegen(&mut type_check, filename);
             cg.lib_mode = true;
             cg.wasm_mode = true;
-            cg.install_canonical_rule_metadata(&type_check);
-            cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
-            cg.constructor_elaboration = type_check.constructor_elaboration.clone();
-            cg.source_dir = source_dir_for(filename);
             let code = cg.emit_program(&stmts);
 
             let stem = std::path::Path::new(filename)
@@ -13354,10 +13360,32 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
             }
         };
 
-        let mut cg = RustCodegen::new();
-        if let Some(parent) = file_path.parent() {
-            cg.source_dir = Some(parent.to_string_lossy().to_string());
+        // A query runs in the interpreter only: `runa build` refuses it, so
+        // there is no native code to check.
+        if !native_query_refusals(&stmts).is_empty() {
+            skipped += 1;
+            status_eprintln!(
+                "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(interpreted (query))\x1b[0m",
+                name
+            );
+            continue;
         }
+        // The same check and code generator as `runa build`: the checker
+        // decides which bindings only metadata reads.
+        let filename = file_path.to_string_lossy();
+        let mut type_check = backend_type_check_artifacts(&stmts, &source, &filename);
+        if let Some(diagnostic) = type_check.diagnostics.first() {
+            status_eprintln!(
+                "  \x1b[1;31mFAIL\x1b[0m  {} — check error: {}",
+                name,
+                diagnostic.message
+            );
+            failed += 1;
+            failures.push(name);
+            continue;
+        }
+        let stmts = type_check.program().clone();
+        let mut cg = checked_rust_codegen(&mut type_check, &filename);
         let code = cg.emit_program(&stmts);
 
         // Write to temp file
@@ -20673,7 +20701,7 @@ fn check_source(
 
             // Pre-codegen type checking (M16): catch errors before Rust codegen
             let type_check_start = Instant::now();
-            let type_check = if frontend_only {
+            let mut type_check = if frontend_only {
                 type_check_artifacts(&stmts, source, filename)
             } else {
                 backend_type_check_artifacts(&stmts, source, filename)
@@ -20702,10 +20730,7 @@ fn check_source(
             }
 
             let stmts = type_check.program().clone();
-            let mut cg = RustCodegen::new();
-            cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
-            cg.constructor_elaboration = type_check.constructor_elaboration.clone();
-            cg.source_dir = source_dir_for(filename);
+            let mut cg = checked_rust_codegen(&mut type_check, filename);
             let codegen_start = Instant::now();
             let code = cg.emit_program(&stmts);
             trace_compiler_timing("Rust codegen", codegen_start.elapsed());
@@ -21134,11 +21159,12 @@ fn emit_rust_source_fir(source: &str, filename: &str, use_prelude: bool) {
                 user_stmts
             };
 
-            // Run type check
-            let Some(type_check) = run_type_check(&stmts, source, filename) else {
+            // The same check as `--emit rust`, whose output this compares.
+            let mut type_check = backend_type_check_artifacts(&stmts, source, filename);
+            if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
-            };
-            let stmts = type_check.program();
+            }
+            let stmts = type_check.program().clone();
 
             // Scan declarations to populate TypeRegistry (without emitting Rust)
             let mut cg = RustCodegen::new();
@@ -21154,9 +21180,8 @@ fn emit_rust_source_fir(source: &str, filename: &str, use_prelude: bool) {
                 &cg.ref_match_bindings,
             );
 
-            // Also run old path for comparison
-            let mut cg2 = RustCodegen::new();
-            cg2.source_dir = source_dir_for(filename);
+            // Also run the `--emit rust` path for comparison
+            let mut cg2 = checked_rust_codegen(&mut type_check, filename);
             let old_code = cg2.emit_program(&stmts);
             println!("// === FIR pipeline output ===");
             print!("{}", code);
@@ -21299,16 +21324,12 @@ fn emit_rust_source(source: &str, filename: &str, use_prelude: bool) {
             } else {
                 user_stmts
             };
-            let type_check = backend_type_check_artifacts(&stmts, source, filename);
+            let mut type_check = backend_type_check_artifacts(&stmts, source, filename);
             if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
             }
             let stmts = type_check.program().clone();
-            let mut cg = RustCodegen::new();
-            cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
-            cg.constructor_elaboration = type_check.constructor_elaboration.clone();
-            // Set source directory for @ import resolution
-            cg.source_dir = source_dir_for(filename);
+            let mut cg = checked_rust_codegen(&mut type_check, filename);
             let code = cg.emit_program(&stmts);
             print!("{}", code);
             eprintln!(
@@ -21397,17 +21418,14 @@ fn emit_rust_lib(source: &str, filename: &str, use_prelude: bool) {
             };
             // The same check as `--emit rust` and every build: it decides
             // which bindings are compile-time metadata, left out here too.
-            let type_check = backend_type_check_artifacts(&stmts, source, filename);
+            let mut type_check = backend_type_check_artifacts(&stmts, source, filename);
             if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
             }
             let stmts = type_check.program().clone();
-            let mut cg = RustCodegen::new();
+            let mut cg = checked_rust_codegen(&mut type_check, filename);
             cg.lib_mode = true;
             cg.library_export_abi = true;
-            cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
-            cg.constructor_elaboration = type_check.constructor_elaboration.clone();
-            cg.source_dir = source_dir_for(filename);
             let code = cg.emit_program(&stmts);
             let code = add_rust_lib_dependency_guidance(&code, &cg.cargo_deps);
             print!("{}", code);

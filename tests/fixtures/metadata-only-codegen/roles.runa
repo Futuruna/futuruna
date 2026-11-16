@@ -1,0 +1,5 @@
+-- Role values for the metadata-only codegen regression
+-- (tests/metadata_only_binding_codegen_test.runa).
+
+# Role(a) = Source(value: a) | Guidance(value: a)
+# impl MetaRole for Role {}
