@@ -33900,13 +33900,36 @@ impl RustCodegen {
         // a builtin of their name visible.
         let prelude_function_names: BTreeSet<String> = stmts[..prelude_len]
             .iter()
-            .filter_map(|statement| {
-                let Stmt::Defn(Defn::Fn { name, .. }) = statement else {
-                    return None;
-                };
-                (!imported_functions.contains(name)
-                    && !is_prelude_function_over(statement, &replaced_types))
-                .then(|| name.clone())
+            .filter_map(|statement| match statement {
+                Stmt::Defn(Defn::Fn { name, .. })
+                    if !imported_functions.contains(name)
+                        && !is_prelude_function_over(statement, &replaced_types) =>
+                {
+                    Some(name.clone())
+                }
+                // Only a function can leave a builtin of its name visible.
+                Stmt::Defn(Defn::Fn { .. } | Defn::Actor { .. } | Defn::Module { .. })
+                | Stmt::TypeDecl(_)
+                | Stmt::PreludeBoundary
+                | Stmt::Rule(_)
+                | Stmt::Use(_)
+                | Stmt::Import(_)
+                | Stmt::QualifiedImport(..)
+                | Stmt::HashImport(..)
+                | Stmt::Depend(..)
+                | Stmt::RustBlock(_)
+                | Stmt::Annot(..)
+                | Stmt::Bind(..)
+                | Stmt::MonadicBind(..)
+                | Stmt::For(..)
+                | Stmt::While(..)
+                | Stmt::Send(..)
+                | Stmt::StreamBind(..)
+                | Stmt::StreamSub(..)
+                | Stmt::Invariant { .. }
+                | Stmt::Prove { .. }
+                | Stmt::Explore(_)
+                | Stmt::Expr(_) => None,
             })
             .collect();
         for (index, stmt) in stmts.iter().enumerate() {
