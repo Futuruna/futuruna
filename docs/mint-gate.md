@@ -97,7 +97,7 @@ Intentionally omitted from the core mint gate:
 - standalone solver-dependent flows such as `runa verify file.runa`
 - tests that the `runa test` runner already skips because they require optional external crates
 
-CI should call `./scripts/mint.sh` for the core language health gate, then run any omitted lanes as separate jobs or steps. The canary suite is the curated middle lane for realistic authored programs, while differential testing is the deeper search lane that exercises seed-stable generative programs and replayable minimized repros without slowing every core mint run.
+CI runs the mint steps for the core language health gate, then runs any omitted lanes as separate jobs or steps. The canary suite is the curated middle lane for realistic authored programs, while differential testing is the deeper search lane that exercises seed-stable generative programs and replayable minimized repros without slowing every core mint run.
 
 The full from-rust example corpus remains separate from mint for runtime budget
 and is documented in the stable FRSS-v0 contract. Mint still runs the narrower
@@ -129,3 +129,37 @@ runs `runa wasm` for each one. By default, a missing `wasm-pack` is reported as
 a skip so local mint remains usable on machines without the optional toolchain.
 Set `FUTURUNA_WASM_CANARY_REQUIRED=1` in CI when missing `wasm-pack` should fail
 the job.
+
+## Groups, keep-going and CI shards
+
+`./scripts/mint.sh` with no arguments runs every step above in order and stops
+at the first failure. The same script is the only list of steps; options select
+and run parts of it:
+
+```bash
+./scripts/mint.sh --list                    # every step and its group; runs nothing
+./scripts/mint.sh --group checks            # only that group (repeatable)
+./scripts/mint.sh --keep-going             # run every step, then list each failure
+```
+
+The release build runs first in every mode, and a failed build always stops
+the run. The groups are `rust` (`cargo test`), `interpreter` (`runa test
+--run`), `codegen` (`runa test --check-codegen`), `roundtrip` (`runa test
+--roundtrip tests`) and `checks` (every other step). The tax-audit runtime and
+setup safeguards live in `./scripts/tax-audit-safeguards.sh`, which takes the
+same options and runs against an already built `target/release/runa`.
+
+The CI `test` job runs four shards on both Ubuntu and macOS, each with
+`--keep-going`, so one run reports every failing command:
+
+| Shard | Runs | Ubuntu | macOS |
+| --- | --- | --- | --- |
+| `rust` | `--group rust` | 27 min | 38 min |
+| `interpreter` | `--group interpreter`, tax-audit safeguards, from-rust corpus, version | 32 min + safeguards | 16 min + safeguards |
+| `codegen` | `--group codegen --group checks` | 36 + 4 min | 17 + 5 min |
+| `roundtrip` | `--group roundtrip` | 54 min | 36 min |
+
+The times are medians of the steps in the CI runs for releases 0.4.1 and 0.4.2, before each
+shard's 4 min (Ubuntu) or 6 min (macOS) release build. The roundtrip lane is
+one command and bounds the wall time; rebalance the shards from the
+`[mint] ok (Ns)` lines when a lane grows.
