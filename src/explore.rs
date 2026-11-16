@@ -3191,7 +3191,11 @@ fn collect_ground_bindings_inner(
                     .parent()
                     .map(|parent| parent.to_string_lossy().to_string())
                     .unwrap_or_else(|| ".".to_string());
-                let nested_statements = module.statements().iter().collect::<Vec<_>>();
+                // Exact ground evaluation resolves names as the files write
+                // them, like the checked analysis program it replays: a name
+                // two sources declare stays ambiguous and fails closed, even
+                // where an import scope renamed one apart for execution.
+                let nested_statements = module.authored_statements().iter().collect::<Vec<_>>();
                 collect_ground_bindings_inner(
                     &nested_statements,
                     Some(&nested_dir),
@@ -3233,12 +3237,10 @@ fn collect_ground_bindings_inner(
                     }
                 };
                 let matched = module
-                    .statements()
+                    .authored_statements()
                     .iter()
-                    .filter(|statement| match statement {
-                        Stmt::Defn(definition) => content_hash_defn(definition) == *hash,
-                        Stmt::TypeDecl(declaration) => content_hash_type(declaration) == *hash,
-                        _ => false,
+                    .filter(|statement| {
+                        crate::declaration_content_hash(statement).as_deref() == Some(hash.as_str())
                     })
                     .collect::<Vec<_>>();
                 if matched.len() != 1 {

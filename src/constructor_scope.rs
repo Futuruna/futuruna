@@ -991,9 +991,17 @@ impl TypeChecker {
 }
 
 impl ParsedSourceModule {
+    /// `original` with `statements` rewritten one for one; it keeps the
+    /// statements the file writes (see [`Self::authored_statements`]).
     pub(crate) fn elaborated(original: &ParsedSourceModule, statements: Vec<Stmt>) -> Self {
         Self {
             source: original.source.clone(),
+            authored: Some(
+                original
+                    .authored
+                    .clone()
+                    .unwrap_or_else(|| original.statements.clone()),
+            ),
             statements: Arc::new(statements),
             content_hash: original.content_hash.clone(),
         }

@@ -32337,13 +32337,21 @@ impl RustCodegen {
         self.canonical_rule_metadata_installed = true;
     }
 
-    fn ensure_canonical_rule_metadata(&mut self, statements: &[Stmt]) {
+    /// Check `statements` for their rule metadata when no caller installed
+    /// it, and return the checked program to emit: its imports are read as
+    /// the check rewrote them, so the root must be too (a qualified member
+    /// of a renamed function, `Lib.fee`).
+    fn ensure_canonical_rule_metadata(
+        &mut self,
+        statements: &[Stmt],
+    ) -> Option<std::sync::Arc<[Stmt]>> {
         if self.canonical_rule_metadata_installed {
-            return;
+            return None;
         }
         let artifacts =
             TypeChecker::check_with_backend_artifacts(statements, self.source_dir.clone(), "");
         self.install_canonical_rule_metadata(&artifacts);
+        Some(artifacts.program().clone())
     }
 
     fn comptime_diagnostics_enabled() -> bool {
@@ -32434,16 +32442,16 @@ impl RustCodegen {
         };
         let rel = import_path.trim_start_matches("./");
         let file_path = format!("{}/{}.runa", dir, rel);
-        let stmts = Self::parse_tau_file(&file_path);
-        for s in stmts {
-            let matches = match &s {
-                Stmt::Defn(d) => content_hash_defn(d) == hash,
-                Stmt::TypeDecl(td) => content_hash_type(td) == hash,
-                _ => false,
-            };
-            if matches {
-                return vec![s];
-            }
+        let module = match std::fs::read_to_string(&file_path) {
+            Ok(source) => parse_source_module_cached(Path::new(&file_path), &source).ok(),
+            Err(_) => None,
+        };
+        // Selected by what the file writes, emitted as the program reads it.
+        if let Some(statement) = module
+            .as_ref()
+            .and_then(|module| module.declarations_with_content_hash(hash).first().cloned())
+        {
+            return vec![statement.clone()];
         }
         eprintln!("Hash #{} not found in {}", hash, file_path);
         Vec::new()
@@ -36301,7 +36309,8 @@ impl RustCodegen {
     }
 
     fn emit_program(&mut self, input_stmts: &[Stmt]) -> String {
-        self.ensure_canonical_rule_metadata(input_stmts);
+        let checked = self.ensure_canonical_rule_metadata(input_stmts);
+        let input_stmts = checked.as_deref().unwrap_or(input_stmts);
         let all_stmts = self.scan_declarations(input_stmts);
         self.has_raw_rust_blocks = all_stmts.iter().any(stmt_contains_raw_rust);
         self.prescan_actor_message_site_types(&all_stmts);
