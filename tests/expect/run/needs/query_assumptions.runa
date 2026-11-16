@@ -2,6 +2,7 @@
 -- `runa call` does: a test names them with `refof`, by binding, rule and
 -- section, and the check rejects a name that does not exist.
 -- expect-command: interp
+-- roundtrip-skip: `query` and `unknown` run only in the interpreter
 -- expect-stdout: |open_rests_on_the_open_value| holds
 -- expect-stdout: |closed_rests_on_the_closing_day| holds
 -- expect-stdout: |section_assumption_names_no_rule| holds

@@ -3,6 +3,7 @@
 -- of an entry need; the waiting sections) with `Some`/`None` it builds
 -- itself, and matches on them.
 -- expect-command: interp
+-- roundtrip-skip: the imported module asks queries, which run only in the interpreter
 -- expect-stdout: assumption compared: true
 -- expect-stdout: assumption matched: closing/room/none
 -- expect-stdout: need compared: true

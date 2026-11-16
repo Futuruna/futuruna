@@ -6,9 +6,10 @@
 -- expect-stdout: call=6
 -- expect-stdout: rule=8
 -- expect-stdout: lambda=42
--- expect-stderr: the binding `closed` takes the name of the function `closed` declared at line 17: `closed` reads this binding, while a call `closed(…)` calls the function
--- expect-stderr: the binding `doubled` takes the name of the rule `doubled` declared at line 18: `doubled` reads this binding, while a call `doubled(…)` calls the rule
--- expect-stderr: the binding `scale` takes the name of the function `scale` declared at line 19: after it, a call `scale(…)` calls this binding, not the function
+-- expect-stdout: inside=16
+-- expect-stderr: the binding `closed` takes the name of the function `closed` declared at line 18: `closed` reads this binding, while a call `closed(…)` calls the function
+-- expect-stderr: the binding `doubled` takes the name of the rule `doubled` declared at line 19: `doubled` reads this binding, while a call `doubled(…)` calls the rule
+-- expect-stderr: the binding `scale` takes the name of the function `scale` declared at line 20: after it, a call `scale(…)` calls this binding, not the function
 
 -- Bindings in a body and parameters are lexical: they hide a function or
 -- rule of their name in their scope, so calling one that holds no function
@@ -17,6 +18,7 @@
 > closed(x: Int) -> Int { x + 1 }
 | doubled(x: Int) -> x * 2
 > scale(x: Int) -> Int { x * 10 }
+> both(x: Int) -> Int { closed(x) + doubled(x) }
 
 = closed = closed(3)
 = doubled = doubled(4)
@@ -26,3 +28,4 @@
 @ print("call=" + show(closed(5)))
 @ print("rule=" + show(doubled))
 @ print("lambda=" + show(scale(40)))
+@ print("inside=" + show(both(5)))

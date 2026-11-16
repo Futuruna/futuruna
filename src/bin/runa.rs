@@ -51549,15 +51549,23 @@ fn __futuruna_install_error_hook() {
             || matches!(self.lookup_var_fir_ty(name), Some(FirTy::Arrow(_, _)))
     }
 
+    /// A call `name(…)` whose name a local or top-level binding holding no
+    /// function takes still calls the function of that name.
     fn static_call_bypasses_non_callable_local(&self, name: &str, arity: usize) -> bool {
-        if !self.local_bindings.contains(name) {
-            return false;
-        }
-        let Some(local_ty) = self.lookup_var_fir_ty(name) else {
+        let binding_ty = if self.local_bindings.contains(name) {
+            self.lookup_var_fir_ty(name)
+        } else if self.reads_top_level_binding(name) {
+            self.binary_global_binding_types
+                .get(name)
+                .map(|ty| Self::rust_type_to_fir(ty))
+        } else {
+            None
+        };
+        let Some(binding_ty) = binding_ty else {
             return false;
         };
-        if matches!(local_ty, FirTy::Arrow(_, _))
-            || matches!(local_ty, FirTy::Unknown | FirTy::Var(_))
+        if matches!(binding_ty, FirTy::Arrow(_, _))
+            || matches!(binding_ty, FirTy::Unknown | FirTy::Var(_))
         {
             return false;
         }

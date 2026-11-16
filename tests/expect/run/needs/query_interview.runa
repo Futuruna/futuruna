@@ -1,6 +1,7 @@
 -- A query asks a calculation entry about a case with unknowns; interview
 -- answers its needs round by round until the case is complete.
 -- expect-command: interp
+-- roundtrip-skip: `query`, `interview` and `unknown` run only in the interpreter
 -- expect-stdout: |two_rounds| holds
 -- expect-stdout: |first_asks_the_spouse| holds
 -- expect-stdout: |alone_is_complete| holds

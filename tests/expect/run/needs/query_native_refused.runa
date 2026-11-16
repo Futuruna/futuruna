@@ -2,6 +2,7 @@
 -- expect-command: run
 -- expect-status: fail
 -- expect-stderr: `query` runs in the interpreter; native code takes complete input
+-- roundtrip-skip: tests that `runa run` refuses `query`, which runs only in the interpreter
 
 # Spouse(@ field(label = "Spouse's income") income: Int, cohabiting: Bool)
 # Household(income: Int, married: Bool, spouse: Option(Spouse))

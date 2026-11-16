@@ -1,4 +1,5 @@
 -- expect-skip: dependency-only fixture for needs_prelude_in_qualified_import_interp.runa: a qualified module that asks queries and matches on their types
+-- roundtrip-skip: `query`, `interview` and `unknown` run only in the interpreter; it runs through needs_prelude_in_qualified_import_interp.runa
 
 @ export
 # Household(income: Int, married: Bool)
