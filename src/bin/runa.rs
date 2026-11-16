@@ -39981,6 +39981,9 @@ fn __futuruna_install_error_hook() {
                 if !main_stmts.iter().any(|stmt| matches!(stmt, Stmt::Bind(Pat::Var(binding), _, _) | Stmt::StreamBind(binding, _) if binding == name)) {
                     continue;
                 }
+                if self.declares_callable(name) {
+                    continue;
+                }
                 let visibility =
                     if public && public_names.map_or(true, |names| names.contains(name)) {
                         "pub "
@@ -39999,7 +40002,9 @@ fn __futuruna_install_error_hook() {
             }
             if self.current_module_path.is_empty() {
                 for (name, literal) in &self.types.comptime_values {
-                    if !literal.is_empty() && public_names.is_some_and(|names| names.contains(name))
+                    if !literal.is_empty()
+                        && public_names.is_some_and(|names| names.contains(name))
+                        && !self.declares_callable(name)
                     {
                         if let Some(ty) = self.types.comptime_types.get(name) {
                             out.push_str(&format!(
@@ -40111,6 +40116,17 @@ fn __futuruna_install_error_hook() {
         self.allow_global_getter_refs = prev_allow_global_getter_refs;
         self.getter_stream_bindings = prev_getter_stream_bindings;
         out
+    }
+
+    /// A function or rule of the name: its Rust item holds the name, as a
+    /// call `name(…)` means it, so a top-level binding of the name gets no
+    /// library getter (it is still initialized and read through the globals).
+    fn declares_callable(&self, name: &str) -> bool {
+        self.types
+            .fn_types_by_arity
+            .range((name.to_string(), 0)..=(name.to_string(), usize::MAX))
+            .next()
+            .is_some()
     }
 
     fn collect_top_level_binding_getter_names(

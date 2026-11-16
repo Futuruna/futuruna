@@ -1,0 +1,23 @@
+-- A library whose top-level binding takes the name of a function or rule:
+-- a call in a function body calls the function or rule, a bare name reads
+-- the binding through the globals, and the binding gets no getter of the
+-- name the function or rule holds.
+-- expect-command: emit-lib
+-- expect-status: pass
+-- expect-stdout: fn closed(prices: i64) -> i64
+-- expect-stdout: self::closed(prices)
+-- expect-stdout: self::doubled(prices)
+-- expect-stdout: __fut_globals.closed.clone().expect("top-level binding `closed` not initialized")
+-- expect-stdout-not: fn closed(__fut_globals
+-- expect-stdout-not: fn doubled(__fut_globals
+
+> closed(prices: Int) -> Int { prices + 1 }
+| doubled(prices: Int) -> prices * 2
+> once(prices: Int) -> Int { closed(prices) + doubled(prices) }
+> reads() -> Int { closed + doubled }
+
+= closed = closed(3)
+= doubled = doubled(4)
+
+@ print("once=" + show(once(5)))
+@ print("reads=" + show(reads()))
