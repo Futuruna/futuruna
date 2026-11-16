@@ -1,4 +1,5 @@
 -- expect-skip: dependency-only fixture for needs_options_in_qualified_import_interp.runa: a qualified module that compares the Options of its query answers with Options it builds
+-- roundtrip-skip: `query` and `unknown` run only in the interpreter; it runs through needs_options_in_qualified_import_interp.runa
 
 # AssumptionInfo(id: String)
 # LawRole(a) = Assumption(value: a)

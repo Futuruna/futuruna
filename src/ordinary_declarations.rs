@@ -118,18 +118,19 @@ impl TypeChecker {
 
 /// A top-level binding (`= closed = …`) that takes the name of a function or
 /// rule declared in the program, which shares the program's one namespace of
-/// top-level names. Futuruna allows it (a result is often bound under its
-/// rule's name, `= tax = tax(case)`): `closed` reads the binding, and
-/// `closed(…)` calls the function or rule unless the binding holds a
-/// function, which then takes the calls after it. A warning names both, so a
-/// reader is told which one each use means. Bindings in a body, parameters
-/// and patterns are lexical and keep their scope; the prelude's declarations
-/// may be overridden.
-pub(crate) fn binding_name_warnings(
+/// top-level names. Futuruna allows a binding that holds no function (a
+/// result is often bound under its rule's name, `= tax = tax(case)`):
+/// `closed` reads the binding and `closed(…)` calls the function or rule. A
+/// warning names both, so a reader is told which one each use means. A
+/// binding that holds a function would make a call `closed(…)` mean either:
+/// that is an error naming both. Bindings in a body, parameters and patterns
+/// are lexical and keep their scope; the prelude's declarations may be
+/// overridden. Returns the warnings and the errors.
+pub(crate) fn binding_name_diagnostics(
     statements: &[Stmt],
     source: &str,
     checker: &TypeChecker,
-) -> Vec<Diagnostic> {
+) -> (Vec<Diagnostic>, Vec<Diagnostic>) {
     let files = query::program_files(statements, source, checker);
     // The first declaration of each callable name: its kind and place.
     let mut callables: BTreeMap<&str, (&'static str, String)> = BTreeMap::new();
@@ -152,10 +153,12 @@ pub(crate) fn binding_name_warnings(
                 .or_insert_with(|| (kind, file.place(span)));
         }
     }
-    if callables.is_empty() {
-        return Vec::new();
-    }
     let mut warnings = Vec::new();
+    let mut errors = Vec::new();
+    if callables.is_empty() {
+        return (warnings, errors);
+    }
+    let values = top_level_binding_names(&files);
     for file in &files {
         for statement in file.statements {
             let (Stmt::Bind(Pat::Var(name), _, value)
@@ -166,32 +169,184 @@ pub(crate) fn binding_name_warnings(
             let Some((kind, place)) = callables.get(name.as_str()) else {
                 continue;
             };
-            let (meaning, span) = match &value.kind {
-                ExprKind::Lambda(_, body) => (
-                    format!("after it, a call `{name}(…)` calls this binding, not the {kind}"),
-                    // A lambda carries no span of its own; its body does.
-                    if value.span.is_dummy() {
-                        body.span
-                    } else {
-                        value.span
-                    },
-                ),
-                _ => (
+            if top_level_binding_holds_function(checker, &values, name, value) {
+                errors.push(file.diagnostic(
+                    binding_value_span(value),
                     format!(
-                        "`{name}` reads this binding, while a call `{name}(…)` calls the {kind}"
+                        "the binding `{name}` holds a function and takes the name of the {kind} `{name}` declared at {place}: a call `{name}(…)` could mean either. Rename one of them"
                     ),
-                    value.span,
-                ),
-            };
+                ));
+                continue;
+            }
             let mut warning = file.diagnostic(
-                span,
+                value.span,
                 format!(
-                    "the binding `{name}` takes the name of the {kind} `{name}` declared at {place}: {meaning}. Rename one of them so the name means one thing"
+                    "the binding `{name}` takes the name of the {kind} `{name}` declared at {place}: `{name}` reads this binding, while a call `{name}(…)` calls the {kind}. Rename one of them so the name means one thing"
                 ),
             );
             warning.severity = Severity::Warning;
             warnings.push(warning);
         }
     }
-    warnings
+    (warnings, errors)
+}
+
+/// Whether a top-level binding holds a function: a closure literal, the name
+/// of a function or rule (not of a top-level binding, in `values`), or a
+/// value the check typed as a function.
+pub(crate) fn top_level_binding_holds_function(
+    checker: &TypeChecker,
+    values: &BTreeSet<String>,
+    name: &str,
+    value: &Expr,
+) -> bool {
+    match &value.kind {
+        ExprKind::Lambda(..) => return true,
+        ExprKind::Var(target)
+            if !values.contains(target)
+                && (checker.functions.contains_key(target)
+                    || checker.rule_arities.iter().any(|(rule, _)| rule == target)) =>
+        {
+            return true;
+        }
+        _ => {}
+    }
+    checker
+        .var_types
+        .first()
+        .and_then(|types| types.get(name))
+        .and_then(|ty| parse_type_annotation(ty).ok())
+        .is_some_and(|ty| matches!(ty, Ty::Arrow(..)))
+}
+
+/// The names of the program's top-level bindings.
+fn top_level_binding_names(files: &[query::ProgramFile<'_>]) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    for file in files {
+        for statement in file.statements {
+            if let Stmt::Bind(Pat::Var(name), _, _) | Stmt::MonadicBind(Pat::Var(name), _, _) =
+                statement
+            {
+                names.insert(name.clone());
+            }
+        }
+    }
+    names
+}
+
+/// Where a binding's value is: a lambda carries no span of its own; its
+/// body does.
+fn binding_value_span(value: &Expr) -> Span {
+    match &value.kind {
+        ExprKind::Lambda(_, body) if value.span.is_dummy() => body.span,
+        _ => value.span,
+    }
+}
+
+/// Compiled code keeps a top-level binding as a local of `main` (or a field
+/// of the hidden globals a function reads), which cannot hold a closure: a
+/// function or rule body that calls or reads a top-level binding holding a
+/// function is reported before Rust is generated, instead of a rustc
+/// failure. The interpreter runs such a program.
+pub(crate) fn native_function_binding_uses(
+    statements: &[Stmt],
+    source: &str,
+    checker: &TypeChecker,
+) -> Vec<Diagnostic> {
+    let files = query::program_files(statements, source, checker);
+    let values = top_level_binding_names(&files);
+    // A binding named like a function or rule and holding a function is
+    // already an error of its own (`binding_name_diagnostics`).
+    let callables = files
+        .iter()
+        .flat_map(|file| file.statements)
+        .filter_map(|statement| match statement {
+            Stmt::Defn(Defn::Fn { name, .. }) => Some(name.as_str()),
+            Stmt::Rule(
+                Rule::Clause { head, .. }
+                | Rule::Default { head, .. }
+                | Rule::Exception { head, .. },
+            ) => query::rule_head_name(head),
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
+    let mut function_bindings = BTreeSet::new();
+    for file in &files {
+        for statement in file.statements {
+            if let Stmt::Bind(Pat::Var(name), _, value)
+            | Stmt::MonadicBind(Pat::Var(name), _, value) = statement
+            {
+                if !callables.contains(name.as_str())
+                    && top_level_binding_holds_function(checker, &values, name, value)
+                {
+                    function_bindings.insert(name.clone());
+                }
+            }
+        }
+    }
+    let mut errors = Vec::new();
+    if function_bindings.is_empty() {
+        return errors;
+    }
+    for file in &files {
+        for statement in file.statements {
+            let (kind, owner, bodies, bound): (_, _, Vec<&Expr>, BTreeSet<String>) = match statement
+            {
+                Stmt::Defn(Defn::Fn {
+                    name, params, body, ..
+                }) => (
+                    "function",
+                    name.as_str(),
+                    vec![body],
+                    params.iter().map(|param| param.name.clone()).collect(),
+                ),
+                Stmt::Rule(rule) => {
+                    let (head, bodies) = match rule {
+                        Rule::Clause { head, body } => (head, body.iter().collect()),
+                        Rule::Default {
+                            head,
+                            value,
+                            condition,
+                        }
+                        | Rule::Exception {
+                            head,
+                            value,
+                            condition,
+                            ..
+                        } => (head, std::iter::once(value).chain(condition).collect()),
+                        Rule::ReactiveScope { .. } => continue,
+                    };
+                    let Some(name) = query::rule_head_name(head) else {
+                        continue;
+                    };
+                    // The head's variables are the rule's parameters.
+                    let mut bound = BTreeSet::new();
+                    collect_true_free_vars(head, &mut bound, &BTreeSet::new());
+                    bound.remove(name);
+                    ("rule", name, bodies, bound)
+                }
+                _ => continue,
+            };
+            for body in bodies {
+                let mut free = BTreeSet::new();
+                collect_true_free_vars(body, &mut free, &bound);
+                for binding in free.intersection(&function_bindings) {
+                    let called = collect_scoped_runtime_calls(body, &bound)
+                        .into_iter()
+                        .find(|call| call.name == *binding && !call.lexically_bound);
+                    let (verb, span) = match &called {
+                        Some(call) => ("calls", call.span),
+                        None => ("reads", body.span),
+                    };
+                    errors.push(file.diagnostic(
+                        span,
+                        format!(
+                            "the {kind} `{owner}` {verb} the top-level binding `{binding}`, which holds a function: compiled code cannot use a function-valued top-level binding in a function or rule body; pass the function as a parameter. The interpreter runs the program"
+                        ),
+                    ));
+                }
+            }
+        }
+    }
+    errors
 }

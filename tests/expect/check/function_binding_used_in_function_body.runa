@@ -1,0 +1,25 @@
+-- Compiled code cannot use a top-level binding that holds a function in a
+-- function or rule body: the check names the binding and the body, before
+-- Rust is generated. The interpreter runs the program
+-- (tests/expect/run/function_binding_used_in_function_body_interp.runa).
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: the function `use_f` calls the top-level binding `f`, which holds a function: compiled code cannot use a function-valued top-level binding in a function or rule body; pass the function as a parameter
+-- expect-stderr: function_binding_used_in_function_body.runa:17:
+-- expect-stderr: the function `mapped` reads the top-level binding `f`, which holds a function
+-- expect-stderr: the rule `r` calls the top-level binding `g`, which holds a function
+-- expect-stderr-not: Futuruna compiler bug
+-- roundtrip-skip: compiled code cannot use a function-valued top-level binding in a function or rule body; the interpreter runs the program
+
+> inc(x: Int) -> Int { x + 1 }
+> local(x: Int) -> Int { (|f: Int| f + 1)(x) }
+> takes(f: Int -> Int, x: Int) -> Int { f(x) }
+> use_f(x: Int) -> Int { f(x) }
+> mapped(xs: List(Int)) -> List(Int) { map(xs, f) }
+| r(x: Int) -> g(x) + 1
+
+= f = |x: Int| x + 2
+= g = inc
+
+@ print(show(use_f(40) + local(1) + takes(f, 1) + r(1)))
+@ print(show(mapped([1, 2])))

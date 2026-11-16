@@ -2,6 +2,7 @@
 -- parameter: the calculation does not reach the query.
 -- expect-command: check
 -- expect-status: pass
+-- roundtrip-skip: `query` runs only in the interpreter; `runa run` refuses it
 
 # Account(value: Int, closed: Bool)
 # Result(room: Int)

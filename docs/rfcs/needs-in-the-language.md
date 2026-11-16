@@ -486,8 +486,8 @@ Taken while implementing this RFC for 0.5:
 - **A binding named like a function or rule.** Futuruna allows a binding to
   take the name of a rule (`= tax = tax(case)`; tested as
   `forward_top_level_value_dependency_*`, and used in the Danish examples):
-  `tax` reads the binding and `tax(...)` calls the rule, unless the binding
-  holds a function, which takes the calls after it. A function did not
+  `tax` reads the binding and `tax(...)` calls the rule (a binding that
+  holds a function may not take the name: a check error). A function did not
   follow this: `runa check` passed, and the interpreter called the binding's
   value and stopped with "value is not callable". Now a function behaves as
   a rule does, and since the shadowing is intended, `runa check` and every

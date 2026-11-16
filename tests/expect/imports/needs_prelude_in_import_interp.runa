@@ -2,6 +2,7 @@
 -- though the root itself asks none: its matches on `Query`, `NeedKind` and
 -- `Interview` are exhaustive and `interview` is there.
 -- expect-command: interp
+-- roundtrip-skip: the imported module asks queries and an interview, which run only in the interpreter
 -- expect-stdout: complete 50
 -- expect-stdout: needs fact
 -- expect-stdout: 1
