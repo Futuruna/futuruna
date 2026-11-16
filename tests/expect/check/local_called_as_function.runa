@@ -3,9 +3,9 @@
 -- hidden function. It is lexical, so it gets no top-level binding warning.
 -- expect-command: check
 -- expect-status: fail
--- expect-stderr: value `rate` is not callable: here `rate` is a parameter or local binding of type `Int`, which hides the function or rule `rate`
+-- expect-stderr: value `rate` is not callable: here `rate` is a parameter, local binding or rule-scope field of type `Int`, which hides the function or rule `rate`
 -- expect-stderr: local_called_as_function.runa:16:
--- expect-stderr: value `bump` is not callable: here `bump` is a parameter or local binding of type `Int`, which hides the function or rule `bump`
+-- expect-stderr: value `bump` is not callable: here `bump` is a parameter, local binding or rule-scope field of type `Int`, which hides the function or rule `bump`
 -- expect-stderr: local_called_as_function.runa:19:
 -- expect-stderr-not: the binding `rate`
 -- expect-stderr-not: the binding `bump`

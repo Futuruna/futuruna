@@ -160,13 +160,13 @@ impl TypeChecker {
                 .and_then(|ty| parse_type_annotation(ty).ok());
             let top_level = binder.is_some_and(|(index, _)| index == 0);
             if ty.as_ref().is_some_and(Self::ordinary_non_callable_type) && !top_level {
-                // A parameter or a binding in a body is the nearest binder:
-                // the call means it, whatever function or rule the name
-                // has outside, and it holds no function.
+                // A parameter, a binding in a body or a rule-scope field is
+                // the nearest binder: the call means it, whatever function
+                // or rule the name has outside, and it holds no function.
                 self.error_at_expr(
                     call,
                     format!(
-                        "value `{name}` is not callable: here `{name}` is a parameter or local binding of type `{}`{}; rename it or the function",
+                        "value `{name}` is not callable: here `{name}` is a parameter, local binding or rule-scope field of type `{}`{}; rename it or the function",
                         declared.unwrap_or_default(),
                         if self.functions.contains_key(name) {
                             format!(", which hides the function or rule `{name}`")

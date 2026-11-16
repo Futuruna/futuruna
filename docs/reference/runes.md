@@ -432,11 +432,12 @@ statement reads the latest binding. A second binding that does not read the
 name would replace the earlier value unseen, so it is an error that names both
 lines. A body may bind a local name again.
 
-A parameter or local binding hides every function, rule, builtin or effect
-operation of its name in its body: `> g(f: Int) -> Int { f(f) }` is an error
-(`f` is an `Int`, not a function), and a local `ask` is the value bound, not
-the `Console` operation. A function, authored or imported, hides the builtin
-of its name in the interpreter and in compiled code alike.
+A parameter, local binding or rule-scope field hides every function, rule,
+builtin or effect operation of its name in its body:
+`> g(f: Int) -> Int { f(f) }` is an error (`f` is an `Int`, not a function),
+so is `income()` inside `# Case(income: Int) { … }`, and a local `ask` is the
+value bound, not the `Console` operation. A function, authored or imported,
+hides the builtin of its name in the interpreter and in compiled code alike.
 
 ### Function with effects
 ```runa

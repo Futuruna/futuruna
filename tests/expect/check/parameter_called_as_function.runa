@@ -1,6 +1,6 @@
 -- expect-command: check
 -- expect-status: fail
--- expect-stderr: value `f` is not callable: here `f` is a parameter or local binding of type `Int`, which hides the function or rule `f`
+-- expect-stderr: value `f` is not callable: here `f` is a parameter, local binding or rule-scope field of type `Int`, which hides the function or rule `f`
 -- expect-stderr: parameter_called_as_function.runa:9:
 
 -- A parameter is the nearest binder of its name: calling it calls the
