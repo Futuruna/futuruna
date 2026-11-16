@@ -117,7 +117,7 @@ test('covered gains and losses survive while excluded nonzero main and spouse am
       const matches = schema.field_metadata.filter(f => f.path === fieldPath);
       assert.equal(matches.length, 1, fieldPath);
       const [field] = matches; fields.push(field);
-      assert.equal(field.anchor, 'PersonskatEjendomsdriftInput');
+      assert.equal(field.anchor, member === '$variant' ? 'PersonskatEjendomsdriftInput' : 'PersonskatEjendomsdriftFakta');
       assert.ok(field.question?.length > 0);
       const sources = schema.source_groups[field.source_group].map(id => schema.source_objects[id]);
       assert.ok(sources.some(s => s.role === 'guidance' && JSON.stringify(s).includes('du-udlejer-en-bolig-som-du-ikke-selv-bor-i')));

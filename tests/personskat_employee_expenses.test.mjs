@@ -124,7 +124,7 @@ test('employee expense shares distinguish invalid facts from no entitlement for 
       const field = fields[0];
       for (const phrase of phrases) assert.ok(field.help?.includes(phrase), `${path}: ${phrase}`);
       assert.ok(field.question?.length > 0, path);
-      assert.equal(field.anchor, 'Ligningslov9Stk1Årsinput');
+      assert.equal(field.anchor, suffix === shareField ? 'Ligningslov9Stk1Udgiftsart' : 'Ligningslov9Stk1Udgiftsfakta');
       const sources = schema.source_groups[field.source_group]?.map(id => schema.source_objects[id]);
       assert.ok(JSON.stringify(sources).includes('arbejdstoej-faglitteratur-og-kurser-med-mere'), `${path}: source trace`);
       assert.equal(field.unit, suffix === shareField ? 'basispoint' : 'kr./år');

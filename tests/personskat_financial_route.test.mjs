@@ -145,7 +145,7 @@ test('covered gains, losses, reclassification and nondeductible expenses retain 
       const matches = schema.field_metadata.filter(f => f.path === fieldPath);
       assert.equal(matches.length, 1, fieldPath);
       const [field] = matches; fields.push(field);
-      assert.equal(field.anchor, 'PersonskatPar4FinansielPostfakta');
+      assert.equal(field.anchor, member.endsWith('.enhed') ? 'PersonskatPar4FinansielPostfakta' : 'PersonskatPar4FinansielPostkilde');
       assert.ok(field.help.includes('personskat-finansielle-poster.md'), fieldPath);
       const sources = schema.source_groups[field.source_group].map(id => schema.source_objects[id]);
       assert.ok(sources.some(s => s.role === 'source' && JSON.stringify(s).includes('1284')));

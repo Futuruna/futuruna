@@ -140,7 +140,7 @@ test('payment years, deadline assertions and special-plan choices agree in canon
         const found = schema.field_metadata.filter(f => f.path === path);
         assert.equal(found.length, 1, path);
         const field = found[0];
-        assert.equal(field.anchor, 'Pbl18Årsbetaling');
+        assert.equal(field.anchor, suffix.startsWith('par15a_fradragsplacering.') ? 'Pbl18Par15AFradragsplacering' : 'Pbl18Årsbetaling');
         assert.ok(field.help.includes('pension-og-fradrag.md#betalingsår-og-forfaldsår'));
         const sources = schema.source_groups[field.source_group].map(id => schema.source_objects[id]);
         for (const evidence of ['Pensionsbeskatningsloven § 18', 'Pensionsbeskatningsloven § 19',
