@@ -160,6 +160,19 @@ pub(crate) fn elaborated_source_module(
     })
 }
 
+/// The module of the current elaboration whose statements `statements` is.
+pub(crate) fn elaborated_module_with_statements(
+    statements: &[Stmt],
+) -> Option<Arc<ParsedSourceModule>> {
+    with_current(|current| {
+        current?
+            .modules
+            .values()
+            .find(|module| std::ptr::eq(module.statements(), statements))
+            .cloned()
+    })
+}
+
 /// Start checking a root program. The current elaboration stays when the
 /// program is an elaborated one (it names an internal constructor, a named
 /// scalar's check function, or a function an import scope renamed, as the

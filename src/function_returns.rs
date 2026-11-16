@@ -79,44 +79,57 @@ impl TypeChecker {
     /// The names of the enclosing scopes, as a body's return check reads
     /// them before its own parameters.
     fn enclosing_return_locals<'a>(&self) -> ReturnLocals<'a> {
-        let mut locals = ReturnLocals::default();
-        for (scope, types) in self.scopes.iter().zip(&self.var_types) {
+        ReturnLocals {
+            types: self.enclosing_return_types(),
+            ..ReturnLocals::default()
+        }
+    }
+
+    /// The types of the enclosing scopes' names, as a return check reads
+    /// them: an untyped name shadows, a callable declaration does not.
+    pub(super) fn enclosing_return_types(&self) -> BTreeMap<String, String> {
+        let mut types = BTreeMap::new();
+        for (scope, scope_types) in self.scopes.iter().zip(&self.var_types) {
             for name in scope {
                 // Function and rule declarations are also value names in the
                 // legacy scope table. Their results are resolved separately.
-                let callable = self.user_functions.contains(name)
-                    || self.rule_arities.iter().any(|(rule, _)| rule == name);
+                let callable = self.user_functions.contains(name) || self.has_rule_named(name);
                 if callable
                     && !self
                         .reference_symbols
                         .get(name)
                         .is_some_and(|symbols| symbols.contains(&ProgramSymbolKind::Binding))
-                    && !types.contains_key(name)
+                    && !scope_types.contains_key(name)
                 {
-                    locals.types.remove(name);
+                    types.remove(name);
                     continue;
                 }
-                locals.types.insert(
+                types.insert(
                     name.clone(),
                     CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE.to_string(),
                 );
             }
-            locals.types.extend(types.clone());
+            types.extend(scope_types.clone());
         }
-        locals
+        types
     }
 
     /// Check a rule clause's value against its family's declared result
     /// type, as a function body is checked against its `-> T`. `subject`
-    /// names the rule and its declaration in a mismatch.
+    /// names the rule and its declaration in a mismatch; `enclosing` is
+    /// `enclosing_return_types` of the scopes the clause stands in.
     pub(super) fn check_rule_clause_result(
         &mut self,
         subject: &str,
         expected: &Ty,
         value: &Expr,
+        enclosing: &BTreeMap<String, String>,
         head_locals: BTreeMap<String, String>,
     ) {
-        let mut locals = self.enclosing_return_locals();
+        let mut locals = ReturnLocals {
+            types: enclosing.clone(),
+            ..ReturnLocals::default()
+        };
         locals.types.extend(head_locals);
         self.check_return_expression(subject, expected, value, &locals);
     }

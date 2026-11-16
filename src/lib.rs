@@ -3355,43 +3355,26 @@ struct MetaCallableBranch {
     has_declared_effects: bool,
 }
 
-struct MetaGroundEvaluator {
-    source_stmts: Vec<Stmt>,
-    source_dir: Option<String>,
-    initialized: bool,
-    interpreter: Interpreter,
-    env: Env,
+/// What a [`MetaGroundEvaluator`] prepares before it evaluates anything: the
+/// declarations of its program and of every file that program imports, and
+/// the program's rule dispatch metadata. It depends on the program's
+/// statements, its directory, the files it imports and the constructor
+/// names current on this thread, and nothing a value evaluates.
+struct MetaGroundBase {
+    declarations: Vec<Stmt>,
     callables: BTreeMap<String, Vec<MetaCallableBranch>>,
     impure_names: BTreeSet<String>,
-    evaluated_bindings: BTreeSet<String>,
-    failed_bindings: BTreeSet<String>,
-    visiting_bindings: BTreeSet<String>,
+    rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
+    rule_dispatch_return_issues: BTreeMap<RuleDispatchKey, String>,
+    rule_dispatch_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
 }
 
-impl MetaGroundEvaluator {
-    fn new(stmts: &[Stmt], source_dir: Option<&str>) -> Self {
-        Self {
-            source_stmts: stmts.to_vec(),
-            source_dir: source_dir.map(str::to_string),
-            initialized: false,
-            interpreter: Interpreter::new(),
-            env: Env::new(),
-            callables: BTreeMap::new(),
-            impure_names: BTreeSet::new(),
-            evaluated_bindings: BTreeSet::new(),
-            failed_bindings: BTreeSet::new(),
-            visiting_bindings: BTreeSet::new(),
-        }
-    }
-
-    fn ensure_initialized(&mut self) {
-        if self.initialized {
-            return;
-        }
+impl MetaGroundBase {
+    fn build(stmts: &[Stmt], source_dir: Option<&str>) -> Self {
         let mut declarations = Vec::new();
         collect_meta_runtime_declarations(
-            &self.source_stmts,
-            self.source_dir.as_deref(),
+            stmts,
+            source_dir,
             &mut BTreeSet::new(),
             &mut declarations,
         );
@@ -3403,20 +3386,175 @@ impl MetaGroundEvaluator {
                 impure_names.extend(ops.iter().map(|(name, _, _)| name.clone()));
             }
         }
+        let (return_types, return_issues, boolean_miss_safe_keys) =
+            TypeChecker::rule_dispatch_metadata_for_runtime(stmts, source_dir.map(str::to_string));
+        Self {
+            declarations,
+            callables,
+            impure_names,
+            rule_dispatch_return_types: return_types,
+            rule_dispatch_return_issues: return_issues,
+            rule_dispatch_boolean_miss_safe_keys: boolean_miss_safe_keys,
+        }
+    }
+}
+
+/// The bases built for imported modules while one program is checked, by
+/// module statements, directory and current constructor names. A check
+/// resolves the metadata of every imported module more than once (the
+/// metadata bindings, the calculation's labelled anchors, `@ field`
+/// values); each module's base is built once. An entry keeps its module and
+/// elaboration alive, so the addresses it is keyed by stay theirs.
+struct MetaGroundBaseEntry {
+    _module: Arc<ParsedSourceModule>,
+    _elaboration: Option<Arc<ConstructorElaboration>>,
+    base: Rc<MetaGroundBase>,
+}
+
+type MetaGroundBaseKey = (usize, usize, Option<String>, usize);
+
+thread_local! {
+    static META_GROUND_BASES: RefCell<Option<HashMap<MetaGroundBaseKey, MetaGroundBaseEntry>>> =
+        const { RefCell::new(None) };
+}
+
+/// Share [`MetaGroundBase`]s between the evaluators created until it is
+/// dropped. The files a program imports do not change while it is checked;
+/// a nested check gets its own bases.
+struct MetaGroundBaseScope {
+    previous: Option<HashMap<MetaGroundBaseKey, MetaGroundBaseEntry>>,
+}
+
+impl MetaGroundBaseScope {
+    fn enter() -> Self {
+        let previous = META_GROUND_BASES.with(|bases| bases.replace(Some(HashMap::new())));
+        Self { previous }
+    }
+}
+
+impl Drop for MetaGroundBaseScope {
+    fn drop(&mut self) {
+        let previous = self.previous.take();
+        META_GROUND_BASES.with(|bases| *bases.borrow_mut() = previous);
+    }
+}
+
+enum MetaGroundProgram {
+    /// The statements of a module a module cache holds.
+    Module(Arc<ParsedSourceModule>),
+    Statements(Vec<Stmt>),
+}
+
+impl MetaGroundProgram {
+    fn statements(&self) -> &[Stmt] {
+        match self {
+            Self::Module(module) => module.statements(),
+            Self::Statements(statements) => statements,
+        }
+    }
+}
+
+struct MetaGroundEvaluator {
+    program: MetaGroundProgram,
+    source_dir: Option<String>,
+    base: Option<Rc<MetaGroundBase>>,
+    interpreter: Interpreter,
+    env: Env,
+    evaluated_bindings: BTreeSet<String>,
+    failed_bindings: BTreeSet<String>,
+    visiting_bindings: BTreeSet<String>,
+}
+
+impl MetaGroundEvaluator {
+    fn new(stmts: &[Stmt], source_dir: Option<&str>) -> Self {
+        let program = match cached_module_with_statements(stmts) {
+            Some(module) => MetaGroundProgram::Module(module),
+            None => MetaGroundProgram::Statements(stmts.to_vec()),
+        };
+        Self {
+            program,
+            source_dir: source_dir.map(str::to_string),
+            base: None,
+            interpreter: Interpreter::new(),
+            env: Env::new(),
+            evaluated_bindings: BTreeSet::new(),
+            failed_bindings: BTreeSet::new(),
+            visiting_bindings: BTreeSet::new(),
+        }
+    }
+
+    /// The base of this evaluator's program: the one built for its module
+    /// during this check, or a new one.
+    fn prepared_base(&self) -> Rc<MetaGroundBase> {
+        let build = || {
+            Rc::new(MetaGroundBase::build(
+                self.program.statements(),
+                self.source_dir.as_deref(),
+            ))
+        };
+        let MetaGroundProgram::Module(module) = &self.program else {
+            return build();
+        };
+        let elaboration = constructor_scope::current_elaboration();
+        let key = (
+            module.statements().as_ptr() as usize,
+            module.statements().len(),
+            self.source_dir.clone(),
+            elaboration
+                .as_ref()
+                .map_or(0, |elaboration| Arc::as_ptr(elaboration) as usize),
+        );
+        let known = META_GROUND_BASES.with(|bases| {
+            bases
+                .borrow()
+                .as_ref()
+                .map(|bases| bases.get(&key).map(|entry| Rc::clone(&entry.base)))
+        });
+        match known {
+            // No check is sharing bases.
+            None => build(),
+            Some(Some(base)) => base,
+            Some(None) => {
+                let base = build();
+                META_GROUND_BASES.with(|bases| {
+                    if let Some(bases) = bases.borrow_mut().as_mut() {
+                        bases.insert(
+                            key,
+                            MetaGroundBaseEntry {
+                                _module: Arc::clone(module),
+                                _elaboration: elaboration,
+                                base: Rc::clone(&base),
+                            },
+                        );
+                    }
+                });
+                base
+            }
+        }
+    }
+
+    fn ensure_initialized(&mut self) {
+        if self.base.is_some() {
+            return;
+        }
+        let base = self.prepared_base();
         let mut interpreter = Interpreter::new();
         interpreter.suppress_output = true;
-        interpreter.install_rule_dispatch_metadata_for_program(
-            &self.source_stmts,
-            self.source_dir.clone(),
+        interpreter.install_rule_dispatch_return_metadata(
+            &base.rule_dispatch_return_types,
+            &base.rule_dispatch_return_issues,
+            &base.rule_dispatch_boolean_miss_safe_keys,
         );
         let mut env = interpreter.default_env();
-        interpreter.register_static_declarations(&declarations, &mut env);
+        interpreter.register_static_declarations(&base.declarations, &mut env);
 
         self.interpreter = interpreter;
         self.env = env;
-        self.callables = callables;
-        self.impure_names = impure_names;
-        self.initialized = true;
+        self.base = Some(base);
+    }
+
+    fn callable_branches(&self, name: &str) -> Option<&Vec<MetaCallableBranch>> {
+        self.base.as_ref()?.callables.get(name)
     }
 
     fn resolve_expr(
@@ -3433,7 +3571,7 @@ impl MetaGroundEvaluator {
     /// rule, function or runtime value.
     fn defines(&mut self, name: &str) -> bool {
         self.ensure_initialized();
-        self.callables.contains_key(name) || self.env.get(name).is_some()
+        self.callable_branches(name).is_some() || self.env.get(name).is_some()
     }
 
     fn evaluate_expr(&mut self, expr: &Expr, bindings: &BTreeMap<String, &Expr>) -> Option<Value> {
@@ -3519,13 +3657,17 @@ impl MetaGroundEvaluator {
             if bound_names.contains(&name) {
                 continue;
             }
-            if self.impure_names.contains(&name) {
+            if self
+                .base
+                .as_ref()
+                .is_some_and(|base| base.impure_names.contains(&name))
+            {
                 return false;
             }
             if bindings.contains_key(&name) {
                 dependencies.insert(name.clone());
             }
-            let Some(branches) = self.callables.get(&name) else {
+            let Some(branches) = self.callable_branches(&name) else {
                 continue;
             };
             if !visiting_callables.insert(name.clone()) {
@@ -8828,6 +8970,23 @@ pub fn parse_source_module_file_cached(path: &Path) -> Result<Arc<ParsedSourceMo
     let source = read_source_file(path)
         .map_err(|error| format!("cannot read {}: {}", path.display(), error))?;
     parse_source_module_cached(path, &source)
+}
+
+/// The cached module whose statements `statements` is: one the parsed-source
+/// cache or the current elaboration holds. `None` for statements no cache
+/// owns, such as a root program's, and for no statements, which have no
+/// address of their own.
+fn cached_module_with_statements(statements: &[Stmt]) -> Option<Arc<ParsedSourceModule>> {
+    if statements.is_empty() {
+        return None;
+    }
+    let parsed = parsed_source_modules()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .values()
+        .find(|module| std::ptr::eq(module.statements(), statements))
+        .cloned();
+    parsed.or_else(|| constructor_scope::elaborated_module_with_statements(statements))
 }
 
 #[derive(Debug, Clone)]
@@ -50046,6 +50205,14 @@ impl TypeChecker {
             .collect()
     }
 
+    /// Whether a rule family named `name` has been recorded, of any arity.
+    fn has_rule_named(&self, name: &str) -> bool {
+        self.rule_arities
+            .range((name.to_string(), 0)..)
+            .next()
+            .is_some_and(|(rule, _)| rule == name)
+    }
+
     fn record_rule_signature(&mut self, name: &str, head: &Expr) {
         let Some((_, arity)) = Self::rule_head_name_arity(head) else {
             return;
@@ -63658,11 +63825,20 @@ impl TypeChecker {
         let mut declared = BTreeMap::new();
         let source = self.source_text.clone();
         self.collect_declared_families(stmts, &source, &dir, &mut declared, &mut BTreeSet::new());
+        let enclosing = if declared.is_empty() {
+            BTreeMap::new()
+        } else {
+            self.enclosing_return_types()
+        };
+        let context = rule_declarations::RuleResultContext {
+            bases,
+            declared,
+            enclosing,
+        };
         self.check_rule_result_sequence(
             stmts,
             &dir,
-            &bases,
-            &declared,
+            &context,
             &mut BTreeMap::new(),
             &mut BTreeSet::new(),
         );
@@ -63711,8 +63887,7 @@ impl TypeChecker {
         &mut self,
         stmts: &[Stmt],
         dir: &str,
-        bases: &BTreeSet<(String, usize)>,
-        declared: &BTreeMap<(String, usize), rule_declarations::DeclaredFamily>,
+        context: &rule_declarations::RuleResultContext,
         known: &mut BTreeMap<(String, usize), Vec<String>>,
         visited: &mut BTreeSet<PathBuf>,
     ) {
@@ -63721,7 +63896,7 @@ impl TypeChecker {
                 Stmt::Rule(rule) => {
                     if let Rule::Exception { label, head, .. } = rule {
                         if let Some((name, arity)) = Self::rule_name_arity(rule) {
-                            if !bases.contains(&(name.clone(), arity)) {
+                            if !context.bases.contains(&(name.clone(), arity)) {
                                 self.error_at_expr(
                                     head,
                                     format!(
@@ -63735,9 +63910,9 @@ impl TypeChecker {
                     // A declared family's clauses are judged by its
                     // declaration, not against each other.
                     if let Some(family) =
-                        Self::rule_name_arity(rule).and_then(|key| declared.get(&key))
+                        Self::rule_name_arity(rule).and_then(|key| context.declared.get(&key))
                     {
-                        self.check_declared_rule_clause(rule, family);
+                        self.check_declared_rule_clause(rule, family, &context.enclosing);
                         continue;
                     }
                     if let Some(message) = self.rule_result_conflict(rule, known) {
@@ -63774,8 +63949,7 @@ impl TypeChecker {
                     self.check_rule_result_sequence(
                         module.statements(),
                         &imported_dir,
-                        bases,
-                        declared,
+                        context,
                         known,
                         visited,
                     );
@@ -64372,6 +64546,10 @@ impl TypeChecker {
         collect_all_imported_metadata_bindings: bool,
         extract_calculation_contracts: bool,
     ) -> TypeCheckArtifacts {
+        // Metadata is resolved in every imported module more than once
+        // while this program is checked; each module's evaluation base is
+        // built once.
+        let _meta_ground_bases = MetaGroundBaseScope::enter();
         // An imported file that asks a query sees the needs prelude the
         // root would get.
         let with_needs = query::with_needs_prelude_for_imports(stmts, source_dir.as_deref());

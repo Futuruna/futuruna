@@ -654,6 +654,17 @@ pub(super) struct DeclaredFamily {
     line: usize,
 }
 
+/// What the rule result check reads while it walks one statement sequence
+/// and its plain imports.
+pub(super) struct RuleResultContext {
+    /// Families with at least one clause or default.
+    pub(super) bases: BTreeSet<(String, usize)>,
+    pub(super) declared: BTreeMap<(String, usize), DeclaredFamily>,
+    /// The enclosing names a declared clause's result check starts from.
+    /// The walk leaves the scopes unchanged, so they are read once.
+    pub(super) enclosing: BTreeMap<String, String>,
+}
+
 impl TypeChecker {
     fn note_declared(&mut self, scope: Option<&str>, declared: DeclaredRuleResult) {
         self.declared_rule_results.insert(
@@ -834,7 +845,12 @@ impl TypeChecker {
     }
 
     /// Check one clause of a declared family against its declaration.
-    pub(super) fn check_declared_rule_clause(&mut self, rule: &Rule, declared: &DeclaredFamily) {
+    pub(super) fn check_declared_rule_clause(
+        &mut self,
+        rule: &Rule,
+        declared: &DeclaredFamily,
+        enclosing: &BTreeMap<String, String>,
+    ) {
         let (head, value) = match rule {
             Rule::Clause { head, body } => (head, body.as_ref()),
             Rule::Default { head, value, .. } | Rule::Exception { head, value, .. } => {
@@ -874,7 +890,7 @@ impl TypeChecker {
             declared.name, declared.line
         );
         let locals = self.rule_contract_local_types(head);
-        self.check_rule_clause_result(&subject, &declared.result, value, locals);
+        self.check_rule_clause_result(&subject, &declared.result, value, enclosing, locals);
     }
 }
 

@@ -1000,10 +1000,7 @@ impl TypeChecker {
                 !ty.as_ref().is_some_and(Self::ordinary_non_callable_type)
                     || self.user_functions.contains(name)
             }
-            None => {
-                self.function_params.contains_key(name)
-                    && !self.rule_arities.iter().any(|(rule, _)| rule == name)
-            }
+            None => self.function_params.contains_key(name) && !self.has_rule_named(name),
         }
     }
 
