@@ -31796,6 +31796,13 @@ impl CheckedResolvedProgramId {
 pub(crate) struct CheckedAnalysisProgram {
     pub(crate) id: AnalysisProgramId,
     pub(crate) declarations: Arc<[SourcedStmt]>,
+    /// The checked module identity of every file the analysis walk read
+    /// through a plain import, keyed by canonical path. A module whose
+    /// declarations normalization drops, or that declares nothing (one that
+    /// only imports others), still has the snapshot the checker's later
+    /// reread must match; its declarations cannot carry it. Not part of `id`:
+    /// it records what was read, not what the program means.
+    pub(crate) source_snapshots: Arc<BTreeMap<PathBuf, ModuleId>>,
 }
 
 impl CheckedAnalysisProgram {
@@ -51546,6 +51553,7 @@ impl TypeChecker {
         qualified_target_model_modules: &mut BTreeMap<String, ModelModuleId>,
         flattened: &mut Vec<Stmt>,
         analysis_declarations: &mut Vec<PrepassAnalysisDeclaration>,
+        source_snapshots: &mut BTreeMap<PathBuf, ModuleId>,
     ) {
         // The constructor sequence is the program the checker runs (an import
         // scope may have renamed functions in it); the analysis program, and
@@ -51556,6 +51564,11 @@ impl TypeChecker {
             statements
         };
         let module = Self::analysis_module_id(authored_statements);
+        if emit_analysis_sequence {
+            if let Some(path) = canonical_source_path.as_deref() {
+                source_snapshots.insert(path.clone(), module.clone());
+            }
+        }
         let model_module_key = canonical_source_path
             .as_deref()
             .map(|path| path.to_string_lossy().into_owned())
@@ -51615,6 +51628,7 @@ impl TypeChecker {
                     qualified_target_model_modules,
                     flattened,
                     analysis_declarations,
+                    source_snapshots,
                 );
                 continue;
             }
@@ -51795,6 +51809,7 @@ impl TypeChecker {
 
     fn normalize_analysis_program(
         mut declarations: Vec<PrepassAnalysisDeclaration>,
+        source_snapshots: BTreeMap<PathBuf, ModuleId>,
     ) -> CheckedAnalysisProgram {
         // Apply exactly the constructor prepass's existing first-type and
         // last-function/actor rules to root/plain-import declarations. A hash
@@ -51980,12 +51995,14 @@ impl TypeChecker {
         CheckedAnalysisProgram {
             id: AnalysisProgramId(format!("{:x}", hasher.finalize()).into_boxed_str()),
             declarations: declarations.into(),
+            source_snapshots: Arc::new(source_snapshots),
         }
     }
 
     fn build_constructor_prepass(&mut self, statements: &[Stmt]) -> ConstructorPrepass {
         let mut flattened = Vec::new();
         let mut analysis_declarations = Vec::new();
+        let mut source_snapshots = BTreeMap::new();
         let mut constructor_seen = BTreeSet::new();
         let mut checked_seen = BTreeSet::new();
         let mut qualified_target_modules = BTreeMap::new();
@@ -52007,6 +52024,7 @@ impl TypeChecker {
             &mut qualified_target_model_modules,
             &mut flattened,
             &mut analysis_declarations,
+            &mut source_snapshots,
         );
 
         // Mirror `scan_declarations`: ADTs, effects, and traits share a
@@ -52041,7 +52059,10 @@ impl TypeChecker {
             .collect::<Vec<_>>();
 
         let mut prepass = ConstructorPrepass {
-            analysis_program: Self::normalize_analysis_program(analysis_declarations),
+            analysis_program: Self::normalize_analysis_program(
+                analysis_declarations,
+                source_snapshots,
+            ),
             ..ConstructorPrepass::default()
         };
         let mut binding_counts = BTreeMap::<String, usize>::new();
@@ -58696,6 +58717,12 @@ impl TypeChecker {
                     .is_some_and(|path| path.as_path() == canonical.as_path())
             })
             .map(|declaration| declaration.id.module.clone())
+            .chain(
+                self.analysis_program
+                    .source_snapshots
+                    .get(&canonical)
+                    .cloned(),
+            )
             .collect::<BTreeSet<_>>();
         (!expected.is_empty()).then(|| expected.contains(&current_module))
     }
@@ -58704,14 +58731,18 @@ impl TypeChecker {
         let canonical =
             std::fs::canonicalize(file_path).unwrap_or_else(|_| PathBuf::from(file_path));
         self.analysis_program
-            .declarations
-            .iter()
-            .any(|declaration| {
-                declaration
-                    .canonical_source_path
-                    .as_deref()
-                    .is_some_and(|path| path.as_path() == canonical.as_path())
-            })
+            .source_snapshots
+            .contains_key(&canonical)
+            || self
+                .analysis_program
+                .declarations
+                .iter()
+                .any(|declaration| {
+                    declaration
+                        .canonical_source_path
+                        .as_deref()
+                        .is_some_and(|path| path.as_path() == canonical.as_path())
+                })
     }
 
     fn parse_imported_source_for_tc(
@@ -66854,6 +66885,62 @@ __FINDS__
         assert!(resolutions
             .issues_for_reachable_sites(std::iter::empty::<&ExprSiteId>())
             .contains(&CheckedResolutionIssue::SourceSnapshotIncoherent));
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+    /// A module that only imports others (a shared re-export list) has no
+    /// declaration to carry its snapshot; the analysis walk still records
+    /// what it read, so an unchanged reread is coherent and a changed one
+    /// is not.
+    #[test]
+    fn checked_resolution_import_only_module_keeps_its_source_snapshot() {
+        let temp_name = format!(
+            "futuruna_checked_resolution_import_only_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).expect("create import-only directory");
+        std::fs::write(
+            temp_dir.join("base.runa"),
+            "> observed(value: Int) -> Int { value + 1 }\n",
+        )
+        .expect("write base module");
+        let reexport_path = temp_dir.join("reexport.runa");
+        std::fs::write(&reexport_path, "@ import ./base\n").expect("write import-only module");
+        let root = "@ import ./reexport\n";
+        let statements = parse_test_program(root).expect("parse import-only root");
+        let check = |rewrite: Option<&str>| {
+            let mut checker = TypeChecker::new();
+            checker.source_dir = Some(temp_dir.to_string_lossy().to_string());
+            checker.source_text = root.to_string();
+            checker.install_constructor_prepass(&statements);
+            let canonical = std::fs::canonicalize(&reexport_path).expect("canonical reexport");
+            assert!(checker
+                .analysis_program
+                .source_snapshots
+                .contains_key(&canonical));
+            assert!(!checker
+                .analysis_program
+                .declarations
+                .iter()
+                .any(
+                    |declaration| declaration.canonical_source_path.as_deref() == Some(&canonical)
+                ));
+            if let Some(rewrite) = rewrite {
+                std::fs::write(&reexport_path, rewrite).expect("rewrite import-only module");
+            }
+            checker.collect_declarations(&statements);
+            CheckedResolutionRecorder::record(&checker).source_snapshot_coherent
+        };
+        assert!(check(None), "an unchanged import-only module is coherent");
+        assert!(
+            !check(Some("@ import ./base\n> extra() -> Int { 1 }\n")),
+            "an import-only module rewritten after the analysis walk is incoherent"
+        );
         let _ = std::fs::remove_dir_all(temp_dir);
     }
 
