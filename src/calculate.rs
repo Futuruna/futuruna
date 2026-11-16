@@ -1610,13 +1610,8 @@ impl TypeCatalog {
                         }
                     };
                     let matched = module
-                        .statements()
-                        .iter()
-                        .filter(|statement| match statement {
-                            Stmt::Defn(definition) => content_hash_defn(definition) == *hash,
-                            Stmt::TypeDecl(declaration) => content_hash_type(declaration) == *hash,
-                            _ => false,
-                        })
+                        .declarations_with_content_hash(hash)
+                        .into_iter()
                         .cloned()
                         .collect::<Vec<_>>();
                     if matched.len() != 1 {

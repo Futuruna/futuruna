@@ -129,6 +129,26 @@ fn a_rule_scope_field_hides_a_global_function_of_its_name_in_both_modes() {
 }
 
 #[test]
+fn the_interpreter_does_not_fall_back_to_a_global_function_a_rule_scope_field_hides() {
+    use futuruna::{parse_prelude, prepend_prelude, Interpreter, Lexer, Parser};
+    // Unchecked, so the check error above does not stop the program first.
+    let source = "> income() -> Int { 7 }\n# Case(income: Int) {\n    | tax() -> income() * 2\n}\n@ print(show(Case(100).tax()))\n";
+    let statements = Parser::new(Lexer::new(source).tokenize(), source)
+        .parse_program()
+        .expect("parses");
+    let program = prepend_prelude(parse_prelude(), &statements);
+    let outcome = std::panic::catch_unwind(|| {
+        let mut interpreter = Interpreter::unchecked();
+        let mut environment = interpreter.default_env();
+        interpreter.run_program(&program, &mut environment);
+        interpreter.output.join("\n")
+    });
+    if let Ok(output) = outcome {
+        assert_ne!(output, "14", "the call reached the hidden global `income`");
+    }
+}
+
+#[test]
 fn take_and_skip_keep_lists_as_lists_in_both_modes() {
     let source = "= a = [1,2,3,4] |> take(2)\n= c = take([1,2,3], 2)\n= d = skip([1,2,3], 1)\n@ print(show(a))\n@ print(show(c))\n@ print(show(d))\n@ print(show(length(a)))\n";
     for compiled in [false, true] {

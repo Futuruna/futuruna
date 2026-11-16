@@ -259,7 +259,7 @@ fn verify_rejects_conflicting_rule_returns_before_smt() {
     assert!(!output.status.success(), "{stdout}\n{stderr}");
     assert!(
         stderr.contains(
-            "rule `conflicting_result` with arity 1 has conflicting return types `Int` and `Bool`"
+            "return type mismatch: rule `conflicting_result` (declared at line 1) expects `Int` but expression has `Bool`"
         ),
         "{stdout}\n{stderr}"
     );

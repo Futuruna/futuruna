@@ -8611,6 +8611,9 @@ pub fn analyze_top_level_binding_dependencies(stmts: &[Stmt]) -> TopLevelBinding
 pub struct ParsedSourceModule {
     source: Arc<str>,
     statements: Arc<Vec<Stmt>>,
+    /// The statements as the file writes them, when an elaboration rewrote
+    /// `statements` (one for one, in order); `None` when they are the same.
+    authored: Option<Arc<Vec<Stmt>>>,
     content_hash: String,
 }
 
@@ -8623,8 +8626,60 @@ impl ParsedSourceModule {
         self.statements.as_slice()
     }
 
+    /// The statements as the file writes them, before a checked program's
+    /// elaboration renamed anything in them; one for one with
+    /// [`Self::statements`]. A module's identity (content hashes, hash-import
+    /// selection) is its authored content, whatever file imports it.
+    pub fn authored_statements(&self) -> &[Stmt] {
+        self.authored
+            .as_deref()
+            .unwrap_or(&self.statements)
+            .as_slice()
+    }
+
     pub fn content_hash(&self) -> &str {
         &self.content_hash
+    }
+
+    /// The declarations a hash import `#hash` selects, as the checked program
+    /// reads them: selected by the content hash of what the file writes,
+    /// whatever an elaboration renamed in them.
+    pub fn declarations_with_content_hash(&self, hash: &str) -> Vec<&Stmt> {
+        self.statements
+            .iter()
+            .zip(self.authored_statements())
+            .filter(|(_, authored)| declaration_content_hash(authored).as_deref() == Some(hash))
+            .map(|(statement, _)| statement)
+            .collect()
+    }
+}
+
+/// The content hash a hash import selects a declaration by: a function's,
+/// actor's or module's, or a type declaration's; other statements have none.
+fn declaration_content_hash(statement: &Stmt) -> Option<String> {
+    match statement {
+        Stmt::Defn(definition) => Some(content_hash_defn(definition)),
+        Stmt::TypeDecl(declaration) => Some(content_hash_type(declaration)),
+        Stmt::Rule(_)
+        | Stmt::PreludeBoundary
+        | Stmt::Use(_)
+        | Stmt::Import(_)
+        | Stmt::QualifiedImport(_, _)
+        | Stmt::HashImport(_, _)
+        | Stmt::Depend(_, _)
+        | Stmt::RustBlock(_)
+        | Stmt::Annot(_, _)
+        | Stmt::Bind(_, _, _)
+        | Stmt::MonadicBind(_, _, _)
+        | Stmt::For(_, _, _)
+        | Stmt::While(_, _)
+        | Stmt::Send(_, _)
+        | Stmt::StreamBind(_, _)
+        | Stmt::StreamSub(_, _)
+        | Stmt::Invariant { .. }
+        | Stmt::Prove { .. }
+        | Stmt::Explore(_)
+        | Stmt::Expr(_) => None,
     }
 }
 
@@ -8700,6 +8755,7 @@ pub fn parse_source_module_cached(
     let module = Arc::new(ParsedSourceModule {
         source: Arc::from(source),
         statements: Arc::new(statements),
+        authored: None,
         content_hash,
     });
     parsed_source_modules()
@@ -20295,13 +20351,8 @@ impl Interpreter {
             match parse_source_module_file_cached(Path::new(&file_path)) {
                 Ok(module) => {
                     let matching = module
-                        .statements()
-                        .iter()
-                        .filter(|statement| match statement {
-                            Stmt::Defn(definition) => content_hash_defn(definition) == hash,
-                            Stmt::TypeDecl(declaration) => content_hash_type(declaration) == hash,
-                            _ => false,
-                        })
+                        .declarations_with_content_hash(&hash)
+                        .into_iter()
                         .cloned()
                         .collect::<Vec<_>>();
                     if matching.len() == 1 {
@@ -23513,6 +23564,23 @@ impl Interpreter {
             }
             if let Some(result) = self.try_active_rule_scope_call(function_name, arguments, env) {
                 return result;
+            }
+            // A field of the active rule scope is a binder, as a parameter
+            // is: it hides a function or rule of its name outside the scope
+            // (a rule of the scope itself took the call above).
+            if let Some((scope, bindings, _)) = self.active_rule_scope_for_env(env) {
+                if let Some(field) = bindings.get(function_name.as_str()).cloned() {
+                    if matches!(field, Value::Closure { .. }) {
+                        let argument_values = arguments
+                            .iter()
+                            .map(|argument| self.eval(argument, env))
+                            .collect();
+                        return self.apply(field, argument_values, env);
+                    }
+                    return self.panic_or_ground_fail(format!(
+                        "value `{function_name}` is not callable: here `{function_name}` is a field of the rule scope `{scope}`, which hides the function or rule `{function_name}`"
+                    ));
+                }
             }
             let query_builtin = matches!(function_name.as_str(), "findall" | "search")
                 && !env.get(function_name).is_some_and(|value| {
@@ -32732,6 +32800,10 @@ pub struct TypeChecker {
     rule_contract_imports: BTreeMap<(String, String), (String, Arc<ParsedSourceModule>)>,
     rule_contract_import_modules: BTreeMap<String, Arc<ParsedSourceModule>>,
     import_diagnostic_anchor: Option<Span>,
+    /// The root statements as written, when the import scopes rewrote the
+    /// root the checker runs (`Lib.fee` of a renamed function): the analysis
+    /// program's identities are the written content.
+    authored_root: Option<Arc<[Stmt]>>,
     /// original source text (for error positions)
     pub source_text: String,
     /// The `@ meta(...) when` conditions of `source_text`, by the line and
@@ -33848,6 +33920,10 @@ pub struct TypeCheckArtifacts {
     /// caller buffer. Mechanism V1 additionally rejects every external import
     /// until replay can retain a frozen, boundary-preserving module graph.
     pub(crate) runtime_root_statements: Arc<[Stmt]>,
+    /// The root as written, when the import scopes rewrote
+    /// `runtime_root_statements` (`Lib.fee` of a renamed function); the
+    /// checked source module's identity is the written root.
+    runtime_root_authored: Option<Arc<[Stmt]>>,
     runtime_root_program: CheckedResolvedProgramId,
     runtime_root_source_dir: Option<Box<str>>,
     pub(crate) checked_resolutions: CheckedResolutionArtifacts,
@@ -34379,7 +34455,11 @@ impl TypeCheckArtifacts {
             .iter()
             .next()
             .expect("one checked runtime root module");
-        if &TypeChecker::analysis_module_id(&self.runtime_root_statements) != expected_root {
+        let authored_root = self
+            .runtime_root_authored
+            .as_deref()
+            .unwrap_or(&self.runtime_root_statements);
+        if &TypeChecker::analysis_module_id(authored_root) != expected_root {
             return Err(
                 "checked runtime root syntax disagrees with its checked source module".into(),
             );
@@ -49468,6 +49548,7 @@ impl TypeChecker {
             rule_contract_imports: BTreeMap::new(),
             rule_contract_import_modules: BTreeMap::new(),
             import_diagnostic_anchor: None,
+            authored_root: None,
             source_text: String::new(),
             meta_conditions: None,
             error_context: Vec::new(),
@@ -51059,7 +51140,7 @@ impl TypeChecker {
                     .ok()
                     .map(|imported| {
                         Self::collect_model_interface_dependency_closure(
-                            imported.statements(),
+                            imported.authored_statements(),
                             &imported_dir,
                             &canonical_target,
                             visited,
@@ -51269,7 +51350,7 @@ impl TypeChecker {
                     .ok()
                     .map(|imported| {
                         Self::collect_analysis_dependency_closure(
-                            imported.statements(),
+                            imported.authored_statements(),
                             &imported_dir,
                             &canonical_target,
                             visited,
@@ -51413,6 +51494,7 @@ impl TypeChecker {
     fn flatten_constructor_prepass(
         &mut self,
         statements: &[Stmt],
+        authored_statements: &[Stmt],
         dir: &str,
         imported_context: bool,
         import_kind: SourcedImportKind,
@@ -51426,35 +51508,37 @@ impl TypeChecker {
         flattened: &mut Vec<Stmt>,
         analysis_declarations: &mut Vec<PrepassAnalysisDeclaration>,
     ) {
-        let module = Self::analysis_module_id(statements);
+        // The constructor sequence is the program the checker runs (an import
+        // scope may have renamed functions in it); the analysis program, and
+        // every identity in it, is the content the file writes.
+        let authored_statements = if authored_statements.len() == statements.len() {
+            authored_statements
+        } else {
+            statements
+        };
+        let module = Self::analysis_module_id(authored_statements);
         let model_module_key = canonical_source_path
             .as_deref()
             .map(|path| path.to_string_lossy().into_owned())
             .unwrap_or_else(|| "$checked-root".to_string());
-        let model_module = Self::model_interface_module_id(statements, dir, &model_module_key);
+        let model_module =
+            Self::model_interface_module_id(authored_statements, dir, &model_module_key);
         let mut declaration_ordinal = 0usize;
         let mut model_declaration_ordinal = 0usize;
         let prelude_len = Self::leading_rule_dispatch_prelude_indices(statements).len();
-        let (prelude, authored) = statements.split_at(prelude_len);
-        let ordered = prelude
-            .iter()
-            .chain(
-                authored
-                    .iter()
-                    .filter(|statement| matches!(statement, Stmt::Import(_))),
-            )
-            .chain(
-                authored
-                    .iter()
-                    .filter(|statement| !matches!(statement, Stmt::Import(_))),
-            );
-        for statement in ordered {
-            let statement_ordinal = Self::analysis_declaration_signature(statement).map(|_| {
+        let is_import = |index: &usize| matches!(statements[*index], Stmt::Import(_));
+        let ordered = (0..prelude_len)
+            .chain((prelude_len..statements.len()).filter(is_import))
+            .chain((prelude_len..statements.len()).filter(|index| !is_import(index)));
+        for index in ordered {
+            let statement = &statements[index];
+            let authored = &authored_statements[index];
+            let statement_ordinal = Self::analysis_declaration_signature(authored).map(|_| {
                 let ordinal = declaration_ordinal;
                 declaration_ordinal += 1;
                 ordinal
             });
-            let statement_model_ordinal = Self::model_namespace_declaration_signature(statement)
+            let statement_model_ordinal = Self::model_namespace_declaration_signature(authored)
                 .map(|_| {
                     let ordinal = model_declaration_ordinal;
                     model_declaration_ordinal += 1;
@@ -51479,6 +51563,7 @@ impl TypeChecker {
                 };
                 self.flatten_constructor_prepass(
                     imported.statements(),
+                    imported.authored_statements(),
                     &imported_dir,
                     true,
                     SourcedImportKind::PlainImport,
@@ -51509,7 +51594,7 @@ impl TypeChecker {
                             parse_source_module_file_cached(Path::new(&canonical))
                         {
                             let target = Self::analysis_qualified_target_module_id(
-                                imported.statements(),
+                                imported.authored_statements(),
                                 &imported_dir,
                                 &canonical,
                             );
@@ -51522,7 +51607,7 @@ impl TypeChecker {
                             parse_source_module_file_cached(Path::new(&canonical))
                         {
                             let target = Self::model_interface_module_id(
-                                imported.statements(),
+                                imported.authored_statements(),
                                 &imported_dir,
                                 &canonical,
                             );
@@ -51562,9 +51647,9 @@ impl TypeChecker {
                                 parse_source_module_file_cached(Path::new(&canonical))
                             {
                                 let imported_module =
-                                    Self::analysis_module_id(imported.statements());
+                                    Self::analysis_module_id(imported.authored_statements());
                                 let imported_model_module = Self::model_interface_module_id(
-                                    imported.statements(),
+                                    imported.authored_statements(),
                                     &imported_dir,
                                     &canonical,
                                 );
@@ -51572,7 +51657,7 @@ impl TypeChecker {
                                 let mut imported_ordinal = 0usize;
                                 let mut imported_model_ordinal = 0usize;
                                 let mut matching = Vec::new();
-                                for candidate in imported.statements() {
+                                for candidate in imported.authored_statements() {
                                     let Some(_) = Self::analysis_declaration_signature(candidate)
                                     else {
                                         continue;
@@ -51647,7 +51732,7 @@ impl TypeChecker {
                 if let Some(statement_ordinal) = statement_ordinal {
                     Self::push_analysis_declaration(
                         analysis_declarations,
-                        statement,
+                        authored,
                         &module,
                         statement_ordinal,
                         statement_model_ordinal.map(|_| &model_module),
@@ -51867,8 +51952,10 @@ impl TypeChecker {
         let mut qualified_target_modules = BTreeMap::new();
         let mut qualified_target_model_modules = BTreeMap::new();
         let root_dir = self.source_dir.clone().unwrap_or_else(|| ".".to_string());
+        let authored_root = self.authored_root.clone();
         self.flatten_constructor_prepass(
             statements,
+            authored_root.as_deref().unwrap_or(statements),
             &root_dir,
             false,
             SourcedImportKind::Root,
@@ -58556,7 +58643,7 @@ impl TypeChecker {
     ) -> Option<bool> {
         let canonical =
             std::fs::canonicalize(file_path).unwrap_or_else(|_| PathBuf::from(file_path));
-        let current_module = Self::analysis_module_id(module.statements());
+        let current_module = Self::analysis_module_id(module.authored_statements());
         let expected = self
             .analysis_program
             .declarations
@@ -59615,32 +59702,8 @@ impl TypeChecker {
                                     self.parse_imported_source_for_tc(path, &file_path, true)
                                 {
                                     let matched: Vec<Stmt> = import_stmts
-                                        .statements()
-                                        .iter()
-                                        .filter(|s| match s {
-                                            Stmt::Defn(d) => content_hash_defn(d) == *hash,
-                                            Stmt::TypeDecl(td) => content_hash_type(td) == *hash,
-                                            Stmt::Rule(_)
-                                            | Stmt::PreludeBoundary
-                                            | Stmt::Use(_)
-                                            | Stmt::Import(_)
-                                            | Stmt::QualifiedImport(_, _)
-                                            | Stmt::HashImport(_, _)
-                                            | Stmt::Depend(_, _)
-                                            | Stmt::RustBlock(_)
-                                            | Stmt::Annot(_, _)
-                                            | Stmt::Bind(_, _, _)
-                                            | Stmt::MonadicBind(_, _, _)
-                                            | Stmt::For(_, _, _)
-                                            | Stmt::While(_, _)
-                                            | Stmt::Send(_, _)
-                                            | Stmt::StreamBind(_, _)
-                                            | Stmt::StreamSub(_, _)
-                                            | Stmt::Invariant { .. }
-                                            | Stmt::Prove { .. }
-                                            | Stmt::Explore(_)
-                                            | Stmt::Expr(_) => false,
-                                        })
+                                        .declarations_with_content_hash(hash)
+                                        .into_iter()
                                         .cloned()
                                         .collect();
                                     if matched.len() != 1 {
@@ -64282,10 +64345,12 @@ impl TypeChecker {
         let mut import_scopes = import_scope::ImportScopes::resolve(stmts, source_dir.as_deref());
         import_scopes.install();
         let scoped_root = import_scopes.take_root();
+        let authored_root = scoped_root.as_ref().map(|_| Arc::<[Stmt]>::from(stmts));
         let stmts = scoped_root.as_deref().unwrap_or(stmts);
         let mut tc = TypeChecker::new();
         tc.source_dir = source_dir;
         tc.source_text = source.to_string();
+        tc.authored_root = authored_root;
         tc.install_constructor_prepass(stmts);
         tc.collect_declarations(stmts);
         tc.report_import_scope_errors(&import_scopes);
@@ -64446,6 +64511,7 @@ impl TypeChecker {
             analysis_program: tc.analysis_program,
             resolved_program: tc.resolved_program,
             runtime_root_statements,
+            runtime_root_authored: tc.authored_root,
             runtime_root_program,
             runtime_root_source_dir,
             checked_resolutions,

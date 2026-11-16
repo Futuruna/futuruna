@@ -186,7 +186,8 @@ fn guarded_call_permissions_are_bound_to_the_checked_candidate_and_arguments() {
         ("partial(input).value", "input.year < 2026", false),
         ("partial(input).value", "input.year + 1 >= 2026", false),
     ] {
-        let source = format!("{prefix}| exception reform result(input, other) -> {body} under {guard}\n");
+        let source =
+            format!("{prefix}| exception reform result(input, other) -> {body} under {guard}\n");
         let statements = Parser::new(Lexer::new(&source).tokenize(), &source)
             .parse_program()
             .unwrap();
