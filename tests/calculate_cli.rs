@@ -2799,6 +2799,148 @@ fn xlsx_long_choice_sets_use_hidden_validation_ranges() {
 }
 
 #[test]
+fn xlsx_qualifies_labels_that_columns_of_one_sheet_share() {
+    let source_path = temp_path("runa");
+    let json_path = temp_path("json");
+    let xlsx_path = temp_path("xlsx");
+    let converted_path = temp_path("json");
+    // `Usage` carries its labels to every path that holds it.
+    std::fs::write(
+        &source_path,
+        "# Usage(@ field(label = \"Business use\") business: Int, @ field(label = \"Total use\") total: Int)\n\
+# Asset(@ field(label = \"Asset\") name: String, first: Usage, second: Usage)\n\
+# Input(@ field(label = \"Business use\") business: Int, @ field(label = \"Year\") year: Int, own: Usage, spouse: Usage, assets: List(Asset))\n\
+# Result(value: Int)\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = input.year)\n",
+    )
+    .expect("write shared-label calculation");
+    let model = source_path.to_str().expect("source path");
+
+    let template = run(&[
+        "template",
+        model,
+        "--format",
+        "json",
+        "--output",
+        json_path.to_str().expect("JSON path"),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+    let mut envelope: Value =
+        serde_json::from_slice(&std::fs::read(&json_path).expect("JSON template"))
+            .expect("template JSON");
+    let input = serde_json::json!({
+        "business": 1,
+        "year": 2025,
+        "own": {"business": 2, "total": 3},
+        "spouse": {"business": 4, "total": 5},
+        "assets": [{
+            "name": "Van",
+            "first": {"business": 6, "total": 7},
+            "second": {"business": 8, "total": 9}
+        }]
+    });
+    envelope["cases"][0]["input"] = input.clone();
+    mark_fixture_cases_ready(&mut envelope);
+    std::fs::write(
+        &json_path,
+        serde_json::to_vec_pretty(&envelope).expect("encode input"),
+    )
+    .expect("write input");
+    let workbook = run(&[
+        "template",
+        model,
+        "--input",
+        json_path.to_str().expect("JSON path"),
+        "--format",
+        "xlsx",
+        "--output",
+        xlsx_path.to_str().expect("XLSX path"),
+    ]);
+    assert!(
+        workbook.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&workbook.stderr)
+    );
+
+    {
+        let mut workbook = open_uncached_workbook(&xlsx_path).expect("open workbook");
+        // The root `business` has no ancestor to tell it apart; the columns
+        // sharing its label carry theirs.
+        assert_eq!(
+            workbook_headers(&mut workbook, "cases"),
+            [
+                "case_id",
+                "input_status",
+                "Business use",
+                "Year",
+                "Own / Business use",
+                "Own / Total use",
+                "Spouse / Business use",
+                "Spouse / Total use",
+            ]
+        );
+        assert_eq!(
+            workbook_headers(&mut workbook, "assets"),
+            [
+                "case_id",
+                "item_id",
+                "position",
+                "Asset",
+                "First / Business use",
+                "First / Total use",
+                "Second / Business use",
+                "Second / Total use",
+            ]
+        );
+    }
+
+    let convert = |expected: &Value| {
+        let converted = run(&[
+            "template",
+            model,
+            "--input",
+            xlsx_path.to_str().expect("XLSX path"),
+            "--format",
+            "json",
+            "--output",
+            converted_path.to_str().expect("converted path"),
+        ]);
+        assert!(
+            converted.status.success(),
+            "stderr:\n{}",
+            String::from_utf8_lossy(&converted.stderr)
+        );
+        let converted: Value =
+            serde_json::from_slice(&std::fs::read(&converted_path).expect("converted JSON"))
+                .expect("converted envelope");
+        assert_eq!(&converted["cases"][0]["input"], expected);
+    };
+    convert(&input);
+
+    // A workbook written before shared labels were qualified still reads.
+    edit_workbook(&xlsx_path, |sheets| {
+        for (sheet, columns) in [("cases", 4..8), ("assets", 4..8)] {
+            let header = &mut workbook_sheet_mut(sheets, sheet)[1];
+            for column in columns {
+                let label = header[column].to_string();
+                let (_, label) = label.split_once(" / ").expect("qualified header");
+                header[column] = Data::String(label.to_string());
+            }
+        }
+    });
+    convert(&input);
+
+    for path in [source_path, json_path, xlsx_path, converted_path] {
+        std::fs::remove_file(path).ok();
+    }
+}
+
+#[test]
 fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("examples/danish-income-tax/personskat.calculate.runa");
@@ -2841,114 +2983,114 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         assert_eq!(calculation_label.as_deref(), Some("Dansk personskat"));
         let case_headers = workbook_headers(&mut workbook, "cases");
         for expected in [
-            "Skatteår",
+            "Lønmodtager / Skatteår",
             "Skattekommune for indkomståret",
-            "Årlig almindelig løn før AM og skat",
-            "Etablerings- eller iværksætterkonto",
-            "Faktisk indskud på etableringskonto",
-            "Faktisk indskud på iværksætterkonto",
+            "Lønmodtager / Årlig almindelig løn før AM og skat",
+            "Lønmodtager / Etablerings- eller iværksætterkonto",
+            "Lønmodtager / Faktisk indskud på etableringskonto",
+            "Lønmodtager / Faktisk indskud på iværksætterkonto",
             "Ægtefælleforhold",
             "Samlevende med ægtefællen ved årets udløb",
-            "Årlig almindelig løn før AM og skat",
-            "Personens fradragsberettigede renteudgifter",
-            "Valg af sømandsfradrag",
-            "Valg af fiskerfradrag",
-            "Dødsboets skattegrundlag efter § 30",
-            "Dødsboets behandlingsform",
-            "Bobeskatningsindkomst",
-            "Dødsdato (ISO 8601) - år",
-            "Dødsdato (ISO 8601) - måned",
-            "Dødsdato (ISO 8601) - dag",
-            "Boopgørelsens type",
-            "Boopgørelsens skæringsdag (ISO 8601) - år",
-            "Boopgørelsens skæringsdag (ISO 8601) - måned",
-            "Boopgørelsens skæringsdag (ISO 8601) - dag",
-            "Afdødes indkomstårsforhold",
-            "Bagudforskudt dødsårs startdato - år",
-            "Bagudforskudt dødsårs startdato - måned",
-            "Bagudforskudt dødsårs startdato - dag",
-            "Fremadforskudt dødsårs startdato - år",
-            "Fremadforskudt dødsårs startdato - måned",
-            "Fremadforskudt dødsårs startdato - dag",
-            "Tidligere afdød ægtefælle efter § 62",
-            "Førstafdøde ægtefælles dødsdato - år",
-            "Førstafdøde ægtefælles dødsdato - måned",
-            "Førstafdøde ægtefælles dødsdato - dag",
-            "Førstafdødes særbo efter § 67, stk. 7",
-            "Anvendt ekstra progressionsgrænse i førstafdødes særbo",
-            "Dokumentation for førstafdødes særboskat",
-            "Aktieindkomst i dødsboet",
-            "Opgjort aktieindkomst i bobeskatningsperioden",
-            "Dokumentation for boets aktieindkomst",
-            "Skattehistorik til carry back efter § 31",
-            "Længstlevende ægtefælle i § 31-historikken",
-            "Længstlevende ægtefælles identifikation",
-            "Fordeling mellem fællesbo og særbo",
-            "Fællesboets bobeskatningsindkomst",
-            "Fællesboets aktieindkomst",
-            "Dokumentation for fællesboets indkomster",
-            "Særboets bobeskatningsindkomst",
-            "Særboets aktieindkomst",
-            "Dokumentation for særboets indkomster",
-            "Kulbrinteskattegrundlag efter § 21, stk. 2",
-            "Personstatus efter kulbrinteskattelovens § 21, stk. 2",
-            "Arbejdsgiverens hjemting efter kulbrinteskatteloven",
-            "Indkomstkategori efter kulbrinteskatteloven",
-            "Dansk beskatningsret til kulbrinteindkomsten",
-            "Beskatningsvalg for kulbrinteindkomsten",
-            "Alder ved indkomstårets udløb for kulbrinteindkomsten",
-            "Status for øvrige lønmodtagerudgifter",
-            "Personens rolle ved rejserne",
-            "Fradrag for dobbelt husførelse",
-            "Skatteyderens status for faglige kontingenter",
-            "Skattepligtsposition for A-kasse og lignende bidrag",
-            "Fødselsår",
-            "Fødselsmåned",
-            "Fødselsdag i måneden",
-            "Selvstændigt overskud før VSL § 22 b",
-            "Renteudgifter i virksomhedsoverskuddet",
-            "Kurstab i virksomhedsoverskuddet",
-            "Renteindtægter i virksomhedsoverskuddet",
-            "Udbytteindtægter i virksomhedsoverskuddet",
-            "Kursgevinster i virksomhedsoverskuddet",
-            "Udelukkede afståelsesindkomster",
+            "Ægtefælle / Årlig almindelig løn før AM og skat",
+            "Ægtefælle / Personens fradragsberettigede renteudgifter",
+            "Lønmodtager / Valg af sømandsfradrag",
+            "Lønmodtager / Valg af fiskerfradrag",
+            "Lønmodtager / Dødsboets skattegrundlag efter § 30",
+            "Lønmodtager / Dødsboets behandlingsform",
+            "Lønmodtager / Bobeskatningsindkomst",
+            "Lønmodtager / Dødsdato (ISO 8601) - år",
+            "Lønmodtager / Dødsdato (ISO 8601) - måned",
+            "Lønmodtager / Dødsdato (ISO 8601) - dag",
+            "Lønmodtager / Boopgørelsens type",
+            "Lønmodtager / Boopgørelsens skæringsdag (ISO 8601) - år",
+            "Lønmodtager / Boopgørelsens skæringsdag (ISO 8601) - måned",
+            "Lønmodtager / Boopgørelsens skæringsdag (ISO 8601) - dag",
+            "Lønmodtager / Afdødes indkomstårsforhold",
+            "Lønmodtager / Bagudforskudt dødsårs startdato - år",
+            "Lønmodtager / Bagudforskudt dødsårs startdato - måned",
+            "Lønmodtager / Bagudforskudt dødsårs startdato - dag",
+            "Lønmodtager / Fremadforskudt dødsårs startdato - år",
+            "Lønmodtager / Fremadforskudt dødsårs startdato - måned",
+            "Lønmodtager / Fremadforskudt dødsårs startdato - dag",
+            "Lønmodtager / Tidligere afdød ægtefælle efter § 62",
+            "Lønmodtager / Førstafdøde ægtefælles dødsdato - år",
+            "Lønmodtager / Førstafdøde ægtefælles dødsdato - måned",
+            "Lønmodtager / Førstafdøde ægtefælles dødsdato - dag",
+            "Lønmodtager / Førstafdødes særbo efter § 67, stk. 7",
+            "Lønmodtager / Anvendt ekstra progressionsgrænse i førstafdødes særbo",
+            "Lønmodtager / Dokumentation for førstafdødes særboskat",
+            "Lønmodtager / Aktieindkomst i dødsboet",
+            "Lønmodtager / Opgjort aktieindkomst i bobeskatningsperioden",
+            "Lønmodtager / Dokumentation for boets aktieindkomst",
+            "Lønmodtager / Skattehistorik til carry back efter § 31",
+            "Lønmodtager / Længstlevende ægtefælle i § 31-historikken",
+            "Lønmodtager / Længstlevende ægtefælles identifikation",
+            "Lønmodtager / Fordeling mellem fællesbo og særbo",
+            "Lønmodtager / Fællesboets bobeskatningsindkomst",
+            "Lønmodtager / Fællesboets aktieindkomst",
+            "Lønmodtager / Dokumentation for fællesboets indkomster",
+            "Lønmodtager / Særboets bobeskatningsindkomst",
+            "Lønmodtager / Særboets aktieindkomst",
+            "Lønmodtager / Dokumentation for særboets indkomster",
+            "Lønmodtager / Kulbrinteskattegrundlag efter § 21, stk. 2",
+            "Lønmodtager / Personstatus efter kulbrinteskattelovens § 21, stk. 2",
+            "Lønmodtager / Arbejdsgiverens hjemting efter kulbrinteskatteloven",
+            "Lønmodtager / Indkomstkategori efter kulbrinteskatteloven",
+            "Lønmodtager / Dansk beskatningsret til kulbrinteindkomsten",
+            "Lønmodtager / Beskatningsvalg for kulbrinteindkomsten",
+            "Lønmodtager / Alder ved indkomstårets udløb for kulbrinteindkomsten",
+            "Lønmodtager / Status for øvrige lønmodtagerudgifter",
+            "Lønmodtager / Personens rolle ved rejserne",
+            "Lønmodtager / Fradrag for dobbelt husførelse",
+            "Lønmodtager / Skatteyderens status for faglige kontingenter",
+            "Lønmodtager / Skattepligtsposition for A-kasse og lignende bidrag",
+            "Lønmodtager / Fødselsår",
+            "Lønmodtager / Fødselsmåned",
+            "Lønmodtager / Fødselsdag i måneden",
+            "Lønmodtager / Selvstændigt overskud før VSL § 22 b",
+            "Lønmodtager / Renteudgifter i virksomhedsoverskuddet",
+            "Lønmodtager / Kurstab i virksomhedsoverskuddet",
+            "Lønmodtager / Renteindtægter i virksomhedsoverskuddet",
+            "Lønmodtager / Udbytteindtægter i virksomhedsoverskuddet",
+            "Lønmodtager / Kursgevinster i virksomhedsoverskuddet",
+            "Lønmodtager / Udelukkede afståelsesindkomster",
             "Valg af årsfradrag for livrenter",
-            "Ønsket opfyldningsfradrag for livrenter",
+            "Lønmodtager / Ønsket opfyldningsfradrag for livrenter",
             "§ 15 A-fradrag i aktieindkomst",
             "Ønsket pensionsfradrag i aktieindkomst",
             "Dato for meddelelse om aktieindkomstfradrag",
             "Dato for omgørelse af aktieindkomstfradrag",
             "Aldersstatus for personfradrag",
-            "Personens kirkeskat for indkomståret",
-            "Personens renteindtægter før modregning",
-            "Personens fradragsberettigede renteudgifter",
-            "Driftsresultat fra bolig eller fritidsejendom",
-            "Ejendomstype for driftsresultatet",
-            "Ejendommens beliggenhed",
-            "Erhvervsmæssig udlejning",
-            "Særlige ejerboligbetingelser opfyldt",
-            "Årets overskud eller underskud fra ejendommen",
+            "Lønmodtager / Personens kirkeskat for indkomståret",
+            "Kapitalindkomst / Personens renteindtægter før modregning",
+            "Kapitalindkomst / Personens fradragsberettigede renteudgifter",
+            "Kapitalindkomst / Driftsresultat fra bolig eller fritidsejendom",
+            "Kapitalindkomst / Ejendomstype for driftsresultatet",
+            "Kapitalindkomst / Ejendommens beliggenhed",
+            "Kapitalindkomst / Erhvervsmæssig udlejning",
+            "Kapitalindkomst / Særlige ejerboligbetingelser opfyldt",
+            "Kapitalindkomst / Årets overskud eller underskud fra ejendommen",
             "Kursgevinster og kurstab",
             "Udlejning eller fremleje af helårsbolig",
             "Fradragsmetode for udlejningen",
-            "Samlet lejeindtægt før fradrag",
+            "Kapitalindkomst / Samlet lejeindtægt før fradrag",
             "Samordning med langtidsudlejning",
             "Personen, som beregningen vedrører",
             "Din ægtefælles identifikation",
-            "Ejendomsejerens folkepensionsalder",
-            "Samlevende ægtefælles folkepensionsalder",
-            "Skattemæssigt hjemsted for pensionistnedslag",
+            "Ejendomsskatter / Ejendomsejerens folkepensionsalder",
+            "Ejendomsskatter / Samlevende ægtefælles folkepensionsalder",
+            "Ejendomsskatter / Skattemæssigt hjemsted for pensionistnedslag",
             "Årsopgørelse",
-            "Ordinært aktieår",
-            "Fremført tab på markedsaktier",
+            "Aktieavance / Ordinært aktieår",
+            "Aktieavance / Fremført tab på markedsaktier",
             "Fremført underskud efter § 13",
             "Årsopgørelsens reference for underskuddet",
-            "Skatteforvaltningens afgørelsesreference",
-            "Anden myndigheds afgørelsesreference",
+            "Underskudsforhold / Skatteforvaltningens afgørelsesreference",
+            "Underskudsforhold / Anden myndigheds afgørelsesreference",
             "Hovedpersonens fremførte negative aktieskat",
             "Ægtefællens fremførte negative aktieskat",
-            "Indkomstår for udenlandsk skattenedslag",
-            "Nedslag for arbejde i udlandet efter § 33 A",
+            "Hovedperson / Indkomstår for udenlandsk skattenedslag",
+            "Ligningslov33a hovedperson / Nedslag for arbejde i udlandet efter § 33 A",
         ] {
             assert!(
                 case_headers.iter().any(|header| header == expected),
@@ -4229,10 +4371,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Modtaget udlodning",
             "Udbyttets grundlag efter ABL § 13 A",
             "Udbytteaktiens markedsstatus",
-            "Indkomstår for ABL-klassifikationen",
-            "Aktivets ABL-kategori",
-            "Næring med køb og salg af aktier",
-            "Investeringsaktivets klassifikationsgrundlag",
+            "Abl Par13AUdbytte For Markedsaktie Efter Par12 / Indkomstår for ABL-klassifikationen",
+            "Abl Par13AUdbytte For Markedsaktie Efter Par12 / Aktivets ABL-kategori",
+            "Abl Par13AUdbytte For Markedsaktie Efter Par12 / Næring med køb og salg af aktier",
+            "Abl Par13AUdbytte For Markedsaktie Efter Par12 / Investeringsaktivets klassifikationsgrundlag",
             "§ 44-aktie bag udbyttet",
         ] {
             assert!(
@@ -5757,11 +5899,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Fordrings- eller finansieringsnæring",
             "Hvordan fordringen blev erhvervet",
             "Dobbeltbeskatningsoverenskomst",
-            "Fordringer, som skal opgøres samlet",
-            "Fordringens fondskode",
-            "Mængdeenhed for fondskoden",
-            "Udsteder for fordringer med samme vilkår",
-            "Fælles vilkårsidentifikation",
+            "Fordringsgruppe / Fordringer, som skal opgøres samlet",
+            "Fordringsgruppe / Fordringens fondskode",
+            "Fordringsgruppe / Mængdeenhed for fondskoden",
+            "Fordringsgruppe / Udsteder for fordringer med samme vilkår",
+            "Fordringsgruppe / Fælles vilkårsidentifikation",
             "Fordringens position ved årets begyndelse",
             "Indkomstår for de videreførte trancher",
             "Skattemæssig værdi ved årets begyndelse",
@@ -5811,8 +5953,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Fordringens anskaffelsessum",
             "Fordringens afståelsessum",
             "Fordringens værdi ved årets udgang",
-            "År for hændelsen eller trancheanskaffelsen",
-            "Hændelsens rækkefølge på dagen",
+            "Kgl Årsnetto Mængdeanskaffelse / År for hændelsen eller trancheanskaffelsen",
+            "Kgl Årsnetto Mængdeanskaffelse / Hændelsens rækkefølge på dagen",
             "Anskaffelsestranchens identifikation",
             "Anskaffet mængde",
             "Anskaffelsestranchens anskaffelsessum",
@@ -6043,7 +6185,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         assert!(
             case_headers
                 .iter()
-                .any(|header| header == "Fordeling af kontrakttab på aktiegevinster"),
+                .any(|header| header
+                    == "Kapitalindkomst / Fordeling af kontrakttab på aktiegevinster"),
             "missing human KGL §32 allocation label"
         );
         let kgl_par32_allocation_sources_path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.aktuelt_år.valg.aktiemodregningsfordeling.KglPar32FordelEfterKilder.kilder";
@@ -6245,13 +6388,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         for expected in [
             "Det særlige aktivs identifikation",
             "Det særlige aktivs retsgrundlag",
-            "§ 17-kildens indkomstår",
-            "Skattepligtsgrundlag efter ABL §§ 6-7",
-            "Næring ved køb og salg af aktier",
-            "Instrument prøvet efter ABL § 17",
-            "Aktivet erhvervet som led i næring",
-            "§ 17-aktivets afståelsessum",
-            "§ 17-aktivets anskaffelsessum",
+            "Personskat Aktieaktiv Efter Par17 / § 17-kildens indkomstår",
+            "Personskat Aktieaktiv Efter Par17 / Skattepligtsgrundlag efter ABL §§ 6-7",
+            "Personskat Aktieaktiv Efter Par17 / Næring ved køb og salg af aktier",
+            "Personskat Aktieaktiv Efter Par17 / Instrument prøvet efter ABL § 17",
+            "Personskat Aktieaktiv Efter Par17 / Aktivet erhvervet som led i næring",
+            "Personskat Aktieaktiv Efter Par17 / § 17-aktivets afståelsessum",
+            "Personskat Aktieaktiv Efter Par17 / § 17-aktivets anskaffelsessum",
             "§ 17-modprøve for investeringsaktiv",
             "Det øvrige aktivs ABL-kategori",
             "Det særlige aktivs investeringsklassifikation",

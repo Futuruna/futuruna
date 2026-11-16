@@ -3101,16 +3101,15 @@ fn write_calculation_xlsx_cases(
         rust_xlsxwriter::DataValidation::new().allow_list_strings(&["draft", "ready"])?;
     worksheet.add_data_validation(2, 1, 1000, 1, &readiness_validation)?;
     add_calculation_xlsx_entry_note(worksheet, contract)?;
-    for (index, column) in columns.iter().enumerate() {
+    let column_headers = calculation_xlsx_column_headers(columns);
+    for (index, (column, column_header)) in columns.iter().zip(&column_headers).enumerate() {
         let excel_column = index as u16 + 2;
-        worksheet.write_string_with_format(
-            1,
-            excel_column,
-            calculation_xlsx_column_header(column),
-            &header,
-        )?;
+        worksheet.write_string_with_format(1, excel_column, column_header, &header)?;
         add_calculation_xlsx_column_note(worksheet, excel_column, column)?;
-        worksheet.set_column_width(excel_column, calculation_column_width(column))?;
+        worksheet.set_column_width(
+            excel_column,
+            calculation_column_width(column, column_header),
+        )?;
         add_calculation_xlsx_column_validation(worksheet, excel_column, column, validation_ranges)?;
     }
     worksheet.set_column_width(0, 18)?;
@@ -3170,6 +3169,7 @@ fn add_calculation_xlsx_column_validation(
 
 fn calculation_xlsx_collection_headers(
     table: &calculate::CalculationCollectionTable,
+    column_headers: Vec<String>,
 ) -> Vec<String> {
     let mut headers = vec!["case_id".to_string()];
     if table.parent_path.is_some() {
@@ -3181,12 +3181,7 @@ fn calculation_xlsx_collection_headers(
         calculate::CalculationCollectionKind::Map => headers.push("key".to_string()),
         calculate::CalculationCollectionKind::Set => {}
     }
-    headers.extend(
-        table
-            .columns
-            .iter()
-            .map(|column| calculation_xlsx_column_header(column).to_string()),
-    );
+    headers.extend(column_headers);
     headers
 }
 
@@ -3200,7 +3195,8 @@ fn write_calculation_xlsx_collection_sheet(
     let header = calculation_header_format();
     let text_format = rust_xlsxwriter::Format::new().set_num_format("@");
     let worksheet = workbook.add_worksheet().set_name(&table.sheet)?;
-    let headers = calculation_xlsx_collection_headers(table);
+    let headers =
+        calculation_xlsx_collection_headers(table, calculation_xlsx_column_headers(&table.columns));
     write_calculation_xlsx_title(
         worksheet,
         &calculation_xlsx_collection_title(contract, table),
@@ -3231,10 +3227,18 @@ fn write_calculation_xlsx_collection_sheet(
         }
         calculate::CalculationCollectionKind::Set => {}
     }
-    for (index, column) in table.columns.iter().enumerate() {
+    for (index, (column, column_header)) in table
+        .columns
+        .iter()
+        .zip(&headers[payload_start as usize..])
+        .enumerate()
+    {
         let excel_column = payload_start + index as u16;
         add_calculation_xlsx_column_note(worksheet, excel_column, column)?;
-        worksheet.set_column_width(excel_column, calculation_column_width(column))?;
+        worksheet.set_column_width(
+            excel_column,
+            calculation_column_width(column, column_header),
+        )?;
         add_calculation_xlsx_column_validation(worksheet, excel_column, column, validation_ranges)?;
     }
     worksheet.set_freeze_panes(2, payload_start)?;
@@ -3454,7 +3458,7 @@ fn append_calculation_xlsx_collection_item(
     Ok(())
 }
 
-fn calculation_column_width(column: &calculate::CalculationColumn) -> f64 {
+fn calculation_column_width(column: &calculate::CalculationColumn, header: &str) -> f64 {
     let content_width: f64 = match column.encoding {
         calculate::CalculationColumnEncoding::Integer => 18.0,
         calculate::CalculationColumnEncoding::Float => 16.0,
@@ -3465,7 +3469,7 @@ fn calculation_column_width(column: &calculate::CalculationColumn) -> f64 {
         calculate::CalculationColumnEncoding::Json => 48.0,
         calculate::CalculationColumnEncoding::String => 28.0,
     };
-    let header_width = calculation_xlsx_column_header(column).chars().count() as f64 + 2.0;
+    let header_width = header.chars().count() as f64 + 2.0;
     let choice_width = column
         .choices
         .iter()
@@ -3474,14 +3478,107 @@ fn calculation_column_width(column: &calculate::CalculationColumn) -> f64 {
     content_width.max(header_width).max(choice_width).min(48.0)
 }
 
-fn calculation_xlsx_column_header(
-    column: &calculate::CalculationColumn,
-) -> std::borrow::Cow<'_, str> {
-    if let Some(metadata) = &column.metadata {
-        std::borrow::Cow::Borrowed(metadata.label.as_str())
-    } else {
-        std::borrow::Cow::Owned(calculation_humanize_input_path(&column.path))
+/// Each column's label, or its humanized path when it has none. Workbooks
+/// written before colliding labels were qualified head their columns so.
+fn calculation_xlsx_column_labels(columns: &[calculate::CalculationColumn]) -> Vec<String> {
+    columns
+        .iter()
+        .map(|column| match &column.metadata {
+            Some(metadata) => metadata.label.clone(),
+            None => calculation_humanize_input_path(&column.path),
+        })
+        .collect()
+}
+
+/// The headers of one sheet's input columns. A column is headed by its
+/// label. Columns of the sheet that share a label are each qualified by the
+/// ancestors where its path parts from the others' (`Ægtefælle / Skatteår`),
+/// and a column those ancestors still do not tell apart by its machine path.
+/// A label no other column carries stays as it is. Workbooks map columns by
+/// position, so the headers only need to match the ones written.
+fn calculation_xlsx_column_headers(columns: &[calculate::CalculationColumn]) -> Vec<String> {
+    let labels = calculation_xlsx_column_labels(columns);
+    let mut headers = labels.clone();
+    // 0: the label; 1: qualified by ancestors; 2: qualified by the path.
+    let mut levels = vec![0_u8; columns.len()];
+    loop {
+        let mut by_header: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
+        for (index, header) in headers.iter().enumerate() {
+            by_header.entry(header).or_default().push(index);
+        }
+        let collisions: Vec<Vec<usize>> = by_header
+            .into_values()
+            .filter(|indices| indices.len() > 1)
+            .collect();
+        let mut changed = false;
+        for collision in collisions {
+            let qualified: Vec<usize> = collision
+                .iter()
+                .copied()
+                .filter(|&index| levels[index] == 1)
+                .collect();
+            if !qualified.is_empty() {
+                for index in qualified {
+                    levels[index] = 2;
+                    headers[index] = format!("{} ({})", labels[index], columns[index].path);
+                }
+                changed = true;
+                continue;
+            }
+            let unqualified: Vec<usize> = collision
+                .into_iter()
+                .filter(|&index| levels[index] == 0)
+                .collect();
+            if unqualified.is_empty() {
+                continue;
+            }
+            changed = true;
+            let ancestors: Vec<Vec<String>> = unqualified
+                .iter()
+                .map(|&index| calculation_xlsx_column_ancestors(&columns[index]))
+                .collect();
+            for (position, &index) in unqualified.iter().enumerate() {
+                let own = &ancestors[position];
+                // The depth, from the sheet's root, where this column's
+                // ancestors part from each other column's.
+                let partings: BTreeSet<usize> = ancestors
+                    .iter()
+                    .enumerate()
+                    .filter(|(other_position, _)| *other_position != position)
+                    .map(|(_, other)| {
+                        own.iter()
+                            .zip(other)
+                            .take_while(|(left, right)| left == right)
+                            .count()
+                    })
+                    .filter(|&depth| depth < own.len())
+                    .collect();
+                levels[index] = 1;
+                // No ancestor of its own: the others carry the qualifiers.
+                if !partings.is_empty() {
+                    headers[index] = partings
+                        .into_iter()
+                        .map(|depth| own[depth].as_str())
+                        .chain(std::iter::once(labels[index].as_str()))
+                        .collect::<Vec<_>>()
+                        .join(" / ");
+                }
+            }
+        }
+        if !changed {
+            return headers;
+        }
     }
+}
+
+/// The readable names of a column's ancestors on its sheet, from the root.
+fn calculation_xlsx_column_ancestors(column: &calculate::CalculationColumn) -> Vec<String> {
+    let mut segments: Vec<&str> = column.path.split('.').collect();
+    segments.pop();
+    segments
+        .into_iter()
+        .map(calculation_humanize_input_segment)
+        .collect()
 }
 
 fn calculation_humanize_input_path(path: &str) -> String {
@@ -4042,16 +4139,16 @@ fn read_calculation_xlsx(
         .next()
         .ok_or_else(|| "`cases` sheet has no header row".to_string())?;
     let actual_headers: Vec<String> = header.iter().map(calculation_cell_text).collect();
-    let expected_headers: Vec<String> = std::iter::once("case_id".to_string())
-        .chain(has_readiness.then(|| "input_status".to_string()))
-        .chain(
-            layout
-                .root_columns
-                .iter()
-                .map(|column| calculation_xlsx_column_header(column).to_string()),
-        )
-        .collect();
-    if actual_headers != expected_headers {
+    let cases_headers = |column_headers: Vec<String>| -> Vec<String> {
+        std::iter::once("case_id".to_string())
+            .chain(has_readiness.then(|| "input_status".to_string()))
+            .chain(column_headers)
+            .collect()
+    };
+    let expected_headers = cases_headers(calculation_xlsx_column_headers(&layout.root_columns));
+    if actual_headers != expected_headers
+        && actual_headers != cases_headers(calculation_xlsx_column_labels(&layout.root_columns))
+    {
         return Err(format!(
             "`cases` headers do not match the current contract\n  expected: {}\n  actual:   {}",
             expected_headers.join(", "),
@@ -4245,8 +4342,17 @@ fn read_calculation_xlsx(
             .next()
             .ok_or_else(|| format!("`{}` sheet has no header row", table.sheet))?;
         let actual_headers: Vec<String> = header.iter().map(calculation_cell_text).collect();
-        let expected_headers = calculation_xlsx_collection_headers(table);
-        if actual_headers != expected_headers {
+        let expected_headers = calculation_xlsx_collection_headers(
+            table,
+            calculation_xlsx_column_headers(&table.columns),
+        );
+        if actual_headers != expected_headers
+            && actual_headers
+                != calculation_xlsx_collection_headers(
+                    table,
+                    calculation_xlsx_column_labels(&table.columns),
+                )
+        {
             return Err(format!(
                 "`{}` headers do not match the current contract\n  expected: {}\n  actual:   {}",
                 table.sheet,

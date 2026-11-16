@@ -270,7 +270,13 @@ Field metadata appears structurally in `runa schema` and participates in the
 schema fingerprint. In XLSX, the human label is the visible column header; the
 exact canonical path and all presentation data remain in the hidden `_columns`
 or `_tables` sheet. A field without explicit metadata receives a deterministic
-humanized path as its visible fallback. Header notes always expose the canonical
+humanized path as its visible fallback. When columns of one sheet share a
+label (a type with `@ field` held at two paths), each is qualified by the
+humanized ancestors where its path parts from the others'
+(`Spouse / Business use`); a column with no such ancestor keeps the bare label,
+and columns the ancestors cannot tell apart add their canonical path. A label no
+other column of the sheet carries stays as it is, and workbooks written with
+the bare shared labels still read. Header notes always expose the canonical
 path and add the interview question, help, unit, and source bindings when
 present. None of this prose changes requiredness, alternatives, validation, or
 rule evaluation.
