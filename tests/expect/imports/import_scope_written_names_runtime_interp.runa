@@ -1,5 +1,6 @@
 -- expect-command: interp
 -- expect-status: fail
+-- roundtrip-skip: compiled code cannot show a function value, and the test overflows the stack on purpose; the interpreter runs the program
 -- expect-env: FUTURUNA_STACK_MB=16
 -- expect-stdout: <fn deep(n) in import_scope_written_names_runtime_lib.runa>
 -- expect-stderr: function call `deep` in import_scope_written_names_runtime_lib.runa exceeded the recursion limit

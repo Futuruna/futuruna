@@ -1,4 +1,5 @@
 -- expect-skip: dependency-only fixture: a module whose functions show and fail at runtime
+-- roundtrip-skip: compiled code cannot show a function value; the interpreter runs it through import_scope_written_names_runtime_interp.runa
 
 > deep(n: Int) -> Int { deep(n + 1) + 1 }
 > uses_deep(n: Int) -> Int { deep(n) }
