@@ -30,7 +30,7 @@ fradraget. Fradrag for dobbelt husførelse efter statsskattelovens § 6, litra a
 indgår i det fælles årsloft, men afskæres ikke som et § 9 A-fradrag.
 ----
 
-@ meta(personskat_rejsefradrag_scenarier_metadata) for personskat_rejsefradrag_scenarier
+-- Kilde: personskat_rejsefradrag_scenarier_metadata.
 
 # PersonskatRejsefradragÅrsforventning(indkomstår: Heltal, lovversion: Ligningslov9ALovversion, satsversion: Ligningslov9ASatsversion, kostsats_kroner: Heltal, logisats_kroner: Heltal, årsloft_kroner: Heltal, rejsefradrag_kroner: Heltal)
 

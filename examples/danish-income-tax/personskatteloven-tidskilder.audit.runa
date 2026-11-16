@@ -21,7 +21,7 @@
 = tidskilde_rejser_offentlig = OffentligBeregningskæde(
     navn = "Ligningsloven § 9 A rejser",
     entry = refof(beregn_ligningslov9a_rejser),
-    metadata = refof(ligningslov9a_beregningsmeta),
+    metadata = refof(ligningslov9a_kilder),
     første_indkomstår = 2025,
     sidste_indkomstår = 2026,
     tidskilder = [

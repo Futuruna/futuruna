@@ -26,7 +26,7 @@ lønmodtagerberegning. Sagerne står i indkomstårets kronologiske rækkefølge;
 tidligere kilometer udledes af forløbet og er ikke kildefakta.
 ----
 
-@ meta(personskat_erhvervsbefordring_scenarier_metadata) for personskat_erhvervsbefordring_scenarier
+-- Kilde: personskat_erhvervsbefordring_scenarier_metadata.
 
 # PersonskatErhvervsbefordringÅrsforventning(skatteår: Heltal, lovversion: Ligningslov9BLovversion, satsversion: Ligningslov9BSatsversion, fradrag_i_personlig_indkomst_kroner: Heltal)
 

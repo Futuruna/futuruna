@@ -43,5 +43,3 @@
         DependencySource(value = ligningsloven_lbk1500_par30a),
     )
 )
-
-@ meta(personskat_par3_nr2_beregningsmeta) for PersonskatPersonligIndkomstInput

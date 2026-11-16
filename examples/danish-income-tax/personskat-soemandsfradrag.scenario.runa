@@ -19,7 +19,7 @@ Scenarierne er ikke lovtekst. De fastholder sømandsbeskatningslovens §§ 3-4
 fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
 ----
 
-@ meta(personskat_sømandsfradrag_scenarier_metadata) for personskat_sømandsfradrag_scenarier
+-- Kilde: personskat_sømandsfradrag_scenarier_metadata.
 
 | personskat_sømandsfradrag_beskæftigelse_fra(ansættelsesforhold_startdato: Dato, identifikation: Tekst, bruttotonnage: Heltal, anvendelse: Sømandsbeskatningslov3Skibsanvendelse, sødage_hundrededele: Heltal) -> Sømandsbeskatningslov3Beskæftigelsesfakta(
     identifikation = identifikation,
