@@ -1,0 +1,11 @@
+-- A qualified-import module's binding its runtime code reads holds a runtime
+-- list: role values of different types are a check error naming it.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: list elements must have the same type; first element is `Role(Law)` but this element is `Role(Note)`
+-- expect-stderr: `shared_sources` is runtime data
+-- expect-stderr-not: does not compile
+
+@ import Counts from ./runtime_mixed_role_list_qualified_lib
+
+@ print(show(Counts.source_count()))

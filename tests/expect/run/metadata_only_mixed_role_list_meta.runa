@@ -1,0 +1,22 @@
+-- A binding only `@ meta` reads is compile-time metadata in a program
+-- without a calculation too: its role list may hold role values of
+-- different types, and native code leaves it out.
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: doubled 4
+
+# Law(url: String)
+# Note(n: Int)
+# Role(a) = Source(value: a) | Guidance(value: a)
+# Metadata(a) = Metadata(attachments: a)
+# impl MetaRole for Role {}
+# impl Meta for Metadata {}
+
+= law = Law(url = "https://example.invalid/law")
+= note = Note(n = 1)
+= doubling_meta = Metadata(attachments = [Source(value = law), Guidance(value = note)])
+
+@ meta(doubling_meta)
+| double(x: Int) -> x * 2
+
+@ print(concat("doubled ", show(double(2))))

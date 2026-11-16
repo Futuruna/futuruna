@@ -1,0 +1,18 @@
+-- expect-skip: dependency-only fixture for metadata_only_mixed_role_list_qualified.runa
+
+# Law(url: String)
+# Note(n: Int)
+# Role(a) = Source(value: a) | Guidance(value: a)
+# impl MetaRole for Role {}
+
+= law = Law(url = "https://example.invalid/law")
+= note = Note(n = 1)
+= shared_sources = [Source(value = law), Guidance(value = note)]
+
+# Input(
+    @ field(label = "Income", sources = shared_sources)
+    income: Int
+)
+
+@ export
+> doubled_income(i: Int) -> Int { i * 2 }

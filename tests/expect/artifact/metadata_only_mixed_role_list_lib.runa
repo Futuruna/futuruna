@@ -1,0 +1,22 @@
+-- A library leaves out a binding only `@ field` reads, and its getter, as
+-- native code does: its role list holds role values of different types.
+-- expect-command: emit-lib
+-- expect-status: pass
+-- expect-stdout: fn doubled_income(
+-- expect-stdout-not: shared_sources
+
+# Law(url: String)
+# Note(n: Int)
+# Role(a) = Source(value: a) | Guidance(value: a)
+# impl MetaRole for Role {}
+
+= law = Law(url = "https://example.invalid/law")
+= note = Note(n = 1)
+= shared_sources = [Source(value = law), Guidance(value = note)]
+
+# Input(
+    @ field(label = "Income", sources = shared_sources)
+    income: Int
+)
+
+> doubled_income(i: Int) -> Int { i * 2 }
