@@ -32,3 +32,18 @@
 | klassificer_minimumsinstitut(input: AktieavancePar21Par22Input) -> aktieavance_par21_par22_resultat(input)
 
 }
+
+= abl_investeringsselskab_klassifikationsår_beregningsmeta = Beregningsmeta(
+    felter = [
+        Beregningsfelt(path = refof(AktieavancePar19BPar19CInput::indkomstår), label = "Investeringsselskabets klassifikationsår", question = Some("Hvilket indkomstår gælder investeringsselskabets klassifikation for?"), help = None, unit = Some("år"))
+    ],
+    attachments = personskat_kilder_2
+)
+= abl_minimumsinstitut_ejerpost_klassifikationsår_beregningsmeta = Beregningsmeta(
+    felter = [
+        Beregningsfelt(path = refof(AktieavancePar21Par22Input::aktivmasse::ejerposter::AblEjerpostIPar19B::klassifikationsinput::indkomstår), label = "Investeringsselskabets klassifikationsår", question = Some("Hvilket indkomstår gælder investeringsselskabets klassifikation for?"), help = None, unit = Some("år"))
+    ],
+    attachments = personskat_kilder_2
+)
+@ meta(abl_investeringsselskab_klassifikationsår_beregningsmeta) for klassificer_investeringsselskab
+@ meta(abl_minimumsinstitut_ejerpost_klassifikationsår_beregningsmeta) for klassificer_minimumsinstitut

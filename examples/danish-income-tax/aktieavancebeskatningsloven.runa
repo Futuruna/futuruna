@@ -401,17 +401,7 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
     Source(value = aktieavancebeskatningsloven_lbk1098_par27),
     DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22)
 ]
-# AktieavanceOrdinærPosition(
-    @ field(
-        label = "Investeringsinstituttets identifikation",
-        question = "Hvilket investeringsinstitut udstedte minimumsbeviserne?",
-        help = "Brug den stabile identifikation fra depot- eller indberetningsgrundlaget.",
-        sources = personskat_kilder_11
-    )
-    selskabsidentifikation: Tekst,
-    kapitalmængde: AktieavanceOrdinærKapitalmængde,
-    anskaffelsessum_kroner: Heltal
-)
+# AktieavanceOrdinærPosition(selskabsidentifikation: Tekst, kapitalmængde: AktieavanceOrdinærKapitalmængde, anskaffelsessum_kroner: Heltal)
 = personskat_kilder_12 = [
     Source(value = aktieavancebeskatningsloven_lbk1098_par23_par24_par26),
     Source(value = aktieavancebeskatningsloven_lbk1098_par27)
@@ -2982,3 +2972,11 @@ personskattelovens § 20.
     identifier = "2025/1 LSF 71, bemærkningerne til ABL §§ 35 G-35 K",
     hentet_dato = "2026-07-18"
 )
+
+= aktieavance_investeringsbevis_beholdning_beregningsmeta = Beregningsmeta(
+    felter = [
+        Beregningsfelt(path = refof(AktieavanceInvesteringsbevisBeholdningsgrundlag::AblInvesteringsbevisDirekteBeholdning::position::selskabsidentifikation), label = "Investeringsinstituttets identifikation", question = Some("Hvilket investeringsinstitut udstedte minimumsbeviserne?"), help = Some("Brug den stabile identifikation fra depot- eller indberetningsgrundlaget."), unit = None)
+    ],
+    attachments = personskat_kilder_11
+)
+@ meta(aktieavance_investeringsbevis_beholdning_beregningsmeta) for AktieavanceInvesteringsbevisBeholdningsgrundlag

@@ -569,3 +569,13 @@ til mindre end 0 kr.
 | aktieavance_par37_til40_forløbsresultat(input: AktieavancePar37Til40Forløbsinput) -> aktieavance_par37_til40_forløbsresultat_med_skattekontekst(input, aktieavance_par37_til40_lokal_skattekontekst())
 
 }
+
+= aktieavance_par37_til40_aktiepost_beregningsmeta = Beregningsmeta(
+    felter = [
+        Beregningsfelt(path = refof(AktieavancePar37Til40AktiepostFakta::erhvervelsesdato::år), label = "Aktiepartiets erhvervelsesår", question = Some("I hvilket år blev aktiepartiet erhvervet?"), help = None, unit = Some("år")),
+        Beregningsfelt(path = refof(AktieavancePar37Til40AktiepostFakta::erhvervelsesdato::måned), label = "Aktiepartiets erhvervelsesmåned", question = Some("I hvilken måned blev aktiepartiet erhvervet?"), help = None, unit = Some("måned")),
+        Beregningsfelt(path = refof(AktieavancePar37Til40AktiepostFakta::erhvervelsesdato::dag), label = "Aktiepartiets erhvervelsesdag", question = Some("På hvilken dag blev aktiepartiet erhvervet?"), help = None, unit = Some("dag"))
+    ],
+    attachments = personskat_kilder_3
+)
+@ meta(aktieavance_par37_til40_aktiepost_beregningsmeta) for AktieavancePar37Til40AktiepostFakta

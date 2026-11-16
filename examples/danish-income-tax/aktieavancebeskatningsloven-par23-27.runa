@@ -211,29 +211,7 @@ skattekontrollovens § 2.
     Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_årsoplysninger),
     Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39b)
 ]
-# AktieavancePar23Dato(
-    @ field(
-        label = "Aktiepartiets erhvervelsesår",
-        question = "I hvilket år blev aktiepartiet erhvervet?",
-        unit = "år",
-        sources = personskat_kilder_3
-    )
-    år: Heltal,
-    @ field(
-        label = "Aktiepartiets erhvervelsesmåned",
-        question = "I hvilken måned blev aktiepartiet erhvervet?",
-        unit = "måned",
-        sources = personskat_kilder_3
-    )
-    måned: Heltal,
-    @ field(
-        label = "Aktiepartiets erhvervelsesdag",
-        question = "På hvilken dag blev aktiepartiet erhvervet?",
-        unit = "dag",
-        sources = personskat_kilder_3
-    )
-    dag: Heltal
-)
+# AktieavancePar23Dato(år: Heltal, måned: Heltal, dag: Heltal)
 # AktieavanceInvesteringsselskabPapirart = AblInvesteringsselskabsaktie | AblOmsætteligtInvesteringsbevis | AblAndetInvesteringsselskabspapir
 @ field(
     label = "Aktivtype prøvet efter ABL § 23",

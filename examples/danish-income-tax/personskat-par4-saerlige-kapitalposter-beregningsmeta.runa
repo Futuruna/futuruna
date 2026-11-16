@@ -29,6 +29,7 @@
 = personskat_par4_særlig_felt_nr15_dato_måned = Beregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr15Ligningslov12B::input::aftale::aftaledato::måned), label = "Aftaledato (ISO 8601) - måned", question = Some("I hvilken måned blev aftalen indgået?"), help = None, unit = Some("måned"))
 = personskat_par4_særlig_felt_nr15_dato_dag = Beregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr15Ligningslov12B::input::aftale::aftaledato::dag), label = "Aftaledato (ISO 8601) - dag", question = Some("På hvilken dag blev aftalen indgået?"), help = None, unit = Some("dag"))
 
+= personskat_al40c_position_felt_lot_id = Beregningsfelt(path = refof(Afskrivningslov40CPosition::lot::lot_id), label = "Aktivpartiets identifikation", question = Some("Hvilken stabil og entydig identifikation har aktivpartiet?"), help = Some("Årets hændelser henviser til denne identifikation."), unit = None)
 = personskat_al40c_position_felt_dato_år = Beregningsfelt(path = refof(Afskrivningslov40CPosition::lot::erhvervelsesdato::år), label = "Erhvervelsesdato (ISO 8601) - år", question = Some("I hvilket år blev aktivpartiet erhvervet eller tildelt?"), help = None, unit = Some("år"))
 = personskat_al40c_position_felt_dato_måned = Beregningsfelt(path = refof(Afskrivningslov40CPosition::lot::erhvervelsesdato::måned), label = "Erhvervelsesdato (ISO 8601) - måned", question = Some("I hvilken måned blev aktivpartiet erhvervet eller tildelt?"), help = None, unit = Some("måned"))
 = personskat_al40c_position_felt_dato_dag = Beregningsfelt(path = refof(Afskrivningslov40CPosition::lot::erhvervelsesdato::dag), label = "Erhvervelsesdato (ISO 8601) - dag", question = Some("På hvilken dag blev aktivpartiet erhvervet eller tildelt?"), help = None, unit = Some("dag"))
@@ -36,7 +37,8 @@
     felter = [
         personskat_al40c_position_felt_dato_år,
         personskat_al40c_position_felt_dato_måned,
-        personskat_al40c_position_felt_dato_dag
+        personskat_al40c_position_felt_dato_dag,
+        personskat_al40c_position_felt_lot_id
     ],
     attachments = Source(value = afskrivningsloven_lbk1222)
 )

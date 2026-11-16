@@ -402,31 +402,7 @@ Kunstværker kan dog afskrives efter §§ 44 A og 44 B.
 
 # AfskrivningslovSkatteyder = AlSelvstændigErhvervsdrivendePerson | AlSelskabEllerForening | AlAndenFysiskPerson
 # AfskrivningslovAktivart = AlMaskine | AlInventar | AlAndetDriftsmiddel | AlSkib | AlSoftware | AlAntikvitetEllerAndetVærdifastAktiv | AlKunstværk
-= personskat_honorarafskrivning_inputmeta_kilder = [
-    Source(value = afskrivningsloven_lbk1222),
-    Guidance(value = honorarudgifter_djv),
-    Guidance(value = afskrivningsloven_par11_par13_juridisk_vejledning),
-    ParameterSource(value = afskrivningsloven_2023_2024_satser),
-    ParameterSource(value = afskrivningsloven_2025_2026_satser),
-    Warning(value = honorarudgifter_dækningsgrænse)
-]
-# AfskrivningslovPar1Par2Input(
-    @ field(
-        label = "Skatteyder i honoraraktiviteten",
-        question = "Er dette en fysisk persons honoraraktivitet uden selvstændig virksomhed?",
-        help = "Brug AlAndenFysiskPerson her; virksomheds- og selskabsopgørelser skal ikke flyttes ind i honorargrenen. Se personskat-honorar.md.",
-        sources = personskat_honorarafskrivning_inputmeta_kilder
-    )
-    skatteyder: AfskrivningslovSkatteyder,
-    @ field(
-        label = "Driftsmidlets art",
-        question = "Hvilken afskrivningsberettiget art har driftsmidlet?",
-        help = "AlMaskine, AlInventar, AlAndetDriftsmiddel eller AlSoftware i denne almindelige rute. Andre arter afvises her, ikke generelt efter loven. Se personskat-honorar.md.",
-        sources = personskat_honorarafskrivning_inputmeta_kilder
-    )
-    aktivart: AfskrivningslovAktivart,
-    erhvervsmæssig_anvendelsesandel_basispoint: Heltal
-)
+# AfskrivningslovPar1Par2Input(skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, erhvervsmæssig_anvendelsesandel_basispoint: Heltal)
 # AfskrivningslovPar1Par2Resultat(skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, erhvervsmæssig_anvendelsesandel_basispoint: Heltal, erhvervsmæssigt_benyttet: Boolsk, udelukkende_erhvervsmæssigt_benyttet: Boolsk, aktivart_omfattet_af_kapitel2: Boolsk, omfattet_af_kapitel2: Boolsk)
 
 | afskrivningslov_par1_par2_aktivart_omfattet(aktivart: AfskrivningslovAktivart) -> match aktivart {
@@ -712,83 +688,9 @@ tilladelsen.
 @ section afskrivningsloven_par5 {
 
 # AfskrivningslovSaldoordning = AlPar5AlmindeligSaldo | AlPar5BSkibssaldo | AlPar5CInfrastruktursaldo | AlPar5DMidlertidig116Saldo | AlPar5EMidlertidig108Saldo
-@ field(
-    label = "Afskrivningsvalg",
-    question = "Hvilket afskrivningsvalg er faktisk truffet for året?",
-    help = "Ingen, ordinær sats eller fuld restværdi inden for årets grænse. Modellen optimerer ikke valget og ændrer ikke allerede trufne valg. Se personskat-honorar.md.",
-    sources = personskat_honorarafskrivning_inputmeta_kilder
-)
-# Afskrivningslov5Valg =
-    Al5IngenAfskrivning |
-    Al5OrdinærAfskrivning(
-        @ field(
-            label = "Valgt afskrivningssats",
-            question = "Hvilken ordinær afskrivningssats er valgt?",
-            help = "0–2500 basispoint (0–25 %). For blandet brug beregnes privat andel bagefter, ikke ved at reducere satsen. Se personskat-honorar.md.",
-            unit = "basispoint",
-            sources = personskat_honorarafskrivning_inputmeta_kilder
-        )
-        sats_basispoint: Heltal
-    ) |
-    Al5FuldRestsaldo
-@ field(
-    label = "Saldoens aktivgrundlag",
-    question = "Er saldoen alene almindelige kapitel 2-driftsmidler?",
-    help = "Brug Al5Kapitel2Aktiv. Dok/bedding og forskudsafskrevne aktiver kræver andre regler. Se personskat-honorar.md.",
-    sources = personskat_honorarafskrivning_inputmeta_kilder
-)
+# Afskrivningslov5Valg = Al5IngenAfskrivning | Al5OrdinærAfskrivning(sats_basispoint: Heltal) | Al5FuldRestsaldo
 # Afskrivningslov5Aktivgrundlag = Al5Kapitel2Aktiv(input: AfskrivningslovPar1Par2Input) | Al5Par10DokEllerBedding(input: Afskrivningslov10Input) | Al5Par33ForskudsafskrevneAktiver(input: Afskrivningslov33Input)
-# Afskrivningslov5Input(
-    @ field(
-        label = "Afskrivningens år",
-        question = "Hvilket indkomstår vedrører opgørelsen?",
-        help = "Skal matche honorarets skatteår. Årsparametre er dækket for 2023–2026. Se personskat-honorar.md.",
-        unit = "år",
-        sources = personskat_honorarafskrivning_inputmeta_kilder
-    )
-    indkomstår: Heltal,
-    aktivgrundlag: Afskrivningslov5Aktivgrundlag,
-    @ field(
-        label = "Almindelig saldo",
-        question = "Er dette den almindelige samlede AL § 5-saldo?",
-        help = "Kun AlPar5AlmindeligSaldo er omfattet; særskilte forhøjede saldi må ikke ommærkes. Se personskat-honorar.md.",
-        sources = personskat_honorarafskrivning_inputmeta_kilder
-    )
-    saldoordning: AfskrivningslovSaldoordning,
-    @ field(
-        label = "Skattemæssig saldo primo",
-        question = "Hvad er det kildeafklarede beløb for skattemæssig saldo primo?",
-        help = "Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md.",
-        unit = "kr.",
-        sources = personskat_honorarafskrivning_inputmeta_kilder
-    )
-    saldoværdi_primo_kroner: Heltal,
-    @ field(
-        label = "Årets anskaffelser til saldo",
-        question = "Hvad er det kildeafklarede beløb for årets anskaffelser til saldo?",
-        help = "Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md.",
-        unit = "kr.",
-        sources = personskat_honorarafskrivning_inputmeta_kilder
-    )
-    øvrige_anskaffelsessummer_i_året_kroner: Heltal,
-    @ field(
-        label = "Årets forbedringer",
-        question = "Hvad er det kildeafklarede beløb for årets forbedringer?",
-        help = "Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md.",
-        unit = "kr.",
-        sources = personskat_honorarafskrivning_inputmeta_kilder
-    )
-    forbedringsudgifter_i_året_kroner: Heltal,
-    @ field(
-        label = "Salg på saldoen",
-        question = "Er det bekræftet, at der ingen salg er i opgørelsen?",
-        help = "Denne fortsættelsesrute kræver nul. Et faktisk salg skal afklares særskilt, ikke erstattes med nul. Se personskat-honorar.md.",
-        unit = "kr.",
-        sources = personskat_honorarafskrivning_inputmeta_kilder
-    )
-    salgssummer_i_året_kroner: Heltal,
-    valg: Afskrivningslov5Valg
-)
+# Afskrivningslov5Input(indkomstår: Heltal, aktivgrundlag: Afskrivningslov5Aktivgrundlag, saldoordning: AfskrivningslovSaldoordning, saldoværdi_primo_kroner: Heltal, øvrige_anskaffelsessummer_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, salgssummer_i_året_kroner: Heltal, valg: Afskrivningslov5Valg)
 # Afskrivningslov5Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, saldoordning: AfskrivningslovSaldoordning, omfattet_af_par5: Boolsk, valg: Afskrivningslov5Valg, valg_gyldigt: Boolsk, anskaffelsessummer_til_saldo_kroner: Heltal, saldoværdi_før_afskrivning_kroner: Heltal, afskrivningsberettiget_saldoværdi_kroner: Heltal, højeste_ordinære_afskrivning_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, saldoværdi_efter_afskrivning_kroner: Heltal)
 # Afskrivningslov5UdlejningsSkatteyderStatus = Al5SelskabPar1Stk1Nr1Nr2EllerNr4 | Al5AndenSkatteyder
 # Afskrivningslov5UdlejningsTilladelse = Al5IngenUdlejningstilladelse | Al5UdlejningstilladelseGældende | Al5UdlejningstilladelseBortfaldet
@@ -1834,88 +1736,10 @@ tilsvarende anvendelse.
 @ meta(afskrivningsloven_par11_metadata)
 @ section afskrivningsloven_par11 {
 
-# AfskrivningslovBenyttelse(
-    @ field(
-        label = "Årets honorarbrug",
-        question = "Hvor mange af årets dokumenterede brugsenheder vedrører honoraraktiviteten?",
-        help = "Samme enhed som samlet brug, fx timer eller kilometer. Større end nul og mindre end samlet brug; gæt ikke en andel. Se personskat-honorar.md.",
-        unit = "brugsenheder",
-        sources = personskat_honorarafskrivning_inputmeta_kilder
-    )
-    erhvervsmæssig_benyttelse_enheder: Heltal,
-    @ field(
-        label = "Årets samlede brug",
-        question = "Hvor mange brugsenheder er der i alt, inklusive privat brug?",
-        help = "Hele årets brug i samme enhed. Anskaffelsesgrundlaget må ikke allerede være reduceret med denne andel. Se personskat-honorar.md.",
-        unit = "brugsenheder",
-        sources = personskat_honorarafskrivning_inputmeta_kilder
-    )
-    samlet_benyttelse_enheder: Heltal
-)
+# AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder: Heltal, samlet_benyttelse_enheder: Heltal)
 # Afskrivningslov11Afskrivningskategori = Al11Par5Stk1 | Al11Par5CStk1 | Al11Par5CStk2
-@ field(
-    label = "Afskrivningsvalg",
-    question = "Hvilket afskrivningsvalg er faktisk truffet for året?",
-    help = "Ingen, ordinær sats eller fuld restværdi inden for årets grænse. Modellen optimerer ikke valget og ændrer ikke allerede trufne valg. Se personskat-honorar.md.",
-    sources = personskat_honorarafskrivning_inputmeta_kilder
-)
-# Afskrivningslov11Valg =
-    Al11IngenAfskrivning |
-    Al11OrdinærAfskrivning(
-        @ field(
-            label = "Valgt afskrivningssats",
-            question = "Hvilken ordinær afskrivningssats er valgt?",
-            help = "0–2500 basispoint (0–25 %). For blandet brug beregnes privat andel bagefter, ikke ved at reducere satsen. Se personskat-honorar.md.",
-            unit = "basispoint",
-            sources = personskat_honorarafskrivning_inputmeta_kilder
-        )
-        sats_basispoint: Heltal
-    ) |
-    Al11FuldRestfradrag
-# Afskrivningslov11Input(
-    @ field(
-        label = "Afskrivningens år",
-        question = "Hvilket indkomstår vedrører opgørelsen?",
-        help = "Skal matche honorarets skatteår. Årsparametre er dækket for 2023–2026. Se personskat-honorar.md.",
-        unit = "år",
-        sources = personskat_honorarafskrivning_inputmeta_kilder
-    )
-    indkomstår: Heltal,
-    aktiv_input: AfskrivningslovPar1Par2Input,
-    @ field(
-        label = "Almindelig afskrivningskategori",
-        question = "Er aktivet et almindeligt driftsmiddel efter AL § 5, stk. 1?",
-        help = "Brug Al11Par5Stk1. Infrastruktur og særlige § 5 C-aktiver behandles ikke i denne honorarrute. Se personskat-honorar.md.",
-        sources = personskat_honorarafskrivning_inputmeta_kilder
-    )
-    afskrivningskategori: Afskrivningslov11Afskrivningskategori,
-    @ field(
-        label = "Uafskrevet beløb primo",
-        question = "Hvad er det kildeafklarede beløb for uafskrevet beløb primo?",
-        help = "Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md.",
-        unit = "kr.",
-        sources = personskat_honorarafskrivning_inputmeta_kilder
-    )
-    uafskrevet_beløb_primo_kroner: Heltal,
-    @ field(
-        label = "Årets anskaffelsessum",
-        question = "Hvad er det kildeafklarede beløb for årets anskaffelsessum?",
-        help = "Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md.",
-        unit = "kr.",
-        sources = personskat_honorarafskrivning_inputmeta_kilder
-    )
-    anskaffelsessum_i_året_kroner: Heltal,
-    @ field(
-        label = "Årets forbedringer",
-        question = "Hvad er det kildeafklarede beløb for årets forbedringer?",
-        help = "Ikke-negativ skattemæssig værdi i hele kroner før privat brugsandel; ingen dobbelt medregning mellem primo, køb og forbedringer. Se personskat-honorar.md.",
-        unit = "kr.",
-        sources = personskat_honorarafskrivning_inputmeta_kilder
-    )
-    forbedringsudgifter_i_året_kroner: Heltal,
-    årets_benyttelse: AfskrivningslovBenyttelse,
-    valg: Afskrivningslov11Valg
-)
+# Afskrivningslov11Valg = Al11IngenAfskrivning | Al11OrdinærAfskrivning(sats_basispoint: Heltal) | Al11FuldRestfradrag
+# Afskrivningslov11Input(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, afskrivningskategori: Afskrivningslov11Afskrivningskategori, uafskrevet_beløb_primo_kroner: Heltal, anskaffelsessum_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, årets_benyttelse: AfskrivningslovBenyttelse, valg: Afskrivningslov11Valg)
 # Afskrivningslov11Årsopgørelse(indkomstår: Heltal, benyttelse: AfskrivningslovBenyttelse, beregnet_afskrivning_før_erhvervsandel_kroner: Heltal, fradraget_afskrivning_kroner: Heltal)
 # Afskrivningslov11Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, afskrivningskategori: Afskrivningslov11Afskrivningskategori, blandet_benyttet: Boolsk, valg: Afskrivningslov11Valg, valg_gyldigt: Boolsk, højeste_sats_basispoint: Heltal, afskrivningsgrundlag_før_årets_afskrivning_kroner: Heltal, beregnet_afskrivning_før_erhvervsandel_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, uafskrevet_beløb_ultimo_kroner: Heltal, årsopgørelse: Afskrivningslov11Årsopgørelse)
 
@@ -5305,12 +5129,6 @@ stk. 1-5.
 # AfskrivningslovKvoteAnskaffelse = AlKvoteKøbt(købssum_kroner: Heltal) | AlKvoteVederlagsfritTildelt
 # AfskrivningslovKvoteTilknytning = AlKvoteSelvstændigRettighed | AlKvoteKnyttetTilAndelsbevisSelPar1Stk1Nr3 | AlKvoteKnyttetTilAndelsbevisSelPar1Stk1Nr4
 # AfskrivningslovKvoteLot(
-    @ field(
-        label = "Aktivpartiets identifikation",
-        question = "Hvilken stabil og entydig identifikation har aktivpartiet?",
-        help = "Årets hændelser henviser til denne identifikation.",
-        sources = personskat_al16_aktividentifikation_kilder
-    )
     lot_id: Tekst,
     @ field(
         label = "Rettighedens identifikation",
@@ -5418,6 +5236,15 @@ stk. 1-5.
 | afskrivningslov40a_resultat(input: Afskrivningslov40AInput) -> afskrivningslov40a_sag(input).resultat()
 
 }
+
+= afskrivningslov40a_lot_id_beregningsmeta = Beregningsmeta(
+    felter = [
+        Beregningsfelt(path = refof(Afskrivningslov40AInput::position::lot::lot_id), label = "Aktivpartiets identifikation", question = Some("Hvilken stabil og entydig identifikation har aktivpartiet?"), help = None, unit = None),
+        Beregningsfelt(path = refof(Afskrivningslov40AInput::lager::lot_id), label = "Aktivpartiets identifikation", question = Some("Hvilken stabil og entydig identifikation har aktivpartiet?"), help = None, unit = None)
+    ],
+    attachments = personskat_al16_aktividentifikation_kilder
+)
+@ meta(afskrivningslov40a_lot_id_beregningsmeta) for Afskrivningslov40AInput
 
 = afskrivningsloven_par40b_metadata = Metadata(
     attachments = (
@@ -5566,6 +5393,15 @@ omfattet af stk. 1-6.
 | afskrivningslov40b_resultat(input: Afskrivningslov40BInput) -> afskrivningslov40b_sag(input).resultat()
 
 }
+
+= afskrivningslov40b_lot_id_beregningsmeta = Beregningsmeta(
+    felter = [
+        Beregningsfelt(path = refof(Afskrivningslov40BInput::position::lot::lot_id), label = "Aktivpartiets identifikation", question = Some("Hvilken stabil og entydig identifikation har aktivpartiet?"), help = None, unit = None),
+        Beregningsfelt(path = refof(Afskrivningslov40BInput::lager::lot_id), label = "Aktivpartiets identifikation", question = Some("Hvilken stabil og entydig identifikation har aktivpartiet?"), help = None, unit = None)
+    ],
+    attachments = personskat_al16_aktividentifikation_kilder
+)
+@ meta(afskrivningslov40b_lot_id_beregningsmeta) for Afskrivningslov40BInput
 
 = afskrivningsloven_par40c_metadata = Metadata(
     attachments = (
