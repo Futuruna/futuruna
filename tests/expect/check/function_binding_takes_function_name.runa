@@ -1,0 +1,20 @@
+-- A top-level binding that holds a function may not take the name of a
+-- function or rule: a call of the name could mean either. The error names
+-- both lines, for a closure and for a function value.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: the binding `scale` holds a function and takes the name of the function `scale` declared at line 13: a call `scale(…)` could mean either. Rename one of them
+-- expect-stderr: function_binding_takes_function_name.runa:17:
+-- expect-stderr: the binding `doubled` holds a function and takes the name of the rule `doubled` declared at line 14: a call `doubled(…)` could mean either. Rename one of them
+-- expect-stderr: function_binding_takes_function_name.runa:18:
+-- expect-stderr-not: Futuruna compiler bug
+
+> inc(x: Int) -> Int { x + 1 }
+> scale(x: Int) -> Int { x * 10 }
+| doubled(x: Int) -> x * 2
+
+-- A binding that holds no function keeps the warning (binding_takes_function_name.runa).
+= scale = |x: Int| x + 2
+= doubled = inc
+
+@ print(show(scale(40) + doubled(1)))

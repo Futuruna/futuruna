@@ -697,14 +697,22 @@ bindings is rejected with the complete initialization path.
 
 A top-level binding may take the name of a function or rule, as a result
 bound under its rule's name (`= tax = tax(case)`). The name then reads the
-binding, and a call of the name still calls the function or rule, unless the
-binding holds a function: that binding takes the calls after it. Bindings in
+binding, and a call of the name still calls the function or rule. A binding
+that holds a function (a closure, or a function value) may not take a
+function's or rule's name: a call of the name could mean either, and the
+check reports an error naming both lines. Bindings in
 a body, parameters and the fields of a rule scope are different: they hide a
 function or rule of their name in their scope (a rule of the scope itself
 may still share a field's name), so a call of the name calls them, and calling one that
 holds no function is a check error naming the hidden function. Every command that checks the program
-prints a warning for each such top-level binding, naming the function or
-rule and where it is declared; the warning does not fail the command.
+prints a warning for each top-level binding that takes a function's or
+rule's name, naming the function or rule and where it is declared; the
+warning does not fail the command.
+
+Compiled code (`runa build`, `runa run`, `runa lib`) cannot use a top-level
+binding that holds a function inside a function or rule body; `runa check`
+reports each such use and asks for the function as a parameter. The
+interpreter runs the program.
 
 ### Monadic bind (early return)
 ```runa

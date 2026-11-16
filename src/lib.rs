@@ -64402,7 +64402,9 @@ impl TypeChecker {
         }
         let query_diagnostics = query::check_program(stmts, source, &tc);
         tc.diagnostics.extend(query_diagnostics);
-        let warnings = ordinary_declarations::binding_name_warnings(stmts, source, &tc);
+        let (warnings, binding_name_errors) =
+            ordinary_declarations::binding_name_diagnostics(stmts, source, &tc);
+        tc.diagnostics.extend(binding_name_errors);
         let mut constructor_elaboration =
             ConstructorElaboration::keeping_current_modules(tc.elaborate_constructor_scope(stmts));
         let elaborated_root = constructor_elaboration
@@ -64413,6 +64415,9 @@ impl TypeChecker {
             // and a Rust type for every record field.
             tc.report_uninferred_function_results(stmts);
             tc.report_native_function_fields(stmts);
+            let function_binding_uses =
+                ordinary_declarations::native_function_binding_uses(stmts, source, &tc);
+            tc.diagnostics.extend(function_binding_uses);
         }
         tc.diagnostics
             .extend(host_effects::comptime_host_effect_diagnostics(stmts));

@@ -1,0 +1,20 @@
+-- The interpreter calls and reads a top-level binding that holds a function
+-- from a function or rule body; compiled code cannot
+-- (tests/expect/check/function_binding_used_in_function_body.runa).
+-- expect-command: interp
+-- expect-stdout: 50
+-- expect-stdout: [3, 4]
+-- roundtrip-skip: compiled code cannot use a function-valued top-level binding in a function or rule body; the interpreter runs the program
+
+> inc(x: Int) -> Int { x + 1 }
+> local(x: Int) -> Int { (|f: Int| f + 1)(x) }
+> takes(f: Int -> Int, x: Int) -> Int { f(x) }
+> use_f(x: Int) -> Int { f(x) }
+> mapped(xs: List(Int)) -> List(Int) { map(xs, f) }
+| r(x: Int) -> g(x) + 1
+
+= f = |x: Int| x + 2
+= g = inc
+
+@ print(show(use_f(40) + local(1) + takes(f, 1) + r(1)))
+@ print(show(mapped([1, 2])))

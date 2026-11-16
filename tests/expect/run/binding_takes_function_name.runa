@@ -1,31 +1,28 @@
 -- A top-level binding may take the name of a function or rule: the name
--- reads the binding, a call calls the function or rule (a binding holding a
--- function takes the calls after it), and a warning names both.
+-- reads the binding, a call calls the function or rule, also in a function
+-- body, and a warning names both.
 -- expect-command: interp
 -- expect-stdout: value=4
 -- expect-stdout: call=6
 -- expect-stdout: rule=8
--- expect-stdout: lambda=42
 -- expect-stdout: inside=16
 -- expect-stderr: the binding `closed` takes the name of the function `closed` declared at line 18: `closed` reads this binding, while a call `closed(…)` calls the function
 -- expect-stderr: the binding `doubled` takes the name of the rule `doubled` declared at line 19: `doubled` reads this binding, while a call `doubled(…)` calls the rule
--- expect-stderr: the binding `scale` takes the name of the function `scale` declared at line 20: after it, a call `scale(…)` calls this binding, not the function
 
--- Bindings in a body and parameters are lexical: they hide a function or
--- rule of their name in their scope, so calling one that holds no function
--- is a check error (tests/expect/check/local_called_as_function.runa).
+-- A binding holding a function may not take a function's or rule's name
+-- (tests/expect/check/function_binding_takes_function_name.runa). Bindings
+-- in a body and parameters are lexical: they hide a function or rule of
+-- their name in their scope, so calling one that holds no function is a
+-- check error (tests/expect/check/local_called_as_function.runa).
 
 > closed(x: Int) -> Int { x + 1 }
 | doubled(x: Int) -> x * 2
-> scale(x: Int) -> Int { x * 10 }
 > both(x: Int) -> Int { closed(x) + doubled(x) }
 
 = closed = closed(3)
 = doubled = doubled(4)
-= scale = |x: Int| x + 2
 
 @ print("value=" + show(closed))
 @ print("call=" + show(closed(5)))
 @ print("rule=" + show(doubled))
-@ print("lambda=" + show(scale(40)))
 @ print("inside=" + show(both(5)))
