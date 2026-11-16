@@ -7,6 +7,8 @@ feature_stage_surfaces:
   - rust-escape-hatches
   - exploratory-audit-tooling
   - unit-types
+  - named-scalar-types
+  - rule-result-types
 ---
 
 # The Seven Runes
@@ -696,8 +698,9 @@ A top-level binding may take the name of a function or rule, as a result
 bound under its rule's name (`= tax = tax(case)`). The name then reads the
 binding, and a call of the name still calls the function or rule, unless the
 binding holds a function: that binding takes the calls after it. Bindings in
-a body and parameters are different: they hide a function or rule of their
-name in their scope, so a call of the name calls them, and calling one that
+a body, parameters and the fields of a rule scope are different: they hide a
+function or rule of their name in their scope (a rule of the scope itself
+may still share a field's name), so a call of the name calls them, and calling one that
 holds no function is a check error naming the hidden function. Every command that checks the program
 prints a warning for each such top-level binding, naming the function or
 rule and where it is declared; the warning does not fail the command.

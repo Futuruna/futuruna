@@ -718,7 +718,8 @@
         "rust-escape-hatches",
         "exploratory-audit-tooling",
         "unit-types",
-        "named-scalar-types"
+        "named-scalar-types",
+        "rule-result-types"
       ]
     },
     {

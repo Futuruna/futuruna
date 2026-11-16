@@ -79,11 +79,17 @@ fn gaps_changing_expressions_and_refutable_heads_receive_no_certificate() {
         "# Branch(input: Int) { | value(x: Int, x: Int) -> 1 under input < 0\n| exception other value(x, x) -> 2 under input >= 0 }\n",
         "# Branch(input: Int) { | value() -> 1 under input / 0 < 0\n| exception other value() -> 2 under input / 0 >= 0 }\n",
         "# Branch(input: Int) { | value(input) -> 1 under input < 0\n| exception other value(input) -> 2 under input >= 0 }\n",
-        "# Branch(input: Int) { | value(input: Int) -> 1 under input < 0\n| exception other value(other) -> 2 under input >= 0 }\n",
     ] {
         let checked = artifacts(source);
         assert!(!checked.rule_dispatch_runtime_irrefutable_keys.iter().any(|key| key.scope.as_deref() == Some("Branch") && key.name == "value"), "{source}");
     }
+    // An exception that renames the declaring line's parameter does not
+    // reach the checker: the parser asks for the declaring line's name.
+    let renamed = "# Branch(input: Int) { | value(input: Int) -> 1 under input < 0\n| exception other value(other) -> 2 under input >= 0 }\n";
+    let error = Parser::new(Lexer::new(renamed).tokenize(), renamed)
+        .parse_program()
+        .expect_err("a renamed parameter is a parse error");
+    assert!(error.contains("call it `input` here too"), "{error}");
 }
 
 #[test]
@@ -171,7 +177,7 @@ fn native_complementary_scoped_guards_keep_interpreted_values() {
 #[test]
 fn guarded_call_permissions_are_bound_to_the_checked_candidate_and_arguments() {
     use futuruna::{ExprKind, Rule, Stmt};
-    let prefix = "# Input(year: Int)\n# Amount(value: Int)\n| partial(input: Input) -> Amount(7) under input.year >= 2026\n| result(input: Input, other: Input) -> 0\n";
+    let prefix = "# Input(year: Int)\n# Amount(value: Int)\n| partial(input: Input) -> Amount(7) under input.year >= 2026\n| result(input: Input, other: Input): Int -> 0\n";
     for (body, guard, permitted) in [
         ("partial(input).value", "input.year >= 2026", true),
         ("partial(input).value", "input.year >= 2025", false),
@@ -180,7 +186,7 @@ fn guarded_call_permissions_are_bound_to_the_checked_candidate_and_arguments() {
         ("partial(input).value", "input.year < 2026", false),
         ("partial(input).value", "input.year + 1 >= 2026", false),
     ] {
-        let source = format!("{prefix}| exception reform result(input: Input, other: Input) -> {body} under {guard}\n");
+        let source = format!("{prefix}| exception reform result(input, other) -> {body} under {guard}\n");
         let statements = Parser::new(Lexer::new(&source).tokenize(), &source)
             .parse_program()
             .unwrap();

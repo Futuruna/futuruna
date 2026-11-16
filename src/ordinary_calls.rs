@@ -84,6 +84,25 @@ impl TypeChecker {
         name: &str,
         call_arity: Option<usize>,
     ) -> Option<Option<DeclaredCallable>> {
+        // A RuleScope field and a rule of the same scope may share a name:
+        // projection reads the field and call syntax calls the rule
+        // (docs/rfcs/typed-program-references.md). Any other field, like a
+        // parameter, hides a function or rule of its name outside the scope.
+        if let Some(scope) = self.active_rule_scope_inference.as_ref() {
+            let is_field = self
+                .type_fields
+                .get(scope)
+                .is_some_and(|fields| fields.contains(name));
+            if let Some(arity) = self
+                .rule_scope_methods
+                .get(scope)
+                .and_then(|methods| methods.get(name))
+                .filter(|arity| call_arity.is_none_or(|requested| requested == **arity))
+                .filter(|_| is_field)
+            {
+                return Some(Some(DeclaredCallable::Rule(BTreeSet::from([*arity]))));
+            }
+        }
         for (index, names) in self.scopes.iter().enumerate().rev() {
             if index == 0 {
                 if let Some(scope) = self.active_rule_scope_inference.as_ref() {

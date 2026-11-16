@@ -255,13 +255,13 @@ fn constructor_names_shared_across_imported_types_resolve_by_expected_type() {
                 "{imports}, {args:?}"
             );
         }
-        fixture.write("main.runa", &format!("{imports}= unknown = Shared\n"));
+        fixture.write("main.runa", &format!("{imports}= untyped = Shared\n"));
         let output = fixture.run(&["check", "--frontend"]);
         assert_eq!(output.status.code(), Some(1), "{imports}: {output:?}");
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(
             stderr.contains("constructor `Shared` belongs to")
-                && stderr.contains("or give `unknown` a type"),
+                && stderr.contains("or give `untyped` a type"),
             "{imports}: {stderr}"
         );
     }

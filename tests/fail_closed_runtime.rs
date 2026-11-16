@@ -110,12 +110,21 @@ fn value_rule_misses_and_non_boolean_guards_fail_closed() {
 }
 
 #[test]
-fn rule_scope_call_syntax_reaches_the_global_function_in_both_modes() {
+fn a_rule_scope_field_hides_a_global_function_of_its_name_in_both_modes() {
+    // A field of a rule scope is a binder, as a parameter is: inside the
+    // scope `income()` calls the `Int` field, which is a check error naming
+    // the hidden function, never the global `income`.
     let source = "> income() -> Int { 7 }\n# Case(income: Int) {\n    | tax() -> income() * 2\n}\n@ print(show(Case(100).tax()))\n";
     for compiled in [false, true] {
         let output = run("scope_call", source, compiled);
-        assert!(output.status.success(), "compiled={compiled}: {output:?}");
-        assert_eq!(stdout(&output), "14", "compiled={compiled}");
+        assert!(!output.status.success(), "compiled={compiled}: {output:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains("value `income` is not callable")
+                && stderr.contains("which hides the function or rule `income`"),
+            "compiled={compiled}: {stderr}"
+        );
+        assert_eq!(stdout(&output), "", "compiled={compiled}");
     }
 }
 

@@ -33892,14 +33892,13 @@ impl RustCodegen {
         // a builtin of their name visible.
         let prelude_function_names: BTreeSet<String> = stmts[..prelude_len]
             .iter()
-            .filter_map(|statement| match statement {
-                Stmt::Defn(Defn::Fn { name, .. })
-                    if !imported_functions.contains(name)
-                        && !is_prelude_function_over(statement, &replaced_types) =>
-                {
-                    Some(name.clone())
-                }
-                _ => None,
+            .filter_map(|statement| {
+                let Stmt::Defn(Defn::Fn { name, .. }) = statement else {
+                    return None;
+                };
+                (!imported_functions.contains(name)
+                    && !is_prelude_function_over(statement, &replaced_types))
+                .then(|| name.clone())
             })
             .collect();
         for (index, stmt) in stmts.iter().enumerate() {

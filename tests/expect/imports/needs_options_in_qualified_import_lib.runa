@@ -35,17 +35,25 @@
     }
 }
 
+> rule_name(r: Option(ProgramReference)) -> String {
+    match r {
+        | Some(rule) -> if rule == refof(room) { "room" } else { "other" }
+        | None -> "none"
+    }
+}
+
+> binding_name(b: Option(ProgramReference)) -> String {
+    match b {
+        | Some(binding) -> "some"
+        | None -> "none"
+    }
+}
+
 @ export
 > assumption_matched() -> String {
     = q = query account_room(Account(value = unknown, closed = True))
     match q {
-        | Complete -> join(map(q.assumptions, |a| section_name(a.section) + "/" + match a.rule {
-            | Some(rule) -> if rule == refof(room) { "room" } else { "other" }
-            | None -> "none"
-        } + "/" + match a.binding {
-            | Some(binding) -> "some"
-            | None -> "none"
-        }), ",")
+        | Complete -> join(map(q.assumptions, |a| section_name(a.section) + "/" + rule_name(a.rule) + "/" + binding_name(a.binding)), ",")
         | Needs -> "needs"
     }
 }
@@ -59,14 +67,18 @@
     }
 }
 
+> entry_kind(e: Option(ProgramReference)) -> String {
+    match e {
+        | Some(entry) -> if entry == refof(share_income) { "entry share_income" } else { "entry other" }
+        | None -> "fact"
+    }
+}
+
 @ export
 > need_matched() -> String {
     = q = query account_room(Account(value = 5, closed = unknown))
     match q {
-        | Needs -> join(map(q.needs, |n| match n.entry {
-            | Some(entry) -> "entry"
-            | None -> "fact"
-        } + ":" + join(map(n.waiting, |w| section_name(w.section)), "+")), ",")
+        | Needs -> join(map(q.needs, |n| entry_kind(n.entry) + ":" + join(map(n.waiting, |w| section_name(w.section)), "+")), ",")
         | Complete -> "complete"
     }
 }
@@ -101,10 +113,7 @@
 > entry_matched() -> String {
     = q = query household_tax(provided())
     match q {
-        | Needs -> join(map(q.needs, |n| match n.entry {
-            | Some(entry) -> if entry == refof(share_income) { "entry share_income" } else { "entry other" }
-            | None -> "fact"
-        }), ",")
+        | Needs -> join(map(q.needs, |n| entry_kind(n.entry)), ",")
         | Complete -> "complete"
     }
 }
