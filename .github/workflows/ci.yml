@@ -37,7 +37,9 @@ jobs:
   # shard runs some of their groups with --keep-going, so a run reports every
   # failing command instead of the first. Together the shards run every step
   # on both platforms. Shards are balanced by measured step durations (see
-  # docs/mint-gate.md); the roundtrip lane alone bounds the wall time.
+  # docs/mint-gate.md). The safeguards follow cargo test, as in the former
+  # single job, so they find the calculation contract cache its model fixtures
+  # fill; a cold personskat schema can exceed a safeguard's 180 s limit.
   test:
     name: Test (${{ matrix.os }}, ${{ matrix.shard }})
     runs-on: ${{ matrix.os }}
@@ -50,11 +52,11 @@ jobs:
         include:
           - shard: rust
             groups: --group rust
-          - shard: interpreter
-            groups: --group interpreter
             safeguards: true
+          - shard: interpreter
+            groups: --group interpreter --group checks
           - shard: codegen
-            groups: --group codegen --group checks
+            groups: --group codegen
           - shard: roundtrip
             groups: --group roundtrip
 

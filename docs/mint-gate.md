@@ -154,12 +154,16 @@ The CI `test` job runs four shards on both Ubuntu and macOS, each with
 
 | Shard | Runs | Ubuntu | macOS |
 | --- | --- | --- | --- |
-| `rust` | `--group rust` | 27 min | 38 min |
-| `interpreter` | `--group interpreter`, tax-audit safeguards, from-rust corpus, version | 32 min + safeguards | 16 min + safeguards |
-| `codegen` | `--group codegen --group checks` | 36 + 4 min | 17 + 5 min |
+| `rust` | `--group rust`, then tax-audit safeguards, from-rust corpus, version | 27 + ~13 min | 38 + ~15 min |
+| `interpreter` | `--group interpreter --group checks` | 32 + 4 min | 16 + 5 min |
+| `codegen` | `--group codegen` | 36 min | 17 min |
 | `roundtrip` | `--group roundtrip` | 54 min | 36 min |
 
-The times are medians of the steps in the CI runs for releases 0.4.1 and 0.4.2, before each
-shard's 4 min (Ubuntu) or 6 min (macOS) release build. The roundtrip lane is
-one command and bounds the wall time; rebalance the shards from the
-`[mint] ok (Ns)` lines when a lane grows.
+The times are medians of the steps in the CI runs for releases 0.4.1 and
+0.4.2, before each shard's 4 min (Ubuntu) or 6 min (macOS) release build; the
+safeguard times are extrapolated from the first 24 of their 66 commands, as
+far as those runs got.
+The safeguards follow `cargo test` because its model fixtures fill the
+calculation contract cache their time-limited model calls expect. Rebalance
+the shards from the `[mint] ok (Ns)` and `[safeguards] ok (Ns)` lines when a
+lane grows.
