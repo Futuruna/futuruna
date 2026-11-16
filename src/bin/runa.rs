@@ -1466,7 +1466,7 @@ const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v2"
 const CALCULATION_XLSX_TEXT_CHUNK_LIMIT: usize = 30_000;
 const CALCULATION_XLSX_STRING_HELP: &str = "For empty text, enter \"\" (two double quotes). Clearing a cell means no value. For text starting with a double quote, use JSON string quoting.";
 const SOURCE_GRAPH_SNAPSHOT_VERSION: u32 = 1;
-const CALCULATION_CONTRACT_CACHE_VERSION: u32 = 3;
+const CALCULATION_CONTRACT_CACHE_VERSION: u32 = 5;
 const CHECK_ARTIFACT_CACHE_VERSION: u32 = 1;
 const NATIVE_ARTIFACT_CACHE_VERSION: u32 = 1;
 const COMPILER_FINGERPRINT_CACHE_VERSION: u32 = 1;
@@ -1507,11 +1507,20 @@ struct SourceGraphSnapshot {
     graph_hash: String,
 }
 
+/// What a check of an unchanged program hands to `call`, `template` and
+/// `schema`: a hit reads all of it instead of checking again.
 #[derive(Debug, Serialize, Deserialize)]
 struct CalculationContractCacheEntry {
     cache_version: u32,
     source_graph: SourceGraphSnapshot,
     contracts: Vec<calculate::CalculationContract>,
+    /// The statements the check handed back
+    /// (`TypeCheckArtifacts::program`): renamed for shared constructors,
+    /// import scopes and named-scalar checks as the check renamed them.
+    program: std::sync::Arc<[Stmt]>,
+    /// The check's elaboration: the imported files as it rewrote them and
+    /// the written names of everything it renamed.
+    constructor_elaboration: Option<std::sync::Arc<ConstructorElaboration>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1996,11 +2005,12 @@ fn calculation_contract_cache_path(filename: &str, use_prelude: bool) -> Option<
     Some(calculation_contract_cache_dir()?.join(format!("{identity}.json")))
 }
 
+/// The checked contracts, program and elaboration of an unchanged program.
 fn load_calculation_contract_cache(
     filename: &str,
     source: &str,
     use_prelude: bool,
-) -> Option<Vec<calculate::CalculationContract>> {
+) -> Option<CalculationContractCacheEntry> {
     let path = calculation_contract_cache_path(filename, use_prelude)?;
     let bytes = std::fs::read(path).ok()?;
     let entry: CalculationContractCacheEntry = serde_json::from_slice(&bytes).ok()?;
@@ -2009,13 +2019,14 @@ fn load_calculation_contract_cache(
     {
         return None;
     }
-    Some(entry.contracts)
+    Some(entry)
 }
 
 fn store_calculation_contract_cache(
     filename: &str,
     use_prelude: bool,
     source_graph: SourceGraphSnapshot,
+    checked: &TypeCheckArtifacts,
     contracts: &[calculate::CalculationContract],
 ) {
     let Some(path) = calculation_contract_cache_path(filename, use_prelude) else {
@@ -2025,6 +2036,8 @@ fn store_calculation_contract_cache(
         cache_version: CALCULATION_CONTRACT_CACHE_VERSION,
         source_graph,
         contracts: contracts.to_vec(),
+        program: checked.program().clone(),
+        constructor_elaboration: checked.constructor_elaboration.clone(),
     };
     write_json_atomically(&path, &entry);
 }
@@ -2046,57 +2059,56 @@ fn run_calculation_command(
         eprintln!("error: cannot read {}: {}", filename, error);
         std::process::exit(1);
     });
-    let cached_contracts = load_calculation_contract_cache(filename, &source, use_prelude);
-    // A template filled from input shows only values `call` accepts, so it
-    // runs the checks of named scalars on them as `call` does.
-    let needs_statements = cached_contracts.is_none()
-        || mode == "call"
-        || (mode == "template" && input_path.is_some());
-    let user_stmts = needs_statements.then(|| {
-        let mut lexer = Lexer::new(&source);
-        let tokens = lexer.tokenize();
-        let mut parser = Parser::new(tokens, &source);
-        parser.parse_program().unwrap_or_else(|error| {
-            display_error_in(&source, &error, filename);
-            std::process::exit(1);
-        })
-    });
-    let mut stmts: Option<std::sync::Arc<[Stmt]>> = user_stmts.as_ref().map(|user_stmts| {
-        if use_prelude {
-            prepend_prelude(parse_prelude(), user_stmts).into()
-        } else {
-            user_stmts.as_slice().into()
-        }
-    });
-    let (contracts, constructor_elaboration) = if let Some(cached) = cached_contracts {
-        // A cached program was never elaborated: its parsed statements are
-        // the ones a check would hand back.
+    let cached = load_calculation_contract_cache(filename, &source, use_prelude);
+    let (contracts, stmts, constructor_elaboration) = if let Some(cached) = cached {
         trace_calculation_contract_cache("hit");
-        (cached, None)
+        // The check's own program and elaboration, made current as a
+        // successful check makes them.
+        if let Some(elaboration) = &cached.constructor_elaboration {
+            elaboration.install();
+        }
+        (
+            cached.contracts,
+            cached.program,
+            cached.constructor_elaboration,
+        )
     } else {
         if calculation_contract_cache_dir().is_some() {
             trace_calculation_contract_cache("miss");
         } else {
             trace_calculation_contract_cache("disabled");
         }
-        let user_stmts = user_stmts.as_ref().expect("cache miss parses source");
+        let mut lexer = Lexer::new(&source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &source);
+        let user_stmts = parser.parse_program().unwrap_or_else(|error| {
+            display_error_in(&source, &error, filename);
+            std::process::exit(1);
+        });
+        let stmts: std::sync::Arc<[Stmt]> = if use_prelude {
+            prepend_prelude(parse_prelude(), &user_stmts).into()
+        } else {
+            user_stmts.as_slice().into()
+        };
         let source_graph = calculation_contract_cache_dir()
-            .and_then(|_| build_source_graph_snapshot(filename, &source, user_stmts, use_prelude));
-        let mut checked = run_type_check(
-            stmts.as_deref().expect("cache miss prepares statements"),
-            &source,
-            filename,
-        )
-        .unwrap_or_else(|| std::process::exit(1));
-        stmts = Some(checked.program().clone());
+            .and_then(|_| build_source_graph_snapshot(filename, &source, &user_stmts, use_prelude));
+        let mut checked =
+            run_type_check(&stmts, &source, filename).unwrap_or_else(|| std::process::exit(1));
         let contracts = std::mem::take(&mut checked.calculation_contracts);
-        // An elaborated program must be checked on every run: its internal
-        // constructor names come from the check.
-        let elaborated = checked.constructor_elaboration.is_some();
-        if let Some(source_graph) = source_graph.filter(|_| !elaborated) {
-            store_calculation_contract_cache(filename, use_prelude, source_graph, &contracts);
+        if let Some(source_graph) = source_graph {
+            store_calculation_contract_cache(
+                filename,
+                use_prelude,
+                source_graph,
+                &checked,
+                &contracts,
+            );
         }
-        (contracts, checked.constructor_elaboration.clone())
+        (
+            contracts,
+            checked.program().clone(),
+            checked.constructor_elaboration.clone(),
+        )
     };
     let source_dir = source_dir_for(filename);
     let contract =
@@ -2146,7 +2158,9 @@ fn run_calculation_command(
                     std::process::exit(1);
                 })
                 .unwrap_or_else(|| contract.template_envelope());
-            if let Some(stmts) = stmts.filter(|_| input_path.is_some()) {
+            // A template filled from input shows only values `call` accepts,
+            // so it runs the checks of named scalars on them as `call` does.
+            if input_path.is_some() {
                 let mut prepared = calculate::PreparedCalculation::new(
                     contract.clone(),
                     stmts,
@@ -2208,7 +2222,7 @@ fn run_calculation_command(
             let input_format = calculation_format(None, Some(input_path), "json");
             let mut prepared = calculate::PreparedCalculation::new(
                 contract.clone(),
-                stmts.expect("calculation calls parse source"),
+                stmts,
                 source_dir,
                 constructor_elaboration,
             )

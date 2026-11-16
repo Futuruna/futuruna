@@ -710,6 +710,174 @@ fn calculation_contract_cache_hits_and_tracks_transitive_imports() {
     std::fs::remove_dir_all(root).ok();
 }
 
+/// `stderr` without the calculation cache's trace lines.
+fn without_cache_trace(stderr: &[u8]) -> String {
+    String::from_utf8_lossy(stderr)
+        .lines()
+        .filter(|line| !line.starts_with("calculation contract cache: "))
+        .map(|line| format!("{line}\n"))
+        .collect()
+}
+
+/// Run `args` with the calculation cache in `cache`, and again with the
+/// cache disabled; both runs must give the same status and output. Returns
+/// the cached run.
+fn run_cached_like_uncached(args: &[&str], cache: &str, expected_trace: &str) -> Output {
+    let cached = run_with_env(
+        args,
+        &[
+            ("FUTURUNA_CALCULATION_CACHE_DIR", cache),
+            ("FUTURUNA_CALCULATION_CACHE_TRACE", "1"),
+        ],
+    );
+    let uncached = run_with_env(args, &[("FUTURUNA_DISABLE_CALCULATION_CACHE", "1")]);
+    assert!(
+        String::from_utf8_lossy(&cached.stderr)
+            .contains(&format!("calculation contract cache: {expected_trace}")),
+        "{args:?} must be a cache {expected_trace}: {}",
+        String::from_utf8_lossy(&cached.stderr)
+    );
+    assert_eq!(cached.status.code(), uncached.status.code(), "{args:?}");
+    assert_eq!(
+        String::from_utf8_lossy(&cached.stdout),
+        String::from_utf8_lossy(&uncached.stdout),
+        "{args:?}"
+    );
+    assert_eq!(
+        without_cache_trace(&cached.stderr),
+        without_cache_trace(&uncached.stderr),
+        "{args:?}"
+    );
+    cached
+}
+
+#[test]
+fn calculation_contract_cache_hits_for_a_program_its_import_scopes_rename() {
+    // Two imported files each declare `rate`: the import scopes rename them
+    // apart, so the check hands back an elaborated program. A hit runs that
+    // program as the check handed it back.
+    let root = temp_path("calculation-cache-scoped");
+    std::fs::create_dir_all(&root).expect("create scoped cache fixture directory");
+    let cache = root.join("cache");
+    let source = root.join("model.calculate.runa");
+    let low = root.join("low.runa");
+    std::fs::write(
+        &source,
+        "@ import ./low\n\
+@ import ./high\n\
+# ScopedInput(amount: Int)\n\
+# ScopedResult(low: Int, high: Int)\n\
+@ calculate(\"Scoped calculation\")\n\
+| calculate_scoped(input: ScopedInput) -> ScopedResult(low = low_part(input.amount), high = high_part(input.amount))\n",
+    )
+    .expect("write scoped calculation source");
+    std::fs::write(&low, "= rate = 2\n| low_part(x: Int) -> x * rate\n").expect("write low module");
+    std::fs::write(
+        root.join("high.runa"),
+        "= rate = 3\n| high_part(x: Int) -> x * rate\n",
+    )
+    .expect("write high module");
+
+    let source = source.to_str().expect("scoped calculation source path");
+    let cache = cache.to_str().expect("scoped calculation cache path");
+    run_cached_like_uncached(&["schema", source], cache, "miss");
+    run_cached_like_uncached(&["schema", source], cache, "hit");
+    let template = run_cached_like_uncached(&["template", source], cache, "hit");
+    let mut envelope = parse_stdout(&template);
+    envelope["cases"][0]["input"]["amount"] = 10.into();
+    envelope["cases"][0]["input_status"] = "ready".into();
+    let input = root.join("input.json");
+    std::fs::write(&input, serde_json::to_vec(&envelope).unwrap())
+        .expect("write scoped calculation input");
+    let input = input.to_str().expect("scoped calculation input path");
+
+    let called = run_cached_like_uncached(&["call", source, "--input", input], cache, "hit");
+    assert!(called.status.success(), "{called:?}");
+    let result = parse_stdout(&called);
+    assert_eq!(
+        result["results"][0]["result"],
+        serde_json::json!({"low": 20, "high": 30})
+    );
+
+    std::fs::write(&low, "= rate = 5\n| low_part(x: Int) -> x * rate\n")
+        .expect("change low module");
+    let changed = run_cached_like_uncached(&["call", source, "--input", input], cache, "miss");
+    assert_eq!(
+        parse_stdout(&changed)["results"][0]["result"],
+        serde_json::json!({"low": 50, "high": 30})
+    );
+    run_cached_like_uncached(&["call", source, "--input", input], cache, "hit");
+
+    std::fs::remove_dir_all(root).ok();
+}
+
+#[test]
+fn calculation_contract_cache_hits_for_a_named_scalar_program() {
+    // The check gives a named scalar's checks their own functions
+    // (`__scalar_check_Isin_0`). A hit runs them as a miss does: a template
+    // filled from input refuses the same values with the same words.
+    let root = temp_path("calculation-cache-scalar");
+    std::fs::create_dir_all(&root).expect("create scalar cache fixture directory");
+    let cache = root.join("cache");
+    let model = root.join("book.calculate.runa");
+    let write_model = |description: &str| {
+        std::fs::write(
+            &model,
+            format!(
+                "| isin_ok(text: String) -> string_length(text) == 12\n\
+                 # Isin: String \"{description}\" where isin_ok\n\
+                 # Holding(isin: Isin, count: Int)\n\
+                 # Book(holdings: List(Holding))\n\
+                 @ calculate\n\
+                 > total(input: Book) -> Int {{ sum(map(input.holdings, |h| h.count)) }}\n"
+            ),
+        )
+        .expect("write named scalar model");
+    };
+    write_model("an ISIN");
+    let model = model.to_str().expect("named scalar model path");
+    let cache = cache.to_str().expect("named scalar cache path");
+
+    let template = run_cached_like_uncached(&["template", model], cache, "miss");
+    let mut envelope = parse_stdout(&template);
+    let mut write_input = |name: &str, isin: &str| {
+        envelope["cases"] = serde_json::json!([{
+            "case_id": name,
+            "input_status": "ready",
+            "input": {"holdings": [{"isin": isin, "count": 3}]}
+        }]);
+        let path = root.join(format!("{name}.json"));
+        std::fs::write(&path, serde_json::to_vec(&envelope).unwrap())
+            .expect("write named scalar input");
+        path.to_str().expect("named scalar input path").to_string()
+    };
+    let good = write_input("good", "DK0060534915");
+    let bad = write_input("bad", "DK006053491");
+
+    let accepted = run_cached_like_uncached(&["template", model, "--input", &good], cache, "hit");
+    assert!(accepted.status.success(), "{accepted:?}");
+    let refused = run_cached_like_uncached(&["template", model, "--input", &bad], cache, "hit");
+    assert_eq!(refused.status.code(), Some(1), "{refused:?}");
+    let stderr = without_cache_trace(&refused.stderr);
+    assert!(
+        stderr.contains(
+            "case `bad` $.holdings[0].isin: `\"DK006053491\"` is not an `Isin`: `isin_ok` is false"
+        ),
+        "{stderr}"
+    );
+    let called = run_cached_like_uncached(&["call", model, "--input", &good], cache, "hit");
+    assert_eq!(parse_stdout(&called)["results"][0]["result"], 3);
+    run_cached_like_uncached(&["call", model, "--input", &bad], cache, "hit");
+
+    // A changed label is a changed program.
+    write_model("a securities number");
+    let schema = run_cached_like_uncached(&["schema", model], cache, "miss");
+    assert!(String::from_utf8_lossy(&schema.stdout).contains("a securities number"));
+    run_cached_like_uncached(&["template", model, "--input", &bad], cache, "hit");
+
+    std::fs::remove_dir_all(root).ok();
+}
+
 #[test]
 fn schema_preserves_localized_keyword_field_spelling() {
     let path = temp_path("runa");

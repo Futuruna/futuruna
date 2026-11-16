@@ -22,6 +22,7 @@
 #![doc(html_logo_url = "https://futuruna.com/apple-touch-icon.png")]
 #![doc(html_favicon_url = "https://futuruna.com/favicon.png")]
 
+use serde::{Deserialize, Serialize};
 use serde_json;
 use sha2::{Digest as ShaDigest, Sha256};
 use std::cell::{Cell, RefCell};
@@ -2244,7 +2245,7 @@ impl Lexer {
 
 /// Source location span — character offsets into source text.
 /// Use `Span::to_line_col()` to convert to human-readable line:col.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Span {
     pub start: usize, // character offset (0-based)
     pub end: usize,   // character offset (exclusive)
@@ -5624,7 +5625,7 @@ pub fn should_use_color() -> bool {
 // PART 3: AST
 // ============================================================================
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Ty {
     Name(String),
     App(Box<Ty>, Vec<Ty>),
@@ -5664,14 +5665,14 @@ impl fmt::Display for Ty {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Param {
     pub name: String,
     pub ty: Option<Ty>,
     pub inout: bool, // Mutable value semantics: caller passes &mut, function mutates in place
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Pat {
     Wild,
     Var(String),
@@ -5681,13 +5682,30 @@ pub enum Pat {
     As(Box<Pat>, String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Literal {
     Int(i64),
-    Float(f64),
+    // Stored by its bits: a cached program keeps every float exactly,
+    // NaN and infinities included.
+    Float(#[serde(with = "f64_bits")] f64),
     Str(String),
     Char(char),
     Bool(bool),
+}
+
+mod f64_bits {
+    pub(super) fn serialize<S: serde::Serializer>(
+        value: &f64,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.serialize_u64(value.to_bits())
+    }
+
+    pub(super) fn deserialize<'de, D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<f64, D::Error> {
+        <u64 as serde::Deserialize>::deserialize(deserializer).map(f64::from_bits)
+    }
 }
 
 impl fmt::Display for Literal {
@@ -5704,7 +5722,7 @@ impl fmt::Display for Literal {
 
 /// The expression AST node kind. Expr wraps this with a Span.
 /// During the type alias phase, `Expr` = `ExprKind` (zero-cost transition).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExprKind {
     Var(String),
     Lit(Literal),
@@ -5844,7 +5862,7 @@ pub fn join_pathof_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -> 
 }
 
 /// Expression AST node: wraps ExprKind with source location.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Expr {
     pub kind: ExprKind,
     pub span: Span,
@@ -6061,14 +6079,14 @@ impl From<ExprKind> for Box<Expr> {
 }
 
 /// A single handler clause in a | handle expression
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EffHandler {
     pub op_name: String,
     pub params: Vec<String>,
     pub body: Expr,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct MatchArm {
     pub pat: Pat,
     /// Authored pattern range; dummy for compiler-generated arms.
@@ -6089,7 +6107,7 @@ impl fmt::Debug for MatchArm {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExploreSourceBindingKind {
     Singleton { value: Expr },
     Finite { domain: Expr },
@@ -6100,14 +6118,14 @@ pub enum ExploreSourceBindingKind {
 /// This is distinct from the binding's semantic row role (`context`,
 /// `before`, or auxiliary): `given` declares conditioning, `vary` declares a
 /// finite dimension, and `let` declares a derived singleton value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExploreSourceProducerRole {
     Given,
     Vary,
     Let,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExploreSourceBinding {
     pub name: String,
     pub producer_role: ExploreSourceProducerRole,
@@ -6115,39 +6133,39 @@ pub struct ExploreSourceBinding {
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExploreSourceRelation {
     pub bindings: Vec<ExploreSourceBinding>,
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExploreSuccessorKind {
     Singleton { value: Expr },
     Finite { domain: Expr },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExploreSuccessorRelation {
     pub kind: ExploreSuccessorKind,
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExploreAdmissionScope {
     Before,
     After,
     Transition,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExploreAdmission {
     pub scope: ExploreAdmissionScope,
     pub predicate: Expr,
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExploreSelection {
     All { span: Span },
     Matches { predicate: Expr, span: Span },
@@ -6171,40 +6189,40 @@ impl ExploreSelection {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExploreFind {
     pub name: String,
     pub selection: ExploreSelection,
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExploreResultField {
     pub name: String,
     pub value: Expr,
     pub span: Span,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExploreResultInput {
     Sources,
     Find { find_name: String },
     MechanismIncidence { request_name: String },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExploreAggregateReducer {
     CountDistinct { value: Expr },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExploreAggregateField {
     pub name: String,
     pub reducer: ExploreAggregateReducer,
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExploreResultGrain {
     EachCase {
         span: Span,
@@ -6232,31 +6250,31 @@ impl ExploreResultGrain {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExploreResultHaving {
     Varies { measure_name: String, span: Span },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExploreOptimizeDirection {
     Minimize,
     Maximize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExploreChooseCardinality {
     One,
     All,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExploreParetoObjective {
     pub direction: ExploreOptimizeDirection,
     pub value: Expr,
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExploreResultChoice {
     Optimize {
         cardinality: ExploreChooseCardinality,
@@ -6270,7 +6288,7 @@ pub enum ExploreResultChoice {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExploreResultView {
     pub name: String,
     pub input: ExploreResultInput,
@@ -6283,13 +6301,13 @@ pub struct ExploreResultView {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExploreMechanismTarget {
     FindCases { find_name: String },
     ViewChosen { view_name: String },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExploreMechanismRequest {
     pub name: String,
     pub target: ExploreMechanismTarget,
@@ -6299,13 +6317,13 @@ pub struct ExploreMechanismRequest {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExploreMechanismSupportFacet {
     Activation,
     DifferentialParticipation,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExploreMechanismSupportSubject {
     Mechanism([u8; 32]),
     Node {
@@ -6324,7 +6342,7 @@ pub enum ExploreMechanismSupportSubject {
 /// outside [`ExploreAnalysisNode`] so attaching or renaming an observation
 /// cannot rename the relation, question, mechanism request, or core analysis
 /// DAG whose evidence it observes.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExploreSupportObservationDemand {
     pub name: String,
     pub request_name: String,
@@ -6341,7 +6359,7 @@ pub struct ExploreSupportObservationDemand {
 /// These declarations are intentionally separate from [`ExploreAnalysisNode`]:
 /// adding a presentation consumer must not rename the relation, question,
 /// mechanism request, or core analysis DAG which supplies its authority.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExploreStarterProjection {
     pub name: String,
     pub request_name: String,
@@ -6359,13 +6377,13 @@ pub struct ExploreStarterProjection {
 /// The graph is identity-only: typed endpoint values require a separately
 /// checked value-bearing consumer and are never disclosed by this declaration.
 /// Like starter projections, this consumer is outside the core analysis DAG.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExploreTransitionGraph {
     pub name: String,
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExploreAnalysisNode {
     Result(ExploreResultView),
     Mechanisms(ExploreMechanismRequest),
@@ -6387,7 +6405,7 @@ impl ExploreAnalysisNode {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExploreQuery {
     pub name: String,
     pub source: ExploreSourceRelation,
@@ -6738,7 +6756,7 @@ fn explore_result_input_row_bindings(
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Stmt {
     /// Internal end of compiler-injected prelude declarations; no source syntax.
     PreludeBoundary,
@@ -6779,7 +6797,7 @@ pub enum Stmt {
     Expr(Expr),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Defn {
     Fn {
         name: String,
@@ -6799,13 +6817,13 @@ pub enum Defn {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Handler {
     pub msg_pat: Pat,
     pub body: Expr,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TypeDecl {
     ADT {
         name: String,
@@ -6873,7 +6891,7 @@ pub enum TypeDecl {
 /// One check of a named scalar type: a pure rule or function that takes the
 /// value first, and the further ground arguments written after its name
 /// (`length_between(4, 50)` checks `length_between(value, 4, 50)`).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScalarCheck {
     pub name: String,
     pub arguments: Vec<Expr>,
@@ -6885,7 +6903,7 @@ pub struct ScalarCheck {
 /// `= DKK / 100`: 100 of the unit make one `DKK`. `of` is the base: a name
 /// that is not a declared type (a currency code, a quantity), or `1` for a
 /// plain number. Units of one base convert into each other by whole factors.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct UnitScale {
     pub of: String,
     pub per: i64,
@@ -6901,7 +6919,7 @@ impl fmt::Display for UnitScale {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TraitMethod {
     pub name: String,
     pub params: Vec<Param>,
@@ -6909,7 +6927,7 @@ pub struct TraitMethod {
     pub default_body: Option<Expr>, // default implementation
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Variant {
     pub name: String,
     pub fields: Vec<Field>,
@@ -6917,7 +6935,7 @@ pub struct Variant {
     pub from_type: Option<String>, // Some("GeoArea") for subset variants: GeoArea.Danmark
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Field {
     pub name: String,
     pub ty: Ty,
@@ -6930,7 +6948,7 @@ pub const FIELD_META_KEYS: [&str; 8] = [
 
 /// One `@ field(key = value, ...)` declaration. Values are ordinary pure
 /// ground expressions; `runa schema` resolves them like metadata bindings.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldMetaDecl {
     pub entries: Vec<(String, Expr)>,
     pub span: Span,
@@ -6946,7 +6964,7 @@ impl FieldMetaDecl {
 }
 
 /// `@ field(...)` written on a named field of a type's variant.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemberFieldMeta {
     pub variant: String,
     pub field: String,
@@ -6955,13 +6973,13 @@ pub struct MemberFieldMeta {
 
 /// The calculation field metadata a data type declares: a default for every
 /// field whose value has this type, and metadata for its own named fields.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TypeFieldMeta {
     pub type_default: Option<FieldMetaDecl>,
     pub members: Vec<MemberFieldMeta>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Rule {
     Clause {
         head: Expr,
@@ -8893,7 +8911,7 @@ pub fn analyze_top_level_binding_dependencies(stmts: &[Stmt]) -> TopLevelBinding
 /// Parsed source retained for the duration of a compiler process. Import-heavy
 /// programs have several semantic consumers, but a module's syntax tree is
 /// independent of the consumer that requested it.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ParsedSourceModule {
     source: Arc<str>,
     statements: Arc<Vec<Stmt>>,
