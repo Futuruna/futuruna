@@ -1,0 +1,18 @@
+-- An unknown sort key orders before every known one and equal to other
+-- unknowns, so the order is total: the sort no longer panics (0.5.0 did,
+-- "user-provided comparison function does not correctly implement a total
+-- order"). The key is read, so the sorted list is unknown and the key is the
+-- need.
+-- expect-command: call
+-- expect-input: needs_sort_unknown_key.json
+-- expect-args: --partial
+-- expect-stdout-file: needs_sort_unknown_key.stdout
+
+# Event(account_id: String, amount: Int)
+# Case(events: List(Event))
+# Result(count: Int)
+
+| by_account(c: Case) -> sort(map(c.events, |e| (e.account_id, e.amount)))
+
+@ entry
+| sorted_count(c: Case) -> Result(count = length(by_account(c)))

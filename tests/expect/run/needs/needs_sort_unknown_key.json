@@ -1,0 +1,116 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.entry.input.v2",
+    "schema_hash": "1a3f7c7fa69199af327ce903c86f471d17fd1333823196c9092018eca6ac548f",
+    "entry": "sorted_count"
+  },
+  "cases": [
+    {
+      "case_id": "one-account-unknown",
+      "input_status": "ready",
+      "input": {
+        "events": [
+          {
+            "account_id": "A19",
+            "amount": 0
+          },
+          {
+            "account_id": "A02",
+            "amount": 1
+          },
+          {
+            "account_id": "A11",
+            "amount": 2
+          },
+          {
+            "account_id": "A01",
+            "amount": 3
+          },
+          {
+            "account_id": "A04",
+            "amount": 4
+          },
+          {
+            "account_id": "A12",
+            "amount": 5
+          },
+          {
+            "account_id": "A05",
+            "amount": 6
+          },
+          {
+            "account_id": "A09",
+            "amount": 7
+          },
+          {
+            "account_id": "A17",
+            "amount": 8
+          },
+          {
+            "account_id": "A06",
+            "amount": 9
+          },
+          {
+            "account_id": "A13",
+            "amount": 10
+          },
+          {
+            "amount": 11
+          },
+          {
+            "account_id": "A16",
+            "amount": 12
+          },
+          {
+            "account_id": "A21",
+            "amount": 13
+          },
+          {
+            "account_id": "A15",
+            "amount": 14
+          },
+          {
+            "account_id": "A23",
+            "amount": 15
+          },
+          {
+            "account_id": "A10",
+            "amount": 16
+          },
+          {
+            "account_id": "A03",
+            "amount": 17
+          },
+          {
+            "account_id": "A18",
+            "amount": 18
+          },
+          {
+            "account_id": "A07",
+            "amount": 19
+          },
+          {
+            "account_id": "A08",
+            "amount": 20
+          },
+          {
+            "account_id": "A14",
+            "amount": 21
+          },
+          {
+            "account_id": "A22",
+            "amount": 22
+          },
+          {
+            "account_id": "A00",
+            "amount": 23
+          },
+          {
+            "account_id": "A24",
+            "amount": 24
+          }
+        ]
+      }
+    }
+  ]
+}
