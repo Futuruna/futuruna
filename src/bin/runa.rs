@@ -731,7 +731,10 @@ fn main_inner() {
                     "  template      Generate or hydrate JSON, TOML, or XLSX calculation input"
                 );
                 eprintln!("  call          Validate input and invoke a typed calculation");
-                eprintln!("  sdk ts FILE --out DIR  Generate a TypeScript SDK for every entry");
+                eprintln!("  sdk ts FILE --out DIR  Generate a TypeScript SDK for every entry (--guides F --guide E=G to answer E by G)");
+                eprintln!(
+                    "  sdk runtime --out DIR  Write the @futuruna/runtime package the SDKs import"
+                );
                 eprintln!(
                     "  meta          Report typed meta references across a file or source tree"
                 );
@@ -2377,19 +2380,20 @@ fn calculation_entry_names(contracts: &[calculate::CalculationContract]) -> Stri
     }
 }
 
-/// `runa sdk ts FILE --out DIR [--runtime PATH]`: write the TypeScript SDK
-/// for every entry of FILE, and the runtime it imports at PATH
-/// (relative to DIR; `runtime.ts` unless given).
+/// `runa sdk ts FILE --out DIR [--guides GUIDES --guide ENTRY=GUIDE ...]`:
+/// write the TypeScript SDK for every entry of FILE, each entry named by a
+/// `--guide` also answered by that guide of GUIDES. `runa sdk runtime --out
+/// DIR`: write the package `@futuruna/runtime` the SDKs import.
 fn run_sdk_command(args: &[String]) {
-    const USAGE: &str =
-        "usage: runa sdk ts <file.entry.runa> --out <dir> [--runtime <path relative to dir>]";
+    const USAGE: &str = "usage: runa sdk ts <file.entry.runa> --out <dir> [--guides <file.guide.runa> --guide <entry>=<guide> ...]\n       runa sdk runtime --out <dir>";
     let fail = |message: &str| -> ! {
         eprintln!("error: {message}\n{USAGE}");
         std::process::exit(1);
     };
     let mut positional = Vec::new();
     let mut out_dir = None;
-    let mut runtime = None;
+    let mut guides_file = None;
+    let mut guide_args: Vec<String> = Vec::new();
     let mut rest = args.iter();
     while let Some(arg) = rest.next() {
         match arg.as_str() {
@@ -2402,27 +2406,46 @@ fn run_sdk_command(args: &[String]) {
                 _ => fail("--out requires a directory"),
             },
             arg if arg.starts_with("--out=") => out_dir = Some(arg["--out=".len()..].to_string()),
-            "--runtime" => match rest.next() {
-                Some(path) if !path.starts_with('-') => runtime = Some(path.clone()),
-                _ => fail("--runtime requires a path"),
+            "--guides" => match rest.next() {
+                Some(file) if !file.starts_with('-') => guides_file = Some(file.clone()),
+                _ => fail("--guides requires the file that binds the guides"),
             },
-            arg if arg.starts_with("--runtime=") => {
-                runtime = Some(arg["--runtime=".len()..].to_string())
+            arg if arg.starts_with("--guides=") => {
+                guides_file = Some(arg["--guides=".len()..].to_string())
+            }
+            "--guide" => match rest.next() {
+                Some(pair) if !pair.starts_with('-') => guide_args.push(pair.clone()),
+                _ => fail("--guide requires <entry>=<guide>"),
+            },
+            arg if arg.starts_with("--guide=") => {
+                guide_args.push(arg["--guide=".len()..].to_string())
             }
             arg if arg.starts_with('-') => fail(&format!("unknown option `{arg}`")),
             arg => positional.push(arg),
         }
     }
+    let out_dir = out_dir.unwrap_or_else(|| fail("--out is required"));
+    if positional.as_slice() == ["runtime"] {
+        if guides_file.is_some() || !guide_args.is_empty() {
+            fail("the runtime depends on no model: --guides and --guide are for `runa sdk ts`");
+        }
+        write_generated_files(Path::new(&out_dir), &calculate::sdk_ts::runtime_package());
+        println!(
+            "wrote {} {} to {out_dir}",
+            calculate::sdk_ts::RUNTIME_PACKAGE,
+            calculate::sdk_ts::RUNTIME_VERSION
+        );
+        return;
+    }
     let (target, filename) = match positional.as_slice() {
         [target, filename] => (*target, *filename),
-        _ => fail("expected a target and one source file"),
+        _ => fail("expected `ts` and one source file, or `runtime`"),
     };
     if target != "ts" {
         fail(&format!(
-            "unknown SDK target `{target}`; the target is `ts`"
+            "unknown SDK target `{target}`; the targets are `ts` and `runtime`"
         ));
     }
-    let out_dir = out_dir.unwrap_or_else(|| fail("--out is required"));
     let source = std::fs::read_to_string(filename).unwrap_or_else(|error| {
         eprintln!("error: cannot read {filename}: {error}");
         std::process::exit(1);
@@ -2437,16 +2460,133 @@ fn run_sdk_command(args: &[String]) {
     let contracts = run_type_check(&stmts, &source, filename)
         .unwrap_or_else(|| std::process::exit(1))
         .calculation_contracts;
-    let runtime = runtime
-        .as_deref()
-        .unwrap_or(calculate::sdk_ts::DEFAULT_RUNTIME_PATH);
-    let files = calculate::sdk_ts::generate_typescript_sdk(&contracts, filename, runtime)
+    let (guides, groups) = match &guides_file {
+        Some(guides_file) => {
+            if guide_args.is_empty() {
+                fail("--guides needs at least one --guide <entry>=<guide>");
+            }
+            sdk_guides(guides_file)
+        }
+        None if guide_args.is_empty() => (Vec::new(), Vec::new()),
+        None => fail("--guide needs --guides, the file that binds the guide"),
+    };
+    let mut entry_guides = Vec::new();
+    for pair in &guide_args {
+        let Some((entry, name)) = pair.split_once('=') else {
+            fail(&format!("--guide `{pair}` is not <entry>=<guide>"));
+        };
+        let Some(guide) = guides.iter().find(|guide| guide.name == name) else {
+            fail(&format!(
+                "{} binds no AnswerGuide `{name}`; it binds {}",
+                guides_file.as_deref().unwrap_or_default(),
+                if guides.is_empty() {
+                    "none".to_string()
+                } else {
+                    guides
+                        .iter()
+                        .map(|guide| format!("`{}`", guide.name))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                }
+            ));
+        };
+        entry_guides.push(calculate::sdk_ts::EntryGuide {
+            entry,
+            guide,
+            groups: guide_groups(guide, &groups),
+        });
+    }
+    let files = calculate::sdk_ts::generate_typescript_sdk(&contracts, filename, &entry_guides)
         .unwrap_or_else(|error| {
             eprintln!("error: {error}");
             std::process::exit(1);
         });
     let out_dir = Path::new(&out_dir);
-    for file in &files {
+    // An answer module of an earlier run with a guide would otherwise linger.
+    let stale_answer = out_dir.join("answer.ts");
+    if !files.iter().any(|file| file.name == "answer.ts")
+        && std::fs::read_to_string(&stale_answer)
+            .is_ok_and(|text| text.starts_with("// Generated by `runa sdk ts`"))
+    {
+        let _ = std::fs::remove_file(&stale_answer);
+    }
+    write_generated_files(out_dir, &files);
+    println!(
+        "wrote {} for {} to {}",
+        files
+            .iter()
+            .map(|file| file.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", "),
+        calculation_entry_names(&contracts),
+        out_dir.display()
+    );
+}
+
+/// The guides a guides file binds, read without running it after the file
+/// passes `runa check`'s guide checks, and the group types it declares
+/// (each as its constructors, in order). Exits on an error.
+fn sdk_guides(filename: &str) -> (Vec<answer::Guide>, Vec<Vec<String>>) {
+    let source = std::fs::read_to_string(filename).unwrap_or_else(|error| {
+        eprintln!("error: cannot read {filename}: {error}");
+        std::process::exit(1);
+    });
+    let user_stmts = Parser::new(Lexer::new(&source).tokenize(), &source)
+        .parse_program()
+        .unwrap_or_else(|error| {
+            display_error_in(&source, &error, filename);
+            std::process::exit(1);
+        });
+    let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+    if run_type_check(&stmts, &source, filename).is_none() {
+        std::process::exit(1);
+    }
+    let mut guides = Vec::new();
+    for read in answer::read_guides(&user_stmts) {
+        match read {
+            Ok(guide) => guides.push(guide),
+            Err(problems) => {
+                for (_, message) in problems {
+                    eprintln!("error: {filename}: {message}");
+                }
+                std::process::exit(1);
+            }
+        }
+    }
+    let groups = user_stmts
+        .iter()
+        .filter_map(|statement| match statement {
+            Stmt::TypeDecl(TypeDecl::ADT { variants, .. }) => Some(
+                variants
+                    .iter()
+                    .map(|variant| variant.name.clone())
+                    .collect(),
+            ),
+            _ => None,
+        })
+        .collect();
+    (guides, groups)
+}
+
+/// A guide's groups in the order its group type declares them, when the
+/// guides file declares it; otherwise in the order the guide first names them.
+fn guide_groups(guide: &answer::Guide, declared: &[Vec<String>]) -> Vec<String> {
+    let mut named: Vec<String> = Vec::new();
+    for item in &guide.items {
+        if !named.contains(&item.group) {
+            named.push(item.group.clone());
+        }
+    }
+    declared
+        .iter()
+        .find(|constructors| named.iter().all(|group| constructors.contains(group)))
+        .cloned()
+        .unwrap_or(named)
+}
+
+/// Write generated files under `out_dir`, each only when its contents changed.
+fn write_generated_files(out_dir: &Path, files: &[calculate::sdk_ts::GeneratedFile]) {
+    for file in files {
         let path = out_dir.join(&file.name);
         if let Some(parent) = path.parent() {
             if let Err(error) = std::fs::create_dir_all(parent) {
@@ -2459,16 +2599,6 @@ fn run_sdk_command(args: &[String]) {
             std::process::exit(1);
         }
     }
-    println!(
-        "wrote {} for {} to {}",
-        files
-            .iter()
-            .map(|file| file.name.as_str())
-            .collect::<Vec<_>>()
-            .join(", "),
-        calculation_entry_names(&contracts),
-        out_dir.display()
-    );
 }
 
 fn calculation_unknown_format(format: &str) -> ! {

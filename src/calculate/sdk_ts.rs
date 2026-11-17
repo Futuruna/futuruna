@@ -1,24 +1,28 @@
-//! TypeScript SDK generation for calculation contracts (`runa sdk ts`).
+//! TypeScript SDK generation for calculation contracts (`runa sdk ts`), and
+//! the runtime package the SDKs import (`runa sdk runtime`).
 //!
 //! Everything is derived from the contracts `runa schema` emits. The SDK reads
 //! as ordinary TypeScript: camelCase field names, a sum type whose variants
 //! carry no fields as a string union, and `Date` as an ISO `YYYY-MM-DD` string.
 //! The wire is unchanged: the canonical JSON encoding that `decode_value`
 //! reads and `encode_value` writes. Each entry's modules carry codec tables
-//! (TypeScript name, wire name, encoding), and the shared runtime encodes a
-//! case before a call and decodes the result and the needs' paths after it.
-//! The partial-case types and the `Complete`/`Needs` result follow
-//! `docs/rfcs/calculation-needs.md`; the client reaches an engine only through
-//! a transport. The output depends only on the contracts, the source label and
-//! the runtime path, so regenerating an unchanged model rewrites identical
-//! files.
+//! (TypeScript name, wire name, encoding), and the runtime package
+//! `@futuruna/runtime` encodes a case before a call and decodes the result and
+//! the needs' paths after it. The partial-case types and the
+//! `Complete`/`Needs` result follow `docs/rfcs/calculation-needs.md`; the
+//! client reaches an engine only through a transport. An entry given a guide
+//! (`docs/rfcs/answer-guide.md`) is also answered by it: its held case type,
+//! its resolvers by group and `<entry>Answer`. The output depends only on the
+//! contracts, the guides and the source label, so regenerating an unchanged
+//! model rewrites identical files.
 
 use super::{
     calculation_type_occurrence_paths, definition_substitutions, joined_column_path,
     product_variant, substitute_contract_type, CalculationContract, CalculationField,
     CalculationFieldMetadata, CalculationScalar, CalculationTypeDefinition, CalculationTypeRef,
-    CalculationVariant, CONTRACT_SCHEMA, INPUT_SCHEMA, OUTPUT_SCHEMA,
+    CalculationUnit, CalculationVariant, CONTRACT_SCHEMA, INPUT_SCHEMA, OUTPUT_SCHEMA,
 };
+use crate::answer::{written_path, Guide};
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
@@ -26,18 +30,11 @@ use std::fmt::Write as _;
 /// The output envelope schema of `runa call --partial`.
 pub const PARTIAL_OUTPUT_SCHEMA: &str = "futuruna.entry.partial-output.v1";
 
-/// Where the runtime module goes, relative to the output directory, unless
-/// `--runtime` says otherwise.
-pub const DEFAULT_RUNTIME_PATH: &str = "runtime.ts";
+/// The npm package of the runtime every generated SDK imports.
+pub const RUNTIME_PACKAGE: &str = "@futuruna/runtime";
 
-/// The modules generated for the entries of one source file.
-const ENTRY_MODULES: [&str; 5] = [
-    "types.ts",
-    "schema.ts",
-    "partial.ts",
-    "client.ts",
-    "index.ts",
-];
+/// The version of the runtime package: Futuruna's.
+pub const RUNTIME_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// The fields of a Futuruna `Date`, in the order the engine sorts the paths of
 /// a date's parts (`date.day` < `date.month` < `date.year`).
@@ -102,22 +99,33 @@ pub struct GeneratedFile {
     pub contents: String,
 }
 
+/// The guide one entry is answered by (`runa sdk ts --guide entry=guide`):
+/// the guide as [`crate::answer::read_guides`] reads it, and its groups, in
+/// the order the group type declares them.
+pub struct EntryGuide<'g> {
+    pub entry: &'g str,
+    pub guide: &'g Guide,
+    pub groups: Vec<String>,
+}
+
 /// Generate the TypeScript SDK for every entry of one source file.
 ///
-/// `source` names the file in the generated headers. `runtime_path` is where
-/// the runtime module goes, relative to the output directory (`runtime.ts`,
-/// or `../runtime.ts` for one runtime shared by the SDKs of several files);
-/// the entry modules import it from there. A file whose contracts cannot be
-/// expressed (an unsupported type, two entries disagreeing on a type, two
-/// fields with the same camelCase name, or a contract name that collides with
-/// a generated name) is an error.
+/// `source` names the file in the generated headers. The modules import the
+/// runtime from the package `@futuruna/runtime` ([`runtime_package`]). Each
+/// entry in `guides` also gets `answer.ts`'s held case type, resolvers by
+/// group and `<entry>Answer`. A file whose contracts cannot be expressed (an
+/// unsupported type, two entries disagreeing on a type, two fields with the
+/// same camelCase name, or a contract name that collides with a generated
+/// name) is an error, and so is a guide for no entry of the file, a guide
+/// rooted at another type than its entry's input, or an item that names no
+/// path at which a need can arise.
 pub fn generate_typescript_sdk(
     contracts: &[CalculationContract],
     source: &str,
-    runtime_path: &str,
+    guides: &[EntryGuide<'_>],
 ) -> Result<Vec<GeneratedFile>, String> {
-    let sdk = Sdk::new(contracts, source, runtime_specifier(runtime_path)?)?;
-    Ok(vec![
+    let sdk = Sdk::new(contracts, source, guides)?;
+    let mut files = vec![
         GeneratedFile {
             name: "types.ts".to_string(),
             contents: sdk.types_module(),
@@ -134,40 +142,73 @@ pub fn generate_typescript_sdk(
             name: "client.ts".to_string(),
             contents: sdk.client_module(),
         },
-        GeneratedFile {
-            name: "index.ts".to_string(),
-            contents: sdk.index_module(),
-        },
-        GeneratedFile {
-            name: runtime_path.to_string(),
-            contents: runtime_module(),
-        },
-    ])
+    ];
+    if sdk.answered() {
+        files.push(GeneratedFile {
+            name: "answer.ts".to_string(),
+            contents: sdk.answer_module(),
+        });
+    }
+    files.push(GeneratedFile {
+        name: "index.ts".to_string(),
+        contents: sdk.index_module(),
+    });
+    Ok(files)
 }
 
-/// The module specifier the entry modules import the runtime by:
-/// `../runtime.ts` → `../runtime.js`, `runtime.ts` → `./runtime.js`.
-fn runtime_specifier(path: &str) -> Result<String, String> {
-    let invalid = |reason: &str| Err(format!("the runtime path `{path}` {reason}"));
-    let Some(stem) = path.strip_suffix(".ts") else {
-        return invalid("must name a `.ts` file");
-    };
-    if stem.is_empty() || stem.ends_with('/') || stem.ends_with(".d") {
-        return invalid("must name a `.ts` file");
-    }
-    if path.starts_with('/') || path.contains('\\') || path.contains(':') {
-        return invalid("must be relative to the output directory, with `/` between directories");
-    }
-    let file = path.strip_prefix("./").unwrap_or(path);
-    if ENTRY_MODULES.contains(&file) {
-        return invalid("is the path of a generated entry module");
-    }
-    let specifier = format!("{stem}.js");
-    if specifier.starts_with("./") || specifier.starts_with("../") {
-        Ok(specifier)
-    } else {
-        Ok(format!("./{specifier}"))
-    }
+/// The npm package `@futuruna/runtime` (`runa sdk runtime --out DIR`): what
+/// every generated SDK shares, as an ES module with its declarations, at
+/// Futuruna's version. It depends on no model; `zod` is its peer dependency,
+/// so the SDK and the runtime validate with one `zod`.
+pub fn runtime_package() -> Vec<GeneratedFile> {
+    let header = format!(
+        "// {RUNTIME_PACKAGE} {RUNTIME_VERSION}, written by `runa sdk runtime`. Do not edit.\n// The runtime of the SDKs `runa sdk ts` generates: the wire codec, paths and setAt,\n// needs, calls through an engine transport, answering by a guide and unit converters.\n"
+    );
+    let package = format!(
+        r#"{{
+  "name": {name},
+  "version": {version},
+  "description": "The runtime of the TypeScript SDKs that `runa sdk ts` generates from Futuruna models.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {{
+    ".": {{
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }}
+  }},
+  "types": "./index.d.ts",
+  "files": ["index.js", "index.d.ts"],
+  "sideEffects": false,
+  "peerDependencies": {{
+    "zod": "^4.0.0"
+  }}
+}}
+"#,
+        name = string_literal(RUNTIME_PACKAGE),
+        version = string_literal(RUNTIME_VERSION),
+    );
+    vec![
+        GeneratedFile {
+            name: "package.json".to_string(),
+            contents: package,
+        },
+        GeneratedFile {
+            name: "index.js".to_string(),
+            contents: format!("{header}{}", with_schemas(RUNTIME_JS)),
+        },
+        GeneratedFile {
+            name: "index.d.ts".to_string(),
+            contents: format!("{header}{}", with_schemas(RUNTIME_DTS)),
+        },
+    ]
+}
+
+/// The runtime's text with the wire schema ids filled in.
+fn with_schemas(text: &str) -> String {
+    text.replace("{INPUT_SCHEMA}", INPUT_SCHEMA)
+        .replace("{OUTPUT_SCHEMA}", OUTPUT_SCHEMA)
+        .replace("{PARTIAL_OUTPUT_SCHEMA}", PARTIAL_OUTPUT_SCHEMA)
 }
 
 /// Where a type is written: inside `types.ts`, from another module (complete
@@ -246,6 +287,83 @@ struct Entry<'a> {
     keys: BTreeMap<String, ElementKey>,
     /// A recursive input type has paths of any depth.
     open_paths: bool,
+    /// The guide the entry is answered by, when it is given one.
+    guide: Option<Guided>,
+}
+
+/// What `answer.ts` needs of an entry's guide.
+struct Guided {
+    /// The guide's binding name, for messages.
+    name: String,
+    /// The group constructors, in the order the group type declares them.
+    groups: Vec<String>,
+    /// The group of every need-able path the guide resolves, by its
+    /// TypeScript pattern with each alternative named
+    /// (`events[].Trade.amountOre`): the runtime's table.
+    paths: BTreeMap<String, String>,
+    /// The TypeScript patterns each group resolves.
+    patterns: BTreeMap<String, BTreeSet<String>>,
+    /// The need-able paths the guide leaves held, as guide paths
+    /// (`events.Trade.amount_øre`).
+    held: BTreeSet<String>,
+    /// Each resolved need-able path, as a guide path, with its group.
+    resolved: Vec<(String, String)>,
+}
+
+/// A path of the input at which a need can arise
+/// (`docs/rfcs/answer-guide.md`, "Which paths can become a need"), in three
+/// spellings: as a guide names it (`events.Trade.amount_øre`), as the
+/// runtime's guide table keys it (`events[].Trade.amountOre`), and as the
+/// SDK's input path pattern (`events[].amountOre`).
+#[derive(Clone, Default)]
+struct NeedablePath {
+    guide: String,
+    key: String,
+    pattern: String,
+}
+
+impl NeedablePath {
+    fn field(&self, name: &str) -> Self {
+        let camel = camel_case(name);
+        NeedablePath {
+            guide: joined_column_path(&self.guide, name),
+            key: joined_column_path(&self.key, &camel),
+            pattern: joined_column_path(&self.pattern, &camel),
+        }
+    }
+
+    fn element(&self) -> Self {
+        NeedablePath {
+            guide: self.guide.clone(),
+            key: format!("{}[]", self.key),
+            pattern: format!("{}[]", self.pattern),
+        }
+    }
+
+    fn map_value(&self) -> Self {
+        NeedablePath {
+            guide: self.guide.clone(),
+            key: joined_column_path(&self.key, "*"),
+            pattern: joined_column_path(&self.pattern, "*"),
+        }
+    }
+
+    fn alternative(&self, variant: &str) -> Self {
+        NeedablePath {
+            guide: joined_column_path(&self.guide, variant),
+            key: joined_column_path(&self.key, variant),
+            pattern: self.pattern.clone(),
+        }
+    }
+}
+
+/// Whether the guide path `above` is `path` or above it.
+fn covers(above: &str, path: &str) -> bool {
+    above.is_empty()
+        || path == above
+        || path
+            .strip_prefix(above)
+            .is_some_and(|rest| rest.starts_with('.'))
 }
 
 /// The key field a list's element type declares (`@ field(key = True)`): its
@@ -259,14 +377,13 @@ struct ElementKey {
 
 struct Sdk<'a> {
     source: &'a str,
-    /// The module specifier of the runtime, such as `../runtime.js`.
-    runtime: String,
     entries: Vec<Entry<'a>>,
     definitions: BTreeMap<&'a str, &'a CalculationTypeDefinition>,
     input_definitions: BTreeSet<&'a str>,
     /// The units of measure (`# unit Ore "DKK øre"`) the contracts use, by
-    /// name, with their descriptions: each is a branded number type.
-    units: BTreeMap<&'a str, &'a str>,
+    /// name: each is a branded number type, and one with a scale whose
+    /// values are all finite decimals also has decimal converters.
+    units: BTreeMap<&'a str, &'a CalculationUnit>,
     /// The named scalar types (`# Isin: String "..." where ...`) the
     /// contracts use, by name: each is a branded string or number type.
     scalars: BTreeMap<&'a str, &'a CalculationScalar>,
@@ -280,7 +397,7 @@ impl<'a> Sdk<'a> {
     fn new(
         contracts: &'a [CalculationContract],
         source: &'a str,
-        runtime: String,
+        guides: &[EntryGuide<'_>],
     ) -> Result<Self, String> {
         if contracts.is_empty() {
             return Err(format!("{source} declares no `@ entry`"));
@@ -316,14 +433,14 @@ impl<'a> Sdk<'a> {
             }
         }
 
-        let mut units: BTreeMap<&str, &str> = BTreeMap::new();
+        let mut units: BTreeMap<&str, &CalculationUnit> = BTreeMap::new();
         for contract in &contracts {
             for unit in &contract.units {
-                match units.insert(&unit.name, &unit.description) {
-                    Some(other) if other != unit.description => {
+                match units.insert(&unit.name, unit) {
+                    Some(other) if other != unit => {
                         return Err(format!(
-                            "unit `{}` is described both as {other:?} and as {:?}",
-                            unit.name, unit.description
+                            "unit `{}` is declared differently by two entries: {:?} and {:?}",
+                            unit.name, other, unit
                         ));
                     }
                     _ => {}
@@ -348,7 +465,6 @@ impl<'a> Sdk<'a> {
 
         let mut sdk = Sdk {
             source,
-            runtime,
             entries: Vec::new(),
             definitions,
             input_definitions: BTreeSet::new(),
@@ -404,6 +520,33 @@ impl<'a> Sdk<'a> {
             list.sort_by(|left, right| left.path.cmp(&right.path));
         }
 
+        for guide in guides {
+            if !contracts
+                .iter()
+                .any(|contract| contract.entry == guide.entry)
+            {
+                return Err(format!(
+                    "--guide names the entry `{}`, which {source} does not declare; its entries are {}",
+                    guide.entry,
+                    contracts
+                        .iter()
+                        .map(|contract| format!("`{}`", contract.entry))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ));
+            }
+            if guides
+                .iter()
+                .filter(|other| other.entry == guide.entry)
+                .count()
+                > 1
+            {
+                return Err(format!(
+                    "the entry `{}` is given two guides; an SDK answers an entry by one",
+                    guide.entry
+                ));
+            }
+        }
         let mut entries = Vec::new();
         for contract in &contracts {
             let mut entry = Entry {
@@ -413,6 +556,7 @@ impl<'a> Sdk<'a> {
                 patterns: BTreeMap::new(),
                 keys: BTreeMap::new(),
                 open_paths: false,
+                guide: None,
             };
             sdk.collect_paths(
                 &contract.input,
@@ -421,11 +565,208 @@ impl<'a> Sdk<'a> {
                 &mut Vec::new(),
                 &mut entry,
             );
+            if let Some(guide) = guides.iter().find(|guide| guide.entry == contract.entry) {
+                entry.guide = Some(sdk.guided(contract, guide)?);
+            }
             entries.push(entry);
         }
         sdk.entries = entries;
         sdk.check_exported_names()?;
         Ok(sdk)
+    }
+
+    /// Whether any entry is answered by a guide, so the SDK has `answer.ts`.
+    fn answered(&self) -> bool {
+        self.entries.iter().any(|entry| entry.guide.is_some())
+    }
+
+    /// The guide of `contract` as `answer.ts` writes it: every need-able path
+    /// of its input held or resolved by the guide's most specific item.
+    fn guided(
+        &self,
+        contract: &CalculationContract,
+        guide: &EntryGuide<'_>,
+    ) -> Result<Guided, String> {
+        let entry = &contract.entry;
+        let name = &guide.guide.name;
+        let root = match &contract.input {
+            CalculationTypeRef::Named { name, .. } => name.as_str(),
+            _ => "",
+        };
+        if guide.guide.root != root {
+            return Err(format!(
+                "the AnswerGuide `{name}` names paths of `{}`, but `{entry}` takes `{}`",
+                guide.guide.root,
+                contract.input.display_name()
+            ));
+        }
+        for item in &guide.guide.items {
+            if !guide.groups.contains(&item.group) {
+                return Err(format!(
+                    "the AnswerGuide `{name}` names the group `{}`, which is not among its groups {}",
+                    item.group,
+                    guide.groups.join(", ")
+                ));
+            }
+        }
+        let mut needable = Vec::new();
+        self.needable(
+            &contract.input,
+            &BTreeMap::new(),
+            &NeedablePath::default(),
+            &mut Vec::new(),
+            &mut needable,
+        );
+        for item in &guide.guide.items {
+            if !needable.iter().any(|path| covers(&item.path, &path.guide)) {
+                return Err(format!(
+                    "the AnswerGuide `{name}` names `{}`, at or below which no need of `{entry}` can arise",
+                    written_path(&guide.guide.root, &item.path)
+                ));
+            }
+        }
+        let mut guided = Guided {
+            name: name.clone(),
+            groups: guide.groups.clone(),
+            paths: BTreeMap::new(),
+            patterns: guide
+                .groups
+                .iter()
+                .map(|group| (group.clone(), BTreeSet::new()))
+                .collect(),
+            held: BTreeSet::new(),
+            resolved: Vec::new(),
+        };
+        for path in needable {
+            match guide.guide.item_for(&path.guide) {
+                Some(item) => {
+                    guided.paths.insert(path.key, item.group.clone());
+                    if let Some(patterns) = guided.patterns.get_mut(&item.group) {
+                        patterns.insert(path.pattern);
+                    }
+                    guided.resolved.push((path.guide, item.group.clone()));
+                }
+                None => {
+                    guided.held.insert(path.guide);
+                }
+            }
+        }
+        Ok(guided)
+    }
+
+    /// The paths of a value of `ty` at `at` at which a need can arise: the
+    /// value itself when it is one fact, an optional's existence, a
+    /// collection as a whole and its elements' facts, a sum type's tag and its
+    /// alternatives' facts, a record's facts but never the record. A type that
+    /// repeats on a path is one fact there, the cut of a recursive type.
+    fn needable(
+        &self,
+        ty: &CalculationTypeRef,
+        substitutions: &BTreeMap<String, CalculationTypeRef>,
+        at: &NeedablePath,
+        active: &mut Vec<String>,
+        out: &mut Vec<NeedablePath>,
+    ) {
+        let ty = substitute_contract_type(ty, substitutions);
+        match &ty {
+            CalculationTypeRef::Optional { item } => {
+                out.push(at.clone());
+                let mut below = Vec::new();
+                self.needable(item, substitutions, at, active, &mut below);
+                out.extend(below.into_iter().filter(|path| path.key != at.key));
+            }
+            CalculationTypeRef::List { item } | CalculationTypeRef::Set { item } => {
+                out.push(at.clone());
+                self.needable_element(item, substitutions, &at.element(), active, out);
+            }
+            CalculationTypeRef::Map { value, .. } => {
+                out.push(at.clone());
+                self.needable_element(value, substitutions, &at.map_value(), active, out);
+            }
+            CalculationTypeRef::Named { .. } => {
+                self.needable_named(&ty, at, false, active, out);
+            }
+            CalculationTypeRef::Primitive { .. }
+            | CalculationTypeRef::TypeParameter { .. }
+            | CalculationTypeRef::Unit => out.push(at.clone()),
+        }
+    }
+
+    /// An element of a collection: a record's or an alternative's facts, a
+    /// sum type's tag, or an enum or date left unknown inside the list; a
+    /// scalar element is never a need.
+    fn needable_element(
+        &self,
+        item: &CalculationTypeRef,
+        substitutions: &BTreeMap<String, CalculationTypeRef>,
+        at: &NeedablePath,
+        active: &mut Vec<String>,
+        out: &mut Vec<NeedablePath>,
+    ) {
+        let item = substitute_contract_type(item, substitutions);
+        match &item {
+            CalculationTypeRef::Optional { item } => {
+                self.needable_element(item, substitutions, at, active, out)
+            }
+            CalculationTypeRef::Named { .. } => self.needable_named(&item, at, true, active, out),
+            _ => {}
+        }
+    }
+
+    fn needable_named(
+        &self,
+        ty: &CalculationTypeRef,
+        at: &NeedablePath,
+        element: bool,
+        active: &mut Vec<String>,
+        out: &mut Vec<NeedablePath>,
+    ) {
+        let CalculationTypeRef::Named { name, arguments } = ty else {
+            return;
+        };
+        let definition = self.definitions[name.as_str()];
+        let shape = shape(definition);
+        match shape {
+            Shape::Empty => return,
+            Shape::Enum | Shape::Date => {
+                out.push(at.clone());
+                return;
+            }
+            Shape::Record(_) | Shape::Union => {}
+        }
+        let key = ty.display_name();
+        if active.contains(&key) {
+            if !element {
+                out.push(at.clone());
+            }
+            return;
+        }
+        active.push(key);
+        let local = definition_substitutions(definition, arguments);
+        if let Shape::Record(variant) = shape {
+            for field in &variant.fields {
+                self.needable(&field.ty, &local, &at.field(&field.name), active, out);
+            }
+        } else {
+            out.push(at.field("$variant"));
+            for variant in definition
+                .variants
+                .iter()
+                .filter(|variant| !variant.positional)
+            {
+                let alternative = at.alternative(&variant.name);
+                for field in &variant.fields {
+                    self.needable(
+                        &field.ty,
+                        &local,
+                        &alternative.field(&field.name),
+                        active,
+                        out,
+                    );
+                }
+            }
+        }
+        active.pop();
     }
 
     fn validate_type(
@@ -803,7 +1144,13 @@ impl<'a> Sdk<'a> {
             names.push((format!("{values}Explained"), "client.ts"));
             names.push((format!("{values}QueryExplained"), "client.ts"));
             names.push((format!("{values}Entry"), "client.ts"));
-            names.push((format!("{types}Resolvers"), "client.ts"));
+            if entry.guide.is_some() {
+                for suffix in ["Group", "GroupPatterns", "GuidedNeed", "Held", "Resolvers"] {
+                    names.push((format!("{types}{suffix}"), "answer.ts"));
+                }
+                names.push((format!("{values}Guide"), "answer.ts"));
+                names.push((format!("{values}Answer"), "answer.ts"));
+            }
         }
         let mut seen: BTreeMap<&str, &str> = BTreeMap::new();
         for (name, module) in &names {
@@ -1046,6 +1393,10 @@ impl<'a> Sdk<'a> {
             self.source
         );
         let _ = writeln!(out, "// {purpose}");
+        let _ = writeln!(
+            out,
+            "// Imports {RUNTIME_PACKAGE} {RUNTIME_VERSION}, the runtime of the runa that generated it."
+        );
         let _ = writeln!(out, "// Contract {CONTRACT_SCHEMA}; schema hash per entry:");
         for entry in &self.entries {
             let _ = writeln!(
@@ -1093,7 +1444,7 @@ impl<'a> Sdk<'a> {
             .collect();
         if !used.is_empty() {
             let keyword = if type_only { "import type" } else { "import" };
-            let specifier = string_literal(&self.runtime);
+            let specifier = string_literal(RUNTIME_PACKAGE);
             let line = format!("{keyword} {{ {} }} from {specifier};", used.join(", "));
             if line.len() <= 100 {
                 let _ = writeln!(out, "{line}");
@@ -1113,19 +1464,32 @@ impl<'a> Sdk<'a> {
 
     fn types_module(&self) -> String {
         let mut body = String::new();
-        for (unit, description) in &self.units {
-            write_doc(
-                &mut body,
-                "",
-                &[
-                    sentence(description),
-                    String::new(),
-                    format!(
-                        "A Futuruna `{unit}`: a safe integer of this unit, on the wire the same JSON number. Only `{}(n)` and the validators make one; a bare number or a value of another unit is not one.",
-                        value_identifier(unit)
+        for (unit, declared) in &self.units {
+            let mut doc = vec![
+                sentence(&declared.description),
+                String::new(),
+                format!(
+                    "A Futuruna `{unit}`: a safe integer of this unit, on the wire the same JSON number. Only `{}(n)` and the validators make one; a bare number or a value of another unit is not one.",
+                    value_identifier(unit)
+                ),
+            ];
+            if let Some(scale) = &declared.scale {
+                doc.push(String::new());
+                doc.push(match decimal_places(scale.per) {
+                    Some(_) => format!(
+                        "One `{unit}` is 1/{}{}. `{name}.fromDecimal` and `{name}.toDecimal` convert a decimal amount exactly.",
+                        scale.per,
+                        scale_base(&scale.of),
+                        name = value_identifier(unit)
                     ),
-                ],
-            );
+                    None => format!(
+                        "One `{unit}` is 1/{}{}, which is no finite decimal: the SDK has no decimal converters for it.",
+                        scale.per,
+                        scale_base(&scale.of)
+                    ),
+                });
+            }
+            write_doc(&mut body, "", &doc);
             let _ = writeln!(
                 body,
                 "export type {unit} = number & {{ readonly __unit: {} }};\n",
@@ -1358,17 +1722,62 @@ impl<'a> Sdk<'a> {
             );
         }
         body.push_str("} as const;\n");
-        for (unit, description) in &self.units {
+        for (unit, declared) in &self.units {
             let _ = writeln!(
                 body,
                 "\n/** Validates a `{unit}` ({}): a safe integer, typed `{unit}` once parsed. */\nexport const {unit}Schema: z.ZodType<types.{unit}> = unitSchema<types.{unit}>({});\n",
-                escape_doc(description),
+                escape_doc(&declared.description),
                 string_literal(unit)
+            );
+            let name = value_identifier(unit);
+            let _ = writeln!(
+                body,
+                "/** `value` as a `{unit}`; throws a `RangeError` unless it is a safe integer. */\nexport function {name}(value: number): types.{unit} {{\n  return unitValue<types.{unit}>({}, value);\n}}",
+                string_literal(unit)
+            );
+            let Some(scale) = &declared.scale else {
+                continue;
+            };
+            let Some(places) = decimal_places(scale.per) else {
+                continue;
+            };
+            let base = scale_base(&scale.of);
+            let of = if base.is_empty() {
+                String::new()
+            } else {
+                format!(" of{base}")
+            };
+            let scale_literal = format!(
+                "{{ of: {}, per: {} }}",
+                string_literal(&scale.of),
+                scale.per
+            );
+            body.push('\n');
+            write_doc(
+                &mut body,
+                "",
+                &[format!(
+                    "`amount`, a decimal number{of} as text (`\"1740.25\"`), as a `{unit}`, exactly: never through a float. Throws a `CalculationError` of kind `amount`, naming the unit and the amount, when it is finer than one `{unit}` (1/{}{base}) or not a decimal number.",
+                    scale.per
+                )],
             );
             let _ = writeln!(
                 body,
-                "/** `value` as a `{unit}`; throws a `RangeError` unless it is a safe integer. */\nexport function {}(value: number): types.{unit} {{\n  return unitValue<types.{unit}>({}, value);\n}}",
-                value_identifier(unit),
+                "{name}.fromDecimal = (amount: string): types.{unit} =>\n  unitFromDecimal<types.{unit}>({}, {scale_literal}, amount);\n",
+                string_literal(unit)
+            );
+            write_doc(
+                &mut body,
+                "",
+                &[format!(
+                    "`value` as a decimal number{of}, exactly, with {places} decimal{}: how a figure in `{unit}` reads{}.",
+                    if places == 1 { "" } else { "s" },
+                    if base.is_empty() { String::new() } else { format!(" in{base}") }
+                )],
+            );
+            let _ = writeln!(
+                body,
+                "{name}.toDecimal = (value: types.{unit}): string => unitToDecimal({}, {scale_literal}, value);",
                 string_literal(unit)
             );
         }
@@ -1964,15 +2373,6 @@ impl<'a> Sdk<'a> {
                 body,
                 "export function {values}QueryExplained(\n  transport: ExplainingTransport,\n  input: {partial_input},\n  depth: ExplainDepth = \"direct\",\n): Promise<ExplainedQuery<partial.{types}QueryResult>> {{\n  return explainQueryEntry(transport, {values}Entry, depth, {partial_schema}, partial.{types}QueryResultSchema, input);\n}}\n"
             );
-            let _ = writeln!(
-                body,
-                "/** Resolvers for the needs of `{}`, keyed by pattern; each is called once per round with that round's needs at and below its pattern, its replies typed by each need's pattern. */",
-                contract.entry
-            );
-            let _ = writeln!(
-                body,
-                "export type {types}Resolvers = Resolvers<{partial_input}, partial.{types}Need, partial.{types}InputPatterns>;"
-            );
         }
         let mut out = String::new();
         self.header(
@@ -1992,6 +2392,411 @@ impl<'a> Sdk<'a> {
         out
     }
 
+    fn answer_module(&self) -> String {
+        let mut body = String::new();
+        for entry in &self.entries {
+            let Some(guided) = &entry.guide else {
+                continue;
+            };
+            if !body.is_empty() {
+                body.push('\n');
+            }
+            self.write_answer(&mut body, entry, guided);
+        }
+        let mut out = String::new();
+        self.header(
+            &mut out,
+            "Answering each entry by its guide: the held case, the resolvers by group, <entry>Answer.",
+        );
+        out.push_str(&self.imports(
+            &body,
+            &[
+                ("types", "./types.js", true),
+                ("partial", "./partial.js", true),
+                ("client", "./client.js", false),
+            ],
+            false,
+        ));
+        out.push_str(&body);
+        out
+    }
+
+    fn write_answer(&self, out: &mut String, entry: &Entry<'_>, guided: &Guided) {
+        let contract = entry.contract;
+        let name = &contract.entry;
+        let guide = &guided.name;
+        let types = &entry.type_name;
+        let values = &entry.value_name;
+        let input = qualify_partial(&self.ts_type(&contract.input, Side::Partial));
+        let output = self.ts_type(&contract.output, Side::Qualified);
+        let element_key = if entry.keys.is_empty() {
+            "never".to_string()
+        } else {
+            format!("partial.{types}ElementKey")
+        };
+        let title = match &contract.label {
+            Some(label) => format!("`{name}` ({})", escape_doc(label)),
+            None => format!("`{name}`"),
+        };
+        let _ = writeln!(out, "// `{name}`, answered by the guide `{guide}`\n");
+
+        write_doc(
+            out,
+            "",
+            &[format!(
+                "The groups of the guide `{guide}`: who resolves the facts of `{name}` its case does not hold."
+            )],
+        );
+        let _ = writeln!(
+            out,
+            "export type {types}Group = {};\n",
+            guided
+                .groups
+                .iter()
+                .map(|group| string_literal(group))
+                .collect::<Vec<_>>()
+                .join(" | ")
+        );
+
+        write_doc(
+            out,
+            "",
+            &["The input path patterns each group resolves: its resolver receives needs of these patterns only.".to_string()],
+        );
+        let _ = writeln!(out, "export interface {types}GroupPatterns {{");
+        for group in &guided.groups {
+            let patterns = &guided.patterns[group];
+            let key = property_name(group);
+            if entry.open_paths {
+                let _ = writeln!(out, "  {key}: partial.{types}InputPattern;");
+            } else if patterns.len() <= 1 {
+                let rendered = patterns
+                    .iter()
+                    .next()
+                    .map_or_else(|| "never".to_string(), |pattern| string_literal(pattern));
+                let _ = writeln!(out, "  {key}: {rendered};");
+            } else {
+                let _ = writeln!(out, "  {key}:");
+                let last = patterns.len() - 1;
+                for (at, pattern) in patterns.iter().enumerate() {
+                    let end = if at == last { ";" } else { "" };
+                    let _ = writeln!(out, "    | {}{end}", string_literal(pattern));
+                }
+            }
+        }
+        out.push_str("}\n\n");
+
+        write_doc(
+            out,
+            "",
+            &[format!(
+                "A need of `{name}` with the group that resolves it (`by`): narrowing `by` narrows its pattern."
+            )],
+        );
+        let _ = writeln!(
+            out,
+            "export type {types}GuidedNeed<G extends {types}Group = {types}Group> = G extends {types}Group\n  ? GuidedNeed<Need<{types}GroupPatterns[G], {element_key}>, G>\n  : never;\n"
+        );
+
+        let held = self
+            .held_value(
+                &contract.input,
+                &BTreeMap::new(),
+                "",
+                true,
+                false,
+                &mut Vec::new(),
+                guided,
+                "",
+            )
+            .unwrap_or_else(|| input.clone());
+        write_doc(
+            out,
+            "",
+            &[
+                format!("The case of `{name}` built from the integrator's own data. Every fact the guide `{guide}` does not name is held: its key is required, so a fact the model adds does not compile until it is given. `undefined` there means not known, and when the engine needs it, `{values}Answer` throws `HeldMissingError`."),
+                String::new(),
+                "A fact the guide resolves may be left out, or given when known: its group's resolver is asked only for what is missing.".to_string(),
+            ],
+        );
+        let _ = writeln!(out, "export type {types}Held = {held};\n");
+
+        write_doc(
+            out,
+            "",
+            &[format!(
+                "One resolver per group of the guide `{guide}`, every group required: each is called once per round with all of that round's needs of its group, its replies typed by each need's pattern. `leaveOpen` is the resolver of a group nobody can fill yet."
+            )],
+        );
+        let _ = writeln!(
+            out,
+            "export type {types}Resolvers = GroupResolvers<{input}, partial.{types}InputPatterns, {types}GroupPatterns, {element_key}>;\n"
+        );
+
+        write_doc(
+            out,
+            "",
+            &[format!(
+                "The guide `{guide}` as the runtime reads it: the group of every input path pattern of `{name}` it resolves, each alternative of a sum type named before its fields. Every other path is held."
+            )],
+        );
+        let _ = writeln!(
+            out,
+            "export const {values}Guide: Guide<{types}Group> = {{\n  name: {},",
+            string_literal(guide)
+        );
+        if guided.paths.is_empty() {
+            out.push_str("  paths: {},\n};\n\n");
+        } else {
+            out.push_str("  paths: {\n");
+            for (path, group) in &guided.paths {
+                let _ = writeln!(
+                    out,
+                    "    {}: {},",
+                    string_literal(path),
+                    string_literal(group)
+                );
+            }
+            out.push_str("  },\n};\n\n");
+        }
+
+        write_doc(
+            out,
+            "",
+            &[
+                format!("Answer {title} by the guide `{guide}`."),
+                String::new(),
+                "Queries the held case through `transport.callPartial`, sends each need to the resolver of its group (`by`), all of a group's needs of a round in one call, writes the answers and queries again. Ends `Answered` with the result, or `Unanswered` with the needs each group left open. A need at a held path throws `HeldMissingError`. From inside another entry's resolver, pass on the `options` that `context.runEntry` gives.".to_string(),
+            ],
+        );
+        let _ = writeln!(
+            out,
+            "export function {values}Answer(\n  transport: EngineTransport,\n  held: {types}Held,\n  resolvers: {types}Resolvers,\n  options: AnswerOptions = {{}},\n): Promise<Answering<{output}, partial.{types}Need, {types}Group, {input}>> {{\n  return answerEntry<{input}, {output}, partial.{types}Need, {types}Group>(\n    (partialCase) => client.{values}Query(transport, partialCase),\n    held,\n    {values}Guide,\n    resolvers,\n    options,\n  );\n}}"
+        );
+    }
+
+    /// The held form of a value of `ty` at the guide path `path`: the partial
+    /// type with the keys of held facts required, or `None` when nothing at
+    /// or below `path` is held, so the partial type stands. `own` counts the
+    /// value at `path` itself: not for an optional's inner value or a list's
+    /// elements, which share the path. A held fact is `T | undefined`, as a
+    /// partial value may be unknown; a record is required whole.
+    #[allow(clippy::too_many_arguments)]
+    fn held_value(
+        &self,
+        ty: &CalculationTypeRef,
+        substitutions: &BTreeMap<String, CalculationTypeRef>,
+        path: &str,
+        own: bool,
+        element: bool,
+        active: &mut Vec<String>,
+        guided: &Guided,
+        indent: &str,
+    ) -> Option<String> {
+        let ty = substitute_contract_type(ty, substitutions);
+        let held = guided
+            .held
+            .iter()
+            .any(|held| covers(path, held) && (own || held != path));
+        if !held {
+            return None;
+        }
+        let partial = |ty: &CalculationTypeRef, element: bool| {
+            qualify_partial(&if element {
+                self.element_type(ty, Side::Partial)
+            } else {
+                self.ts_type(ty, Side::Partial)
+            })
+        };
+        let unknown = if element { "" } else { " | undefined" };
+        match &ty {
+            CalculationTypeRef::Optional { item } => {
+                let inner = self
+                    .held_value(
+                        item,
+                        substitutions,
+                        path,
+                        false,
+                        element,
+                        active,
+                        guided,
+                        indent,
+                    )
+                    .unwrap_or_else(|| partial(item, false));
+                Some(format!("{inner} | None{unknown}"))
+            }
+            CalculationTypeRef::List { item } | CalculationTypeRef::Set { item } => {
+                let held_item = self
+                    .held_value(
+                        item,
+                        substitutions,
+                        path,
+                        false,
+                        true,
+                        active,
+                        guided,
+                        indent,
+                    )
+                    .unwrap_or_else(|| partial(item, true));
+                let list = if held_item.contains(' ') && !held_item.starts_with('{') {
+                    format!("({held_item})[]")
+                } else {
+                    format!("{held_item}[]")
+                };
+                Some(format!("{list}{unknown}"))
+            }
+            CalculationTypeRef::Map { value, .. } => {
+                let held_value = self
+                    .held_value(
+                        value,
+                        substitutions,
+                        path,
+                        false,
+                        true,
+                        active,
+                        guided,
+                        indent,
+                    )
+                    .unwrap_or_else(|| partial(value, true));
+                Some(format!("{{ [key: string]: {held_value} }}{unknown}"))
+            }
+            CalculationTypeRef::Named { name, arguments } => {
+                let definition = self.definitions[name.as_str()];
+                let shape = shape(definition);
+                if matches!(shape, Shape::Enum | Shape::Date | Shape::Empty) {
+                    return (!element).then(|| format!("{}{unknown}", partial(&ty, false)));
+                }
+                let key = ty.display_name();
+                if active.contains(&key) {
+                    return None;
+                }
+                active.push(key);
+                let local = definition_substitutions(definition, arguments);
+                let rendered = if let Shape::Record(variant) = shape {
+                    self.held_record(&variant.fields, &local, path, active, guided, indent, &[])
+                } else {
+                    let member_indent = format!("{indent}    ");
+                    let mut members =
+                        vec![format!("Unknown<{}>", self.ts_type(&ty, Side::Qualified))];
+                    for variant in &definition.variants {
+                        let tag = format!("$variant: {}", string_literal(&variant.name));
+                        if variant.positional {
+                            members.push(format!(
+                                "{{ {tag}; $values?: [{}] | undefined }}",
+                                variant
+                                    .fields
+                                    .iter()
+                                    .map(|field| partial(
+                                        &substitute_contract_type(&field.ty, &local),
+                                        false
+                                    ))
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            ));
+                        } else if variant.fields.is_empty() {
+                            members.push(format!("{{ readonly {tag} }}"));
+                        } else {
+                            members.push(self.held_record(
+                                &variant.fields,
+                                &local,
+                                &joined_column_path(path, &variant.name),
+                                active,
+                                guided,
+                                &member_indent,
+                                &[format!("readonly {tag};")],
+                            ));
+                        }
+                    }
+                    if !element {
+                        members.push("undefined".to_string());
+                    }
+                    members
+                        .iter()
+                        .map(|member| format!("\n{indent}  | {member}"))
+                        .collect::<String>()
+                };
+                active.pop();
+                Some(rendered)
+            }
+            CalculationTypeRef::Primitive { .. }
+            | CalculationTypeRef::TypeParameter { .. }
+            | CalculationTypeRef::Unit => {
+                (!element).then(|| format!("{}{unknown}", partial(&ty, false)))
+            }
+        }
+    }
+
+    /// A record's (or an alternative's) fields in held form, after `leading`
+    /// lines such as the alternative's tag: a field with a held fact at or
+    /// below it is required, any other may be left out, with the groups
+    /// that resolve it.
+    #[allow(clippy::too_many_arguments)]
+    fn held_record(
+        &self,
+        fields: &[CalculationField],
+        substitutions: &BTreeMap<String, CalculationTypeRef>,
+        path: &str,
+        active: &mut Vec<String>,
+        guided: &Guided,
+        indent: &str,
+        leading: &[String],
+    ) -> String {
+        let inner = format!("{indent}  ");
+        let mut out = String::from("{\n");
+        for line in leading {
+            let _ = writeln!(out, "{inner}{line}");
+        }
+        for field in fields {
+            let field_ty = substitute_contract_type(&field.ty, substitutions);
+            let field_path = joined_column_path(path, &field.name);
+            let property = property_name(&camel_case(&field.name));
+            match self.held_value(
+                &field_ty,
+                substitutions,
+                &field_path,
+                true,
+                false,
+                active,
+                guided,
+                &inner,
+            ) {
+                Some(held) => {
+                    let _ = writeln!(out, "{inner}readonly {property}: {held};");
+                }
+                None => {
+                    let groups: Vec<&String> = guided
+                        .groups
+                        .iter()
+                        .filter(|group| {
+                            guided
+                                .resolved
+                                .iter()
+                                .any(|(resolved, by)| by == *group && covers(&field_path, resolved))
+                        })
+                        .collect();
+                    if !groups.is_empty() {
+                        let _ = writeln!(
+                            out,
+                            "{inner}/** Resolved by {}. */",
+                            groups
+                                .iter()
+                                .map(|group| format!("`{group}`"))
+                                .collect::<Vec<_>>()
+                                .join(" and ")
+                        );
+                    }
+                    let _ = writeln!(
+                        out,
+                        "{inner}readonly {property}?: {} | undefined;",
+                        qualify_partial(&self.ts_type(&field_ty, Side::Partial))
+                    );
+                }
+            }
+        }
+        let _ = write!(out, "{indent}}}");
+        out
+    }
+
     fn index_module(&self) -> String {
         let mut out = String::new();
         self.header(
@@ -1999,21 +2804,40 @@ impl<'a> Sdk<'a> {
             "The SDK's public surface, with the runtime it imports.",
         );
         out.push_str("export * from \"./types.js\";\nexport * from \"./schema.js\";\nexport * from \"./partial.js\";\nexport * from \"./client.js\";\n");
-        let _ = writeln!(out, "export * from {};", string_literal(&self.runtime));
+        if self.answered() {
+            out.push_str("export * from \"./answer.js\";\n");
+        }
+        let _ = writeln!(out, "export * from {};", string_literal(RUNTIME_PACKAGE));
         out
     }
 }
 
-/// The runtime module: the same text for every model, so the SDKs of several
-/// source files can share one copy.
-fn runtime_module() -> String {
-    format!(
-        "// Generated by `runa sdk ts`. Do not edit; regenerate instead.\n// The runtime of the SDKs `runa sdk ts` generates: the wire codec, paths and setAt,\n// needs, calls through an engine transport, and the resolver loop. It depends on\n// no model, so the SDKs generated by one `runa` can share one copy (`--runtime`).\n\n{}",
-        RUNTIME
-            .replace("{INPUT_SCHEMA}", INPUT_SCHEMA)
-            .replace("{OUTPUT_SCHEMA}", OUTPUT_SCHEMA)
-            .replace("{PARTIAL_OUTPUT_SCHEMA}", PARTIAL_OUTPUT_SCHEMA)
-    )
+/// The decimal places of `1 / per` when `per` is built from 2s and 5s only,
+/// so every value of the unit is a finite decimal of its base; otherwise
+/// `None`.
+fn decimal_places(per: i64) -> Option<u32> {
+    if per < 1 {
+        return None;
+    }
+    let (mut rest, mut twos, mut fives) = (per, 0, 0);
+    while rest % 2 == 0 {
+        rest /= 2;
+        twos += 1;
+    }
+    while rest % 5 == 0 {
+        rest /= 5;
+        fives += 1;
+    }
+    (rest == 1).then_some(twos.max(fives))
+}
+
+/// ` DKK` for a scale of a base, nothing for a plain number (`"1"`).
+fn scale_base(of: &str) -> String {
+    if of == "1" {
+        String::new()
+    } else {
+        format!(" {of}")
+    }
 }
 
 /// The metadata of a `Date` field from the metadata of its parts: the label
@@ -2360,11 +3184,15 @@ fn value_identifier(name: &str) -> String {
     }
 }
 
-/// The runtime module's source: the same for every model.
+/// The runtime's TypeScript source: the same for every model.
 const RUNTIME: &str = include_str!("sdk_ts_runtime.ts");
 
-/// Every name the runtime exports, and whether it is a type only, read from
-/// its `export` declarations.
+/// The runtime compiled to an ES module, and its declarations
+/// (`scripts/sdk-runtime.mjs` writes both from [`RUNTIME`];
+/// `tests/sdk_ts.test.mjs` checks they are its compilation).
+const RUNTIME_JS: &str = include_str!("sdk_ts_runtime.js");
+const RUNTIME_DTS: &str = include_str!("sdk_ts_runtime.d.ts");
+
 /// The TypeScript type of a named scalar's value on the wire.
 fn scalar_wire_type(scalar: &CalculationScalar) -> &'static str {
     if scalar.of == "Int" {
@@ -2395,6 +3223,8 @@ fn scalar_doc(scalar: &CalculationScalar) -> Vec<String> {
     doc
 }
 
+/// Every name the runtime exports, and whether it is a type only, read from
+/// its `export` declarations.
 fn runtime_exports() -> impl Iterator<Item = (&'static str, bool)> {
     RUNTIME.lines().filter_map(|line| {
         let rest = line.strip_prefix("export ")?;
@@ -2426,11 +3256,44 @@ mod tests {
     }
 
     fn generate(source: &str) -> BTreeMap<String, String> {
-        generate_typescript_sdk(&contracts(source), "model.entry.runa", DEFAULT_RUNTIME_PATH)
+        generate_typescript_sdk(&contracts(source), "model.entry.runa", &[])
             .expect("generate SDK")
             .into_iter()
             .map(|file| (file.name, file.contents))
             .collect()
+    }
+
+    /// The guides `guides` binds, read as `runa sdk ts --guides` reads them.
+    fn guides(guides: &str) -> Vec<Guide> {
+        let statements = Parser::new(Lexer::new(guides).tokenize(), guides)
+            .parse_program()
+            .expect("parse guides");
+        crate::answer::read_guides(&statements)
+            .into_iter()
+            .map(|guide| guide.expect("a ground guide"))
+            .collect()
+    }
+
+    /// The SDK of `source` with its entry `entry` answered by the first guide
+    /// of `guide_source`, whose groups are `groups`.
+    fn generate_guided(
+        source: &str,
+        entry: &str,
+        guide_source: &str,
+        groups: &[&str],
+    ) -> Result<BTreeMap<String, String>, String> {
+        let read = guides(guide_source);
+        let guide = EntryGuide {
+            entry,
+            guide: &read[0],
+            groups: groups.iter().map(|group| group.to_string()).collect(),
+        };
+        generate_typescript_sdk(&contracts(source), "model.entry.runa", &[guide]).map(|files| {
+            files
+                .into_iter()
+                .map(|file| (file.name, file.contents))
+                .collect()
+        })
     }
 
     fn assert_contains(text: &str, expected: &str) {
@@ -2530,7 +3393,7 @@ mod tests {
             schema,
             "import { z } from \"zod\";\nimport type * as types from \"./types.js\";\nimport {",
         );
-        assert_contains(schema, "} from \"./runtime.js\";");
+        assert_contains(schema, "} from \"@futuruna/runtime\";");
         assert_contains(
             schema,
             "export const HouseholdSchema: z.ZodType<types.Household> = z.lazy(() =>",
@@ -2589,7 +3452,7 @@ mod tests {
     fn fields_are_camel_case_enums_are_names_and_dates_are_iso_strings() {
         let files = generate(&ledger_source());
         let types = &files["types.ts"];
-        assert_contains(types, "import type { IsoDate } from \"./runtime.js\";");
+        assert_contains(types, "import type { IsoDate } from \"@futuruna/runtime\";");
         assert!(!types.contains("export type Date"), "a Date is an IsoDate");
         assert_contains(
             types,
@@ -2674,7 +3537,7 @@ mod tests {
         let error = generate_typescript_sdk(
             &contracts("# Input(tax_year: Int, taxYear: Int)\n@ entry\n> both(input: Input) -> Int { input.tax_year }\n"),
             "model.entry.runa",
-            DEFAULT_RUNTIME_PATH,
+            &[],
         )
         .expect_err("`tax_year` and `taxYear` collide");
         assert!(error.contains("are both `taxYear`"), "{error}");
@@ -2802,13 +3665,11 @@ mod tests {
             "export function coupleTaxQuery(\n  transport: EngineTransport,\n  input: partial.PartialCouple,\n): Promise<partial.CoupleTaxQueryResult> {",
         );
         assert_contains(client, "/**\n * Calculate `person_tax`: One person.");
-        assert_contains(client, "export type PersonTaxResolvers = Resolvers<");
         for expected in [
             "export function personTaxExplained(\n  transport: ExplainingTransport,\n  input: types.Person,\n  depth: ExplainDepth = \"direct\",\n): Promise<Explained<number>> {\n  return explainEntry(transport, personTaxEntry, depth, schema.PersonSchema, IntSchema, input);",
             "export function coupleTaxQueryExplained(\n  transport: ExplainingTransport,\n  input: partial.PartialCouple,\n  depth: ExplainDepth = \"direct\",\n): Promise<ExplainedQuery<partial.CoupleTaxQueryResult>> {",
             "export function personTax(transport: EngineTransport, input: types.Person)",
             "  patterns: partial.PersonTaxInputPatternList,\n};",
-            "export type CoupleTaxResolvers = Resolvers<partial.PartialCouple, partial.CoupleTaxNeed, partial.CoupleTaxInputPatterns>;",
             "type ExplainDepth",
             "type Explained,",
             "type ExplainedQuery",
@@ -2826,82 +3687,214 @@ mod tests {
                 &format!("//   {}: {}", contract.entry, contract.schema_hash),
             );
         }
-        assert_contains(&files["index.ts"], "export * from \"./runtime.js\";");
+        assert_contains(&files["index.ts"], "export * from \"@futuruna/runtime\";");
+        assert!(
+            !files.contains_key("answer.ts"),
+            "no guide, no answer module"
+        );
         // Entries are ordered by name, so declaration order does not matter.
         assert!(schema.find("  couple_tax:").unwrap() < schema.find("  person_tax:").unwrap());
         let mut reversed = contracts.clone();
         reversed.reverse();
         assert_eq!(
-            generate_typescript_sdk(&contracts, "model.entry.runa", DEFAULT_RUNTIME_PATH).unwrap(),
-            generate_typescript_sdk(&reversed, "model.entry.runa", DEFAULT_RUNTIME_PATH).unwrap()
+            generate_typescript_sdk(&contracts, "model.entry.runa", &[]).unwrap(),
+            generate_typescript_sdk(&reversed, "model.entry.runa", &[]).unwrap()
         );
     }
 
     #[test]
-    fn the_runtime_is_one_module_every_model_shares() {
-        let ledger = generate_typescript_sdk(
-            &contracts(&ledger_source()),
-            "ledger.entry.runa",
-            "../runtime.ts",
-        )
-        .unwrap();
-        let household = generate_typescript_sdk(
-            &contracts(&records_source()),
-            "household.entry.runa",
-            "../runtime.ts",
-        )
-        .unwrap();
-        let runtime = |files: &[GeneratedFile]| {
-            files
-                .iter()
-                .find(|file| file.name == "../runtime.ts")
-                .expect("the runtime is generated")
-                .contents
-                .clone()
-        };
-        assert_eq!(runtime(&ledger), runtime(&household));
-        assert_contains(
-            &runtime(&ledger),
-            "export async function resolve<C, R, N extends Need, Patterns = AnyPatterns>(",
+    fn every_sdk_imports_the_runtime_package() {
+        let ledger = generate(&ledger_source());
+        assert!(
+            !ledger.keys().any(|name| name.contains("runtime")),
+            "the runtime is a package, not a module of the SDK"
         );
-        assert!(!runtime(&ledger).contains("{INPUT_SCHEMA}"));
-        for file in &ledger {
-            if file.name != "../runtime.ts" {
-                assert!(
-                    !file.contents.contains("export class"),
-                    "{} holds runtime code",
-                    file.name
-                );
-                assert!(
-                    !file.contents.contains("\"./runtime.js\""),
-                    "{} imports the default runtime",
-                    file.name
-                );
-            }
+        for (name, contents) in &ledger {
+            assert!(
+                !contents.contains("export class"),
+                "{name} holds runtime code"
+            );
+            assert!(
+                !contents.contains("runtime.js"),
+                "{name} imports a local runtime"
+            );
+            assert_contains(
+                contents,
+                &format!("// Imports @futuruna/runtime {RUNTIME_VERSION}, the runtime of the runa that generated it."),
+            );
         }
-        let index = &ledger
-            .iter()
-            .find(|file| file.name == "index.ts")
-            .unwrap()
-            .contents;
-        assert_contains(index, "export * from \"../runtime.js\";");
+        assert_contains(&ledger["index.ts"], "export * from \"@futuruna/runtime\";");
 
-        assert_eq!(runtime_specifier("runtime.ts").unwrap(), "./runtime.js");
+        let package: BTreeMap<String, String> = runtime_package()
+            .into_iter()
+            .map(|file| (file.name, file.contents))
+            .collect();
         assert_eq!(
-            runtime_specifier("./shared/sdk.ts").unwrap(),
-            "./shared/sdk.js"
+            package.keys().map(String::as_str).collect::<Vec<_>>(),
+            ["index.d.ts", "index.js", "package.json"]
         );
-        for invalid in [
-            "/tmp/runtime.ts",
-            "runtime.js",
-            "types.ts",
-            "./index.ts",
-            ".ts",
-            "lib/.d.ts",
-            "a\\b.ts",
-        ] {
-            assert!(runtime_specifier(invalid).is_err(), "{invalid}");
+        let manifest: serde_json::Value =
+            serde_json::from_str(&package["package.json"]).expect("package.json is JSON");
+        assert_eq!(manifest["name"], "@futuruna/runtime");
+        assert_eq!(manifest["version"], RUNTIME_VERSION);
+        assert_eq!(manifest["type"], "module");
+        assert_eq!(manifest["exports"]["."]["types"], "./index.d.ts");
+        assert_eq!(manifest["exports"]["."]["default"], "./index.js");
+        assert!(manifest["peerDependencies"]["zod"].is_string());
+        assert!(manifest.get("dependencies").is_none());
+        assert_contains(&package["index.js"], "export async function answerEntry(");
+        assert_contains(&package["index.js"], "export function unitFromDecimal(");
+        assert_contains(&package["index.d.ts"], "export declare function given<");
+        assert_contains(&package["index.d.ts"], "export type GroupResolvers<");
+        for text in package.values() {
+            assert!(
+                !text.contains("{INPUT_SCHEMA}"),
+                "the schema ids are filled in"
+            );
         }
+        assert_contains(&package["index.js"], INPUT_SCHEMA);
+        for gone in [
+            "function resolve",
+            "export type Resolvers<",
+            "ResolveError",
+            "export const ask",
+        ] {
+            assert!(!RUNTIME.contains(gone), "the runtime still has `{gone}`");
+        }
+    }
+
+    const GUIDED_MODEL: &str = r#"# Event = Trade(@ field(label = "Amount") amount: Int, fee: Int) | Dividend(gross: Int)
+# Spouse(income: Int, cohabiting: Bool)
+# Person(year: Int, income: Int, spouse: Spouse?, events: List(Event))
+@ entry("Tax")
+> tax(p: Person) -> Int { p.income }
+"#;
+
+    const PERSON_GUIDE: &str = r#"# Origin = Bookings | Customer
+= person_guide = AnswerGuide(fields = [
+    EntryField(path = pathof(Person::spouse), by = Customer),
+    EntryField(path = pathof(Person::events), by = Bookings),
+    EntryField(path = pathof(Person::events::Trade::fee), by = Customer)
+])
+"#;
+
+    #[test]
+    fn a_guide_gives_the_held_case_resolvers_by_group_and_an_answer() {
+        let files = generate_guided(GUIDED_MODEL, "tax", PERSON_GUIDE, &["Bookings", "Customer"])
+            .expect("generate the guided SDK");
+        let answer = &files["answer.ts"];
+        assert_contains(&files["index.ts"], "export * from \"./answer.js\";");
+        for expected in [
+            "export type TaxGroup = \"Bookings\" | \"Customer\";",
+            "export interface TaxGroupPatterns {\n  Bookings:\n    | \"events\"\n    | \"events[].$variant\"\n    | \"events[].amount\"\n    | \"events[].gross\";\n  Customer:\n    | \"events[].fee\"\n    | \"spouse\"\n    | \"spouse.cohabiting\"\n    | \"spouse.income\";\n}",
+            "export type TaxGuidedNeed<G extends TaxGroup = TaxGroup> = G extends TaxGroup\n  ? GuidedNeed<Need<TaxGroupPatterns[G], never>, G>\n  : never;",
+            "export type TaxHeld = {\n  readonly year: number | undefined;\n  readonly income: number | undefined;\n  /** Resolved by `Customer`. */\n  readonly spouse?: partial.PartialSpouse | None | undefined;\n  /** Resolved by `Bookings` and `Customer`. */\n  readonly events?: partial.PartialEvent[] | undefined;\n};",
+            "export type TaxResolvers = GroupResolvers<partial.PartialPerson, partial.TaxInputPatterns, TaxGroupPatterns, never>;",
+            "export const taxGuide: Guide<TaxGroup> = {\n  name: \"person_guide\",\n  paths: {\n    \"events\": \"Bookings\",\n    \"events[].$variant\": \"Bookings\",\n    \"events[].Dividend.gross\": \"Bookings\",\n    \"events[].Trade.amount\": \"Bookings\",\n    \"events[].Trade.fee\": \"Customer\",\n    \"spouse\": \"Customer\",\n    \"spouse.cohabiting\": \"Customer\",\n    \"spouse.income\": \"Customer\",\n  },\n};",
+            " * Answer `tax` (Tax) by the guide `person_guide`.",
+            "export function taxAnswer(\n  transport: EngineTransport,\n  held: TaxHeld,\n  resolvers: TaxResolvers,\n  options: AnswerOptions = {},\n): Promise<Answering<number, partial.TaxNeed, TaxGroup, partial.PartialPerson>> {\n  return answerEntry<partial.PartialPerson, number, partial.TaxNeed, TaxGroup>(\n    (partialCase) => client.taxQuery(transport, partialCase),",
+            "import type * as partial from \"./partial.js\";",
+            "import * as client from \"./client.js\";",
+        ] {
+            assert_contains(answer, expected);
+        }
+        assert!(
+            !files["client.ts"].contains("Resolvers"),
+            "resolvers are keyed by group, in answer.ts"
+        );
+    }
+
+    #[test]
+    fn a_held_list_requires_the_held_fields_of_its_elements() {
+        let guide = r#"# Origin = Customer
+= fees = AnswerGuide(fields = [EntryField(path = pathof(Person::events::Trade::fee), by = Customer)])
+"#;
+        let files = generate_guided(GUIDED_MODEL, "tax", guide, &["Customer"]).expect("generate");
+        let answer = &files["answer.ts"];
+        assert_contains(
+            answer,
+            "  readonly spouse: {\n    readonly income: number | undefined;\n    readonly cohabiting: boolean | undefined;\n  } | None | undefined;",
+        );
+        assert_contains(answer, "  readonly events: (\n    | Unknown<types.Event>\n    | {\n        readonly $variant: \"Trade\";\n        readonly amount: number | undefined;\n        /** Resolved by `Customer`. */\n        readonly fee?: number | undefined;\n      }\n    | {\n        readonly $variant: \"Dividend\";\n        readonly gross: number | undefined;\n      })[] | undefined;");
+        assert_contains(answer, "  Customer: \"events[].fee\";");
+    }
+
+    #[test]
+    fn a_guide_must_fit_its_entry() {
+        let other_entry = generate_guided(
+            GUIDED_MODEL,
+            "nothing",
+            PERSON_GUIDE,
+            &["Bookings", "Customer"],
+        )
+        .expect_err("no entry `nothing`");
+        assert!(
+            other_entry.contains("--guide names the entry `nothing`"),
+            "{other_entry}"
+        );
+        let wrong_root = generate_guided(
+            GUIDED_MODEL,
+            "tax",
+            "# G = A\n= g = AnswerGuide(fields = [EntryField(path = pathof(Spouse::income), by = A)])\n",
+            &["A"],
+        )
+        .expect_err("a guide of `Spouse`");
+        assert!(
+            wrong_root.contains("names paths of `Spouse`, but `tax` takes `Person`"),
+            "{wrong_root}"
+        );
+        let nowhere = generate_guided(
+            GUIDED_MODEL,
+            "tax",
+            "# G = A\n= g = AnswerGuide(fields = [EntryField(path = pathof(Person::nowhere), by = A)])\n",
+            &["A"],
+        )
+        .expect_err("no path `nowhere`");
+        assert!(
+            nowhere.contains(
+                "names `pathof(Person::nowhere)`, at or below which no need of `tax` can arise"
+            ),
+            "{nowhere}"
+        );
+    }
+
+    #[test]
+    fn a_unit_whose_scale_is_a_finite_decimal_gets_decimal_converters() {
+        let files = generate(
+            "# unit Øre \"DKK øre\" = DKK / 100\n# unit Micro \"millionths\" = 1 / 1000000\n# unit Third \"thirds\" = DKK / 3\n# unit Plain \"plain\"\n# Holding(value: Øre, quantity: Micro, share: Third, count: Plain)\n@ entry\n> worth(input: Holding) -> Øre { input.value }\n",
+        );
+        let schema = &files["schema.ts"];
+        assert_contains(
+            schema,
+            "øre.fromDecimal = (amount: string): types.Øre =>\n  unitFromDecimal<types.Øre>(\"Øre\", { of: \"DKK\", per: 100 }, amount);",
+        );
+        assert_contains(
+            schema,
+            "øre.toDecimal = (value: types.Øre): string => unitToDecimal(\"Øre\", { of: \"DKK\", per: 100 }, value);",
+        );
+        assert_contains(
+            schema,
+            "with 2 decimals: how a figure in `Øre` reads in DKK.",
+        );
+        assert_contains(
+            schema,
+            "micro.fromDecimal = (amount: string): types.Micro =>\n  unitFromDecimal<types.Micro>(\"Micro\", { of: \"1\", per: 1000000 }, amount);",
+        );
+        assert!(
+            !schema.contains("third.fromDecimal"),
+            "1/3 is no finite decimal"
+        );
+        assert!(
+            !schema.contains("plain.fromDecimal"),
+            "a unit without a scale"
+        );
+        let types = &files["types.ts"];
+        assert_contains(types, "One `Øre` is 1/100 DKK. `øre.fromDecimal` and `øre.toDecimal` convert a decimal amount exactly.");
+        assert_contains(types, "One `Third` is 1/3 DKK, which is no finite decimal: the SDK has no decimal converters for it.");
+        assert_eq!(decimal_places(100), Some(2));
+        assert_eq!(decimal_places(1), Some(0));
+        assert_eq!(decimal_places(8), Some(3));
+        assert_eq!(decimal_places(3), None);
     }
 
     #[test]
@@ -2962,7 +3955,7 @@ mod tests {
             }
         }
         let files: BTreeMap<String, String> =
-            generate_typescript_sdk(&contracts, "model.entry.runa", DEFAULT_RUNTIME_PATH)
+            generate_typescript_sdk(&contracts, "model.entry.runa", &[])
                 .expect("generate SDK")
                 .into_iter()
                 .map(|file| (file.name, file.contents))
@@ -3009,7 +4002,7 @@ mod tests {
             ("# Need(amount: Int)\n@ entry\n> needed(input: Need) -> Int { input.amount }\n", "`Need`"),
             ("# Unknown(amount: Int)\n@ entry\n> needed(input: Unknown) -> Int { input.amount }\n", "`Unknown`"),
         ] {
-            let error = generate_typescript_sdk(&contracts(source), "model.entry.runa", DEFAULT_RUNTIME_PATH)
+            let error = generate_typescript_sdk(&contracts(source), "model.entry.runa", &[])
                 .expect_err("the name collides with a runtime export");
             assert!(error.contains(name), "{error}");
         }
@@ -3061,12 +4054,14 @@ mod tests {
             "export function holdingValue(transport: EngineTransport, input: types.Holding): Promise<Calculated<types.Ore>> {\n  return callEntry(transport, holdingValueEntry, schema.HoldingSchema, schema.OreSchema, input);",
         );
         let error = generate_typescript_sdk(
-            &contracts("# unit Answer \"replies\"\n# In(n: Answer)\n@ entry\n> f(input: In) -> Int { 0 }\n"),
+            &contracts(
+                "# unit Given \"replies\"\n# In(n: Given)\n@ entry\n> f(input: In) -> Int { 0 }\n",
+            ),
             "model.entry.runa",
-            DEFAULT_RUNTIME_PATH,
+            &[],
         )
-        .expect_err("`answer` is a runtime export");
-        assert!(error.contains("`answer`"), "{error}");
+        .expect_err("`given` is a runtime export");
+        assert!(error.contains("`given`"), "{error}");
     }
 
     #[test]
