@@ -2420,7 +2420,9 @@ fn load_call_guide(file: &str, name: &str, use_prelude: bool) -> answer::Guide {
     }
     named.unwrap_or_else(|| {
         if bound.is_empty() {
-            eprintln!("error: {file} binds no AnswerGuide; --guides names the file that binds the guide");
+            eprintln!(
+                "error: {file} binds no AnswerGuide; --guides names the file that binds the guide"
+            );
         } else {
             eprintln!(
                 "error: {file} binds no AnswerGuide `{name}`; it binds {}",
@@ -2737,12 +2739,15 @@ fn guide_groups(guide: &answer::Guide, declared: &[(String, Vec<String>)]) -> Ve
         .group_type
         .as_ref()
         .or_else(|| guide.items.iter().find_map(|item| item.owner.as_ref()));
-    let declares = |constructors: &Vec<String>| named.iter().all(|group| constructors.contains(group));
+    let declares =
+        |constructors: &Vec<String>| named.iter().all(|group| constructors.contains(group));
     match owner {
         Some(owner) => declared
             .iter()
             .find(|(name, constructors)| name == owner && declares(constructors)),
-        None => declared.iter().find(|(_, constructors)| declares(constructors)),
+        None => declared
+            .iter()
+            .find(|(_, constructors)| declares(constructors)),
     }
     .map(|(_, constructors)| constructors.clone())
     .unwrap_or(named)
@@ -13678,10 +13683,7 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
         // refuses it, so there is no native code to check.
         if !native_query_refusals(&stmts).is_empty() {
             skipped += 1;
-            status_eprintln!(
-                "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(interpreted)\x1b[0m",
-                name
-            );
+            status_eprintln!("  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(interpreted)\x1b[0m", name);
             continue;
         }
         // The same check and code generator as `runa build`: the checker

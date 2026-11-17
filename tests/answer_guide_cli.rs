@@ -166,10 +166,28 @@ fn a_guide_needs_a_partial_call_and_both_flags() {
     let law = needs_dir().join(LAW);
     let law = law.to_str().unwrap();
     let guides = guides();
-    let output = runa(&["call", law, "--input", "x.json", "--guides", &guides, "--guide", "g"]);
-    assert!(text(&output).contains("--guide applies to a partial call"), "{}", text(&output));
-    let output = runa(&["call", law, "--partial", "--input", "x.json", "--guides", &guides]);
-    assert!(text(&output).contains("--guides FILE and --guide NAME go together"), "{}", text(&output));
+    let output = runa(&[
+        "call", law, "--input", "x.json", "--guides", &guides, "--guide", "g",
+    ]);
+    assert!(
+        text(&output).contains("--guide applies to a partial call"),
+        "{}",
+        text(&output)
+    );
+    let output = runa(&[
+        "call",
+        law,
+        "--partial",
+        "--input",
+        "x.json",
+        "--guides",
+        &guides,
+    ]);
+    assert!(
+        text(&output).contains("--guides FILE and --guide NAME go together"),
+        "{}",
+        text(&output)
+    );
 }
 
 #[test]
@@ -178,6 +196,14 @@ fn a_file_of_guides_passes_a_full_check_interpreted() {
         .join("tests/expect/check/answer_guide_shadowed_item.runa");
     let output = runa(&["check", file.to_str().unwrap()]);
     assert!(output.status.success(), "{}", text(&output));
-    assert!(text(&output).contains("interpreted (guide)"), "{}", text(&output));
-    assert!(text(&output).contains("resolves nothing"), "{}", text(&output));
+    assert!(
+        text(&output).contains("interpreted (guide)"),
+        "{}",
+        text(&output)
+    );
+    assert!(
+        text(&output).contains("resolves nothing"),
+        "{}",
+        text(&output)
+    );
 }

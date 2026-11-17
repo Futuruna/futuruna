@@ -1,4 +1,5 @@
 -- expect-skip: the guide answer_guide_imported_by_law.runa imports into its law
+-- roundtrip-skip: a file of guides runs only in the interpreter
 # Spouse(income: Int)
 # Household(income: Int, spouse: Option(Spouse))
 # Origin = Customer

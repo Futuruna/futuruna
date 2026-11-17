@@ -64910,7 +64910,8 @@ impl TypeChecker {
             Some(checked) => tc.check_program(&checked),
             None => tc.check_program(stmts),
         }
-        tc.diagnostics.extend(query::check_program(stmts, source, &tc));
+        tc.diagnostics
+            .extend(query::check_program(stmts, source, &tc));
         // A guide item that resolves nothing is a warning, which never fails
         // the check.
         let (guide_warnings, guide_errors): (Vec<_>, Vec<_>) =

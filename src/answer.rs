@@ -412,7 +412,9 @@ fn constructor_arity(checker: &TypeChecker, owner: &str, constructor: &str) -> u
         .get(constructor)
         .into_iter()
         .flatten()
-        .find(|signature| checker.constructor_identity_owner(&signature.parent, constructor) == owner)
+        .find(|signature| {
+            checker.constructor_identity_owner(&signature.parent, constructor) == owner
+        })
         .map_or(0, |signature| signature.fields.len())
 }
 

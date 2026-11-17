@@ -2,6 +2,7 @@
 -- A required record is never a need itself, so `address` resolves only what
 -- `street` and `city` already name.
 -- expect-command: check
+-- roundtrip-skip: a file of guides runs only in the interpreter
 -- expect-status: pass
 -- expect-stderr: warning
 -- expect-stderr: the item `pathof(Person::address)` of the AnswerGuide `person_guide` resolves nothing
