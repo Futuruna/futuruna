@@ -344,12 +344,23 @@
     {
       "id": "needs-in-the-language",
       "kind": "language",
-      "name": "Needs in the language (`unknown`, `query`, `Path(i)`, `fill`, `interview`)",
+      "name": "Needs in the language (`unknown`, `query`, `Path(i)`, `fill`)",
       "stage": "experimental",
       "commands": [],
       "docs": [
         "docs/reference/calculations.md",
         "docs/rfcs/needs-in-the-language.md"
+      ]
+    },
+    {
+      "id": "answer-guide",
+      "kind": "language",
+      "name": "Answering an entry by a guide (`AnswerGuide`, `answer`, `runa call --guide`)",
+      "stage": "experimental",
+      "commands": [],
+      "docs": [
+        "docs/reference/calculations.md",
+        "docs/rfcs/answer-guide.md"
       ]
     },
     {
@@ -704,6 +715,7 @@
         "calculation-field-declarations",
         "calculation-needs",
         "needs-in-the-language",
+        "answer-guide",
         "typescript-sdk",
         "annotations"
       ]

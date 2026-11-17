@@ -5,6 +5,7 @@ feature_stage_surfaces:
   - calculation-field-declarations
   - calculation-needs
   - needs-in-the-language
+  - answer-guide
   - typescript-sdk
   - annotations
 ---
@@ -890,11 +891,11 @@ round. Queries run in the interpreter, as `runa call --partial` does.
 
 = with_spouse = Household(income = 500, married = True, spouse = Some(Spouse(income = 50, cohabiting = True)))
 = first = query household_tax(Household(income = 500, married = True, spouse = unknown))
-= asked = interview(|c| query household_tax(c), Household(income = 500, married = True, spouse = unknown), with_spouse)
+= asked = answer(household_tax, Household(income = 500, married = True, spouse = unknown), whole_case_guide(), from_case(with_spouse))
 
 @ print(match first { | Needs -> map(first.needs, |n| n.path) == [pathof(Household::spouse)] | Complete -> False }) -- true
-@ print(asked.rounds == [[pathof(Household::spouse)], [pathof(Household::spouse::cohabiting), pathof(Household::spouse::income)]]) -- true
-@ print(asked.result == household_tax(with_spouse)) -- true
+@ print(map(asked.rounds, |r| r.paths) == [[pathof(Household::spouse)], [pathof(Household::spouse::cohabiting), pathof(Household::spouse::income)]]) -- true
+@ print(asked.outcome == Answered(result = household_tax(with_spouse))) -- true
 ```
 
 **`unknown`** is a value not known yet. It means what a left-out field means
@@ -951,9 +952,10 @@ List(NeedWaiting)`. A waiting rule's `section` is a
 `ProgramSectionReference`, so a test compares it with
 `Some(refof(section transfer))`; `refof(section name)` names a section of the
 file it stands in or of a file it imports, and a name two files declare is a
-check error. These types, `fill` and `interview` join the prelude of a
-program that asks a query, places an `unknown`, or calls `fill` or
-`interview`.
+check error. These types and `fill` join the prelude of a program that asks
+a query, places an `unknown`, or calls `fill`; the types of
+[Answering an entry](#answering-an-entry) join it as well when the program
+builds an `AnswerGuide` or calls `answer`.
 
 **`Path(i)`** is a path into a value of type `i`. `pathof(T::...)` is a
 `Path(T)` where a path is expected and a `String` elsewhere; it takes list
@@ -967,9 +969,7 @@ writes every path it returns in this form.
 **`fill(partial, complete, paths)`** writes into `partial`, at each path, the
 value of `complete` there: a record as existing with its fields unknown, a
 variant by its tag, every other value (a `Date` too) whole.
-**`interview(ask, partial, complete)`** asks `ask(case)`, fills each round's
-needs from `complete` and asks again until the answer is `Complete`; it
-returns `Interview(rounds: List(List(Path(i))), result: o)`.
+[Answering an entry](#answering-an-entry) answers an entry round by round.
 
 **What `runa test` checks per query.** Outside tests a query only
 propagates. Under `runa test`, every query also runs the two checks of
@@ -984,11 +984,149 @@ the completion that disproves it:
 asks_income.runa:7: query tax_of, round 1: the propagated result is Complete, but the completion income = -1 returns a different result: {"tax":0} instead of {"tax":-10}
 ```
 
-`runa build` and `runa run` refuse a program with a `query` or `unknown`,
-naming each; `runa check` checks its frontend and reports `interpreted
-(query)`, and `runa test --run` runs such a test in the interpreter and marks
-it `interpreted (query)`. Specified in
+`runa build` and `runa run` refuse a program with a `query`, an `unknown` or
+an `AnswerGuide`, naming each; `runa check` checks its frontend and reports
+`interpreted (query)` (`interpreted (guide)` for a file of guides alone), and
+`runa test --run` runs such a test in the interpreter and marks it
+`interpreted (query)`. Specified in
 [Needs in the language](../rfcs/needs-in-the-language.md).
+
+## Answering an entry
+
+Experimental. A partial case says which facts are missing, not who answers
+them. That depends on the integrator, so it is not the law's to say. The
+integrator says it in an **`AnswerGuide`**: input paths, each mapped to one of
+its own groups of resolvers. `answer` uses a guide in Futuruna, and `runa call
+--guide` and the TypeScript SDK use it outside.
+
+```runa
+-- household.guide.runa
+@ import ./household.entry
+
+# Origin = Registry | Customer
+
+= household_guide = AnswerGuide(fields = [
+    EntryField(path = pathof(Household::spouse), by = Customer),
+    EntryField(path = pathof(Household::children::age), by = Registry)
+])
+
+= complete = Household(income = 500, married = True, spouse = Some(Spouse(income = 50, cohabiting = True)), children = [Child(name = "Ada", age = 4)])
+= started: Household = Household(income = 500, married = True, spouse = unknown, children = [Child(name = "Ada", age = unknown)])
+= answered = answer(household_tax, started, household_guide, from_case(complete))
+```
+
+The prelude of a program that builds a guide or calls `answer`:
+
+```text
+AnswerGuide(i, g) = AnswerGuide(fields: List(EntryField(i, g)))
+EntryField(i, g)  = EntryField(path: Path(i), by: g)
+Answers(i)        = Answers(from: i, paths: List(Path(i)))
+Asking(i, g)      = Asking(group: g, paths: List(Path(i)))
+Round(i, g)       = Round(paths: List(Path(i)), groups: List(Asking(i, g)))
+Outcome(o, i, g)  = Answered(result: o) | Unanswered(open: List(Asking(i, g)), case: i)
+Answering(o, i, g) = Answering(rounds: List(Round(i, g)), outcome: Outcome(o, i, g))
+WholeCase         = WholeCase
+```
+
+`i` is the entry's input type and `g` the integrator's group type, a sum of
+constructors without fields.
+
+**Held and named.** A path the guide does not name is **held**: the
+integrator builds the fact into every case, and a need there is a defect in
+its data. A path the guide names may be missing: the case still carries it
+whenever the integrator has it, and the group is asked only for what is
+missing. A named path covers every path below it, unless a more specific item
+names one below; a need belongs to the most specific item at or above its
+path. The forms of a path, each covering what is below it, are a field
+(`pathof(TaxCase::taxpayer::spouse)`), a list with its elements' fields
+(`pathof(TaxCase::events)`), an element field
+(`pathof(TaxCase::opening_positions::isin)`), an alternative's field
+(`pathof(TaxCase::events::Trade::amount_øre)`), a tag
+(`pathof(TaxCase::events::$variant)`) and the whole input (`pathof(TaxCase)`).
+A need's list indices are ignored when it is matched with an item, and the
+alternative it lies in is named.
+
+**`answer(e, case, guide, resolve)`** answers the `@ entry` `e` about `case`,
+round by round:
+
+1. it asks `query e(case)`, with the strict-mode oracle and the completion
+   test under `runa test`;
+2. on `Complete` it ends with `Answered(result)`;
+3. a need at a held path stops the program with an error naming the path,
+   the guide and the round;
+4. it calls `resolve(group, needs, case)` once for each group that has needs
+   this round, with all of that group's needs (**batching**). The resolver
+   returns `Answers(from, paths)`: the paths it answers and a case holding
+   their values. An answer for a path the group was not asked is an error;
+5. it writes the answers into the case with `fill` and asks again;
+6. a round that answers nothing ends with `Unanswered(open, case)`: what each
+   group left open, and the case as far as it got.
+
+`rounds` records, for each round, the needs' paths and what each group was
+asked, so a test states "the registry is asked for the ages, then the
+customer for the spouse". What a resolver does inside (read a database, ask a
+person, run another entry) is the integrator's business; `answer` only sees
+which paths it answered.
+
+**`from_case(complete)`** is a resolver that answers every need from
+`complete`, and **`whole_case_guide()`** a guide whose one group, `WholeCase`,
+resolves the whole input. Together they answer a case from a complete one,
+round by round:
+`answer(e, partial, whole_case_guide(), from_case(complete))`.
+`runa fmt --migrate` rewrites a 0.5 `interview(|c| query e(c), partial,
+complete)` to that form, with its `.rounds` and `.result == v`.
+
+**Where a guide lives.** A guide is a top-level binding of a ground value,
+`AnswerGuide(fields = [EntryField(path = pathof(...), by = Group), ...])`, so
+that `runa check`, `runa call --guide` and `runa sdk ts --guide` read its
+paths and groups without running the program. It is the integrator's, not the
+law's: a guide in a file that declares an `@ entry`, or in a file such a file
+imports, is a check error, and so is `answer` reached from an `@ entry`. A
+guide file is called `*.guide.runa` by convention. The guide does not name its
+entry; one guide serves every entry with its input type.
+
+**Checks.** `runa check` reports:
+
+- a guide that is not a ground `AnswerGuide(fields = [...])`, or that names
+  no path;
+- a path with a list index (who answers does not depend on which element),
+  and paths into two input types;
+- the same path named twice;
+- a `by` that is not a constructor without fields, groups of two types, a
+  group type that is not a plain sum of constructors, and a group constructor
+  with no path (its resolver would resolve nothing);
+- as a warning, an item every one of whose need-able paths is named more
+  specifically (it resolves nothing);
+- `answer` of a name that is not an `@ entry`, a guide argument that is
+  neither a guide binding nor `whole_case_guide()`, and a guide whose paths
+  are into another type than the entry's input.
+
+**Composition and running another entry** are different things. An entry
+that calls another entry makes an ordinary call: under a query the callee's
+needs are the caller's, at the caller's paths, and the guide treats them like
+any other path. Running another entry separately is something a resolver may
+do, for a field whose metadata names the entry that provides it
+(`@ field(entry = refof(share_income), subject = ...)`): the resolver may run
+`answer` on that entry with a guide of its own, read a stored figure, or ask
+someone. That second `answer`'s needs are its own, not the caller's.
+
+**`runa call --guides FILE --guide NAME`** gives each need of a partial call
+(`--partial`, `--partial=strict` or `--partial=check`), and each `later`
+need, the group of the guide's most specific item for its path:
+
+```sh
+runa call household.entry.runa --partial --input partial.json \
+  --guides household.guide.runa --guide household_guide
+```
+
+```json
+{ "kind": "fact", "path": "children[0].age", "by": "Registry", "waiting": [ "..." ] }
+```
+
+`FILE` is checked as `runa check` checks it, and `NAME` is a guide it binds,
+rooted at the entry's input type. A need at a held path keeps no `by` and is
+a diagnostic of its case, as in `answer`. The entry's contract, its template
+and its schema hash do not change; the partial-result schema documents `by`.
 
 ## Explanations
 
