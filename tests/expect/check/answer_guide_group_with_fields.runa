@@ -1,9 +1,0 @@
--- The group type is a plain sum of constructors without fields.
--- expect-command: check
--- expect-status: fail
--- expect-stderr: the group type `Origin` of the AnswerGuide `household_guide` is not a plain sum of constructors: `Bank` has fields
-
-@ import ./answer_law
-
-# Origin = Customer | Bank(name: String)
-= household_guide = AnswerGuide(fields = [EntryField(path = pathof(Household::spouse), by = Customer)])

@@ -126,8 +126,8 @@ fn record_declaration(name: &str, parameters: &str, members: &[Member]) -> Strin
 
 /// The Futuruna source of needs in the language: the types a query returns
 /// and `fill`. A program that asks a query or places an `unknown` gets it
-/// with the prelude; one that calls `answer` or builds a guide gets the
-/// answer prelude (`crate::answer`) as well.
+/// with the prelude; one that calls `answer` or `from_case` gets the answer
+/// prelude (`crate::answer`) as well.
 pub fn needs_prelude_source() -> String {
     let mut source = String::from(
         "-- Needs in the language (docs/rfcs/needs-in-the-language.md).\n\
@@ -177,7 +177,7 @@ pub fn needs_prelude() -> Vec<Stmt> {
 /// `statements` with the needs prelude when the program does not have it
 /// while it, or a file it imports (plain or qualified, through any chain of
 /// imports), asks a query, places an `unknown` or calls `fill`; and with the
-/// answer prelude as well when one of them calls `answer` or builds a guide.
+/// answer prelude as well when one of them calls `answer` or `from_case`.
 /// A prelude is prepended to the root only, and a module needs the same
 /// `Query`, `Need`, `NeedKind` and `Answering` the root would get: a plain
 /// module shares the root's; a qualified module, checked and run as a
@@ -613,8 +613,16 @@ impl Placement<'_, '_> {
                 );
             }
             self.expr(parts.case, Place::Value);
-            self.expr(parts.guide, Place::Value);
             self.expr(parts.resolve, Place::Value);
+            return;
+        }
+        if let Some(entry) = answer_guide_parts(expr) {
+            if !self.entries.contains(entry) {
+                self.report(
+                    expr.span,
+                    format!("`answer_guide` is generated for an entry (`@ entry`); `{entry}` is not one"),
+                );
+            }
             return;
         }
         if let Some((entry, call, case)) = query_parts(expr) {
@@ -758,6 +766,8 @@ fn first_mention(statement: &Stmt) -> Option<(&'static str, Span)> {
                 found = Some(("`unknown`", expr.span));
             } else if answer_parts(expr).is_some() {
                 found = Some(("`answer`", expr.span));
+            } else if answer_guide_parts(expr).is_some() {
+                found = Some(("`answer_guide`", expr.span));
             } else if query_parts(expr).is_some() {
                 found = Some(("`query`", expr.span));
             }
@@ -1053,7 +1063,7 @@ fn none() -> Value {
     Value::Constructor("None".to_string(), Rc::new(Vec::new()))
 }
 
-fn optional(value: Option<Value>) -> Value {
+pub(crate) fn optional(value: Option<Value>) -> Value {
     value.map_or_else(none, some)
 }
 
@@ -1073,7 +1083,7 @@ pub(crate) fn record(owner: &str, constructor: &str, fields: Vec<(&str, Value)>)
     )
 }
 
-fn reference(constructor: &str, name: &str) -> Value {
+pub(crate) fn reference(constructor: &str, name: &str) -> Value {
     record(
         "ProgramReference",
         constructor,
@@ -1585,7 +1595,7 @@ impl Interpreter {
             .unwrap_or_else(|| self.runtime_root.clone())
     }
 
-    fn query_prepared(&self, entry: &str) -> Result<Rc<RefCell<PreparedEntry>>, String> {
+    pub(crate) fn query_prepared(&self, entry: &str) -> Result<Rc<RefCell<PreparedEntry>>, String> {
         let start = self.query_current_file().ok_or_else(|| {
             "a query needs the file of its program to find the entry it asks".to_string()
         })?;
@@ -1988,15 +1998,7 @@ mod tests {
     #[test]
     fn need_members_are_the_partial_result_schema() {
         let schema = crate::calculate::partial_result_json_schema(&contract());
-        let mut need = schema["oneOf"][1]["properties"]["needs"]["items"].clone();
-        // `by` is written by `runa call --guide` only; in the language,
-        // `answer` routes needs by its guide, so `Need(i)` has no `by`.
-        need["properties"]
-            .as_object_mut()
-            .expect("need properties")
-            .remove("by")
-            .expect("the schema documents `by`");
-        let need = &need;
+        let need = &schema["oneOf"][1]["properties"]["needs"]["items"];
         assert_members(NEED_MEMBERS, need);
         assert_members(NEED_KEY_MEMBERS, &need["properties"]["keys"]["items"]);
         let waiting = &need["properties"]["waiting"]["items"];

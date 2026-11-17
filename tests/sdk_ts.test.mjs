@@ -1,6 +1,6 @@
 // `runa sdk ts` end to end: generate an SDK, type-check it as strict
-// TypeScript, and run its calls, validators and answering by a guide under
-// Node, against the @futuruna/runtime package `runa sdk runtime` writes.
+// TypeScript, and run its calls, validators and answering under Node, against
+// the @futuruna/runtime package `runa sdk runtime` writes.
 //
 // FUTURUNA_SDK_TS_DEPS names a directory whose node_modules holds `typescript`
 // (5.x) and `zod`; the test installs nothing. Where it also holds `eslint` (9.x)
@@ -73,8 +73,9 @@ const valueName = (entry) => {
 };
 
 const fixtureUsage = `import {
-  calculateTaxSetAt, none,
-  type CalculateTaxNeed, type PartialTaxInput, type TaxInput,
+  calculateTaxAnswer, calculateTaxSetAt, given, none, open,
+  type CalculateTaxInputPatterns, type CalculateTaxNeed, type CalculateTaxResolve, type EngineTransport,
+  type PartialTaxInput, type Reply, type TaxInput,
 } from "./sdk/index.js";
 
 export const sample: TaxInput = {
@@ -123,6 +124,64 @@ export function wrongAnswers(partialCase: PartialTaxInput, need: CalculateTaxNee
   const forged: CalculateTaxNeed = { ...need, path: "children[-1].age" };
   void forged;
 }
+
+function assertNever(value: never): never {
+  throw new Error(JSON.stringify(value));
+}
+
+type TaxReply = Reply<CalculateTaxInputPatterns, CalculateTaxNeed["pattern"]>;
+
+/** A reply to every need: the switch over the pattern union is exhaustive, each value typed by its pattern. */
+export function reply(need: CalculateTaxNeed): TaxReply {
+  switch (need.pattern) {
+    case "monthlyIncome":
+      return given(need, 50000);
+    case "filingStatus":
+      return given(need, "Married");
+    case "deduction":
+      return given(need, none);
+    case "children":
+      return given(need, []);
+    case "children[]":
+      return open;
+    case "children[].name":
+      return given(need, "Ada");
+    case "children[].age":
+      return given(need, 4);
+    default:
+      return assertNever(need);
+  }
+}
+export const resolveAll: CalculateTaxResolve = () => reply;
+
+// Type errors only; never called.
+export function forgetsAge(need: CalculateTaxNeed): TaxReply {
+  switch (need.pattern) {
+    case "monthlyIncome":
+    case "filingStatus":
+    case "deduction":
+    case "children":
+    case "children[]":
+    case "children[].name":
+      return open;
+    default:
+      // @ts-expect-error \`children[].age\` is not handled
+      return assertNever(need);
+  }
+}
+export function wrongAge(need: CalculateTaxNeed): TaxReply {
+  if (need.pattern === "children[].age") {
+    // @ts-expect-error an age is a number
+    return given(need, "four");
+  }
+  return open;
+}
+export function unnarrowed(need: CalculateTaxNeed): TaxReply {
+  // @ts-expect-error a need of several patterns takes no value until its pattern is narrowed
+  return given(need, 4);
+}
+export const answerAll = (transport: EngineTransport, partialCase: PartialTaxInput) =>
+  calculateTaxAnswer(transport, partialCase, resolveAll);
 `;
 
 /** The partial values and calls the reviews asked the types to check, on a small ledger model. */
@@ -232,7 +291,7 @@ test('runa sdk ts output type-checks and calls and validates through a transport
   const again = project('fixture-again');
   run(binary, ['sdk', 'ts', fixture, '--out', join(again, 'sdk')]);
   assert.deepEqual(readdirSync(join(dir, 'sdk')).sort(), ['client.ts', 'index.ts', 'partial.ts', 'schema.ts', 'types.ts'],
-    'no guide: no answer module, and the runtime is a package');
+    'answering is in client.ts, and the runtime is a package');
   for (const name of ['types.ts', 'schema.ts', 'partial.ts', 'client.ts', 'index.ts']) {
     assert.equal(readFileSync(join(dir, 'sdk', name), 'utf8'), readFileSync(join(again, 'sdk', name), 'utf8'), name);
   }
@@ -333,26 +392,39 @@ test('runa sdk ts output type-checks and calls and validates through a transport
   assert.throws(() => sdk.parsePath('a..b'), (error) => error.name === 'PathError');
   assert.equal(sdk.pathPattern('accounts[12].events[0].kind'), 'accounts[].events[].kind');
 
-  // Answering by a guide, through the runtime alone: a guide table written here, a partial engine.
+  // The answer guide: every pattern a need can name, with the law's type and metadata.
+  assert.deepEqual(Object.keys(sdk.calculateTaxGuide),
+    ['monthlyIncome', 'filingStatus', 'deduction', 'children', 'children[].name', 'children[].age']);
+  assert.deepEqual([sdk.calculateTaxGuide.monthlyIncome.kind, sdk.calculateTaxGuide.monthlyIncome.type,
+    sdk.calculateTaxGuide.monthlyIncome.question, sdk.calculateTaxGuide.monthlyIncome.keys],
+  ['fact', 'Int', 'What is your income before tax each month?', []]);
+  assert.equal(sdk.calculateTaxGuide.deduction.type, 'Int?');
+  assert.equal(sdk.calculateTaxGuide.filingStatus.type, 'FilingStatus');
+
+  // Answering an entry against a partial engine: `resolve` is called once per round with every need.
   const engine = fixturePartialEngine(hash);
   const transport = { call: cli.call, callPartial: engine.callPartial };
-  const query = (c) => sdk.calculateTaxQuery(transport, c);
-  const guide = { name: 'fixture_guide', paths: { 'children[].age': 'Family', filingStatus: 'Family', monthlyIncome: 'Income' } };
-  const first = await sdk.answerEntry(query, usage.started, guide, {
-    Family: () => (need) => (need.pattern === 'children[].age' ? sdk.given(need, 4) : sdk.given(need, 'Married')),
-    Income: sdk.leaveOpen,
+  const seen = [];
+  const first = await sdk.calculateTaxAnswer(transport, usage.started, (needs, context) => {
+    seen.push([needs.map((need) => need.path), context.partialCase]);
+    return (need) => (need.pattern === 'monthlyIncome' ? sdk.open : usage.reply(need));
   });
   assert.equal(first.$variant, 'Unanswered');
-  assert.equal(first.rounds.length, 2);
-  assert.deepEqual(Object.keys(first.open), ['Income'], 'the needs left open, keyed by the group that left them');
-  assert.deepEqual(first.open.Income.map((need) => [need.pattern, need.path, need.by]), [['monthlyIncome', 'monthlyIncome', 'Income']]);
-  assert.equal(first.open.Income[0].question, 'What is your income before tax each month?');
-  assert.deepEqual(first.open.Income[0].waiting, [{ rule: 'annual_income' }]);
+  assert.deepEqual(first.rounds, [
+    { paths: ['children[0].age', 'filingStatus', 'monthlyIncome'], given: ['children[0].age', 'filingStatus'] },
+    { paths: ['monthlyIncome'], given: [] },
+  ]);
+  assert.deepEqual(seen.map(([paths]) => paths), [['children[0].age', 'filingStatus', 'monthlyIncome'], ['monthlyIncome']]);
+  assert.equal(seen[0][1], usage.started, 'resolve sees the case of its round');
+  assert.deepEqual(first.open.map((need) => [need.pattern, need.path]), [['monthlyIncome', 'monthlyIncome']],
+    'the last round\'s needs left open');
+  assert.equal(first.open[0].question, 'What is your income before tax each month?');
+  assert.deepEqual(first.open[0].waiting, [{ rule: 'annual_income' }]);
+  assert.equal(first.open[0].by, undefined);
   assert.deepEqual(first.partialCase, { children: [{ name: 'Ada', age: 4 }], filingStatus: 'Married' });
   assert.ok(Array.isArray(first.later), 'Unanswered carries the last round\'s later facts');
   assert.deepEqual(first.pending, []);
-  const second = await sdk.answerEntry(query, usage.answerNeed(first.partialCase, first.open.Income[0]), guide,
-    { Family: sdk.leaveOpen, Income: sdk.leaveOpen });
+  const second = await sdk.calculateTaxAnswer(transport, usage.answerNeed(first.partialCase, first.open[0]), () => () => sdk.open);
   assert.equal(second.$variant, 'Answered');
   assert.deepEqual(second.result, { annualIncome: 600000, taxableIncome: 600000, annualTax: 120000 });
   assert.deepEqual(second.unusedPaths, ['children[0].name']);
@@ -362,50 +434,16 @@ test('runa sdk ts output type-checks and calls and validates through a transport
   assert.deepEqual(engine.calls.at(-1).cases[0].input,
     { children: [{ name: 'Ada', age: 4 }], filing_status: { $variant: 'Married' }, monthly_income: 50000 });
 
-  // Each group's resolver is called once per round with all of the round's needs of its group, and
-  // the groups' resolvers run at the same time: each waits here until both have begun.
-  const batches = [];
-  let begun = 0;
-  let allBegun;
-  const together = new Promise((resolveTogether) => { allBegun = resolveTogether; });
-  const batched = (group, value) => async (needs, context) => {
-    batches.push([group, needs.map((need) => need.path), context.partialCase]);
-    begun += 1;
-    if (begun === 2) allBegun();
-    await Promise.race([together, new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(`${group} waited for the other resolvers alone`)), 2000).unref();
-    })]);
-    return (need) => sdk.given(need, value(need));
-  };
+  // A resolve that answers every need: one round.
   const three = { children: [{ name: 'Ada' }, { name: 'Bo' }, { name: 'Cy' }] };
-  const all = await sdk.answerEntry(query, three, guide, {
-    Family: batched('Family', (need) => (need.pattern === 'filingStatus' ? 'Married' : 4)),
-    Income: batched('Income', () => 50000),
-  });
+  const all = await sdk.calculateTaxAnswer(transport, three, usage.resolveAll);
   assert.equal(all.$variant, 'Answered');
-  assert.equal(all.rounds.length, 1);
-  assert.deepEqual(batches.map(([group, paths]) => [group, paths]).sort(), [
-    ['Family', ['children[0].age', 'children[1].age', 'children[2].age', 'filingStatus']],
-    ['Income', ['monthlyIncome']],
-  ]);
-  assert.deepEqual(all.rounds[0].groups.Income.map((need) => need.by), ['Income']);
-  assert.ok(batches.every(([, , partialCase]) => partialCase === three), 'every resolver sees the case of its round');
+  const asked3 = ['children[0].age', 'children[1].age', 'children[2].age', 'filingStatus', 'monthlyIncome'];
+  assert.deepEqual(all.rounds, [{ paths: asked3, given: asked3 }]);
   assert.deepEqual(all.partialCase.children.map((child) => child.age), [4, 4, 4]);
   // A reply names the path it is for: one for another need is an error, not an answer in the wrong place.
-  await assert.rejects(sdk.answerEntry(query, three, guide, { Family: (needs) => () => sdk.given(needs[0], 5), Income: sdk.leaveOpen }),
+  await assert.rejects(sdk.calculateTaxAnswer(transport, three, (needs) => () => sdk.given(needs[0], 5)),
     (error) => error.name === 'AnswerError' && /replied to `children\[1\]\.age` with a reply for `children\[0\]\.age`/.test(error.message));
-  // A need the guide names no group for is required: the required facts should have had it.
-  await assert.rejects(sdk.answerEntry(query, three, { name: 'no_income', paths: { 'children[].age': 'Family', filingStatus: 'Family' } },
-    { Family: sdk.leaveOpen }),
-  (error) => error.name === 'MissingFactError' && error instanceof sdk.AnswerError && error.guide === 'no_income'
-    && error.needs.map((need) => need.path).join() === 'monthlyIncome'
-    && /^round 1: `monthlyIncome` is required \(the guide `no_income` names no group for it\)/.test(error.message));
-  // Below a path the table has no key for (past a recursive type's cut), the nearest key above it decides.
-  assert.equal(sdk.guideGroup({ name: 'g', paths: { 'tree.Branch.left': 'Shapes' } }, 'tree.Branch.left.Leaf.value'), 'Shapes');
-  assert.equal(sdk.guideGroup({ name: 'g', paths: { 'tree.Branch.left': 'Shapes' } }, 'tree.Branch.right'), undefined);
-  assert.equal(sdk.guidePath({ events: [{ $variant: 'Trade' }, { $variant: 'Dividend' }] },
-    { pattern: 'events[].amount', path: 'events[1].amount' }), 'events[].Dividend.amount');
-  assert.equal(sdk.guidePath({ events: [{}] }, { pattern: 'events[].$variant', path: 'events[0].$variant' }), 'events[].$variant');
 
   // Partial inputs and Needs results are validated too.
   await assert.rejects(sdk.calculateTaxQuery(transport, { children: [{ age: 2 ** 53 }] }), (error) => error.kind === 'input');
@@ -426,9 +464,8 @@ test('runa sdk ts output type-checks and calls and validates through a transport
     keys: [{ path: 'children[0]', field: 'name', value: 'Ada' }] }]), {}),
   (error) => error.kind === 'output', 'a key no list declares');
   const stuck = needing([{ kind: 'fact', path: 'children[0].age', waiting }]);
-  await assert.rejects(sdk.answerEntry((c) => sdk.calculateTaxQuery(stuck, c), { children: [{}] }, guide,
-    { Family: () => (need) => sdk.given(need, 1), Income: sdk.leaveOpen }),
-  (error) => error.name === 'AnswerError' && /still needs `children\[0\]\.age`/.test(error.message));
+  await assert.rejects(sdk.calculateTaxAnswer(stuck, { children: [{}] }, () => (need) => sdk.given(need, 1)),
+    (error) => error.name === 'AnswerError' && /still needs `children\[0\]\.age`/.test(error.message));
 
   // A need is tagged with its pattern; a date is needed whole; a list element's key comes at TypeScript paths.
   const passing = { safeParse: (data) => ({ success: true, data }) };
@@ -507,14 +544,11 @@ test('runa sdk ts output type-checks and calls and validates through a transport
 
   // An entry that needs itself for the same subject is a cycle: runEntry passes the stack on in `options`.
   const spouse = needing([{ kind: 'entry', path: 'deduction', entry: 'calculate_tax', subject: 'spouse', waiting }]);
-  const spouseQuery = (c) => sdk.calculateTaxQuery(spouse, c);
-  const byEntry = { name: 'by_entry', paths: { deduction: 'Spouse' } };
-  const answerSpouse = (options) => sdk.answerEntry(spouseQuery, {}, byEntry, cyclic, options);
-  const cyclic = { Spouse: (_needs, context) => (need) => context.runEntry(need, answerSpouse) };
+  const answerSpouse = (options) => sdk.calculateTaxAnswer(spouse, {}, cyclic, options);
+  const cyclic = (_needs, context) => (need) => context.runEntry(need, answerSpouse);
   await assert.rejects(answerSpouse(), (error) => error.name === 'AnswerCycleError'
     && error.frames.length === 2 && error.frames.every((frame) => frame.subject === 'spouse'));
   // Another entry's Answered result is written at the need's path.
-  const provided = { name: 'provided', paths: { deduction: 'Spouse' } };
   let asked = 0;
   const once = {
     async callPartial(entry, document) {
@@ -526,14 +560,13 @@ test('runa sdk ts output type-checks and calls and validates through a transport
         diagnostics: [] };
     },
   };
-  const ran = await sdk.answerEntry((c) => sdk.calculateTaxQuery(once, c), {}, provided, {
-    Spouse: (_needs, context) => (need) => context.runEntry(need, async (options) => {
-      assert.deepEqual(options, { frames: [{ entry: 'calculate_tax', subject: 'spouse' }] });
-      return { $variant: 'Answered', result: 700, assumptions: [], unusedPaths: [], partialCase: {}, rounds: [] };
-    }),
-  });
+  const ran = await sdk.calculateTaxAnswer(once, {}, (_needs, context) => (need) => context.runEntry(need, async (options) => {
+    assert.deepEqual(options, { frames: [{ entry: 'calculate_tax', subject: 'spouse' }] });
+    return { $variant: 'Answered', result: 700, assumptions: [], unusedPaths: [], partialCase: {}, rounds: [] };
+  }));
   assert.equal(ran.$variant, 'Answered');
   assert.deepEqual(ran.partialCase, { deduction: 700 });
+  assert.deepEqual(ran.rounds, [{ paths: ['deduction'], given: ['deduction'] }]);
   assert.equal(asked, 2);
 });
 
@@ -783,20 +816,9 @@ const keyedModel = `# Event =
 > balance(input: Ledger) -> Int { foldl(input.events, 0, |sum, e| sum + signed(e)) }
 `;
 
-/** Who gives the events: the list as skeletons first, then the fields the law reads. */
-const keyedGuide = `@ import ./keyed.entry
-# LedgerSource = Skeletons | Details
-= ledger_guide = AnswerGuide(fields = [
-    EntryField(path = pathof(Ledger::events), by = Skeletons),
-    EntryField(path = pathof(Ledger::events::Deposit::amount), by = Details),
-    EntryField(path = pathof(Ledger::events::Withdrawal::amount), by = Details),
-    EntryField(path = pathof(Ledger::events::Withdrawal::fee), by = Details)
-])
-`;
-
 const keyedUsage = `import {
   balanceAnswer, given, open,
-  type BalanceElementKey, type BalanceNeed, type BalanceResolvers, type EngineTransport, type PartialEvent,
+  type BalanceElementKey, type BalanceNeed, type BalanceResolve, type EngineTransport, type PartialEvent,
 } from "./sdk/index.js";
 
 export type Row = { readonly amount: number; readonly fee: number };
@@ -814,32 +836,30 @@ export function eventId(need: BalanceNeed): string {
   return id;
 }
 
-export function resolvers(backend: Backend): BalanceResolvers {
-  return {
-    // The list, as skeletons: each event's variant and id, its details left out.
-    Skeletons: async () => {
-      const skeletons = await backend.skeletons();
-      return (need) => (need.pattern === "events" ? given(need, skeletons) : open);
-    },
-    // Every field the law reads of the events, from one lookup of their ids. The switch is
-    // exhaustive: the group's needs are of its patterns only.
-    Details: async (needs) => {
-      const rows = await backend.details([...new Set(needs.map(eventId))]);
-      return (need) => {
-        const row = rows.get(eventId(need));
-        if (row === undefined) return open;
-        switch (need.pattern) {
-          case "events[].amount":
-            return given(need, row.amount);
-          case "events[].fee":
-            return given(need, row.fee);
+/** One resolve: the list as skeletons when it is asked, and every field the law reads of the events from one lookup of their ids. */
+export function resolve(backend: Backend): BalanceResolve {
+  return async (needs) => {
+    const skeletons = needs.some((need) => need.pattern === "events") ? await backend.skeletons() : [];
+    const ids = needs.filter((need) => need.pattern === "events[].amount" || need.pattern === "events[].fee").map(eventId);
+    const rows = ids.length > 0 ? await backend.details([...new Set(ids)]) : new Map<string, Row>();
+    return (need) => {
+      switch (need.pattern) {
+        case "events":
+          return given(need, skeletons);
+        case "events[].amount":
+        case "events[].fee": {
+          const row = rows.get(eventId(need));
+          if (row === undefined) return open;
+          return need.pattern === "events[].amount" ? given(need, row.amount) : given(need, row.fee);
         }
-      };
-    },
+        default:
+          return open;
+      }
+    };
   };
 }
 
-export const answerLedger = (transport: EngineTransport, backend: Backend) => balanceAnswer(transport, {}, resolvers(backend));
+export const answerLedger = (transport: EngineTransport, backend: Backend) => balanceAnswer(transport, {}, resolve(backend));
 `;
 
 /** A transport that runs `runa call --partial` on `model` in `dir`, keeping each partial case it sends. */
@@ -857,11 +877,10 @@ function partialCli(dir, model) {
   };
 }
 
-test('second-order resolution by group: a list of skeletons, then the fields the law reads, by key', options, async () => {
+test('second-order answering: a list of skeletons, then the fields the law reads, by key', options, async () => {
   const dir = project('keyed');
   writeFileSync(join(dir, 'keyed.entry.runa'), keyedModel);
-  writeFileSync(join(dir, 'keyed.guide.runa'), keyedGuide);
-  run(binary, ['sdk', 'ts', 'keyed.entry.runa', '--out', 'sdk', '--guides', 'keyed.guide.runa', '--guide', 'balance=ledger_guide'], dir);
+  run(binary, ['sdk', 'ts', 'keyed.entry.runa', '--out', 'sdk'], dir);
   writeFileSync(join(dir, 'usage.ts'), keyedUsage);
   compile(dir, ['sdk/index.ts', 'usage.ts']);
   const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
@@ -882,8 +901,7 @@ test('second-order resolution by group: a list of skeletons, then the fields the
     ['events[2].amount', 'events[].amount', [{ path: 'events[2]', field: 'id', value: 'e3' }]],
   ]);
 
-  // Round 1 asks Skeletons for the list, round 2 Details for every field of the events by their ids:
-  // one backend call per round.
+  // Round 1 asks for the list, round 2 for every field of the events by their ids: one backend call per round.
   transport.queried.length = 0;
   const rows = new Map([['e1', { amount: 100, fee: 0 }], ['e2', { amount: 30, fee: 2 }], ['e3', { amount: 7, fee: 0 }]]);
   const backend = { skeletons: 0, details: [] };
@@ -898,11 +916,11 @@ test('second-order resolution by group: a list of skeletons, then the fields the
     },
   });
   assert.equal(answering.$variant, 'Answered', JSON.stringify(answering));
+  const details = ['events[0].amount', 'events[1].amount', 'events[1].fee', 'events[2].amount'];
   assert.equal(answering.result, 100 - 30 - 2 + 7);
-  assert.deepEqual(answering.rounds.map((round) => Object.fromEntries(Object.entries(round.groups)
-    .map(([group, needs]) => [group, needs.map((need) => need.path)]))), [
-    { Skeletons: ['events'] },
-    { Details: ['events[0].amount', 'events[1].amount', 'events[1].fee', 'events[2].amount'] },
+  assert.deepEqual(answering.rounds, [
+    { paths: ['events'], given: ['events'] },
+    { paths: details, given: details },
   ]);
   assert.deepEqual(transport.queried, [{}, { events: skeletons }, { events: [
     { $variant: 'Deposit', id: 'e1', amount: 100 }, { $variant: 'Withdrawal', id: 'e2', amount: 30, fee: 2 },
@@ -911,7 +929,7 @@ test('second-order resolution by group: a list of skeletons, then the fields the
   assert.deepEqual(backend.details, [['e1', 'e2', 'e3']]);
 });
 
-/** The household of tests/expect/run/needs/answer_household.runa, answered from TypeScript. */
+/** The household of tests/expect/run/needs/answer_household_law.runa, answered from TypeScript. */
 const householdModel = `# Spouse(income: Int, cohabiting: Bool)
 # Child(name: String, age: Int)
 # Household(income: Int, married: Bool, spouse: Option(Spouse), children: List(Child))
@@ -928,194 +946,140 @@ const householdModel = `# Spouse(income: Int, cohabiting: Bool)
 | household_tax(h: Household) -> Result(tax = h.income - threshold(h) - child_allowance(h))
 `;
 
-const householdGuide = `@ import ./household.entry
-
--- The registry has the children's ages; the customer is asked about a spouse.
--- Everything else is in the integrator's own records: required.
-# Origin = Registry | Customer
-= household_guide = AnswerGuide(fields = [
-    EntryField(path = pathof(Household::spouse), by = Customer),
-    EntryField(path = pathof(Household::children::age), by = Registry)
-])
-`;
-
 const householdUsage = `import {
-  given, householdTaxAnswer, leaveOpen, open,
-  type EngineTransport, type HouseholdTaxGuidedNeed, type HouseholdTaxFacts, type HouseholdTaxResolvers,
+  given, householdTaxAnswer, open,
+  type EngineTransport, type HouseholdTaxInputPatterns, type HouseholdTaxNeed, type HouseholdTaxResolve,
+  type PartialHousehold, type Reply,
 } from "./sdk/index.js";
 
-/** Each resolver call: its group and the paths of its needs. */
-export const calls: [string, string[]][] = [];
+/** Each call of resolve: the paths of its round's needs. */
+export const calls: string[][] = [];
 
-export const facts: HouseholdTaxFacts = { income: 500, married: true, children: [{ name: "Ada" }, { name: "Bo" }] };
-// @ts-expect-error a required fact left out does not compile: \`income\` is required
-export const forgotIncome: HouseholdTaxFacts = { married: true, children: [] };
-// @ts-expect-error a child's name is required too
-export const namelessChild: HouseholdTaxFacts = { income: 500, married: true, children: [{ age: 4 }] };
-// @ts-expect-error a required fact is never \`undefined\`: the builder decides what a missing value means
-export const undefinedIncome: HouseholdTaxFacts = { ...facts, income: undefined };
-/** Untyped data the type cannot see: answering throws \`MissingFactError\`. */
-export const unknownIncome = { ...facts, income: undefined } as unknown as HouseholdTaxFacts;
-/** A resolved fact may be given when known. */
-export const knownSpouse: HouseholdTaxFacts = { ...facts, spouse: { income: 50, cohabiting: true } };
+export const started: PartialHousehold = { income: 500, married: true, children: [{ name: "Ada" }, { name: "Bo" }] };
 
 const ages: ReadonlyMap<string, number> = new Map([["children[0].age", 4], ["children[1].age", 19]]);
 
-export const registry: HouseholdTaxResolvers["Registry"] = (needs) => {
-  calls.push(["Registry", needs.map((need) => need.path)]);
-  return (need) => {
-    const age = ages.get(need.path);
-    return age === undefined ? open : given(need, age);
-  };
-};
-
-export const customer: HouseholdTaxResolvers["Customer"] = (needs) => {
-  calls.push(["Customer", needs.map((need) => need.path)]);
-  return (need) => {
-    switch (need.pattern) {
-      case "spouse":
-        return given(need, {});
-      case "spouse.income":
-        return given(need, 50);
-      case "spouse.cohabiting":
-        return given(need, true);
-    }
-  };
-};
-
-export const resolvers: HouseholdTaxResolvers = { Registry: registry, Customer: customer };
-/** Nobody can give the ages yet: one visible line. */
-export const registryClosed: HouseholdTaxResolvers = { Registry: leaveOpen, Customer: customer };
-// @ts-expect-error every group's resolver is required
-export const missingGroup: HouseholdTaxResolvers = { Registry: registry };
-export const wrongAge: HouseholdTaxResolvers = {
-  // @ts-expect-error an age is a number
-  Registry: () => (need) => given(need, "four"),
-  Customer: leaveOpen,
-};
-export const outOfGroup: HouseholdTaxResolvers = {
-  Registry: () => (need) => {
-    // @ts-expect-error the registry is never asked about the spouse
-    if (need.pattern === "spouse") return open;
-    return open;
-  },
-  Customer: leaveOpen,
-};
-/** Narrowing \`by\` narrows the need's pattern. */
-export function describe(need: HouseholdTaxGuidedNeed): string {
-  return need.by === "Registry" ? \`ask the registry for \${need.pattern}\` : \`ask the customer: \${need.question ?? need.label ?? need.pattern}\`;
+function assertNever(value: never): never {
+  throw new Error(JSON.stringify(value));
 }
 
-export const answerHousehold = (transport: EngineTransport, givenFacts: HouseholdTaxFacts, chosen: HouseholdTaxResolvers) =>
-  householdTaxAnswer(transport, givenFacts, chosen);
+type HouseholdReply = Reply<HouseholdTaxInputPatterns, HouseholdTaxNeed["pattern"]>;
 
-/** The paths each group left open, keyed by group. */
-export async function openPaths(transport: EngineTransport): Promise<{ registry: string[]; customer: string[] }> {
-  const answering = await householdTaxAnswer(transport, facts, registryClosed);
-  if (answering.$variant === "Answered") return { registry: [], customer: [] };
-  return {
-    registry: (answering.open.Registry ?? []).map((need) => need.path),
-    customer: (answering.open.Customer ?? []).map((need) => need.path),
-  };
+/** A reply to every need, the switch exhaustive; the ages only when \`ask\`. */
+export function reply(need: HouseholdTaxNeed, ask: boolean): HouseholdReply {
+  switch (need.pattern) {
+    case "income":
+      return given(need, 500);
+    case "married":
+      return given(need, true);
+    case "spouse":
+      return given(need, {});
+    case "spouse.income":
+      return given(need, 50);
+    case "spouse.cohabiting":
+      return given(need, true);
+    case "children":
+      return given(need, []);
+    case "children[]":
+    case "children[].name":
+      return open;
+    case "children[].age": {
+      const age = ask ? ages.get(need.path) : undefined;
+      return age === undefined ? open : given(need, age);
+    }
+    default:
+      return assertNever(need);
+  }
+}
+
+export const resolveAll: HouseholdTaxResolve = (needs) => {
+  calls.push(needs.map((need) => need.path));
+  return (need) => reply(need, true);
+};
+/** Nobody can give the ages yet. */
+export const agesOpen: HouseholdTaxResolve = () => (need) => reply(need, false);
+
+// Type errors only; never called.
+export function forgetsAge(need: HouseholdTaxNeed): HouseholdReply {
+  switch (need.pattern) {
+    case "income":
+    case "married":
+    case "spouse":
+    case "spouse.income":
+    case "spouse.cohabiting":
+    case "children":
+    case "children[]":
+    case "children[].name":
+      return open;
+    default:
+      // @ts-expect-error \`children[].age\` is not handled
+      return assertNever(need);
+  }
+}
+export function wrongAge(need: HouseholdTaxNeed): HouseholdReply {
+  if (need.pattern === "children[].age") {
+    // @ts-expect-error an age is a number
+    return given(need, "four");
+  }
+  return open;
+}
+
+export const answerHousehold = (transport: EngineTransport, partialCase: PartialHousehold, resolve: HouseholdTaxResolve) =>
+  householdTaxAnswer(transport, partialCase, resolve);
+
+/** The paths of the needs left open. */
+export async function openPaths(transport: EngineTransport): Promise<string[]> {
+  const answering = await householdTaxAnswer(transport, started, agesOpen);
+  if (answering.$variant === "Answered") return [];
+  return answering.open.map((need) => need.path);
 }
 `;
 
-test('answering by a guide: the required facts, resolvers batched once per group per round, open needs by group', options, async () => {
+test('answering an entry: one resolve per round with every need, the needs left open, the answer guide', options, async () => {
   const dir = project('household');
   writeFileSync(join(dir, 'household.entry.runa'), householdModel);
-  writeFileSync(join(dir, 'household.guide.runa'), householdGuide);
-  run(binary, ['sdk', 'ts', 'household.entry.runa', '--out', 'sdk',
-    '--guides', 'household.guide.runa', '--guide', 'household_tax=household_guide'], dir);
-  assert.ok(existsSync(join(dir, 'sdk/answer.ts')));
+  run(binary, ['sdk', 'ts', 'household.entry.runa', '--out', 'sdk'], dir);
+  assert.ok(!existsSync(join(dir, 'sdk/answer.ts')));
   writeFileSync(join(dir, 'usage.ts'), householdUsage);
   compile(dir, ['sdk/index.ts', 'usage.ts']);
   const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
   const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
-  assert.deepEqual(sdk.householdTaxGuide, { name: 'household_guide', paths: {
-    'children[].age': 'Registry', spouse: 'Customer', 'spouse.cohabiting': 'Customer', 'spouse.income': 'Customer',
-  } });
-  const byRound = (answering) => answering.rounds.map((round) => Object.fromEntries(Object.entries(round.groups)
-    .map(([group, needs]) => [group, needs.map((need) => [need.path, need.by])])));
 
-  // Each group's resolver is called once per round with all of that round's needs of its group.
+  // The answer guide, from the law: every pattern a need can name, with its type.
+  assert.deepEqual(Object.entries(sdk.householdTaxGuide).map(([pattern, need]) => [pattern, need.kind, need.type]), [
+    ['income', 'fact', 'Int'], ['married', 'fact', 'Bool'], ['spouse', 'fact', 'Spouse?'],
+    ['spouse.income', 'fact', 'Int'], ['spouse.cohabiting', 'fact', 'Bool'], ['children', 'fact', 'List(Child)'],
+    ['children[].name', 'fact', 'String'], ['children[].age', 'fact', 'Int'],
+  ]);
+
+  // resolve is called once per round with every need of the round.
   const transport = partialCli(dir, 'household.entry.runa');
-  const answered = await usage.answerHousehold(transport, usage.facts, usage.resolvers);
+  const answered = await usage.answerHousehold(transport, usage.started, usage.resolveAll);
   assert.equal(answered.$variant, 'Answered', JSON.stringify(answered));
   assert.deepEqual(answered.result, { tax: 500 - (200 - 50) - 10 });
-  assert.deepEqual(byRound(answered), [
-    { Registry: [['children[0].age', 'Registry'], ['children[1].age', 'Registry']], Customer: [['spouse', 'Customer']] },
-    { Customer: [['spouse.cohabiting', 'Customer'], ['spouse.income', 'Customer']] },
-  ]);
-  assert.deepEqual(usage.calls.filter(([group]) => group === 'Registry'), [['Registry', ['children[0].age', 'children[1].age']]]);
-  assert.deepEqual(usage.calls.filter(([group]) => group === 'Customer'),
-    [['Customer', ['spouse']], ['Customer', ['spouse.cohabiting', 'spouse.income']]]);
-  assert.deepEqual(answered.partialCase, { ...usage.facts, children: [{ name: 'Ada', age: 4 }, { name: 'Bo', age: 19 }],
+  const round1 = ['children[0].age', 'children[1].age', 'spouse'];
+  const round2 = ['spouse.cohabiting', 'spouse.income'];
+  assert.deepEqual(answered.rounds, [{ paths: round1, given: round1 }, { paths: round2, given: round2 }]);
+  assert.deepEqual(usage.calls, [round1, round2]);
+  assert.deepEqual(answered.partialCase, { ...usage.started, children: [{ name: 'Ada', age: 4 }, { name: 'Bo', age: 19 }],
     spouse: { cohabiting: true, income: 50 } });
   assert.equal(transport.queried.length, 3);
-  assert.equal(usage.describe(answered.rounds[0].groups.Registry[0]), 'ask the registry for children[].age');
 
-  // A group whose resolver is leaveOpen: the others answer, then answering ends with its needs open.
-  const closed = await usage.answerHousehold(transport, usage.facts, usage.registryClosed);
+  // A round that answers nothing ends Unanswered, with that round's needs open.
+  const closed = await usage.answerHousehold(transport, usage.started, usage.agesOpen);
   assert.equal(closed.$variant, 'Unanswered');
   assert.equal(closed.rounds.length, 3);
-  assert.deepEqual(Object.keys(closed.open), ['Registry']);
-  assert.deepEqual(closed.open.Registry.map((need) => [need.path, need.by]),
-    [['children[0].age', 'Registry'], ['children[1].age', 'Registry']]);
+  assert.deepEqual(closed.rounds.at(-1), { paths: ['children[0].age', 'children[1].age'], given: [] });
+  assert.deepEqual(closed.open.map((need) => [need.pattern, need.path]),
+    [['children[].age', 'children[0].age'], ['children[].age', 'children[1].age']]);
   assert.deepEqual(closed.partialCase.spouse, { cohabiting: true, income: 50 });
-  assert.deepEqual(await usage.openPaths(transport), { registry: ['children[0].age', 'children[1].age'], customer: [] });
+  assert.deepEqual(await usage.openPaths(transport), ['children[0].age', 'children[1].age']);
 
-  // A resolved fact the required facts give is not asked.
+  // Given facts are not asked.
   usage.calls.length = 0;
-  const known = await usage.answerHousehold(transport, usage.knownSpouse, usage.resolvers);
+  const known = await usage.answerHousehold(transport, { ...usage.started, spouse: { income: 50, cohabiting: true } }, usage.resolveAll);
   assert.equal(known.$variant, 'Answered');
-  assert.deepEqual(usage.calls, [['Registry', ['children[0].age', 'children[1].age']]]);
-
-  // A required fact the case leaves unknown is the integrator's data defect, before any resolver runs.
-  usage.calls.length = 0;
-  await assert.rejects(usage.answerHousehold(transport, usage.unknownIncome, usage.resolvers), (error) => {
-    assert.ok(error instanceof sdk.MissingFactError);
-    assert.equal(error.guide, 'household_guide');
-    assert.deepEqual(error.needs.map((need) => need.path), ['income']);
-    assert.match(error.message, /^round 1: `income` is required \(the guide `household_guide` names no group for it\), but the required facts leave it unknown$/);
-    return true;
-  });
-  assert.deepEqual(usage.calls, []);
-
-  // Regenerating without the guide leaves the plain call and query, and no answer module.
-  run(binary, ['sdk', 'ts', 'household.entry.runa', '--out', 'sdk'], dir);
-  assert.ok(!existsSync(join(dir, 'sdk/answer.ts')));
-  assert.ok(!readFileSync(join(dir, 'sdk/index.ts'), 'utf8').includes('answer.js'));
-});
-
-test('two guides of one file whose group types share `Customer` give each entry its own group union', options, async () => {
-  const dir = project('shared-groups');
-  writeFileSync(join(dir, 'household.entry.runa'), `${householdModel}
-@ entry("Household levy")
-| household_levy(h: Household) -> Result(tax = threshold(h) + child_allowance(h))
-`);
-  writeFileSync(join(dir, 'household.guide.runa'), `@ import ./household.entry
-
-# Origin = Registry | Customer
-# AskOrigin = Customer | Schools
-= household_guide: AnswerGuide(Household, Origin) = AnswerGuide(fields = [
-    EntryField(path = pathof(Household::spouse), by = Customer),
-    EntryField(path = pathof(Household::children::age), by = Registry)
-])
-= ask_guide = AnswerGuide(fields = [
-    EntryField(path = pathof(Household::spouse), by = AskOrigin.Customer),
-    EntryField(path = pathof(Household::children::age), by = Schools)
-])
-`);
-  run(binary, ['sdk', 'ts', 'household.entry.runa', '--out', 'sdk', '--guides', 'household.guide.runa',
-    '--guide', 'household_tax=household_guide', '--guide', 'household_levy=ask_guide'], dir);
-  const answer = readFileSync(join(dir, 'sdk/answer.ts'), 'utf8');
-  assert.match(answer, /^export type HouseholdTaxGroup = "Registry" \| "Customer";$/m);
-  assert.match(answer, /^export type HouseholdLevyGroup = "Customer" \| "Schools";$/m);
-  compile(dir, ['sdk/index.ts']);
-  const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
-  assert.equal(sdk.householdTaxGuide.paths.spouse, 'Customer');
-  assert.equal(sdk.householdLevyGuide.paths.spouse, 'Customer');
-  assert.equal(sdk.householdLevyGuide.paths['children[].age'], 'Schools');
+  assert.deepEqual(usage.calls, [['children[0].age', 'children[1].age']]);
 });
 
 test('the runtime package is the compilation of the runtime source, at Futuruna\'s version', options, async () => {
@@ -1153,9 +1117,7 @@ test('the generated SDK and the runtime pass typescript-eslint strictTypeChecked
   writeFileSync(join(dir, 'ledger.entry.runa'), ledgerModel);
   run(binary, ['sdk', 'ts', 'ledger.entry.runa', '--out', 'sdk/ledger'], dir);
   writeFileSync(join(dir, 'household.entry.runa'), householdModel);
-  writeFileSync(join(dir, 'household.guide.runa'), householdGuide);
-  run(binary, ['sdk', 'ts', 'household.entry.runa', '--out', 'sdk/household',
-    '--guides', 'household.guide.runa', '--guide', 'household_tax=household_guide'], dir);
+  run(binary, ['sdk', 'ts', 'household.entry.runa', '--out', 'sdk/household'], dir);
   writeFileSync(join(dir, 'holding.entry.runa'), unitModel);
   run(binary, ['sdk', 'ts', 'holding.entry.runa', '--out', 'sdk/holding'], dir);
   mkdirSync(join(dir, 'runtime'));

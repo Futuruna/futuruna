@@ -1,4 +1,4 @@
--- expect-skip: the law the answer_* checks guide
+-- expect-skip: the law the answer_* checks ask
 # Spouse(income: Int, cohabiting: Bool)
 # Child(name: String, age: Int)
 # Household(income: Int, married: Bool, spouse: Option(Spouse), children: List(Child))

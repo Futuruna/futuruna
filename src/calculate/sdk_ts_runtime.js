@@ -1013,24 +1013,15 @@ export async function explainQueryEntry(transport, entry, depth, inputSchema, re
     const wireResult = isObject(wire) ? wire["result"] : undefined;
     return { result, explanation: explanationFromWire(entry, wireCase, wireResult, output["explanation"]) };
 }
-/** The reply for a need the resolver cannot fill: it stays open. */
+/** The reply for a need `resolve` cannot fill: it stays open. */
 export const open = Object.freeze({ kind: "open" });
 /**
- * The reply that gives `value` for `need`. In a resolver the value is checked
- * against the type at the need's pattern, so a resolver of several patterns
- * narrows `need.pattern` first.
+ * The reply that gives `value` for `need`. The value is checked against the
+ * type at the need's pattern, so a need of several patterns is narrowed by
+ * `need.pattern` first.
  */
 export function given(need, value) {
     return { kind: "given", path: need.path, value };
-}
-/**
- * The resolver of a group nobody can fill yet, used as the resolver itself
- * (`{ Snapshots: leaveOpen }`): it leaves every need of its group open. Every
- * group's resolver is required, so `leaveOpen` states that decision in one
- * line, and that line is the one that changes when a source appears.
- */
-export function leaveOpen() {
-    return () => open;
 }
 /** Answering cannot continue. */
 export class AnswerError extends Error {
@@ -1049,129 +1040,39 @@ export class AnswerCycleError extends AnswerError {
     }
 }
 /**
- * Needs at required paths: the guide names no group for them, so the required facts
- * should have had them. A defect in the integrator's data that the facts type
- * cannot see: a required fact given as `undefined`, or a list's element required but
- * left out of an element a resolver gave.
+ * Answer an entry round by round: query it on the partial case, call `resolve`
+ * once per round with every need, write the given values with {@link setAt},
+ * and query again. Ends `Answered`, or `Unanswered` when a round answers
+ * nothing. A reply for another need's path, or a path still needed after it
+ * was given, throws {@link AnswerError}; an entry that needs itself for the
+ * same subject throws {@link AnswerCycleError}. The SDK's `<entry>Answer`
+ * calls it.
  */
-export class MissingFactError extends AnswerError {
-    /** The guide's name. */
-    guide;
-    /** The round's needs at required paths, in the engine's order. */
-    needs;
-    constructor(guide, round, needs) {
-        const paths = needs.map((need) => `\`${need.path}\``).join(", ");
-        super(`round ${String(round)}: ${paths} ${needs.length === 1 ? "is" : "are"} required (the guide \`${guide}\` names no group for ${needs.length === 1 ? "it" : "them"}), but the required facts leave ${needs.length === 1 ? "it" : "them"} unknown`);
-        this.name = "MissingFactError";
-        this.guide = guide;
-        this.needs = needs;
-    }
-}
-/** The steps of an input path pattern: fields, `[]` (or a positional `[0]`) and `*`. */
-function patternSteps(pattern) {
-    const steps = [];
-    for (const part of pattern.split(".")) {
-        const bracket = part.indexOf("[");
-        const name = bracket === -1 ? part : part.slice(0, bracket);
-        if (name !== "")
-            steps.push(name);
-        if (bracket !== -1)
-            steps.push(...(part.slice(bracket).match(/\[\d*\]/g) ?? []));
-    }
-    return steps;
-}
-/**
- * A need's pattern as a guide's paths name it: each alternative of a sum type
- * named before its fields, read from the case the need was found in
- * (`events[2].amountOre` in a `Trade` is `events[].Trade.amountOre`).
- */
-export function guidePath(partialCase, need) {
-    const segments = parsePath(need.path);
-    let key = "";
-    let node = partialCase;
-    patternSteps(need.pattern).forEach((step, at) => {
-        const segment = segments[at];
-        if (step.startsWith("[")) {
-            key += step;
-            node = Array.isArray(node) && segment !== undefined && "index" in segment ? node[segment.index] : undefined;
-            return;
-        }
-        const variant = isObject(node) ? node["$variant"] : undefined;
-        if (step !== "$variant" && typeof variant === "string")
-            key = key === "" ? variant : `${key}.${variant}`;
-        key = key === "" ? step : `${key}.${step}`;
-        node = isObject(node) && segment !== undefined && "field" in segment ? node[segment.field] : undefined;
-    });
-    return key;
-}
-/**
- * The group that resolves a path of {@link guidePath}: the group of the path,
- * or of the nearest path above it the guide resolves (below a recursive
- * type's cut); `undefined` when the path is required.
- */
-export function guideGroup(guide, path) {
-    let key = path;
-    for (;;) {
-        if (Object.hasOwn(guide.paths, key))
-            return guide.paths[key];
-        const cut = Math.max(key.lastIndexOf("."), key.lastIndexOf("["));
-        if (cut <= 0)
-            return undefined;
-        key = key.slice(0, cut);
-    }
-}
-/**
- * Answer an entry by a guide: query it on the required facts, give each need the
- * group the guide names for its path (`by`), call each group's resolver once
- * per round with all of that group's needs, the groups at the same time,
- * write the given values with {@link setAt}, and query again. Ends
- * `Answered`, or `Unanswered` when a round answers nothing. Needs at required
- * paths throw {@link MissingFactError}; a reply for another need's path, or a
- * path still needed after it was given, throws {@link AnswerError}; an entry
- * that needs itself for the same subject throws {@link AnswerCycleError}. The
- * SDK's `<entry>Answer` calls it.
- */
-export async function answerEntry(query, facts, guide, resolvers, options = {}) {
+export async function answerEntry(query, partialCase, resolve, options = {}) {
     const frames = options.frames ?? [];
-    const byGroup = resolvers;
+    const resolveLoose = resolve;
     const answered = new Set();
     const rounds = [];
-    let partialCase = facts;
+    let current = partialCase;
     for (;;) {
-        const result = await query(partialCase);
+        const result = await query(current);
         if (result.$variant === "Complete") {
             return {
                 $variant: "Answered",
                 result: result.result,
                 assumptions: result.assumptions,
                 unusedPaths: result.unusedPaths,
-                partialCase,
+                partialCase: current,
                 rounds,
             };
         }
-        // The round's needs of each group, in the engine's order.
-        const batches = new Map();
-        const requiredNeeds = [];
         for (const need of result.needs) {
             if (answered.has(need.path)) {
                 throw new AnswerError(`the engine still needs \`${need.path}\` after it was given`);
             }
-            const by = guideGroup(guide, guidePath(partialCase, need));
-            if (by === undefined) {
-                requiredNeeds.push(need);
-                continue;
-            }
-            const guided = { ...need, by };
-            const batch = batches.get(by);
-            if (batch === undefined)
-                batches.set(by, [guided]);
-            else
-                batch.push(guided);
         }
-        if (requiredNeeds.length > 0)
-            throw new MissingFactError(guide.name, rounds.length + 1, requiredNeeds);
         const context = {
-            partialCase,
+            partialCase: current,
             async runEntry(need, run) {
                 const stack = [...frames, { entry: need.entry, subject: need.subject }];
                 if (frames.some((active) => active.entry === need.entry && active.subject === need.subject)) {
@@ -1180,49 +1081,41 @@ export async function answerEntry(query, facts, guide, resolvers, options = {}) 
                 return { kind: "entry", path: need.path, answering: await run({ frames: stack }) };
             },
         };
-        const replies = new Map();
-        await Promise.all(Array.from(batches, async ([group, needs]) => {
-            const resolver = byGroup[group];
-            if (resolver === undefined)
-                throw new AnswerError(`no resolver for the group \`${group}\``);
-            const answerEach = await resolver(needs, context);
-            await Promise.all(needs.map(async (need) => {
-                const reply = await answerEach(need);
-                if (reply.kind !== "open" && reply.path !== need.path) {
-                    throw new AnswerError(`the resolver for \`${group}\` replied to \`${need.path}\` with a reply for \`${reply.path}\``);
-                }
-                replies.set(need.path, reply);
-            }));
-        }));
-        const groups = {};
-        for (const [group, needs] of batches)
-            groups[group] = needs;
-        rounds.push({ paths: result.needs.map((need) => need.path), groups });
-        const left = {};
-        const pending = [];
-        let next = partialCase;
-        for (const [group, needs] of batches) {
-            for (const need of needs) {
-                const reply = replies.get(need.path);
-                if (reply === undefined || reply.kind === "open") {
-                    (left[group] ??= []).push(need);
-                }
-                else if (reply.kind === "given") {
-                    next = setAt(next, need.path, reply.value);
-                    answered.add(need.path);
-                }
-                else if (reply.answering.$variant === "Answered") {
-                    next = setAt(next, need.path, reply.answering.result);
-                    answered.add(need.path);
-                }
-                else {
-                    pending.push({ need, answering: reply.answering });
-                }
+        const answerEach = await resolveLoose(result.needs, context);
+        const replies = await Promise.all(result.needs.map(async (need) => {
+            const reply = await answerEach(need);
+            if (reply.kind !== "open" && reply.path !== need.path) {
+                throw new AnswerError(`\`resolve\` replied to \`${need.path}\` with a reply for \`${reply.path}\``);
             }
+            return reply;
+        }));
+        const left = [];
+        const pending = [];
+        const givenPaths = [];
+        let next = current;
+        result.needs.forEach((need, at) => {
+            const reply = replies[at];
+            if (reply === undefined || reply.kind === "open") {
+                left.push(need);
+                return;
+            }
+            if (reply.kind === "given") {
+                next = setAt(next, need.path, reply.value);
+            }
+            else if (reply.answering.$variant === "Answered") {
+                next = setAt(next, need.path, reply.answering.result);
+            }
+            else {
+                pending.push({ need, answering: reply.answering });
+                return;
+            }
+            answered.add(need.path);
+            givenPaths.push(need.path);
+        });
+        rounds.push({ paths: result.needs.map((need) => need.path), given: givenPaths });
+        if (givenPaths.length === 0) {
+            return { $variant: "Unanswered", open: left, pending, later: result.later ?? [], partialCase: current, rounds };
         }
-        if (next === partialCase) {
-            return { $variant: "Unanswered", open: left, pending, later: result.later ?? [], partialCase, rounds };
-        }
-        partialCase = next;
+        current = next;
     }
 }

@@ -6,7 +6,7 @@
 @ import ./answer_law
 
 > asked_tax(h: Household) -> Int {
-    = asked = answer(household_tax, h, whole_case_guide(), from_case(h))
+    = asked = answer(household_tax, h, from_case(h))
     match asked.outcome {
         | Answered -> 1
         | Unanswered -> 0

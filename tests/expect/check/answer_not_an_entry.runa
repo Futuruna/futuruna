@@ -6,4 +6,4 @@
 @ import ./answer_law
 
 = h = Household(income = 1, married = False, spouse = None, children = [])
-= asked = answer(threshold, h, whole_case_guide(), from_case(h))
+= asked = answer(threshold, h, from_case(h))

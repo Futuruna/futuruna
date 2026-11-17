@@ -705,7 +705,7 @@ pub fn parse_prelude() -> Vec<Stmt> {
 /// that the user has already defined (user definitions take priority). A
 /// program that asks a `query` or places an `unknown` also gets the types and
 /// functions of needs in the language (`query::needs_prelude`); one that
-/// calls `answer` or builds a guide gets the answer prelude as well
+/// calls `answer` or `from_case` gets the answer prelude as well
 /// (`answer::answer_prelude`).
 pub fn prepend_prelude(mut prelude: Vec<Stmt>, user_stmts: &[Stmt]) -> Vec<Stmt> {
     let uses_answer = answer::program_uses_answer(user_stmts);
@@ -5810,29 +5810,28 @@ pub fn query_parts(expr: &Expr) -> Option<(&str, &Expr, &Expr)> {
     }
 }
 
-/// The parameter of the query an `answer(entry, case, guide, resolve)` asks
-/// each round: the parser writes the form as the prelude's
-/// `answer(|__answer_case| query entry(__answer_case), case, guide, resolve,
-/// "site")`, where the site names the entry, the guide and the form's offset.
+/// The parameter of the query an `answer(entry, case, resolve)` asks each
+/// round: the parser writes the form as the prelude's
+/// `answer(|__answer_case| query entry(__answer_case), case, resolve,
+/// "site")`, where the site names the entry and the form's offset.
 pub const ANSWER_CASE: &str = "__answer_case";
 
-/// `answer(entry, case, guide, resolve)` as the parser writes it.
+/// `answer(entry, case, resolve)` as the parser writes it.
 pub struct AnswerParts<'a> {
     pub entry: &'a str,
     /// The `query entry(__answer_case)` the form asks each round.
     pub query: &'a Expr,
     pub case: &'a Expr,
-    pub guide: &'a Expr,
     pub resolve: &'a Expr,
 }
 
-/// The site an `answer` form carries: its entry, how its guide is written,
-/// and its character offset, separated by U+001F.
-pub fn answer_site(entry: &str, guide: &str, offset: usize) -> String {
-    format!("{entry}\u{1f}{guide}\u{1f}{offset}")
+/// The site an `answer` form carries: its entry and its character offset,
+/// separated by U+001F.
+pub fn answer_site(entry: &str, offset: usize) -> String {
+    format!("{entry}\u{1f}{offset}")
 }
 
-/// The parts of an `answer(entry, case, guide, resolve)` form.
+/// The parts of an `answer(entry, case, resolve)` form.
 pub fn answer_parts(expr: &Expr) -> Option<AnswerParts<'_>> {
     let ExprKind::App(function, arguments) = &expr.kind else {
         return None;
@@ -5840,7 +5839,7 @@ pub fn answer_parts(expr: &Expr) -> Option<AnswerParts<'_>> {
     if !matches!(&function.kind, ExprKind::Var(name) if name == "answer") {
         return None;
     }
-    let [ask, case, guide, resolve, site] = arguments.as_slice() else {
+    let [ask, case, resolve, site] = arguments.as_slice() else {
         return None;
     };
     if !matches!(&site.kind, ExprKind::Lit(Literal::Str(site)) if site.contains('\u{1f}')) {
@@ -5857,14 +5856,31 @@ pub fn answer_parts(expr: &Expr) -> Option<AnswerParts<'_>> {
         entry,
         query: body,
         case,
-        guide,
         resolve,
     })
 }
 
-/// Whether `expr` contains a `query` or an `unknown`.
+/// The entry of an `answer_guide(entry)` form, which the parser writes as the
+/// prelude's `answer_guide("site")` (`answer_site`).
+pub fn answer_guide_parts(expr: &Expr) -> Option<&str> {
+    let ExprKind::App(function, arguments) = &expr.kind else {
+        return None;
+    };
+    if !matches!(&function.kind, ExprKind::Var(name) if name == "answer_guide") {
+        return None;
+    }
+    let [site] = arguments.as_slice() else {
+        return None;
+    };
+    let ExprKind::Lit(Literal::Str(site)) = &site.kind else {
+        return None;
+    };
+    site.split_once('\u{1f}').map(|(entry, _)| entry)
+}
+
+/// Whether `expr` contains a `query`, an `unknown` or an `answer_guide`.
 pub fn expr_mentions_query_or_unknown(expr: &Expr) -> bool {
-    if is_unknown_expr(expr) || query_parts(expr).is_some() {
+    if is_unknown_expr(expr) || query_parts(expr).is_some() || answer_guide_parts(expr).is_some() {
         return true;
     }
     let mut found = false;
@@ -14737,7 +14753,7 @@ impl Parser {
         Ok(self.spanned(ExprKind::App(Box::new(function), arguments), &start_tok))
     }
 
-    /// `answer(entry, case, guide, resolve)`, after `answer`: the prelude's
+    /// `answer(entry, case, resolve)`, after `answer`: the prelude's
     /// `answer` with the query it asks each round, `query entry(case)`, and
     /// the form's site (`answer_parts`).
     fn parse_answer_form(&mut self, start_tok: Token) -> Result<Expr, String> {
@@ -14748,9 +14764,9 @@ impl Parser {
             self.parse_comma_separated(TokenKind::RParen, "answer argument", |parser| {
                 parser.parse_expr()
             })?;
-        if arguments.len() != 3 || arguments.iter().any(is_named_arg_expr) {
+        if arguments.len() != 2 || arguments.iter().any(is_named_arg_expr) {
             return Err(format!(
-                "{}:{}: `answer` takes an entry, a case, a guide and a resolver: `answer({}, case, guide, resolve)`",
+                "{}:{}: `answer` takes an entry, a case and a resolver: `answer({}, case, resolve)`",
                 start_tok.line, start_tok.col, entry.text
             ));
         }
@@ -14784,17 +14800,9 @@ impl Parser {
             ),
             entry_span,
         );
-        let guide = match &arguments[1].kind {
-            ExprKind::Var(name) => name.clone(),
-            ExprKind::App(function, values) if values.is_empty() => match &function.kind {
-                ExprKind::Var(name) => format!("{name}()"),
-                _ => "the guide".to_string(),
-            },
-            _ => "the guide".to_string(),
-        };
         let start = self.token_span(&start_tok).start;
         let site = Expr::new(
-            ExprKind::Lit(Literal::Str(answer_site(&entry.text, &guide, start))),
+            ExprKind::Lit(Literal::Str(answer_site(&entry.text, start))),
             self.token_span(&start_tok),
         );
         let mut values = vec![ask];
@@ -14805,6 +14813,24 @@ impl Parser {
             self.token_span(&start_tok),
         );
         Ok(self.spanned(ExprKind::App(Box::new(function), values), &start_tok))
+    }
+
+    /// `answer_guide(entry)`, after `answer_guide`: the prelude's
+    /// `answer_guide` with the form's site (`answer_guide_parts`).
+    fn parse_answer_guide_form(&mut self, start_tok: Token) -> Result<Expr, String> {
+        self.expect(TokenKind::LParen)?;
+        let entry = self.advance();
+        self.expect(TokenKind::RParen)?;
+        let start = self.token_span(&start_tok).start;
+        let site = Expr::new(
+            ExprKind::Lit(Literal::Str(answer_site(&entry.text, start))),
+            self.token_span(&entry),
+        );
+        let function = Expr::new(
+            ExprKind::Var("answer_guide".to_string()),
+            self.token_span(&start_tok),
+        );
+        Ok(self.spanned(ExprKind::App(Box::new(function), vec![site]), &start_tok))
     }
 
     fn parse_refof_expr(&mut self, start_tok: Token) -> Result<Expr, String> {
@@ -14961,7 +14987,7 @@ impl Parser {
                     );
                     return Ok(self.spanned(ExprKind::App(Box::new(function), vec![call]), &tok));
                 }
-                // `answer(entry, case, guide, resolve)` asks `entry` round by
+                // `answer(entry, case, resolve)` asks `entry` round by
                 // round; `answer` stays a name elsewhere.
                 if tok.text == "answer"
                     && self.peek_kind() == TokenKind::LParen
@@ -14969,6 +14995,15 @@ impl Parser {
                     && self.tokens.get(self.pos + 2).map(|next| next.kind) == Some(TokenKind::Comma)
                 {
                     return self.parse_answer_form(tok);
+                }
+                // `answer_guide(entry)` is the guide generated for `entry`.
+                if tok.text == "answer_guide"
+                    && self.peek_kind() == TokenKind::LParen
+                    && self.tokens.get(self.pos + 1).map(|next| next.kind) == Some(TokenKind::Ident)
+                    && self.tokens.get(self.pos + 2).map(|next| next.kind)
+                        == Some(TokenKind::RParen)
+                {
+                    return self.parse_answer_guide_form(tok);
                 }
                 let span = self.token_span(&tok);
                 Ok(Expr::new(ExprKind::Var(tok.text), span))
@@ -21023,8 +21058,8 @@ impl Interpreter {
             Value::Builtin("__answer_round".into()),
         );
         env.set(
-            "__whole_input".into(),
-            Value::Builtin("__whole_input".into()),
+            "__answer_guide".into(),
+            Value::Builtin("__answer_guide".into()),
         );
         env.set("filter".into(), Value::Builtin("filter".into()));
         env.set("foldl".into(), Value::Builtin("foldl".into()));
@@ -25257,7 +25292,7 @@ impl Interpreter {
                 ),
             },
             "__answer_round" => self.eval_answer_round(namespace, args, env),
-            "__whole_input" => self.eval_whole_input(),
+            "__answer_guide" => self.eval_answer_guide(namespace, args),
             "print" => {
                 let text = match args.first() {
                     Some(Value::Str(s)) => s.clone(),
@@ -50244,9 +50279,9 @@ impl TypeChecker {
             ("search", 2),
             // `fill` of the needs prelude (`query`)
             ("__fill", 3),
-            // the round of `answer` and the whole input of `whole_case_guide`
-            ("__answer_round", 6),
-            ("__whole_input", 0),
+            // the round of `answer` and the guide of `answer_guide`
+            ("__answer_round", 5),
+            ("__answer_guide", 1),
         ] {
             tc.builtins.entry(name.to_string()).or_insert(arity);
         }
@@ -64912,16 +64947,8 @@ impl TypeChecker {
         }
         tc.diagnostics
             .extend(query::check_program(stmts, source, &tc));
-        // A guide item that resolves nothing is a warning, which never fails
-        // the check.
-        let (guide_warnings, guide_errors): (Vec<_>, Vec<_>) =
-            answer::check_program(stmts, source, &tc)
-                .into_iter()
-                .partition(|diagnostic| diagnostic.severity == Severity::Warning);
-        tc.diagnostics.extend(guide_errors);
-        let (mut warnings, binding_name_errors) =
+        let (warnings, binding_name_errors) =
             ordinary_declarations::binding_name_diagnostics(stmts, source, &tc);
-        warnings.extend(guide_warnings);
         tc.diagnostics.extend(binding_name_errors);
         let mut constructor_elaboration =
             ConstructorElaboration::keeping_current_modules(tc.elaborate_constructor_scope(stmts));

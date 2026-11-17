@@ -1,9 +1,9 @@
-//! The 0.6 rewrites of `runa fmt --migrate` (docs/rfcs/answer-guide.md,
-//! "Migration"): `@ calculate` becomes `@ entry`, and `interview` becomes
-//! `answer`:
+//! The 0.6 rewrites of `runa fmt --migrate` (docs/reference/calculations.md,
+//! "Answering an entry"): `@ calculate` becomes `@ entry`, and `interview`
+//! becomes `answer`:
 //!
 //! - `interview(|c| query e(c), partial, complete)` becomes
-//!   `answer(e, partial, whole_case_guide(), from_case(complete))`;
+//!   `answer(e, partial, from_case(complete))`;
 //! - for a binding `x` of it, `x.rounds` becomes `map(x.rounds, |r| r.paths)`
 //!   and `x.result == v` becomes `x.outcome == Answered(result = v)`.
 //!
@@ -190,21 +190,20 @@ pub fn migrate_entries(source: &str) -> EntriesMigration {
         let call = open.and_then(|open| Some((open, closing_paren(&chars, open)?)));
         let parts = call.map(|(open, close)| arguments(&chars, open + 1, close - 1));
         let rewrite = parts.as_ref().and_then(|parts| match parts.as_slice() {
-            [ask, partial, complete] => queried_entry(ask).map(|entry| {
-                format!("answer({entry}, {partial}, whole_case_guide(), from_case({complete}))")
-            }),
+            [ask, partial, complete] => queried_entry(ask)
+                .map(|entry| format!("answer({entry}, {partial}, from_case({complete}))")),
             _ => None,
         });
         let (Some((_, close)), Some(rewrite)) = (call, rewrite) else {
             listed.push(format!(
-                "{}: left `interview`: it is now `answer(entry, case, guide, resolve)`; rewrite this use by hand",
+                "{}: left `interview`: it is now `answer(entry, case, resolve)`; rewrite this use by hand",
                 token.line
             ));
             continue;
         };
         edits.push((offset, close, rewrite));
         rewritten.push(format!(
-            "{}: `interview(|c| query e(c), partial, complete)` is now `answer(e, partial, whole_case_guide(), from_case(complete))`",
+            "{}: `interview(|c| query e(c), partial, complete)` is now `answer(e, partial, from_case(complete))`",
             token.line
         ));
         let line_start = starts[token.line - 1];
@@ -319,7 +318,7 @@ mod tests {
         );
         assert_eq!(
             migrated.source,
-            "= asked = answer(tax, H(a = unknown), whole_case_guide(), from_case(done))\n| two: asked -> map(asked.rounds, |r| r.paths) == [[pathof(H::a)]]\n| ends: asked -> asked.outcome == Answered(result = tax(done))\n| shown: asked -> show(asked.result)\n= other = interview(ask, h, done)\n"
+            "= asked = answer(tax, H(a = unknown), from_case(done))\n| two: asked -> map(asked.rounds, |r| r.paths) == [[pathof(H::a)]]\n| ends: asked -> asked.outcome == Answered(result = tax(done))\n| shown: asked -> show(asked.result)\n= other = interview(ask, h, done)\n"
         );
         assert_eq!(migrated.rewritten.len(), 3);
         assert_eq!(migrated.listed.len(), 2);

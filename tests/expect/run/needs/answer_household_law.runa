@@ -1,4 +1,4 @@
--- expect-skip: the law of answer_household.runa and answer_required.runa
+-- expect-skip: the law of the answer_*.runa scenarios
 -- roundtrip-skip: it runs through the files that answer its entry
 # Spouse(income: Int, cohabiting: Bool)
 # Child(name: String, age: Int)

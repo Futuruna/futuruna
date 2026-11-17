@@ -26,7 +26,7 @@
 
 @ export
 > rounds(h: Household, complete: Household) -> Int {
-    = asked = answer(household_tax, h, whole_case_guide(), from_case(complete))
+    = asked = answer(household_tax, h, from_case(complete))
     match asked {
         | Answering -> length(map(asked.rounds, |r| r.paths))
     }

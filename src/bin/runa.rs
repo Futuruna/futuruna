@@ -230,10 +230,6 @@ fn main_inner() {
     let mut calculation_all_tables = false;
     let mut calculation_partial: Option<futuruna::partial::PartialMode> = None;
     let mut calculation_partial_check = false;
-    // `--guides FILE` and `--guide NAME`: a partial call's needs name their
-    // group.
-    let mut calculation_guides: Option<String> = None;
-    let mut calculation_guide: Option<String> = None;
     // `--explain` (direct contributors) or `--explain=full` (Some(true)).
     let mut calculation_explain: Option<bool> = None;
     let mut check_build_deps = false; // --build-deps flag for `runa check`
@@ -522,26 +518,6 @@ fn main_inner() {
                 calculation_input = Some(arg["--input=".len()..].to_string());
                 i += 1;
             }
-            "--guides" | "--guide" if mode == "call" => {
-                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: --guides requires the file that binds the guide and --guide its name");
-                    std::process::exit(1);
-                }
-                if args[i] == "--guides" {
-                    calculation_guides = Some(args[i + 1].clone());
-                } else {
-                    calculation_guide = Some(args[i + 1].clone());
-                }
-                i += 2;
-            }
-            arg if mode == "call" && arg.starts_with("--guides=") => {
-                calculation_guides = Some(arg["--guides=".len()..].to_string());
-                i += 1;
-            }
-            arg if mode == "call" && arg.starts_with("--guide=") => {
-                calculation_guide = Some(arg["--guide=".len()..].to_string());
-                i += 1;
-            }
             "--partial" if mode == "call" => {
                 calculation_partial = Some(futuruna::partial::PartialMode::Propagate);
                 i += 1;
@@ -755,7 +731,7 @@ fn main_inner() {
                     "  template      Generate or hydrate JSON, TOML, or XLSX calculation input"
                 );
                 eprintln!("  call          Validate input and invoke a typed calculation");
-                eprintln!("  sdk ts FILE --out DIR  Generate a TypeScript SDK for every entry (--guides F --guide E=G to answer E by G)");
+                eprintln!("  sdk ts FILE --out DIR  Generate a TypeScript SDK for every entry");
                 eprintln!(
                     "  sdk runtime --out DIR  Write the @futuruna/runtime package the SDKs import"
                 );
@@ -793,7 +769,6 @@ fn main_inner() {
                 eprintln!("  meta --role ROLE   Select meta references by role");
                 eprintln!("  meta --json        Emit a structured metadata index");
                 eprintln!("  --entry NAME       Select an @ entry");
-                eprintln!("  call --partial --guides FILE --guide NAME  Give each need the group of the AnswerGuide NAME in FILE");
                 eprintln!("  audit --entry NAME [--json]  Report calculation reachability");
                 eprintln!("  explore --query NAME  Select one named exploration");
                 eprintln!("  explore --run-state PATH  Required durable journal directory");
@@ -1248,14 +1223,6 @@ fn main_inner() {
             calculation_all_tables,
             calculation_partial.map(|mode| (mode, calculation_partial_check)),
             calculation_explain,
-            match (calculation_guides.as_deref(), calculation_guide.as_deref()) {
-                (Some(file), Some(name)) => Some((file, name)),
-                (None, None) => None,
-                _ => {
-                    eprintln!("error: --guides FILE and --guide NAME go together: the file that binds the guide, and the guide's name");
-                    std::process::exit(1);
-                }
-            },
         );
         return;
     }
@@ -2090,17 +2057,7 @@ fn run_calculation_command(
     all_tables: bool,
     partial: Option<(futuruna::partial::PartialMode, bool)>,
     explain: Option<bool>,
-    guide: Option<(&str, &str)>,
 ) {
-    // The guide file is checked first, as `runa check` checks it: the
-    // program's own check below then leaves its state current.
-    let guide = guide.map(|(file, name)| {
-        if partial.is_none() {
-            eprintln!("error: --guide applies to a partial call: a guide names the group of each need, and only `--partial` writes needs");
-            std::process::exit(1);
-        }
-        load_call_guide(file, name, use_prelude)
-    });
     let source = std::fs::read_to_string(filename).unwrap_or_else(|error| {
         eprintln!("error: cannot read {}: {}", filename, error);
         std::process::exit(1);
@@ -2302,7 +2259,7 @@ fn run_calculation_command(
                     eprintln!("error: cannot read calculation input: {}", error);
                     std::process::exit(1);
                 });
-                let mut result = match (&explain_options, check) {
+                let result = match (&explain_options, check) {
                     (Some(_), true) => {
                         eprintln!("error: --explain does not combine with --partial=check; explain a --partial or --partial=strict call");
                         std::process::exit(1);
@@ -2313,9 +2270,6 @@ fn run_calculation_command(
                     }
                     (None, false) => prepared.invoke_partial(&envelope, mode),
                 };
-                if let Some(guide) = &guide {
-                    guide_needs(guide, contract, &envelope, &mut result);
-                }
                 let document = serde_json::to_string_pretty(&result).expect("result is JSON");
                 write_calculation_text(&document, output_path);
                 if !result.diagnostics.is_empty() {
@@ -2388,114 +2342,6 @@ fn run_calculation_command(
     }
 }
 
-/// The guide `name` of `file`, checked as `runa check` checks the file and
-/// read as `answer` reads it.
-fn load_call_guide(file: &str, name: &str, use_prelude: bool) -> answer::Guide {
-    let source = std::fs::read_to_string(file).unwrap_or_else(|error| {
-        eprintln!("error: cannot read {}: {}", file, error);
-        std::process::exit(1);
-    });
-    let user_stmts = Parser::new(Lexer::new(&source).tokenize(), &source)
-        .parse_program()
-        .unwrap_or_else(|error| {
-            display_error_in(&source, &error, file);
-            std::process::exit(1);
-        });
-    let stmts = if use_prelude {
-        prepend_prelude(parse_prelude(), &user_stmts)
-    } else {
-        user_stmts.clone()
-    };
-    if run_type_check(&stmts, &source, file).is_none() {
-        std::process::exit(1);
-    }
-    let mut named = None;
-    let mut bound = Vec::new();
-    for guide in answer::read_guides(&user_stmts).into_iter().flatten() {
-        if guide.name == name {
-            named = Some(guide);
-        } else {
-            bound.push(guide.name);
-        }
-    }
-    named.unwrap_or_else(|| {
-        if bound.is_empty() {
-            eprintln!(
-                "error: {file} binds no AnswerGuide; --guides names the file that binds the guide"
-            );
-        } else {
-            eprintln!(
-                "error: {file} binds no AnswerGuide `{name}`; it binds {}",
-                bound
-                    .iter()
-                    .map(|name| format!("`{name}`"))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            );
-        }
-        std::process::exit(1);
-    })
-}
-
-/// Each need of a partial result gets `by`, the group of the guide's most
-/// specific item for its path. A need at a required path is a diagnostic of its
-/// case: the guide says the caller holds that fact, and the case left it out.
-fn guide_needs(
-    guide: &answer::Guide,
-    contract: &calculate::CalculationContract,
-    envelope: &calculate::CalculationInputEnvelope,
-    output: &mut calculate::CalculationOutputEnvelope,
-) {
-    let input_type = contract.input.display_name();
-    if guide.root != input_type {
-        eprintln!(
-            "error: the AnswerGuide `{}` guides `{}`, and the entry `{}` takes `{input_type}`",
-            guide.name, guide.root, contract.entry
-        );
-        std::process::exit(1);
-    }
-    for case in &mut output.results {
-        let Ok(mut partial) =
-            serde_json::from_value::<calculate::CalculationPartialResult>(case.result.clone())
-        else {
-            continue;
-        };
-        let calculate::CalculationPartialResult::Needs { needs, later } = &mut partial else {
-            continue;
-        };
-        let input = envelope
-            .cases
-            .iter()
-            .find(|input| input.case_id == case.case_id)
-            .map(|input| &input.input);
-        let group = |path: &str| {
-            let typed = input
-                .and_then(|input| contract.typed_input_path(input, path))
-                .unwrap_or_else(|| path.to_string());
-            guide.item_for(&typed).map(|item| item.group.clone())
-        };
-        for need in needs.iter_mut() {
-            need.by = group(&need.path);
-            if need.by.is_none() {
-                output.diagnostics.push(calculate::CalculationCaseDiagnostic {
-                    case_id: case.case_id.clone(),
-                    path: need.path.clone(),
-                    message: format!(
-                        "`{}` is required (the AnswerGuide `{}` names no group for it), but the case leaves it unknown",
-                        need.path, guide.name
-                    ),
-                    scalar: None,
-                    check: None,
-                });
-            }
-        }
-        for need in later.iter_mut() {
-            need.by = group(&need.path);
-        }
-        case.result = serde_json::to_value(&partial).expect("partial result is JSON");
-    }
-}
-
 fn select_calculation_contract<'a>(
     contracts: &'a [calculate::CalculationContract],
     requested_entry: Option<&str>,
@@ -2534,20 +2380,18 @@ fn calculation_entry_names(contracts: &[calculate::CalculationContract]) -> Stri
     }
 }
 
-/// `runa sdk ts FILE --out DIR [--guides GUIDES --guide ENTRY=GUIDE ...]`:
-/// write the TypeScript SDK for every entry of FILE, each entry named by a
-/// `--guide` also answered by that guide of GUIDES. `runa sdk runtime --out
-/// DIR`: write the package `@futuruna/runtime` the SDKs import.
+/// `runa sdk ts FILE --out DIR`: write the TypeScript SDK for every entry of
+/// FILE. `runa sdk runtime --out DIR`: write the package `@futuruna/runtime`
+/// the SDKs import.
 fn run_sdk_command(args: &[String]) {
-    const USAGE: &str = "usage: runa sdk ts <file.entry.runa> --out <dir> [--guides <file.guide.runa> --guide <entry>=<guide> ...]\n       runa sdk runtime --out <dir>";
+    const USAGE: &str =
+        "usage: runa sdk ts <file.entry.runa> --out <dir>\n       runa sdk runtime --out <dir>";
     let fail = |message: &str| -> ! {
         eprintln!("error: {message}\n{USAGE}");
         std::process::exit(1);
     };
     let mut positional = Vec::new();
     let mut out_dir = None;
-    let mut guides_file = None;
-    let mut guide_args: Vec<String> = Vec::new();
     let mut rest = args.iter();
     while let Some(arg) = rest.next() {
         match arg.as_str() {
@@ -2560,29 +2404,12 @@ fn run_sdk_command(args: &[String]) {
                 _ => fail("--out requires a directory"),
             },
             arg if arg.starts_with("--out=") => out_dir = Some(arg["--out=".len()..].to_string()),
-            "--guides" => match rest.next() {
-                Some(file) if !file.starts_with('-') => guides_file = Some(file.clone()),
-                _ => fail("--guides requires the file that binds the guides"),
-            },
-            arg if arg.starts_with("--guides=") => {
-                guides_file = Some(arg["--guides=".len()..].to_string())
-            }
-            "--guide" => match rest.next() {
-                Some(pair) if !pair.starts_with('-') => guide_args.push(pair.clone()),
-                _ => fail("--guide requires <entry>=<guide>"),
-            },
-            arg if arg.starts_with("--guide=") => {
-                guide_args.push(arg["--guide=".len()..].to_string())
-            }
             arg if arg.starts_with('-') => fail(&format!("unknown option `{arg}`")),
             arg => positional.push(arg),
         }
     }
     let out_dir = out_dir.unwrap_or_else(|| fail("--out is required"));
     if positional.as_slice() == ["runtime"] {
-        if guides_file.is_some() || !guide_args.is_empty() {
-            fail("the runtime depends on no model: --guides and --guide are for `runa sdk ts`");
-        }
         write_generated_files(Path::new(&out_dir), &calculate::sdk_ts::runtime_package());
         println!(
             "wrote {} {} to {out_dir}",
@@ -2614,56 +2441,12 @@ fn run_sdk_command(args: &[String]) {
     let contracts = run_type_check(&stmts, &source, filename)
         .unwrap_or_else(|| std::process::exit(1))
         .calculation_contracts;
-    let (guides, groups) = match &guides_file {
-        Some(guides_file) => {
-            if guide_args.is_empty() {
-                fail("--guides needs at least one --guide <entry>=<guide>");
-            }
-            sdk_guides(guides_file)
-        }
-        None if guide_args.is_empty() => (Vec::new(), Vec::new()),
-        None => fail("--guide needs --guides, the file that binds the guide"),
-    };
-    let mut entry_guides = Vec::new();
-    for pair in &guide_args {
-        let Some((entry, name)) = pair.split_once('=') else {
-            fail(&format!("--guide `{pair}` is not <entry>=<guide>"));
-        };
-        let Some(guide) = guides.iter().find(|guide| guide.name == name) else {
-            fail(&format!(
-                "{} binds no AnswerGuide `{name}`; it binds {}",
-                guides_file.as_deref().unwrap_or_default(),
-                if guides.is_empty() {
-                    "none".to_string()
-                } else {
-                    guides
-                        .iter()
-                        .map(|guide| format!("`{}`", guide.name))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                }
-            ));
-        };
-        entry_guides.push(calculate::sdk_ts::EntryGuide {
-            entry,
-            guide,
-            groups: guide_groups(guide, &groups),
-        });
-    }
-    let files = calculate::sdk_ts::generate_typescript_sdk(&contracts, filename, &entry_guides)
-        .unwrap_or_else(|error| {
+    let files =
+        calculate::sdk_ts::generate_typescript_sdk(&contracts, filename).unwrap_or_else(|error| {
             eprintln!("error: {error}");
             std::process::exit(1);
         });
     let out_dir = Path::new(&out_dir);
-    // An answer module of an earlier run with a guide would otherwise linger.
-    let stale_answer = out_dir.join("answer.ts");
-    if !files.iter().any(|file| file.name == "answer.ts")
-        && std::fs::read_to_string(&stale_answer)
-            .is_ok_and(|text| text.starts_with("// Generated by `runa sdk ts`"))
-    {
-        let _ = std::fs::remove_file(&stale_answer);
-    }
     write_generated_files(out_dir, &files);
     println!(
         "wrote {} for {} to {}",
@@ -2675,82 +2458,6 @@ fn run_sdk_command(args: &[String]) {
         calculation_entry_names(&contracts),
         out_dir.display()
     );
-}
-
-/// The guides a guides file binds, read without running it after the file
-/// passes `runa check`'s guide checks, and the group types it declares
-/// (each by name, with its constructors in order). Exits on an error.
-fn sdk_guides(filename: &str) -> (Vec<answer::Guide>, Vec<(String, Vec<String>)>) {
-    let source = std::fs::read_to_string(filename).unwrap_or_else(|error| {
-        eprintln!("error: cannot read {filename}: {error}");
-        std::process::exit(1);
-    });
-    let user_stmts = Parser::new(Lexer::new(&source).tokenize(), &source)
-        .parse_program()
-        .unwrap_or_else(|error| {
-            display_error_in(&source, &error, filename);
-            std::process::exit(1);
-        });
-    let stmts = prepend_prelude(parse_prelude(), &user_stmts);
-    if run_type_check(&stmts, &source, filename).is_none() {
-        std::process::exit(1);
-    }
-    let mut guides = Vec::new();
-    for read in answer::read_guides(&user_stmts) {
-        match read {
-            Ok(guide) => guides.push(guide),
-            Err(problems) => {
-                for (_, message) in problems {
-                    eprintln!("error: {filename}: {message}");
-                }
-                std::process::exit(1);
-            }
-        }
-    }
-    let groups = user_stmts
-        .iter()
-        .filter_map(|statement| match statement {
-            Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => Some((
-                name.clone(),
-                variants
-                    .iter()
-                    .map(|variant| variant.name.clone())
-                    .collect(),
-            )),
-            _ => None,
-        })
-        .collect();
-    (guides, groups)
-}
-
-/// A guide's groups in the order its group type declares them, when the
-/// guides file declares it; otherwise in the order the guide first names them.
-/// The group type is the one the guide names (`AnswerGuide(Input, Group)` or
-/// a qualified `Group.Constructor`), else the one declaring all its groups:
-/// two group types may share a constructor name.
-fn guide_groups(guide: &answer::Guide, declared: &[(String, Vec<String>)]) -> Vec<String> {
-    let mut named: Vec<String> = Vec::new();
-    for item in &guide.items {
-        if !named.contains(&item.group) {
-            named.push(item.group.clone());
-        }
-    }
-    let owner = guide
-        .group_type
-        .as_ref()
-        .or_else(|| guide.items.iter().find_map(|item| item.owner.as_ref()));
-    let declares =
-        |constructors: &Vec<String>| named.iter().all(|group| constructors.contains(group));
-    match owner {
-        Some(owner) => declared
-            .iter()
-            .find(|(name, constructors)| name == owner && declares(constructors)),
-        None => declared
-            .iter()
-            .find(|(_, constructors)| declares(constructors)),
-    }
-    .map(|(_, constructors)| constructors.clone())
-    .unwrap_or(named)
 }
 
 /// Write generated files under `out_dir`, each only when its contents changed.
@@ -11721,8 +11428,8 @@ fn source_asks_query(source: &str) -> bool {
         .is_ok_and(|statements| statements.iter().any(stmt_mentions_query_or_unknown))
 }
 
-/// Each `query` and `unknown` of a program compiled to native code: a query
-/// runs in the interpreter, and native code takes complete input.
+/// Each `query`, `unknown` and `answer_guide` of a program compiled to native
+/// code: they run in the interpreter, and native code takes complete input.
 fn native_query_refusals(stmts: &[Stmt]) -> Vec<Diagnostic> {
     let mut refusals = Vec::new();
     for statement in stmts {
@@ -11732,6 +11439,8 @@ fn native_query_refusals(stmts: &[Stmt]) -> Vec<Diagnostic> {
                     "`unknown`"
                 } else if query_parts(expr).is_some() {
                     "`query`"
+                } else if answer_guide_parts(expr).is_some() {
+                    "`answer_guide`"
                 } else {
                     return;
                 };
@@ -11741,12 +11450,6 @@ fn native_query_refusals(stmts: &[Stmt]) -> Vec<Diagnostic> {
                 ));
             }
         });
-        if let Some((name, value)) = answer::guide_binding(statement) {
-            refusals.push(Diagnostic::error_at(
-                value.span,
-                format!("the AnswerGuide `{name}` is read by `answer` and `runa call --guide`, which run in the interpreter; native code has no guides. Run the program with `runa FILE` and its tests with `runa test`"),
-            ));
-        }
     }
     refusals
 }
@@ -13679,7 +13382,7 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
             }
         };
 
-        // A query or a guide runs in the interpreter only: `runa build`
+        // A query runs in the interpreter only: `runa build`
         // refuses it, so there is no native code to check.
         if !native_query_refusals(&stmts).is_empty() {
             skipped += 1;
@@ -21029,15 +20732,10 @@ fn check_source(
 
             // A program that asks a query runs in the interpreter only:
             // native code takes complete input, so there is no Rust to check.
-            // A guide is read by `answer` and `runa call --guide`, both of
-            // which run in the interpreter, so it has no Rust either.
-            let interpreted = if stmts.iter().any(stmt_mentions_query_or_unknown) {
-                Some("interpreted (query)")
-            } else if stmts.iter().any(|s| answer::guide_binding(s).is_some()) {
-                Some("interpreted (guide)")
-            } else {
-                None
-            };
+            let interpreted = stmts
+                .iter()
+                .any(stmt_mentions_query_or_unknown)
+                .then_some("interpreted (query)");
             if frontend_only || interpreted.is_some() {
                 check_output.success(
                     &CheckArtifactSummary {

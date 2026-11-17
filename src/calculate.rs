@@ -18,6 +18,7 @@ mod assumptions;
 mod json;
 pub use json::parse_calculation_json;
 
+pub mod answer_guide;
 pub mod compact;
 pub mod explain;
 pub mod sdk_ts;
@@ -726,10 +727,6 @@ pub struct CalculationNeed {
     pub kind: CalculationNeedKind,
     /// The concrete input path to answer, with list indices.
     pub path: String,
-    /// With `runa call --guide`: the group (the constructor of the guide's
-    /// group type) of the most specific guide item for `path`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub by: Option<String>,
     /// The keys of the list elements the path lies in, outermost first.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub keys: Vec<CalculationNeedKey>,
@@ -949,7 +946,6 @@ impl CalculationContract {
             },
             keys: self.need_keys(input, &path),
             path,
-            by: None,
             entry: provider.map(|provider| provider.entry.clone()),
             subject: provider.map(|provider| provider.subject.clone()),
             label: metadata.map(|metadata| metadata.label.clone()),
@@ -7818,7 +7814,6 @@ pub fn partial_result_json_schema(contract: &CalculationContract) -> JsonValue {
         "properties": {
             "kind": { "enum": ["fact", "entry"] },
             "path": string,
-            "by": { "type": "string", "description": "With `runa call --guide`: the group of the most specific guide item for the path (the constructor of the guide's group type)." },
             "keys": {
                 "type": "array",
                 "description": "The list elements the path lies in whose type declares a key field, outermost first, each with the key's value in the case.",

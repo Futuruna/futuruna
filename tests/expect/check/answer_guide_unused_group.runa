@@ -1,9 +1,0 @@
--- Every group needs a resolver, so a group without paths is an error.
--- expect-command: check
--- expect-status: fail
--- expect-stderr: the AnswerGuide `household_guide` names no path for `PriceFeed` of `Origin`
-
-@ import ./answer_law
-
-# Origin = Customer | PriceFeed
-= household_guide = AnswerGuide(fields = [EntryField(path = pathof(Household::spouse), by = Customer)])

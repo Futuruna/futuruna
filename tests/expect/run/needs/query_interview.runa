@@ -36,7 +36,7 @@
     | Needs -> False
 }
 
-= asked = answer(household_tax, Household(income = 500, married = True, spouse = unknown), whole_case_guide(), from_case(with_spouse))
+= asked = answer(household_tax, Household(income = 500, married = True, spouse = unknown), from_case(with_spouse))
 | two_rounds: asked -> map(asked.rounds, |r| r.paths) == [[pathof(Household::spouse)], [pathof(Household::spouse::cohabiting), pathof(Household::spouse::income)]]
 | ends_complete: asked -> asked.outcome == Answered(result = household_tax(with_spouse))
 
