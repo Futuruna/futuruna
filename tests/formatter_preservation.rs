@@ -246,6 +246,7 @@ fn repository_format_check_covers_valid_and_intentionally_invalid_sources() {
         "tests/expect/diagnostics/thousands_comma_in_list.runa",
         // `@ calculate` kept on purpose as `runa fmt --migrate` input.
         "tests/expect/migrate/calculate_interview.runa",
+        "tests/expect/migrate/entry_strings.runa",
         // `unknown` as a name, kept on purpose as `runa fmt --migrate` input.
         "tests/expect/migrate/unknown_rename.runa",
         // Old comment-directive syntax kept on purpose as `runa fmt --migrate` input.
