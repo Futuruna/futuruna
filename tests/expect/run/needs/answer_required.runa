@@ -1,9 +1,9 @@
--- A path the guide does not name is held: the integrator builds it into the
+-- A path the guide does not name is required: the integrator builds it into the
 -- case, and a need there is an error that names the path and the guide.
 -- expect-command: interp
 -- expect-status: fail
 -- roundtrip-skip: `answer`, `query` and `unknown` run only in the interpreter
--- expect-stderr: `answer(household_tax, …)`, round 1: `income` is held (the AnswerGuide `spouse_only` names no group for it), but the case leaves it unknown
+-- expect-stderr: `answer(household_tax, …)`, round 1: `income` is required (the AnswerGuide `spouse_only` names no group for it), but the case leaves it unknown
 
 @ import ./answer_household_law
 

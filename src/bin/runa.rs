@@ -2438,7 +2438,7 @@ fn load_call_guide(file: &str, name: &str, use_prelude: bool) -> answer::Guide {
 }
 
 /// Each need of a partial result gets `by`, the group of the guide's most
-/// specific item for its path. A need at a held path is a diagnostic of its
+/// specific item for its path. A need at a required path is a diagnostic of its
 /// case: the guide says the caller holds that fact, and the case left it out.
 fn guide_needs(
     guide: &answer::Guide,
@@ -2481,7 +2481,7 @@ fn guide_needs(
                     case_id: case.case_id.clone(),
                     path: need.path.clone(),
                     message: format!(
-                        "`{}` is held (the AnswerGuide `{}` names no group for it), but the case leaves it unknown",
+                        "`{}` is required (the AnswerGuide `{}` names no group for it), but the case leaves it unknown",
                         need.path, guide.name
                     ),
                     scalar: None,

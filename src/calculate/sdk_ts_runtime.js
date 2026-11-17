@@ -1049,20 +1049,20 @@ export class AnswerCycleError extends AnswerError {
     }
 }
 /**
- * Needs at held paths: the guide names no group for them, so the held case
- * should have had them. A defect in the integrator's data that the held type
- * cannot see: a held fact given as `undefined`, or a list's element held but
+ * Needs at required paths: the guide names no group for them, so the required facts
+ * should have had them. A defect in the integrator's data that the facts type
+ * cannot see: a required fact given as `undefined`, or a list's element required but
  * left out of an element a resolver gave.
  */
-export class HeldMissingError extends AnswerError {
+export class MissingFactError extends AnswerError {
     /** The guide's name. */
     guide;
-    /** The round's needs at held paths, in the engine's order. */
+    /** The round's needs at required paths, in the engine's order. */
     needs;
     constructor(guide, round, needs) {
         const paths = needs.map((need) => `\`${need.path}\``).join(", ");
-        super(`round ${String(round)}: ${paths} ${needs.length === 1 ? "is" : "are"} held (the guide \`${guide}\` names no group for ${needs.length === 1 ? "it" : "them"}), but the held case leaves ${needs.length === 1 ? "it" : "them"} unknown`);
-        this.name = "HeldMissingError";
+        super(`round ${String(round)}: ${paths} ${needs.length === 1 ? "is" : "are"} required (the guide \`${guide}\` names no group for ${needs.length === 1 ? "it" : "them"}), but the required facts leave ${needs.length === 1 ? "it" : "them"} unknown`);
+        this.name = "MissingFactError";
         this.guide = guide;
         this.needs = needs;
     }
@@ -1107,7 +1107,7 @@ export function guidePath(partialCase, need) {
 /**
  * The group that resolves a path of {@link guidePath}: the group of the path,
  * or of the nearest path above it the guide resolves (below a recursive
- * type's cut); `undefined` when the path is held.
+ * type's cut); `undefined` when the path is required.
  */
 export function guideGroup(guide, path) {
     let key = path;
@@ -1121,22 +1121,22 @@ export function guideGroup(guide, path) {
     }
 }
 /**
- * Answer an entry by a guide: query it on the held case, give each need the
+ * Answer an entry by a guide: query it on the required facts, give each need the
  * group the guide names for its path (`by`), call each group's resolver once
  * per round with all of that group's needs, the groups at the same time,
  * write the given values with {@link setAt}, and query again. Ends
- * `Answered`, or `Unanswered` when a round answers nothing. Needs at held
- * paths throw {@link HeldMissingError}; a reply for another need's path, or a
+ * `Answered`, or `Unanswered` when a round answers nothing. Needs at required
+ * paths throw {@link MissingFactError}; a reply for another need's path, or a
  * path still needed after it was given, throws {@link AnswerError}; an entry
  * that needs itself for the same subject throws {@link AnswerCycleError}. The
  * SDK's `<entry>Answer` calls it.
  */
-export async function answerEntry(query, held, guide, resolvers, options = {}) {
+export async function answerEntry(query, facts, guide, resolvers, options = {}) {
     const frames = options.frames ?? [];
     const byGroup = resolvers;
     const answered = new Set();
     const rounds = [];
-    let partialCase = held;
+    let partialCase = facts;
     for (;;) {
         const result = await query(partialCase);
         if (result.$variant === "Complete") {
@@ -1151,14 +1151,14 @@ export async function answerEntry(query, held, guide, resolvers, options = {}) {
         }
         // The round's needs of each group, in the engine's order.
         const batches = new Map();
-        const heldNeeds = [];
+        const requiredNeeds = [];
         for (const need of result.needs) {
             if (answered.has(need.path)) {
                 throw new AnswerError(`the engine still needs \`${need.path}\` after it was given`);
             }
             const by = guideGroup(guide, guidePath(partialCase, need));
             if (by === undefined) {
-                heldNeeds.push(need);
+                requiredNeeds.push(need);
                 continue;
             }
             const guided = { ...need, by };
@@ -1168,8 +1168,8 @@ export async function answerEntry(query, held, guide, resolvers, options = {}) {
             else
                 batch.push(guided);
         }
-        if (heldNeeds.length > 0)
-            throw new HeldMissingError(guide.name, rounds.length + 1, heldNeeds);
+        if (requiredNeeds.length > 0)
+            throw new MissingFactError(guide.name, rounds.length + 1, requiredNeeds);
         const context = {
             partialCase,
             async runEntry(need, run) {

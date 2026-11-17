@@ -71,10 +71,10 @@ invariant is PROVED.
 On the integration side (Experimental), an `@ entry` is a typed contract that
 `runa call` runs on a complete case or, with `--partial`, answers with the
 facts it still needs. An `AnswerGuide`, written by the integrator, says which
-of its groups resolves each missing fact; every fact it does not name is held.
+of its groups resolves each missing fact; every fact it does not name is required.
 `answer` asks an entry round by round in Futuruna, `runa call --guide` marks
 each need with its group, and the generated TypeScript SDK answers an entry
-with one resolver per group (`<entry>Answer`), its held facts checked by the
+with one resolver per group (`<entry>Answer`), its required facts checked by the
 compiler. Guides run in the interpreter only, are read statically, and do not
 yet batch `later` needs; see [docs/releases/0.6.0.md](releases/0.6.0.md).
 

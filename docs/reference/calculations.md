@@ -1035,7 +1035,7 @@ type (`= g: AnswerGuide(Household, Origin) = ...`), and `Origin.Customer`
 where two group types in scope declare `Customer`. On the wire (`"by"`) and
 in TypeScript a group is its bare name: a guide has one group type.
 
-**Held and named.** A path the guide does not name is **held**: the
+**Required and named.** A path the guide does not name is **required**: the
 integrator builds the fact into every case, and a need there is a defect in
 its data. A path the guide names may be missing: the case still carries it
 whenever the integrator has it, and the group is asked only for what is
@@ -1056,7 +1056,7 @@ round by round:
 1. it asks `query e(case)`, with the strict-mode oracle and the completion
    test under `runa test`;
 2. on `Complete` it ends with `Answered(result)`;
-3. a need at a held path stops the program with an error naming the path,
+3. a need at a required path stops the program with an error naming the path,
    the guide and the round;
 4. it calls `resolve(group, needs, case)` once for each group that has needs
    this round, with all of that group's needs (**batching**). The resolver
@@ -1128,7 +1128,7 @@ runa call household.entry.runa --partial --input partial.json \
 ```
 
 `FILE` is checked as `runa check` checks it, and `NAME` is a guide it binds,
-rooted at the entry's input type. A need at a held path keeps no `by` and is
+rooted at the entry's input type. A need at a required path keeps no `by` and is
 a diagnostic of its case, as in `answer`. The entry's contract, its template
 and its schema hash do not change; the partial-result schema documents `by`.
 
@@ -1324,7 +1324,7 @@ import [`zod`](https://zod.dev) and the runtime package `@futuruna/runtime`
 | `schema.ts` | A Zod validator for every type, `SCHEMA_HASH` per entry, and a wire codec (`<Type>Codec`) for every record and every sum type with payload variants. Records reject unknown fields. `Int` is `number` and validates as a safe integer: a value beyond ±(2^53 − 1) is rejected, never rounded. Each unit's constructor, with its decimal converters where its scale allows them. |
 | `partial.ts` | `Partial<Type>` for every input record and sum type, in which any field may be left out and a record may be `{}`, with the same field TSDoc as `types.ts`; each entry's input path patterns (`<Entry>InputPatterns`, with the value written at each), its `Need` tagged by pattern, the `Complete`/`Needs` result, and `<entry>SetAt`. |
 | `client.ts` | A call and a query function per entry, each also explained (`<entry>Explained`, `<entry>QueryExplained`), and the entry's descriptor (`<entry>Entry`: name, schema hash, codecs, path patterns). |
-| `answer.ts` | Only with `--guide`: for each entry given a guide, its groups, its held case type, its resolvers by group, the guide's table and `<entry>Answer`. |
+| `answer.ts` | Only with `--guide`: for each entry given a guide, its groups, its facts type, its resolvers by group, the guide's table and `<entry>Answer`. |
 | `index.ts` | Re-exports the other modules and the runtime package. |
 
 Each module starts with a header naming the source file, the runtime version
@@ -1545,7 +1545,7 @@ function answerFromLedger(c: PartialTaxCase, need: TaxReportNeed): PartialTaxCas
 
 The integrator states, in an `AnswerGuide` ([RFC](../rfcs/answer-guide.md)),
 which input paths may be missing and which of its groups resolves each; every
-path the guide does not name is held. `--guides` names the file that binds the
+path the guide does not name is required. `--guides` names the file that binds the
 guides, and each `--guide` the entry a guide answers:
 
 ```sh
@@ -1562,15 +1562,15 @@ entry given a guide, `answer.ts` holds:
 export type AktiesparekontoYearGroup = "Snapshots" | "GivingInstitute" | "Bookings" | "PreviousYear" | "Backoffice" | "Customer";
 export interface AktiesparekontoYearGroupPatterns { Snapshots: "account.openingCashMicroDkk" | …; … }
 export type AktiesparekontoYearGuidedNeed<G extends AktiesparekontoYearGroup = AktiesparekontoYearGroup> = …;
-export type AktiesparekontoYearHeld = { readonly incomeYear: number; readonly account: { … }; … };
+export type AktiesparekontoYearFacts = { readonly incomeYear: number; readonly account: { … }; … };
 export type AktiesparekontoYearResolvers = GroupResolvers<…>;
 export const aktiesparekontoYearGuide: Guide<AktiesparekontoYearGroup> = { name: "endavu_ask_year", paths: { … } };
-export function aktiesparekontoYearAnswer(transport, held, resolvers, options?): Promise<Answering<…>>;
+export function aktiesparekontoYearAnswer(transport, facts, resolvers, options?): Promise<Answering<…>>;
 ```
 
-- **The held case** (`<Entry>Held`) is the backend's checklist: the partial
-  case with the key of every held fact required and its value of the model's
-  type, never `undefined`, so leaving a held fact out, or a fact the model
+- **The required facts** (`<Entry>Facts`) are the backend's checklist: the partial
+  case with the key of every required fact required and its value of the model's
+  type, never `undefined`, so leaving a required fact out, or a fact the model
   adds, does not compile. An optional fact may be `none` where the model
   allows it. A builder whose source may lack a value must decide there what a
   missing value means. A fact the guide resolves may be left out, or given
@@ -1586,7 +1586,7 @@ export function aktiesparekontoYearAnswer(transport, held, resolvers, options?):
   says. The runtime attaches it to each need as `by`; the engine, the contract
   and its schema hash are unchanged.
 
-`<entry>Answer(transport, held, resolvers)` queries the held case, calls each
+`<entry>Answer(transport, facts, resolvers)` queries the required facts, calls each
 group's resolver once per round with all of that round's needs of the group,
 the groups at the same time, writes the answers into the case and queries
 again. A resolver fetches what its needs ask for in one batch and returns the
@@ -1611,7 +1611,7 @@ const resolvers: TaxReportResolvers = {
   PriceFeed: leaveOpen,
   Customer: leaveOpen,
 };
-const answering = await taxReportAnswer(transport, held, resolvers);
+const answering = await taxReportAnswer(transport, facts, resolvers);
 if (answering.$variant === "Answered") report(answering.result);
 else store(answering.partialCase, answering.open.Customer ?? []);
 ```
@@ -1622,7 +1622,7 @@ reply made from that need, and none is left out. It returns
 entry's outcome from `context.runEntry(need, run)`. `runEntry` runs the entry
 an entry need names (a fact need is given one: `{ ...need, entry, subject }`)
 through `run`, which passes its `options` on to that entry's answer, as
-`(options) => shareIncomeAnswer(transport, held, resolvers, options)`; an
+`(options) => shareIncomeAnswer(transport, facts, resolvers, options)`; an
 `Answered` result is written at the need's path, and an `Unanswered` one waits
 in `pending`. A reply names the need's path and its value is typed by the
 need's pattern, so a resolver of several patterns narrows `need.pattern`
@@ -1637,7 +1637,7 @@ needs keyed by the group that left them open (`open.Customer` holds
 questions, `open.Snapshots` facts a source did not have), with entry needs
 waiting on another entry in `pending`, the last round's `later` facts and the
 partial case. Each round records its needs' paths and each group's needs. A
-need at a held path throws `HeldMissingError` naming the paths, the guide and
+need at a required path throws `MissingFactError` naming the paths, the guide and
 the round, before any resolver runs; the types rule this out, so it catches
 only what they cannot see, such as untyped data or an `as` cast. A pair
 of `(entry, subject)` that repeats on the stack of entries being answered

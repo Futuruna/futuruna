@@ -394,12 +394,12 @@ test('runa sdk ts output type-checks and calls and validates through a transport
   // A reply names the path it is for: one for another need is an error, not an answer in the wrong place.
   await assert.rejects(sdk.answerEntry(query, three, guide, { Family: (needs) => () => sdk.given(needs[0], 5), Income: sdk.leaveOpen }),
     (error) => error.name === 'AnswerError' && /replied to `children\[1\]\.age` with a reply for `children\[0\]\.age`/.test(error.message));
-  // A need the guide names no group for is held: the held case should have had it.
+  // A need the guide names no group for is required: the required facts should have had it.
   await assert.rejects(sdk.answerEntry(query, three, { name: 'no_income', paths: { 'children[].age': 'Family', filingStatus: 'Family' } },
     { Family: sdk.leaveOpen }),
-  (error) => error.name === 'HeldMissingError' && error instanceof sdk.AnswerError && error.guide === 'no_income'
+  (error) => error.name === 'MissingFactError' && error instanceof sdk.AnswerError && error.guide === 'no_income'
     && error.needs.map((need) => need.path).join() === 'monthlyIncome'
-    && /^round 1: `monthlyIncome` is held \(the guide `no_income` names no group for it\)/.test(error.message));
+    && /^round 1: `monthlyIncome` is required \(the guide `no_income` names no group for it\)/.test(error.message));
   // Below a path the table has no key for (past a recursive type's cut), the nearest key above it decides.
   assert.equal(sdk.guideGroup({ name: 'g', paths: { 'tree.Branch.left': 'Shapes' } }, 'tree.Branch.left.Leaf.value'), 'Shapes');
   assert.equal(sdk.guideGroup({ name: 'g', paths: { 'tree.Branch.left': 'Shapes' } }, 'tree.Branch.right'), undefined);
@@ -931,7 +931,7 @@ const householdModel = `# Spouse(income: Int, cohabiting: Bool)
 const householdGuide = `@ import ./household.entry
 
 -- The registry has the children's ages; the customer is asked about a spouse.
--- Everything else is in the integrator's own records: held.
+-- Everything else is in the integrator's own records: required.
 # Origin = Registry | Customer
 = household_guide = AnswerGuide(fields = [
     EntryField(path = pathof(Household::spouse), by = Customer),
@@ -941,23 +941,23 @@ const householdGuide = `@ import ./household.entry
 
 const householdUsage = `import {
   given, householdTaxAnswer, leaveOpen, open,
-  type EngineTransport, type HouseholdTaxGuidedNeed, type HouseholdTaxHeld, type HouseholdTaxResolvers,
+  type EngineTransport, type HouseholdTaxGuidedNeed, type HouseholdTaxFacts, type HouseholdTaxResolvers,
 } from "./sdk/index.js";
 
 /** Each resolver call: its group and the paths of its needs. */
 export const calls: [string, string[]][] = [];
 
-export const held: HouseholdTaxHeld = { income: 500, married: true, children: [{ name: "Ada" }, { name: "Bo" }] };
-// @ts-expect-error a held fact left out does not compile: \`income\` is held
-export const forgotIncome: HouseholdTaxHeld = { married: true, children: [] };
-// @ts-expect-error a child's name is held too
-export const namelessChild: HouseholdTaxHeld = { income: 500, married: true, children: [{ age: 4 }] };
-// @ts-expect-error a held fact is never \`undefined\`: the builder decides what a missing value means
-export const undefinedIncome: HouseholdTaxHeld = { ...held, income: undefined };
-/** Untyped data the type cannot see: answering throws \`HeldMissingError\`. */
-export const unknownIncome = { ...held, income: undefined } as unknown as HouseholdTaxHeld;
+export const facts: HouseholdTaxFacts = { income: 500, married: true, children: [{ name: "Ada" }, { name: "Bo" }] };
+// @ts-expect-error a required fact left out does not compile: \`income\` is required
+export const forgotIncome: HouseholdTaxFacts = { married: true, children: [] };
+// @ts-expect-error a child's name is required too
+export const namelessChild: HouseholdTaxFacts = { income: 500, married: true, children: [{ age: 4 }] };
+// @ts-expect-error a required fact is never \`undefined\`: the builder decides what a missing value means
+export const undefinedIncome: HouseholdTaxFacts = { ...facts, income: undefined };
+/** Untyped data the type cannot see: answering throws \`MissingFactError\`. */
+export const unknownIncome = { ...facts, income: undefined } as unknown as HouseholdTaxFacts;
 /** A resolved fact may be given when known. */
-export const knownSpouse: HouseholdTaxHeld = { ...held, spouse: { income: 50, cohabiting: true } };
+export const knownSpouse: HouseholdTaxFacts = { ...facts, spouse: { income: 50, cohabiting: true } };
 
 const ages: ReadonlyMap<string, number> = new Map([["children[0].age", 4], ["children[1].age", 19]]);
 
@@ -1006,12 +1006,12 @@ export function describe(need: HouseholdTaxGuidedNeed): string {
   return need.by === "Registry" ? \`ask the registry for \${need.pattern}\` : \`ask the customer: \${need.question ?? need.label ?? need.pattern}\`;
 }
 
-export const answerHousehold = (transport: EngineTransport, heldCase: HouseholdTaxHeld, chosen: HouseholdTaxResolvers) =>
-  householdTaxAnswer(transport, heldCase, chosen);
+export const answerHousehold = (transport: EngineTransport, givenFacts: HouseholdTaxFacts, chosen: HouseholdTaxResolvers) =>
+  householdTaxAnswer(transport, givenFacts, chosen);
 
 /** The paths each group left open, keyed by group. */
 export async function openPaths(transport: EngineTransport): Promise<{ registry: string[]; customer: string[] }> {
-  const answering = await householdTaxAnswer(transport, held, registryClosed);
+  const answering = await householdTaxAnswer(transport, facts, registryClosed);
   if (answering.$variant === "Answered") return { registry: [], customer: [] };
   return {
     registry: (answering.open.Registry ?? []).map((need) => need.path),
@@ -1020,7 +1020,7 @@ export async function openPaths(transport: EngineTransport): Promise<{ registry:
 }
 `;
 
-test('answering by a guide: the held case, resolvers batched once per group per round, open needs by group', options, async () => {
+test('answering by a guide: the required facts, resolvers batched once per group per round, open needs by group', options, async () => {
   const dir = project('household');
   writeFileSync(join(dir, 'household.entry.runa'), householdModel);
   writeFileSync(join(dir, 'household.guide.runa'), householdGuide);
@@ -1039,7 +1039,7 @@ test('answering by a guide: the held case, resolvers batched once per group per 
 
   // Each group's resolver is called once per round with all of that round's needs of its group.
   const transport = partialCli(dir, 'household.entry.runa');
-  const answered = await usage.answerHousehold(transport, usage.held, usage.resolvers);
+  const answered = await usage.answerHousehold(transport, usage.facts, usage.resolvers);
   assert.equal(answered.$variant, 'Answered', JSON.stringify(answered));
   assert.deepEqual(answered.result, { tax: 500 - (200 - 50) - 10 });
   assert.deepEqual(byRound(answered), [
@@ -1049,13 +1049,13 @@ test('answering by a guide: the held case, resolvers batched once per group per 
   assert.deepEqual(usage.calls.filter(([group]) => group === 'Registry'), [['Registry', ['children[0].age', 'children[1].age']]]);
   assert.deepEqual(usage.calls.filter(([group]) => group === 'Customer'),
     [['Customer', ['spouse']], ['Customer', ['spouse.cohabiting', 'spouse.income']]]);
-  assert.deepEqual(answered.partialCase, { ...usage.held, children: [{ name: 'Ada', age: 4 }, { name: 'Bo', age: 19 }],
+  assert.deepEqual(answered.partialCase, { ...usage.facts, children: [{ name: 'Ada', age: 4 }, { name: 'Bo', age: 19 }],
     spouse: { cohabiting: true, income: 50 } });
   assert.equal(transport.queried.length, 3);
   assert.equal(usage.describe(answered.rounds[0].groups.Registry[0]), 'ask the registry for children[].age');
 
   // A group whose resolver is leaveOpen: the others answer, then answering ends with its needs open.
-  const closed = await usage.answerHousehold(transport, usage.held, usage.registryClosed);
+  const closed = await usage.answerHousehold(transport, usage.facts, usage.registryClosed);
   assert.equal(closed.$variant, 'Unanswered');
   assert.equal(closed.rounds.length, 3);
   assert.deepEqual(Object.keys(closed.open), ['Registry']);
@@ -1064,19 +1064,19 @@ test('answering by a guide: the held case, resolvers batched once per group per 
   assert.deepEqual(closed.partialCase.spouse, { cohabiting: true, income: 50 });
   assert.deepEqual(await usage.openPaths(transport), { registry: ['children[0].age', 'children[1].age'], customer: [] });
 
-  // A resolved fact the held case gives is not asked.
+  // A resolved fact the required facts give is not asked.
   usage.calls.length = 0;
   const known = await usage.answerHousehold(transport, usage.knownSpouse, usage.resolvers);
   assert.equal(known.$variant, 'Answered');
   assert.deepEqual(usage.calls, [['Registry', ['children[0].age', 'children[1].age']]]);
 
-  // A held fact the case leaves unknown is the integrator's data defect, before any resolver runs.
+  // A required fact the case leaves unknown is the integrator's data defect, before any resolver runs.
   usage.calls.length = 0;
   await assert.rejects(usage.answerHousehold(transport, usage.unknownIncome, usage.resolvers), (error) => {
-    assert.ok(error instanceof sdk.HeldMissingError);
+    assert.ok(error instanceof sdk.MissingFactError);
     assert.equal(error.guide, 'household_guide');
     assert.deepEqual(error.needs.map((need) => need.path), ['income']);
-    assert.match(error.message, /^round 1: `income` is held \(the guide `household_guide` names no group for it\), but the held case leaves it unknown$/);
+    assert.match(error.message, /^round 1: `income` is required \(the guide `household_guide` names no group for it\), but the required facts leave it unknown$/);
     return true;
   });
   assert.deepEqual(usage.calls, []);

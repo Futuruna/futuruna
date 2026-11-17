@@ -1,5 +1,5 @@
 //! `runa call --guides FILE --guide NAME` (docs/rfcs/answer-guide.md): each
-//! need of a partial call names its group as `by`; a need at a held path is a
+//! need of a partial call names its group as `by`; a need at a required path is a
 //! diagnostic of its case. And a file of guides passes a full `runa check`,
 //! interpreted only.
 
@@ -130,7 +130,7 @@ fn without_a_guide_a_need_has_no_group() {
 }
 
 #[test]
-fn a_need_at_a_held_path_is_a_diagnostic() {
+fn a_need_at_a_required_path_is_a_diagnostic() {
     let guides = guides();
     let output = call(
         json!({ "married": true, "spouse": null, "children": [] }),
@@ -142,7 +142,7 @@ fn a_need_at_a_held_path_is_a_diagnostic() {
     assert_eq!(diagnostic["path"], "income");
     assert_eq!(
         diagnostic["message"],
-        "`income` is held (the AnswerGuide `household_guide` names no group for it), but the case leaves it unknown"
+        "`income` is required (the AnswerGuide `household_guide` names no group for it), but the case leaves it unknown"
     );
 }
 

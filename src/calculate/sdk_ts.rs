@@ -11,7 +11,7 @@
 //! the needs' paths after it. The partial-case types and the
 //! `Complete`/`Needs` result follow `docs/rfcs/calculation-needs.md`; the
 //! client reaches an engine only through a transport. An entry given a guide
-//! (`docs/rfcs/answer-guide.md`) is also answered by it: its held case type,
+//! (`docs/rfcs/answer-guide.md`) is also answered by it: its facts type,
 //! its resolvers by group and `<entry>Answer`. The output depends only on the
 //! contracts, the guides and the source label, so regenerating an unchanged
 //! model rewrites identical files.
@@ -112,7 +112,7 @@ pub struct EntryGuide<'g> {
 ///
 /// `source` names the file in the generated headers. The modules import the
 /// runtime from the package `@futuruna/runtime` ([`runtime_package`]). Each
-/// entry in `guides` also gets `answer.ts`'s held case type, resolvers by
+/// entry in `guides` also gets `answer.ts`'s facts type, resolvers by
 /// group and `<entry>Answer`. A file whose contracts cannot be expressed (an
 /// unsupported type, two entries disagreeing on a type, two fields with the
 /// same camelCase name, or a contract name that collides with a generated
@@ -303,9 +303,9 @@ struct Guided {
     paths: BTreeMap<String, String>,
     /// The TypeScript patterns each group resolves.
     patterns: BTreeMap<String, BTreeSet<String>>,
-    /// The need-able paths the guide leaves held, as guide paths
+    /// The need-able paths the guide leaves required, as guide paths
     /// (`events.Trade.amount_øre`).
-    held: BTreeSet<String>,
+    required: BTreeSet<String>,
     /// Each resolved need-able path, as a guide path, with its group.
     resolved: Vec<(String, String)>,
 }
@@ -581,7 +581,7 @@ impl<'a> Sdk<'a> {
     }
 
     /// The guide of `contract` as `answer.ts` writes it: every need-able path
-    /// of its input held or resolved by the guide's most specific item.
+    /// of its input required or resolved by the guide's most specific item.
     fn guided(
         &self,
         contract: &CalculationContract,
@@ -634,7 +634,7 @@ impl<'a> Sdk<'a> {
                 .iter()
                 .map(|group| (group.clone(), BTreeSet::new()))
                 .collect(),
-            held: BTreeSet::new(),
+            required: BTreeSet::new(),
             resolved: Vec::new(),
         };
         for path in needable {
@@ -647,7 +647,7 @@ impl<'a> Sdk<'a> {
                     guided.resolved.push((path.guide, item.group.clone()));
                 }
                 None => {
-                    guided.held.insert(path.guide);
+                    guided.required.insert(path.guide);
                 }
             }
         }
@@ -1145,7 +1145,7 @@ impl<'a> Sdk<'a> {
             names.push((format!("{values}QueryExplained"), "client.ts"));
             names.push((format!("{values}Entry"), "client.ts"));
             if entry.guide.is_some() {
-                for suffix in ["Group", "GroupPatterns", "GuidedNeed", "Held", "Resolvers"] {
+                for suffix in ["Group", "GroupPatterns", "GuidedNeed", "Facts", "Resolvers"] {
                     names.push((format!("{types}{suffix}"), "answer.ts"));
                 }
                 names.push((format!("{values}Guide"), "answer.ts"));
@@ -2406,7 +2406,7 @@ impl<'a> Sdk<'a> {
         let mut out = String::new();
         self.header(
             &mut out,
-            "Answering each entry by its guide: the held case, the resolvers by group, <entry>Answer.",
+            "Answering each entry by its guide: the required facts, the resolvers by group, <entry>Answer.",
         );
         out.push_str(&self.imports(
             &body,
@@ -2498,8 +2498,8 @@ impl<'a> Sdk<'a> {
             "export type {types}GuidedNeed<G extends {types}Group = {types}Group> = G extends {types}Group\n  ? GuidedNeed<Need<{types}GroupPatterns[G], {element_key}>, G>\n  : never;\n"
         );
 
-        let held = self
-            .held_value(
+        let required = self
+            .required_value(
                 &contract.input,
                 &BTreeMap::new(),
                 "",
@@ -2514,12 +2514,12 @@ impl<'a> Sdk<'a> {
             out,
             "",
             &[
-                format!("The case of `{name}` built from the integrator's own data. Every fact the guide `{guide}` does not name is held: its key is required and its value is the model's type, never `undefined`, so leaving a held fact out, or a fact the model adds, does not compile. A builder whose source may lack a value decides there what a missing value means. `{values}Answer` throws `HeldMissingError` only for what the types cannot see, such as untyped data or an `as` cast."),
+                format!("The case of `{name}` built from the integrator's own data. Every fact the guide `{guide}` does not name is required: its key is required and its value is the model's type, never `undefined`, so leaving a required fact out, or a fact the model adds, does not compile. A builder whose source may lack a value decides there what a missing value means. `{values}Answer` throws `MissingFactError` only for what the types cannot see, such as untyped data or an `as` cast."),
                 String::new(),
                 "A fact the guide resolves may be left out, or given when known: its group's resolver is asked only for what is missing.".to_string(),
             ],
         );
-        let _ = writeln!(out, "export type {types}Held = {held};\n");
+        let _ = writeln!(out, "export type {types}Facts = {required};\n");
 
         write_doc(
             out,
@@ -2537,7 +2537,7 @@ impl<'a> Sdk<'a> {
             out,
             "",
             &[format!(
-                "The guide `{guide}` as the runtime reads it: the group of every input path pattern of `{name}` it resolves, each alternative of a sum type named before its fields. Every other path is held."
+                "The guide `{guide}` as the runtime reads it: the group of every input path pattern of `{name}` it resolves, each alternative of a sum type named before its fields. Every other path is required."
             )],
         );
         let _ = writeln!(
@@ -2566,26 +2566,26 @@ impl<'a> Sdk<'a> {
             &[
                 format!("Answer {title} by the guide `{guide}`."),
                 String::new(),
-                "Queries the held case through `transport.callPartial`, sends each need to the resolver of its group (`by`), all of a group's needs of a round in one call, writes the answers and queries again. Ends `Answered` with the result, or `Unanswered` with the needs each group left open. A need at a held path throws `HeldMissingError`. From inside another entry's resolver, pass on the `options` that `context.runEntry` gives.".to_string(),
+                "Queries the required facts through `transport.callPartial`, sends each need to the resolver of its group (`by`), all of a group's needs of a round in one call, writes the answers and queries again. Ends `Answered` with the result, or `Unanswered` with the needs each group left open. A need at a required path throws `MissingFactError`. From inside another entry's resolver, pass on the `options` that `context.runEntry` gives.".to_string(),
             ],
         );
         let _ = writeln!(
             out,
-            "export function {values}Answer(\n  transport: EngineTransport,\n  held: {types}Held,\n  resolvers: {types}Resolvers,\n  options: AnswerOptions = {{}},\n): Promise<Answering<{output}, partial.{types}Need, {types}Group, {input}>> {{\n  return answerEntry<{input}, {output}, partial.{types}Need, {types}Group>(\n    (partialCase) => client.{values}Query(transport, partialCase),\n    held,\n    {values}Guide,\n    resolvers,\n    options,\n  );\n}}"
+            "export function {values}Answer(\n  transport: EngineTransport,\n  facts: {types}Facts,\n  resolvers: {types}Resolvers,\n  options: AnswerOptions = {{}},\n): Promise<Answering<{output}, partial.{types}Need, {types}Group, {input}>> {{\n  return answerEntry<{input}, {output}, partial.{types}Need, {types}Group>(\n    (partialCase) => client.{values}Query(transport, partialCase),\n    facts,\n    {values}Guide,\n    resolvers,\n    options,\n  );\n}}"
         );
     }
 
-    /// The held form of a value of `ty` at the guide path `path`: the partial
-    /// type with the keys of held facts required, or `None` when nothing at
-    /// or below `path` is held, so the partial type stands. `own` counts the
+    /// The required form of a value of `ty` at the guide path `path`: the partial
+    /// type with the keys of required facts present, or `None` when nothing at
+    /// or below `path` is required, so the partial type stands. `own` counts the
     /// value at `path` itself: not for an optional's inner value or a list's
-    /// elements, which share the path. A held fact is its plain model type:
+    /// elements, which share the path. A required fact is its plain model type:
     /// never `undefined` (unknown), and a sum type's tag never `Unknown`, so
     /// leaving it out does not compile; an optional may still be `None`. A
-    /// value with held facts only below it may be unknown; a record is
+    /// value with required facts only below it may be unknown; a record is
     /// required whole.
     #[allow(clippy::too_many_arguments)]
-    fn held_value(
+    fn required_value(
         &self,
         ty: &CalculationTypeRef,
         substitutions: &BTreeMap<String, CalculationTypeRef>,
@@ -2597,11 +2597,11 @@ impl<'a> Sdk<'a> {
         indent: &str,
     ) -> Option<String> {
         let ty = substitute_contract_type(ty, substitutions);
-        let held = guided
-            .held
+        let required = guided
+            .required
             .iter()
-            .any(|held| covers(path, held) && (own || held != path));
-        if !held {
+            .any(|required| covers(path, required) && (own || required != path));
+        if !required {
             return None;
         }
         let partial = |ty: &CalculationTypeRef, element: bool| {
@@ -2611,14 +2611,14 @@ impl<'a> Sdk<'a> {
                 self.ts_type(ty, Side::Partial)
             })
         };
-        // The value at `path` is one held fact (a scalar, an enum, a date, a
+        // The value at `path` is one required fact (a scalar, an enum, a date, a
         // collection as a whole, an optional's existence): never unknown.
-        let known = element || guided.held.contains(path);
+        let known = element || guided.required.contains(path);
         let unknown = if known { "" } else { " | undefined" };
         match &ty {
             CalculationTypeRef::Optional { item } => {
                 let inner = self
-                    .held_value(
+                    .required_value(
                         item,
                         substitutions,
                         path,
@@ -2632,8 +2632,8 @@ impl<'a> Sdk<'a> {
                 Some(format!("{inner} | None{unknown}"))
             }
             CalculationTypeRef::List { item } | CalculationTypeRef::Set { item } => {
-                let held_item = self
-                    .held_value(
+                let required_item = self
+                    .required_value(
                         item,
                         substitutions,
                         path,
@@ -2644,16 +2644,16 @@ impl<'a> Sdk<'a> {
                         indent,
                     )
                     .unwrap_or_else(|| partial(item, true));
-                let list = if held_item.contains(' ') && !held_item.starts_with('{') {
-                    format!("({held_item})[]")
+                let list = if required_item.contains(' ') && !required_item.starts_with('{') {
+                    format!("({required_item})[]")
                 } else {
-                    format!("{held_item}[]")
+                    format!("{required_item}[]")
                 };
                 Some(format!("{list}{unknown}"))
             }
             CalculationTypeRef::Map { value, .. } => {
-                let held_value = self
-                    .held_value(
+                let required_value = self
+                    .required_value(
                         value,
                         substitutions,
                         path,
@@ -2664,7 +2664,7 @@ impl<'a> Sdk<'a> {
                         indent,
                     )
                     .unwrap_or_else(|| partial(value, true));
-                Some(format!("{{ [key: string]: {held_value} }}{unknown}"))
+                Some(format!("{{ [key: string]: {required_value} }}{unknown}"))
             }
             CalculationTypeRef::Named { name, arguments } => {
                 let definition = self.definitions[name.as_str()];
@@ -2679,16 +2679,18 @@ impl<'a> Sdk<'a> {
                 active.push(key);
                 let local = definition_substitutions(definition, arguments);
                 let rendered = if let Shape::Record(variant) = shape {
-                    self.held_record(&variant.fields, &local, path, active, guided, indent, &[])
+                    self.required_record(&variant.fields, &local, path, active, guided, indent, &[])
                 } else {
                     let member_indent = format!("{indent}    ");
                     // A sum type's fact is its tag, at `path.$variant`: when it is
-                    // held the variant is always given, never `Unknown` or left out.
+                    // required the variant is always given, never `Unknown` or left out.
                     // Inside an optional, the optional's existence says whether
                     // the value may be left out.
-                    let tag_held = guided.held.contains(&joined_column_path(path, "$variant"));
+                    let tag_required = guided
+                        .required
+                        .contains(&joined_column_path(path, "$variant"));
                     let mut members = Vec::new();
-                    if !tag_held {
+                    if !tag_required {
                         members.push(format!("Unknown<{}>", self.ts_type(&ty, Side::Qualified)));
                     }
                     for variant in &definition.variants {
@@ -2709,7 +2711,7 @@ impl<'a> Sdk<'a> {
                         } else if variant.fields.is_empty() {
                             members.push(format!("{{ readonly {tag} }}"));
                         } else {
-                            members.push(self.held_record(
+                            members.push(self.required_record(
                                 &variant.fields,
                                 &local,
                                 &joined_column_path(path, &variant.name),
@@ -2720,7 +2722,7 @@ impl<'a> Sdk<'a> {
                             ));
                         }
                     }
-                    if !element && own && !tag_held {
+                    if !element && own && !tag_required {
                         members.push("undefined".to_string());
                     }
                     members
@@ -2739,12 +2741,12 @@ impl<'a> Sdk<'a> {
         }
     }
 
-    /// A record's (or an alternative's) fields in held form, after `leading`
-    /// lines such as the alternative's tag: a field with a held fact at or
+    /// A record's (or an alternative's) fields in required form, after `leading`
+    /// lines such as the alternative's tag: a field with a required fact at or
     /// below it is required, any other may be left out, with the groups
     /// that resolve it.
     #[allow(clippy::too_many_arguments)]
-    fn held_record(
+    fn required_record(
         &self,
         fields: &[CalculationField],
         substitutions: &BTreeMap<String, CalculationTypeRef>,
@@ -2763,7 +2765,7 @@ impl<'a> Sdk<'a> {
             let field_ty = substitute_contract_type(&field.ty, substitutions);
             let field_path = joined_column_path(path, &field.name);
             let property = property_name(&camel_case(&field.name));
-            match self.held_value(
+            match self.required_value(
                 &field_ty,
                 substitutions,
                 &field_path,
@@ -2773,10 +2775,10 @@ impl<'a> Sdk<'a> {
                 guided,
                 &inner,
             ) {
-                Some(held) => {
+                Some(required) => {
                     // A union's members each start on their own line.
-                    let space = if held.starts_with('\n') { "" } else { " " };
-                    let _ = writeln!(out, "{inner}readonly {property}:{space}{held};");
+                    let space = if required.starts_with('\n') { "" } else { " " };
+                    let _ = writeln!(out, "{inner}readonly {property}:{space}{required};");
                 }
                 None => {
                     let groups: Vec<&String> = guided
@@ -3794,7 +3796,7 @@ mod tests {
 "#;
 
     #[test]
-    fn a_guide_gives_the_held_case_resolvers_by_group_and_an_answer() {
+    fn a_guide_gives_the_required_case_resolvers_by_group_and_an_answer() {
         let files = generate_guided(GUIDED_MODEL, "tax", PERSON_GUIDE, &["Bookings", "Customer"])
             .expect("generate the guided SDK");
         let answer = &files["answer.ts"];
@@ -3803,11 +3805,11 @@ mod tests {
             "export type TaxGroup = \"Bookings\" | \"Customer\";",
             "export interface TaxGroupPatterns {\n  Bookings:\n    | \"events\"\n    | \"events[].$variant\"\n    | \"events[].amount\"\n    | \"events[].gross\";\n  Customer:\n    | \"events[].fee\"\n    | \"spouse\"\n    | \"spouse.cohabiting\"\n    | \"spouse.income\";\n}",
             "export type TaxGuidedNeed<G extends TaxGroup = TaxGroup> = G extends TaxGroup\n  ? GuidedNeed<Need<TaxGroupPatterns[G], never>, G>\n  : never;",
-            "export type TaxHeld = {\n  readonly year: number;\n  readonly income: number;\n  /** Resolved by `Customer`. */\n  readonly spouse?: partial.PartialSpouse | None | undefined;\n  /** Resolved by `Bookings` and `Customer`. */\n  readonly events?: partial.PartialEvent[] | undefined;\n};",
+            "export type TaxFacts = {\n  readonly year: number;\n  readonly income: number;\n  /** Resolved by `Customer`. */\n  readonly spouse?: partial.PartialSpouse | None | undefined;\n  /** Resolved by `Bookings` and `Customer`. */\n  readonly events?: partial.PartialEvent[] | undefined;\n};",
             "export type TaxResolvers = GroupResolvers<partial.PartialPerson, partial.TaxInputPatterns, TaxGroupPatterns, never>;",
             "export const taxGuide: Guide<TaxGroup> = {\n  name: \"person_guide\",\n  paths: {\n    \"events\": \"Bookings\",\n    \"events[].$variant\": \"Bookings\",\n    \"events[].Dividend.gross\": \"Bookings\",\n    \"events[].Trade.amount\": \"Bookings\",\n    \"events[].Trade.fee\": \"Customer\",\n    \"spouse\": \"Customer\",\n    \"spouse.cohabiting\": \"Customer\",\n    \"spouse.income\": \"Customer\",\n  },\n};",
             " * Answer `tax` (Tax) by the guide `person_guide`.",
-            "export function taxAnswer(\n  transport: EngineTransport,\n  held: TaxHeld,\n  resolvers: TaxResolvers,\n  options: AnswerOptions = {},\n): Promise<Answering<number, partial.TaxNeed, TaxGroup, partial.PartialPerson>> {\n  return answerEntry<partial.PartialPerson, number, partial.TaxNeed, TaxGroup>(\n    (partialCase) => client.taxQuery(transport, partialCase),",
+            "export function taxAnswer(\n  transport: EngineTransport,\n  facts: TaxFacts,\n  resolvers: TaxResolvers,\n  options: AnswerOptions = {},\n): Promise<Answering<number, partial.TaxNeed, TaxGroup, partial.PartialPerson>> {\n  return answerEntry<partial.PartialPerson, number, partial.TaxNeed, TaxGroup>(\n    (partialCase) => client.taxQuery(transport, partialCase),",
             "import type * as partial from \"./partial.js\";",
             "import * as client from \"./client.js\";",
         ] {
@@ -3820,7 +3822,7 @@ mod tests {
     }
 
     #[test]
-    fn a_held_list_requires_the_held_fields_of_its_elements() {
+    fn a_required_list_requires_the_required_fields_of_its_elements() {
         let guide = r#"# Origin = Customer
 = fees = AnswerGuide(fields = [EntryField(path = pathof(Person::events::Trade::fee), by = Customer)])
 "#;
@@ -3835,10 +3837,10 @@ mod tests {
     }
 
     #[test]
-    fn a_held_sum_type_tag_is_always_given() {
+    fn a_required_sum_type_tag_is_always_given() {
         let model = "# Shape = Circle(r: Int) | Square(side: Int)\n# Drawing(main: Shape, extra: Shape)\n@ entry\n> area(d: Drawing) -> Int { 0 }\n";
-        let held_tag = "# G = A\n= g = AnswerGuide(fields = [\n    EntryField(path = pathof(Drawing::main::Circle::r), by = A),\n    EntryField(path = pathof(Drawing::extra), by = A)\n])\n";
-        let files = generate_guided(model, "area", held_tag, &["A"]).expect("generate");
+        let required_tag = "# G = A\n= g = AnswerGuide(fields = [\n    EntryField(path = pathof(Drawing::main::Circle::r), by = A),\n    EntryField(path = pathof(Drawing::extra), by = A)\n])\n";
+        let files = generate_guided(model, "area", required_tag, &["A"]).expect("generate");
         let answer = &files["answer.ts"];
         assert_contains(answer, "  readonly main:\n    | {\n        readonly $variant: \"Circle\";\n        /** Resolved by `A`. */\n        readonly r?: number | undefined;\n      }\n    | {\n        readonly $variant: \"Square\";\n        readonly side: number;\n      };");
         assert_contains(

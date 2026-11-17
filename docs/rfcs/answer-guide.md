@@ -19,12 +19,12 @@ resolvers. **`answer`** uses it:
 
 There are two kinds of path:
 
-- **Held.** Every path the guide does not name. The integrator builds the fact
+- **Required.** Every path the guide does not name. The integrator builds the fact
   into the case, and a need there is a defect in its data.
 - **Resolved.** Every path the guide names. The named group's resolver
   answers it, once per round, with all of that group's needs.
 
-The generated TypeScript requires exactly the held facts and one resolver per
+The generated TypeScript requires exactly the required facts and one resolver per
 group. A new model field therefore fails the backend's build; it does not
 reach a customer as a silent gap.
 
@@ -35,7 +35,7 @@ and `interview` becomes `answer`.
 
 The integrator is never exposed to more than it alone can define:
 
-1. which of its data is which fact (the held facts);
+1. which of its data is which fact (the required facts);
 2. the answers to the needs it can fill (one resolver per group).
 
 Everything generic belongs to a Futuruna runtime library, and everything
@@ -45,8 +45,8 @@ derivable from the model is generated:
 |---|---|
 | model | what a fact is and how a person is asked for it (label, question, help, unit, sources, key); which entry provides a field; how an amount finer than its unit is treated |
 | integrator | its groups, which paths each group resolves, the resolvers |
-| generated | the need-able paths, each need's group, the held case type, resolver types, unit converters, wire codecs |
-| runtime | `undefined` → unknown, the round loop, dispatch by group, writing answers, the held-fact check, running another entry, element keys |
+| generated | the need-able paths, each need's group, the facts type, resolver types, unit converters, wire codecs |
+| runtime | `undefined` → unknown, the round loop, dispatch by group, writing answers, the required-fact check, running another entry, element keys |
 
 ## Problem
 
@@ -169,8 +169,8 @@ Children`, moved to the caller's side:
 ])
 ```
 
-- **Held by default.** A held fact must be present: a need there is a defect
-  in the integrator's data. Held facts have no resolver, so a group name for
+- **Required by default.** A required fact must be present: a need there is a defect
+  in the integrator's data. Required facts have no resolver, so a group name for
   them would carry nothing.
 - **A named path may be missing.** The case builder still fills it whenever
   it has it, and the group's resolver is asked only for what is missing. This
@@ -199,7 +199,7 @@ Children`, moved to the caller's side:
   - the whole input: `pathof(T)` (new).
 
   Indices and keys are errors, because who answers does not depend on which
-  element. Where it seems to, the fact is resolved, and the held data fills
+  element. Where it seems to, the fact is resolved, and the required data fills
   the elements it has.
 
 **A group nobody can fill is one line.** Some groups can only leave their needs
@@ -213,7 +213,7 @@ const resolvers: AktiesparekontoYearResolvers = { Snapshots: leaveOpen, GivingIn
 
 This is the boring option, and the right one. Making such keys optional
 would bring back today's silent fall-through (calculations.md:1397-1398).
-Leaving the paths unnamed would make them held, so a missing snapshot would
+Leaving the paths unnamed would make them required, so a missing snapshot would
 become a data error instead of an open need. A required `leaveOpen` puts the
 decision "nobody can fill this yet" in one visible line. When a source
 appears, that line is the one that changes.
@@ -251,7 +251,7 @@ missing*, and lines 383-386 on left-out records):
 
 This set, *T(E)* for an entry *E*, is generated. In a recursive input type it
 is cut where a type repeats, and the path above the cut must be named. Under a
-guide, the held paths are *T(E)* minus the named subtrees. The generated held
+guide, the required paths are *T(E)* minus the named subtrees. The generated required
 type requires exactly those.
 
 ### `answer`
@@ -278,11 +278,11 @@ Each round:
 1. Query the entry on the case, as `query e(case)` does, with the strict oracle
    and the completion test under `runa test`.
 2. Stop with `Answered(result)` on `Complete`.
-3. Stop with an error on a need at a held path:
+3. Stop with an error on a need at a required path:
 
    ```text
    -- proposed
-   tests/answers.scenario.runa:20: `answer(tax_report, …)`, round 1: `income_year` is held (the AnswerGuide `endavu_tax_report` names no group for it), but the case leaves it unknown
+   tests/answers.scenario.runa:20: `answer(tax_report, …)`, round 1: `income_year` is required (the AnswerGuide `endavu_tax_report` names no group for it), but the case leaves it unknown
    ```
 
 4. Call `resolve(group, needs, case)` once per group, with all of the round's
@@ -353,7 +353,7 @@ case the input holds a result, and the law says which entry gives it
 
 That statement stays the law's. Whether the resolver runs `share_income`,
 reads a stored figure or asks someone is its business. The runtime gives it a
-helper for the first: `runEntry(need, held, resolvers)` in TypeScript, and
+helper for the first: `runEntry(need, facts, resolvers)` in TypeScript, and
 `answer` on the providing entry in Futuruna. The other entry's needs belong to
 that second `answer`, not to the caller. The `(entry, subject)` stack still
 catches entries that need each other (calculations.md:1403-1405).
@@ -378,18 +378,18 @@ catches entries that need each other (calculations.md:1403-1405).
 // proposed: generated by runa sdk ts … --guides guides/endavu.guide.runa --guide aktiesparekonto_year=endavu_ask_year
 export type AktiesparekontoYearGroup = "Snapshots" | "GivingInstitute" | "Bookings" | "PreviousYear" | "Backoffice" | "Customer";
 /** Every path the guide does not name is required; a resolved fact may be given when known. */
-export type AktiesparekontoYearHeld = { readonly incomeYear: number; readonly account: { readonly accountId: AccountId; … }; … };
+export type AktiesparekontoYearFacts = { readonly incomeYear: number; readonly account: { readonly accountId: AccountId; … }; … };
 export type AktiesparekontoYearGuidedNeed = AktiesparekontoYearNeed & { readonly by: AktiesparekontoYearGroup };
 export type AktiesparekontoYearResolvers = {
   readonly [G in AktiesparekontoYearGroup]: Resolver<NeedsOf<AktiesparekontoYearGuidedNeed, G>, AktiesparekontoYearInputPatterns>;
 };
-export function aktiesparekontoYearAnswer(transport: EngineTransport, held: AktiesparekontoYearHeld,
+export function aktiesparekontoYearAnswer(transport: EngineTransport, facts: AktiesparekontoYearFacts,
   resolvers: AktiesparekontoYearResolvers): Promise<Answering<AskYearOutcome, AktiesparekontoYearGuidedNeed, AktiesparekontoYearGroup>>;
 ```
 
-- **The held type is the backend's checklist.** `undefined` stands for not
-  known, as today (calculations.md:1293-1296). A held fact left out does not
-  compile, including one the model has just added. `HeldMissingError` covers
+- **The facts type is the backend's checklist.** `undefined` stands for not
+  known, as today (calculations.md:1293-1296). A required fact left out does not
+  compile, including one the model has just added. `MissingFactError` covers
   what the type cannot see.
 - **Resolvers are keyed by group, and every key is required.** Each one keeps
   today's batched shape (sdk_ts_runtime.ts:1589-1592). It answers each need
@@ -557,10 +557,10 @@ once, and every integrator has it.
 
 Counted with the same script:
 
-| Entry and guide | Need-able paths | Resolved | Held |
+| Entry and guide | Need-able paths | Resolved | Required |
 |---|---|---|---|
 | `tax_report`, today | 107 | 26 asked through `CustomerQuestions` | 81, unstated |
-| `tax_report`, `endavu_tax_report` (24 items) | 107 | 26 `Customer`, 6 `PriceFeed` | 75, required by the held type |
+| `tax_report`, `endavu_tax_report` (24 items) | 107 | 26 `Customer`, 6 `PriceFeed` | 75, required by the facts type |
 | `aktiesparekonto_year`, `endavu_ask_year` (11 items) | 81 | 68, in six groups | 13 |
 
 ### The tests
@@ -593,7 +593,7 @@ generated from.
 Three things in the backend change:
 
 - **`FACT_OF_INPUT` goes** (`aktiesparekontoYearCase.ts:214-296`). The
-  generated held type now fails the build on a new input. The need's `by` and
+  generated facts type now fails the build on a new input. The need's `by` and
   label name the need.
 - **PROOF.md:75-82 becomes `endavu_ask_year`.**
 - **The hand-written unit code** (lines 35-100) goes once the units declare
@@ -604,14 +604,14 @@ What remains is what the backend alone can define:
 
 ```ts
 // proposed
-const held: AktiesparekontoYearHeld = {
+const facts: AktiesparekontoYearFacts = {
   incomeYear: facts.incomeYear,
   owner: { fullyTaxLiableInDenmark: facts.ownerFullyTaxLiableInDenmark },  // resolved by Customer: may be undefined
   account: { accountId: accountId(facts.accountId.value),
              openingCashMicroDkk: facts.openingCash && microDkk.fromDecimal(inDkk(facts.openingCash, "opening cash")), … },
   …
 };
-const answering = await engine.aktiesparekontoYearAnswer(held, {
+const answering = await engine.aktiesparekontoYearAnswer(facts, {
   Snapshots: leaveOpen, GivingInstitute: leaveOpen, Bookings: leaveOpen,
   PreviousYear: leaveOpen, Backoffice: leaveOpen, Customer: leaveOpen,
 });
@@ -640,7 +640,7 @@ The rule: where a name says "calculation" for the entry concept, it says
 | `CustomerQuestion(s)`, `InterviewGuide` (tax-service) | `@ field(label, question, help, sources)` on declarations; groups in an `AnswerGuide` | `src/sources.runa:26-32` |
 | `CalculationField`, `CalculationGuide` (tax-service) | `@ field(at = …)` (deferred past 0.6: meanwhile an `@ meta` record naming the field by `pathof`); `EntryField(path, by)` is the guide's item | `src/sources.runa:20-21` |
 | `CalculationField`, `CalculationMeta`, `CalculationMetaRole` (docs examples) | `@ field(at = …)` (deferred past 0.6); `EntryMeta`, `EntryMetaRole` where a record example stays | calculations.md:51-53, 110-147 |
-| `resolve()`, pattern-keyed `Resolvers` | `<entry>Answer(transport, held, resolvers)`, resolvers by group | `sdk_ts_runtime.ts:1611`, `1692` |
+| `resolve()`, pattern-keyed `Resolvers` | `<entry>Answer(transport, facts, resolvers)`, resolvers by group | `sdk_ts_runtime.ts:1611`, `1692` |
 | replies `answer(need, value)`, `ask`; `Resolution` (`Complete`/`Questions`) | `given(need, value)`, `open`; `Answering` (`Answered`/`Unanswered`) | `sdk_ts_runtime.ts:1514-1521`, `1631` |
 | `PreparedCalculation` | `PreparedEntry` | `src/calculate.rs:7131` |
 | CLI help and diagnostics saying `@ calculate` or "calculation entry" | `@ entry`, "entry" | `src/bin/runa.rs:729`, `734`, `768`, `2352`, `2359`; `src/calculate/sdk_ts.rs:286`, `295`; `src/calculate.rs:2207`, `2466`, `3091`; `src/query.rs:608`, `981` |
@@ -677,12 +677,12 @@ These stay, because they name the computation: `runa call`, `Calculated<R>`,
   The schema hashes change for the moved metadata and for the scales.
 - **Backend proof:**
   - regenerate the SDK with the guide;
-  - build `AktiesparekontoYearHeld` with the generated converters;
+  - build `AktiesparekontoYearFacts` with the generated converters;
   - delete `FACT_OF_INPUT`.
 
 ## Alternatives rejected
 
-- **Four origin kinds** (held, fetched, asked, another entry). What a
+- **Four origin kinds** (required, fetched, asked, another entry). What a
   resolver does inside is the integrator's business, and declaring it gives
   Futuruna nothing to check or use. `Unanswered.open`, keyed by group, already
   keeps the customer apart from a source.
@@ -693,16 +693,16 @@ These stay, because they name the computation: `runa call`, `Calculated<R>`,
   versioned with the model it defines. The app translates or restyles what
   the need carries.
 - **Origins in the law, or a `DataSource` enum on `@ field`.** The same fact
-  is held by one integrator and asked by another (PROOF.md:77). A law module
+  is required by one integrator and asked by another (PROOF.md:77). A law module
   that names `Ledger` names one backend.
 - **The guide declared on the entry** (`@ guide(g)`, or `@ meta(g) for e`).
   Either the law names its caller, or which guide applies depends on imports.
   Two guides for one entry (a backend's and `whole_case_guide()`) could not
   coexist.
-- **A group name for held paths.** It would carry nothing. Leaving held paths
-  unnamed makes a new field held, and required, by default.
+- **A group name for required paths.** It would carry nothing. Leaving required paths
+  unnamed makes a new field required by default.
 - **Groups by key or data** (`opening_positions[kind = ExternalDepot]`). These
-  cannot be checked. The fact is resolved, and the held data fills the
+  cannot be checked. The fact is resolved, and the required data fills the
   elements it has.
 - **One-need-at-a-time resolvers.** See commit `bec731b`: a backend that sees
   18 needs one at a time cannot fetch them in one query.
@@ -715,9 +715,9 @@ These stay, because they name the computation: `runa call`, `Calculated<R>`,
   it.
 - **`@ needs` as the annotation's name.** An entry is also called with complete
   cases, and `Needs` is already a variant name.
-- **A completeness audit with a recorded ceiling.** With held as the default,
-  coverage is complete by construction. What can go wrong is a held fact left
-  out, which is a compile error in the held type and a runtime error in
+- **A completeness audit with a recorded ceiling.** With required as the default,
+  coverage is complete by construction. What can go wrong is a required fact left
+  out, which is a compile error in the facts type and a runtime error in
   `answer`. Neither needs a search.
 
 ## Open questions
@@ -732,7 +732,7 @@ These stay, because they name the computation: `runa call`, `Calculated<R>`,
   it for computed figures (ASKL-ØRE-TRUNCATION). For a unit converter, it is
   open whether the unit or the field declares it, and with what syntax.
 - **A list from two sources.** `opening_positions` holds Endavu's and the
-  customer's positions. The list is held and the customer's fields are
+  customer's positions. The list is required and the customer's fields are
   resolved. Should a guide be able to say "elements added by the customer"?
 - **`later`.** Should a round's `later` facts go to their groups in the same
   round?

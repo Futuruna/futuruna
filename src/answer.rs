@@ -1,7 +1,7 @@
 //! Answering an entry's needs by a guide (`docs/rfcs/answer-guide.md`).
 //!
 //! An `AnswerGuide` maps input paths to the integrator's groups of
-//! resolvers; every path it does not name is held, so a need there is a
+//! resolvers; every path it does not name is required, so a need there is a
 //! defect in the integrator's data. `answer(entry, case, guide, resolve)`
 //! queries the entry round by round, as `query entry(case)` does, calls each
 //! group's resolver once per round with all of that group's needs, and writes
@@ -155,7 +155,7 @@ pub struct Guide {
 
 impl Guide {
     /// The item that resolves `path`, a need's path or an input path: the
-    /// most specific item at or above it. `None` when the path is held.
+    /// most specific item at or above it. `None` when the path is required.
     pub fn item_for(&self, path: &str) -> Option<&GuideItem> {
         item_for(&self.items, path)
     }
@@ -1005,7 +1005,7 @@ impl Interpreter {
 
     /// `__answer_round(case, needs, guide, resolve, site, round)`: one round
     /// of `answer`. Each need goes to the group of the guide's most specific
-    /// item at or above its path; a need at a held path is an error. Each
+    /// item at or above its path; a need at a required path is an error. Each
     /// group's resolver is called once, with all of its needs and the
     /// round's case, and its answers are written with `fill`.
     pub(crate) fn eval_answer_round(
@@ -1065,7 +1065,7 @@ impl Interpreter {
                     .position(|other| std::ptr::eq(other, item))
             }) else {
                 return self.panic_or_ground_fail(format!(
-                    "{prefix}: `{path}` is held (the AnswerGuide `{guide_name}` names no group for it), but the case leaves it unknown"
+                    "{prefix}: `{path}` is required (the AnswerGuide `{guide_name}` names no group for it), but the case leaves it unknown"
                 ));
             };
             let group = &items[index].1;

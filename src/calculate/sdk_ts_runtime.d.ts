@@ -638,14 +638,14 @@ export declare function given<P extends string, V>(need: {
 export declare function leaveOpen(): () => Open;
 /** What a resolver is given besides its needs. */
 export interface ResolverContext<C> {
-    /** The case sent in this round: the held facts and every answer written so far. */
+    /** The case sent in this round: the required facts and every answer written so far. */
     readonly partialCase: C;
     /**
      * Answer another entry for `need`, as the entry `need.entry` running for
      * `need.subject`: an entry need names them, a fact need is given them
      * (`{ ...need, entry: "share_income", subject: "taxpayer.spouse" }`). `run`
      * answers that entry, passing `options` on, as
-     * `(options) => shareIncomeAnswer(transport, held, resolvers, options)`.
+     * `(options) => shareIncomeAnswer(transport, facts, resolvers, options)`.
      * Its result is written at the need's path when it is `Answered`; when it is
      * `Unanswered` the need waits in `pending`. An entry already being answered
      * for the same subject is a cycle and throws {@link AnswerCycleError}.
@@ -708,7 +708,7 @@ export type AnyResolver<C> = (needs: never, context: ResolverContext<C>) => unkn
 /**
  * A guide as the SDK generates it: its name, and the group of every input
  * path pattern it resolves, each alternative of a sum type named before its
- * fields (`events[].Trade.amountOre`). Every other path is held.
+ * fields (`events[].Trade.amountOre`). Every other path is required.
  */
 export type Guide<G extends string = string> = {
     readonly name: string;
@@ -732,7 +732,7 @@ export type PendingEntry = {
  * Where answering an entry ended: `Answered`, or `Unanswered` when a round
  * answered nothing, with the needs left open keyed by group: `open.Customer`
  * holds questions, `open.Snapshots` facts a source did not have. The partial
- * case holds the held facts and every answer written.
+ * case holds the required facts and every answer written.
  */
 export type Answering<R, N extends Need = Need, G extends string = string, C = unknown> = {
     readonly $variant: "Answered";
@@ -777,15 +777,15 @@ export declare class AnswerCycleError extends AnswerError {
     constructor(frames: readonly EntryFrame[]);
 }
 /**
- * Needs at held paths: the guide names no group for them, so the held case
- * should have had them. A defect in the integrator's data that the held type
- * cannot see: a held fact given as `undefined`, or a list's element held but
+ * Needs at required paths: the guide names no group for them, so the required facts
+ * should have had them. A defect in the integrator's data that the facts type
+ * cannot see: a required fact given as `undefined`, or a list's element required but
  * left out of an element a resolver gave.
  */
-export declare class HeldMissingError extends AnswerError {
+export declare class MissingFactError extends AnswerError {
     /** The guide's name. */
     readonly guide: string;
-    /** The round's needs at held paths, in the engine's order. */
+    /** The round's needs at required paths, in the engine's order. */
     readonly needs: readonly Need[];
     constructor(guide: string, round: number, needs: readonly Need[]);
 }
@@ -801,21 +801,21 @@ export declare function guidePath(partialCase: unknown, need: {
 /**
  * The group that resolves a path of {@link guidePath}: the group of the path,
  * or of the nearest path above it the guide resolves (below a recursive
- * type's cut); `undefined` when the path is held.
+ * type's cut); `undefined` when the path is required.
  */
 export declare function guideGroup<G extends string>(guide: Guide<G>, path: string): G | undefined;
 /**
- * Answer an entry by a guide: query it on the held case, give each need the
+ * Answer an entry by a guide: query it on the required facts, give each need the
  * group the guide names for its path (`by`), call each group's resolver once
  * per round with all of that group's needs, the groups at the same time,
  * write the given values with {@link setAt}, and query again. Ends
- * `Answered`, or `Unanswered` when a round answers nothing. Needs at held
- * paths throw {@link HeldMissingError}; a reply for another need's path, or a
+ * `Answered`, or `Unanswered` when a round answers nothing. Needs at required
+ * paths throw {@link MissingFactError}; a reply for another need's path, or a
  * path still needed after it was given, throws {@link AnswerError}; an entry
  * that needs itself for the same subject throws {@link AnswerCycleError}. The
  * SDK's `<entry>Answer` calls it.
  */
-export declare function answerEntry<C, R, N extends Need, G extends string>(query: Query<C, R, N>, held: C, guide: Guide<G>, resolvers: {
+export declare function answerEntry<C, R, N extends Need, G extends string>(query: Query<C, R, N>, facts: C, guide: Guide<G>, resolvers: {
     readonly [K in G]: AnyResolver<C>;
 }, options?: AnswerOptions): Promise<Answering<R, N, G, C>>;
 export {};
