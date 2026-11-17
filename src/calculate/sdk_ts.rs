@@ -1969,12 +1969,49 @@ impl<'a> Sdk<'a> {
             );
             return;
         }
+        // Each source once: a law's sources repeat across many patterns.
+        let mut sources: Vec<String> = Vec::new();
+        let cited: Vec<Vec<usize>> = needs
+            .iter()
+            .map(|(_, need)| {
+                need.sources
+                    .iter()
+                    .map(|source| {
+                        let json =
+                            serde_json::to_string(source).expect("a source reference serializes");
+                        sources
+                            .iter()
+                            .position(|known| *known == json)
+                            .unwrap_or_else(|| {
+                                sources.push(json);
+                                sources.len() - 1
+                            })
+                    })
+                    .collect()
+            })
+            .collect();
+        let source_name = |index: usize| format!("{}GuideSource{index}", entry.value_name);
+        if !sources.is_empty() {
+            let _ = writeln!(
+                out,
+                "// The sources the guide of `{}` cites, each once.",
+                contract.entry
+            );
+            for (index, source) in sources.iter().enumerate() {
+                let _ = writeln!(
+                    out,
+                    "const {}: SourceReference = {source};",
+                    source_name(index)
+                );
+            }
+            out.push('\n');
+        }
         let _ = writeln!(
             out,
             "export const {}Guide: AnswerGuide<{types}Need[\"pattern\"]> = {{",
             entry.value_name
         );
-        for (pattern, need) in needs {
+        for ((pattern, need), cited) in needs.into_iter().zip(cited) {
             let _ = writeln!(out, "  {}: {{", string_literal(&pattern));
             let kind = match need.kind {
                 CalculationNeedKind::Fact => "fact",
@@ -2007,10 +2044,9 @@ impl<'a> Sdk<'a> {
                 .collect::<Vec<_>>()
                 .join(", ");
             let _ = writeln!(out, "    keys: [{keys}],");
-            let sources = need
-                .sources
+            let sources = cited
                 .iter()
-                .map(|source| serde_json::to_string(source).expect("a source reference serializes"))
+                .map(|index| source_name(*index))
                 .collect::<Vec<_>>()
                 .join(", ");
             let _ = writeln!(out, "    sources: [{sources}],");
