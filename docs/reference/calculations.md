@@ -5,7 +5,7 @@ feature_stage_surfaces:
   - calculation-field-declarations
   - calculation-needs
   - needs-in-the-language
-  - answer-guide
+  - answer
   - typescript-sdk
   - annotations
 ---
@@ -891,7 +891,7 @@ round. Queries run in the interpreter, as `runa call --partial` does.
 
 = with_spouse = Household(income = 500, married = True, spouse = Some(Spouse(income = 50, cohabiting = True)))
 = first = query household_tax(Household(income = 500, married = True, spouse = unknown))
-= asked = answer(household_tax, Household(income = 500, married = True, spouse = unknown), whole_case_guide(), from_case(with_spouse))
+= asked = answer(household_tax, Household(income = 500, married = True, spouse = unknown), from_case(with_spouse))
 
 @ print(match first { | Needs -> map(first.needs, |n| n.path) == [pathof(Household::spouse)] | Complete -> False }) -- true
 @ print(map(asked.rounds, |r| r.paths) == [[pathof(Household::spouse)], [pathof(Household::spouse::cohabiting), pathof(Household::spouse::income)]]) -- true
@@ -955,7 +955,7 @@ file it stands in or of a file it imports, and a name two files declare is a
 check error. These types and `fill` join the prelude of a program that asks
 a query, places an `unknown`, or calls `fill`; the types of
 [Answering an entry](#answering-an-entry) join it as well when the program
-builds an `AnswerGuide` or calls `answer`.
+calls `answer` or `answer_guide`.
 
 **`Path(i)`** is a path into a value of type `i`. `pathof(T::...)` is a
 `Path(T)` where a path is expected and a `String` elsewhere; it takes list
@@ -985,152 +985,122 @@ asks_income.runa:7: query tax_of, round 1: the propagated result is Complete, bu
 ```
 
 `runa build` and `runa run` refuse a program with a `query`, an `unknown` or
-an `AnswerGuide`, naming each; `runa check` checks its frontend and reports
-`interpreted (query)` (`interpreted (guide)` for a file of guides alone), and
+an `answer`, naming each; `runa check` checks its frontend and reports
+`interpreted (query)`, and
 `runa test --run` runs such a test in the interpreter and marks it
 `interpreted (query)`. Specified in
 [Needs in the language](../rfcs/needs-in-the-language.md).
 
 ## Answering an entry
 
-Experimental. A partial case says which facts are missing, not who answers
-them. That depends on the integrator, so it is not the law's to say. The
-integrator says it in an **`AnswerGuide`**: input paths, each mapped to one of
-its own groups of resolvers. `answer` uses a guide in Futuruna, and `runa call
---guide` and the TypeScript SDK use it outside.
+Experimental. A partial case says which facts are missing; Futuruna knows the
+law, the facts it reads (types, labels, questions, help, sources) and what is
+missing (needs with what they wait on). Which source answers which need is
+the integrator's own code, routed on that metadata. `answer` asks an entry
+round by round and hands each round's needs to one `resolve` function.
 
 ```runa
--- household.guide.runa
+-- household.answer.runa: the law, household.entry.runa, declares
+-- Spouse(income, cohabiting), Child(name, age),
+-- Household(income, married, spouse: Option(Spouse), children: List(Child)),
+-- Result(tax) and the entry household_tax
 @ import ./household.entry
-
-# Origin = Registry | Customer
-
-= household_guide = AnswerGuide(fields = [
-    EntryField(path = pathof(Household::spouse), by = Customer),
-    EntryField(path = pathof(Household::children::age), by = Registry)
-])
 
 = complete = Household(income = 500, married = True, spouse = Some(Spouse(income = 50, cohabiting = True)), children = [Child(name = "Ada", age = 4)])
 = started: Household = Household(income = 500, married = True, spouse = unknown, children = [Child(name = "Ada", age = unknown)])
-= answered = answer(household_tax, started, household_guide, from_case(complete))
+= answered = answer(household_tax, started, from_case(complete))
+
+> nobody(needs: List(Need(Household)), case: Household) -> Answers(Household) {
+    Answers(from = case, given = [])
+}
+= stuck = answer(household_tax, started, nobody)
 ```
 
-The prelude of a program that builds a guide or calls `answer`:
+Here `answered.outcome` is `Answered(result = household_tax(complete))`, and
+`stuck.outcome` is `Unanswered` with the first round's needs (the spouse and
+Ada's age) open. The prelude of a program that calls `answer`:
 
 ```text
-AnswerGuide(i, g) = AnswerGuide(fields: List(EntryField(i, g)))
-EntryField(i, g)  = EntryField(path: Path(i), by: g)
-Answers(i)        = Answers(from: i, paths: List(Path(i)))
-Asking(i, g)      = Asking(group: g, paths: List(Path(i)))
-Round(i, g)       = Round(paths: List(Path(i)), groups: List(Asking(i, g)))
-Outcome(o, i, g)  = Answered(result: o) | Unanswered(open: List(Asking(i, g)), case: i)
-Answering(o, i, g) = Answering(rounds: List(Round(i, g)), outcome: Outcome(o, i, g))
-WholeCase         = WholeCase
+Answers(i)        = Answers(from: i, given: List(Path(i)))
+Round(i)          = Round(paths: List(Path(i)), given: List(Path(i)))
+Outcome(o, i)     = Answered(result: o) | Unanswered(open: List(Need(i)), case: i)
+Answering(o, i)   = Answering(rounds: List(Round(i)), outcome: Outcome(o, i))
 ```
 
-`i` is the entry's input type and `g` the integrator's group type, a sum of
-constructors without fields. A group is written as any constructor is: bare
-(`Customer`) where that is unambiguous, which includes a guide bound with its
-type (`= g: AnswerGuide(Household, Origin) = ...`), and `Origin.Customer`
-where two group types in scope declare `Customer`. On the wire (`"by"`) and
-in TypeScript a group is its bare name: a guide has one group type.
-
-**Required and named.** A path the guide does not name is **required**: the
-integrator builds the fact into every case, and a need there is a defect in
-its data. A path the guide names may be missing: the case still carries it
-whenever the integrator has it, and the group is asked only for what is
-missing. A named path covers every path below it, unless a more specific item
-names one below; a need belongs to the most specific item at or above its
-path. The forms of a path, each covering what is below it, are a field
-(`pathof(TaxCase::taxpayer::spouse)`), a list with its elements' fields
-(`pathof(TaxCase::events)`), an element field
-(`pathof(TaxCase::opening_positions::isin)`), an alternative's field
-(`pathof(TaxCase::events::Trade::amount_øre)`), a tag
-(`pathof(TaxCase::events::$variant)`) and the whole input (`pathof(TaxCase)`).
-A need's list indices are ignored when it is matched with an item, and the
-alternative it lies in is named.
-
-**`answer(e, case, guide, resolve)`** answers the `@ entry` `e` about `case`,
-round by round:
+**`answer(e, case, resolve)`** answers the `@ entry` `e` about `case`, round
+by round:
 
 1. it asks `query e(case)`, with the strict-mode oracle and the completion
    test under `runa test`;
 2. on `Complete` it ends with `Answered(result)`;
-3. a need at a required path stops the program with an error naming the path,
-   the guide and the round;
-4. it calls `resolve(group, needs, case)` once for each group that has needs
-   this round, with all of that group's needs (**batching**). The resolver
-   returns `Answers(from, paths)`: the paths it answers and a case holding
-   their values. An answer for a path the group was not asked is an error;
-5. it writes the answers into the case with `fill` and asks again;
-6. a round that answers nothing ends with `Unanswered(open, case)`: what each
-   group left open, and the case as far as it got.
+3. it calls `resolve(needs, case)` once, with all of the round's needs. It
+   returns `Answers(from, given)`: the paths it answers and a case holding
+   their values. Answering a path that was not asked is an error;
+4. it writes the answers into the case with `fill` and asks again;
+5. a round that answers nothing ends with `Unanswered(open, case)`: that
+   round's needs, and the case as far as it got.
 
-`rounds` records, for each round, the needs' paths and what each group was
-asked, so a test states "the registry is asked for the ages, then the
-customer for the spouse". What a resolver does inside (read a database, ask a
-person, run another entry) is the integrator's business; `answer` only sees
-which paths it answered.
+`rounds` records, for each round, the paths asked and the paths answered, so
+a test states "the ages and the spouse are asked, then the spouse's fields".
+What `resolve` does inside (read a database, ask a person, run another entry)
+is the integrator's business; `answer` only sees which paths it answered.
 
-**`from_case(complete)`** is a resolver that answers every need from
-`complete`, and **`whole_case_guide()`** a guide whose one group, `WholeCase`,
-resolves the whole input. Together they answer a case from a complete one,
-round by round:
-`answer(e, partial, whole_case_guide(), from_case(complete))`.
-`runa fmt --migrate` rewrites a 0.5 `interview(|c| query e(c), partial,
-complete)` to that form, with its `.rounds` and `.result == v`.
+**`from_case(complete)`** is the test oracle: a resolve that answers every
+need from `complete`, so `answer(e, partial, from_case(complete))` answers a
+case from a complete one, round by round. `runa fmt --migrate` rewrites a 0.5
+`interview(|c| query e(c), partial, complete)` to that form, with its
+`.rounds` and `.result == v`.
 
-**Where a guide lives.** A guide is a top-level binding of a ground value,
-`AnswerGuide(fields = [EntryField(path = pathof(...), by = Group), ...])`, so
-that `runa check`, `runa call --guide` and `runa sdk ts --guide` read its
-paths and groups without running the program. It is the integrator's, not the
-law's: a guide in a file that declares an `@ entry`, or in a file such a file
-imports, is a check error, and so is `answer` reached from an `@ entry`. A
-guide file is called `*.guide.runa` by convention. The guide does not name its
-entry; one guide serves every entry with its input type.
-
-**Checks.** `runa check` reports:
-
-- a guide that is not a ground `AnswerGuide(fields = [...])`, or that names
-  no path;
-- a path with a list index (who answers does not depend on which element),
-  and paths into two input types;
-- the same path named twice;
-- a `by` that is not a constructor without fields, groups of two types, a
-  group type that is not a plain sum of constructors, and a group constructor
-  with no path (its resolver would resolve nothing);
-- as a warning, an item every one of whose need-able paths is named more
-  specifically (it resolves nothing);
-- `answer` of a name that is not an `@ entry`, a guide argument that is
-  neither a guide binding nor `whole_case_guide()`, and a guide whose paths
-  are into another type than the entry's input.
+`answer` is the integrator's, not the law's: `runa check` reports `answer` of
+a name that is not an `@ entry`, and `answer` reached from an `@ entry`.
 
 **Composition and running another entry** are different things. An entry
 that calls another entry makes an ordinary call: under a query the callee's
-needs are the caller's, at the caller's paths, and the guide treats them like
-any other path. Running another entry separately is something a resolver may
-do, for a field whose metadata names the entry that provides it
-(`@ field(entry = refof(share_income), subject = ...)`): the resolver may run
-`answer` on that entry with a guide of its own, read a stored figure, or ask
+needs are the caller's, at the caller's paths. Running another entry
+separately is something `resolve` may do, for a field whose metadata names
+the entry that provides it (`@ field(entry = refof(share_income), subject =
+...)`): it may run `answer` on that entry, read a stored figure, or ask
 someone. That second `answer`'s needs are its own, not the caller's.
 
-**`runa call --guides FILE --guide NAME`** gives each need of a partial call
-(`--partial`, `--partial=strict` or `--partial=check`), and each `later`
-need, the group of the guide's most specific item for its path:
+### The generated AnswerGuide
 
-```sh
-runa call household.entry.runa --partial --input partial.json \
-  --guides household.guide.runa --guide household_guide
+Every `@ entry` generates its **AnswerGuide** from the law: one item for every
+input path pattern at which a need can arise, with its type and the law's
+metadata (label, question, help, unit, key fields, sources; for an entry need,
+the entry and subject). It says nothing about the integrator: no sources of
+its own, no groups. The integrator writes only the mapping of its data into a
+case and `resolve`; which need goes to the customer, another bank or the back
+office is its own code, and the guide is what it reads to write it.
+
+**`answer_guide(entry)`** returns the guide of an `@ entry`, in the
+interpreter only, like `query`:
+
+```text
+AnswerGuide = AnswerGuide(entry: String, needs: List(GuideNeed))
+GuideNeed   = GuideNeed(pattern: String, kind: NeedKind, value_type: String,
+                        label: Option(String), question: Option(String),
+                        help: Option(String), unit: Option(String),
+                        keys: List(String), sources: List(NeedSource),
+                        entry: Option(ProgramReference), subject: Option(String))
 ```
 
-```json
-{ "kind": "fact", "path": "children[0].age", "by": "Registry", "waiting": [ "..." ] }
+A pattern is spelled as a need's path, with `[]` for every list index and
+`*` for every map key (`children[].age`); a sum type's alternative is
+`path.$variant`, and an alternative's fields stand directly under the sum
+type's path. `value_type` is the type as written (`Spouse?`, `List(Child)`).
+`keys` are the patterns of the key fields of the list elements the pattern
+lies in. The patterns come in the order the input type declares them, a
+value before what lies inside it.
+
+```runa
+= guide = answer_guide(household_tax)
+@ print(show(map(guide.needs, |n| n.pattern)))
+-- [income, married, spouse, spouse.income, spouse.cohabiting, children, children[].name, children[].age]
 ```
 
-`FILE` is checked as `runa check` checks it, and `NAME` is a guide it binds,
-rooted at the entry's input type. A need at a required path keeps no `by` and is
-a diagnostic of its case, as in `answer`. The entry's contract, its template
-and its schema hash do not change; the partial-result schema documents `by`.
+The guide is derived from the entry's contract; the engine, its JSON and the
+WebAssembly build are unchanged. The TypeScript SDK exports it as
+`<entry>Guide`.
 
 ## Explanations
 
@@ -1313,8 +1283,7 @@ contracts of every `@ entry` in one file:
 runa sdk ts model.entry.runa --out sdk/
 ```
 
-The output is five ES modules for the file's entries, six when an entry is
-answered by a guide ([Answering by a guide](#answering-by-a-guide)). They
+The output is five ES modules for the file's entries. They
 import [`zod`](https://zod.dev) and the runtime package `@futuruna/runtime`
 ([The runtime package](#the-runtime-package)):
 
@@ -1323,13 +1292,12 @@ import [`zod`](https://zod.dev) and the runtime package `@futuruna/runtime`
 | `types.ts` | One type per contract type, as TypeScript writes it (see [Types](#types)). Every field carries its label, question, help, unit and source labels as TSDoc. |
 | `schema.ts` | A Zod validator for every type, `SCHEMA_HASH` per entry, and a wire codec (`<Type>Codec`) for every record and every sum type with payload variants. Records reject unknown fields. `Int` is `number` and validates as a safe integer: a value beyond ±(2^53 − 1) is rejected, never rounded. Each unit's constructor, with its decimal converters where its scale allows them. |
 | `partial.ts` | `Partial<Type>` for every input record and sum type, in which any field may be left out and a record may be `{}`, with the same field TSDoc as `types.ts`; each entry's input path patterns (`<Entry>InputPatterns`, with the value written at each), its `Need` tagged by pattern, the `Complete`/`Needs` result, and `<entry>SetAt`. |
-| `client.ts` | A call and a query function per entry, each also explained (`<entry>Explained`, `<entry>QueryExplained`), and the entry's descriptor (`<entry>Entry`: name, schema hash, codecs, path patterns). |
-| `answer.ts` | Only with `--guide`: for each entry given a guide, its groups, its facts type, its resolvers by group, the guide's table and `<entry>Answer`. |
+| `client.ts` | A call, a query and an answer function per entry, the first two also explained (`<entry>Explained`, `<entry>QueryExplained`), the entry's resolve type (`<Entry>Resolve`) and generated guide (`<entry>Guide`), see [Answering an entry](#answering-an-entry-1), and the entry's descriptor (`<entry>Entry`: name, schema hash, codecs, path patterns). |
 | `index.ts` | Re-exports the other modules and the runtime package. |
 
 Each module starts with a header naming the source file, the runtime version
 it imports and the schema hash of every entry. The output depends only on the
-contracts and the guides, so regenerating an unchanged model rewrites
+contracts, so regenerating an unchanged model rewrites
 identical files. A contract type whose name collides with a generated name (a
 runtime name such as `Need`, `Complete`, `Needs`, `Unknown` or `given`, or a
 `Partial`, `Schema`, `Codec` or entry-derived name) is an error, and so are
@@ -1339,7 +1307,7 @@ two fields of one record or variant with the same camelCase name; rename one.
 
 `@futuruna/runtime` is what every SDK shares: the value validators and
 `isoDate`, `none`, the wire codec, `setAt` and paths, needs, the calls through
-a transport, answering by a guide, the unit converters and the error classes.
+a transport, answering an entry, the unit converters and the error classes.
 It depends on no model, so one copy serves the SDKs of every source file, and
 `instanceof` on its error classes holds across them. Its source passes
 typescript-eslint's `strictTypeChecked`.
@@ -1541,115 +1509,91 @@ function answerFromLedger(c: PartialTaxCase, need: TaxReportNeed): PartialTaxCas
 }
 ```
 
-### Answering by a guide
+### Answering an entry
 
-The integrator states, in an `AnswerGuide` ([RFC](../rfcs/answer-guide.md)),
-which input paths may be missing and which of its groups resolves each; every
-path the guide does not name is required. `--guides` names the file that binds the
-guides, and each `--guide` the entry a guide answers:
-
-```sh
-runa sdk ts src/aktiesparekonto.entry.runa --out sdk/ask \
-  --guides guides/endavu.guide.runa --guide aktiesparekonto_year=endavu_ask_year
-```
-
-`runa` checks the guides file as `runa check` does, then reads the guides
-without running it. A guide whose paths are of another type than the entry's
-input, or an item at or below which no need can arise, is an error. For each
-entry given a guide, `answer.ts` holds:
+Every entry gets `<entry>Answer` and its resolve type `<Entry>Resolve` in
+`client.ts`, the TypeScript form of [`answer`](#answering-an-entry):
 
 ```ts
-export type AktiesparekontoYearGroup = "Snapshots" | "GivingInstitute" | "Bookings" | "PreviousYear" | "Backoffice" | "Customer";
-export interface AktiesparekontoYearGroupPatterns { Snapshots: "account.openingCashMicroDkk" | …; … }
-export type AktiesparekontoYearGuidedNeed<G extends AktiesparekontoYearGroup = AktiesparekontoYearGroup> = …;
-export type AktiesparekontoYearFacts = { readonly incomeYear: number; readonly account: { … }; … };
-export type AktiesparekontoYearResolvers = GroupResolvers<…>;
-export const aktiesparekontoYearGuide: Guide<AktiesparekontoYearGroup> = { name: "endavu_ask_year", paths: { … } };
-export function aktiesparekontoYearAnswer(transport, facts, resolvers, options?): Promise<Answering<…>>;
+export type HouseholdTaxResolve = Resolve<partial.PartialHousehold, partial.HouseholdTaxInputPatterns, partial.HouseholdTaxNeed>;
+export function householdTaxAnswer(
+  transport: EngineTransport,
+  partialCase: partial.PartialHousehold,
+  resolve: HouseholdTaxResolve,
+  options?: AnswerOptions,
+): Promise<Answering<Result, partial.HouseholdTaxNeed, partial.PartialHousehold>>;
 ```
 
-- **The required facts** (`<Entry>Facts`) are the backend's checklist: the partial
-  case with the key of every required fact required and its value of the model's
-  type, never `undefined`, so leaving a required fact out, or a fact the model
-  adds, does not compile. An optional fact may be `none` where the model
-  allows it. A builder whose source may lack a value must decide there what a
-  missing value means. A fact the guide resolves may be left out, or given
-  when known; its TSDoc names the group that resolves it.
-- **The resolvers** (`<Entry>Resolvers`) are keyed by group, and every group
-  is required. Each receives the needs of its group's patterns only
-  (`<Entry>GroupPatterns`), so a `switch` on `need.pattern` can be exhaustive.
-  `leaveOpen` is the resolver of a group nobody can fill yet: one visible line,
-  the one that changes when a source appears.
-- **The guide's table** (`<entry>Guide`) gives the group of every need-able
-  path pattern the guide resolves, each alternative of a sum type named before
-  its fields (`events[].Trade.amountOre`), as the guide's most specific item
-  says. The runtime attaches it to each need as `by`; the engine, the contract
-  and its schema hash are unchanged.
-
-`<entry>Answer(transport, facts, resolvers)` queries the required facts, calls each
-group's resolver once per round with all of that round's needs of the group,
-the groups at the same time, writes the answers into the case and queries
-again. A resolver fetches what its needs ask for in one batch and returns the
-function that answers each need:
+`<entry>Answer(transport, partialCase, resolve)` queries the case, calls
+`resolve` once per round with all of that round's needs, writes the answers
+into the case and queries again. Which source answers which need is the
+integrator's code: it routes on the need's pattern and its metadata (label,
+question, help, unit, sources, `keys`, `waiting`). `resolve` fetches what the
+needs ask for in one batch and returns the function that answers each need:
 
 ```ts
-const accountId = (need: TaxReportNeed) => need.keys?.find((key) => key.field === "accountId")?.value;
-const resolvers: TaxReportResolvers = {
-  Ledger: async (needs) => {
-    const accounts = await ledger.accounts(needs.map(accountId));
-    return (need) => {
-      const account = accounts.get(accountId(need));
-      if (account === undefined) return open;
-      switch (need.pattern) {
-        case "accounts[].openingCashOre":
-          return given(need, account.openingCashOre);
-        case "accounts[].closingCashOre":
-          return given(need, account.closingCashOre);
+const resolve: HouseholdTaxResolve = async (needs) => {
+  const ages = await registry.ages(needs.filter((n) => n.pattern === "children[].age").map((n) => n.path));
+  return (need) => {
+    switch (need.pattern) {
+      case "children[].age": {
+        const age = ages.get(need.path);
+        return age === undefined ? open : given(need, age);
       }
-    };
-  },
-  PriceFeed: leaveOpen,
-  Customer: leaveOpen,
+      case "spouse":
+      case "spouse.income":
+      case "spouse.cohabiting":
+        return open; // a question for the customer
+      // …one case per pattern of the entry's input
+    }
+  };
 };
-const answering = await taxReportAnswer(transport, facts, resolvers);
+const answering = await householdTaxAnswer(transport, started, resolve);
 if (answering.$variant === "Answered") report(answering.result);
-else store(answering.partialCase, answering.open.Customer ?? []);
+else store(answering.partialCase, answering.open);
 ```
 
-The loop calls the returned function once per need, so every need gets a
-reply made from that need, and none is left out. It returns
-`given(need, value)`, `open` for a need the group cannot fill, or another
-entry's outcome from `context.runEntry(need, run)`. `runEntry` runs the entry
-an entry need names (a fact need is given one: `{ ...need, entry, subject }`)
-through `run`, which passes its `options` on to that entry's answer, as
-`(options) => shareIncomeAnswer(transport, facts, resolvers, options)`; an
+The need pattern union is generated, so a `switch (need.pattern)` without a
+`default` is exhaustive and a pattern the model adds does not compile until it
+is handled. The loop calls the returned function once per need, so every need
+gets a reply made from that need. It returns `given(need, value)`, `open` for
+a need nobody can fill yet, or another entry's outcome from
+`context.runEntry(need, run)`. `runEntry` runs the entry an entry need names
+(a fact need is given one: `{ ...need, entry, subject }`) through `run`, which
+passes its `options` on to that entry's answer, as
+`(options) => shareIncomeAnswer(transport, partialCase, resolve, options)`; an
 `Answered` result is written at the need's path, and an `Unanswered` one waits
-in `pending`. A reply names the need's path and its value is typed by the
-need's pattern, so a resolver of several patterns narrows `need.pattern`
-before it answers, and an answer cannot land at another need's path, as one
-from a list of answers in another order (the backend's rows) would: a reply
-for another path throws `AnswerError`. `context.partialCase` is the case of
-the round, with every answer so far.
+in `pending`. A reply's value is typed by the need's pattern and names the
+need's path, so an answer cannot land at another need's path, as one from a
+list of answers in another order (the backend's rows) would: a reply for
+another path throws `AnswerError`. `context.partialCase` is the case of the
+round, with every answer so far.
 
 Answering ends `Answered`, with the result, its assumptions and the rounds,
-or `Unanswered` when a round answers nothing: `open` holds the last round's
-needs keyed by the group that left them open (`open.Customer` holds
-questions, `open.Snapshots` facts a source did not have), with entry needs
-waiting on another entry in `pending`, the last round's `later` facts and the
-partial case. Each round records its needs' paths and each group's needs. A
-need at a required path throws `MissingFactError` naming the paths, the guide and
-the round, before any resolver runs; the types rule this out, so it catches
-only what they cannot see, such as untyped data or an `as` cast. A pair
-of `(entry, subject)` that repeats on the stack of entries being answered
-throws `AnswerCycleError`, since entries that need each other belong in one
-joint entry. A path the engine still needs after it was given throws
-`AnswerError`.
+or `Unanswered` when a round answers nothing: `open` holds that round's needs
+(`readonly N[]`), `pending` the entry needs waiting on another entry, `later`
+the round's `later` facts, `partialCase` the case as far as it got, and
+`rounds` each round as `{ paths, given }`: the paths asked and the paths
+answered. A pair of `(entry, subject)` that repeats on the stack of entries
+being answered throws `AnswerCycleError`, since entries that need each other
+belong in one joint entry. A path the engine still needs after it was given
+throws `AnswerError`.
 
-Batches make second-order resolution cheap: a group that gives a list
+Batches make second-order resolution cheap: a source that gives a list
 (`events`) answers skeletons that give each element's key and variant and
 leave its details out; the next round needs only the fields the law reads,
-inside those elements, each need with the element's key in `keys`, and the
-group of those fields (`events::Trade::amount`, named in the guide) fetches
-them all in one call.
+inside those elements, each need with the element's key in `keys`, and one
+call fetches them all.
 
-Without `--guide`, the SDK has the calls and queries only.
+**The generated guide.** Every entry also gets `<entry>Guide`, its
+[AnswerGuide](#the-generated-answerguide) as data for documentation and UIs:
+
+```ts
+export const householdTaxGuide: AnswerGuide<HouseholdTaxNeed["pattern"]> = {
+  "children[].age": { kind: "fact", valueType: "Int", label: "Age", question: "How old is the child?", keys: ["name"], sources: [ … ] },
+  // … one item for every pattern of the Need union
+};
+```
+
+It is keyed by need pattern and complete over the entry's `Need` union, so a
+form or a routing table built from it covers every need the entry can ask.

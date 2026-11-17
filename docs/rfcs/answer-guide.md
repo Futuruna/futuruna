@@ -1,5 +1,13 @@
 # RFC: AnswerGuide
 
+> **Status: Superseded (before 0.6.0).** The integrator-written guide (paths
+> to the integrator's groups) put integrator knowledge into Futuruna. 0.6
+> instead generates each entry's AnswerGuide from the law and answers an
+> entry with one `resolve` per round; see
+> [The generated AnswerGuide](../reference/calculations.md#the-generated-answerguide)
+> and [Answering an entry](../reference/calculations.md#answering-an-entry).
+> The text below is kept as history.
+
 Status: Proposed for Futuruna 0.6. Builds on [Calculation needs](calculation-needs.md),
 [Needs in the language](needs-in-the-language.md) and
 [Field metadata on declarations](field-metadata.md). Code marked `-- proposed`

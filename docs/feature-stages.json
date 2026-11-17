@@ -353,14 +353,13 @@
       ]
     },
     {
-      "id": "answer-guide",
+      "id": "answer",
       "kind": "language",
-      "name": "Answering an entry by a guide (`AnswerGuide`, `answer`, `runa call --guide`)",
+      "name": "Answering an entry (`answer`, generated AnswerGuide)",
       "stage": "experimental",
       "commands": [],
       "docs": [
-        "docs/reference/calculations.md",
-        "docs/rfcs/answer-guide.md"
+        "docs/reference/calculations.md"
       ]
     },
     {
@@ -715,7 +714,7 @@
         "calculation-field-declarations",
         "calculation-needs",
         "needs-in-the-language",
-        "answer-guide",
+        "answer",
         "typescript-sdk",
         "annotations"
       ]
