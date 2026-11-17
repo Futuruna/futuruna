@@ -24,7 +24,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
 /// The output envelope schema of `runa call --partial`.
-pub const PARTIAL_OUTPUT_SCHEMA: &str = "futuruna.calculate.partial-output.v1";
+pub const PARTIAL_OUTPUT_SCHEMA: &str = "futuruna.entry.partial-output.v1";
 
 /// Where the runtime module goes, relative to the output directory, unless
 /// `--runtime` says otherwise.
@@ -102,7 +102,7 @@ pub struct GeneratedFile {
     pub contents: String,
 }
 
-/// Generate the TypeScript SDK for every calculation entry of one source file.
+/// Generate the TypeScript SDK for every entry of one source file.
 ///
 /// `source` names the file in the generated headers. `runtime_path` is where
 /// the runtime module goes, relative to the output directory (`runtime.ts`,
@@ -283,7 +283,7 @@ impl<'a> Sdk<'a> {
         runtime: String,
     ) -> Result<Self, String> {
         if contracts.is_empty() {
-            return Err(format!("{source} declares no `@ calculate` entry"));
+            return Err(format!("{source} declares no `@ entry`"));
         }
         let mut contracts: Vec<&CalculationContract> = contracts.iter().collect();
         contracts.sort_by(|left, right| left.entry.cmp(&right.entry));
@@ -291,10 +291,7 @@ impl<'a> Sdk<'a> {
             .windows(2)
             .find(|pair| pair[0].entry == pair[1].entry)
         {
-            return Err(format!(
-                "calculation entry `{}` is declared twice",
-                pair[0].entry
-            ));
+            return Err(format!("entry `{}` is declared twice", pair[0].entry));
         }
 
         let mut definitions: BTreeMap<&str, &CalculationTypeDefinition> = BTreeMap::new();
@@ -304,7 +301,7 @@ impl<'a> Sdk<'a> {
                 match definitions.get(definition.name.as_str()) {
                     Some(existing) if *existing != definition => {
                         return Err(format!(
-                            "type `{}` differs between calculation entries `{}` and `{}`",
+                            "type `{}` differs between entries `{}` and `{}`",
                             definition.name,
                             owners[definition.name.as_str()],
                             contract.entry
@@ -340,7 +337,7 @@ impl<'a> Sdk<'a> {
                 match scalars.insert(&scalar.name, scalar) {
                     Some(other) if other != scalar => {
                         return Err(format!(
-                            "named scalar type `{}` differs between calculation entries",
+                            "named scalar type `{}` differs between entries",
                             scalar.name
                         ));
                     }
@@ -1349,7 +1346,9 @@ impl<'a> Sdk<'a> {
 
     fn schema_module(&self) -> String {
         let mut body = String::new();
-        body.push_str("/** The contract fingerprint of each calculation entry. */\nexport const SCHEMA_HASH = {\n");
+        body.push_str(
+            "/** The contract fingerprint of each entry. */\nexport const SCHEMA_HASH = {\n",
+        );
         for entry in &self.entries {
             let _ = writeln!(
                 body,
@@ -1978,7 +1977,7 @@ impl<'a> Sdk<'a> {
         let mut out = String::new();
         self.header(
             &mut out,
-            "Typed calls of each calculation entry through an engine transport.",
+            "Typed calls of each entry through an engine transport.",
         );
         out.push_str(&self.imports(
             &body,
@@ -2427,15 +2426,11 @@ mod tests {
     }
 
     fn generate(source: &str) -> BTreeMap<String, String> {
-        generate_typescript_sdk(
-            &contracts(source),
-            "model.calculate.runa",
-            DEFAULT_RUNTIME_PATH,
-        )
-        .expect("generate SDK")
-        .into_iter()
-        .map(|file| (file.name, file.contents))
-        .collect()
+        generate_typescript_sdk(&contracts(source), "model.entry.runa", DEFAULT_RUNTIME_PATH)
+            .expect("generate SDK")
+            .into_iter()
+            .map(|file| (file.name, file.contents))
+            .collect()
     }
 
     fn assert_contains(text: &str, expected: &str) {
@@ -2465,7 +2460,7 @@ mod tests {
 = age_field = CalculationField(path = "children.age", label = "Child's age", question = None, help = None, unit = Some("years"))
 = household_meta = CalculationMeta(fields = [income_field, age_field], attachments = (Source(value = law),))
 @ meta(household_meta)
-@ calculate("Household tax")
+@ entry("Household tax")
 > household_tax(input: Household) -> Result {{ Result(tax = input.income / 4) }}
 "#
         )
@@ -2486,7 +2481,7 @@ mod tests {
 = direction_field = CalculationField(path = "movements.direction", label = "In or out", question = Some("Did the money go in or out?"), help = None, unit = None)
 = ledger_meta = CalculationMeta(fields = [year_field, month_field, day_field, direction_field], attachments = ())
 @ meta(ledger_meta)
-@ calculate
+@ entry
 > ledger_balance(input: Ledger) -> Summary {{ Summary(closing_cash_ore = input.opening_cash_ore, last_booked_on = Date(year = 2026, month = 1, day = 1)) }}
 "#
         )
@@ -2503,7 +2498,7 @@ mod tests {
 = cohabiting_field = CalculationField(path = pathof(Household::spouse::cohabiting), label = "Spouse cohabiting", question = Some("Did you live together at the end of the year?"), help = None, unit = None)
 = household_meta = CalculationMeta(fields = [cohabiting_field], attachments = ())
 @ meta(household_meta)
-@ calculate
+@ entry
 > household_tax(input: Household) -> Result {{ Result(tax = input.income / 4) }}
 "#
         ));
@@ -2677,8 +2672,8 @@ mod tests {
     #[test]
     fn two_fields_with_one_camel_case_name_are_an_error() {
         let error = generate_typescript_sdk(
-            &contracts("# Input(tax_year: Int, taxYear: Int)\n@ calculate\n> both(input: Input) -> Int { input.tax_year }\n"),
-            "model.calculate.runa",
+            &contracts("# Input(tax_year: Int, taxYear: Int)\n@ entry\n> both(input: Input) -> Int { input.tax_year }\n"),
+            "model.entry.runa",
             DEFAULT_RUNTIME_PATH,
         )
         .expect_err("`tax_year` and `taxYear` collide");
@@ -2691,7 +2686,7 @@ mod tests {
             r#"# Shape = Circle(Int) | Rect(w: Int, h: Int) | Empty
 # Pair(a, b) = Pair(first: a, second: b)
 # Input(shape: Shape, pair: Pair(Int, Bool), maybe: Shape?)
-@ calculate
+@ entry
 > area(input: Input) -> Pair(Int, String) { Pair(first = 1, second = "x") }
 "#,
         );
@@ -2790,9 +2785,9 @@ mod tests {
     fn several_entries_each_get_calls_hashes_and_paths() {
         let source = r#"# Person(name: String, income: Int)
 # Couple(first: Person, second: Person)
-@ calculate("One person")
+@ entry("One person")
 > person_tax(input: Person) -> Int { input.income / 4 }
-@ calculate
+@ entry
 > couple_tax(input: Couple) -> Int { input.first.income + input.second.income }
 "#;
         let contracts = contracts(source);
@@ -2837,10 +2832,8 @@ mod tests {
         let mut reversed = contracts.clone();
         reversed.reverse();
         assert_eq!(
-            generate_typescript_sdk(&contracts, "model.calculate.runa", DEFAULT_RUNTIME_PATH)
-                .unwrap(),
-            generate_typescript_sdk(&reversed, "model.calculate.runa", DEFAULT_RUNTIME_PATH)
-                .unwrap()
+            generate_typescript_sdk(&contracts, "model.entry.runa", DEFAULT_RUNTIME_PATH).unwrap(),
+            generate_typescript_sdk(&reversed, "model.entry.runa", DEFAULT_RUNTIME_PATH).unwrap()
         );
     }
 
@@ -2848,13 +2841,13 @@ mod tests {
     fn the_runtime_is_one_module_every_model_shares() {
         let ledger = generate_typescript_sdk(
             &contracts(&ledger_source()),
-            "ledger.calculate.runa",
+            "ledger.entry.runa",
             "../runtime.ts",
         )
         .unwrap();
         let household = generate_typescript_sdk(
             &contracts(&records_source()),
-            "household.calculate.runa",
+            "household.entry.runa",
             "../runtime.ts",
         )
         .unwrap();
@@ -2945,7 +2938,7 @@ mod tests {
     #[test]
     fn map_values_and_list_elements_are_patterns() {
         let partial = &generate(
-            "# Item(code: String, amount: Int?)\n# Input(items: Map(String, Item), tags: List(String))\n@ calculate\n> count(input: Input) -> Int { 0 }\n",
+            "# Item(code: String, amount: Int?)\n# Input(items: Map(String, Item), tags: List(String))\n@ entry\n> count(input: Input) -> Int { 0 }\n",
         )["partial.ts"];
         assert_contains(partial, "  \"items.*\": PartialItem;");
         assert_contains(partial, "  \"items.*.amount\": number | None;");
@@ -2959,7 +2952,7 @@ mod tests {
     #[test]
     fn a_list_element_key_types_the_needs_keys() {
         let mut contracts = contracts(
-            "# unit Ore \"DKK øre\"\n# Position(isin: String, value_ore: Ore)\n# Account(positions: List(Position), owner: String)\n@ calculate\n> worth(input: Account) -> Int { 0 }\n",
+            "# unit Ore \"DKK øre\"\n# Position(isin: String, value_ore: Ore)\n# Account(positions: List(Position), owner: String)\n@ entry\n> worth(input: Account) -> Int { 0 }\n",
         );
         for contract in &mut contracts {
             for definition in &mut contract.definitions {
@@ -2969,7 +2962,7 @@ mod tests {
             }
         }
         let files: BTreeMap<String, String> =
-            generate_typescript_sdk(&contracts, "model.calculate.runa", DEFAULT_RUNTIME_PATH)
+            generate_typescript_sdk(&contracts, "model.entry.runa", DEFAULT_RUNTIME_PATH)
                 .expect("generate SDK")
                 .into_iter()
                 .map(|file| (file.name, file.contents))
@@ -2993,7 +2986,7 @@ mod tests {
     fn recursive_input_types_have_open_paths() {
         let files = generate(
             r#"# Node = Leaf(value: Int) | Branch(left: Node, right: Node)
-@ calculate
+@ entry
 > total(input: Node) -> Int { 0 }
 "#,
         );
@@ -3013,10 +3006,10 @@ mod tests {
     #[test]
     fn a_contract_name_that_collides_with_a_generated_name_is_an_error() {
         for (source, name) in [
-            ("# Need(amount: Int)\n@ calculate\n> needed(input: Need) -> Int { input.amount }\n", "`Need`"),
-            ("# Unknown(amount: Int)\n@ calculate\n> needed(input: Unknown) -> Int { input.amount }\n", "`Unknown`"),
+            ("# Need(amount: Int)\n@ entry\n> needed(input: Need) -> Int { input.amount }\n", "`Need`"),
+            ("# Unknown(amount: Int)\n@ entry\n> needed(input: Unknown) -> Int { input.amount }\n", "`Unknown`"),
         ] {
-            let error = generate_typescript_sdk(&contracts(source), "model.calculate.runa", DEFAULT_RUNTIME_PATH)
+            let error = generate_typescript_sdk(&contracts(source), "model.entry.runa", DEFAULT_RUNTIME_PATH)
                 .expect_err("the name collides with a runtime export");
             assert!(error.contains(name), "{error}");
         }
@@ -3027,7 +3020,7 @@ mod tests {
         let source = r#"# unit Ore "DKK øre"
 # unit Micro "millionths of a share"
 # Holding(quantity_micro: Micro, value_ore: Ore, count: Int, history: List(Ore)?)
-@ calculate
+@ entry
 > holding_value(input: Holding) -> Ore { input.value_ore }
 "#;
         let files = generate(source);
@@ -3068,8 +3061,8 @@ mod tests {
             "export function holdingValue(transport: EngineTransport, input: types.Holding): Promise<Calculated<types.Ore>> {\n  return callEntry(transport, holdingValueEntry, schema.HoldingSchema, schema.OreSchema, input);",
         );
         let error = generate_typescript_sdk(
-            &contracts("# unit Answer \"replies\"\n# In(n: Answer)\n@ calculate\n> f(input: In) -> Int { 0 }\n"),
-            "model.calculate.runa",
+            &contracts("# unit Answer \"replies\"\n# In(n: Answer)\n@ entry\n> f(input: In) -> Int { 0 }\n"),
+            "model.entry.runa",
             DEFAULT_RUNTIME_PATH,
         )
         .expect_err("`answer` is a runtime export");

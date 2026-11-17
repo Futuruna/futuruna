@@ -1,4 +1,4 @@
--- A query asks a calculation entry about a case with unknowns; interview
+-- A query asks an entry about a case with unknowns; interview
 -- answers its needs round by round until the case is complete.
 -- expect-command: interp
 -- roundtrip-skip: `query`, `interview` and `unknown` run only in the interpreter
@@ -19,7 +19,7 @@
 }
 }
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = h.income - threshold(h))
 = alone = Household(income = 500, married = False, spouse = None)
 = with_spouse = Household(income = 500, married = True, spouse = Some(Spouse(income = 50, cohabiting = True)))
@@ -36,9 +36,9 @@
     | Needs -> False
 }
 
-= asked = interview(|c| query household_tax(c), Household(income = 500, married = True, spouse = unknown), with_spouse)
-| two_rounds: asked -> asked.rounds == [[pathof(Household::spouse)], [pathof(Household::spouse::cohabiting), pathof(Household::spouse::income)]]
-| ends_complete: asked -> asked.result == household_tax(with_spouse)
+= asked = answer(household_tax, Household(income = 500, married = True, spouse = unknown), whole_case_guide(), from_case(with_spouse))
+| two_rounds: asked -> map(asked.rounds, |r| r.paths) == [[pathof(Household::spouse)], [pathof(Household::spouse::cohabiting), pathof(Household::spouse::income)]]
+| ends_complete: asked -> asked.outcome == Answered(result = household_tax(with_spouse))
 
 ? first_asks_the_spouse
 ? alone_is_complete

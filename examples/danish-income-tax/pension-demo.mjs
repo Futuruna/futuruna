@@ -15,7 +15,7 @@ if (args.length !== 1 || args[0] === '--help') {
 }
 const binary = args[0].includes('/') || args[0].includes('\\') ? resolve(args[0]) : args[0];
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const model = 'examples/danish-income-tax/personskat.calculate.runa';
+const model = 'examples/danish-income-tax/personskat.entry.runa';
 const evidence = mkdtempSync(join(tmpdir(), 'futuruna-pension-demo-'));
 console.error(`Fictional example only. Evidence: ${evidence}`);
 

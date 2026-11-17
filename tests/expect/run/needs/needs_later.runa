@@ -17,5 +17,5 @@
     }
 }
 
-@ calculate
+@ entry
 | needs_later(i: Income) -> Result(tax = taxed(i))

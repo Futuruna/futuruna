@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 -- Map the places where one additional krone of gross income leaves less
 -- after-tax income in the encoded 2026 phase-out of Ligningsloven § 9 C's

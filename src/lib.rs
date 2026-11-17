@@ -36,6 +36,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 mod annotation_types;
 mod annotations;
+pub mod answer;
 pub mod calculate;
 mod checked_explore_classification;
 mod checked_explore_source_events;
@@ -587,14 +588,12 @@ fn is_builtin_effect(name: &str) -> bool {
 /// Names accepted after `@` as a statement without an argument list:
 /// declaration markers and ordinary effect names.
 fn is_known_annotation(name: &str) -> bool {
-    matches!(
-        name,
-        "export" | "comptime" | "calculate" | "sprog" | "language"
-    ) || is_builtin_effect(name)
+    matches!(name, "export" | "comptime" | "entry" | "sprog" | "language")
+        || is_builtin_effect(name)
 }
 
 fn unknown_annotation_message(name: &str) -> String {
-    format!("unknown annotation `@ {name}`; declaration annotations are `@ export`, `@ comptime`, `@ calculate`, `@ field(...)`, `@ meta(...)`, `@ cite(...)`, `@ quote(...)` and `@ section <name> {{`, and effects are called as `@ name(...)`")
+    format!("unknown annotation `@ {name}`; declaration annotations are `@ export`, `@ comptime`, `@ entry`, `@ field(...)`, `@ meta(...)`, `@ cite(...)`, `@ quote(...)` and `@ section <name> {{`, and effects are called as `@ name(...)`")
 }
 
 fn unknown_effect_message(name: &str) -> String {
@@ -705,10 +704,16 @@ pub fn parse_prelude() -> Vec<Stmt> {
 /// Prepend prelude statements to user statements, skipping prelude definitions
 /// that the user has already defined (user definitions take priority). A
 /// program that asks a `query` or places an `unknown` also gets the types and
-/// functions of needs in the language (`query::needs_prelude`).
+/// functions of needs in the language (`query::needs_prelude`); one that
+/// calls `answer` or builds a guide gets the answer prelude as well
+/// (`answer::answer_prelude`).
 pub fn prepend_prelude(mut prelude: Vec<Stmt>, user_stmts: &[Stmt]) -> Vec<Stmt> {
-    if query::program_uses_needs(user_stmts) {
+    let uses_answer = answer::program_uses_answer(user_stmts);
+    if uses_answer || query::program_uses_needs(user_stmts) {
         prelude.extend(query::needs_prelude());
+    }
+    if uses_answer {
+        prelude.extend(answer::answer_prelude());
     }
     // Collect names defined by the user
     let mut user_names: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
@@ -5108,7 +5113,7 @@ Guide.
 @ meta(audit_warning)
 @ meta(Circle)
 @ meta(AuditWarning(code = "INLINE", message = "Written here"))
-@ calculate
+@ entry
 > geometry(x: Int) -> Int {
     x
 }
@@ -5805,6 +5810,58 @@ pub fn query_parts(expr: &Expr) -> Option<(&str, &Expr, &Expr)> {
     }
 }
 
+/// The parameter of the query an `answer(entry, case, guide, resolve)` asks
+/// each round: the parser writes the form as the prelude's
+/// `answer(|__answer_case| query entry(__answer_case), case, guide, resolve,
+/// "site")`, where the site names the entry, the guide and the form's offset.
+pub const ANSWER_CASE: &str = "__answer_case";
+
+/// `answer(entry, case, guide, resolve)` as the parser writes it.
+pub struct AnswerParts<'a> {
+    pub entry: &'a str,
+    /// The `query entry(__answer_case)` the form asks each round.
+    pub query: &'a Expr,
+    pub case: &'a Expr,
+    pub guide: &'a Expr,
+    pub resolve: &'a Expr,
+}
+
+/// The site an `answer` form carries: its entry, how its guide is written,
+/// and its character offset, separated by U+001F.
+pub fn answer_site(entry: &str, guide: &str, offset: usize) -> String {
+    format!("{entry}\u{1f}{guide}\u{1f}{offset}")
+}
+
+/// The parts of an `answer(entry, case, guide, resolve)` form.
+pub fn answer_parts(expr: &Expr) -> Option<AnswerParts<'_>> {
+    let ExprKind::App(function, arguments) = &expr.kind else {
+        return None;
+    };
+    if !matches!(&function.kind, ExprKind::Var(name) if name == "answer") {
+        return None;
+    }
+    let [ask, case, guide, resolve, site] = arguments.as_slice() else {
+        return None;
+    };
+    if !matches!(&site.kind, ExprKind::Lit(Literal::Str(site)) if site.contains('\u{1f}')) {
+        return None;
+    }
+    let ExprKind::Lambda(parameters, body) = &ask.kind else {
+        return None;
+    };
+    if !matches!(parameters.as_slice(), [parameter] if parameter.name == ANSWER_CASE) {
+        return None;
+    }
+    let (entry, _, _) = query_parts(body)?;
+    Some(AnswerParts {
+        entry,
+        query: body,
+        case,
+        guide,
+        resolve,
+    })
+}
+
 /// Whether `expr` contains a `query` or an `unknown`.
 pub fn expr_mentions_query_or_unknown(expr: &Expr) -> bool {
     if is_unknown_expr(expr) || query_parts(expr).is_some() {
@@ -5933,7 +5990,7 @@ pub fn pathof_canonical_path(expr: &Expr) -> Option<String> {
         return None;
     };
     if !matches!(&function.kind, ExprKind::Var(name) if name == PATHOF_MARKER)
-        || arguments.len() < 2
+        || arguments.is_empty()
     {
         return None;
     }
@@ -13819,11 +13876,18 @@ impl Parser {
             return Ok(declaration);
         }
 
-        // `@ calculate` is a declaration marker, even when it carries the
-        // optional human-readable calculation title.
-        if name == "calculate" && self.peek_kind() == TokenKind::LParen {
+        // `@ entry` is a declaration marker, even when it carries the
+        // optional human-readable title.
+        if name == "entry" && self.peek_kind() == TokenKind::LParen {
             let args = self.parse_arg_list()?;
             return Ok(Stmt::Annot(name, args));
+        }
+
+        if name == "calculate" {
+            return Err(format!(
+                "{}:{}: `@ calculate` is now `@ entry`: mark the entry `@ entry` or `@ entry(\"title\")`; `runa fmt --migrate` rewrites it",
+                tok.line, tok.col
+            ));
         }
 
         // If followed by ( it's an effect invocation: @ print("hello")
@@ -14665,18 +14729,82 @@ impl Parser {
             }
         }
 
-        if arguments.len() == 1 {
-            return Err(format!(
-                "{}:{}: pathof requires at least one field or variant segment",
-                root.line, root.col
-            ));
-        }
         self.expect(TokenKind::RParen)?;
         let function = Expr::new(
             ExprKind::Var(PATHOF_MARKER.to_string()),
             self.token_span(&start_tok),
         );
         Ok(self.spanned(ExprKind::App(Box::new(function), arguments), &start_tok))
+    }
+
+    /// `answer(entry, case, guide, resolve)`, after `answer`: the prelude's
+    /// `answer` with the query it asks each round, `query entry(case)`, and
+    /// the form's site (`answer_parts`).
+    fn parse_answer_form(&mut self, start_tok: Token) -> Result<Expr, String> {
+        self.expect(TokenKind::LParen)?;
+        let entry = self.advance();
+        self.expect(TokenKind::Comma)?;
+        let arguments =
+            self.parse_comma_separated(TokenKind::RParen, "answer argument", |parser| {
+                parser.parse_expr()
+            })?;
+        if arguments.len() != 3 || arguments.iter().any(is_named_arg_expr) {
+            return Err(format!(
+                "{}:{}: `answer` takes an entry, a case, a guide and a resolver: `answer({}, case, guide, resolve)`",
+                start_tok.line, start_tok.col, entry.text
+            ));
+        }
+        let entry_span = self.token_span(&entry);
+        let case = Expr::new(ExprKind::Var(ANSWER_CASE.to_string()), entry_span);
+        let call = Expr::new(
+            ExprKind::App(
+                Box::new(Expr::new(ExprKind::Var(entry.text.clone()), entry_span)),
+                vec![case],
+            ),
+            entry_span,
+        );
+        let query = Expr::new(
+            ExprKind::App(
+                Box::new(Expr::new(
+                    ExprKind::Var(QUERY_MARKER.to_string()),
+                    entry_span,
+                )),
+                vec![call],
+            ),
+            entry_span,
+        );
+        let ask = Expr::new(
+            ExprKind::Lambda(
+                vec![Param {
+                    name: ANSWER_CASE.to_string(),
+                    ty: None,
+                    inout: false,
+                }],
+                Box::new(query),
+            ),
+            entry_span,
+        );
+        let guide = match &arguments[1].kind {
+            ExprKind::Var(name) => name.clone(),
+            ExprKind::App(function, values) if values.is_empty() => match &function.kind {
+                ExprKind::Var(name) => format!("{name}()"),
+                _ => "the guide".to_string(),
+            },
+            _ => "the guide".to_string(),
+        };
+        let start = self.token_span(&start_tok).start;
+        let site = Expr::new(
+            ExprKind::Lit(Literal::Str(answer_site(&entry.text, &guide, start))),
+            self.token_span(&start_tok),
+        );
+        let mut values = vec![ask];
+        values.extend(arguments);
+        values.push(site);
+        let function = Expr::new(
+            ExprKind::Var("answer".to_string()),
+            self.token_span(&start_tok),
+        );
+        Ok(self.spanned(ExprKind::App(Box::new(function), values), &start_tok))
     }
 
     fn parse_refof_expr(&mut self, start_tok: Token) -> Result<Expr, String> {
@@ -14832,6 +14960,15 @@ impl Parser {
                         self.token_span(&tok),
                     );
                     return Ok(self.spanned(ExprKind::App(Box::new(function), vec![call]), &tok));
+                }
+                // `answer(entry, case, guide, resolve)` asks `entry` round by
+                // round; `answer` stays a name elsewhere.
+                if tok.text == "answer"
+                    && self.peek_kind() == TokenKind::LParen
+                    && self.tokens.get(self.pos + 1).map(|next| next.kind) == Some(TokenKind::Ident)
+                    && self.tokens.get(self.pos + 2).map(|next| next.kind) == Some(TokenKind::Comma)
+                {
+                    return self.parse_answer_form(tok);
                 }
                 let span = self.token_span(&tok);
                 Ok(Expr::new(ExprKind::Var(tok.text), span))
@@ -20881,6 +21018,14 @@ impl Interpreter {
         env.set("reverse".into(), Value::Builtin("reverse".into()));
         env.set("map".into(), Value::Builtin("map".into()));
         env.set("__fill".into(), Value::Builtin("__fill".into()));
+        env.set(
+            "__answer_round".into(),
+            Value::Builtin("__answer_round".into()),
+        );
+        env.set(
+            "__whole_input".into(),
+            Value::Builtin("__whole_input".into()),
+        );
         env.set("filter".into(), Value::Builtin("filter".into()));
         env.set("foldl".into(), Value::Builtin("foldl".into()));
         env.set("assert".into(), Value::Builtin("assert".into()));
@@ -25111,6 +25256,8 @@ impl Interpreter {
                     "fill takes a partial case, a complete case and a list of paths",
                 ),
             },
+            "__answer_round" => self.eval_answer_round(namespace, args, env),
+            "__whole_input" => self.eval_whole_input(),
             "print" => {
                 let text = match args.first() {
                     Some(Value::Str(s)) => s.clone(),
@@ -31332,7 +31479,10 @@ pub(crate) fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
 }
 
 /// The order of `a` and `b`, reading only the parts the comparison reaches:
-/// an unknown part compares equal and its paths go to `unknown`.
+/// an unknown part's paths go to `unknown`. An unknown part orders before
+/// every known value and equal to another unknown, so the order stays total
+/// (a sort over it never sees an inconsistent comparison); a caller that
+/// finds `unknown` non-empty does not use the order.
 pub(crate) fn value_sort_cmp_reading(
     a: &Value,
     b: &Value,
@@ -31340,10 +31490,14 @@ pub(crate) fn value_sort_cmp_reading(
 ) -> std::cmp::Ordering {
     use std::cmp::Ordering;
     let (a, b) = (explain::untraced(a), explain::untraced(b));
-    if matches!(a, Value::Unknown(_)) || matches!(b, Value::Unknown(_)) {
+    let (a_unknown, b_unknown) = (
+        matches!(a, Value::Unknown(_)),
+        matches!(b, Value::Unknown(_)),
+    );
+    if a_unknown || b_unknown {
         partial::collect_unknown_paths(a, false, unknown);
         partial::collect_unknown_paths(b, false, unknown);
-        return Ordering::Equal;
+        return a_unknown.cmp(&b_unknown).reverse();
     }
     if let Some((a, b)) = runtime_pair_tuple_operands(a, b) {
         return value_sort_cmp_reading(&a, &b, unknown);
@@ -50090,6 +50244,9 @@ impl TypeChecker {
             ("search", 2),
             // `fill` of the needs prelude (`query`)
             ("__fill", 3),
+            // the round of `answer` and the whole input of `whole_case_guide`
+            ("__answer_round", 6),
+            ("__whole_input", 0),
         ] {
             tc.builtins.entry(name.to_string()).or_insert(arity);
         }
@@ -53519,7 +53676,8 @@ impl TypeChecker {
         operation: &str,
         allow_terminal_variant: bool,
     ) {
-        if arguments.len() < 2 {
+        // `pathof(T)` is the whole input: the root alone.
+        if arguments.len() < 2 && !(operation == "pathof" && arguments.len() == 1) {
             self.error_at_expr(
                 expr,
                 format!(
@@ -64752,7 +64910,8 @@ impl TypeChecker {
             Some(checked) => tc.check_program(&checked),
             None => tc.check_program(stmts),
         }
-        let query_diagnostics = query::check_program(stmts, source, &tc);
+        let mut query_diagnostics = query::check_program(stmts, source, &tc);
+        query_diagnostics.extend(answer::check_program(stmts, source, &tc));
         tc.diagnostics.extend(query_diagnostics);
         let (warnings, binding_name_errors) =
             ordinary_declarations::binding_name_diagnostics(stmts, source, &tc);
@@ -69557,7 +69716,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 # CalcInput(amount: Int)
 # CalcOutput(total: Int)
 
-@ calculate("Invoice")
+@ entry("Invoice")
 | calculate_invoice(input: CalcInput) -> CalcOutput(total = input.amount)
 "#;
         let mut lexer = Lexer::new(source);
@@ -69592,7 +69751,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 = unrelated_fixture = 999
 | unrelated_fixture_is_valid: unrelated_fixture -> unrelated_fixture == 999
 
-@ calculate("Invoice")
+@ entry("Invoice")
 | calculate_invoice(input: CalcInput) -> CalcOutput(total = input.amount + required_total)
 "#;
         let mut lexer = Lexer::new(source);
@@ -69661,7 +69820,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 # CalcInput(amount: Int)
 # CalcOutput(total: Int)
 
-@ calculate("Invoice")
+@ entry("Invoice")
 | calculate_invoice(input: CalcInput) -> CalcOutput(total = adjusted(input.amount))
 "#;
         let mut lexer = Lexer::new(source);
@@ -69717,7 +69876,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
     | result() -> CalcOutput(total = unused_rule(input.amount))
 }
 
-@ calculate("Invoice")
+@ entry("Invoice")
 | calculate_invoice(input: CalcInput) -> UsedScope(input).result()
 "#;
         let mut lexer = Lexer::new(source);
@@ -69776,7 +69935,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
 # CalcInput(amount: Int)
 # CalcOutput(total: Int)
 
-@ calculate("Invoice")
+@ entry("Invoice")
 | calculate_invoice(input: CalcInput) -> CalcOutput(total = Dep.add_base(input.amount))
 "#;
         let mut lexer = Lexer::new(source);

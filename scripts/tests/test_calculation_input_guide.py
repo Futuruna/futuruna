@@ -41,8 +41,8 @@ def fixture():
     metadata = lambda path: {"path": path, "label": "Question", "question": "Which amount?",
                              "help": "Document it", "unit": "øre", "source_group": "g"}
     return {
-        "schema": "futuruna.calculate.compact.v1", "schema_version": 1,
-        "contract_schema": "futuruna.calculate.v1", "contract_schema_version": 1,
+        "schema": "futuruna.entry.compact.v1", "schema_version": 1,
+        "contract_schema": "futuruna.entry.v1", "contract_schema_version": 1,
         "schema_hash": "0" * 64, "entry": "calculate", "input": named("Input"),
         "definitions": [
             {"name": "Input", "parameters": [], "kind": "adt", "variants": [variant("Input", [
@@ -121,7 +121,7 @@ class InputGuideTests(unittest.TestCase):
 
     def test_bad_references_and_duplicate_schema_entries_fail(self):
         edits = [
-            lambda s: s.update(schema="futuruna.calculate.input.v1"),
+            lambda s: s.update(schema="futuruna.entry.input.v1"),
             lambda s: s.update(schema_version=True),
             lambda s: s["source_objects"].clear(),
             lambda s: s["source_groups"].clear(),
@@ -193,7 +193,7 @@ class InputGuideTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="futuruna-input-guide-model-") as directory:
             path = Path(directory) / "schema.json"
             result = subprocess.run([os.environ["FUTURUNA_MODEL_TEST_RUNA"], "schema",
-                "examples/danish-income-tax/personskat.calculate.runa", "--entry", "beregn_personskat",
+                "examples/danish-income-tax/personskat.entry.runa", "--entry", "beregn_personskat",
                 "--format", "compact-json", "--output", str(path)], cwd=ROOT, capture_output=True,
                 text=True, timeout=180, env={**os.environ, "FUTURUNA_CALCULATION_JOBS": "1"})
             self.assertEqual(0, result.returncode, result.stderr)

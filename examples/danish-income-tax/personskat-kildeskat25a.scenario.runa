@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 | personskat_ksl25a_scenarie_virksomhed(identifikation: Tekst, indtægter: List(PersonskatVirksomhedsindtægtFakta), udgifter: List(PersonskatVirksomhedsudgiftFakta)) -> PersonskatOrdinærVirksomhedFakta(
     identifikation = identifikation,
@@ -593,7 +593,7 @@
 
 # PersonskatKsl25AArbejdsbogskilde = Stk3OverFællesÅrsloft2025 | SeparationMedFriFordeling2025
 
-@ calculate("Kildeskattelovens § 25 A til kanonisk Personskat-arbejdsbog")
+@ entry("Kildeskattelovens § 25 A til kanonisk Personskat-arbejdsbog")
 | personskat_ksl25a_kildefakta_til_arbejdsbog(kilde: PersonskatKsl25AArbejdsbogskilde) -> match kilde {
     | Stk3OverFællesÅrsloft2025 -> personskat_ksl25a_scenarie_input(
         [personskat_ksl25a_scenarie_overskudsvirksomhed, personskat_ksl25a_scenarie_anden_overskudsvirksomhed],

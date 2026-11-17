@@ -9,9 +9,9 @@ feature_stage_surfaces:
   - annotations
 ---
 
-# Typed Calculations
+# Entries
 
-`@ calculate` marks an ordinary typed rule or function as an external
+`@ entry` marks an ordinary typed rule or function as an external
 calculation boundary. It does not change rule evaluation and is not an effect.
 
 A calculation is pure: its entry, and every function and rule it reaches, must
@@ -25,7 +25,7 @@ data enters only through the typed input.
 # Input(monthly_income: Int, status: FilingStatus)
 # Result(annual_tax: Int)
 
-@ calculate("Household tax calculation")
+@ entry("Household tax calculation")
 | calculate(input: Input) -> Result(annual_tax = annual_tax(input))
 ```
 
@@ -34,8 +34,8 @@ must infer to one concrete serializable type; a function must declare its result
 type. The input is one named domain type. Conditions, defaults, exceptions,
 matches, rule scopes, and ordinary rule dependencies continue to work normally.
 
-Use plain `@ calculate` when the rule name is sufficient, or provide one
-human-readable title with `@ calculate("Household tax calculation")`. The title
+Use plain `@ entry` when the rule name is sufficient, or provide one
+human-readable title with `@ entry("Household tax calculation")`. The title
 names the whole calculation and appears in its schema and generated workbook.
 It does not label every nested input field. Field labels, interview questions,
 help, units, and sources belong in field metadata.
@@ -76,7 +76,7 @@ and map wrappers are transparent, as in `pathof`.
 | `label` | required `String` |
 | `question`, `help`, `unit` | `String` |
 | `sources` | list of source values such as `[Source(value = law)]`, whose type implements `MetaRole` |
-| `entry`, `subject` | together: `entry = refof(<calculation>)`, the `@ calculate` entry that provides the field, and `subject = pathof(<Input>::...)`, the input path it runs for, rooted at the calculation's input type (see [Needs](#needs) below). The older strings (`entry = "share_income"`, `subject = "taxpayer.spouse"`) are still read; `runa fmt --migrate` rewrites them |
+| `entry`, `subject` | together: `entry = refof(<calculation>)`, the `@ entry` that provides the field, and `subject = pathof(<Input>::...)`, the input path it runs for, rooted at the calculation's input type (see [Needs](#needs) below). The older strings (`entry = "share_income"`, `subject = "taxpayer.spouse"`) are still read; `runa fmt --migrate` rewrites them |
 | `key` | `Bool`: `True` makes this `String` or `Int` field of a record type the key that identifies an element of the type in a list (one per type); the contract's definition of the type names it as `key`, and a need inside such an element carries the element's key |
 
 A key that does not apply is left out; values are plain strings (`key` a
@@ -110,10 +110,10 @@ asked.
 ### Metadata for one calculation
 
 When metadata depends on where a type is used, such as help that holds for one
-calculation only, attach typed field records to the calculation entry with
+calculation only, attach typed field records to the entry with
 `@ meta`. A field binding is an ordinary pure ground record. Its typed field
 shape and canonical `path` give it calculation meaning; `@ meta` stands on the
-calculation entry, and its value contains the fields and their provenance.
+entry, and its value contains the fields and their provenance.
 
 ```runa
 # CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
@@ -142,7 +142,7 @@ calculation entry, and its value contains the fields and their provenance.
 )
 
 @ meta(monthly_income_meta)
-@ calculate
+@ entry
 > calculate_tax(input: Input) -> Int { ... }
 ```
 
@@ -240,7 +240,7 @@ the same object by its own nested types.
 )
 
 @ meta(tax_input_meta)
-@ calculate
+@ entry
 > calculate_tax(input: Input) -> Int { ... }
 ```
 
@@ -252,7 +252,7 @@ domain component retains its own source, warning, and guidance trace.
 
 The metadata value may live in a recursively imported metadata module, and
 `@ meta(<value>) for <name>` may attach it from such a module. Calculation
-tooling collects only imported metadata on an actual calculation entry or a
+tooling collects only imported metadata on an actual entry or a
 reachable input type, so unrelated dependency metadata cannot alter the
 contract. Imported fields use the same exact-path validation and duplicate
 checks as local fields.
@@ -293,11 +293,11 @@ final interview wording.
 ## Inspect The Contract
 
 ```sh
-runa schema model.calculate.runa
-runa schema model.calculate.runa --entry calculate_tax
+runa schema model.entry.runa
+runa schema model.entry.runa --entry calculate_tax
 ```
 
-The command emits `futuruna.calculate.v1` JSON with input and output types,
+The command emits `futuruna.entry.v1` JSON with input and output types,
 reachable type definitions, linked metadata, and a SHA-256 schema fingerprint.
 Use `--entry` when a file declares more than one calculation.
 
@@ -305,10 +305,10 @@ For models with repeated field-source provenance, opt into a lossless compact
 schema export:
 
 ```sh
-runa schema model.calculate.runa --format compact-json --output schema.json
+runa schema model.entry.runa --format compact-json --output schema.json
 ```
 
-The distinct wire schema `futuruna.calculate.compact.v1` stores each exact source
+The distinct wire schema `futuruna.entry.compact.v1` stores each exact source
 object once in `source_objects`, ordered source lists in `source_groups`, and
 a `source_group` reference on each field that has sources. Source order,
 repetitions, text, structured data and field associations are preserved. Root
@@ -463,7 +463,7 @@ The default cache is under the operating system's user cache directory. Set
 standard error. The cache contains contracts only; calculation inputs and
 results are not stored.
 
-A call prepares its calculation entry once: the runtime rule-dispatch metadata
+A call prepares its entry once: the runtime rule-dispatch metadata
 and an interpreter that has initialized the program (the prelude, the
 declarations, and the top-level and metadata bindings the entry reaches). Every
 case runs from that prepared state and starts from it alone: a fresh
@@ -475,7 +475,7 @@ next case, so no case sees the messages or values of another. A host that keeps
 the prepared entry reuses it for every later call: the WebAssembly engine's
 `Model` prepares an entry on its first call (full or partial), and later calls
 run only their cases, with results byte-identical to a fresh call's. In Rust,
-`futuruna::calculate::PreparedCalculation` is that prepared entry.
+`futuruna::calculate::PreparedEntry` is that prepared entry.
 
 Calculation batches with at least four ready cases run independent cases
 concurrently and retain their original result and diagnostic order. The
@@ -498,8 +498,8 @@ substantially faster.
 ## Audit Calculation Reachability
 
 ```sh
-runa audit model.calculate.runa --entry calculate_tax
-runa audit model.calculate.runa --entry calculate_tax --json
+runa audit model.entry.runa --entry calculate_tax
+runa audit model.entry.runa --entry calculate_tax --json
 ```
 
 Entry-specific audit mode reports the conservative runtime-symbol closure used
@@ -521,7 +521,7 @@ connecting it.
 audit as `topology` (`summary` counts of rules, invariants, `contradictions`,
 `tensions`, `asymmetries` and `invariant_gaps`; `findings` with `kind`,
 `severity`, `title`, `rules` and `explanation`). For a file without
-`@ calculate`, the entry sections (`entry`, `label`, `input_type`,
+`@ entry`, the entry sections (`entry`, `label`, `input_type`,
 `output_type`, `analysis`, `summary`, `reachable_symbols`, `required_bindings`,
 `loaded_sources`, `callables`, `not_reached_candidates`) are `null`. With
 `--json`, a file with several calculations needs `--entry`. Running `runa audit` without
@@ -559,9 +559,9 @@ are informational and do not change the exit status of `runa audit`.
 ## Generate Input
 
 ```sh
-runa template model.calculate.runa --format json --output cases.json
-runa template model.calculate.runa --format toml --output cases.toml
-runa template model.calculate.runa --format xlsx --output cases.xlsx
+runa template model.entry.runa --format json --output cases.json
+runa template model.entry.runa --format toml --output cases.toml
+runa template model.entry.runa --format xlsx --output cases.xlsx
 ```
 
 JSON is the canonical value model. TOML omits absent optional record fields.
@@ -613,7 +613,7 @@ workbook writes version 8 without changing its decoded values.
 `cases` is the first visible worksheet and contains scalar fields for the named
 input record. `input_status` beside `case_id` offers `draft` and `ready`; it
 applies to that case's inputs on all related sheets. Its first row visibly
-shows the `@ calculate` title, and every related collection sheet combines that
+shows the `@ entry` title, and every related collection sheet combines that
 title with the collection's field label.
 Explicit field labels replace machine paths only in visible headers; hidden
 topology retains the paths. Every collection row
@@ -641,7 +641,7 @@ After changing a variant or adding parent rows, refresh the workbook to add any
 newly reachable collection sheets:
 
 ```sh
-runa template model.calculate.runa --input cases.xlsx --output refreshed.xlsx
+runa template model.entry.runa --input cases.xlsx --output refreshed.xlsx
 ```
 
 Refresh validates and preserves existing values and readiness, except that cases
@@ -675,9 +675,9 @@ instead of coercing the data.
 ## Invoke Cases
 
 ```sh
-runa call model.calculate.runa --input cases.json
-runa call model.calculate.runa --input cases.toml --output results.json
-runa call model.calculate.runa --input cases.xlsx --output results.xlsx
+runa call model.entry.runa --input cases.json
+runa call model.entry.runa --input cases.toml --output results.json
+runa call model.entry.runa --input cases.xlsx --output results.xlsx
 ```
 
 Each case is decoded through the same Futuruna contract and evaluated in an
@@ -733,10 +733,10 @@ answers some needs, writes the answers into the same case at their paths and
 calls again, until the case is `Complete`.
 
 ```sh
-runa call model.calculate.runa --partial --input partial.json
-runa call model.calculate.runa --partial=strict --input partial.json
-runa call model.calculate.runa --partial=check --input partial.json
-runa schema model.calculate.runa --format partial-result
+runa call model.entry.runa --partial --input partial.json
+runa call model.entry.runa --partial=strict --input partial.json
+runa call model.entry.runa --partial=check --input partial.json
+runa schema model.entry.runa --format partial-result
 ```
 
 In a partial case a value means the answer, `{}` for a record means the
@@ -806,7 +806,7 @@ cannot finish. `later` lists the facts evaluation did read behind such a
 condition (in a branch that failed, was cut, or was undecided because of
 another branch) and that are not needs: they may become needs once the needs
 are answered. The output envelope's schema is
-`futuruna.calculate.partial-output.v1`, and `runa schema --format
+`futuruna.entry.partial-output.v1`, and `runa schema --format
 partial-result` prints the JSON Schema of `result`.
 
 Evaluation carries unknown values freely and decides wherever the known part
@@ -837,7 +837,7 @@ the path string). Its need has kind `entry`: the client runs that entry for
 the subject and writes the entry's result at `path`. The contract and the
 need carry the entry's name and the subject's input path
 (`"entry": "share_income"`, `"subject": "taxpayer.spouse"`). `runa check`
-reports, naming the field: an `entry` that is not an `@ calculate` entry of
+reports, naming the field: an `entry` that is not an `@ entry` of
 the program, a `subject` rooted at another type than the calculation's input,
 a subject whose value (through optional, list, set and map wrappers) does not
 have the entry's input type, and a field whose type is not the entry's result
@@ -869,7 +869,7 @@ cases and their needs are specified in
 
 ## Needs in the language
 
-Experimental. A program asks a calculation entry about a case that holds
+Experimental. A program asks an entry about a case that holds
 facts not known yet, in Futuruna, and a test states an interview round by
 round. Queries run in the interpreter, as `runa call --partial` does.
 
@@ -885,7 +885,7 @@ round. Queries run in the interpreter, as `runa call --partial` does.
 }
 }
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = h.income - threshold(h))
 
 = with_spouse = Household(income = 500, married = True, spouse = Some(Spouse(income = 50, cohabiting = True)))
@@ -920,8 +920,8 @@ places it stops with an error naming the `unknown`'s line. `unknown` is a
 reserved word; `runa fmt --migrate` renames a binding, parameter or function
 called `unknown` to `unknown_`.
 
-**`query entry(case)`** asks the calculation entry `entry` (an
-`@ calculate` declared in the asking file or a file it imports) about
+**`query entry(case)`** asks the entry `entry` (an
+`@ entry` declared in the asking file or a file it imports) about
 `case`. It returns
 
 ```text
@@ -933,8 +933,8 @@ with what `runa call --partial` returns for the case: the entry is checked
 and prepared as `runa call` prepares it, the case crosses as a partial JSON
 case, and the result and needs cross back. `query` is a contextual keyword:
 only `query name(...)` is a query, and `runa check` rejects a query of a
-name that is not a calculation entry. No calculation may reach a `query` or
-an `unknown`: `runa check` reports one that any `@ calculate` entry can
+name that is not an entry. No calculation may reach a `query` or
+an `unknown`: `runa check` reports one that any `@ entry` can
 reach, with the call chain.
 
 A `Complete` carries the assumptions its result rests on, as `runa call`
@@ -998,10 +998,10 @@ the law section and cited paragraphs of that clause, and the rules and inputs
 it was computed from.
 
 ```sh
-runa call model.calculate.runa --input cases.json --explain
-runa call model.calculate.runa --input cases.json --explain=full
-runa call model.calculate.runa --input partial.json --partial --explain
-runa schema model.calculate.runa --format explanation
+runa call model.entry.runa --input cases.json --explain
+runa call model.entry.runa --input cases.json --explain=full
+runa call model.entry.runa --input partial.json --partial --explain
+runa schema model.entry.runa --format explanation
 ```
 
 ```json
@@ -1165,10 +1165,10 @@ every call (`Calculated<R>`), and `Complete` carries `assumptions`.
 ## TypeScript SDK
 
 Experimental. `runa sdk ts` generates a typed TypeScript client from the
-contracts of every `@ calculate` entry in one file:
+contracts of every `@ entry` in one file:
 
 ```sh
-runa sdk ts model.calculate.runa --out sdk/
+runa sdk ts model.entry.runa --out sdk/
 ```
 
 The output is five ES modules for the file's entries and one runtime module,
@@ -1188,8 +1188,8 @@ directory, and the entry modules import it from there. The SDKs of several
 source files then share one runtime, generated by the same `runa`:
 
 ```sh
-runa sdk ts src/tax_report.calculate.runa --out sdk/tax_report --runtime ../runtime.ts
-runa sdk ts src/ekapital_ask.calculate.runa --out sdk/ekapital_ask --runtime ../runtime.ts
+runa sdk ts src/tax_report.entry.runa --out sdk/tax_report --runtime ../runtime.ts
+runa sdk ts src/ekapital_ask.entry.runa --out sdk/ekapital_ask --runtime ../runtime.ts
 ```
 
 Each entry module starts with a header naming the source file and the schema

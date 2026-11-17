@@ -10,7 +10,7 @@
 | room(closed: Bool, value: Int) -> if closed { 0 } else { 1000 - value }
 > kroner(closed: Bool) -> Int { if closed { 0 } else { 1 } }
 
-@ calculate
+@ entry
 | account_room(a: Account) -> Result(room = room(a.closed, a.value) + kroner(a.closed) + (|closed| closed)(1) + match a { | Account(value, closed) -> if closed { 0 } else { value - value } })
 
 = closed = query account_room(Account(value = 400, closed = True))

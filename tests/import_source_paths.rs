@@ -31,7 +31,7 @@ impl Fixture {
         .unwrap();
         std::fs::write(
             root.join("model/main.runa"),
-            "@ import ./dependency\n@ calculate(\"Import path fixture\")\n> calculate_example(input: Input) -> CalculationOutput { adjusted(input) }\n@ print(show(calculate_example(Input(value = 2)).total))\n",
+            "@ import ./dependency\n@ entry(\"Import path fixture\")\n> calculate_example(input: Input) -> CalculationOutput { adjusted(input) }\n@ print(show(calculate_example(Input(value = 2)).total))\n",
         )
         .unwrap();
         Self(root)

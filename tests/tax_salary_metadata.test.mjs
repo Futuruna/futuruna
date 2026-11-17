@@ -15,7 +15,7 @@ test('the two salary fields share one source-backed definition of the wage input
 }, () => {
   const evidence = mkdtempSync(join(tmpdir(), 'futuruna-salary-metadata-'));
   console.log(`Salary contract evidence: ${evidence}`);
-  const p = spawnSync(binary, ['schema', 'examples/danish-income-tax/personskat.calculate.runa',
+  const p = spawnSync(binary, ['schema', 'examples/danish-income-tax/personskat.entry.runa',
     '--entry', 'beregn_personskat', '--format', 'compact-json'], {
     cwd: root, encoding: 'utf8', timeout: 600000, maxBuffer: 16 * 1024 * 1024,
     env: { ...process.env, FUTURUNA_CALCULATION_JOBS: '1' },

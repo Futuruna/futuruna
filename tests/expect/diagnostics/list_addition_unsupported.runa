@@ -4,7 +4,7 @@
 
 # Input(left: List(Int), right: List(Int))
 
-@ calculate
+@ entry
 > count(input: Input) -> Int {
     length(input.left + input.right)
 }

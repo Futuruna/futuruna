@@ -56,7 +56,7 @@ expect_success() {
     fi
     local actual
     actual="$(sed -E 's/"schema_hash": "[0-9a-f]{64}"/"schema_hash": "dynamic"/' "$PROBE_DIR/$name.out" | tr -d '[:space:]')"
-    if [[ "$actual" != '{"$futuruna":{"schema":"futuruna.calculate.output.v1","schema_hash":"dynamic","entry":"calculate"},"results":[{"case_id":"case-1","result":'"$result"'}],"diagnostics":[]}' ]]; then
+    if [[ "$actual" != '{"$futuruna":{"schema":"futuruna.entry.output.v1","schema_hash":"dynamic","entry":"calculate"},"results":[{"case_id":"case-1","result":'"$result"'}],"diagnostics":[]}' ]]; then
         fail_probe "$name returned unexpected output. See $PROBE_DIR/$name.out."
         return
     fi
@@ -81,8 +81,8 @@ expect_failure() {
     echo "[tax-audit] PASS: $name"
 }
 
-RUNTIME_MODEL="$ROOT_DIR/tests/fixtures/calculation/audit-runtime.calculate.runa"
-MODULE_MODEL="$ROOT_DIR/tests/fixtures/calculation/audit-modules.calculate.runa"
+RUNTIME_MODEL="$ROOT_DIR/tests/fixtures/calculation/audit-runtime.entry.runa"
+MODULE_MODEL="$ROOT_DIR/tests/fixtures/calculation/audit-modules.entry.runa"
 "$RUNA_BIN" template "$RUNTIME_MODEL" --format json --output "$PROBE_DIR/runtime-draft.json"
 "$RUNA_BIN" template "$MODULE_MODEL" --format json --output "$PROBE_DIR/modules-draft.json"
 expect_failure untouched-template "$RUNTIME_MODEL" "$PROBE_DIR/runtime-draft.json" 'input_status'
@@ -105,7 +105,7 @@ expect_failure duplicate-first "$RUNTIME_MODEL" "$PROBE_DIR/duplicate-first.json
 make_variant "$PROBE_DIR/runtime.json" year '"year": 0, "year": 2027' "$PROBE_DIR/duplicate-last.json"
 expect_failure duplicate-last "$RUNTIME_MODEL" "$PROBE_DIR/duplicate-last.json" 'duplicate JSON object member'
 
-MESSAGE_MODEL="$ROOT_DIR/tests/fixtures/calculation/assert-message.calculate.runa"
+MESSAGE_MODEL="$ROOT_DIR/tests/fixtures/calculation/assert-message.entry.runa"
 if "$RUNA_BIN" template "$MESSAGE_MODEL" --format json --output "$PROBE_DIR/message-draft.json"; then
     mark_fixture_ready "$PROBE_DIR/message-draft.json" "$PROBE_DIR/message.json"
     make_variant "$PROBE_DIR/message.json" year '"year": 2026' "$PROBE_DIR/message-valid.json"

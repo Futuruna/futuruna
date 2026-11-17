@@ -15,7 +15,7 @@ if (args.length !== 1 || args[0] === '--help') {
 }
 const binary = args[0].includes('/') || args[0].includes('\\') ? resolve(args[0]) : args[0];
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const model = 'examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa';
+const model = 'examples/danish-income-tax/aarsopgoerelse-afstemning.entry.runa';
 const evidence = mkdtempSync(join(tmpdir(), 'futuruna-afstemning-demo-'));
 console.error(`Kun fiktive observationer. Input og resultater gemmes i: ${evidence}`);
 

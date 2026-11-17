@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 ----
 Fokusscenarier for kildeafledt klassifikation af aktiver og tab i

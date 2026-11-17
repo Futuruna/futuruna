@@ -168,7 +168,7 @@ fn check_omits_pure_imported_metadata_from_generated_runtime() {
     std::fs::write(
         &source,
         "@ import ./domain\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Output(value = input.value)\n",
     )
     .expect("write metadata-pruning calculation source");

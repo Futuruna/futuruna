@@ -1,8 +1,8 @@
 -- A field's providing `entry` is a calculation: a function marked
--- `@ calculate`, not any function.
+-- `@ entry`, not any function.
 -- expect-command: check
 -- expect-status: fail
--- expect-stderr: calculation `household_tax` field `spouse_income` is provided by `spouse_income`, which is not a calculation entry of this program; `entry` names an `@ calculate` function
+-- expect-stderr: calculation `household_tax` field `spouse_income` is provided by `spouse_income`, which is not an entry of this program; `entry` names an `@ entry` function
 
 # Spouse(income: Int)
 
@@ -15,5 +15,5 @@
 
 | spouse_income(s: Spouse) -> s.income
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> TaxResult(tax = h.spouse_income)

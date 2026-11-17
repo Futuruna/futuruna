@@ -205,12 +205,12 @@ fn calculations_reject_effects_statically_and_at_run_time() {
     // The issue's reproduction: a plain binding inside the calculation.
     let direct = sandbox.write(
         "calcfx.runa",
-        &format!("{CALCULATION}@ calculate\n> calc(i: In) -> Out {{\n    = w = write_file(\"MARK/CALL.marker\", \"x\")\n    Out(i.n)\n}}\n"),
+        &format!("{CALCULATION}@ entry\n> calc(i: In) -> Out {{\n    = w = write_file(\"MARK/CALL.marker\", \"x\")\n    Out(i.n)\n}}\n"),
     );
     // Reached through a helper.
     let helper = sandbox.write(
         "helper.runa",
-        &format!("{CALCULATION}> log(n: Int) -> Int {{ @ print(show(n)); n }}\n@ calculate\n> calc(i: In) -> Out {{ Out(log(i.n)) }}\n"),
+        &format!("{CALCULATION}> log(n: Int) -> Int {{ @ print(show(n)); n }}\n@ entry\n> calc(i: In) -> Out {{ Out(log(i.n)) }}\n"),
     );
     for (path, effect, line) in [(&direct, "write_file", ":5:"), (&helper, "print", ":3:")] {
         for args in [
@@ -236,7 +236,7 @@ fn calculations_reject_effects_statically_and_at_run_time() {
     );
     let imported = sandbox.write(
         "imported.runa",
-        &format!("@ import Effects from ./effects\n{CALCULATION}@ calculate\n> calc(i: In) -> Out {{ Out(Effects.touch(i.n)) }}\n"),
+        &format!("@ import Effects from ./effects\n{CALCULATION}@ entry\n> calc(i: In) -> Out {{ Out(Effects.touch(i.n)) }}\n"),
     );
     let input = sandbox.project().join("input.json");
     let template = sandbox.run(&[
@@ -504,7 +504,7 @@ fn oversized_workbooks_are_rejected_before_sheets_are_read() {
     let sandbox = Sandbox::new();
     let model = sandbox.write(
         "calc.runa",
-        &format!("{CALCULATION}@ calculate\n> calc(i: In) -> Out {{ Out(i.n) }}\n"),
+        &format!("{CALCULATION}@ entry\n> calc(i: In) -> Out {{ Out(i.n) }}\n"),
     );
     let workbook = sandbox.project().join("input.xlsx");
     let template = sandbox.run(&[

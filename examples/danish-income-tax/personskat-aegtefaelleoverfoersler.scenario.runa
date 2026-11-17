@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 -- Kanonisk scenarie for indgående ægtefælleoverførsler. Afsenderens
 -- underskud, uudnyttede personfradrag og uudnyttede kapitalindkomstnedslag

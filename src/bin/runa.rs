@@ -472,7 +472,7 @@ fn main_inner() {
             }
             "--entry" if matches!(mode, "schema" | "template" | "call" | "audit") => {
                 if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: --entry requires a calculation name");
+                    eprintln!("error: --entry requires an entry name");
                     std::process::exit(1);
                 }
                 calculation_entry = Some(args[i + 1].clone());
@@ -726,12 +726,12 @@ fn main_inner() {
                 eprintln!("  wasm --target nodejs  Package for require() in Node (default: web)");
                 eprintln!("  check         Parse, type-check, generate, and validate Rust");
                 eprintln!("  check --frontend  Skip Rust generation and backend validation");
-                eprintln!("  schema        Emit a typed @ calculate contract as JSON");
+                eprintln!("  schema        Emit a typed @ entry contract as JSON");
                 eprintln!(
                     "  template      Generate or hydrate JSON, TOML, or XLSX calculation input"
                 );
                 eprintln!("  call          Validate input and invoke a typed calculation");
-                eprintln!("  sdk ts FILE --out DIR  Generate a TypeScript SDK for every calculation entry");
+                eprintln!("  sdk ts FILE --out DIR  Generate a TypeScript SDK for every entry");
                 eprintln!(
                     "  meta          Report typed meta references across a file or source tree"
                 );
@@ -765,7 +765,7 @@ fn main_inner() {
                 eprintln!("  meta --type TYPE   Select meta references by Futuruna type");
                 eprintln!("  meta --role ROLE   Select meta references by role");
                 eprintln!("  meta --json        Emit a structured metadata index");
-                eprintln!("  --entry NAME       Select an @ calculate entry");
+                eprintln!("  --entry NAME       Select an @ entry");
                 eprintln!("  audit --entry NAME [--json]  Report calculation reachability");
                 eprintln!("  explore --query NAME  Select one named exploration");
                 eprintln!("  explore --run-state PATH  Required durable journal directory");
@@ -846,18 +846,18 @@ fn main_inner() {
                 eprintln!("  runa meta --type Warning program.runa  Sweep metadata by type");
                 eprintln!("  runa meta --json --role warning program.runa  Emit audit data");
                 eprintln!("  runa meta --json --role warning examples/  Sweep a source tree");
-                eprintln!("  runa schema model.calculate.runa --entry calculate_tax");
+                eprintln!("  runa schema model.entry.runa --entry calculate_tax");
                 eprintln!(
-                    "  runa schema model.calculate.runa --format compact-json --output schema.json"
+                    "  runa schema model.entry.runa --format compact-json --output schema.json"
                 );
                 eprintln!(
-                    "  runa template model.calculate.runa --entry calculate_tax --format xlsx --output cases.xlsx"
+                    "  runa template model.entry.runa --entry calculate_tax --format xlsx --output cases.xlsx"
                 );
                 eprintln!(
-                    "  runa template model.calculate.runa --input cases.json --format xlsx --output cases.xlsx"
+                    "  runa template model.entry.runa --input cases.json --format xlsx --output cases.xlsx"
                 );
                 eprintln!(
-                    "  runa call model.calculate.runa --entry calculate_tax --input cases.xlsx --output results.xlsx"
+                    "  runa call model.entry.runa --entry calculate_tax --input cases.xlsx --output results.xlsx"
                 );
                 eprintln!("  runa emit program.runa      Show Rust output");
                 eprintln!("  runa emit --imports program.runa  Show public import/export graph");
@@ -874,7 +874,7 @@ fn main_inner() {
                 eprintln!("  runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff");
                 eprintln!();
                 eprintln!("  runa audit program.runa     Discover invariant gaps automatically");
-                eprintln!("  runa audit model.calculate.runa --entry calculate_tax --json");
+                eprintln!("  runa audit model.entry.runa --entry calculate_tax --json");
                 eprintln!(
                     "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --output /private/income-cliffs.result --time-limit 20m --json"
                 );
@@ -1458,11 +1458,11 @@ fn print_explore_supervisor_operational_report(
     );
 }
 
-const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v9";
-const CALCULATION_XLSX_QUOTED_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v8";
-const CALCULATION_XLSX_PREVIOUS_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v7";
-const CALCULATION_XLSX_LEGACY_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v6";
-const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v2";
+const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.entry.xlsx.input.v9";
+const CALCULATION_XLSX_QUOTED_INPUT_SCHEMA: &str = "futuruna.entry.xlsx.input.v8";
+const CALCULATION_XLSX_PREVIOUS_INPUT_SCHEMA: &str = "futuruna.entry.xlsx.input.v7";
+const CALCULATION_XLSX_LEGACY_INPUT_SCHEMA: &str = "futuruna.entry.xlsx.input.v6";
+const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.entry.xlsx.output.v2";
 const CALCULATION_XLSX_TEXT_CHUNK_LIMIT: usize = 30_000;
 const CALCULATION_XLSX_STRING_HELP: &str = "For empty text, enter \"\" (two double quotes). Clearing a cell means no value. For text starting with a double quote, use JSON string quoting.";
 const SOURCE_GRAPH_SNAPSHOT_VERSION: u32 = 1;
@@ -2161,7 +2161,7 @@ fn run_calculation_command(
             // A template filled from input shows only values `call` accepts,
             // so it runs the checks of named scalars on them as `call` does.
             if input_path.is_some() {
-                let mut prepared = calculate::PreparedCalculation::new(
+                let mut prepared = calculate::PreparedEntry::new(
                     contract.clone(),
                     stmts,
                     source_dir,
@@ -2220,7 +2220,7 @@ fn run_calculation_command(
                 std::process::exit(1);
             });
             let input_format = calculation_format(None, Some(input_path), "json");
-            let mut prepared = calculate::PreparedCalculation::new(
+            let mut prepared = calculate::PreparedEntry::new(
                 contract.clone(),
                 stmts,
                 source_dir,
@@ -2349,17 +2349,17 @@ fn select_calculation_contract<'a>(
             .find(|contract| contract.entry == entry)
             .ok_or_else(|| {
                 format!(
-                    "unknown calculation entry `{}`; available entries: {}",
+                    "unknown entry `{}`; available entries: {}",
                     entry,
                     calculation_entry_names(contracts)
                 )
             });
     }
     match contracts {
-        [] => Err("source has no `@ calculate` entry".to_string()),
+        [] => Err("source has no `@ entry`".to_string()),
         [contract] => Ok(contract),
         _ => Err(format!(
-            "source has multiple calculations ({}); select one with --entry NAME",
+            "source has multiple entries ({}); select one with --entry NAME",
             calculation_entry_names(contracts)
         )),
     }
@@ -2378,11 +2378,11 @@ fn calculation_entry_names(contracts: &[calculate::CalculationContract]) -> Stri
 }
 
 /// `runa sdk ts FILE --out DIR [--runtime PATH]`: write the TypeScript SDK
-/// for every calculation entry of FILE, and the runtime it imports at PATH
+/// for every entry of FILE, and the runtime it imports at PATH
 /// (relative to DIR; `runtime.ts` unless given).
 fn run_sdk_command(args: &[String]) {
     const USAGE: &str =
-        "usage: runa sdk ts <file.calculate.runa> --out <dir> [--runtime <path relative to dir>]";
+        "usage: runa sdk ts <file.entry.runa> --out <dir> [--runtime <path relative to dir>]";
     let fail = |message: &str| -> ! {
         eprintln!("error: {message}\n{USAGE}");
         std::process::exit(1);
@@ -21487,7 +21487,8 @@ fn migration_root(file: &Path) -> PathBuf {
     directory
 }
 
-/// `runa fmt --migrate`: rewrite the retired comment directives of every
+/// `runa fmt --migrate`: rewrite `@ calculate` as `@ entry` (0.6), and the
+/// retired comment directives of every
 /// file as annotations, then format it; rewrite string `entry`/`subject`
 /// field metadata as `refof`/`pathof`, rename `unknown`, reserved in 0.5,
 /// to `unknown_`, remove each field-level `@ field` that says what its named
@@ -21496,6 +21497,7 @@ fn migration_root(file: &Path) -> PathBuf {
 /// cannot rewrite is left unchanged and its reasons are listed; so is
 /// metadata it cannot rewrite.
 fn migrate_targets(targets: &[String], check: bool) {
+    use futuruna::migrate::entries::migrate_entries;
     use futuruna::migrate::rule_types::migrate_rule_declarations;
     use futuruna::migrate::{add_document_impl, migrate_needs, migrate_source, MigrationProgram};
     let mut files = Vec::new();
@@ -21521,7 +21523,12 @@ fn migrate_targets(targets: &[String], check: bool) {
                 continue;
             }
         };
-        let directives = source
+        let entries = migrate_entries(&source);
+        for listed in &entries.listed {
+            eprintln!("{path}:{listed}");
+        }
+        let base = entries.source.as_str();
+        let directives = base
             .lines()
             .any(|line| line.trim_start().starts_with("--@"));
         let root = migration_root(Path::new(path));
@@ -21529,7 +21536,7 @@ fn migrate_targets(targets: &[String], check: bool) {
             .entry(root.clone())
             .or_insert_with(|| MigrationProgram::scan(&root));
         let result = if directives {
-            match migrate_source(&source, program) {
+            match migrate_source(base, program) {
                 Ok(result) => Some(result),
                 Err(errors) => {
                     for error in errors {
@@ -21545,7 +21552,7 @@ fn migrate_targets(targets: &[String], check: bool) {
         let needs = migrate_needs(
             result
                 .as_ref()
-                .map_or(source.as_str(), |result| result.source.as_str()),
+                .map_or(base, |result| result.source.as_str()),
             Path::new(path),
             program,
         );
@@ -21608,7 +21615,7 @@ fn migrate_targets(targets: &[String], check: bool) {
         for note in &notes {
             eprintln!("{path}: {note}");
         }
-        for rewritten in &needs.rewritten {
+        for rewritten in entries.rewritten.iter().chain(&needs.rewritten) {
             eprintln!("{path}:{rewritten}");
         }
         if let Some(result) = &result {
@@ -64924,7 +64931,7 @@ assert_with_message(true, message())
     #[test]
     fn lsp_pathof_definition_navigates_plain_imported_types() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/calculation/pathof-import.calculate.runa");
+            .join("tests/fixtures/calculation/pathof-import.entry.runa");
         let source = std::fs::read_to_string(&path).expect("pathof fixture");
         let offset = source.find("children::age").expect("imported path") + "children::".len();
         let prefix = &source[..offset];

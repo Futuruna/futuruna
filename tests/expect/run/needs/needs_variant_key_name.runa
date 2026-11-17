@@ -9,5 +9,5 @@
 # Case(events: List(Event))
 # Result(count: Int)
 
-@ calculate
+@ entry
 | needs_variant_key_name(c: Case) -> Result(count = length(c.events))

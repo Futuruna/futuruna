@@ -14,7 +14,7 @@
     if x == 1 { c.first } else { if x == 2 { c.second } else { c.third } }
 }
 
-@ calculate
+@ entry
 | needs_find_kleene(c: Case) -> Found(
     value = match find([1, 2, 3], |x| matches(c, x)) {
         | Some(x) -> x

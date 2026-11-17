@@ -10,7 +10,7 @@
 # Case(wanted: String, accounts: List(Account))
 # Found(kind: String)
 
-@ calculate
+@ entry
 | needs_map_values(c: Case) -> Found(
     kind = match map_get(map_from(map(c.accounts, |a| (a.id, a))), c.wanted) {
         | Some(a) -> a.kind

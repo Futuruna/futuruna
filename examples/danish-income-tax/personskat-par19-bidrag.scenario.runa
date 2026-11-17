@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 | personskat_par19_navngivningskontekst() -> MedNavngivningsskattekontekst(
     retsgrundlag = BarnUdenForÆgteskab,
@@ -103,7 +103,7 @@
 
 # PersonskatPar19Arbejdsbogskilde = FødselsbidragBetalt2025 | NavngivningsbidragBetalt2025 | FødselsbidragForSentAnsøgt2025
 
-@ calculate("§ 19-bidrag til kanonisk Personskat-arbejdsbog")
+@ entry("§ 19-bidrag til kanonisk Personskat-arbejdsbog")
 | personskat_par19_kildefakta_til_arbejdsbog(kilde: PersonskatPar19Arbejdsbogskilde) -> match kilde {
     | FødselsbidragBetalt2025 -> personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_fødselsbidrag(BørnebidragsBidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt))]))
     | NavngivningsbidragBetalt2025 -> personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_navngivningsbidrag()]))

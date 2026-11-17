@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 | personskat_underhold_scenarie_personlig_indkomst(underholdsbidrag: Ligningslov10Og11Årsinput) -> PersonskatPersonligIndkomstInput(
     etableringskonto = UdenEtableringskontoindskud,
@@ -140,7 +140,7 @@
 
 | personskat_underhold_barnets_egen_opgørelse_er_gyldig: personskat_underhold_18_aarsmaaned_modtager -> personskat_underhold_18_aarsmaaned_modtager.vurdering.alle_kontroller_gyldige && personskat_underhold_18_aarsmaaned_modtager.vurdering.slutskat_til_sammenligning_øre == Some(personskat_underhold_18_aarsmaaned_modtager.slutskat_øre)
 
-@ calculate("Underholdsbidrag til kanonisk Personskat-arbejdsbog")
+@ entry("Underholdsbidrag til kanonisk Personskat-arbejdsbog")
 | personskat_underhold_kildefakta_til_arbejdsbog(kilde: PersonskatUnderholdArbejdsbogskilde) -> match kilde {
     | ÆgtefællebidragBetalt2025 -> personskat_underhold_scenarie_input(Ligningslov10Og11Årsinput(bidrag = [personskat_underhold_scenarie_ægtefællebidrag(Bidragsyder(modtageridentitet_oplyst = Sandt))]))
     | PrivatBegrænsetBørnebidragBetalt2025 -> personskat_underhold_scenarie_input(Ligningslov10Og11Årsinput(bidrag = [personskat_underhold_scenarie_privat_begrænset_børnebidrag()]))

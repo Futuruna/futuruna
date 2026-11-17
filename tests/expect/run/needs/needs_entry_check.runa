@@ -2,7 +2,7 @@
 -- expect-command: call
 -- expect-input: needs_entry.json
 -- expect-args: --entry household_tax --partial=check
--- expect-stdout: "schema": "futuruna.calculate.partial-output.v1"
+-- expect-stdout: "schema": "futuruna.entry.partial-output.v1"
 
 # Spouse(income: Int)
 # Household(income: Int, spouse: Spouse, spouse_share_income: Int)
@@ -29,12 +29,12 @@
     attachments = ()
 )
 
-@ calculate
+@ entry
 | share_income(s: Spouse) -> s.income
 
 | threshold(h: Household): Int -> 100
 | exception transferred threshold(h) -> 200 - h.spouse_share_income under h.spouse_share_income < 100
 
 @ meta(household_meta)
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = h.income - threshold(h))

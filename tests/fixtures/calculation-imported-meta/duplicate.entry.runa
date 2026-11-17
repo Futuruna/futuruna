@@ -1,0 +1,18 @@
+@ import ./fields
+
+# DuplicateImportedInput(amount: Int)
+# DuplicateImportedResult(amount: Int)
+
+= local_amount_field = CalculationField(
+    path = "amount",
+    label = "Local amount",
+    question = None,
+    help = None,
+    unit = None
+)
+
+@ meta(local_amount_field)
+@ entry
+| calculate_imported_fields(input: DuplicateImportedInput) -> DuplicateImportedResult(
+    amount = input.amount
+)

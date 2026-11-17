@@ -15,7 +15,7 @@ långivere, restancer og udenlandske forhold kræver særskilt afklaring;
 brug ikke bare lånets samlede ydelse som rentebeløb.
 [SKATs rentevejledning](https://skat.dk/borger/fradrag/fradrag-for-renter).
 
-I [Personskat-inputtet](personskat.calculate.runa) ligger beløbene under
+I [Personskat-inputtet](personskat.entry.runa) ligger beløbene under
 `kapitalindkomst.renter`:
 
 - `renteudgifter_kroner`: din samlede **fradragsberettigede** renteudgift

@@ -9,7 +9,7 @@ import test from 'node:test';
 import { fillFictionalPersonskat } from '../examples/danish-income-tax/personskat-fiktiv-input.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const model = 'examples/danish-income-tax/personskat.calculate.runa';
+const model = 'examples/danish-income-tax/personskat.entry.runa';
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
 const variant = ($variant, fields = {}) => ({ $variant, ...fields });
 const expensePath = 'lønmodtager.ligningsfradrag.øvrige_lønmodtagerudgifter';

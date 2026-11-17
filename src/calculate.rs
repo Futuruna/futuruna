@@ -1,6 +1,6 @@
 //! Typed calculation contracts and canonical value interchange.
 //!
-//! `@ calculate` does not alter evaluation. It selects an ordinary typed rule
+//! `@ entry` does not alter evaluation. It selects an ordinary typed rule
 //! or function as a discoverable input/output boundary for external adapters
 //! and may carry one human-readable title for that boundary.
 
@@ -28,11 +28,11 @@ thread_local! {
     static CONTRACT_EXTRACTION_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
-pub const CONTRACT_SCHEMA: &str = "futuruna.calculate.v1";
-pub const INPUT_SCHEMA: &str = "futuruna.calculate.input.v2";
-pub const LEGACY_INPUT_SCHEMA: &str = "futuruna.calculate.input.v1";
-pub const OUTPUT_SCHEMA: &str = "futuruna.calculate.output.v1";
-pub const PARTIAL_OUTPUT_SCHEMA: &str = "futuruna.calculate.partial-output.v1";
+pub const CONTRACT_SCHEMA: &str = "futuruna.entry.v1";
+pub const INPUT_SCHEMA: &str = "futuruna.entry.input.v2";
+pub const LEGACY_INPUT_SCHEMA: &str = "futuruna.entry.input.v1";
+pub const OUTPUT_SCHEMA: &str = "futuruna.entry.output.v1";
+pub const PARTIAL_OUTPUT_SCHEMA: &str = "futuruna.entry.partial-output.v1";
 const CALCULATION_WORKER_STACK_BYTES: usize = 64 * 1024 * 1024;
 const DEFAULT_MAX_CALCULATION_WORKERS: usize = 8;
 
@@ -228,12 +228,12 @@ pub struct CalculationFieldMetadata {
     pub binding: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sources: Vec<CalculationMetadataReference>,
-    /// Another calculation entry provides this field's value, for a subject.
+    /// Another entry provides this field's value, for a subject.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provided_by: Option<CalculationFieldProvider>,
 }
 
-/// The calculation entry that provides a field, and the input path of the
+/// The entry that provides a field, and the input path of the
 /// subject it runs for (`taxpayer.spouse`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CalculationFieldProvider {
@@ -716,7 +716,7 @@ pub enum CalculationPartialResult {
 pub enum CalculationNeedKind {
     /// The client answers the path itself.
     Fact,
-    /// Another calculation entry provides the value.
+    /// Another entry provides the value.
     Entry,
 }
 
@@ -2081,16 +2081,14 @@ fn calculation_label_from_args(args: &[Expr]) -> Result<Option<String>, String> 
             ExprKind::Lit(Literal::Str(label)) if !label.trim().is_empty() => {
                 Ok(Some(label.clone()))
             }
-            ExprKind::Lit(Literal::Str(_)) => {
-                Err("`@ calculate` label must not be empty".to_string())
-            }
-            _ => Err("`@ calculate` accepts one human-readable string label".to_string()),
+            ExprKind::Lit(Literal::Str(_)) => Err("`@ entry` label must not be empty".to_string()),
+            _ => Err("`@ entry` accepts one human-readable string label".to_string()),
         },
-        _ => Err("`@ calculate` accepts at most one human-readable string label".to_string()),
+        _ => Err("`@ entry` accepts at most one human-readable string label".to_string()),
     }
 }
 
-/// Extract and validate every `@ calculate` contract in a parsed program.
+/// Extract and validate every `@ entry` contract in a parsed program.
 ///
 /// A program with no marker is valid and returns an empty list. CLI selection
 /// turns that empty list into a user-facing "no calculation" diagnostic.
@@ -2101,7 +2099,7 @@ pub fn extract_calculation_contracts(
 ) -> Result<Vec<CalculationContract>, Vec<Diagnostic>> {
     if !stmts
         .iter()
-        .any(|stmt| matches!(stmt, Stmt::Annot(name, _) if name == "calculate"))
+        .any(|stmt| matches!(stmt, Stmt::Annot(name, _) if name == "entry"))
     {
         return Ok(Vec::new());
     }
@@ -2141,7 +2139,7 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
 ) -> Result<CalculationExtractionArtifacts, Vec<Diagnostic>> {
     if !stmts
         .iter()
-        .any(|stmt| matches!(stmt, Stmt::Annot(name, _) if name == "calculate"))
+        .any(|stmt| matches!(stmt, Stmt::Annot(name, _) if name == "entry"))
     {
         return Ok(CalculationExtractionArtifacts::default());
     }
@@ -2158,7 +2156,7 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
 
     for stmt in stmts {
         if let Stmt::Annot(name, args) = stmt {
-            if name == "calculate" {
+            if name == "entry" {
                 match calculation_label_from_args(args) {
                     Ok(label) => pending_markers.push(label),
                     Err(message) => {
@@ -2175,7 +2173,7 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
         }
         if pending_markers.len() > 1 {
             diagnostics.push(Diagnostic::error(
-                "duplicate `@ calculate` marker before the same callable",
+                "duplicate `@ entry` marker before the same callable",
             ));
         }
         let label = pending_markers.first().cloned().flatten();
@@ -2204,7 +2202,7 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
 
     if !pending_markers.is_empty() {
         diagnostics.push(Diagnostic::error(
-            "`@ calculate` must be followed by a top-level typed rule or function",
+            "`@ entry` must be followed by a top-level typed rule or function",
         ));
     }
 
@@ -2212,7 +2210,7 @@ pub(crate) fn extract_calculation_artifacts_with_checker(
     for candidate in &candidates {
         if !seen_entries.insert(candidate.name.clone()) {
             diagnostics.push(Diagnostic::error(format!(
-                "calculation entry `{}` is marked more than once",
+                "entry `{}` is marked more than once",
                 candidate.name
             )));
         }
@@ -2394,7 +2392,7 @@ fn endpoint_from_stmt(
         }
         Stmt::Rule(marked_rule) => {
             let (name, args) = rule_head(marked_rule).ok_or_else(|| {
-                "`@ calculate` cannot mark a reactive scope; mark a typed value rule".to_string()
+                "`@ entry` cannot mark a reactive scope; mark a typed value rule".to_string()
             })?;
             if args.len() != 1 {
                 return Err(format!(
@@ -2462,13 +2460,11 @@ fn endpoint_from_stmt(
                 output,
             })
         }
-        _ => {
-            Err("`@ calculate` must be followed by a top-level typed rule or function".to_string())
-        }
+        _ => Err("`@ entry` must be followed by a top-level typed rule or function".to_string()),
     }
 }
 
-fn rule_head(rule: &Rule) -> Option<(String, Vec<Expr>)> {
+pub(crate) fn rule_head(rule: &Rule) -> Option<(String, Vec<Expr>)> {
     let head = match rule {
         Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => {
             head
@@ -2485,7 +2481,7 @@ fn rule_head(rule: &Rule) -> Option<(String, Vec<Expr>)> {
     }
 }
 
-fn typed_rule_argument(argument: &Expr) -> Option<(&Expr, &str)> {
+pub(crate) fn typed_rule_argument(argument: &Expr) -> Option<(&Expr, &str)> {
     let ExprKind::App(function, arguments) = &argument.kind else {
         return None;
     };
@@ -3088,7 +3084,7 @@ fn entry_provider_diagnostics(contracts: &[CalculationContract]) -> Vec<Diagnost
                 .find(|candidate| candidate.entry == provider.entry)
             else {
                 diagnostics.push(Diagnostic::error(format!(
-                    "calculation `{}` field `{}` is provided by `{}`, which is not a calculation entry of this program; `entry` names an `@ calculate` function",
+                    "calculation `{}` field `{}` is provided by `{}`, which is not an entry of this program; `entry` names an `@ entry` function",
                     contract.entry, field.path, provider.entry
                 )));
                 continue;
@@ -7107,7 +7103,7 @@ fn invoke_calculation_case_queue(
     }
 }
 
-/// A calculation entry prepared once and invoked any number of times.
+/// An entry prepared once and invoked any number of times.
 ///
 /// Preparing builds the state every case starts from: the runtime
 /// rule-dispatch metadata and an interpreter that has initialized the program
@@ -7128,7 +7124,7 @@ fn invoke_calculation_case_queue(
 /// rewritten imports) is part of the program: every batch, and every worker of
 /// a batch, runs under it, whatever other program this thread or process has
 /// checked or run since.
-pub struct PreparedCalculation {
+pub struct PreparedEntry {
     contract: CalculationContract,
     stmts: Arc<[Stmt]>,
     source_dir: Option<String>,
@@ -7137,7 +7133,7 @@ pub struct PreparedCalculation {
     worker: Option<CalculationWorker>,
 }
 
-impl PreparedCalculation {
+impl PreparedEntry {
     /// Prepare `contract`'s entry of the program `stmts` (with the prelude
     /// already prepended when the program uses it) and its
     /// `constructor_elaboration`, both as its check returned them
@@ -7784,7 +7780,7 @@ fn assumptions_json_schema() -> JsonValue {
 }
 
 /// JSON Schema of one case of a `runa call` output document's `results`
-/// (`futuruna.calculate.output.v1`). The calculation's own output type is
+/// (`futuruna.entry.output.v1`). The calculation's own output type is
 /// the contract's `output`.
 pub fn case_result_json_schema(contract: &CalculationContract) -> JsonValue {
     serde_json::json!({
@@ -7806,7 +7802,7 @@ pub fn case_result_json_schema(contract: &CalculationContract) -> JsonValue {
 }
 
 /// JSON Schema of one case's `result` in a partial output envelope
-/// (`futuruna.calculate.partial-output.v1`). The calculation's own output
+/// (`futuruna.entry.partial-output.v1`). The calculation's own output
 /// type is the contract's `output`.
 pub fn partial_result_json_schema(contract: &CalculationContract) -> JsonValue {
     let string = serde_json::json!({ "type": "string" });
@@ -7960,7 +7956,7 @@ impl PartialViolation {
     }
 }
 
-impl PreparedCalculation {
+impl PreparedEntry {
     /// Run partial cases and check the guarantee: the strict-mode oracle
     /// (strict `Complete(r)` implies propagating `Complete(r)`) and the
     /// completion test (every completion of a `Complete(r)` case returns `r`
@@ -7989,7 +7985,7 @@ impl PreparedCalculation {
 }
 
 fn check_partial_calculation_cases(
-    prepared: &mut PreparedCalculation,
+    prepared: &mut PreparedEntry,
     envelope: &CalculationInputEnvelope,
 ) -> (CalculationOutputEnvelope, Vec<PartialViolation>) {
     let jobs = requested_calculation_jobs();
@@ -8084,7 +8080,7 @@ fn check_partial_calculation_cases(
 /// tests of `runa test` use it to show where a broken guarantee is reported.
 #[cfg(debug_assertions)]
 fn fault_claim_complete(
-    prepared: &mut PreparedCalculation,
+    prepared: &mut PreparedEntry,
     envelope: &CalculationInputEnvelope,
     jobs: Option<usize>,
     propagated: &mut CalculationOutputEnvelope,
@@ -8141,7 +8137,7 @@ mod calculation_execution_tests {
         envelope: &CalculationInputEnvelope,
         requested_jobs: Option<usize>,
     ) -> CalculationOutputEnvelope {
-        PreparedCalculation::new(contract.clone(), stmts.into(), source_dir, None).invoke_batch(
+        PreparedEntry::new(contract.clone(), stmts.into(), source_dir, None).invoke_batch(
             envelope,
             requested_jobs,
             None,
@@ -8157,7 +8153,7 @@ mod calculation_execution_tests {
 | base_tax(h: Household) -> h.income / 4
 | exception relief base_tax(h) -> h.income / 5 under h.income > 100 && h.married
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = base_tax(h))
 "#;
         let stmts = Parser::new(Lexer::new(source).tokenize(), source)
@@ -8268,7 +8264,7 @@ mod calculation_execution_tests {
         let (stmts, contract) = needs_fixture();
         let envelope = partial_envelope(&contract, serde_json::json!({ "income": 50 }));
         let checked =
-            PreparedCalculation::new(contract, stmts.into(), None, None).check_partial(&envelope);
+            PreparedEntry::new(contract, stmts.into(), None, None).check_partial(&envelope);
         assert!(checked.diagnostics.is_empty(), "{:?}", checked.diagnostics);
         assert_eq!(
             checked.results[0].result,
@@ -8378,7 +8374,7 @@ mod calculation_execution_tests {
             ),
         ]);
         let source =
-            "@ import ./money\n@ calculate\n> tax(input: Input) -> Int { taxed(input.amount) }\n";
+            "@ import ./money\n@ entry\n> tax(input: Input) -> Int { taxed(input.amount) }\n";
         let source_dir = Some(root.to_string_lossy().into_owned());
         let statements = Parser::new(Lexer::new(source).tokenize(), source)
             .parse_program()
@@ -8399,8 +8395,8 @@ mod calculation_execution_tests {
                 input: serde_json::json!({"amount": 100000}),
             }],
         };
-        let output = PreparedCalculation::new(contract, statements.into(), source_dir, None)
-            .invoke(&envelope);
+        let output =
+            PreparedEntry::new(contract, statements.into(), source_dir, None).invoke(&envelope);
         crate::provide_source_files([]);
         assert!(output.diagnostics.is_empty(), "{output:?}");
         assert_eq!(output.results[0].result, serde_json::json!(27000));
@@ -8427,12 +8423,12 @@ mod calculation_execution_tests {
                 "# Event = Opened | Closed\n# AccountState = Active | Closed\n> account_label(state: AccountState) -> String {\n    match state {\n        | Active -> \"account open\"\n        | Closed -> \"account closed\"\n    }\n}\n",
             ),
             (
-                "account.calculate.runa",
-                "@ import ./events\n# Input(state: AccountState, event: Event)\n# Output(label: String, status: String, state: AccountState, event: Event)\n> status(state: AccountState) -> String {\n    match state {\n        | Closed -> \"closed\"\n        | _ -> \"open\"\n    }\n}\n@ calculate\n> account(input: Input) -> Output { Output(account_label(input.state), status(input.state), input.state, input.event) }\n",
+                "account.entry.runa",
+                "@ import ./events\n# Input(state: AccountState, event: Event)\n# Output(label: String, status: String, state: AccountState, event: Event)\n> status(state: AccountState) -> String {\n    match state {\n        | Closed -> \"closed\"\n        | _ -> \"open\"\n    }\n}\n@ entry\n> account(input: Input) -> Output { Output(account_label(input.state), status(input.state), input.state, input.event) }\n",
             ),
             (
-                "door.calculate.runa",
-                "# Door = Open | Shut\n# Valve = Shut | Leak\n# Input(valve: Valve)\n@ calculate\n> door(input: Input) -> String {\n    match input.valve {\n        | Shut -> \"valve shut\"\n        | _ -> \"valve leaking\"\n    }\n}\n",
+                "door.entry.runa",
+                "# Door = Open | Shut\n# Valve = Shut | Leak\n# Input(valve: Valve)\n@ entry\n> door(input: Input) -> String {\n    match input.valve {\n        | Shut -> \"valve shut\"\n        | _ -> \"valve leaking\"\n    }\n}\n",
             ),
         ];
         crate::provide_source_files(
@@ -8458,7 +8454,7 @@ mod calculation_execution_tests {
                 artifacts.constructor_elaboration.is_some(),
                 "{name} shares a constructor name"
             );
-            PreparedCalculation::new(
+            PreparedEntry::new(
                 artifacts.calculation_contracts.pop().expect("one entry"),
                 artifacts.program().clone(),
                 source_dir.clone(),
@@ -8466,7 +8462,7 @@ mod calculation_execution_tests {
             )
             .with_root_file(root.join(name))
         };
-        let call = |prepared: &mut PreparedCalculation, input: serde_json::Value| {
+        let call = |prepared: &mut PreparedEntry, input: serde_json::Value| {
             let envelope = CalculationInputEnvelope {
                 futuruna: CalculationEnvelopeMetadata {
                     schema: INPUT_SCHEMA.to_string(),
@@ -8497,7 +8493,7 @@ mod calculation_execution_tests {
                 "event": {"$variant": "Closed"},
             })
         };
-        let check_account = |prepared: &mut PreparedCalculation| {
+        let check_account = |prepared: &mut PreparedEntry| {
             assert_eq!(
                 call(prepared, account_input("Closed")),
                 account_output("account closed", "closed", "Closed")
@@ -8507,7 +8503,7 @@ mod calculation_execution_tests {
                 account_output("account open", "open", "Active")
             );
         };
-        let check_door = |prepared: &mut PreparedCalculation| {
+        let check_door = |prepared: &mut PreparedEntry| {
             assert_eq!(
                 call(prepared, serde_json::json!({"valve": {"$variant": "Shut"}})),
                 "valve shut"
@@ -8519,17 +8515,17 @@ mod calculation_execution_tests {
         };
 
         // Prepared (on its first call) before another program is checked.
-        let mut early = load("account.calculate.runa");
+        let mut early = load("account.entry.runa");
         check_account(&mut early);
         // Prepared after another program is checked.
-        let mut late = load("account.calculate.runa");
-        let mut door = load("door.calculate.runa");
+        let mut late = load("account.entry.runa");
+        let mut door = load("door.entry.runa");
         check_account(&mut late);
         check_account(&mut early);
         check_door(&mut door);
         check_account(&mut late);
         check_account(&mut early);
-        let mut door_again = load("door.calculate.runa");
+        let mut door_again = load("door.entry.runa");
         check_account(&mut early);
         check_door(&mut door_again);
         check_door(&mut door);
@@ -8548,7 +8544,7 @@ mod calculation_execution_tests {
             ("*", i64::MAX, 2, 16),
         ] {
             let source = format!(
-                "# Input(left: Int, right: Int)\n@ calculate\n> calculate(input: Input) -> Int {{ input.left {operator} input.right }}\n"
+                "# Input(left: Int, right: Int)\n@ entry\n> calculate(input: Input) -> Int {{ input.left {operator} input.right }}\n"
             );
             let (statements, contract, envelope) = runtime_failure_fixture(
                 &source,
@@ -8588,7 +8584,7 @@ mod calculation_execution_tests {
 
     #[test]
     fn calculation_partial_value_misses_are_not_empty_successes() {
-        let source = "# Input(year: Int)\n| parameter(year: Int) -> \"known\" under year == 2026\n@ calculate\n> calculate(input: Input) -> String { parameter(input.year) }\n";
+        let source = "# Input(year: Int)\n| parameter(year: Int) -> \"known\" under year == 2026\n@ entry\n> calculate(input: Input) -> String { parameter(input.year) }\n";
         let (statements, contract, envelope) = runtime_failure_fixture(
             source,
             vec![
@@ -8619,7 +8615,7 @@ mod calculation_execution_tests {
         // A future unchecked/indirect caller must not observe successful zero.
         let source = r#"
 # Input(bad: Bool, left: List(Int), right: List(Int))
-@ calculate
+@ entry
 > calculate(input: Input) -> Int {
     if input.bad { length(input.left + input.right) }
     else { length(concat(input.left, input.right)) }
@@ -8659,7 +8655,7 @@ mod calculation_execution_tests {
             "{ assert(input.value == 0)\n7 }",
         ] {
             let source = format!(
-                "# Input(value: Int)\n@ calculate\n> calculate(input: Input) -> Int {{ {body} }}\n"
+                "# Input(value: Int)\n@ entry\n> calculate(input: Input) -> Int {{ {body} }}\n"
             );
             let (good, bad) = if body.contains("filter") {
                 (7, 0)
@@ -8695,7 +8691,7 @@ mod calculation_execution_tests {
     fn calculation_assert_with_message_is_case_local_and_precedes_bad_math() {
         let source = r#"
 # Input(year: Int)
-@ calculate
+@ entry
 > calculate(input: Input) -> Int {
     assert_with_message(input.year == 2026, "year {" + show(input.year) + "}: use a supported model")
     100 / (2027 - input.year)
@@ -8740,7 +8736,7 @@ mod calculation_execution_tests {
             ("time_diff(input.value, 1)", i64::MIN, 6),
         ] {
             let source = format!(
-                "# Input(value: Int)\n@ calculate\n> calculate(input: Input) -> Int {{ {body} }}\n"
+                "# Input(value: Int)\n@ entry\n> calculate(input: Input) -> Int {{ {body} }}\n"
             );
             let (statements, contract, envelope) = runtime_failure_fixture(
                 &source,
@@ -8791,7 +8787,7 @@ mod calculation_execution_tests {
                 "non-finite",
             ),
         ] {
-            let source = format!("# Input(left: Float, right: Float)\n@ calculate\n> calculate(input: Input) -> Bool {{ {body} }}\n");
+            let source = format!("# Input(left: Float, right: Float)\n@ entry\n> calculate(input: Input) -> Bool {{ {body} }}\n");
             let (statements, contract, envelope) = runtime_failure_fixture(
                 &source,
                 vec![
@@ -8823,7 +8819,7 @@ mod calculation_execution_tests {
     #[test]
     fn calculation_required_initialization_fault_is_not_a_successful_zero() {
         let (statements, contract, envelope) = runtime_failure_fixture(
-            "# Input(value: Int)\n= parameter = 7 / 0\n@ calculate\n> calculate(input: Input) -> Int { parameter + input.value }\n",
+            "# Input(value: Int)\n= parameter = 7 / 0\n@ entry\n> calculate(input: Input) -> Int { parameter + input.value }\n",
             vec![serde_json::json!({"value": 1}), serde_json::json!({"value": 2})],
         );
         for jobs in [1, 2] {
@@ -8851,7 +8847,7 @@ mod calculation_execution_tests {
             ("# Policy(year: Int) {\n| parameter() -> \"known\" under year == 2026\n| summary() -> parameter()\n}", "Policy(input.year).parameter()", "Policy.parameter/0"),
             ("# Policy(year: Int) {\n| parameter() -> \"known\" under year == 2026\n| summary() -> parameter()\n}", "Policy(input.year).summary()", "Policy.parameter/0"),
         ] {
-            let source = format!("# Input(year: Int)\n{declarations}\n@ calculate\n> calculate(input: Input) -> String {{ {body} }}\n");
+            let source = format!("# Input(year: Int)\n{declarations}\n@ entry\n> calculate(input: Input) -> String {{ {body} }}\n");
             let (statements, contract, envelope) = runtime_failure_fixture(&source, vec![
                 serde_json::json!({"year": 2026}), serde_json::json!({"year": 2027}), serde_json::json!({"year": 2026}),
             ]);
@@ -8874,7 +8870,7 @@ mod calculation_execution_tests {
     | predicate() -> True under value / divisor > 0
     | delegated() -> predicate()
 }
-@ calculate
+@ entry
 > calculate(input: Input) -> Output {
     = policy = Policy(input.value, input.divisor)
     Output(policy.predicate(), policy.delegated())
@@ -8941,7 +8937,7 @@ mod calculation_execution_tests {
 > module Partial {
     | amount(value: Int) -> value + 30 under value >= 0
 }
-@ calculate
+@ entry
 > calculate(input: Input) -> Output {
     = callback = First.amount
     if input.value < 0 {
@@ -9009,7 +9005,7 @@ mod calculation_execution_tests {
     > eligible(value: Int) -> Bool { predicate(value) }
     > amount(value: Int) -> Int { parameter(value) }
 }
-@ calculate
+@ entry
 > calculate(input: Input) -> Output {
     if input.value == 0 {
         Output(Policy.eligible(input.value), 0)
@@ -9061,7 +9057,7 @@ mod calculation_execution_tests {
 # Output(zero: Int, empty: String, predicate: Bool, descending: List(Int), same: Bool)
 | empty() -> ""
 | predicate(value: Int) -> value > 0
-@ calculate
+@ entry
 > calculate(input: Input) -> Output {
     Output(input.value / 2, empty(), predicate(input.value), range(3, 1), range(0, 600) == range(0, 600))
 }
@@ -9117,7 +9113,7 @@ mod calculation_execution_tests {
 # BatchInput(value: Int)
 # BatchResult(doubled: Int)
 
-@ calculate("Batch calculation")
+@ entry("Batch calculation")
 | calculate_batch(input: BatchInput) -> BatchResult(doubled = input.value * 2)
 "#;
         let mut lexer = Lexer::new(source);
@@ -9155,13 +9151,13 @@ mod calculation_execution_tests {
         let source = r#"
 # Filing = Single | Joint(partner: Int)
 # Intake(amount: Int, items: List(Int), optional: Int?, enabled: Bool, filing: Filing)
-@ calculate
+@ entry
 > echo(input: Intake) -> Intake { input }
 "#;
         let facts = serde_json::json!({"amount": 0, "items": [], "optional": null, "enabled": false, "filing": {"$variant": "Single"}});
         let (stmts, contract, _) = runtime_failure_fixture(source, vec![facts.clone()]);
         let mut template = contract.template_envelope();
-        assert_eq!(template.futuruna.schema, "futuruna.calculate.input.v2");
+        assert_eq!(template.futuruna.schema, "futuruna.entry.input.v2");
         assert_eq!(
             template.cases[0].input_status,
             Some(CalculationInputStatus::Draft)
@@ -9223,7 +9219,7 @@ mod calculation_execution_tests {
     #[test]
     fn calculation_readiness_precedes_required_runtime_initialization() {
         let (statements, contract, mut envelope) = runtime_failure_fixture(
-            "# Input(value: Int)\n= parameter = 7 / 0\n@ calculate\n> calculate(input: Input) -> Int { parameter + input.value }\n",
+            "# Input(value: Int)\n= parameter = 7 / 0\n@ entry\n> calculate(input: Input) -> Int { parameter + input.value }\n",
             vec![serde_json::json!({"value": 1}), serde_json::json!({"value": 2})],
         );
         envelope.cases[0].input_status = Some(CalculationInputStatus::Draft);
@@ -9309,7 +9305,7 @@ mod calculation_execution_tests {
         let source = r#"
 # Input(value: Int)
 
-@ calculate("Scenario-backed calculation")
+@ entry("Scenario-backed calculation")
 | calculate_scenario(input: Input) -> input.value
 
 | unrelated_scenario_check: 1 -> 1 == 1
@@ -9343,7 +9339,7 @@ mod calculation_execution_tests {
 | exception_only(value: Int) -> True under value > 100
 | exception positive exception_only(value) -> True under value > 0
 
-@ calculate("Boolean miss calculation")
+@ entry("Boolean miss calculation")
 | calculate_boolean_misses(input: BoolInput) -> BoolResult(
     conditional = conditional(input.value),
     exception_only = exception_only(input.value)
@@ -9389,7 +9385,7 @@ mod calculation_execution_tests {
         let source = r#"
 # CollectionInput(values: Map(String, Int), tags: Set(String))
 
-@ calculate("Collection calculation")
+@ entry("Collection calculation")
 | calculate_collections(input: CollectionInput) -> CollectionInput(
     values = input.values,
     tags = input.tags
@@ -9580,7 +9576,7 @@ mod calculation_execution_tests {
     | due() -> base() + base()
 }
 
-@ calculate
+@ entry
 > observe(input: Input) -> Observed {
     | scope Watch {
         ~ feed | x -> { tally <- x }
@@ -9611,7 +9607,7 @@ mod calculation_execution_tests {
                 .collect(),
         );
         let mut prepared =
-            PreparedCalculation::new(contract.clone(), statements.as_slice().into(), None, None);
+            PreparedEntry::new(contract.clone(), statements.as_slice().into(), None, None);
         let first = prepared.invoke_batch(&envelope, Some(1), None);
         assert!(first.diagnostics.is_empty(), "{:?}", first.diagnostics);
         let shuffled = &first.results[0].result["shuffled"];
@@ -9646,7 +9642,7 @@ mod calculation_execution_tests {
     fn a_prepared_calculation_is_initialized_once_for_every_call() {
         let (stmts, contract, envelope) = batch_fixture();
         let fresh = invoke_calculation_cases_with_jobs(&contract, &stmts, None, &envelope, Some(1));
-        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None, None);
+        let mut prepared = PreparedEntry::new(contract, stmts.as_slice().into(), None, None);
         for _ in 0..3 {
             let output = prepared.invoke_batch(&envelope, Some(1), None);
             assert_eq!(document(&output), document(&fresh));
@@ -9669,7 +9665,7 @@ mod calculation_execution_tests {
         );
         let fresh = |envelope: &CalculationInputEnvelope, partial| {
             document(
-                &PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None, None)
+                &PreparedEntry::new(contract.clone(), stmts.as_slice().into(), None, None)
                     .invoke_batch(envelope, Some(1), partial),
             )
         };
@@ -9683,7 +9679,7 @@ mod calculation_execution_tests {
         assert!(expected[1].contains("Needs"), "{}", expected[1]);
 
         let mut prepared =
-            PreparedCalculation::new(contract.clone(), stmts.as_slice().into(), None, None);
+            PreparedEntry::new(contract.clone(), stmts.as_slice().into(), None, None);
         for _ in 0..2 {
             for (envelope, partial, expected) in [
                 (&decided, propagate, &expected[0]),
@@ -9710,7 +9706,7 @@ mod calculation_execution_tests {
 | line_tax(l: Line, rate_bp: Int) -> l.amount * rate_bp / 10000
 | exception reduced line_tax(l, rate_bp) -> l.amount * rate_bp / 20000 under l.kind == Reduced
 
-@ calculate
+@ entry
 | total(c: Case) -> Total(net = foldl(c.lines, 0, |acc, l| acc + l.amount), tax = foldl(c.lines, 0, |acc, l| acc + line_tax(l, c.rate_bp)), kind = head(c.lines).kind)
 "#;
         let stmts = Parser::new(Lexer::new(source).tokenize(), source)
@@ -9739,7 +9735,7 @@ mod calculation_execution_tests {
                 }),
             }],
         };
-        let mut prepared = PreparedCalculation::new(contract, stmts.as_slice().into(), None, None);
+        let mut prepared = PreparedEntry::new(contract, stmts.as_slice().into(), None, None);
         let before = crate::explain::tracing_counts();
         let off = prepared.invoke_batch(&envelope, Some(1), None);
         assert_eq!(

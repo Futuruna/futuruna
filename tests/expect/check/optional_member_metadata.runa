@@ -40,7 +40,7 @@
 ])
 
 @ meta(household_meta)
-@ calculate
+@ entry
 | household_tax(h: Household) -> TaxResult(tax = match h.spouse {
         | None -> 0
         | Some(s) -> if s.cohabiting { s.income } else { s.age }

@@ -280,7 +280,7 @@ fn directory_meta_human_output_reports_a_collection_summary() {
 
 #[test]
 fn imported_meta_bindings_retain_types_values_and_definition_locations() {
-    let target = fixture_dir("meta-imports").join("model.calculate.runa");
+    let target = fixture_dir("meta-imports").join("model.entry.runa");
     let output = run_meta(&["--json"], &target);
     assert!(
         output.status.success(),

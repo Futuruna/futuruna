@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 | personskat_ordinaer_scenario_input(arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseFakta), virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> PersonskatOrdinærPersonligIndkomstInput(
     arbejdsgiverydelser = arbejdsgiverydelser,

@@ -8,5 +8,5 @@
 # Case(positions: List(Position))
 # Result(total: Int)
 
-@ calculate
+@ entry
 | needs_key_not_scalar(c: Case) -> Result(total = foldl(c.positions, 0, |sum, p| sum + p.amount))

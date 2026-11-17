@@ -11,7 +11,7 @@ import { personFactFields } from '../examples/danish-income-tax/pension-par-demo
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
-const model = 'examples/danish-income-tax/personskat-par14.calculate.runa';
+const model = 'examples/danish-income-tax/personskat-par14.entry.runa';
 const enabled = { skip: !binary && 'Set FUTURUNA_MODEL_TEST_RUNA; no build or network.' };
 const v = ($variant, fields = {}) => ({ $variant, ...fields });
 function run(args) {

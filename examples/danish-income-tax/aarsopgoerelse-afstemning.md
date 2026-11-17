@@ -4,7 +4,7 @@ You can check an årsopgørelse without reconstructing the spouse's affairs.
 The question is conditional: **what would have to be true for these reported
 amounts to fit together?**
 
-[`aarsopgoerelse-afstemning.calculate.runa`](aarsopgoerelse-afstemning.calculate.runa)
+[`aarsopgoerelse-afstemning.entry.runa`](aarsopgoerelse-afstemning.entry.runa)
 exposes `afstem_årsopgørelse`. It uses exact integer arithmetic and the existing
 year-specific tax parameters. No LLM evaluates the rules. A human or assistant
 transcribes the report; Futuruna calculates the checks and necessary conditions.
@@ -81,10 +81,10 @@ uafhængige sammenligning, fordi medlemsperioder endnu ikke beregnes; se
 [grænsen og de officielle kilder](personskat-validity.md#kirkeskat-gælder-indkomståret-ikke-status-i-dag).
 
 ```sh
-"$RUNA_BIN" template examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa --format json --output PRIVATE_WORK_DIR/report-cases.json
+"$RUNA_BIN" template examples/danish-income-tax/aarsopgoerelse-afstemning.entry.runa --format json --output PRIVATE_WORK_DIR/report-cases.json
 # Fill the generated cases with report observations, preserving $futuruna.
 # Review each case and set its input_status beside case_id to "ready" before calling.
-"$RUNA_BIN" call examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa --input PRIVATE_WORK_DIR/report-cases.json --output PRIVATE_WORK_DIR/report-results.json
+"$RUNA_BIN" call examples/danish-income-tax/aarsopgoerelse-afstemning.entry.runa --input PRIVATE_WORK_DIR/report-cases.json --output PRIVATE_WORK_DIR/report-results.json
 ```
 
 ### Læs resultatet på dansk
@@ -511,7 +511,7 @@ report inputs. The compact report model also passes native `runa check`;
 outputs for fictional reports, including partial-transfer residual bounds,
 missing observations, one-øre
 contradictions, spouse transfers, both settlement routes and unsupported years.
-This is not a native-coverage claim for the larger `personskat.calculate.runa`
+This is not a native-coverage claim for the larger `personskat.entry.runa`
 model. Native invariants also cover shared additions, unknown completeness,
 the refund/debt boundary, both corrected payment directions, one-øre direction
 contradictions and rejected overlapping observations.

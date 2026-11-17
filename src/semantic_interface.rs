@@ -1053,7 +1053,7 @@ fn build_semantic_module_interface_with_checker(
 ) -> Result<SemanticModuleInterface, Vec<Diagnostic>> {
     let calculations = if stmts
         .iter()
-        .any(|stmt| matches!(stmt, Stmt::Annot(name, _) if name == "calculate"))
+        .any(|stmt| matches!(stmt, Stmt::Annot(name, _) if name == "entry"))
     {
         match calculate::extract_calculation_contracts_with_checker(
             stmts,
@@ -1575,7 +1575,7 @@ mod tests {
 ----
 Original source text
 ----
-@ calculate("Readable calculation")
+@ entry("Readable calculation")
 | calculate(input: Input) -> Result(amount = input.amount)
 }
 "#,
@@ -1598,7 +1598,7 @@ Original source text
 ----
 Changed source text
 ----
-@ calculate("Readable calculation")
+@ entry("Readable calculation")
 | calculate(input: Input) -> Result(amount = input.amount)
 }
 "#,
@@ -1621,7 +1621,7 @@ Changed source text
 ----
 Original source text
 ----
-@ calculate("Renamed calculation")
+@ entry("Renamed calculation")
 | calculate(input: Input) -> Result(amount = input.amount)
 }
 "#,

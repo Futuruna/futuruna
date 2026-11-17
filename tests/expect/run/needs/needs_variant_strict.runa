@@ -15,5 +15,5 @@
     | Joint(partner_income: p) -> p / 2
 }
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = filing_tax(h))

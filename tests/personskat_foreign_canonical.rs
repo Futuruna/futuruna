@@ -5,7 +5,7 @@ use std::process::{Command, Output};
 #[path = "support/foreign_employment.rs"]
 mod foreign_employment;
 
-const MODEL: &str = "examples/danish-income-tax/personskat.calculate.runa";
+const MODEL: &str = "examples/danish-income-tax/personskat.entry.runa";
 
 #[path = "support/calculation_baseline.rs"]
 mod calculation_baseline;
@@ -334,7 +334,7 @@ fn canonical_tax_uses_filtered_work_basis_without_changing_am_or_ll9l() {
 
 #[test]
 fn part_year_preserves_source_exclusion_and_recomputes_annual_work_deductions() {
-    const PART_YEAR: &str = "examples/danish-income-tax/personskat-par14.calculate.runa";
+    const PART_YEAR: &str = "examples/danish-income-tax/personskat-par14.entry.runa";
     const ENTRY: &str = "beregn_personskat_delår";
     let mut envelope = run(&["template", PART_YEAR, "--entry", ENTRY, "--format", "json"]);
     calculation_baseline::fill_template(

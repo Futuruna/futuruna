@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 @ importer ./pbl15a-source-fixtures.scenario
 
 -- Kanoniske scenarier for den kildefaktabaserede pensionsgren. Lovtekst og

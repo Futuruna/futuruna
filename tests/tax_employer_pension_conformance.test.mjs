@@ -13,7 +13,7 @@ import { renderPersonskatOutput } from '../examples/danish-income-tax/personskat
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
-const model = 'examples/danish-income-tax/personskat.calculate.runa';
+const model = 'examples/danish-income-tax/personskat.entry.runa';
 const caveat = 'skatdk-arbejdsgiverpension-ekstern.md';
 
 test('employer pension observations retain matches, low-wage and shared-cap disagreements', {

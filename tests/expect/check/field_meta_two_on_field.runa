@@ -10,5 +10,5 @@
 )
 # TaxResult(tax: Int)
 
-@ calculate
+@ entry
 | tax(input: Input) -> TaxResult(tax = input.income)

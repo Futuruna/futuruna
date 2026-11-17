@@ -1,0 +1,15 @@
+-- expect-skip: the law the answer_* checks guide
+# Spouse(income: Int, cohabiting: Bool)
+# Child(name: String, age: Int)
+# Household(income: Int, married: Bool, spouse: Option(Spouse), children: List(Child))
+# Result(tax: Int)
+
+| threshold(h: Household) -> match h.spouse {
+    | Some(s) -> if s.cohabiting { 200 - s.income } else { 100 }
+    | None -> 100
+}
+
+| child_allowance(h: Household) -> foldl(map(h.children, |c| if c.age < 18 { 10 } else { 0 }), 0, |sum, x| sum + x)
+
+@ entry
+| household_tax(h: Household) -> Result(tax = h.income - threshold(h) - child_allowance(h))

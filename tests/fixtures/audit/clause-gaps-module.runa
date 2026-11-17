@@ -1,4 +1,4 @@
--- Imported rules for clause_gaps_import.calculate.runa.
+-- Imported rules for clause_gaps_import.entry.runa.
 
 -- Reached by the calculation: nothing covers a share income of 0.
 # ShareTax(own_ore: Int) {

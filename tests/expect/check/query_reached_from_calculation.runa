@@ -17,5 +17,5 @@
 
 > fd_tax(h: Household) -> Int { answer_or_zero(h) + h.income }
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = fd_tax(h))

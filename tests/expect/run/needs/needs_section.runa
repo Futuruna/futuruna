@@ -31,5 +31,5 @@
 
 }
 
-@ calculate
+@ entry
 | needs_section(o: Owner) -> Result(tax = taxed(o))

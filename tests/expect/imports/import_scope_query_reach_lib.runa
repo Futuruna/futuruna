@@ -11,5 +11,5 @@
     }
 }
 
-@ calculate
+@ entry
 | lib_tax(h: Household) -> Result(tax = helper(h) + h.income)

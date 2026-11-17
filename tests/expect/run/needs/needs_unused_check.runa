@@ -2,7 +2,7 @@
 -- expect-command: call
 -- expect-input: needs_unused.json
 -- expect-args: --entry household_tax --partial=check
--- expect-stdout: "schema": "futuruna.calculate.partial-output.v1"
+-- expect-stdout: "schema": "futuruna.entry.partial-output.v1"
 
 # Filing = Single | Joint(partner_income: Int)
 # Spouse(income: Int, name: String)
@@ -12,5 +12,5 @@
 
 | account_count(h: Household) -> length(h.accounts)
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = h.income + account_count(h))

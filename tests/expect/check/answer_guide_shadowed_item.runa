@@ -1,0 +1,14 @@
+-- An item whose every path is named more specifically resolves nothing: a warning.
+-- expect-command: check
+-- expect-status: pass
+-- expect-stderr: warning
+-- expect-stderr: the item `pathof(Household::spouse)` of the AnswerGuide `household_guide` resolves nothing
+
+@ import ./answer_law
+
+# Origin = Customer | Registry
+= household_guide = AnswerGuide(fields = [
+    EntryField(path = pathof(Household::spouse), by = Customer),
+    EntryField(path = pathof(Household::spouse::income), by = Registry),
+    EntryField(path = pathof(Household::spouse::cohabiting), by = Registry)
+])

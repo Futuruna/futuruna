@@ -1,6 +1,6 @@
 # Kontrollér grøn check
 
-Den [kompakte beregning](groen-check.calculate.runa) viser pensionistbeløb,
+Den [kompakte beregning](groen-check.entry.runa) viser pensionistbeløb,
 børnekompensation, indkomstaftrapning og lavindkomsttillæg hver for sig. Den
 kan sammenligne summen med rapportens oplyste kredit uden at bruge den kredit
 som beregningsinput. Reglerne udføres med heltalsaritmetik, ikke en LLM.
@@ -21,9 +21,9 @@ Bevar `RUNA_BIN` som den absolutte sti til den compiler, der bestod kontrollen.
 Fra checkoutens rod:
 
 ```sh
-"$RUNA_BIN" template examples/danish-income-tax/groen-check.calculate.runa --format json --output /absolut/sti/uden-for-repo/groen-check-input.json
+"$RUNA_BIN" template examples/danish-income-tax/groen-check.entry.runa --format json --output /absolut/sti/uden-for-repo/groen-check-input.json
 # Udfyld og gennemgå fakta; sæt sagens input_status ved siden af case_id til "ready".
-"$RUNA_BIN" call examples/danish-income-tax/groen-check.calculate.runa --input /absolut/sti/uden-for-repo/groen-check-input.json --output /absolut/sti/uden-for-repo/groen-check-resultat.json
+"$RUNA_BIN" call examples/danish-income-tax/groen-check.entry.runa --input /absolut/sti/uden-for-repo/groen-check-input.json --output /absolut/sti/uden-for-repo/groen-check-resultat.json
 ```
 
 Erstat stierne med en eksisterende privat mappe og udfyld input før `call`.

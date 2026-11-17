@@ -5,7 +5,7 @@
 // (5.x) and `zod`; the test installs nothing. Where it also holds `eslint` (9.x)
 // and `typescript-eslint` (8.x), the generated SDK is linted with
 // strictTypeChecked. With FUTURUNA_SDK_TS_SOURCES (a directory of
-// *.calculate.runa files) and FUTURUNA_SDK_TS_CASES (a directory of NAME.json
+// *.entry.runa files) and FUTURUNA_SDK_TS_CASES (a directory of NAME.json
 // input documents with NAME.expected.json outputs), the generated validators
 // also check those cases and results, through a transport that answers from
 // the expected outputs.
@@ -29,7 +29,7 @@ const options = {
 const modelOptions = {
   skip: !(ready && sources && casesDir) && 'Set FUTURUNA_SDK_TS_SOURCES and FUTURUNA_SDK_TS_CASES as well.',
 };
-const fixture = 'tests/fixtures/calculation/tax.calculate.runa';
+const fixture = 'tests/fixtures/calculation/tax.entry.runa';
 const compilerFlags = ['--strict', '--target', 'es2022', '--module', 'nodenext', '--moduleResolution', 'nodenext'];
 
 function run(command, args, cwd = root) {
@@ -153,7 +153,7 @@ export const interview = (transport: EngineTransport, partialCase: PartialTaxInp
 const ledgerModel = `# Date(year: Int, month: Int, day: Int)
 # Event = Deposit(amount: Int) | Withdrawal(amount: Int, reason: String?)
 # Ledger(events: List(Event), closed_on: Date?, note: String?)
-@ calculate
+@ entry
 > balance(input: Ledger) -> Int { 0 }
 `;
 
@@ -244,7 +244,7 @@ function fixturePartialEngine(hash) {
       : { $variant: 'Complete', result: { annual_income: income, taxable_income: income, annual_tax: income / 5 },
         assumptions: [{ section: 'tax', binding: 'flat_rate', value: { id: 'FLAT', resolve_with: 'the rate table' } }],
         unused_paths: ['children[0].name'] };
-    return { $futuruna: { schema: 'futuruna.calculate.partial-output.v1', schema_hash: hash, entry },
+    return { $futuruna: { schema: 'futuruna.entry.partial-output.v1', schema_hash: hash, entry },
       results: [{ case_id: 'case-1', result }], diagnostics: [] };
   };
   return { calls, callPartial };
@@ -290,7 +290,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   await assert.rejects(sdk.calculateTax(cli, { ...usage.sample, monthly_income: 1 }), (error) => error.kind === 'input');
   const answering = (result, meta = {}, assumptions = undefined) => ({
     async call(entry) {
-      return { $futuruna: { schema: 'futuruna.calculate.output.v1', schema_hash: hash, entry, ...meta },
+      return { $futuruna: { schema: 'futuruna.entry.output.v1', schema_hash: hash, entry, ...meta },
         results: result === undefined ? [] : [{ case_id: 'case-1', result, ...(assumptions && { assumptions }) }],
         diagnostics: result === undefined ? [{ case_id: 'case-1', path: '$.cases[0].input', message: 'boom' }] : [] };
     },
@@ -433,7 +433,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
     && error.issues[0].path.join('.') === 'deduction', 'a bare null is not "none"');
   const needing = (needs, later) => ({
     async callPartial(entry) {
-      return { $futuruna: { schema: 'futuruna.calculate.partial-output.v1', schema_hash: hash, entry },
+      return { $futuruna: { schema: 'futuruna.entry.partial-output.v1', schema_hash: hash, entry },
         results: [{ case_id: 'case-1', result: { $variant: 'Needs', needs, ...(later && { later }) } }], diagnostics: [] };
     },
   });
@@ -510,7 +510,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   };
   const explainedEntry = { ...dateEntry, output: sdk.recordCodec({ bookedOn: ['booked_on', sdk.isoDateCodec],
     paidOn: ['paid_on', sdk.isoDateCodec], kind: ['kind', sdk.enumCodec] }) };
-  const document = { $futuruna: { schema: 'futuruna.calculate.output.v1', schema_hash: hash, entry: 'calculate_tax' },
+  const document = { $futuruna: { schema: 'futuruna.entry.output.v1', schema_hash: hash, entry: 'calculate_tax' },
     results: [{ case_id: 'case-1', result: {}, assumptions: [flatRate], explanation }], diagnostics: [] };
   const decoded = await sdk.explainEntry({ callExplained: async () => document }, explainedEntry, 'direct', passing, passing, {});
   assert.deepEqual(decoded.assumptions, [flatRate]);
@@ -535,7 +535,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
 test('generated SDKs validate a model\'s cases and expected results', modelOptions, async () => {
   const dir = project('model');
   const projectRoot = dirname(sources);
-  const models = readdirSync(sources).filter((name) => name.endsWith('.calculate.runa')).sort();
+  const models = readdirSync(sources).filter((name) => name.endsWith('.entry.runa')).sort();
   for (const model of models) {
     const out = join(dir, model.replace(/\.calculate\.runa$/, ''));
     run(binary, ['sdk', 'ts', relative(projectRoot, join(sources, model)), '--out', out], projectRoot);
@@ -586,7 +586,7 @@ test('generated SDKs validate a model\'s cases and expected results', modelOptio
 const unitModel = `# unit Ore "DKK øre"
 # unit Micro "millionths of a share"
 # Holding(quantity_micro: Micro, value_ore: Ore, count: Int, history: List(Ore))
-@ calculate
+@ entry
 > holding_value(input: Holding) -> Ore { input.value_ore }
 `;
 
@@ -628,8 +628,8 @@ export const interview = (transport: EngineTransport) =>
 
 test('a unit of measure is a branded number type in the SDK', options, async () => {
   const dir = project('units');
-  writeFileSync(join(dir, 'holding.calculate.runa'), unitModel);
-  run(binary, ['sdk', 'ts', 'holding.calculate.runa', '--out', 'sdk'], dir);
+  writeFileSync(join(dir, 'holding.entry.runa'), unitModel);
+  run(binary, ['sdk', 'ts', 'holding.entry.runa', '--out', 'sdk'], dir);
   writeFileSync(join(dir, 'usage.ts'), unitUsage);
   compile(dir, ['sdk/index.ts', 'usage.ts']);
   const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
@@ -640,7 +640,7 @@ test('a unit of measure is a branded number type in the SDK', options, async () 
   const cli = {
     async call(entry, document) {
       writeFileSync(join(dir, 'call.json'), JSON.stringify(document));
-      return run(binary, ['call', 'holding.calculate.runa', '--entry', entry, '--input', 'call.json'], dir);
+      return run(binary, ['call', 'holding.entry.runa', '--entry', entry, '--input', 'call.json'], dir);
     },
     async callPartial() { throw new Error('not used'); },
   };
@@ -653,7 +653,7 @@ const scalarModel = `| isin_ok(text: String) -> string_length(text) == 12
 # AccountId: String "an account id"
 # Holding(isin: Isin, account: AccountId, count: Int)
 # Book(holdings: List(Holding))
-@ calculate
+@ entry
 > first_isin(input: Book) -> Isin { head(input.holdings).isin }
 `;
 
@@ -678,8 +678,8 @@ export const result = async (transport: EngineTransport, book: Book): Promise<Is
 
 test('a named scalar is a branded type in the SDK, and a value the engine refuses is an input error at its path', options, async () => {
   const dir = project('scalars');
-  writeFileSync(join(dir, 'book.calculate.runa'), scalarModel);
-  run(binary, ['sdk', 'ts', 'book.calculate.runa', '--out', 'sdk'], dir);
+  writeFileSync(join(dir, 'book.entry.runa'), scalarModel);
+  run(binary, ['sdk', 'ts', 'book.entry.runa', '--out', 'sdk'], dir);
   writeFileSync(join(dir, 'usage.ts'), scalarUsage);
   compile(dir, ['sdk/index.ts', 'usage.ts']);
   const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
@@ -690,7 +690,7 @@ test('a named scalar is a branded type in the SDK, and a value the engine refuse
     async call(entry, document) {
       writeFileSync(join(dir, 'call.json'), JSON.stringify(document));
       // The engine exits non-zero when it refuses a case; its reply is still the document.
-      const p = spawnSync(binary, ['call', 'book.calculate.runa', '--entry', entry, '--input', 'call.json'], {
+      const p = spawnSync(binary, ['call', 'book.entry.runa', '--entry', entry, '--input', 'call.json'], {
         cwd: dir, encoding: 'utf8', timeout: 600000,
       });
       assert.ifError(p.error);
@@ -712,8 +712,8 @@ test('a named scalar is a branded type in the SDK, and a value the engine refuse
 
 test('partial values, dates, paths and explained calls are checked by the types', options, async () => {
   const dir = project('ledger');
-  writeFileSync(join(dir, 'ledger.calculate.runa'), ledgerModel);
-  run(binary, ['sdk', 'ts', 'ledger.calculate.runa', '--out', 'sdk'], dir);
+  writeFileSync(join(dir, 'ledger.entry.runa'), ledgerModel);
+  run(binary, ['sdk', 'ts', 'ledger.entry.runa', '--out', 'sdk'], dir);
   writeFileSync(join(dir, 'usage.ts'), ledgerUsage);
   compile(dir, ['sdk/index.ts', 'usage.ts']);
   const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
@@ -737,7 +737,7 @@ const keyedModel = `# Event =
         | Withdrawal -> 0 - e.amount - e.fee
     }
 }
-@ calculate
+@ entry
 > balance(input: Ledger) -> Int { foldl(input.events, 0, |sum, e| sum + signed(e)) }
 `;
 
@@ -793,8 +793,8 @@ export const interview = (transport: EngineTransport, backend: Backend) =>
 
 test('second-order resolution: a list of skeletons, then the fields the law reads, by key', options, async () => {
   const dir = project('keyed');
-  writeFileSync(join(dir, 'keyed.calculate.runa'), keyedModel);
-  run(binary, ['sdk', 'ts', 'keyed.calculate.runa', '--out', 'sdk'], dir);
+  writeFileSync(join(dir, 'keyed.entry.runa'), keyedModel);
+  run(binary, ['sdk', 'ts', 'keyed.entry.runa', '--out', 'sdk'], dir);
   writeFileSync(join(dir, 'usage.ts'), keyedUsage);
   compile(dir, ['sdk/index.ts', 'usage.ts']);
   const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
@@ -809,7 +809,7 @@ test('second-order resolution: a list of skeletons, then the fields the law read
       const path = join(dir, `partial-${queried.length}.json`);
       queried.push(document.cases[0].input);
       writeFileSync(path, JSON.stringify(document));
-      return run(binary, ['call', 'keyed.calculate.runa', '--entry', entry, '--input', path, '--partial'], dir);
+      return run(binary, ['call', 'keyed.entry.runa', '--entry', entry, '--input', path, '--partial'], dir);
     },
   };
   const skeletons = [{ $variant: 'Deposit', id: 'e1' }, { $variant: 'Withdrawal', id: 'e2' }, { $variant: 'Deposit', id: 'e3' }];
@@ -854,8 +854,8 @@ test('the generated SDK passes typescript-eslint strictTypeChecked', {
 }, () => {
   const dir = project('lint');
   run(binary, ['sdk', 'ts', fixture, '--out', join(dir, 'sdk/tax'), '--runtime', '../runtime.ts']);
-  writeFileSync(join(dir, 'ledger.calculate.runa'), ledgerModel);
-  run(binary, ['sdk', 'ts', 'ledger.calculate.runa', '--out', 'sdk/ledger', '--runtime', '../runtime.ts'], dir);
+  writeFileSync(join(dir, 'ledger.entry.runa'), ledgerModel);
+  run(binary, ['sdk', 'ts', 'ledger.entry.runa', '--out', 'sdk/ledger', '--runtime', '../runtime.ts'], dir);
   writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify({
     compilerOptions: { target: 'es2023', module: 'nodenext', moduleResolution: 'nodenext', strict: true,
       noUncheckedIndexedAccess: true, exactOptionalPropertyTypes: true, noEmit: true, types: [] },

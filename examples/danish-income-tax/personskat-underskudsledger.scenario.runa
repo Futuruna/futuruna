@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 ----
 Regressionsscenarie for Personskattelovens § 13-ledger mellem indkomstår.

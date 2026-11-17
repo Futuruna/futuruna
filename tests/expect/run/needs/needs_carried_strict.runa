@@ -12,5 +12,5 @@
 
 | keep(h: Household) -> h
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = keep(h).income + 1)

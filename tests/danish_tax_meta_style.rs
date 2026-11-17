@@ -83,7 +83,7 @@ fn danish_tax_metadata_uses_typed_classes_instead_of_legacy_role_objects() {
 #[test]
 fn personskat_calculation_uses_a_partitioned_typed_metadata_root() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("examples/danish-income-tax/personskat.calculate.runa");
+        .join("examples/danish-income-tax/personskat.entry.runa");
     let source = fs::read_to_string(path).expect("read Personskat calculation");
     let lines = source.lines().collect::<Vec<_>>();
     let entry = lines

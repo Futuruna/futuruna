@@ -1,10 +1,10 @@
--- `unknown` is placed, never read; `query` asks only a calculation entry.
+-- `unknown` is placed, never read; `query` asks only an entry.
 -- expect-command: check
 -- expect-status: fail
 -- expect-stderr: `unknown` cannot be a side of a comparison
 -- expect-stderr: `unknown` takes the type of its place, and this place has none
 -- expect-stderr: `unknown` cannot be an argument of a builtin
--- expect-stderr: `query` asks a calculation entry (`@ calculate`); `threshold` is not one
+-- expect-stderr: `query` asks an entry (`@ entry`); `threshold` is not one
 
 # Spouse(@ field(label = "Spouse's income") income: Int, cohabiting: Bool)
 # Household(income: Int, married: Bool, spouse: Option(Spouse))
@@ -17,7 +17,7 @@
 }
 }
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = h.income - threshold(h))
 
 = compared = unknown == 3

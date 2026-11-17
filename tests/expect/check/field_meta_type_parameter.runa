@@ -7,5 +7,5 @@
 # Input(box: Box(Int))
 # TaxResult(tax: Int)
 
-@ calculate
+@ entry
 | tax(input: Input) -> TaxResult(tax = 0)

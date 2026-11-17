@@ -9,7 +9,7 @@ ikke-fradragsberettigede forsikring som en indbetaling til ekstra pensionsfradra
 Dette er den almindelige lønfinansierede PBL § 56, stk. 5-gren, ikke alle
 forsikringer i en pensionsoversigt. [Bonus fra en fradragsberettiget pension](#gruppeliv-betalt-af-pensionsbonus)
 har sin egen indgang uden arbejdsfradrag. Modellen er forskningssoftware, og
-`@ calculate` er Preview; resultater er ikke individuel rådgivning.
+`@ entry` er Preview; resultater er ikke individuel rådgivning.
 
 ## Kilder og afgrænsning
 

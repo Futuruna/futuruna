@@ -1,0 +1,12 @@
+-- A path has one group: naming it twice is an error.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: the AnswerGuide `household_guide` names `pathof(Household::spouse)` twice (`Customer` and `Registry`); a path has one group
+
+@ import ./answer_law
+
+# Origin = Registry | Customer
+= household_guide = AnswerGuide(fields = [
+    EntryField(path = pathof(Household::spouse), by = Customer),
+    EntryField(path = pathof(Household::spouse), by = Registry)
+])

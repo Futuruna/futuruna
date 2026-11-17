@@ -92,9 +92,9 @@ def substitute(reference, bindings):
 class InputGuide:
     def __init__(self, schema):
         require(isinstance(schema, dict), "Expected a compact calculation schema")
-        require(schema.get("schema") == "futuruna.calculate.compact.v1"
+        require(schema.get("schema") == "futuruna.entry.compact.v1"
                 and type(schema.get("schema_version")) is int and schema["schema_version"] == 1
-                and schema.get("contract_schema") == "futuruna.calculate.v1"
+                and schema.get("contract_schema") == "futuruna.entry.v1"
                 and type(schema.get("contract_schema_version")) is int
                 and schema["contract_schema_version"] == 1,
                 "Use a fresh runa schema --format compact-json export")

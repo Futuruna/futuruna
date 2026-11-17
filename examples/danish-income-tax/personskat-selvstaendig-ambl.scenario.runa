@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 | ambl_selvstændig_scenarie_fremført(identifikation: Tekst, beløb_kroner: Heltal, oprindelse: ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstOprindelse) -> ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche(
     identifikation = identifikation,

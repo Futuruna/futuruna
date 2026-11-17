@@ -15,7 +15,7 @@ const ASKS_INCOME: &str = "\
 # Case(income: Int, married: Bool)
 # Result(tax: Int)
 
-@ calculate
+@ entry
 | tax_of(c: Case) -> Result(tax = c.income / 10)
 
 = asked = query tax_of(Case(income = unknown, married = False))

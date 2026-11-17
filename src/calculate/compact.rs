@@ -25,9 +25,9 @@ pub fn expand_compact_json(
     compact.expand(max_expanded_source_bytes)
 }
 
-pub const COMPACT_SCHEMA: &str = "futuruna.calculate.compact.v1";
-const SOURCE_DOMAIN: &[u8] = b"futuruna.calculate.compact.v1/source\0";
-const GROUP_DOMAIN: &[u8] = b"futuruna.calculate.compact.v1/source-group\0";
+pub const COMPACT_SCHEMA: &str = "futuruna.entry.compact.v1";
+const SOURCE_DOMAIN: &[u8] = b"futuruna.entry.compact.v1/source\0";
+const GROUP_DOMAIN: &[u8] = b"futuruna.entry.compact.v1/source-group\0";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

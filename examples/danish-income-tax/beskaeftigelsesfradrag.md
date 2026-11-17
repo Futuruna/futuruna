@@ -1,12 +1,12 @@
 # Stemmer mit beskæftigelsesfradrag ved udenlandsk arbejde?
 
-Den [afgrænsede beregning](beskaeftigelsesfradrag.calculate.runa) kontrollerer
+Den [afgrænsede beregning](beskaeftigelsesfradrag.entry.runa) kontrollerer
 almindeligt beskæftigelsesfradrag og jobfradrag for 2023–2026. Den viser, hvilke
 grundlagsbeløb der bevares eller udelukkes, og giver ingen sammenlignelige
 fradragsbeløb, hvis nødvendige fakta er uafklarede. Det er en forskningsmodel,
 ikke individuel skatterådgivning. `schema`, `template` og `call` er Preview.
 
-Den samlede [Personskat-beregning](personskat.calculate.runa) bruger samme
+Den samlede [Personskat-beregning](personskat.entry.runa) bruger samme
 fordeling og beregner selv grundlaget ud fra indkomst og pension. Her påvirker
 afgrænsningen også senior- og enligforsørgertillæg, når deres betingelser er
 opfyldt. Den afgrænsede beregning ovenfor viser derimod kun de to fradrag, ikke
@@ -99,9 +99,9 @@ Gem dokumenter, input og resultater uden for checkout. Fra repoets rod kan du
 generere en JSON-skabelon; vælg et nyt filnavn i en privat mappe, du allerede har:
 
 ```sh
-"$RUNA_BIN" template examples/danish-income-tax/beskaeftigelsesfradrag.calculate.runa --format json --output /absolut/privat/mappe/arbejdsfradrag.json
+"$RUNA_BIN" template examples/danish-income-tax/beskaeftigelsesfradrag.entry.runa --format json --output /absolut/privat/mappe/arbejdsfradrag.json
 # Udfyld og gennemgå fakta; sæt sagens input_status ved siden af case_id til "ready".
-"$RUNA_BIN" call examples/danish-income-tax/beskaeftigelsesfradrag.calculate.runa --input /absolut/privat/mappe/arbejdsfradrag.json --output /absolut/privat/mappe/arbejdsfradrag-resultat.json
+"$RUNA_BIN" call examples/danish-income-tax/beskaeftigelsesfradrag.entry.runa --input /absolut/privat/mappe/arbejdsfradrag.json --output /absolut/privat/mappe/arbejdsfradrag-resultat.json
 ```
 
 Skabelonen starter uafklaret. Udfyld og gennemgå den **før** `call`; ret ikke
@@ -149,7 +149,7 @@ scenariehjælpere er ikke dokumentation for en rigtig persons udlandsforhold.
 
 ## Når skattepligten kun gælder en del af året
 
-I [delårsberegningen](personskat-par14.calculate.runa) følger det udelukkede
+I [delårsberegningen](personskat-par14.entry.runa) følger det udelukkede
 grundlag med til helårsberegningen. Tilføj én kilde med beregningsfelt
 `Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst` for hver udelukket
 fordelingspost. Brug samme `identifikation` og `delårsbeløb_kroner` som posten.

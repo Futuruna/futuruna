@@ -8,7 +8,7 @@ import test from 'node:test';
 import { declaredField } from './field_declarations.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const model = 'examples/danish-income-tax/personskat.calculate.runa';
+const model = 'examples/danish-income-tax/personskat.entry.runa';
 const source = readFileSync(join(root, model), 'utf8');
 
 function field(name) {
@@ -31,7 +31,7 @@ test('taxpayer and spouse are asked for tax-year municipality, not current resid
 });
 
 test('report review preserves its observed municipality without claiming independent verification', () => {
-  const report = readFileSync(join(root, 'examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa'), 'utf8');
+  const report = readFileSync(join(root, 'examples/danish-income-tax/aarsopgoerelse-afstemning.entry.runa'), 'utf8');
   const metadata = declaredField(report, 'ÅrsopgørelseAfstemningsinput', 'kommune');
   assert.ok(metadata, 'ÅrsopgørelseAfstemningsinput.kommune: missing @ field');
   assert.match(metadata, /Rapportens skattekommune/);
@@ -58,7 +58,7 @@ test('exported contract carries both municipality prompts and existing residence
     return result.stdout;
   };
   const schema = JSON.parse(run(['schema', model, '--format', 'compact-json']));
-  assert.equal(schema.schema, 'futuruna.calculate.compact.v1');
+  assert.equal(schema.schema, 'futuruna.entry.compact.v1');
   for (const path of ['lønmodtager.kommune', 'ægtefælle.MedÆgtefælle.fakta.lønmodtager.kommune']) {
     const fields = schema.field_metadata.filter(field => field.path === path);
     assert.equal(fields.length, 1, path);

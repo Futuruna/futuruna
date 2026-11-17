@@ -11,7 +11,7 @@ import { buildFictionalCases } from '../examples/danish-income-tax/bilag-demo.mj
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
 const enabled = { skip: !binary && 'Set FUTURUNA_MODEL_TEST_RUNA; no build or private documents.' };
-const model = 'examples/danish-income-tax/personskat.calculate.runa';
+const model = 'examples/danish-income-tax/personskat.entry.runa';
 const path = 'kapitalindkomst.ejendomsdrift';
 const v = $variant => ({ $variant });
 function run(args) {
@@ -132,7 +132,7 @@ test('covered gains and losses survive while excluded nonzero main and spouse am
 });
 
 test('part-year period and documented annual bases retain main and spouse property route failures', enabled, () => {
-  const file = 'examples/danish-income-tax/personskat-par14.calculate.runa', entry = 'beregn_personskat_delår';
+  const file = 'examples/danish-income-tax/personskat-par14.entry.runa', entry = 'beregn_personskat_delår';
   const dir = mkdtempSync(join(tmpdir(), 'futuruna-property-partyear-'));
   console.log(`Fictional property part-year: ${dir}`);
   const envelope = run(['template', file, '--entry', entry, '--format', 'json']);

@@ -22,7 +22,7 @@ fn runa() -> std::ffi::OsString {
 }
 
 fn fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/calculation/tax.calculate.runa")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/calculation/tax.entry.runa")
 }
 
 fn temp_path(extension: &str) -> PathBuf {
@@ -76,7 +76,7 @@ fn metadata_written_for_a_declaration_is_its_metadata() {
 # impl Meta for RelativeMeta {}\n";
     let binding = "= child_meta = RelativeMeta(fields = [RelativeField(path = refof(Child::age), label = \"Child age\")])\n";
     let types = "# Child(age: Int)\n# Input(child: Child)\n# Result(value: Int)\n";
-    let entry = "@ calculate\n| calculate(input: Input) -> Result(value = input.child.age)\n";
+    let entry = "@ entry\n| calculate(input: Input) -> Result(value = input.child.age)\n";
     let on = directory.join("on.runa");
     std::fs::write(
         &on,
@@ -134,7 +134,7 @@ fn section_metadata_is_one_contract_however_it_is_written() {
 # Result(value: Int)\n";
     let section = |meta: &str, quote: &str| {
         format!(
-            "{head}{meta}@ section rounding {{\n\n@ quote({quote})\n----\nRound to whole kroner.\n----\n\n@ calculate\n| calculate(input: Input) -> Result(value = input.x)\n\n}}\n"
+            "{head}{meta}@ section rounding {{\n\n@ quote({quote})\n----\nRound to whole kroner.\n----\n\n@ entry\n| calculate(input: Input) -> Result(value = input.x)\n\n}}\n"
         )
     };
     let forms = [
@@ -155,7 +155,7 @@ fn section_metadata_is_one_contract_however_it_is_written() {
         .iter()
         .enumerate()
         .map(|(index, source)| {
-            let path = directory.join(format!("form{index}.calculate.runa"));
+            let path = directory.join(format!("form{index}.entry.runa"));
             std::fs::write(&path, source).expect("write form");
             let output = run(&["schema", path.to_str().expect("source path")]);
             assert!(
@@ -246,10 +246,7 @@ fn untouched_templates_list_every_unfilled_value_in_every_adapter() {
         assert!(hydrated.status.success(), "{hydrated:?}");
         let mut envelope: Value =
             serde_json::from_slice(&std::fs::read(&normalized).unwrap()).unwrap();
-        assert_eq!(
-            envelope["$futuruna"]["schema"],
-            "futuruna.calculate.input.v2"
-        );
+        assert_eq!(envelope["$futuruna"]["schema"], "futuruna.entry.input.v2");
         assert_eq!(envelope["cases"][0]["input_status"], "draft");
         assert_eq!(
             envelope["cases"][0]["input"]["monthly_income"],
@@ -303,7 +300,7 @@ fn calculation_readiness_survives_legacy_hydration_without_promoting_cases() {
         {"case_id":"ready", "input_status":"ready", "input":facts}
     ]);
     let original = temp_path("json");
-    envelope["$futuruna"]["schema"] = "futuruna.calculate.input.v1".into();
+    envelope["$futuruna"]["schema"] = "futuruna.entry.input.v1".into();
     std::fs::write(&original, serde_json::to_vec(&envelope).unwrap()).unwrap();
     for format in ["json", "toml", "xlsx"] {
         let converted = temp_path(format);
@@ -320,7 +317,7 @@ fn calculation_readiness_survives_legacy_hydration_without_promoting_cases() {
             assert!(conversion.status.success(), "{conversion:?}");
         }
         let actual: Value = serde_json::from_slice(&std::fs::read(&restored).unwrap()).unwrap();
-        assert_eq!(actual["$futuruna"]["schema"], "futuruna.calculate.input.v2");
+        assert_eq!(actual["$futuruna"]["schema"], "futuruna.entry.input.v2");
         for index in 0..3 {
             let mut actual_facts = actual["cases"][index]["input"].clone();
             // TOML omits absent optional fields; omitted and null both decode
@@ -403,7 +400,7 @@ fn calculation_readiness_refresh_reopens_only_cases_needing_new_sheets() {
     let original = temp_path("xlsx");
     let refreshed = temp_path("xlsx");
     let normalized = temp_path("json");
-    std::fs::write(&source, "# Choice = Empty | Family(value: Int, items: List(Int))\n# Input(choice: Choice)\n@ calculate\n> echo(input: Input) -> Input { input }\n").unwrap();
+    std::fs::write(&source, "# Choice = Empty | Family(value: Int, items: List(Int))\n# Input(choice: Choice)\n@ entry\n> echo(input: Input) -> Input { input }\n").unwrap();
     let model = source.to_str().unwrap();
     let generated = run(&["template", model, "--output", original.to_str().unwrap()]);
     assert!(generated.status.success(), "{generated:?}");
@@ -458,7 +455,7 @@ fn calculation_readiness_refresh_reopens_only_cases_needing_new_sheets() {
 
 #[test]
 fn call_assert_with_message_preserves_json_and_case_isolation() {
-    let source = "tests/fixtures/calculation/assert-message.calculate.runa";
+    let source = "tests/fixtures/calculation/assert-message.entry.runa";
     let template = run(&["template", source, "--format", "json"]);
     assert!(template.status.success(), "{template:?}");
     let mut input = parse_stdout(&template);
@@ -515,7 +512,7 @@ fn schema_exposes_reachable_types_metadata_and_fingerprint() {
         String::from_utf8_lossy(&output.stderr)
     );
     let schema = parse_stdout(&output);
-    assert_eq!(schema["schema"], "futuruna.calculate.v1");
+    assert_eq!(schema["schema"], "futuruna.entry.v1");
     assert_eq!(schema["entry"], "calculate_tax");
     assert_eq!(schema["label"], "Household tax calculation");
     assert_eq!(schema["input"]["name"], "TaxInput");
@@ -589,7 +586,7 @@ fn compact_schema_is_explicit_lossless_and_keeps_the_logical_fingerprint() {
         String::from_utf8_lossy(&compact.stderr)
     );
     let raw = parse_stdout(&compact);
-    assert_eq!(raw["schema"], "futuruna.calculate.compact.v1");
+    assert_eq!(raw["schema"], "futuruna.entry.compact.v1");
     assert_eq!(raw["contract_schema"], expanded.schema);
     assert_eq!(raw["schema_hash"], expanded.schema_hash);
     let restored = futuruna::calculate::compact::expand_compact_json(
@@ -650,12 +647,12 @@ fn calculation_contract_cache_hits_and_tracks_transitive_imports() {
     let root = temp_path("calculation-cache");
     std::fs::create_dir_all(&root).expect("create calculation cache fixture directory");
     let cache = root.join("cache");
-    let source = root.join("model.calculate.runa");
+    let source = root.join("model.entry.runa");
     let dependency = root.join("domain.runa");
     std::fs::write(
         &source,
         "@ import ./domain\n\
-@ calculate(\"Cached calculation\")\n\
+@ entry(\"Cached calculation\")\n\
 | calculate_cached(input: CachedInput) -> CachedResult(total = input.amount)\n",
     )
     .expect("write cached calculation source");
@@ -759,7 +756,7 @@ fn calculation_contract_cache_hits_for_a_program_its_import_scopes_rename() {
     let root = temp_path("calculation-cache-scoped");
     std::fs::create_dir_all(&root).expect("create scoped cache fixture directory");
     let cache = root.join("cache");
-    let source = root.join("model.calculate.runa");
+    let source = root.join("model.entry.runa");
     let low = root.join("low.runa");
     std::fs::write(
         &source,
@@ -767,7 +764,7 @@ fn calculation_contract_cache_hits_for_a_program_its_import_scopes_rename() {
 @ import ./high\n\
 # ScopedInput(amount: Int)\n\
 # ScopedResult(low: Int, high: Int)\n\
-@ calculate(\"Scoped calculation\")\n\
+@ entry(\"Scoped calculation\")\n\
 | calculate_scoped(input: ScopedInput) -> ScopedResult(low = low_part(input.amount), high = high_part(input.amount))\n",
     )
     .expect("write scoped calculation source");
@@ -819,7 +816,7 @@ fn calculation_contract_cache_hits_for_a_named_scalar_program() {
     let root = temp_path("calculation-cache-scalar");
     std::fs::create_dir_all(&root).expect("create scalar cache fixture directory");
     let cache = root.join("cache");
-    let model = root.join("book.calculate.runa");
+    let model = root.join("book.entry.runa");
     let write_model = |description: &str| {
         std::fs::write(
             &model,
@@ -828,7 +825,7 @@ fn calculation_contract_cache_hits_for_a_named_scalar_program() {
                  # Isin: String \"{description}\" where isin_ok\n\
                  # Holding(isin: Isin, count: Int)\n\
                  # Book(holdings: List(Holding))\n\
-                 @ calculate\n\
+                 @ entry\n\
                  > total(input: Book) -> Int {{ sum(map(input.holdings, |h| h.count)) }}\n"
             ),
         )
@@ -894,7 +891,7 @@ fn schema_preserves_localized_keyword_field_spelling() {
 = felt = Beregningsfelt(path = refof(Input::omfang), label = \"Beregningens omfang\")\n\
 = metadata = Beregningsmeta(attachments = (Field(value = felt),))\n\
 @ meta(metadata)\n\
-@ calculate\n\
+@ entry\n\
 | beregn(input: Input) -> Resultat(værdi = input.omfang)\n",
     )
     .expect("write localized keyword calculation source");
@@ -944,7 +941,7 @@ fn schema_expands_typed_aggregate_meta_into_field_metadata() {
     Source(value = source),\n\
 ))\n\
 @ meta(calculation_meta)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = input.monthly_income * 12 - input.deduction)\n",
     )
     .expect("write aggregate calculation metadata source");
@@ -993,7 +990,7 @@ fn schema_lowers_structural_pathof_field_metadata_to_canonical_paths() {
     CalculationField(path = pathof(Input::income::Wage::amount), label = \"Wage amount\")\n\
 ])\n\
 @ meta(calculation_meta)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = 0)\n",
     )
     .expect("write pathof calculation metadata source");
@@ -1037,7 +1034,7 @@ fn schema_projects_typed_relative_field_metadata_and_prefers_exact_overrides() {
     ExactField(path = pathof(Input::first::primary::age), label = \"Primary child age\")\n\
 ])\n\
 @ meta(exact_meta)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = 0)\n",
     )
     .expect("write relative calculation metadata source");
@@ -1106,7 +1103,7 @@ fn schema_projects_enum_discriminator_metadata_to_scalar_enum_columns() {
     ExactField(path = pathof(Input::direct_mode::$variant), label = \"Direct mode\")\n\
 ])\n\
 @ meta(exact_meta)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = 0)\n",
     )
     .expect("write nested enum metadata source");
@@ -1152,7 +1149,7 @@ fn schema_exact_field_metadata_supersedes_multiple_relative_candidates() {
     ExactField(path = pathof(Input::child::age), label = \"Exact age\")\n\
 ])\n\
 @ meta(exact_meta)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = input.child.age)\n",
     )
     .expect("write exact metadata precedence source");
@@ -1187,7 +1184,7 @@ fn schema_rejects_ambiguous_or_non_structural_typed_field_metadata() {
     RelativeField(path = refof(Child::age), label = \"Age two\")\n\
 ])\n\
 @ meta(child_meta) for Child\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = 0)\n",
     )
     .expect("write ambiguous relative metadata source");
@@ -1215,7 +1212,7 @@ fn schema_rejects_ambiguous_or_non_structural_typed_field_metadata() {
     RelativeField(path = refof(calculate), label = \"Invalid\")\n\
 ])\n\
 @ meta(invalid_meta)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = input.value)\n",
     )
     .expect("write non-structural typed metadata source");
@@ -1243,7 +1240,7 @@ fn schema_rejects_ambiguous_or_non_structural_typed_field_metadata() {
     ExactField(path = \"child.agee\", label = \"Child age\")\n\
 ])\n\
 @ meta(exact_meta)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = 0)\n",
     )
     .expect("write misspelled optional member metadata source");
@@ -1273,7 +1270,7 @@ const OPTIONAL_MEMBER_METADATA_SOURCE: &str = "# Child(age: Int, name: String)\n
     RelativeField(path = refof(Child::name), label = \"Child name\", question = None)\n\
 ])\n\
 @ meta(child_meta) for Child\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = input.income)\n";
 
 #[test]
@@ -1423,7 +1420,7 @@ fn workbook_without_member_metadata_has_no_member_rows() {
 #[test]
 fn schema_checks_pathof_against_plain_imported_types() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/calculation/pathof-import.calculate.runa");
+        .join("tests/fixtures/calculation/pathof-import.entry.runa");
     let output = run(&["schema", fixture.to_str().expect("fixture path")]);
     assert!(
         output.status.success(),
@@ -1441,7 +1438,7 @@ fn schema_checks_pathof_against_plain_imported_types() {
 #[test]
 fn schema_projects_type_anchored_field_metadata_from_plain_imports() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/calculation-relative-meta/model.calculate.runa");
+        .join("tests/fixtures/calculation-relative-meta/model.entry.runa");
     let output = run(&["schema", fixture.to_str().expect("fixture path")]);
     assert!(
         output.status.success(),
@@ -1481,7 +1478,7 @@ fn schema_expands_computed_typed_aggregate_meta_into_field_metadata() {
 ], fields_from_seed)\n\
 = calculation_meta = CalculationMeta(fields = concat(direct_fields, nested_fields))\n\
 @ meta(calculation_meta)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = input.first + input.second + input.third)\n",
     )
     .expect("write computed aggregate calculation metadata source");
@@ -1521,7 +1518,7 @@ fn schema_rejects_unknown_paths_from_computed_typed_aggregate_meta() {
 ], field_from_seed)\n\
 = calculation_meta = CalculationMeta(fields = computed_fields)\n\
 @ meta(calculation_meta)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = input.amount)\n",
     )
     .expect("write invalid computed aggregate calculation metadata source");
@@ -1562,7 +1559,7 @@ fn schema_scopes_sources_through_nested_typed_metadata() {
 )\n\
 = calculation_meta = CalculationMeta(parts = (first_meta, second_meta))\n\
 @ meta(calculation_meta)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = input.first + input.second)\n",
     )
     .expect("write nested calculation metadata source");
@@ -1588,8 +1585,8 @@ fn schema_scopes_sources_through_nested_typed_metadata() {
 
 #[test]
 fn schema_resolves_metadata_from_plain_imports() {
-    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/meta-imports/model.calculate.runa");
+    let fixture =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/meta-imports/model.entry.runa");
     let output = run(&["schema", fixture.to_str().expect("fixture path")]);
     assert!(
         output.status.success(),
@@ -1613,7 +1610,7 @@ fn schema_resolves_metadata_from_plain_imports() {
 #[test]
 fn schema_collects_typed_field_metadata_anchors_from_plain_imports() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/calculation-imported-meta/model.calculate.runa");
+        .join("tests/fixtures/calculation-imported-meta/model.entry.runa");
     let output = run(&["schema", fixture.to_str().expect("fixture path")]);
     assert!(
         output.status.success(),
@@ -1633,7 +1630,7 @@ fn schema_collects_typed_field_metadata_anchors_from_plain_imports() {
 #[test]
 fn schema_rejects_matching_invalid_field_metadata_from_plain_imports() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/calculation-imported-meta/invalid.calculate.runa");
+        .join("tests/fixtures/calculation-imported-meta/invalid.entry.runa");
     let output = run(&["schema", fixture.to_str().expect("fixture path")]);
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -1646,7 +1643,7 @@ fn schema_rejects_matching_invalid_field_metadata_from_plain_imports() {
 #[test]
 fn schema_rejects_duplicate_local_and_imported_field_metadata() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/calculation-imported-meta/duplicate.calculate.runa");
+        .join("tests/fixtures/calculation-imported-meta/duplicate.entry.runa");
     let output = run(&["schema", fixture.to_str().expect("fixture path")]);
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -1712,7 +1709,7 @@ fn json_batch_invokes_conditions_and_exceptions() {
 fn calculation_cli_rejects_list_addition_before_evaluation() {
     let model = temp_path("runa");
     let input_path = temp_path("json");
-    let good_source = "# Input(left: List(Int), right: List(Int))\n@ calculate\n> count(input: Input) -> Int { length(concat(input.left, input.right)) }\n";
+    let good_source = "# Input(left: List(Int), right: List(Int))\n@ entry\n> count(input: Input) -> Int { length(concat(input.left, input.right)) }\n";
     std::fs::write(&model, good_source).expect("write concat control");
     let template = run(&["template", model.to_str().unwrap(), "--format", "json"]);
     assert!(
@@ -1775,7 +1772,7 @@ fn calculation_cli_rejects_list_addition_before_evaluation() {
 fn calculation_cli_reports_indirect_list_operator_failure() {
     let model = temp_path("runa");
     let input_path = temp_path("json");
-    std::fs::write(&model, "# Input(left: List(Int), right: List(Int))\n> unchecked_add(left, right) { left + right }\n@ calculate\n> count(input: Input) -> Int { length(unchecked_add(input.left, input.right)) }\n").unwrap();
+    std::fs::write(&model, "# Input(left: List(Int), right: List(Int))\n> unchecked_add(left, right) { left + right }\n@ entry\n> count(input: Input) -> Int { length(unchecked_add(input.left, input.right)) }\n").unwrap();
     let template = run(&["template", model.to_str().unwrap(), "--format", "json"]);
     assert!(
         template.status.success(),
@@ -1809,7 +1806,7 @@ fn calculation_runtime_failures_are_case_scoped_in_json_and_xlsx() {
     let directory = temp_path("runtime-failures");
     std::fs::create_dir(&directory).expect("create calculation runtime fixture");
     let policy_path = directory.join("policy.runa");
-    let source_path = directory.join("model.calculate.runa");
+    let source_path = directory.join("model.entry.runa");
     let input_path = directory.join("cases.json");
     let output_path = directory.join("results.xlsx");
     std::fs::write(
@@ -1831,7 +1828,7 @@ fn calculation_runtime_failures_are_case_scoped_in_json_and_xlsx() {
 @ import Policy from ./policy
 # Input(year: Int, amount: Int, divisor: Int)
 # Output(amount: Int, label: String, eligible: Bool)
-@ calculate
+@ entry
 > calculate(input: Input) -> Output {
     Output(amount = input.amount / input.divisor, label = Policy.parameter(input.year), eligible = Policy.eligible(input.amount))
 }
@@ -1959,7 +1956,7 @@ fn calculation_json_rejects_duplicate_members_without_normalizing_or_overwriting
     let model = temp_path("runa");
     let input = temp_path("json");
     let destination = temp_path("json");
-    std::fs::write(&model, "# Input(annual_income: Int)\n@ calculate\n> calculate(input: Input) -> Int { input.annual_income }\n").unwrap();
+    std::fs::write(&model, "# Input(annual_income: Int)\n@ entry\n> calculate(input: Input) -> Int { input.annual_income }\n").unwrap();
     let template = run(&["template", model.to_str().unwrap(), "--format", "json"]);
     assert!(
         template.status.success(),
@@ -2045,7 +2042,7 @@ fn calculation_xlsx_duplicate_json_members_are_case_scoped_and_block_refresh() {
         r#"
 # Amount(annual_income: Int)
 # Input(details: Amount?)
-@ calculate
+@ entry
 > calculate(input: Input) -> Int {
     match input.details {
         | Some(details) -> details.annual_income
@@ -2166,7 +2163,7 @@ fn calculation_inline_module_list_rule_cannot_become_a_successful_zero() {
 > module Second {
     | amount(value: Int) -> value + 20
 }
-@ calculate
+@ entry
 > calculate(input: Input) -> Output {
     Output(First.amount(input.value), Second.amount(input.value), length(First.amounts(input.value)))
 }
@@ -2242,7 +2239,7 @@ fn calculation_output_encodes_empty_list_literals() {
         "# EmptyListInput(marker: Int)\n\
 # EmptyListResult(marker: Int, items: List(Int))\n\
 \n\
-@ calculate\n\
+@ entry\n\
 | calculate_empty_list(input: EmptyListInput) -> EmptyListResult(marker = input.marker, items = [])\n",
     )
     .expect("write empty-list calculation");
@@ -2552,7 +2549,7 @@ impl StringWorkbookFixture {
         let source = temp_path("runa");
         let input = temp_path("json");
         let workbook = temp_path("xlsx");
-        std::fs::write(&source, "# TextInput(name: String, note: String?, names: List(String), labels: Map(String, String), tags: Set(String))\n@ calculate\n> echo_text(input: TextInput) -> TextInput { input }\n").unwrap();
+        std::fs::write(&source, "# TextInput(name: String, note: String?, names: List(String), labels: Map(String, String), tags: Set(String))\n@ entry\n> echo_text(input: TextInput) -> TextInput { input }\n").unwrap();
         let template = run(&["template", source.to_str().unwrap(), "--format", "json"]);
         assert!(template.status.success(), "{template:?}");
         let mut envelope = parse_stdout(&template);
@@ -2648,7 +2645,7 @@ fn xlsx_strings_required_empty_text_round_trips() {
     let metadata = workbook.worksheet_range("_futuruna").unwrap();
     assert_eq!(
         metadata.get((1, 1)),
-        Some(&Data::String("futuruna.calculate.xlsx.input.v9".into()))
+        Some(&Data::String("futuruna.entry.xlsx.input.v9".into()))
     );
     drop(workbook);
     assert_eq!(fixture.expected[0]["result"]["name"], "");
@@ -2689,7 +2686,7 @@ fn xlsx_strings_legacy_refresh_preserves_versioned_quotes_and_requires_review() 
         )]));
         edit_workbook(&fixture.workbook, |sheets| {
             workbook_sheet_mut(sheets, "_futuruna")[1][1] =
-                Data::String(format!("futuruna.calculate.xlsx.input.{version}"));
+                Data::String(format!("futuruna.entry.xlsx.input.{version}"));
             for row in workbook_sheet_mut(sheets, "cases").iter_mut().skip(1) {
                 row.remove(1);
             }
@@ -2915,7 +2912,7 @@ fn xlsx_long_choice_sets_use_hidden_validation_ranges() {
 # LongChoiceInput(choice: LongChoice)\n\
 # LongChoiceResult(choice: LongChoice)\n\
 \n\
-@ calculate\n\
+@ entry\n\
 | calculate_long_choice(input: LongChoiceInput) -> LongChoiceResult(choice = input.choice)\n",
         choices.join(" | ")
     );
@@ -2979,7 +2976,7 @@ fn xlsx_qualifies_labels_that_columns_of_one_sheet_share() {
 # Asset(@ field(label = \"Asset\") name: String, first: Usage, second: Usage)\n\
 # Input(@ field(label = \"Business use\") business: Int, @ field(label = \"Year\") year: Int, own: Usage, spouse: Usage, assets: List(Asset))\n\
 # Result(value: Int)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = input.year)\n",
     )
     .expect("write shared-label calculation");
@@ -3111,7 +3108,7 @@ fn xlsx_qualifies_labels_that_columns_of_one_sheet_share() {
 #[test]
 fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("examples/danish-income-tax/personskat.calculate.runa");
+        .join("examples/danish-income-tax/personskat.entry.runa");
     let input_path = temp_path("xlsx");
     if let Some(reuse_path) = std::env::var_os("FUTURUNA_REUSE_PERSONSKAT_WORKBOOK") {
         std::fs::copy(reuse_path, &input_path).expect("reuse Personskat workbook");
@@ -21589,7 +21586,7 @@ fn round_trip_source_inputs_through_generated_personskat_workbook_with_inspectio
     inspect_workbook: impl FnOnce(&Path),
 ) -> (Value, Value) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let fixture = root.join("examples/danish-income-tax/personskat.calculate.runa");
+    let fixture = root.join("examples/danish-income-tax/personskat.entry.runa");
     let source_input_path = temp_path("json");
     let public_template_path = temp_path("json");
     let public_input_path = temp_path("json");
@@ -22085,7 +22082,7 @@ fn personskat_ksl25a_shared_annual_cap_round_trips_through_generated_workbook() 
 #[test]
 fn ligningslov9a_xlsx_round_trips_split_food_and_nested_lodging_days() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("examples/danish-income-tax/ligningsloven-par9a-rejser.calculate.runa");
+        .join("examples/danish-income-tax/ligningsloven-par9a-rejser.entry.runa");
     let input_path = temp_path("xlsx");
     // This one-pass editing fixture needs child sheets before parent rows are
     // entered. Sparse defaults and refresh are covered by the xlsx_sparse tests.
@@ -22364,7 +22361,7 @@ fn ligningslov9a_xlsx_round_trips_split_food_and_nested_lodging_days() {
 #[test]
 fn ligningslov9a_xlsx_round_trips_grouped_foreign_income_ceiling() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("examples/danish-income-tax/ligningsloven-par9a-rejser.calculate.runa");
+        .join("examples/danish-income-tax/ligningsloven-par9a-rejser.entry.runa");
     let json_path = temp_path("json");
     let xlsx_path = temp_path("xlsx");
     let template = run(&[
@@ -22558,7 +22555,7 @@ fn ligningslov9a_xlsx_round_trips_grouped_foreign_income_ceiling() {
 #[test]
 fn ligningslov9a_xlsx_round_trips_island_lodging_input() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("examples/danish-income-tax/ligningsloven-par9a-rejser.calculate.runa");
+        .join("examples/danish-income-tax/ligningsloven-par9a-rejser.entry.runa");
     let json_path = temp_path("json");
     let xlsx_path = temp_path("xlsx");
     let template = run(&[
@@ -22771,7 +22768,7 @@ fn ligningslov9a_xlsx_round_trips_island_lodging_input() {
 #[test]
 fn ligningslov9a_xlsx_round_trips_typed_double_household_input() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("examples/danish-income-tax/ligningsloven-par9a-rejser.calculate.runa");
+        .join("examples/danish-income-tax/ligningsloven-par9a-rejser.entry.runa");
     let json_path = temp_path("json");
     let xlsx_path = temp_path("xlsx");
     let template = run(&[
@@ -23002,7 +22999,7 @@ fn ligningslov9a_xlsx_round_trips_typed_double_household_input() {
 #[test]
 fn investment_classification_xlsx_expands_payloads_and_rejects_untouched_template() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("examples/danish-income-tax/investeringsklassifikation.calculate.runa");
+        .join("examples/danish-income-tax/investeringsklassifikation.entry.runa");
     let input_path = temp_path("xlsx");
     let template = run(&[
         "template",
@@ -23100,7 +23097,7 @@ fn assert_untouched_workbook_is_rejected(output: &Output) {
 #[test]
 fn par19_xlsx_derives_nested_fact_tables_and_rejects_untouched_template() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("examples/danish-income-tax/investeringsklassifikation.calculate.runa");
+        .join("examples/danish-income-tax/investeringsklassifikation.entry.runa");
     let input_path = temp_path("xlsx");
     let template = run(&[
         "template",
@@ -23164,7 +23161,7 @@ fn xlsx_relational_tables_round_trip_nested_collections_and_isolate_bad_cases() 
         "# Toy(label: String)\n\
 # Child(name: String, toys: List(Toy))\n\
 # Input(children: List(Child), aliases: List(String), totals: Map(String, Int), flags: Set(Int))\n\
-@ calculate\n\
+@ entry\n\
 > echo(input: Input) -> Input { input }\n",
     )
     .expect("write relational calculation");
@@ -23328,7 +23325,7 @@ fn xlsx_required_nested_product_with_only_empty_collections_round_trips_every_ca
         &source_path,
         "# EmptyCollections(items: List(Int), names: Set(String), values: Map(String, Int))\n\
 # EmptyCollectionsInput(marker: Int, nested: EmptyCollections)\n\
-@ calculate\n\
+@ entry\n\
 > echo_empty_collections(input: EmptyCollectionsInput) -> EmptyCollectionsInput { input }\n",
     )
     .expect("write empty nested collections calculation");
@@ -23403,7 +23400,7 @@ fn xlsx_payload_variants_expand_into_typed_columns_and_child_tables() {
         "# Child(name: String, age: Int)\n\
 # Selection = Empty | Fixed(amount: Int) | Couple(Int, String) | Family(label: String, children: List(Child))\n\
 # Input(selection: Selection, history: List(Selection))\n\
-@ calculate\n\
+@ entry\n\
 > echo(input: Input) -> Input { input }\n",
     )
     .expect("write payload-variant calculation");
@@ -23586,7 +23583,7 @@ fn xlsx_sparse_sheets_union_maps_sets_and_reserved_names() {
     let source = temp_path("runa");
     let json = temp_path("json");
     let xlsx = temp_path("xlsx");
-    std::fs::write(&source, "# Choice = Empty | Mapped(items: Map(String, Set(Int))) | Listed(items: List(Int))\n# Input(choice: Choice, _sheets: List(Int), _choices: List(Int))\n@ calculate\n> echo(input: Input) -> Input { input }\n").unwrap();
+    std::fs::write(&source, "# Choice = Empty | Mapped(items: Map(String, Set(Int))) | Listed(items: List(Int))\n# Input(choice: Choice, _sheets: List(Int), _choices: List(Int))\n@ entry\n> echo(input: Input) -> Input { input }\n").unwrap();
     let model = source.to_str().unwrap();
     let template = run(&["template", model]);
     assert!(template.status.success());
@@ -23634,7 +23631,7 @@ fn xlsx_sparse_sheets_refresh_after_variant_and_nested_row_changes() {
     let source = temp_path("runa");
     let input = temp_path("xlsx");
     let refreshed = temp_path("xlsx");
-    std::fs::write(&source, "# Child(name: String)\n# Selection = Empty | Family(label: String, children: List(Child))\n# Input(selection: Selection, history: List(Selection))\n@ calculate\n> echo(input: Input) -> Input { input }\n").unwrap();
+    std::fs::write(&source, "# Child(name: String)\n# Selection = Empty | Family(label: String, children: List(Child))\n# Input(selection: Selection, history: List(Selection))\n@ entry\n> echo(input: Input) -> Input { input }\n").unwrap();
     let model = source.to_str().unwrap();
     let original = input.to_str().unwrap();
     let next = refreshed.to_str().unwrap();
@@ -23780,7 +23777,7 @@ fn xlsx_sparse_topology_is_bounded_and_rejects_missing_or_unlisted_sheets() {
         .map(|i| format!("Branch{i}(items: List(Int))"))
         .collect::<Vec<_>>()
         .join(" | ");
-    std::fs::write(&source, format!("# Choice = Empty | {branches}\n# Input(choice: Choice, children: List(List(Int)))\n@ calculate\n> echo(input: Input) -> Input {{ input }}\n")).unwrap();
+    std::fs::write(&source, format!("# Choice = Empty | {branches}\n# Input(choice: Choice, children: List(List(Int)))\n@ entry\n> echo(input: Input) -> Input {{ input }}\n")).unwrap();
     let model = source.to_str().unwrap();
     let path = input.to_str().unwrap();
     let regenerate = || {
@@ -23874,7 +23871,7 @@ fn xlsx_sparse_topology_is_bounded_and_rejects_missing_or_unlisted_sheets() {
         );
         sheets.retain(|(name, _)| name != "_sheets");
         workbook_sheet_mut(sheets, "_futuruna")[1][1] =
-            Data::String("futuruna.calculate.xlsx.input.v6".into());
+            Data::String("futuruna.entry.xlsx.input.v6".into());
         for row in workbook_sheet_mut(sheets, "cases").iter_mut().skip(1) {
             row.remove(1);
         }
@@ -23979,7 +23976,7 @@ fn calculate_accepts_one_human_label() {
     let path = temp_path("runa");
     std::fs::write(
         &path,
-        "# Input(value: Int)\n@ calculate(\"Income from sailor activities\")\n| calculate(input: Input) -> input.value\n",
+        "# Input(value: Int)\n@ entry(\"Income from sailor activities\")\n| calculate(input: Input) -> input.value\n",
     )
     .expect("write labelled calculation source");
     let output = run(&["schema", path.to_str().expect("source path")]);
@@ -24011,7 +24008,7 @@ fn calculate_accepts_one_human_label() {
 
     std::fs::write(
         &path,
-        "# Input(value: Int)\n@ calculate(\"Sailor income\")\n| calculate(input: Input) -> input.value\n",
+        "# Input(value: Int)\n@ entry(\"Sailor income\")\n| calculate(input: Input) -> input.value\n",
     )
     .expect("rewrite labelled calculation source");
     let changed = run(&["schema", path.to_str().expect("source path")]);
@@ -24025,10 +24022,10 @@ fn calculate_accepts_one_human_label() {
 #[test]
 fn calculate_rejects_invalid_human_labels() {
     for (annotation, expected) in [
-        ("@ calculate(42)", "accepts one human-readable string label"),
-        ("@ calculate(\"\")", "label must not be empty"),
+        ("@ entry(42)", "accepts one human-readable string label"),
+        ("@ entry(\"\")", "label must not be empty"),
         (
-            "@ calculate(\"First\", \"Second\")",
+            "@ entry(\"First\", \"Second\")",
             "accepts at most one human-readable string label",
         ),
     ] {
@@ -24063,7 +24060,7 @@ fn calculation_field_metadata_rejects_unknown_paths_and_duplicates() {
 # CalculationField(path: String, label: String, question: String, help: String, unit: String)\n\
 = bad_field = CalculationField(path = \"missing\", label = \"Missing\", question = \"\", help = \"\", unit = \"\")\n\
 @ meta(bad_field)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> input.value\n",
     )
     .expect("write unknown field metadata source");
@@ -24081,7 +24078,7 @@ fn calculation_field_metadata_rejects_unknown_paths_and_duplicates() {
 = second_field = CalculationField(path = \"Input.value\", label = \"Second\", question = \"\", help = \"\", unit = \"\")\n\
 @ meta(first_field)\n\
 @ meta(second_field)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> input.value\n",
     )
     .expect("write duplicate field metadata source");
@@ -24104,7 +24101,7 @@ fn aggregate_calculation_field_metadata_rejects_unknown_paths_and_duplicates() {
 # impl Meta for CalculationMeta {{}}\n\
 = calculation_meta = CalculationMeta(fields = [{fields}])\n\
 @ meta(calculation_meta)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = input.value)\n"
         )
     };
@@ -24151,7 +24148,7 @@ fn changing_field_metadata_makes_an_xlsx_template_stale() {
 # CalculationField(path: String, label: String, question: String, help: String, unit: String)\n\
 = value_field = CalculationField(path = \"value\", label = {label:?}, question = \"What is the value?\", help = \"\", unit = \"\")\n\
 @ meta(value_field)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> input.value\n"
         )
     };
@@ -24193,7 +24190,7 @@ fn changing_calculation_label_makes_an_xlsx_template_stale() {
     let input_path = temp_path("xlsx");
     let source = |label: &str| {
         format!(
-            "# Input(value: Int)\n@ calculate({label:?})\n| calculate(input: Input) -> input.value\n"
+            "# Input(value: Int)\n@ entry({label:?})\n| calculate(input: Input) -> input.value\n"
         )
     };
     std::fs::write(&source_path, source("Original calculation")).expect("write calculation source");
@@ -24230,7 +24227,7 @@ fn typed_function_is_a_calculation_boundary_too() {
     let input_path = temp_path("json");
     std::fs::write(
         &source_path,
-        "# Input(value: Int)\n# Output(value: Int)\n@ calculate\n> increment(input: Input) -> Output { Output(value = input.value + 1) }\n",
+        "# Input(value: Int)\n# Output(value: Int)\n@ entry\n> increment(input: Input) -> Output { Output(value = input.value + 1) }\n",
     )
     .expect("write function calculation");
     let template = run(&[
@@ -24266,7 +24263,7 @@ fn untyped_rule_boundary_is_rejected_by_check() {
     let path = temp_path("runa");
     std::fs::write(
         &path,
-        "# Input(value: Int)\n@ calculate\n| calculate(input) -> input\n",
+        "# Input(value: Int)\n@ entry\n| calculate(input) -> input\n",
     )
     .expect("write invalid calculation");
     let output = run(&["check", path.to_str().expect("source path")]);
@@ -24280,7 +24277,7 @@ fn multiple_entries_require_explicit_selection() {
     let path = temp_path("runa");
     std::fs::write(
         &path,
-        "# Input(value: Int)\n# Output(value: Int)\n@ calculate\n> first(input: Input) -> Output { Output(value = input.value) }\n@ calculate\n> second(input: Input) -> Output { Output(value = input.value + 1) }\n",
+        "# Input(value: Int)\n# Output(value: Int)\n@ entry\n> first(input: Input) -> Output { Output(value = input.value) }\n@ entry\n> second(input: Input) -> Output { Output(value = input.value + 1) }\n",
     )
     .expect("write multiple calculations");
     let ambiguous = run(&["schema", path.to_str().expect("source path")]);
@@ -24349,7 +24346,7 @@ fn canonical_values_cover_generics_sums_maps_sets_and_case_isolation() {
 # Box(a) = Box(value: a)\n\
 # Input(choice: Choice, boxed: Box(Int), totals: Map(String, Int), flags: Set(Int))\n\
 # Output(choice: Choice, boxed: Box(Int), totals: Map(String, Int), flags: Set(Int))\n\
-@ calculate\n\
+@ entry\n\
 > echo(input: Input) -> Output {\n\
     Output(choice = input.choice, boxed = input.boxed, totals = input.totals, flags = input.flags)\n\
 }\n",
@@ -24441,8 +24438,8 @@ fn write_test_workbook(path: &Path, schema_hash: &str, formula: bool) {
     metadata.write_string(0, 0, "key").unwrap();
     metadata.write_string(0, 1, "value").unwrap();
     for (row, (key, value)) in [
-        ("schema", "futuruna.calculate.xlsx.input.v6"),
-        ("contract_schema", "futuruna.calculate.v1"),
+        ("schema", "futuruna.entry.xlsx.input.v6"),
+        ("contract_schema", "futuruna.entry.v1"),
         ("schema_hash", schema_hash),
         ("entry", "calculate_tax"),
         ("encoding", "futuruna-canonical-json-v1"),
@@ -25215,8 +25212,8 @@ fn field_metadata_without_provenance(schema: &Value) -> Vec<Value> {
 
 #[test]
 fn schema_declared_field_metadata_equals_listed_field_metadata() {
-    let listed = household_tax_schema("listed.calculate.runa");
-    let declared = household_tax_schema("declared.calculate.runa");
+    let listed = household_tax_schema("listed.entry.runa");
+    let declared = household_tax_schema("declared.entry.runa");
     let listed_fields = field_metadata_without_provenance(&listed);
     let declared_fields = field_metadata_without_provenance(&declared);
     assert_eq!(listed_fields.len(), 15);
@@ -25270,7 +25267,7 @@ fn schema_field_metadata_precedence_is_exact_path_then_field_then_type() {
     ExactField(path = pathof(Input::second::age), label = \"Second child's age\")\n\
 ])\n\
 @ meta(exact_meta)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = input.child.age)\n",
     )
     .expect("write precedence source");
@@ -25316,7 +25313,7 @@ fn schema_composes_declared_labels_below_labelled_record_fields() {
     ExactField(path = pathof(Input::relabelled::start), label = \"First day\")\n\
 ])\n\
 @ meta(exact_meta)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = 0)\n",
     )
     .expect("write composition source");
@@ -25367,7 +25364,7 @@ fn schema_rejects_declared_field_metadata_that_is_not_ground_data() {
 }\n\
 # Input(@ field(label = \"Income\", help = help_text()) income: Int)\n\
 # Result(value: Int)\n\
-@ calculate\n\
+@ entry\n\
 | calculate(input: Input) -> Result(value = input.income)\n",
     )
     .expect("write impure metadata source");
@@ -25389,14 +25386,14 @@ fn schema_rejects_declared_field_metadata_that_is_not_ground_data() {
 fn template_runs_the_checks_of_named_scalars_as_call_does() {
     let dir = temp_path("scalars");
     std::fs::create_dir_all(&dir).unwrap();
-    let model = dir.join("book.calculate.runa");
+    let model = dir.join("book.entry.runa");
     std::fs::write(
         &model,
         "| isin_ok(text: String) -> string_length(text) == 12\n\
          # Isin: String \"an ISIN\" where isin_ok\n\
          # Holding(isin: Isin, count: Int)\n\
          # Book(holdings: List(Holding), favourite: Isin?)\n\
-         @ calculate\n\
+         @ entry\n\
          > total(input: Book) -> Int { sum(map(input.holdings, |h| h.count)) }\n",
     )
     .unwrap();

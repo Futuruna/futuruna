@@ -147,7 +147,7 @@ export function renderPersonskatOutput(envelope) {
   record(envelope, ['$futuruna', 'results', 'diagnostics'], 'Resultat');
   const metadata = envelope.$futuruna;
   record(metadata, ['schema', 'schema_hash', 'entry'], 'Kontrakt');
-  requireThat(metadata.schema === 'futuruna.calculate.output.v1'
+  requireThat(metadata.schema === 'futuruna.entry.output.v1'
     && ['beregn_personskat', 'beregn_personskat_delår'].includes(metadata.entry),
   'Brug JSON-output fra beregn_personskat eller beregn_personskat_delår; andre beregninger og input understøttes ikke.');
   const partyear = metadata.entry === 'beregn_personskat_delår';

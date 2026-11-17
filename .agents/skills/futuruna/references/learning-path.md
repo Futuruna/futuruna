@@ -100,7 +100,7 @@ path is Stable, while commands such as `add` and `lsp` are Preview. `audit`,
 - For source-backed models, quote and identify the source, encode only what it
   establishes, and keep interpretation or missing information explicit.
 - Separate reusable source rules from concrete scenarios, audit checks, and
-  typed calculation entry points in larger models.
+  typed entry points in larger models.
 
 Read `docs/reference/style.md` for the maintained idioms and
 `docs/reference/README.md` for the full reference map.

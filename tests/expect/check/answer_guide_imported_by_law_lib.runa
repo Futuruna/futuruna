@@ -1,0 +1,5 @@
+-- expect-skip: the guide answer_guide_imported_by_law.runa imports into its law
+# Spouse(income: Int)
+# Household(income: Int, spouse: Option(Spouse))
+# Origin = Customer
+= imported_guide = AnswerGuide(fields = [EntryField(path = pathof(Household::spouse), by = Customer)])

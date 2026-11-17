@@ -1,5 +1,5 @@
 @ sprog da
-@ importer ./beskaeftigelsesfradrag.calculate
+@ importer ./beskaeftigelsesfradrag.entry
 
 -- Fiktive, selvstændigt opgjorte § 9 J-grundlag. Ingen personlige skattefakta.
 > arbejdsfradrag_fiktiv_post(id: Tekst, beløb: Heltal, forhold: Ll9jIndkomstforhold) -> Ll9jGrundlagspost {

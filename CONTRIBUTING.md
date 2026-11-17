@@ -53,7 +53,7 @@ For repeated checks of large `.runa` corpora, use the persistent optimized
 compiler profile:
 
 ```bash
-./scripts/runa-corpus.sh check path/to/model.calculate.runa
+./scripts/runa-corpus.sh check path/to/model.entry.runa
 ./scripts/test-corpus.sh --test calculate_cli test_name
 ```
 

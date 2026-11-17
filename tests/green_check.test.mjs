@@ -11,7 +11,7 @@ import test from 'node:test';
 import { declaredField } from './field_declarations.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const model = 'examples/danish-income-tax/groen-check.calculate.runa';
+const model = 'examples/danish-income-tax/groen-check.entry.runa';
 const variant = ($variant, fields = {}) => ({ $variant, ...fields });
 const date = (år, måned = 1, dag = 1) => ({ år, måned, dag });
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
@@ -159,7 +159,7 @@ for (const [id, edit] of [
 
 test('green-check review stays additive and documents unresolved coverage', () => {
   const source = readFileSync(join(root, model), 'utf8');
-  assert.match(source, /@ calculate\("Grøn check/);
+  assert.match(source, /@ entry\("Grøn check/);
   const person = declaredField(readFileSync(join(root, 'examples/danish-income-tax/groen-check.runa'), 'utf8'),
     'GrønCheckInput', 'person');
   assert.ok(person, 'GrønCheckInput.person: missing @ field');

@@ -2,7 +2,7 @@
 -- expect-command: call
 -- expect-input: needs_list_element.json
 -- expect-args: --entry household_tax --partial=check
--- expect-stdout: "schema": "futuruna.calculate.partial-output.v1"
+-- expect-stdout: "schema": "futuruna.entry.partial-output.v1"
 
 # Filing = Single | Joint(partner_income: Int)
 # Spouse(income: Int, name: String)
@@ -32,5 +32,5 @@
 | account_tax(a: Account) -> a.closing_ore / 10
 
 @ meta(household_meta)
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = foldl(map(h.accounts, |a| account_tax(a)), 0, |total, tax| total + tax))

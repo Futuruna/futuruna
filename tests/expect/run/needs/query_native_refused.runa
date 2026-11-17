@@ -15,7 +15,7 @@
 }
 }
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = h.income - threshold(h))
 
 = asked = query household_tax(Household(income = 500, married = True, spouse = unknown))

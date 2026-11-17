@@ -359,7 +359,7 @@ Start by reading:
 - `docs/reference/calculations.md`
 
 Use the generated contract to locate relevant fields, then inspect their types,
-rules and source anchors in `personskat.calculate.runa` and its imports. Reading
+rules and source anchors in `personskat.entry.runa` and its imports. Reading
 every imported law file before asking the first factual question is not required.
 
 Choose the review route before generating a workbook. If the calculation uses
@@ -418,8 +418,8 @@ optional alternative, not a prerequisite. Replace `PRIVATE_WORK_DIR` with the
 private directory chosen by the user:
 
 ```
-"$RUNA_BIN" schema examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --format compact-json --output PRIVATE_WORK_DIR/personskat-schema.json
-"$RUNA_BIN" template examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --format json --output PRIVATE_WORK_DIR/personskat-cases.json
+"$RUNA_BIN" schema examples/danish-income-tax/personskat.entry.runa --entry beregn_personskat --format compact-json --output PRIVATE_WORK_DIR/personskat-schema.json
+"$RUNA_BIN" template examples/danish-income-tax/personskat.entry.runa --entry beregn_personskat --format json --output PRIVATE_WORK_DIR/personskat-cases.json
 ```
 
 Use the field labels, questions, help, units, choices, and source traces in the generated contract to interview the user. Record only facts the user can support. Keep a list of unknown, ambiguous, and unsupported fields instead of filling them speculatively.
@@ -507,7 +507,7 @@ invoice calculation is available before filling the full tax contract.
 When the supported input facts have been reviewed, run:
 
 ```
-"$RUNA_BIN" call examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --input PRIVATE_WORK_DIR/personskat-cases.json --output PRIVATE_WORK_DIR/personskat-results.json
+"$RUNA_BIN" call examples/danish-income-tax/personskat.entry.runa --entry beregn_personskat --input PRIVATE_WORK_DIR/personskat-cases.json --output PRIVATE_WORK_DIR/personskat-results.json
 ```
 
 Before comparing totals, read the canonical result's `vurdering` as described in
@@ -579,7 +579,7 @@ Work with the user to:
 2. Identify parties, definitions, dates, obligations, permissions, exceptions, defaults, remedies, and unresolved terms.
 3. Encode those concepts as typed Futuruna definitions and rules, with source references and explicit assumptions.
 4. Add concrete scenarios for the user's case and boundary cases for ambiguous or conflicting terms.
-5. Expose a typed `@ calculate` entry when a formal rule-model workbook would help collect facts.
+5. Expose a typed `@ entry` when a formal rule-model workbook would help collect facts.
 6. Run `runa check` and `runa fmt --check` on the model, then execute the relevant scenarios.
 7. Generate the workbook, interview the user, and complete a self-audit or exploration using the formal rule model available through Futuruna.
 
@@ -595,7 +595,7 @@ Work with the user to:
 2. Model definitions, scope, conditions, exceptions, transitions, decisions, and effects explicitly.
 3. Keep source-backed legal rules separate from assumptions or interpretations.
 4. Add scenarios for ordinary cases and audits for gaps, tensions, loopholes, missing definitions, and unusual rule interactions.
-5. Expose a typed `@ calculate` entry when the law can be explored through structured case facts.
+5. Expose a typed `@ entry` when the law can be explored through structured case facts.
 6. Check and format the model, run its scenarios, and complete a self-audit or exploration using the formal rule model available through Futuruna.
 
 State the model's coverage and limitations. Futuruna can make the encoded reasoning deterministic and auditable; it does not make an incomplete legal model complete.

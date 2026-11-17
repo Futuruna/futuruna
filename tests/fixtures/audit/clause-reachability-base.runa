@@ -1,4 +1,4 @@
--- Imported base clauses for clause_reachability.calculate.runa.
+-- Imported base clauses for clause_reachability.entry.runa.
 
 | surcharge(x: Int): Int -> 0
 | surcharge(x) -> 5 under x > 10

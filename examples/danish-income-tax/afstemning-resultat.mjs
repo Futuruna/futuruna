@@ -17,7 +17,7 @@ export function renderReportOutput(envelope) {
   record(envelope, ['$futuruna', 'results', 'diagnostics'], 'Resultat');
   const metadata = envelope.$futuruna;
   record(metadata, ['schema', 'schema_hash', 'entry'], 'Kontrakt');
-  requireThat(metadata.schema === 'futuruna.calculate.output.v1' && metadata.entry === 'afstem_årsopgørelse',
+  requireThat(metadata.schema === 'futuruna.entry.output.v1' && metadata.entry === 'afstem_årsopgørelse',
     'Brug JSON-output fra afstem_årsopgørelse, ikke input eller en anden beregning.');
   requireThat(typeof metadata.schema_hash === 'string' && /^[0-9a-f]{64}$/.test(metadata.schema_hash), 'Kontraktens fingeraftryk mangler.');
   list(envelope.results, 'Resultater');

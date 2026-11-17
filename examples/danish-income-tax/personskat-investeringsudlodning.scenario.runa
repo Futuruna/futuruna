@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 ----
 Scenariet prøver den kanoniske vej fra investeringsaktivets kildefakta til

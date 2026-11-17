@@ -25,9 +25,9 @@
     ]
 )
 
-@ calculate
+@ entry
 | share_income(s: Spouse) -> s.income
 
 @ meta(household_meta)
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = h.income - h.spouse_share_income)

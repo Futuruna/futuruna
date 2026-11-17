@@ -30,7 +30,7 @@ function template() {
   } }] };
 }
 function outputFixture() {
-  return { $futuruna: { schema: 'futuruna.calculate.output.v1', schema_hash: hash, entry: 'beregn_personskat' },
+  return { $futuruna: { schema: 'futuruna.entry.output.v1', schema_hash: hash, entry: 'beregn_personskat' },
     diagnostics: [], results: [['a-before', 400000], ['a-after', 400000], ['b-before', 20851073], ['b-after', 20467773]]
       .map(([case_id, tax]) => ({ case_id, result: {
         ...Object.fromEntries(resultFields.map(field => [field, {}])), slutskat_øre: tax,
@@ -47,7 +47,7 @@ const summarize = output => summarizeCouple(parseReportOutput(JSON.stringify(out
 const facts = input => Object.fromEntries(personFactFields.map(key => [key, input[key]]));
 
 test('couple construction mirrors all canonical person fields and changes only the private payment', () => {
-  const source = readFileSync(join(root, 'examples/danish-income-tax/personskat.calculate.runa'), 'utf8');
+  const source = readFileSync(join(root, 'examples/danish-income-tax/personskat.entry.runa'), 'utf8');
   const fields = declaredFields(source, 'PersonskatPersonFakta');
   assert.ok(fields);
   assert.deepEqual(fields.map(f => f.name), [...personFactFields]);

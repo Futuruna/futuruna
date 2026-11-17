@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./doedsboskatteloven-par9-par22-par44
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 = personskat_dødsboskattelov_par44_metadata = Metadata(
     attachments = (

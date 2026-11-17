@@ -12,7 +12,7 @@ import { buildFictionalCases } from '../examples/danish-income-tax/bilag-demo.mj
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
 const enabled = { skip: !binary && 'Set FUTURUNA_MODEL_TEST_RUNA; no build or network.' };
-const model = 'examples/danish-income-tax/personskat.calculate.runa';
+const model = 'examples/danish-income-tax/personskat.entry.runa';
 const names = ['a_skat_og_am_indeholdt', 'par68_indbetalt', 'b_skat_betalt',
   'udbytteskat_modregningsberettiget', 'frivillig_indbetaling_par59', 'virksomhedsordning_beløb',
   'personskattelov_par8a_stk5_beløb', 'afskrivningslov_acontoskat', 'am_lov_par6_beløb',
@@ -38,7 +38,7 @@ function call(entry, envelope) {
 }
 
 test('each gross credit and refund field has the same sign boundary in both units', enabled, () => {
-  const entry = 'tests/fixtures/calculation/tax_credit_signs.calculate.runa';
+  const entry = 'tests/fixtures/calculation/tax_credit_signs.entry.runa';
   const envelope = run(['template', entry, '--format', 'json']);
   // Fail if the actual type gains a field that this boundary matrix overlooks.
   assert.deepEqual(Object.keys(envelope.cases[0].input.exact).sort(), Object.keys(credits('øre')).sort());

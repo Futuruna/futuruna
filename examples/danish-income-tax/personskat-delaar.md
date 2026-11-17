@@ -24,7 +24,7 @@ med samme dagbrøk. Se [Den juridiske vejledning C.F.1.6.2.1](https://info.skat.
 og [indtægts- og udgiftstyper](https://info.skat.dk/data.aspx?oid=1977389).
 
 Futurunas særskilte indgang er `beregn_personskat_delår` i
-[personskat-par14.calculate.runa](personskat-par14.calculate.runa). Den
+[personskat-par14.entry.runa](personskat-par14.entry.runa). Den
 indeholder kildehenvisninger, årsbetingelser og særskilt klassifikation af
 løbende beløb, engangsbeløb og dokumenterede retvisende helårsbeløb.
 Begrænset skattepligt kræver sit relevante personfradragsgrundlag og valg;
@@ -54,10 +54,10 @@ valgte private mappe. Visningskommandoen er valgfri og kræver allerede
 installeret Node.js 18 eller nyere. Fra projektets rod:
 
 ```sh
-"$RUNA_BIN" schema examples/danish-income-tax/personskat-par14.calculate.runa --entry beregn_personskat_delår --format compact-json --output PRIVATE_WORK_DIR/delaar-schema.json
-"$RUNA_BIN" template examples/danish-income-tax/personskat-par14.calculate.runa --entry beregn_personskat_delår --format json --output PRIVATE_WORK_DIR/delaar-cases.json
+"$RUNA_BIN" schema examples/danish-income-tax/personskat-par14.entry.runa --entry beregn_personskat_delår --format compact-json --output PRIVATE_WORK_DIR/delaar-schema.json
+"$RUNA_BIN" template examples/danish-income-tax/personskat-par14.entry.runa --entry beregn_personskat_delår --format json --output PRIVATE_WORK_DIR/delaar-cases.json
 # Udfyld og gennemgå kildefakta; sæt hver sags input_status ved siden af case_id til "ready".
-FUTURUNA_CALCULATION_JOBS=1 "$RUNA_BIN" call examples/danish-income-tax/personskat-par14.calculate.runa --entry beregn_personskat_delår --input PRIVATE_WORK_DIR/delaar-cases.json --output PRIVATE_WORK_DIR/delaar-results.json
+FUTURUNA_CALCULATION_JOBS=1 "$RUNA_BIN" call examples/danish-income-tax/personskat-par14.entry.runa --entry beregn_personskat_delår --input PRIVATE_WORK_DIR/delaar-cases.json --output PRIVATE_WORK_DIR/delaar-results.json
 node examples/danish-income-tax/personskat-resultat.mjs PRIVATE_WORK_DIR/delaar-results.json
 ```
 

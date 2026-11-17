@@ -155,7 +155,7 @@ fn indentation(line: &str) -> usize {
 }
 
 /// The first line after `after` that is not a comment and not a
-/// declaration annotation (`@ calculate(...)`, `@ export`, `@ field(...)`),
+/// declaration annotation (`@ entry(...)`, `@ export`, `@ field(...)`),
 /// and whether a blank line stands before it.
 fn next_item_line(
     lines: &[&str],

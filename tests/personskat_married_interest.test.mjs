@@ -13,7 +13,7 @@ import { personFactFields } from '../examples/danish-income-tax/pension-par-demo
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
 const enabled = { skip: !binary && 'Set FUTURUNA_MODEL_TEST_RUNA; no automatic build.' };
-const model = 'examples/danish-income-tax/personskat.calculate.runa';
+const model = 'examples/danish-income-tax/personskat.entry.runa';
 function run(args) {
   const p = spawnSync(binary, args, { cwd: root, encoding: 'utf8', timeout: 1200000,
     maxBuffer: 64 * 1024 * 1024, env: { ...process.env, FUTURUNA_CALCULATION_JOBS: '1' } });

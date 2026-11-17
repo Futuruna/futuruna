@@ -41,5 +41,5 @@ Beløb angives i hele kroner.
 
 }
 
-@ calculate
+@ entry
 | needs_consumers(o: Owner) -> Result(tax = tax(whole(o.amount_micro)), kept = kept(whole(o.amount_micro)))

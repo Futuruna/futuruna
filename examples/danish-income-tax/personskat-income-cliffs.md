@@ -276,7 +276,7 @@ Hele [programmet, der kortlægger
 indkomstklinterne](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa),
 kan læses på GitHub.
 Det bruger den fulde
-[`personskat.calculate.runa`](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat.calculate.runa)-model.
+[`personskat.entry.runa`](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat.entry.runa)-model.
 I [arbejdsbogen om at undersøge
 regler](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/exploration-workbook.md)
 kan du lære metoden og tilpasse den til et andet spørgsmål.

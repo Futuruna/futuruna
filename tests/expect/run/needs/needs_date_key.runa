@@ -15,7 +15,7 @@
 # Case(trades: List(Trade))
 # Result(days: Int, total: Int)
 
-@ calculate
+@ entry
 | needs_date_key(c: Case) -> Result(
     days = foldl(c.trades, 0, |sum, t| sum + t.date.year * 366 + t.date.month * 31 + t.date.day),
     total = foldl(c.trades, 0, |sum, t| sum + t.amount)

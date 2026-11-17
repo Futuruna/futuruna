@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 | personskat_virksomhedskapital_scenarie_fradragsposter() -> Virksomhedsskattelov8Fradragsposter(
     gældsposter = [],

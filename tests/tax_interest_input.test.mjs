@@ -11,7 +11,7 @@ import { fillFictionalPersonskat } from '../examples/danish-income-tax/personska
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
-const model = 'examples/danish-income-tax/personskat.calculate.runa';
+const model = 'examples/danish-income-tax/personskat.entry.runa';
 const options = { skip: !binary && 'Set FUTURUNA_MODEL_TEST_RUNA; no build or network.' };
 const source = 'https://skat.dk/borger/fradrag/fradrag-for-renter';
 const v = ($variant, fields = {}) => ({ $variant, ...fields });

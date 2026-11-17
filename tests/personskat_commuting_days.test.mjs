@@ -10,7 +10,7 @@ import { fillFictionalPersonskat } from '../examples/danish-income-tax/personska
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
-const model = 'examples/danish-income-tax/personskat.calculate.runa';
+const model = 'examples/danish-income-tax/personskat.entry.runa';
 const v = ($variant, fields = {}) => ({ $variant, ...fields });
 function run(args) {
   const p = spawnSync(binary, args, { cwd: root, encoding: 'utf8', timeout: 600000,

@@ -1,0 +1,61 @@
+-- `answer` asks an entry round by round. The guide names who resolves what;
+-- each group's resolver is called once per round with all of its needs, and
+-- a resolver that answers nothing ends the answering with what is open.
+-- expect-command: interp
+-- roundtrip-skip: `answer`, `query` and `unknown` run only in the interpreter
+-- expect-stdout: |batched_by_group| holds
+-- expect-stdout: |ends_answered| holds
+-- expect-stdout: |round_paths_are_the_needs| holds
+-- expect-stdout: |registry_left_open| holds
+-- expect-stdout: |whole_case_is_one_group| holds
+
+@ import ./answer_household_law
+
+# Origin = Registry | Customer
+
+= household_guide = AnswerGuide(fields = [
+    EntryField(path = pathof(Household::spouse), by = Customer),
+    EntryField(path = pathof(Household::children::age), by = Registry)
+])
+
+= complete = Household(income = 500, married = True, spouse = Some(Spouse(income = 50, cohabiting = True)), children = [Child(name = "Ada", age = 4), Child(name = "Bo", age = 19)])
+= started: Household = Household(income = 500, married = True, spouse = unknown, children = [Child(name = "Ada", age = unknown), Child(name = "Bo", age = unknown)])
+
+= answered = answer(household_tax, started, household_guide, from_case(complete))
+
+| batched_by_group: answered -> map(answered.rounds, |r| r.groups) == [
+    [
+        Asking(group = Registry, paths = [pathof(Household::children[0]::age), pathof(Household::children[1]::age)]),
+        Asking(group = Customer, paths = [pathof(Household::spouse)])
+    ],
+    [Asking(group = Customer, paths = [pathof(Household::spouse::cohabiting), pathof(Household::spouse::income)])]
+]
+| ends_answered: answered -> answered.outcome == Answered(result = household_tax(complete))
+| round_paths_are_the_needs: answered -> map(answered.rounds, |r| length(r.paths)) == [3, 2]
+
+> registry_closed(group: Origin, needs: List(Need(Household)), case: Household) -> Answers(Household) {
+    match group {
+        | Customer -> Answers(from = complete, paths = map(needs, |n| n.path))
+        | Registry -> Answers(from = case, paths = [])
+    }
+}
+
+> open_groups(answering: Answering(Result, Household, Origin)) -> List(Origin) {
+    = outcome = answering.outcome
+    match outcome {
+        | Unanswered -> map(outcome.open, |asking| asking.group)
+        | Answered -> []
+    }
+}
+
+= left_open = answer(household_tax, started, household_guide, registry_closed)
+| registry_left_open: left_open -> open_groups(left_open) == [Registry] && length(left_open.rounds) == 3
+
+= whole = answer(household_tax, started, whole_case_guide(), from_case(complete))
+| whole_case_is_one_group: whole -> map(whole.rounds, |r| map(r.groups, |a| a.group)) == [[WholeCase], [WholeCase]]
+
+? batched_by_group
+? ends_answered
+? round_paths_are_the_needs
+? registry_left_open
+? whole_case_is_one_group

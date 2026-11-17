@@ -2,7 +2,7 @@
 use serde_json::{json, Value};
 use std::process::{Command, Output};
 
-const MODEL: &str = "examples/danish-income-tax/beskaeftigelsesfradrag.calculate.runa";
+const MODEL: &str = "examples/danish-income-tax/beskaeftigelsesfradrag.entry.runa";
 
 #[path = "support/calculation_baseline.rs"]
 mod calculation_baseline;

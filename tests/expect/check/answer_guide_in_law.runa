@@ -1,0 +1,22 @@
+-- A guide is the integrator's: one in a file that declares an entry is an error.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: the AnswerGuide `household_guide` is in the law: the entry `household_tax` declares it
+
+# Origin = Customer
+= household_guide = AnswerGuide(fields = [EntryField(path = pathof(Household::spouse), by = Customer)])
+
+# Spouse(income: Int, cohabiting: Bool)
+# Child(name: String, age: Int)
+# Household(income: Int, married: Bool, spouse: Option(Spouse), children: List(Child))
+# Result(tax: Int)
+
+| threshold(h: Household) -> match h.spouse {
+    | Some(s) -> if s.cohabiting { 200 - s.income } else { 100 }
+    | None -> 100
+}
+
+| child_allowance(h: Household) -> foldl(map(h.children, |c| if c.age < 18 { 10 } else { 0 }), 0, |sum, x| sum + x)
+
+@ entry
+| household_tax(h: Household) -> Result(tax = h.income - threshold(h) - child_allowance(h))

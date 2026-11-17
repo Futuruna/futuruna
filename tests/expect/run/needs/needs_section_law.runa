@@ -38,5 +38,5 @@ Input checks; no law is quoted.
 
 }
 
-@ calculate
+@ entry
 | needs_section_law(o: Owner) -> Result(tax = if liable(o) { o.income / 4 } else { 0 })

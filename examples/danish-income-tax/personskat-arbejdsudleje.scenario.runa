@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 | personskat_arbejdsudleje_scenarie_input(identifikation: Tekst, valg: KildeskattelovArbejdsudlejeBeskatningsvalg) -> KildeskattelovArbejdsudlejeInput(
     identifikation = identifikation,

@@ -1,6 +1,6 @@
 {
   "$futuruna": {
-    "schema": "futuruna.calculate.output.v1",
+    "schema": "futuruna.entry.output.v1",
     "schema_hash": "6f2939b9533bda47953921dae58f3c0ad4880c3b2d615224ff5011a57305dff5",
     "entry": "calculate"
   },

@@ -1,7 +1,7 @@
 //! Needs in the language (`docs/rfcs/needs-in-the-language.md`).
 //!
 //! `unknown` is a value not known yet; `query entry(case)` asks a
-//! calculation entry about a case that holds unknowns and returns
+//! entry about a case that holds unknowns and returns
 //! `Query(o, i)`: `Complete` with the result, or `Needs` with what the case
 //! still needs. A query runs the entry as `runa call --partial` does: the case
 //! is encoded as a partial JSON case (an unknown record field is left out),
@@ -17,7 +17,7 @@ use super::*;
 use crate::calculate::{
     CalculationEnvelopeMetadata, CalculationInputCase, CalculationInputEnvelope,
     CalculationInputStatus, CalculationNeed, CalculationNeedKind, CalculationPartialResult,
-    CalculationWaiting, PartialViolation, PreparedCalculation, INPUT_SCHEMA,
+    CalculationWaiting, PartialViolation, PreparedEntry, INPUT_SCHEMA,
 };
 use crate::constructor_scope::{
     constructor_runtime_name, current_elaboration, with_constructor_elaboration,
@@ -124,9 +124,10 @@ fn record_declaration(name: &str, parameters: &str, members: &[Member]) -> Strin
     format!("# {name}{parameters} = {name}({fields})\n")
 }
 
-/// The Futuruna source of needs in the language: the types a query returns,
-/// `fill` and `interview`. A program that asks a query or places an `unknown`
-/// gets it with the prelude.
+/// The Futuruna source of needs in the language: the types a query returns
+/// and `fill`. A program that asks a query or places an `unknown` gets it
+/// with the prelude; one that calls `answer` or builds a guide gets the
+/// answer prelude (`crate::answer`) as well.
 pub fn needs_prelude_source() -> String {
     let mut source = String::from(
         "-- Needs in the language (docs/rfcs/needs-in-the-language.md).\n\
@@ -146,29 +147,11 @@ pub fn needs_prelude_source() -> String {
     source.push_str(&record_declaration("NeedAct", "", ACT_MEMBERS));
     source.push_str(&record_declaration("NeedAmendment", "", AMENDMENT_MEMBERS));
     source.push_str(
-        r#"# Interview(o, i) = Interview(rounds: List(List(Path(i))), result: o)
-
+        r#"
 -- Write into `partial`, at each path, the value of `complete` there: a record
 -- as existing with its fields unknown, every other value whole.
 > fill(partial: i, complete: i, paths: List(Path(i))) -> i {
     __fill(partial, complete, paths)
-}
-
--- Ask until the case is complete, answering each round's needs from
--- `complete`.
-> interview(ask: i -> Query(o, i), partial: i, complete: i) -> Interview(o, i) {
-    interview_from(ask, partial, complete, [])
-}
-
-> interview_from(ask: i -> Query(o, i), case: i, complete: i, rounds: List(List(Path(i)))) -> Interview(o, i) {
-    = q = ask(case)
-    match q {
-        | Complete -> Interview(rounds = rounds, result = q.result)
-        | Needs -> {
-            = asked = map(q.needs, |n| n.path)
-            interview_from(ask, fill(case, complete, asked), complete, concat(rounds, [asked]))
-        }
-    }
 }
 "#,
     );
@@ -193,27 +176,38 @@ pub fn needs_prelude() -> Vec<Stmt> {
 
 /// `statements` with the needs prelude when the program does not have it
 /// while it, or a file it imports (plain or qualified, through any chain of
-/// imports), asks a query, places an `unknown` or calls `fill` or
-/// `interview`. A prelude is prepended to the root only, and a module needs
-/// the same `Query`, `Need`, `NeedKind` and `Interview` the root would get:
-/// a plain module shares the root's; a qualified module, checked and run as a
+/// imports), asks a query, places an `unknown` or calls `fill`; and with the
+/// answer prelude as well when one of them calls `answer` or builds a guide.
+/// A prelude is prepended to the root only, and a module needs the same
+/// `Query`, `Need`, `NeedKind` and `Answering` the root would get: a plain
+/// module shares the root's; a qualified module, checked and run as a
 /// program of its own, gets its own, as it gets the language's other prelude
 /// types. `None` when nothing is added.
 pub(crate) fn with_needs_prelude_for_imports(
     statements: &[Stmt],
     source_dir: Option<&str>,
 ) -> Option<Vec<Stmt>> {
-    let has_prelude = statements.iter().any(|statement| {
-        matches!(statement, Stmt::TypeDecl(TypeDecl::ADT { name, .. }) if name == "NeedKind")
-    });
-    if has_prelude {
+    let declares_type = |wanted: &str| {
+        statements.iter().any(|statement| {
+            matches!(statement, Stmt::TypeDecl(TypeDecl::ADT { name, .. }) if name == wanted)
+        })
+    };
+    let has_needs = declares_type("NeedKind");
+    let has_answer = declares_type("AnswerStep");
+    if has_needs && has_answer {
         return None;
     }
-    let uses = program_uses_needs(statements)
-        || source_dir.is_some_and(|source_dir| {
-            imports_use_needs(statements, source_dir, &mut BTreeSet::new())
-        });
-    if !uses {
+    let imported = |uses: fn(&[Stmt]) -> bool| {
+        source_dir.is_some_and(|source_dir| {
+            imports_use(statements, source_dir, uses, &mut BTreeSet::new())
+        })
+    };
+    let uses_answer = !has_answer
+        && (crate::answer::program_uses_answer(statements)
+            || imported(crate::answer::program_uses_answer));
+    let uses_needs = !has_needs
+        && (uses_answer || program_uses_needs(statements) || imported(program_uses_needs));
+    if !uses_needs && !uses_answer {
         return None;
     }
     let declared: BTreeSet<&str> = statements
@@ -225,14 +219,19 @@ pub(crate) fn with_needs_prelude_for_imports(
             _ => None,
         })
         .collect();
-    let prelude = needs_prelude()
-        .into_iter()
-        .filter(|statement| match statement {
-            Stmt::Defn(Defn::Fn { name, .. }) | Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
-                !declared.contains(name.as_str())
-            }
-            _ => true,
-        });
+    let mut prelude = Vec::new();
+    if uses_needs {
+        prelude.extend(needs_prelude());
+    }
+    if uses_answer {
+        prelude.extend(crate::answer::answer_prelude());
+    }
+    let prelude = prelude.into_iter().filter(|statement| match statement {
+        Stmt::Defn(Defn::Fn { name, .. }) | Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
+            !declared.contains(name.as_str())
+        }
+        _ => true,
+    });
     let boundary = statements
         .iter()
         .position(|statement| matches!(statement, Stmt::PreludeBoundary))
@@ -243,7 +242,12 @@ pub(crate) fn with_needs_prelude_for_imports(
     Some(result)
 }
 
-fn imports_use_needs(statements: &[Stmt], dir: &str, visited: &mut BTreeSet<PathBuf>) -> bool {
+fn imports_use(
+    statements: &[Stmt],
+    dir: &str,
+    uses: fn(&[Stmt]) -> bool,
+    visited: &mut BTreeSet<PathBuf>,
+) -> bool {
     for statement in statements {
         let (Stmt::Import(import_path) | Stmt::QualifiedImport(_, import_path)) = statement else {
             continue;
@@ -263,8 +267,7 @@ fn imports_use_needs(statements: &[Stmt], dir: &str, visited: &mut BTreeSet<Path
             .parent()
             .map(|parent| parent.to_string_lossy().into_owned())
             .unwrap_or_default();
-        if program_uses_needs(module.statements())
-            || imports_use_needs(module.statements(), &module_dir, visited)
+        if uses(module.statements()) || imports_use(module.statements(), &module_dir, uses, visited)
         {
             return true;
         }
@@ -272,29 +275,28 @@ fn imports_use_needs(statements: &[Stmt], dir: &str, visited: &mut BTreeSet<Path
     false
 }
 
-/// Whether a program asks a query, places an `unknown`, or calls `fill` or
-/// `interview` without declaring its own.
+/// Whether a program asks a query, places an `unknown`, or calls `fill`
+/// without declaring its own.
 pub fn program_uses_needs(statements: &[Stmt]) -> bool {
-    let declares = |wanted: &str| {
-        statements.iter().any(
-            |statement| matches!(statement, Stmt::Defn(Defn::Fn { name, .. }) if name == wanted),
-        )
-    };
+    let declares_fill = statements
+        .iter()
+        .any(|statement| matches!(statement, Stmt::Defn(Defn::Fn { name, .. }) if name == "fill"));
     let user = statements
         .iter()
         .position(|statement| matches!(statement, Stmt::PreludeBoundary))
         .map_or(statements, |boundary| &statements[boundary + 1..]);
     let mut uses = false;
-    let fill = !declares("fill");
-    let interview = !declares("interview");
     for statement in user {
         if stmt_mentions_query_or_unknown(statement) {
             return true;
         }
+        if declares_fill {
+            continue;
+        }
         walk_ast_stmt(statement, &mut |child| {
             if let AstChild::Expr(expr) = child {
                 if let ExprKind::Var(name) = &expr.kind {
-                    uses |= (fill && name == "fill") || (interview && name == "interview");
+                    uses |= name == "fill";
                 }
             }
         });
@@ -407,13 +409,13 @@ fn declared_name(statement: &Stmt) -> Option<&str> {
     }
 }
 
-/// The names of the calculation entries (`@ calculate`) of `statements`.
-fn calculation_entries(statements: &[Stmt]) -> Vec<&str> {
+/// The names of the entries (`@ entry`) of `statements`.
+pub(crate) fn calculation_entries(statements: &[Stmt]) -> Vec<&str> {
     let mut entries = Vec::new();
     let mut marked = false;
     for statement in statements {
         if let Stmt::Annot(name, _) = statement {
-            marked |= name == "calculate";
+            marked |= name == "entry";
             continue;
         }
         if std::mem::take(&mut marked) {
@@ -426,7 +428,7 @@ fn calculation_entries(statements: &[Stmt]) -> Vec<&str> {
 }
 
 /// Check the `query`s and `unknown`s of a program: where each `unknown`
-/// stands, that each query asks a calculation entry, and that no calculation
+/// stands, that each query asks an entry, and that no calculation
 /// entry reaches either.
 pub(crate) fn check_program(
     statements: &[Stmt],
@@ -600,13 +602,26 @@ impl Placement<'_, '_> {
             }
             return;
         }
+        if let Some(parts) = answer_parts(expr) {
+            if !self.entries.contains(parts.entry) {
+                self.report(
+                    parts.query.span,
+                    format!(
+                        "`answer` asks an entry (`@ entry`); `{}` is not one",
+                        parts.entry
+                    ),
+                );
+            }
+            self.expr(parts.case, Place::Value);
+            self.expr(parts.guide, Place::Value);
+            self.expr(parts.resolve, Place::Value);
+            return;
+        }
         if let Some((entry, call, case)) = query_parts(expr) {
             if !self.entries.contains(entry) {
                 self.report(
                     call.span,
-                    format!(
-                        "`query` asks a calculation entry (`@ calculate`); `{entry}` is not one"
-                    ),
+                    format!("`query` asks an entry (`@ entry`); `{entry}` is not one"),
                 );
             }
             self.expr(case, Place::Value);
@@ -741,6 +756,8 @@ fn first_mention(statement: &Stmt) -> Option<(&'static str, Span)> {
         if let AstChild::Expr(expr) = child {
             if is_unknown_expr(expr) {
                 found = Some(("`unknown`", expr.span));
+            } else if answer_parts(expr).is_some() {
+                found = Some(("`answer`", expr.span));
             } else if query_parts(expr).is_some() {
                 found = Some(("`query`", expr.span));
             }
@@ -851,7 +868,7 @@ pub struct QueryRuntime {
     /// The program's root file: where a query in it stands, and where the
     /// search for the entry it asks begins.
     root_file: Option<PathBuf>,
-    prepared: RefCell<BTreeMap<(PathBuf, String), Rc<RefCell<PreparedCalculation>>>>,
+    prepared: RefCell<BTreeMap<(PathBuf, String), Rc<RefCell<PreparedEntry>>>>,
     /// How often each query (file, offset) ran: its round.
     rounds: RefCell<BTreeMap<(PathBuf, usize), usize>>,
     sources: RefCell<BTreeMap<PathBuf, Rc<str>>>,
@@ -872,7 +889,7 @@ impl QueryRuntime {
         Some(source)
     }
 
-    fn line(&self, path: &Path, offset: usize) -> Option<usize> {
+    pub(crate) fn line(&self, path: &Path, offset: usize) -> Option<usize> {
         Some(line_of_offset(&self.source(path)?, offset))
     }
 }
@@ -926,7 +943,7 @@ fn declared_constructors(value: &Value) -> Value {
 }
 
 /// `path:line` for display, relative to the working directory when below it.
-fn display_location(path: &Path, line: Option<usize>) -> String {
+pub(crate) fn display_location(path: &Path, line: Option<usize>) -> String {
     let shown = std::env::current_dir()
         .ok()
         .and_then(|directory| path.strip_prefix(directory).ok().map(Path::to_path_buf))
@@ -937,7 +954,7 @@ fn display_location(path: &Path, line: Option<usize>) -> String {
     }
 }
 
-/// The file that declares the calculation entry `entry`: `start` or a file it
+/// The file that declares the entry `entry`: `start` or a file it
 /// imports, directly or through others. Files reached through plain imports
 /// come first; a qualified module, which may ask a query of its own entry, is
 /// searched after them.
@@ -978,14 +995,14 @@ fn entry_file(entry: &str, start: &Path) -> Result<PathBuf, String> {
         }
     }
     Err(format!(
-        "no calculation entry `{entry}` in {} or the files it imports",
+        "no entry `{entry}` in {} or the files it imports",
         display_location(start, None)
     ))
 }
 
 /// Check the file that declares `entry` and prepare the entry, as
 /// `runa call` does.
-fn prepare_entry(entry: &str, file: &Path) -> Result<PreparedCalculation, String> {
+fn prepare_entry(entry: &str, file: &Path) -> Result<PreparedEntry, String> {
     let source = std::fs::read_to_string(file)
         .map_err(|error| format!("cannot read {}: {error}", file.display()))?;
     let statements = Parser::new(Lexer::new(&source).tokenize(), &source)
@@ -1019,7 +1036,7 @@ fn prepare_entry(entry: &str, file: &Path) -> Result<PreparedCalculation, String
                 display_location(file, None)
             )
         })?;
-    Ok(PreparedCalculation::new(
+    Ok(PreparedEntry::new(
         contract,
         checked.program().clone(),
         source_dir,
@@ -1040,11 +1057,11 @@ fn optional(value: Option<Value>) -> Value {
     value.map_or_else(none, some)
 }
 
-fn string(value: &str) -> Value {
+pub(crate) fn string(value: &str) -> Value {
     Value::Str(value.to_string())
 }
 
-fn record(owner: &str, constructor: &str, fields: Vec<(&str, Value)>) -> Value {
+pub(crate) fn record(owner: &str, constructor: &str, fields: Vec<(&str, Value)>) -> Value {
     Value::NamedConstructor(
         constructor_runtime_name(owner, constructor).into_owned(),
         Rc::new(
@@ -1337,7 +1354,7 @@ fn path_steps(path: &str) -> Option<Vec<Step<'_>>> {
 }
 
 /// The constructor name and fields of a record or a named-field variant.
-fn named_fields(value: &Value) -> Option<(&str, &[(String, Value)])> {
+pub(crate) fn named_fields(value: &Value) -> Option<(&str, &[(String, Value)])> {
     match value {
         Value::NamedConstructor(name, fields) => Some((name, fields)),
         Value::NamespacedNamedConstructor { name, fields, .. } => Some((name, fields)),
@@ -1371,7 +1388,7 @@ fn some_inner(value: &Value) -> Option<&Value> {
 }
 
 /// The elements of a list value.
-fn list_items(value: &Value) -> Option<Vec<Value>> {
+pub(crate) fn list_items(value: &Value) -> Option<Vec<Value>> {
     match value {
         Value::List(items) => Some(items.clone()),
         Value::Constructor(name, _) if name == "Cons" || name == "Nil" => Some(list_to_vec(value)),
@@ -1415,7 +1432,7 @@ impl Interpreter {
     }
 
     /// The file the statement being evaluated comes from.
-    fn query_current_file(&self) -> Option<PathBuf> {
+    pub(crate) fn query_current_file(&self) -> Option<PathBuf> {
         self.runtime_source_file
             .as_deref()
             .map(PathBuf::from)
@@ -1476,8 +1493,7 @@ impl Interpreter {
 
     pub(crate) fn eval_query(&mut self, expression: &Expr, env: &Env) -> Value {
         let Some((entry, _, case)) = query_parts(expression) else {
-            return self
-                .panic_or_ground_fail("`query` asks a calculation entry: `query entry(case)`");
+            return self.panic_or_ground_fail("`query` asks an entry: `query entry(case)`");
         };
         let entry = entry.to_string();
         let case = self.eval(case, env);
@@ -1520,7 +1536,7 @@ impl Interpreter {
     /// in `namespace`: the module's own (`Query`, `Need`, its result types)
     /// where it declares one, else the prelude's (`Some`, `None`,
     /// `ProgramReference`), as a constructor the module writes itself.
-    fn constructors_in(&self, namespace: &RuntimeNamespace, value: Value) -> Value {
+    pub(crate) fn constructors_in(&self, namespace: &RuntimeNamespace, value: Value) -> Value {
         let values = |interpreter: &Self, values: &[Value]| -> Vec<Value> {
             values
                 .iter()
@@ -1569,7 +1585,7 @@ impl Interpreter {
             .unwrap_or_else(|| self.runtime_root.clone())
     }
 
-    fn query_prepared(&self, entry: &str) -> Result<Rc<RefCell<PreparedCalculation>>, String> {
+    fn query_prepared(&self, entry: &str) -> Result<Rc<RefCell<PreparedEntry>>, String> {
         let start = self.query_current_file().ok_or_else(|| {
             "a query needs the file of its program to find the entry it asks".to_string()
         })?;
@@ -1960,7 +1976,7 @@ mod tests {
     }
 
     fn contract() -> crate::calculate::CalculationContract {
-        let source = "# Case(income: Int)\n# Out(tax: Int)\n@ calculate\n| tax(c: Case) -> Out(tax = c.income)\n";
+        let source = "# Case(income: Int)\n# Out(tax: Int)\n@ entry\n| tax(c: Case) -> Out(tax = c.income)\n";
         let statements = Parser::new(Lexer::new(source).tokenize(), source)
             .parse_program()
             .expect("fixture parses");
@@ -2054,9 +2070,12 @@ mod tests {
         assert!(source.contains(
             "# Need(i) = Need(kind: NeedKind, path: Path(i), keys: List(NeedKey(i)), entry: Option(ProgramReference), subject: Option(Path(i)), label: Option(String), question: Option(String), help: Option(String), unit: Option(String), sources: List(NeedSource), waiting: List(NeedWaiting))"
         ));
-        assert!(needs_prelude()
-            .iter()
-            .any(|statement| matches!(statement, Stmt::Defn(Defn::Fn { name, .. }) if name == "interview")));
+        assert!(needs_prelude().iter().any(
+            |statement| matches!(statement, Stmt::Defn(Defn::Fn { name, .. }) if name == "fill")
+        ));
+        assert!(crate::answer::answer_prelude().iter().any(
+            |statement| matches!(statement, Stmt::Defn(Defn::Fn { name, .. }) if name == "answer")
+        ));
     }
 
     #[test]
@@ -2085,14 +2104,14 @@ mod tests {
         );
     }
 
-    /// A model with a calculation entry, for the checks of `unknown` and
+    /// A model with an entry, for the checks of `unknown` and
     /// `pathof`.
     const MODEL: &str = "\
 # Spouse(income: Int, cohabiting: Bool)
 # Case(income: Int, spouse: Option(Spouse), incomes: List(Int))
 # Result(tax: Int)
 
-@ calculate
+@ entry
 | tax(c: Case) -> Result(tax = c.income)
 > case_of(income: Int) -> Case { Case(income = income, spouse = None, incomes = []) }
 ";

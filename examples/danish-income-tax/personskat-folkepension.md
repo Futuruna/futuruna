@@ -27,7 +27,7 @@ Bevar `RUNA_BIN` som den absolutte sti til den compiler, der bestod kontrollen.
 Fra projektmappen:
 
 ```sh
-"$RUNA_BIN" template examples/danish-income-tax/personskat-folkepension.calculate.runa \
+"$RUNA_BIN" template examples/danish-income-tax/personskat-folkepension.entry.runa \
   --format json --output /tmp/futuruna-folkepension.json
 ```
 
@@ -51,7 +51,7 @@ ikke en godkendelse af bilaget eller skatten.
 
 ```sh
 FUTURUNA_CALCULATION_JOBS=1 "$RUNA_BIN" call \
-  examples/danish-income-tax/personskat-folkepension.calculate.runa \
+  examples/danish-income-tax/personskat-folkepension.entry.runa \
   --input /tmp/futuruna-folkepension.json
 ```
 

@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::process::Command;
 
-const MODEL: &str = "examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa";
+const MODEL: &str = "examples/danish-income-tax/aarsopgoerelse-afstemning.entry.runa";
 
 #[path = "support/calculation_baseline.rs"]
 mod calculation_baseline;

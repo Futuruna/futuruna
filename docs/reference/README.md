@@ -37,7 +37,7 @@ difference or compiled build failure.
 | Document | What it covers | Current stage |
 |----------|---------------|---------------|
 | [basics.md](basics.md) | Literals, types, operators, control flow, closures | Stable |
-| [runes.md](runes.md) | The seven runes (`#` `>` `|` `=` `~` `@` `?`) — all top-level statement forms | Mixed (core syntax Stable; `@ calculate` Preview) |
+| [runes.md](runes.md) | The seven runes (`#` `>` `|` `=` `~` `@` `?`) — all top-level statement forms | Mixed (core syntax Stable; `@ entry` Preview) |
 | [stdlib.md](stdlib.md) | Complete standard library (~70 builtins): math, strings, lists, collections, I/O, JSON, HTTP | Stable |
 | [streams.md](streams.md) | Reactive streams, subjects, subscriptions, named-scope lifetime ownership, actors, and effects | Stable |
 | [rust-compatibility.md](rust-compatibility.md) | Stable pure/core Rust codegen behavior, type mapping, build modes, and stable `runa lib` Rust interop contract | Mixed |

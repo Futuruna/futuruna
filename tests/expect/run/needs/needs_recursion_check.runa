@@ -2,7 +2,7 @@
 -- expect-command: call
 -- expect-input: needs_recursion.json
 -- expect-args: --entry household_tax --partial=check
--- expect-stdout: "schema": "futuruna.calculate.partial-output.v1"
+-- expect-stdout: "schema": "futuruna.entry.partial-output.v1"
 
 # Filing = Single | Joint(partner_income: Int)
 # Spouse(income: Int, name: String)
@@ -13,5 +13,5 @@
 | countdown(n: Int): Int -> 0
 | exception step countdown(n) -> countdown(n - 1) under n > 0
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = countdown(h.n))

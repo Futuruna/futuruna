@@ -1,0 +1,9 @@
+-- A guide in a file the law imports is in the law too.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: the AnswerGuide `imported_guide` is in the law: the entry `taxed` in this file imports it
+
+@ import ./answer_guide_imported_by_law_lib
+
+@ entry
+| taxed(h: Household) -> h.income

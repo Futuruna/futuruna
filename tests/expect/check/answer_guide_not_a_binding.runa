@@ -1,0 +1,9 @@
+-- The guide of `answer` is a top-level guide binding, so its paths are checked with the program.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: the guide of `answer(household_tax, …)` is a top-level binding of an `AnswerGuide(...)`, or `whole_case_guide()`; `h` is not one
+
+@ import ./answer_law
+
+= h = Household(income = 1, married = False, spouse = None, children = [])
+= asked = answer(household_tax, h, h, from_case(h))

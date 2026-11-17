@@ -18,5 +18,5 @@
 @ meta(Assumption(value = levy_base_rule)) when excess > 0
 | levy_base(excess: Int) -> excess
 
-@ calculate
+@ entry
 > assumptions_when(a: Account) -> Result { Result(levy_base = levy_base(a.excess)) }

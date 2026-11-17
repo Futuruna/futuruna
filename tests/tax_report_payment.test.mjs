@@ -10,7 +10,7 @@ import { parseReportOutput, renderReportOutput } from '../examples/danish-income
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
-const model = 'examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa';
+const model = 'examples/danish-income-tax/aarsopgoerelse-afstemning.entry.runa';
 const enabled = { skip: !binary && 'Set FUTURUNA_MODEL_TEST_RUNA; no compiler build.' };
 const v = $variant => ({ $variant });
 function run(args) {

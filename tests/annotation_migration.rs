@@ -43,7 +43,7 @@ fn a_migrated_model_computes_what_it_computed() {
         .expect("run runa fmt --migrate");
     let migrate_log = String::from_utf8_lossy(&migrate.stderr).into_owned();
     assert!(migrate.status.success(), "{migrate_log}");
-    let model = std::fs::read_to_string(copy.join("model.calculate.runa")).unwrap();
+    let model = std::fs::read_to_string(copy.join("model.entry.runa")).unwrap();
     assert!(!model.contains("--@"), "{model}");
     assert!(model.contains("@ section tax {"), "{model}");
     assert!(model.contains("@ quote(Source(value = law))"), "{model}");
@@ -54,7 +54,7 @@ fn a_migrated_model_computes_what_it_computed() {
     );
 
     let check = Command::new(runa())
-        .args(["check", "--frontend", "model.calculate.runa"])
+        .args(["check", "--frontend", "model.entry.runa"])
         .current_dir(&copy)
         .output()
         .expect("run runa check");
@@ -65,7 +65,7 @@ fn a_migrated_model_computes_what_it_computed() {
     );
 
     let call = Command::new(runa())
-        .args(["call", "model.calculate.runa", "--input", "cases.json"])
+        .args(["call", "model.entry.runa", "--input", "cases.json"])
         .current_dir(&copy)
         .output()
         .expect("run runa call");

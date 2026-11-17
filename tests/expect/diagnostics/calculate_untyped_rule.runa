@@ -4,5 +4,5 @@
 
 # Input(value: Int)
 
-@ calculate
+@ entry
 | calculate(input) -> input

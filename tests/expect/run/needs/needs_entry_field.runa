@@ -16,11 +16,11 @@
 )
 # Result(tax: Int)
 
-@ calculate
+@ entry
 | share_income(s: Spouse) -> s.income
 
 | threshold(h: Household): Int -> 100
 | exception transferred threshold(h) -> 200 - h.spouse_share_income under h.spouse_share_income < 100
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = h.income - threshold(h))
