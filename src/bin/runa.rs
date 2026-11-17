@@ -2677,8 +2677,8 @@ fn run_sdk_command(args: &[String]) {
 
 /// The guides a guides file binds, read without running it after the file
 /// passes `runa check`'s guide checks, and the group types it declares
-/// (each as its constructors, in order). Exits on an error.
-fn sdk_guides(filename: &str) -> (Vec<answer::Guide>, Vec<Vec<String>>) {
+/// (each by name, with its constructors in order). Exits on an error.
+fn sdk_guides(filename: &str) -> (Vec<answer::Guide>, Vec<(String, Vec<String>)>) {
     let source = std::fs::read_to_string(filename).unwrap_or_else(|error| {
         eprintln!("error: cannot read {filename}: {error}");
         std::process::exit(1);
@@ -2708,12 +2708,13 @@ fn sdk_guides(filename: &str) -> (Vec<answer::Guide>, Vec<Vec<String>>) {
     let groups = user_stmts
         .iter()
         .filter_map(|statement| match statement {
-            Stmt::TypeDecl(TypeDecl::ADT { variants, .. }) => Some(
+            Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => Some((
+                name.clone(),
                 variants
                     .iter()
                     .map(|variant| variant.name.clone())
                     .collect(),
-            ),
+            )),
             _ => None,
         })
         .collect();
@@ -2722,18 +2723,29 @@ fn sdk_guides(filename: &str) -> (Vec<answer::Guide>, Vec<Vec<String>>) {
 
 /// A guide's groups in the order its group type declares them, when the
 /// guides file declares it; otherwise in the order the guide first names them.
-fn guide_groups(guide: &answer::Guide, declared: &[Vec<String>]) -> Vec<String> {
+/// The group type is the one the guide names (`AnswerGuide(Input, Group)` or
+/// a qualified `Group.Constructor`), else the one declaring all its groups:
+/// two group types may share a constructor name.
+fn guide_groups(guide: &answer::Guide, declared: &[(String, Vec<String>)]) -> Vec<String> {
     let mut named: Vec<String> = Vec::new();
     for item in &guide.items {
         if !named.contains(&item.group) {
             named.push(item.group.clone());
         }
     }
-    declared
-        .iter()
-        .find(|constructors| named.iter().all(|group| constructors.contains(group)))
-        .cloned()
-        .unwrap_or(named)
+    let owner = guide
+        .group_type
+        .as_ref()
+        .or_else(|| guide.items.iter().find_map(|item| item.owner.as_ref()));
+    let declares = |constructors: &Vec<String>| named.iter().all(|group| constructors.contains(group));
+    match owner {
+        Some(owner) => declared
+            .iter()
+            .find(|(name, constructors)| name == owner && declares(constructors)),
+        None => declared.iter().find(|(_, constructors)| declares(constructors)),
+    }
+    .map(|(_, constructors)| constructors.clone())
+    .unwrap_or(named)
 }
 
 /// Write generated files under `out_dir`, each only when its contents changed.

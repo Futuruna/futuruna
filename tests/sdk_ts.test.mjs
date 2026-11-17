@@ -1087,6 +1087,37 @@ test('answering by a guide: the held case, resolvers batched once per group per 
   assert.ok(!readFileSync(join(dir, 'sdk/index.ts'), 'utf8').includes('answer.js'));
 });
 
+test('two guides of one file whose group types share `Customer` give each entry its own group union', options, async () => {
+  const dir = project('shared-groups');
+  writeFileSync(join(dir, 'household.entry.runa'), `${householdModel}
+@ entry("Household levy")
+| household_levy(h: Household) -> Result(tax = threshold(h) + child_allowance(h))
+`);
+  writeFileSync(join(dir, 'household.guide.runa'), `@ import ./household.entry
+
+# Origin = Registry | Customer
+# AskOrigin = Customer | Schools
+= household_guide: AnswerGuide(Household, Origin) = AnswerGuide(fields = [
+    EntryField(path = pathof(Household::spouse), by = Customer),
+    EntryField(path = pathof(Household::children::age), by = Registry)
+])
+= ask_guide = AnswerGuide(fields = [
+    EntryField(path = pathof(Household::spouse), by = AskOrigin.Customer),
+    EntryField(path = pathof(Household::children::age), by = Schools)
+])
+`);
+  run(binary, ['sdk', 'ts', 'household.entry.runa', '--out', 'sdk', '--guides', 'household.guide.runa',
+    '--guide', 'household_tax=household_guide', '--guide', 'household_levy=ask_guide'], dir);
+  const answer = readFileSync(join(dir, 'sdk/answer.ts'), 'utf8');
+  assert.match(answer, /^export type HouseholdTaxGroup = "Registry" \| "Customer";$/m);
+  assert.match(answer, /^export type HouseholdLevyGroup = "Customer" \| "Schools";$/m);
+  compile(dir, ['sdk/index.ts']);
+  const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
+  assert.equal(sdk.householdTaxGuide.paths.spouse, 'Customer');
+  assert.equal(sdk.householdLevyGuide.paths.spouse, 'Customer');
+  assert.equal(sdk.householdLevyGuide.paths['children[].age'], 'Schools');
+});
+
 test('the runtime package is the compilation of the runtime source, at Futuruna\'s version', options, async () => {
   const { compileRuntime, runtimeJs, runtimeDts } = await import(pathToFileURL(join(root, 'scripts/sdk-runtime.mjs')));
   const { js, dts } = compileRuntime(deps);

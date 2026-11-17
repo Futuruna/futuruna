@@ -1,0 +1,14 @@
+-- A bare group two group types declare, in a guide that declares no group
+-- type, is ambiguous like any such constructor.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: constructor `Customer` belongs to `SpouseOrigin` and `ChildOrigin`; nothing here gives the value a type, so write `SpouseOrigin.Customer` or `ChildOrigin.Customer`
+
+@ import ./answer_law
+
+# SpouseOrigin = Customer | Registry
+# ChildOrigin = Customer | Schools
+= spouse_guide = AnswerGuide(fields = [
+    EntryField(path = pathof(Household::spouse), by = Customer),
+    EntryField(path = pathof(Household::children), by = Registry)
+])

@@ -1029,7 +1029,11 @@ WholeCase         = WholeCase
 ```
 
 `i` is the entry's input type and `g` the integrator's group type, a sum of
-constructors without fields.
+constructors without fields. A group is written as any constructor is: bare
+(`Customer`) where that is unambiguous, which includes a guide bound with its
+type (`= g: AnswerGuide(Household, Origin) = ...`), and `Origin.Customer`
+where two group types in scope declare `Customer`. On the wire (`"by"`) and
+in TypeScript a group is its bare name: a guide has one group type.
 
 **Held and named.** A path the guide does not name is **held**: the
 integrator builds the fact into every case, and a need there is a defect in

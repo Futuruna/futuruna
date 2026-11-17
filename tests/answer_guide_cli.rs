@@ -94,6 +94,31 @@ fn each_need_names_its_group() {
     );
 }
 
+/// Two guides of one file, each with its own group type declaring
+/// `Customer` (one bare, one written `AskOrigin.Customer`): each names the
+/// group by its bare constructor name.
+#[test]
+fn a_group_shared_by_two_group_types_is_named_bare() {
+    let shared = needs_dir().join("answer_household_shared_groups.runa");
+    let shared = shared.to_str().unwrap();
+    for (guide, other) in [("household_guide", "Registry"), ("ask_guide", "Schools")] {
+        let output = call(
+            json!({ "income": 500, "married": true, "children": [{ "name": "Ada" }] }),
+            &["--guides", shared, "--guide", guide],
+        );
+        assert!(output.status.success(), "{guide}: {}", text(&output));
+        let document: Value = serde_json::from_slice(&output.stdout).unwrap();
+        let by: Vec<(&str, &str)> = document["results"][0]["result"]["needs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|need| (need["path"].as_str().unwrap(), need["by"].as_str().unwrap()))
+            .collect();
+        assert!(by.contains(&("spouse", "Customer")), "{guide}: {by:?}");
+        assert!(by.contains(&("children[0].age", other)), "{guide}: {by:?}");
+    }
+}
+
 #[test]
 fn without_a_guide_a_need_has_no_group() {
     let output = call(

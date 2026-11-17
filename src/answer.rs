@@ -131,21 +131,25 @@ pub fn program_uses_answer(statements: &[Stmt]) -> bool {
 // ---------------------------------------------------------------------------
 
 /// One item of a guide: a path of the input (`""` for the whole input, list
-/// elements without an index) and the group that resolves it.
+/// elements without an index) and the group that resolves it, by its bare
+/// constructor name, with the owner written as `Type.Group`, if any.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GuideItem {
     pub path: String,
     pub group: String,
+    pub owner: Option<String>,
     pub span: Span,
 }
 
-/// A guide: its binding's name, the input type its paths are rooted at, and
-/// its items in the order written.
+/// A guide: its binding's name, the input type its paths are rooted at, its
+/// items in the order written, and the group type its binding declares
+/// (`AnswerGuide(Input, Group)`), if any.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Guide {
     pub name: String,
     pub root: String,
     pub items: Vec<GuideItem>,
+    pub group_type: Option<String>,
     pub span: Span,
 }
 
@@ -221,13 +225,29 @@ pub fn guide_binding(statement: &Stmt) -> Option<(&str, &Expr)> {
     (typed || built).then_some((name.as_str(), value))
 }
 
+/// The group type a guide binding declares: `g` of `AnswerGuide(i, g)`.
+fn declared_group_type(statement: &Stmt) -> Option<String> {
+    let Stmt::Bind(_, Some(Ty::App(head, arguments)), _) = statement else {
+        return None;
+    };
+    match (head.as_ref(), arguments.as_slice()) {
+        (Ty::Name(head), [_, Ty::Name(group)]) if head == "AnswerGuide" => Some(group.clone()),
+        _ => None,
+    }
+}
+
+/// The guide a top-level statement binds, read or with its problems.
+fn read_statement_guide(statement: &Stmt) -> Option<Result<Guide, Vec<(Span, String)>>> {
+    let (name, value) = guide_binding(statement)?;
+    Some(read_guide(name, value).map(|mut guide| {
+        guide.group_type = declared_group_type(statement);
+        guide
+    }))
+}
+
 /// Every guide a file binds at top level, each read or with its problems.
 pub fn read_guides(statements: &[Stmt]) -> Vec<Result<Guide, Vec<(Span, String)>>> {
-    statements
-        .iter()
-        .filter_map(guide_binding)
-        .map(|(name, value)| read_guide(name, value))
-        .collect()
+    statements.iter().filter_map(read_statement_guide).collect()
 }
 
 /// The guide `name` binds to `value`, or why it is not a ground guide.
@@ -295,6 +315,7 @@ pub fn read_guide(name: &str, value: &Expr) -> Result<Guide, Vec<(Span, String)>
         name: name.to_string(),
         root,
         items: read,
+        group_type: None,
         span: value.span,
     })
 }
@@ -342,23 +363,57 @@ fn read_item(guide: &str, item: &Expr) -> Result<(String, GuideItem), (Span, Str
         }
     }
     let canonical = pathof_canonical_path(path).ok_or_else(shape)?;
-    let group = match &by.kind {
-        ExprKind::Var(group) if group.starts_with(char::is_uppercase) => group.clone(),
-        _ => {
-            return Err((
-                by.span,
-                format!("`by` in the AnswerGuide `{guide}` names a group: a constructor without fields of the integrator's group type"),
-            ))
-        }
+    let upper = |name: &str| name.starts_with(char::is_uppercase);
+    let (group, owner) = match &by.kind {
+        ExprKind::Var(group) if upper(group) => (group.clone(), None),
+        ExprKind::Field(base, group) if upper(group) => match &base.kind {
+            ExprKind::Var(owner) if upper(owner) => (group.clone(), Some(owner.clone())),
+            _ => return Err(not_a_group(guide, by)),
+        },
+        _ => return Err(not_a_group(guide, by)),
     };
     Ok((
         root.to_string(),
         GuideItem {
             path: canonical,
             group,
+            owner,
             span: item.span,
         },
     ))
+}
+
+fn not_a_group(guide: &str, by: &Expr) -> (Span, String) {
+    (
+        by.span,
+        format!("`by` in the AnswerGuide `{guide}` names a group: a constructor without fields of the integrator's group type, written `Group` or `GroupType.Group`"),
+    )
+}
+
+/// The type that owns an item's group, as the type checker resolves the
+/// constructor: `Type.Group` names it; a bare name declared by one type is
+/// that type's, and one shared by several is the guide's declared group
+/// type's. `None` when it does not resolve; the type checker reports why
+/// (an unknown constructor, or a bare shared name with nothing to type it).
+fn group_owner(guide: &Guide, item: &GuideItem, checker: &TypeChecker) -> Option<String> {
+    let owners = checker.constructor_owners(&item.group);
+    let chosen = match (&item.owner, owners.as_slice()) {
+        (Some(owner), _) => checker.constructor_identity_owner(owner, &item.group),
+        (None, [owner]) => owner.clone(),
+        (None, _) => guide.group_type.clone()?,
+    };
+    owners.into_iter().find(|owner| *owner == chosen)
+}
+
+/// The number of fields `owner`'s constructor `constructor` has.
+fn constructor_arity(checker: &TypeChecker, owner: &str, constructor: &str) -> usize {
+    checker
+        .constructor_signatures
+        .get(constructor)
+        .into_iter()
+        .flatten()
+        .find(|signature| checker.constructor_identity_owner(&signature.parent, constructor) == owner)
+        .map_or(0, |signature| signature.fields.len())
 }
 
 // ---------------------------------------------------------------------------
@@ -603,10 +658,13 @@ pub(crate) fn check_program(
     let mut guides: BTreeMap<&str, Guide> = BTreeMap::new();
     for file in &files {
         for statement in file.statements {
-            let Some((name, value)) = guide_binding(statement) else {
+            let Some((name, _)) = guide_binding(statement) else {
                 continue;
             };
-            match read_guide(name, value) {
+            let Some(read) = read_statement_guide(statement) else {
+                continue;
+            };
+            match read {
                 Ok(guide) => {
                     check_guide(file, &guide, checker, &declarations, &mut diagnostics);
                     guides.insert(name, guide);
@@ -658,14 +716,16 @@ fn check_guide(
             ));
         }
     }
-    // The groups: the constructors without fields of one plain sum type.
-    let mut group_type: Option<(&str, Span)> = None;
+    // The groups: the constructors without fields of one plain sum type,
+    // each resolved as the type checker resolves a constructor.
+    let mut group_type: Option<(String, Span)> = None;
     let mut plain = true;
     for item in &guide.items {
-        let Some((owner, arity)) = checker.constructors.get(&item.group) else {
+        let Some(owner) = group_owner(guide, item, checker) else {
             continue;
         };
-        if *arity > 0 {
+        let arity = constructor_arity(checker, &owner, &item.group);
+        if arity > 0 {
             diagnostics.push(file.diagnostic(
                 item.span,
                 format!(
@@ -676,9 +736,9 @@ fn check_guide(
             plain = false;
             continue;
         }
-        match group_type {
-            None => group_type = Some((owner.as_str(), item.span)),
-            Some((first, _)) if first != owner => {
+        match &group_type {
+            None => group_type = Some((owner, item.span)),
+            Some((first, _)) if *first != owner => {
                 diagnostics.push(file.diagnostic(
                     item.span,
                     format!(
@@ -691,6 +751,7 @@ fn check_guide(
         }
     }
     if let (Some((owner, span)), true) = (group_type, plain) {
+        let owner = owner.as_str();
         let constructors = checker
             .type_variants
             .get(owner)
@@ -698,12 +759,7 @@ fn check_guide(
             .unwrap_or_default();
         let with_fields: Vec<&String> = constructors
             .iter()
-            .filter(|constructor| {
-                checker
-                    .constructors
-                    .get(constructor.as_str())
-                    .is_some_and(|(_, arity)| *arity > 0)
-            })
+            .filter(|constructor| constructor_arity(checker, owner, constructor) > 0)
             .collect();
         if let Some(constructor) = with_fields.first() {
             diagnostics.push(file.diagnostic(
@@ -992,6 +1048,7 @@ impl Interpreter {
             .map(|(path, group)| GuideItem {
                 path: path.clone(),
                 group: group.to_string(),
+                owner: None,
                 span: Span::dummy(),
             })
             .collect();
@@ -1106,6 +1163,7 @@ mod tests {
             .map(|(path, group)| GuideItem {
                 path: path.to_string(),
                 group: group.to_string(),
+                owner: None,
                 span: Span::dummy(),
             })
             .collect()
@@ -1141,5 +1199,24 @@ mod tests {
         assert_eq!(element_path("a[1].b[22].c"), "a.b.c");
         assert_eq!(written_path("T", "a.b"), "pathof(T::a::b)");
         assert_eq!(written_path("T", ""), "pathof(T)");
+    }
+
+    #[test]
+    fn a_group_is_read_by_its_bare_name_with_a_written_owner() {
+        let source = "= g: AnswerGuide(T, Origin) = AnswerGuide(fields = [\n    EntryField(path = pathof(T::a), by = Customer),\n    EntryField(path = pathof(T::b), by = AskOrigin.Customer)\n])\n";
+        let statements = Parser::new(Lexer::new(source).tokenize(), source)
+            .parse_program()
+            .unwrap();
+        let guides = read_guides(&statements);
+        let [Ok(guide)] = guides.as_slice() else {
+            panic!("{guides:?}");
+        };
+        assert_eq!(guide.group_type.as_deref(), Some("Origin"));
+        let read: Vec<(&str, Option<&str>)> = guide
+            .items
+            .iter()
+            .map(|item| (item.group.as_str(), item.owner.as_deref()))
+            .collect();
+        assert_eq!(read, [("Customer", None), ("Customer", Some("AskOrigin"))]);
     }
 }
