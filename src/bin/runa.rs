@@ -790,6 +790,7 @@ fn main_inner() {
                 eprintln!("  meta --role ROLE   Select meta references by role");
                 eprintln!("  meta --json        Emit a structured metadata index");
                 eprintln!("  --entry NAME       Select an @ entry");
+                eprintln!("  call --partial --guides FILE --guide NAME  Give each need the group of the AnswerGuide NAME in FILE");
                 eprintln!("  audit --entry NAME [--json]  Report calculation reachability");
                 eprintln!("  explore --query NAME  Select one named exploration");
                 eprintln!("  explore --run-state PATH  Required durable journal directory");

@@ -24282,7 +24282,7 @@ fn multiple_entries_require_explicit_selection() {
     .expect("write multiple calculations");
     let ambiguous = run(&["schema", path.to_str().expect("source path")]);
     assert!(!ambiguous.status.success());
-    assert!(String::from_utf8_lossy(&ambiguous.stderr).contains("multiple calculations"));
+    assert!(String::from_utf8_lossy(&ambiguous.stderr).contains("multiple entries"));
 
     let selected = run(&[
         "schema",
