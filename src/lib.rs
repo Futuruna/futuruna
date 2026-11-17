@@ -64910,11 +64910,17 @@ impl TypeChecker {
             Some(checked) => tc.check_program(&checked),
             None => tc.check_program(stmts),
         }
-        let mut query_diagnostics = query::check_program(stmts, source, &tc);
-        query_diagnostics.extend(answer::check_program(stmts, source, &tc));
-        tc.diagnostics.extend(query_diagnostics);
-        let (warnings, binding_name_errors) =
+        tc.diagnostics.extend(query::check_program(stmts, source, &tc));
+        // A guide item that resolves nothing is a warning, which never fails
+        // the check.
+        let (guide_warnings, guide_errors): (Vec<_>, Vec<_>) =
+            answer::check_program(stmts, source, &tc)
+                .into_iter()
+                .partition(|diagnostic| diagnostic.severity == Severity::Warning);
+        tc.diagnostics.extend(guide_errors);
+        let (mut warnings, binding_name_errors) =
             ordinary_declarations::binding_name_diagnostics(stmts, source, &tc);
+        warnings.extend(guide_warnings);
         tc.diagnostics.extend(binding_name_errors);
         let mut constructor_elaboration =
             ConstructorElaboration::keeping_current_modules(tc.elaborate_constructor_scope(stmts));

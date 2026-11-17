@@ -1,14 +1,18 @@
 -- An item whose every path is named more specifically resolves nothing: a warning.
+-- A required record is never a need itself, so `address` resolves only what
+-- `street` and `city` already name.
 -- expect-command: check
 -- expect-status: pass
 -- expect-stderr: warning
--- expect-stderr: the item `pathof(Household::spouse)` of the AnswerGuide `household_guide` resolves nothing
+-- expect-stderr: the item `pathof(Person::address)` of the AnswerGuide `person_guide` resolves nothing
 
-@ import ./answer_law
+# Address(street: String, city: String)
+# Person(name: String, address: Address)
 
 # Origin = Customer | Registry
-= household_guide = AnswerGuide(fields = [
-    EntryField(path = pathof(Household::spouse), by = Customer),
-    EntryField(path = pathof(Household::spouse::income), by = Registry),
-    EntryField(path = pathof(Household::spouse::cohabiting), by = Registry)
+= person_guide = AnswerGuide(fields = [
+    EntryField(path = pathof(Person::name), by = Customer),
+    EntryField(path = pathof(Person::address), by = Customer),
+    EntryField(path = pathof(Person::address::street), by = Registry),
+    EntryField(path = pathof(Person::address::city), by = Registry)
 ])

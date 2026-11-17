@@ -1988,7 +1988,15 @@ mod tests {
     #[test]
     fn need_members_are_the_partial_result_schema() {
         let schema = crate::calculate::partial_result_json_schema(&contract());
-        let need = &schema["oneOf"][1]["properties"]["needs"]["items"];
+        let mut need = schema["oneOf"][1]["properties"]["needs"]["items"].clone();
+        // `by` is written by `runa call --guide` only; in the language,
+        // `answer` routes needs by its guide, so `Need(i)` has no `by`.
+        need["properties"]
+            .as_object_mut()
+            .expect("need properties")
+            .remove("by")
+            .expect("the schema documents `by`");
+        let need = &need;
         assert_members(NEED_MEMBERS, need);
         assert_members(NEED_KEY_MEMBERS, &need["properties"]["keys"]["items"]);
         let waiting = &need["properties"]["waiting"]["items"];
