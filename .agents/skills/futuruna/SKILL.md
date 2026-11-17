@@ -1,6 +1,6 @@
 ---
 name: futuruna
-description: Set up, teach, author, explain, debug, test, analyze, and review Futuruna code and runa workflows. Use for Futuruna installation, .runa files, seven-rune syntax, law, contract, tax, or compliance models, finite rule-space searches for counterexamples, thresholds, income cliffs, minima, maxima, or worst cases, typed @ calculate contracts and workbooks, runa from-rust, Rust interop, or Futuruna compiler semantics. Do not use for generic legal or tax advice, unrelated Rust, or unrelated spreadsheets.
+description: Set up, teach, author, explain, debug, test, analyze, and review Futuruna code and runa workflows. Use for Futuruna installation, .runa files, seven-rune syntax, law, contract, tax, or compliance models, finite rule-space searches for counterexamples, thresholds, income cliffs, minima, maxima, or worst cases, typed @ entry contracts and workbooks, runa from-rust, Rust interop, or Futuruna compiler semantics. Do not use for generic legal or tax advice, unrelated Rust, or unrelated spreadsheets.
 ---
 
 # Futuruna
@@ -47,9 +47,9 @@ Inspect a nearby maintained example or test before authoring new syntax:
 - legal modeling: `../../../examples/danish-constitution/` and
   `../../../examples/us-constitution/`
 - a small calculation contract:
-  `../../../tests/fixtures/calculation/tax.calculate.runa`
+  `../../../tests/fixtures/calculation/tax.entry.runa`
 - the production-scale tax calculation:
-  `../../../examples/danish-income-tax/personskat.calculate.runa`
+  `../../../examples/danish-income-tax/personskat.entry.runa`
 - Rust translation and consumers: `../../../examples/from-rust/` and
   `../../../tests/from-rust/downstream/`
 
@@ -86,7 +86,7 @@ The mistakes that most often produce wrong or rejected programs:
 - `| exception label rule(...) -> ... under ...` needs an ordinary base rule
   with the same name and arity; give value rules an unguarded default when
   every input needs a result.
-- `@ comptime`, `@ calculate` and audited code are pure; host effects there
+- `@ comptime`, `@ entry` and audited code are pure; host effects there
   are errors.
 - `take(items, n)` returns a list; use `head` for one element after checking
   the list is nonempty.

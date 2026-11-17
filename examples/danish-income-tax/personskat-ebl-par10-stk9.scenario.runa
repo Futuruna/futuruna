@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 = personskat_ebl_par10_stk9_scenarier_metadata = Metadata(
     attachments = (

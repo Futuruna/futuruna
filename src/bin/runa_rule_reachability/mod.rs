@@ -107,7 +107,7 @@ pub(super) struct SkippedFamily {
 pub(super) enum ClauseScope {
     /// Families with a clause in this file.
     DeclaredIn(String),
-    /// Families a calculation entry reaches, through imports included, and
+    /// Families an entry reaches, through imports included, and
     /// families with a clause in the audited file.
     ReachedFromEntry(String),
     /// One family, for `runa verify`.

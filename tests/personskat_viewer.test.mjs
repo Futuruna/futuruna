@@ -13,7 +13,7 @@ import { incomeFields, partyearChoiceFields, partyearIncomeFields, partyearResul
 import { declaredFields } from './field_declarations.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const model = 'examples/danish-income-tax/personskat.calculate.runa';
+const model = 'examples/danish-income-tax/personskat.entry.runa';
 const script = join(root, 'examples/danish-income-tax/personskat-resultat.mjs');
 const variant = ($variant, fields = {}) => ({ $variant, ...fields });
 const resultOf = value => value.results[0].result;
@@ -37,7 +37,7 @@ function baseline() {
   });
   result.skat.nettokapitalindkomst_kroner = -15000;
   return {
-    $futuruna: { schema: 'futuruna.calculate.output.v1', schema_hash: 'b'.repeat(64), entry: 'beregn_personskat' },
+    $futuruna: { schema: 'futuruna.entry.output.v1', schema_hash: 'b'.repeat(64), entry: 'beregn_personskat' },
     results: [{ case_id: 'fiktiv-beregning', result }], diagnostics: [],
   };
 }
@@ -70,7 +70,7 @@ function partyearBaseline() {
 
 test('part-year presentation fields track the distinct output, choice and income contracts', () => {
   for (const [file, type, expected] of [
-    ['personskat-par14.calculate.runa', 'PersonskatPar14BeregningResultat', partyearResultFields],
+    ['personskat-par14.entry.runa', 'PersonskatPar14BeregningResultat', partyearResultFields],
     ['kapitel-04-omregning-skatteloft.runa', 'Par14ValgResultat', partyearChoiceFields],
   ]) {
     const source = readFileSync(join(root, 'examples/danish-income-tax', file), 'utf8');
@@ -322,7 +322,7 @@ test('spouse and settlement presence never silently become a household or refund
 test('unknown shapes, missing warnings and contradictory gates are rejected', () => {
   const edits = [
     s => { s.$futuruna.entry = 'beregn_personskat_med_grøn_check'; },
-    s => { s.$futuruna.schema = 'futuruna.calculate.input.v1'; },
+    s => { s.$futuruna.schema = 'futuruna.entry.input.v1'; },
     s => { s.$futuruna.schema_hash = 'not-a-hash'; },
     s => { resultOf(s).new_warning = 'Must not disappear'; },
     s => { delete resultOf(s).vurdering; },

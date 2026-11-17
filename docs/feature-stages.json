@@ -344,12 +344,22 @@
     {
       "id": "needs-in-the-language",
       "kind": "language",
-      "name": "Needs in the language (`unknown`, `query`, `Path(i)`, `fill`, `interview`)",
+      "name": "Needs in the language (`unknown`, `query`, `Path(i)`, `fill`)",
       "stage": "experimental",
       "commands": [],
       "docs": [
         "docs/reference/calculations.md",
         "docs/rfcs/needs-in-the-language.md"
+      ]
+    },
+    {
+      "id": "answer",
+      "kind": "language",
+      "name": "Answering an entry (`answer`, generated AnswerGuide)",
+      "stage": "experimental",
+      "commands": [],
+      "docs": [
+        "docs/reference/calculations.md"
       ]
     },
     {
@@ -704,6 +714,7 @@
         "calculation-field-declarations",
         "calculation-needs",
         "needs-in-the-language",
+        "answer",
         "typescript-sdk",
         "annotations"
       ]

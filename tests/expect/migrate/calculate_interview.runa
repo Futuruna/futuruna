@@ -1,0 +1,29 @@
+-- 0.6: `@ calculate` is `@ entry`, and an oracle `interview` is `answer` with
+-- `from_case`; its `.rounds` and `.result == v` follow. An `interview` of
+-- another shape, and `Interview`, are listed.
+-- expect-command: migrate
+-- expect-status: fail
+-- expect-stderr: :17: `@ calculate` is now `@ entry`
+-- expect-stderr: :20: `@ calculate` is now `@ entry`
+-- expect-stderr: :24: `interview(|c| query e(c), partial, complete)` is now `answer(e, partial, from_case(complete))`
+-- expect-stderr: :25: `asked.rounds` is now `map(asked.rounds, |r| r.paths)`
+-- expect-stderr: :26: `asked.result == v` is now `asked.outcome == Answered(result = v)`
+-- expect-stderr: :27: left `asked.result`
+-- expect-stderr: :28: left `interview`: it is now `answer(entry, case, resolve)`
+-- expect-stderr: :29: left `Interview`
+# H(a: Int)
+# R(tax: Int)
+
+@ calculate
+| tax(h: H) -> R(tax = h.a)
+
+@ calculate("Tax, doubled")
+| doubled(h: H) -> R(tax = h.a * 2)
+
+= done = H(a = 1)
+= asked = interview(|c| query tax(c), H(a = unknown), done)
+| two: asked -> asked.rounds == [[pathof(H::a)]]
+| ends: asked -> asked.result == tax(done)
+| shown: asked -> show(asked.result)
+= other = interview(|c| query doubled(c), H(a = unknown))
+| typed(i: Interview(R, H)) -> i.rounds

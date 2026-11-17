@@ -11,7 +11,7 @@ import { buildFictionalCases } from '../examples/danish-income-tax/bilag-demo.mj
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
 const enabled = { skip: !binary && 'Set FUTURUNA_MODEL_TEST_RUNA; no compiler build.' };
-const model = 'examples/danish-income-tax/personskat.calculate.runa';
+const model = 'examples/danish-income-tax/personskat.entry.runa';
 const unknown = { $variant: 'ÆgtefællegrundlagUoplyst' };
 function run(args, status = 0) {
   const p = spawnSync(binary, args, { cwd: root, encoding: 'utf8', timeout: 1200000,
@@ -78,9 +78,9 @@ test('unknown spouse basis withholds comparison while explicit known cases remai
 test('spouse interview metadata follows annual, part-year and green-check inputs', enabled, () => {
   for (const [file, entry, paths] of [
     [model, 'beregn_personskat', ['ægtefælle.$variant']],
-    ['examples/danish-income-tax/personskat-par14.calculate.runa', 'beregn_personskat_delår',
+    ['examples/danish-income-tax/personskat-par14.entry.runa', 'beregn_personskat_delår',
       ['personskat.ægtefælle.$variant', 'helårsgrundlag.DokumenteretHelårsPersonskat.personskat.ægtefælle.$variant']],
-    ['examples/danish-income-tax/personskat-groen-check.calculate.runa', 'beregn_personskat_med_grøn_check',
+    ['examples/danish-income-tax/personskat-groen-check.entry.runa', 'beregn_personskat_med_grøn_check',
       ['personskat.ægtefælle.$variant']],
   ]) {
     const schema = run(['schema', file, '--entry', entry, '--format', 'compact-json']);
@@ -100,7 +100,7 @@ test('spouse interview metadata follows annual, part-year and green-check inputs
 });
 
 test('unresolved spouse basis cannot bypass the period or documented annual assessment', enabled, () => {
-  const file = 'examples/danish-income-tax/personskat-par14.calculate.runa', entry = 'beregn_personskat_delår';
+  const file = 'examples/danish-income-tax/personskat-par14.entry.runa', entry = 'beregn_personskat_delår';
   const envelope = run(['template', file, '--entry', entry, '--format', 'json']);
   assert.match(envelope.cases[0].input.personskat.ægtefælle.$fill, /ÆgtefællegrundlagUoplyst/);
   const person = buildFictionalCases({ cases: [{ input: envelope.cases[0].input.personskat }] }).envelope.cases[0].input;

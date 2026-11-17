@@ -1,0 +1,45 @@
+-- `answer` asks an entry round by round. Each round `resolve` is called once
+-- with all of the round's needs and gives the answers it can; a round that
+-- answers nothing ends the answering with that round's needs open. Which
+-- source answers which need is the resolver's own code.
+-- expect-command: interp
+-- roundtrip-skip: `answer`, `query` and `unknown` run only in the interpreter
+-- expect-stdout: |one_call_per_round| holds
+-- expect-stdout: |ends_answered| holds
+-- expect-stdout: |from_case_gives_every_need| holds
+-- expect-stdout: |child_ages_left_open| holds
+
+@ import ./answer_household_law
+
+= complete = Household(income = 500, married = True, spouse = Some(Spouse(income = 50, cohabiting = True)), children = [Child(name = "Ada", age = 4), Child(name = "Bo", age = 19)])
+= started: Household = Household(income = 500, married = True, spouse = unknown, children = [Child(name = "Ada", age = unknown), Child(name = "Bo", age = unknown)])
+
+= answered = answer(household_tax, started, from_case(complete))
+
+| one_call_per_round: answered -> map(answered.rounds, |r| length(r.paths)) == [3, 2]
+| ends_answered: answered -> answered.outcome == Answered(result = household_tax(complete))
+| from_case_gives_every_need: answered -> all(answered.rounds, |r| r.given == r.paths)
+
+-- The integrator routes by path: here nobody can tell the children's ages.
+= child_ages = [pathof(Household::children[0]::age), pathof(Household::children[1]::age)]
+
+> without_ages(needs: List(Need(Household)), case: Household) -> Answers(Household) {
+    = known = filter(needs, |n| not(any(child_ages, |p| p == n.path)))
+    Answers(from = complete, given = map(known, |n| n.path))
+}
+
+> open_paths(answering: Answering(Result, Household)) -> List(Path(Household)) {
+    = outcome = answering.outcome
+    match outcome {
+        | Unanswered -> map(outcome.open, |n| n.path)
+        | Answered -> []
+    }
+}
+
+= left_open = answer(household_tax, started, without_ages)
+| child_ages_left_open: left_open -> length(left_open.rounds) == 3 && length(open_paths(left_open)) == 2 && all(open_paths(left_open), |p| any(child_ages, |a| a == p))
+
+? one_call_per_round
+? ends_answered
+? from_case_gives_every_need
+? child_ages_left_open

@@ -1,0 +1,860 @@
+@ sprog da
+
+@ importer ./personskat.entry
+@ importer ./personskat-par14-kildekontrol
+@ importer ./kapitel-04-omregning-skatteloft
+
+----
+Personskattelovens § 14, jf. lovbekendtgørelse nr. 1284 af 14. juni 2021:
+
+§ 14. Hvis en person bliver skattepligtig, eller hvis en person ophører med at
+være skattepligtig, jf. kildeskattelovens § 1, omregnes såvel den
+skattepligtige indkomst som den personlige indkomst og kapitalindkomsten for det
+år, hvor skattepligten indtræder eller ophører, således at beløbene kommer til
+at svare til et helt års indkomster.
+På grundlag af de opgjorte helårsindkomster beregnes helårsskat efter §§ 6-9.
+Den beregnede helårsskat nedsættes efter forholdet mellem delårsbeløbene og
+helårsbeløbene.
+
+Stk. 2. En person kan vælge, at der ikke skal ske helårsomregning efter stk. 1.
+I så fald skal personen opgøre sin skattepligtige indkomst, personlige indkomst
+og kapitalindkomst for det pågældende år, som om vedkommende var skattepligtig
+efter kildeskattelovens § 1 for hele året.
+Den samlede indkomstskat nedsættes med det beløb, som forholdsmæssigt falder på
+den del af indkomsten, som vedrører den periode, hvor personen ikke var
+skattepligtig.
+Valget skal træffes ved afgivelse af oplysninger til told- og skatteforvaltningen
+efter skattekontrollovens § 2 for det år, hvor skattepligten ophører.
+Valget kan omgøres, hvis tilkendegivelse herom sker til told- og
+skatteforvaltningen senest den 30. juni i det andet kalenderår efter udløbet af
+det pågældende indkomstår.
+
+Stk. 3. For en person omfattet af § 10, stk. 6, omregnes såvel den
+skattepligtige indkomst som den personlige indkomst og kapitalindkomsten for det
+år, hvor den begrænsede skattepligt indtræder eller ophører, således at
+beløbene kommer til at svare til et helt års indkomster.
+På grundlag af de opgjorte helårsindkomster beregnes helårsskat efter §§ 6-9.
+Den beregnede helårsskat nedsættes efter forholdet mellem delårsbeløbene og
+helårsbeløbene.
+
+Kilde:
+https://www.retsinformation.dk/eli/lta/2021/1284
+----
+
+----
+Ved lov nr. 1564 af 12. december 2023, § 1, nr. 5, er henvisningen i stk. 3
+ændret fra § 10, stk. 6, til § 10, stk. 5.
+
+Kilde:
+https://www.retsinformation.dk/eli/lta/2023/1564
+----
+
+----
+Den juridiske vejledning 2026-1, C.F.1.6.2.2:
+
+Efter praksis kan engangsindtægter være:
+
+* Aktieindkomst.
+
+Efter praksis kan engangsudgifter være:
+
+* Underskud fremført fra tidligere indkomstår. Se LSRM 1983, 58 LSR.
+
+Kilde:
+https://info.skat.dk/data.aspx?oid=1977389
+----
+
+# PersonskatPar14Beregningsfelt = Par14Bruttoløn | Par14ØvrigPersonligIndkomst | Par14DisPersonligIndkomst | Par14Nettokapitalindkomst | Par14ØvrigeLigningsmæssigeFradrag | Par14Pbl18FradragsberettigetIndbetaling | Par14Pbl19RateOgOphørendeFørArbejdsmarkedsbidrag | Par14Pbl19RateOgOphørendeEfterArbejdsmarkedsbidrag | Par14Pbl19ØvrigeIndbetalingerEfterArbejdsmarkedsbidrag | Par14ØvrigtArbejdsmarkedsbidragsgrundlagMedIndeholdtBidrag | Par14AmblPar2Stk1Nr5Arbejdsmarkedsbidragsgrundlag | Par14Pbl20IndkomstskattepligtigUdbetaling | Par14Aktieindkomst | Par14CfcIndkomst | Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst
+= personskat_par14_kilder_2 = [
+    Source(value = personskatteloven_2021_1284),
+    DependencySource(value = kommuneskatteloven_2019_935),
+    AmendmentSource(value = personskat_personfradrag_aendring_2023_1564),
+    Guidance(value = personskat_kirkeskat_medlemsvejledning),
+    Guidance(value = personskat_par14_juridisk_vejledning),
+    Guidance(value = personskat_par14_indkomsttypevejledning),
+    Guidance(value = personskat_par14_beregningscirkulære),
+    Warning(value = personskat_par14_mellemtrin_forbehold)
+]
+# PersonskatPar14Kilde(
+    @ field(
+        label = "Kildens identifikation",
+        question = "Hvilken entydig identifikation har beløbet?",
+        help = "Brug en stabil identifikation, som også kan genfindes i dokumentation og auditspor.",
+        sources = personskat_par14_kilder_2
+    )
+    identifikation: Tekst,
+    @ field(
+        label = "Felt i skatteberegningen",
+        question = "Hvilket kanonisk beregningsfelt tilhører beløbet?",
+        help = "Feltet bestemmer, hvor beløbet indgår i den rekonstruerede helårsberegning. Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst er en afgrænsning af arbejdsfradragsgrundlaget, ikke ny indkomst eller et ekstra fradrag. Brug samme identifikation og delårsbeløb som den udelukkede fordelingspost og en dokumenteret omregning af netop denne kildes grundlag.",
+        sources = personskat_par14_kilder_2
+    )
+    beregningsfelt: PersonskatPar14Beregningsfelt,
+    @ field(
+        label = "Beløb i skattepligtsperioden",
+        question = "Hvor stort var beløbet i den danske skattepligtsperiode?",
+        help = "Beløbet skal tilsammen med de øvrige kilder afstemme det kanoniske Personskat-grundlag. Par14Aktieindkomst angiver egen aktieindkomst før PSL § 8 a-ægtefællemodregning, ikke det modregnede skattegrundlag. Bevar kildebeløbene; modellen beregner selv ægtefællemodregning og grundbeløbsoverførsel. Aktieindkomst, der er et engangsbeløb, bevares uden forholdsmæssig opskalering; se personskat-delaar.md.",
+        unit = "kr.",
+        sources = personskat_par14_kilder_2
+    )
+    delårsbeløb_kroner: Heltal,
+    omregningsmetode: Par14Omregningsmetode,
+    @ field(
+        label = "Faktisk beløb i hele året",
+        question = "Hvad er kildens beløb til det faktiske årsgrundlag efter § 14, stk. 2? Vedrører kilden aktieindkomst, som ikke skal omregnes?",
+        help = "For Par14Aktieindkomst kan feltet udelades: det allerede oplyste delårsbeløb indgår uændret. Oplyses et årsbeløb, skal det være det samme; nul er et udtrykkeligt beløb, ikke en tom værdi. For øvrige kildearter er feltet påkrævet, når § 14, stk. 2-valget anvendes, og kan ellers udelades. For almindelig skattepligtig, personlig og kapitalindkomst medtages det faktiske beløb også uden for dansk skattepligt. Valget gør ikke udenlandske aktiebeløb uden for perioden til dansk aktieindkomst. Afklar særskilt skattepligt og kildeklassifikation, og ret ikke dokumenterede beløb for at få et match. Se personskat-delaar.md.",
+        unit = "kr.",
+        sources = personskat_par14_kilder_2
+    )
+    faktisk_helårsbeløb_kroner: Option(Heltal)
+)
+# PersonskatPar14Skattepligtsperiode(fra_dato: Dato, til_dato: Dato)
+@ field(
+    label = "Grundlag for den kanoniske helårsberegning",
+    question = "Kan helårsberegningen afledes alene af de identificerede beløb, eller skal et komplet dokumenteret Personskat-grundlag for hele året anvendes?",
+    help = "Brug et komplet helårsgrundlag, når ægtefælleoverførsler, underskud eller andre sammensatte årsforløb skal genberegnes i den samme kanoniske regelgraf. Bevar hver persons egne kapitalbeløb før ægtefællemodregning. Ægtefællens delårs- og helårsbeløb skal dokumenteres særskilt; genbrug ikke automatisk delårsbeløbet og udled ikke beløbet af den forventede skat. Modellen anvender PSL §§ 6 og 11 i hvert sit grundlag. Samliv ved indkomstårets udløb skal være samme oplysning i begge grundlag. Hver persons fødselsdato, også dag og måned, skal være ens i de to grundlag; det gælder også den tilsvarende ægtefælle. Ægtefællerne skal ikke have samme fødselsdato som hinanden. Indkomster kan være forskellige, men helårsomregning ændrer ikke fødselsdatoen. Ens datoer beviser ikke personernes identitet. Afklar modstridende bilag uden at vælge dato efter skatteresultatet. For den tilsvarende ægtefælle skal også lønmodtager.kommune, lønmodtager.kirkeskat og lønmodtager.personfradrag_alder_status stemme mellem grundlagene. Kommune betyder årets skattekommune, ikke nødvendigvis bopæl i dag. Kirkeskat er den samme oplysning om hele indkomståret; medlemsperioder er fortsat ikke understøttet. Ægtefællerne kan have forskellige kommuner og kirkeskatteforhold fra hinanden. Ens oplysninger beviser ikke, at de er korrekte; afklar kilderne uden at kopiere en værdi blot for at få sammenligningen. Se personskat-delaar.md.",
+    sources = personskat_par14_kilder_2
+)
+# PersonskatPar14Helårsgrundlag = AfledtFraIdentificeredeKilder | DokumenteretHelårsPersonskat(personskat: PersonskatInput)
+# PersonskatPar14Input(
+    personskat: PersonskatInput,
+    @ field(
+        label = "Ændring i skattepligt",
+        question = "Indtrådte eller ophørte fuld eller begrænset skattepligt i indkomståret?",
+        help = "Afklar den juridiske skattepligtsperiode, ikke kun ansættelsesperioden. Færre lønmåneder betyder ikke i sig selv delårsskattepligt. Fra indkomståret 2023 henviser § 14, stk. 3, til § 10, stk. 5; tidligere år anvender stk. 6. Se personskat-delaar.md.",
+        sources = personskat_par14_kilder_2
+    )
+    skattepligtsændring: Par14Skattepligtsændring,
+    skattepligtsperiode: PersonskatPar14Skattepligtsperiode,
+    @ field(
+        label = "Valg af faktisk helårsindkomst efter § 14, stk. 2",
+        question = "Er der ved afgivelsen af oplysninger valgt beskatning efter den faktiske helårsindkomst i stedet for helårsomregning?",
+        help = "Ved dette valg skal faktisk helårsbeløb oplyses for hver kilde bortset fra aktieindkomst, som indgår uændret med det allerede oplyste delårsbeløb. Et udtrykkeligt årsbeløb for aktieindkomst skal stemme med delårsbeløbet.",
+        sources = personskat_par14_kilder_2
+    )
+    valg_afgivet_ved_oplysninger: Boolsk,
+    @ field(
+        label = "Dato for omvalg",
+        question = "Er § 14, stk. 2-valget senere omgjort, og i så fald på hvilken dato?",
+        help = "Lad feltet være tomt uden omvalg. Fristen er den 30. juni i det andet kalenderår efter indkomståret.",
+        unit = "ISO-dato",
+        sources = personskat_par14_kilder_2
+    )
+    omvalg_dato: Option(Dato),
+    @ field(
+        label = "Indkomstkilder til helårsomregning",
+        question = "Hvilke identificerede beløb skal omregnes eller bevares ved helårsberegningen?",
+        help = "Tilføj én række pr. beløb og vælg, om beløbet er løbende, et engangsbeløb eller kræver et dokumenteret retvisende helårsbeløb.",
+        sources = personskat_par14_kilder_2
+    )
+    kilder: List(PersonskatPar14Kilde),
+    helårsgrundlag: PersonskatPar14Helårsgrundlag
+)
+# PersonskatPar14Par11Resultat(input_gyldigt: Boolsk, delårsgrundlag: Par11NegativKapitalNedslagResultat, helårsgrundlag: Par11NegativKapitalNedslagResultat, delårs_beregnet_nedslag_øre: Heltal, helårs_beregnet_nedslag_øre: Heltal, delårs_anvendt_nedslag_i_kanonisk_beregning_øre: Heltal, helårs_anvendt_nedslag_i_kanonisk_beregning_øre: Heltal, modregning_efter_par14: Par11NedslagModregningResultat, anvendt_nedslag_efter_par14_øre: Heltal, ubrugt_nedslag_efter_par14_øre: Heltal, delårsafstemt: Boolsk, helårsafstemt: Boolsk)
+# PersonskatPar14DisGrundlag(dis_personlig_indkomst_kroner: Heltal, personlig_indkomstgrundlag_kroner: Heltal, personlig_og_positiv_kapitalindkomstgrundlag_kroner: Heltal, skattepligtig_indkomstgrundlag_kroner: Heltal)
+# PersonskatPar14DisResultat(input_gyldigt: Boolsk, delårsgrundlag: PersonskatPar14DisGrundlag, helårsgrundlag: PersonskatPar14DisGrundlag, komponenter_efter_par14: List(Søbl5EksaktLempelseskomponent), lempelse_før_skatteloft_øre: Heltal, henført_personligt_skatteloftsnedslag_beregning: PengeØreBeregning, henført_personligt_skatteloftsnedslag_øre: Heltal, højeste_lempelse_efter_par13_og_skatteloft_øre: Heltal, beregnet_lempelse_øre: Heltal, samlet_lempelse_øre: Heltal, anvendt_lempelse_øre: Heltal, ubrugt_lempelse_øre: Heltal, indkomstskat_før_dis_lempelse_øre: Heltal, indkomstskat_efter_dis_lempelse_øre: Heltal, afstemt: Boolsk)
+# PersonskatPar14EfterfølgendeSkatResultat(ligningslov33: Ligningslov33PersonÅrsresultat, ligningslov33a: Ligningslov33AÅrsresultat, ligningslov33_og_33a_nedslag_øre: Heltal, negativ_aktieindkomstskat: AktieindkomstNegativSkatParResultat, tidligere_fremført_negativ_aktieindkomstskat: AktieindkomstNegativSkatFremførselsparResultat, personskattelov_par8a_stk5_kredit_øre: Heltal, arbejdsmarkedsbidragslov_par6_kredit_øre: Heltal, afskrivningslov40c_acontoskat: PersonskatAfskrivningslov40CAcontoskatResultat, afskrivningslov40c_acontoskat_kredit_øre: Heltal, ligningslov33_understøttet: Boolsk, aktieskattekredit_understøttet: Boolsk, afskrivningslov40c_understøttet: Boolsk, slutskat_før_kreditter_øre: Heltal, endelig_arbejdsudlejebeskatning_øre: Heltal, slutskat_inkl_endelig_arbejdsudlejebeskatning_øre: Heltal)
+# PersonskatPar14BeregningResultat(vurdering: PersonskatBeregningsvurdering, input_gyldigt: Boolsk, periode_gyldig: Boolsk, kilder_gyldige: Boolsk, kilder_afstemt_med_personskat: Boolsk, helårsgrundlag_gyldigt: Boolsk, kanonisk_beregning_understøttet: Boolsk, helårsskattekomponenter_afstemt: Boolsk, skattepligtsdage: Heltal, valg: Par14ValgResultat, delårsresultat: PersonskatBeregningResultat, delårsinput: LønmodtagerInput, helårsinput: LønmodtagerInput, helårsberegning: LønmodtagerBreakdown, helårsberegning_eksakt: LønmodtagerEksaktBeregning, statslige_skattekomponenter: List(Par14SkattekomponentResultat), kommunale_og_kirkelige_skattekomponenter: List(Par14SkattekomponentResultat), skatteloftsnedslag: List(Par14SkattekomponentResultat), par11: PersonskatPar14Par11Resultat, sømandsbeskatning: PersonskatPar14DisResultat, statslig_indkomstskat_efter_par14_øre: Heltal, kommunal_og_kirkelig_indkomstskat_efter_par14_øre: Heltal, arbejdsmarkedsbidrag_for_delåret_øre: Heltal, ejendomsskatter_øre: Heltal, efterfølgende_skat: PersonskatPar14EfterfølgendeSkatResultat, slutskat_efter_par14_øre: Heltal, slutskat_efter_par14_kroner: Heltal, slutskat_inkl_endelig_arbejdsudlejebeskatning_øre: Heltal, slutskat_inkl_endelig_arbejdsudlejebeskatning_kroner: Heltal, årsopgørelse: PersonskatÅrsopgørelseResultat)
+
+= personskat_par14_beregningsmeta = Beregningsmeta(
+    felter = [
+        Beregningsfelt(
+            path = refof(PersonskatPar14Input::skattepligtsperiode::fra_dato::år),
+            label = "Skattepligtsperiodens startår",
+            question = Some("I hvilket år begyndte den danske skattepligtsperiode?"),
+            help = None,
+            unit = Some("år")
+        ),
+        Beregningsfelt(
+            path = refof(PersonskatPar14Input::skattepligtsperiode::fra_dato::måned),
+            label = "Skattepligtsperiodens startmåned",
+            question = Some("I hvilken måned begyndte den danske skattepligtsperiode?"),
+            help = None,
+            unit = Some("måned 1-12")
+        ),
+        Beregningsfelt(
+            path = refof(PersonskatPar14Input::skattepligtsperiode::fra_dato::dag),
+            label = "Skattepligtsperiodens startdag",
+            question = Some("På hvilken dag i måneden begyndte den danske skattepligtsperiode?"),
+            help = None,
+            unit = Some("dag")
+        ),
+        Beregningsfelt(
+            path = refof(PersonskatPar14Input::skattepligtsperiode::til_dato::år),
+            label = "Skattepligtsperiodens slutår",
+            question = Some("I hvilket år sluttede den danske skattepligtsperiode?"),
+            help = None,
+            unit = Some("år")
+        ),
+        Beregningsfelt(
+            path = refof(PersonskatPar14Input::skattepligtsperiode::til_dato::måned),
+            label = "Skattepligtsperiodens slutmåned",
+            question = Some("I hvilken måned sluttede den danske skattepligtsperiode?"),
+            help = None,
+            unit = Some("måned 1-12")
+        ),
+        Beregningsfelt(
+            path = refof(PersonskatPar14Input::skattepligtsperiode::til_dato::dag),
+            label = "Skattepligtsperiodens slutdag",
+            question = Some("På hvilken dag i måneden sluttede den danske skattepligtsperiode?"),
+            help = None,
+            unit = Some("dag")
+        )
+    ],
+    attachments = (
+        Source(value = personskatteloven_2021_1284),
+        DependencySource(value = kommuneskatteloven_2019_935),
+        AmendmentSource(value = personskat_personfradrag_aendring_2023_1564),
+        Guidance(value = personskat_kirkeskat_medlemsvejledning),
+        Guidance(value = personskat_par14_juridisk_vejledning),
+        Guidance(value = personskat_par14_indkomsttypevejledning),
+        Guidance(value = personskat_par14_beregningscirkulære),
+        Warning(value = personskat_par14_mellemtrin_forbehold),
+    )
+)
+
+-- Vurder den afsluttede § 14-beregning, ikke et indlejret helårsmellemtrin.
+-- Afregningen valideres mod dette trins skat, ikke den ordinære mellemregning.
+| personskat_par14_beregningsvurdering(kontroller: List(PersonskatInputkontrol), afregningskontroller: List(PersonskatInputkontrol), slutskat_øre: Heltal) -> {
+    = grundvurdering = personskat_beregningsvurdering_med_afregning(kontroller, afregningskontroller, slutskat_øre)
+    PersonskatBeregningsvurdering(
+        status = grundvurdering.status,
+        alle_kontroller_gyldige = grundvurdering.alle_kontroller_gyldige,
+        slutskat_til_sammenligning_øre = grundvurdering.slutskat_til_sammenligning_øre,
+        samlet_modeldækning_bekræftet = Falskt,
+        kontrolgrundlag = grundvurdering.kontrolgrundlag,
+        kontroller = grundvurdering.kontroller,
+        fejl = grundvurdering.fejl,
+        forbehold = concat(grundvurdering.forbehold, [
+            personskat_par14_mellemtrin_forbehold,
+            "Skattepligtsperiode, fuld eller begrænset skattepligt, omregningsmetode og eventuelt valg af faktisk helårsindkomst skal underbygges af kildefakta. Færre lønmåneder betyder ikke i sig selv delårsskattepligt. Se personskat-delaar.md.",
+            "Sammenligningsbeløbet er slutskat_efter_par14_øre for den modellerede del, ikke restskat, tilbagebetaling eller det særskilte beløb inklusive endelig arbejdsudlejebeskatning. En valgt betalingsafregning kontrolleres mod den afsluttede delårsberegning; fejl tilbageholder sammenligningen. Uden valgt afregning er et udbetalings- eller opkrævningsbeløb ikke fastlagt."
+        ])
+    )
+}
+
+| personskat_par14_kilder_for_felt(kilder: List(PersonskatPar14Kilde), felt: PersonskatPar14Beregningsfelt) -> filter(kilder, |kilde: PersonskatPar14Kilde| kilde.beregningsfelt == felt)
+| personskat_par14_delårsbeløb_for_felt(kilder: List(PersonskatPar14Kilde), felt: PersonskatPar14Beregningsfelt) -> foldl(
+    personskat_par14_kilder_for_felt(kilder, felt),
+    0,
+    |sum: Heltal, kilde: PersonskatPar14Kilde| sum + kilde.delårsbeløb_kroner
+)
+| personskat_par14_omregnet_helårsbeløb_for_kilde(kilde: PersonskatPar14Kilde, skattepligtsdage: Heltal, skatteår: Heltal) -> par14_helårsbeløb_for_post(Par14Beløbspost(
+    identifikation = kilde.identifikation,
+    delårsbeløb_kroner = kilde.delårsbeløb_kroner,
+    metode = kilde.omregningsmetode
+    ), skattepligtsdage, skatteår)
+| personskat_par14_omregnet_helårsbeløb_for_felt(kilder: List(PersonskatPar14Kilde), felt: PersonskatPar14Beregningsfelt, skattepligtsdage: Heltal, skatteår: Heltal) -> foldl(
+    personskat_par14_kilder_for_felt(kilder, felt),
+    0,
+    |sum: Heltal, kilde: PersonskatPar14Kilde| sum + personskat_par14_omregnet_helårsbeløb_for_kilde(kilde, skattepligtsdage, skatteår)
+)
+| personskat_par14_faktisk_helårsbeløb_for_kilde(kilde: PersonskatPar14Kilde) -> match kilde.faktisk_helårsbeløb_kroner {
+    | Some(beløb_kroner) -> beløb_kroner
+    | None -> hvis kilde.beregningsfelt == Par14Aktieindkomst { kilde.delårsbeløb_kroner } ellers { 0 }
+}
+| personskat_par14_faktisk_helårsbeløb_for_felt(kilder: List(PersonskatPar14Kilde), felt: PersonskatPar14Beregningsfelt) -> foldl(
+    personskat_par14_kilder_for_felt(kilder, felt),
+    0,
+    |sum: Heltal, kilde: PersonskatPar14Kilde| sum + personskat_par14_faktisk_helårsbeløb_for_kilde(kilde)
+)
+| personskat_par14_valgt_helårsbeløb_for_felt(kilder: List(PersonskatPar14Kilde), felt: PersonskatPar14Beregningsfelt, skattepligtsdage: Heltal, skatteår: Heltal, valg: Par14ValgResultat) -> hvis valg.helårsomregning_skal_ske {
+    personskat_par14_omregnet_helårsbeløb_for_felt(kilder, felt, skattepligtsdage, skatteår)
+} ellers {
+    personskat_par14_faktisk_helårsbeløb_for_felt(kilder, felt)
+}
+-- PSL § 14 omregner almindelig, personlig og kapitalindkomst, ikke aktieindkomst.
+-- Kontroller hver kilde: modsatrettede omregninger må ikke skjules i en sum.
+| personskat_par14_aktiekilde_uændret(kilde: PersonskatPar14Kilde, skattepligtsdage: Heltal, skatteår: Heltal, valg: Par14ValgResultat) -> kilde.beregningsfelt != Par14Aktieindkomst || personskat_par14_valgt_helårsbeløb_for_felt([kilde], Par14Aktieindkomst, skattepligtsdage, skatteår, valg) == kilde.delårsbeløb_kroner
+| personskat_par14_ll9j_kilde_gyldig(kilde: PersonskatPar14Kilde) -> kilde.delårsbeløb_kroner >= 0 && (match kilde.faktisk_helårsbeløb_kroner { | Some(beløb) -> beløb >= 0 | None -> Sandt }) && (match kilde.omregningsmetode { | Par14DokumenteretRetvisendeHelårsbeløb(beløb) -> beløb >= 0 | _ -> Sandt })
+| personskat_par14_kilde_gyldig(kilde: PersonskatPar14Kilde) -> kilde.identifikation != "" && (kilde.beregningsfelt != Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst || personskat_par14_ll9j_kilde_gyldig(kilde))
+-- Én særskilt afgrænsningsrække pr. udelukket post. Samme sum med andre
+-- kilder er ikke tilstrækkelig dokumentation. En kilde kun uden for delåret
+-- kræver nul i delåret og identifikation i det dokumenterede helårsgrundlag.
+| personskat_par14_ll9j_udelukkede_poster(input: PersonskatArbejdsfradragUdland) -> match input {
+    | FordeltArbejdsfradragsgrundlag(fordeling) -> filter(fordeling.poster, |post: Ll9jGrundlagspost| ll9j_udland_udelukket(post.forhold) == Some(Sandt))
+    | _ -> []
+}
+| personskat_par14_ll9j_kilder_afstemt(kilder: List(PersonskatPar14Kilde), resultat: PersonskatArbejdsfradragUdlandsresultat, helårsgrundlag: PersonskatPar14Helårsgrundlag) -> {
+    = poster = personskat_par14_ll9j_udelukkede_poster(resultat.input)
+    = helårsposter = match helårsgrundlag {
+        | DokumenteretHelårsPersonskat(personskat) -> personskat_par14_ll9j_udelukkede_poster(personskat.lønmodtager.ligningsfradrag.arbejdsfradrag_udland)
+        | AfledtFraIdentificeredeKilder -> []
+    }
+    = afgrænsninger = personskat_par14_kilder_for_felt(kilder, Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst)
+    all(poster, |post: Ll9jGrundlagspost| any(afgrænsninger, |kilde: PersonskatPar14Kilde| kilde.identifikation == post.identifikation && kilde.delårsbeløb_kroner == post.grundlag_kroner)) && all(afgrænsninger, |kilde: PersonskatPar14Kilde| any(poster, |post: Ll9jGrundlagspost| kilde.identifikation == post.identifikation && kilde.delårsbeløb_kroner == post.grundlag_kroner) || (kilde.delårsbeløb_kroner == 0 && any(helårsposter, |post: Ll9jGrundlagspost| post.identifikation == kilde.identifikation)))
+}
+| personskat_par14_ll9j_helårskilder_afstemt(kilder: List(PersonskatPar14Kilde), resultat: PersonskatArbejdsfradragUdlandsresultat, skattepligtsdage: Heltal, skatteår: Heltal, valg: Par14ValgResultat) -> {
+    = poster = personskat_par14_ll9j_udelukkede_poster(resultat.input)
+    = afgrænsninger = personskat_par14_kilder_for_felt(kilder, Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst)
+    all(poster, |post: Ll9jGrundlagspost| any(afgrænsninger, |kilde: PersonskatPar14Kilde| kilde.identifikation == post.identifikation && personskat_par14_valgt_helårsbeløb_for_felt([kilde], Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst, skattepligtsdage, skatteår, valg) == post.grundlag_kroner)) && all(afgrænsninger, |kilde: PersonskatPar14Kilde| personskat_par14_valgt_helårsbeløb_for_felt([kilde], Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst, skattepligtsdage, skatteår, valg) == 0 || any(poster, |post: Ll9jGrundlagspost| post.identifikation == kilde.identifikation))
+}
+| personskat_par14_kildeidentifikationer_entydige(kilder: List(PersonskatPar14Kilde)) -> length(distinct(map(kilder, |kilde: PersonskatPar14Kilde| kilde.identifikation))) == length(kilder)
+| personskat_par14_faktiske_helårsbeløb_oplyst(kilder: List(PersonskatPar14Kilde)) -> all(kilder, |kilde: PersonskatPar14Kilde| match kilde.faktisk_helårsbeløb_kroner { | Some(_) -> Sandt | None -> kilde.beregningsfelt == Par14Aktieindkomst })
+| personskat_par14_kilder_gyldige(kilder: List(PersonskatPar14Kilde), valg: Par14ValgResultat) -> length(kilder) > 0 && personskat_par14_kildeidentifikationer_entydige(kilder) && all(kilder, personskat_par14_kilde_gyldig) && (valg.helårsomregning_skal_ske || personskat_par14_faktiske_helårsbeløb_oplyst(kilder))
+
+| personskat_par14_skattepligtsdage(periode: PersonskatPar14Skattepligtsperiode) -> dato_dage_fra_og_med_til_og_med(periode.fra_dato, periode.til_dato)
+| personskat_par14_periodegrænser_matcher(status: Par14Skattepligtsændring, periode: PersonskatPar14Skattepligtsperiode, skatteår: Heltal) -> match status {
+    | FuldSkattepligtIndtræder -> periode.til_dato == Dato(år = skatteår, måned = 12, dag = 31) && periode.fra_dato != Dato(år = skatteår, måned = 1, dag = 1)
+    | FuldSkattepligtOphører -> periode.fra_dato == Dato(år = skatteår, måned = 1, dag = 1) && periode.til_dato != Dato(år = skatteår, måned = 12, dag = 31)
+    | BegrænsetSkattepligtPar10Stk6Indtræder -> periode.til_dato == Dato(år = skatteår, måned = 12, dag = 31) && periode.fra_dato != Dato(år = skatteår, måned = 1, dag = 1)
+    | BegrænsetSkattepligtPar10Stk6Ophører -> periode.fra_dato == Dato(år = skatteår, måned = 1, dag = 1) && periode.til_dato != Dato(år = skatteår, måned = 12, dag = 31)
+    | BegrænsetSkattepligtPar10Stk5Indtræder -> periode.til_dato == Dato(år = skatteår, måned = 12, dag = 31) && periode.fra_dato != Dato(år = skatteår, måned = 1, dag = 1)
+    | BegrænsetSkattepligtPar10Stk5Ophører -> periode.fra_dato == Dato(år = skatteår, måned = 1, dag = 1) && periode.til_dato != Dato(år = skatteår, måned = 12, dag = 31)
+    | IngenSkattepligtsændring -> Falskt
+}
+| personskat_par14_periode_gyldig(status: Par14Skattepligtsændring, periode: PersonskatPar14Skattepligtsperiode, skatteår: Heltal) -> dato_gyldig(periode.fra_dato) && dato_gyldig(periode.til_dato) && periode.fra_dato.år == skatteår && periode.til_dato.år == skatteår && dato_før_eller_lig_med(periode.fra_dato, periode.til_dato) && par14_skattepligtsdage_gyldige(skatteår, personskat_par14_skattepligtsdage(periode)) && par14_helårsomregning_gælder_for_skatteår(status, skatteår) && personskat_par14_periodegrænser_matcher(status, periode, skatteår)
+| personskat_par14_skattepligt_forenelig(status: Par14Skattepligtsændring, forhold: LønmodtagerSkatteforhold) -> match status {
+    | FuldSkattepligtIndtræder -> forhold.personfradrag_skattepligt == FuldtSkattepligtigHerILandet
+    | FuldSkattepligtOphører -> forhold.personfradrag_skattepligt == FuldtSkattepligtigHerILandet
+    | BegrænsetSkattepligtPar10Stk6Indtræder -> forhold.personfradrag_skattepligt == KildeskattelovPar2DelårValgtRelevantIndtægt
+    | BegrænsetSkattepligtPar10Stk6Ophører -> forhold.personfradrag_skattepligt == KildeskattelovPar2DelårValgtRelevantIndtægt
+    | BegrænsetSkattepligtPar10Stk5Indtræder -> forhold.personfradrag_skattepligt == KildeskattelovPar2DelårValgtRelevantIndtægt
+    | BegrænsetSkattepligtPar10Stk5Ophører -> forhold.personfradrag_skattepligt == KildeskattelovPar2DelårValgtRelevantIndtægt
+    | IngenSkattepligtsændring -> Falskt
+}
+-- § 14 omregner indkomst for samme person; personens fødselsdato omregnes ikke.
+-- Lighed er en faktakontrol, ikke identitetsbevis eller valg af den rigtige dato.
+| personskat_par14_helårsstruktur_forenelig(delårsinput: LønmodtagerInput, helårsinput: LønmodtagerInput, delårsforhold: LønmodtagerSkatteforhold, helårsforhold: LønmodtagerSkatteforhold) -> delårsinput.skatteår == helårsinput.skatteår && delårsinput.kommune == helårsinput.kommune && delårsinput.pensionsfradrag.fødselsdato == helårsinput.pensionsfradrag.fødselsdato && delårsinput.personfradrag_alder_status == helårsinput.personfradrag_alder_status && delårsinput.betaler_kirkeskat == helårsinput.betaler_kirkeskat && delårsforhold.par8c_status == helårsforhold.par8c_status && delårsforhold.personfradrag_skattepligt == helårsforhold.personfradrag_skattepligt && delårsforhold.personfradrag_valg_dato_yyyymmdd == helårsforhold.personfradrag_valg_dato_yyyymmdd && delårsforhold.personfradrag_omvalg_dato_yyyymmdd == helårsforhold.personfradrag_omvalg_dato_yyyymmdd
+
+| personskat_par14_delårsinput(resultat: PersonskatBeregningResultat, input: PersonskatInput) -> LønmodtagerInput(
+    ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = personskat_arbejdsfradrag_udelukket_til_diagnostik(resultat.arbejdsfradrag_udland),
+    skatteår = input.lønmodtager.skatteår,
+    kommune = input.lønmodtager.kommune,
+    bruttoløn_kroner = resultat.skat.bruttoløn_kroner,
+    øvrig_personlig_indkomst_kroner = resultat.skat.øvrig_personlig_indkomst_kroner,
+    nettokapitalindkomst_kroner = resultat.skat.nettokapitalindkomst_kroner,
+    ligningsmæssige_fradrag_kroner = resultat.skat.øvrige_ligningsmæssige_fradrag_kroner,
+    pensionsfradrag = resultat.pension.lønmodtager_pensionsfradrag,
+    personfradrag_alder_status = input.lønmodtager.personfradrag_alder_status,
+    betaler_kirkeskat = personskat_kirkeskat_til_helårsberegning(input.lønmodtager.kirkeskat)
+)
+| personskat_par14_helårspensionsfradrag(delårsfradrag: LønmodtagerPensionsfradrag, kilder: List(PersonskatPar14Kilde), skattepligtsdage: Heltal, skatteår: Heltal, valg: Par14ValgResultat) -> LønmodtagerPensionsfradrag(
+    fødselsdato = delårsfradrag.fødselsdato,
+    pbl18_fradragsberettiget_indbetaling_kroner = personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Pbl18FradragsberettigetIndbetaling, skattepligtsdage, skatteår, valg),
+    pbl19_rate_ophørende_arbejdsindkomst_før_am_kroner = personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Pbl19RateOgOphørendeFørArbejdsmarkedsbidrag, skattepligtsdage, skatteår, valg),
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Pbl19RateOgOphørendeEfterArbejdsmarkedsbidrag, skattepligtsdage, skatteår, valg),
+    pbl19_øvrige_indbetalinger_efter_am_kroner = personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Pbl19ØvrigeIndbetalingerEfterArbejdsmarkedsbidrag, skattepligtsdage, skatteår, valg),
+    øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14ØvrigtArbejdsmarkedsbidragsgrundlagMedIndeholdtBidrag, skattepligtsdage, skatteår, valg),
+    ambl_par2_stk1_nr5_arbejdsmarkedsbidragsgrundlag_kroner = personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14AmblPar2Stk1Nr5Arbejdsmarkedsbidragsgrundlag, skattepligtsdage, skatteår, valg),
+    pbl20_indkomstskattepligtig_udbetaling_kroner = personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Pbl20IndkomstskattepligtigUdbetaling, skattepligtsdage, skatteår, valg),
+    pbl20_udbetaling_status = delårsfradrag.pbl20_udbetaling_status
+)
+| personskat_par14_helårsinput(delårsinput: LønmodtagerInput, kilder: List(PersonskatPar14Kilde), skattepligtsdage: Heltal, valg: Par14ValgResultat) -> LønmodtagerInput(
+    ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner = personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst, skattepligtsdage, delårsinput.skatteår, valg),
+    skatteår = delårsinput.skatteår,
+    kommune = delårsinput.kommune,
+    bruttoløn_kroner = personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Bruttoløn, skattepligtsdage, delårsinput.skatteår, valg),
+    øvrig_personlig_indkomst_kroner = personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14ØvrigPersonligIndkomst, skattepligtsdage, delårsinput.skatteår, valg) + personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14DisPersonligIndkomst, skattepligtsdage, delårsinput.skatteår, valg),
+    nettokapitalindkomst_kroner = personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Nettokapitalindkomst, skattepligtsdage, delårsinput.skatteår, valg),
+    ligningsmæssige_fradrag_kroner = personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14ØvrigeLigningsmæssigeFradrag, skattepligtsdage, delårsinput.skatteår, valg),
+    pensionsfradrag = personskat_par14_helårspensionsfradrag(delårsinput.pensionsfradrag, kilder, skattepligtsdage, delårsinput.skatteår, valg),
+    personfradrag_alder_status = delårsinput.personfradrag_alder_status,
+    betaler_kirkeskat = delårsinput.betaler_kirkeskat
+)
+| personskat_par14_kilder_afstemt_med_delårsinput(kilder: List(PersonskatPar14Kilde), delårsinput: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold, dis_personlig_indkomst_kroner: Heltal) -> personskat_par14_delårsbeløb_for_felt(kilder, Par14Bruttoløn) == delårsinput.bruttoløn_kroner && personskat_par14_delårsbeløb_for_felt(kilder, Par14ØvrigPersonligIndkomst) + personskat_par14_delårsbeløb_for_felt(kilder, Par14DisPersonligIndkomst) == delårsinput.øvrig_personlig_indkomst_kroner && personskat_par14_delårsbeløb_for_felt(kilder, Par14DisPersonligIndkomst) == dis_personlig_indkomst_kroner && personskat_par14_delårsbeløb_for_felt(kilder, Par14Nettokapitalindkomst) == delårsinput.nettokapitalindkomst_kroner && personskat_par14_delårsbeløb_for_felt(kilder, Par14ØvrigeLigningsmæssigeFradrag) == delårsinput.ligningsmæssige_fradrag_kroner && personskat_par14_delårsbeløb_for_felt(kilder, Par14Pbl18FradragsberettigetIndbetaling) == delårsinput.pensionsfradrag.pbl18_fradragsberettiget_indbetaling_kroner && personskat_par14_delårsbeløb_for_felt(kilder, Par14Pbl19RateOgOphørendeFørArbejdsmarkedsbidrag) == delårsinput.pensionsfradrag.pbl19_rate_ophørende_arbejdsindkomst_før_am_kroner && personskat_par14_delårsbeløb_for_felt(kilder, Par14Pbl19RateOgOphørendeEfterArbejdsmarkedsbidrag) == delårsinput.pensionsfradrag.pbl19_rate_ophørende_bortseelsesret_efter_am_kroner && personskat_par14_delårsbeløb_for_felt(kilder, Par14Pbl19ØvrigeIndbetalingerEfterArbejdsmarkedsbidrag) == delårsinput.pensionsfradrag.pbl19_øvrige_indbetalinger_efter_am_kroner && personskat_par14_delårsbeløb_for_felt(kilder, Par14ØvrigtArbejdsmarkedsbidragsgrundlagMedIndeholdtBidrag) == delårsinput.pensionsfradrag.øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner && personskat_par14_delårsbeløb_for_felt(kilder, Par14AmblPar2Stk1Nr5Arbejdsmarkedsbidragsgrundlag) == delårsinput.pensionsfradrag.ambl_par2_stk1_nr5_arbejdsmarkedsbidragsgrundlag_kroner && personskat_par14_delårsbeløb_for_felt(kilder, Par14Pbl20IndkomstskattepligtigUdbetaling) == delårsinput.pensionsfradrag.pbl20_indkomstskattepligtig_udbetaling_kroner && personskat_par14_delårsbeløb_for_felt(kilder, Par14Aktieindkomst) == skatteforhold.aktieindkomst_kroner && personskat_par14_delårsbeløb_for_felt(kilder, Par14CfcIndkomst) == skatteforhold.cfc_indkomst_kroner && personskat_par14_delårsbeløb_for_felt(kilder, Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst) == delårsinput.ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner
+| personskat_par14_kilder_afstemt_med_valgt_helår(kilder: List(PersonskatPar14Kilde), helårsinput: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold, dis_personlig_indkomst_kroner: Heltal, skattepligtsdage: Heltal, valg: Par14ValgResultat) -> personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Bruttoløn, skattepligtsdage, helårsinput.skatteår, valg) == helårsinput.bruttoløn_kroner && personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14ØvrigPersonligIndkomst, skattepligtsdage, helårsinput.skatteår, valg) + personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14DisPersonligIndkomst, skattepligtsdage, helårsinput.skatteår, valg) == helårsinput.øvrig_personlig_indkomst_kroner && personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14DisPersonligIndkomst, skattepligtsdage, helårsinput.skatteår, valg) == dis_personlig_indkomst_kroner && personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Nettokapitalindkomst, skattepligtsdage, helårsinput.skatteår, valg) == helårsinput.nettokapitalindkomst_kroner && personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14ØvrigeLigningsmæssigeFradrag, skattepligtsdage, helårsinput.skatteår, valg) == helårsinput.ligningsmæssige_fradrag_kroner && personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Pbl18FradragsberettigetIndbetaling, skattepligtsdage, helårsinput.skatteår, valg) == helårsinput.pensionsfradrag.pbl18_fradragsberettiget_indbetaling_kroner && personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Pbl19RateOgOphørendeFørArbejdsmarkedsbidrag, skattepligtsdage, helårsinput.skatteår, valg) == helårsinput.pensionsfradrag.pbl19_rate_ophørende_arbejdsindkomst_før_am_kroner && personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Pbl19RateOgOphørendeEfterArbejdsmarkedsbidrag, skattepligtsdage, helårsinput.skatteår, valg) == helårsinput.pensionsfradrag.pbl19_rate_ophørende_bortseelsesret_efter_am_kroner && personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Pbl19ØvrigeIndbetalingerEfterArbejdsmarkedsbidrag, skattepligtsdage, helårsinput.skatteår, valg) == helårsinput.pensionsfradrag.pbl19_øvrige_indbetalinger_efter_am_kroner && personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14ØvrigtArbejdsmarkedsbidragsgrundlagMedIndeholdtBidrag, skattepligtsdage, helårsinput.skatteår, valg) == helårsinput.pensionsfradrag.øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner && personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14AmblPar2Stk1Nr5Arbejdsmarkedsbidragsgrundlag, skattepligtsdage, helårsinput.skatteår, valg) == helårsinput.pensionsfradrag.ambl_par2_stk1_nr5_arbejdsmarkedsbidragsgrundlag_kroner && personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Pbl20IndkomstskattepligtigUdbetaling, skattepligtsdage, helårsinput.skatteår, valg) == helårsinput.pensionsfradrag.pbl20_indkomstskattepligtig_udbetaling_kroner && personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Aktieindkomst, skattepligtsdage, helårsinput.skatteår, valg) == skatteforhold.aktieindkomst_kroner && personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14CfcIndkomst, skattepligtsdage, helårsinput.skatteår, valg) == skatteforhold.cfc_indkomst_kroner && personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Ll9jUdelukketUdenlandskAnsættelsesindkomst, skattepligtsdage, helårsinput.skatteår, valg) == helårsinput.ll9j_udelukket_udenlandsk_ansættelsesindkomst_kroner
+| personskat_par14_skatteforhold_med_valgte_helårsbeløb(forhold: LønmodtagerSkatteforhold, kilder: List(PersonskatPar14Kilde), skattepligtsdage: Heltal, skatteår: Heltal, valg: Par14ValgResultat) -> LønmodtagerSkatteforhold(
+    aktieindkomst_kroner = personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14Aktieindkomst, skattepligtsdage, skatteår, valg),
+    ægtefælle_aktieindkomst_kroner = forhold.ægtefælle_aktieindkomst_kroner,
+    aktieindkomst_ægtefæller_samlevende_ved_årets_udløb = forhold.aktieindkomst_ægtefæller_samlevende_ved_årets_udløb,
+    ægtefælle_nettokapitalindkomst_kroner = forhold.ægtefælle_nettokapitalindkomst_kroner,
+    kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb = forhold.kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb,
+    cfc_indkomst_kroner = personskat_par14_valgt_helårsbeløb_for_felt(kilder, Par14CfcIndkomst, skattepligtsdage, skatteår, valg),
+    par8c_status = forhold.par8c_status,
+    personfradrag_skattepligt = forhold.personfradrag_skattepligt,
+    personfradrag_valg_dato_yyyymmdd = forhold.personfradrag_valg_dato_yyyymmdd,
+    personfradrag_omvalg_dato_yyyymmdd = forhold.personfradrag_omvalg_dato_yyyymmdd
+)
+| personskat_par14_uden_ægtefælle(input: PersonskatÆgtefælleInput) -> match input { | UdenÆgtefælle -> Sandt | _ -> Falskt }
+-- Begge grundlag beskriver samme indkomstårs udløb, ikke hver sin periodes
+-- civilstand. Kontrollen beviser ikke ægtefællens identitet eller samliv.
+-- Skattekommune, helårskirkeskat og personfradragsstatus er heller ikke
+-- indkomstbeløb, der omregnes. Sammenlign samme ægtefælle, ikke parrets personer.
+| personskat_par14_ægtefælleforhold_forenelige(delår: PersonskatÆgtefælleInput, helår: PersonskatÆgtefælleInput, skatteår: Heltal) -> match delår {
+    | UdenÆgtefælle -> personskat_par14_uden_ægtefælle(helår)
+    | ÆgtefællegrundlagUoplyst -> Falskt
+    | MedÆgtefælle(delårsfakta, delårssamliv, _) -> match helår {
+        | MedÆgtefælle(helårsfakta, helårssamliv, _) -> delårssamliv == helårssamliv && delårsfakta.lønmodtager.skatteår == skatteår && helårsfakta.lønmodtager.skatteår == skatteår && delårsfakta.lønmodtager.pension.fødselsdato == helårsfakta.lønmodtager.pension.fødselsdato && delårsfakta.lønmodtager.kommune == helårsfakta.lønmodtager.kommune && delårsfakta.lønmodtager.kirkeskat == helårsfakta.lønmodtager.kirkeskat && delårsfakta.lønmodtager.personfradrag_alder_status == helårsfakta.lønmodtager.personfradrag_alder_status
+        | _ -> Falskt
+    }
+}
+| personskat_par14_standardunderskud(input: PersonskatUnderskudsforholdInput) -> match input { | StandardUnderskudsforhold -> Sandt | _ -> Falskt }
+| personskat_par14_udenlandske_sociale_bidrag_gyldige(resultat: PersonskatUdenlandskeSocialeBidragResultat) -> match resultat {
+    | IngenUdenlandskeSocialeBidragEfterLigningslov8M -> Sandt
+    | BeregnetUdenlandskSocialbidragsfradrag(_, _, _, _, _, _) -> Sandt
+    | UgyldigtUdenlandskSocialbidragsgrundlag(_, _, _) -> Falskt
+}
+| personskat_par14_kursgevinst_par32_gyldig(resultat: PersonskatKursgevinstPar32ParResultat) -> match resultat {
+    | IntetPar32Kontraktforløb -> Sandt
+    | BeregnetPar32Kontraktforløb(_, _, _, _, input_gyldigt) -> input_gyldigt
+}
+| personskat_par14_pension_gyldig(resultat: PersonskatPensionsResultat) -> resultat.pensionsalder_resultat.input_gyldigt && resultat.oplysningsstatus.aktuelle_oplysninger_komplette && resultat.oplysningsstatus.foregående_oplysninger_tilstrækkelige && resultat.pbl18_årsresultat.input_gyldigt && resultat.arbejdsgiverydelser_resultat.alle_input_gyldige && resultat.atp_resultat.alle_input_gyldige && resultat.ambl_par2_stk1_nr5_resultat.input_gyldigt && resultat.udbetalingsresultat.aktuelle_input_gyldige && resultat.udbetalingsresultat.foregående_input_gyldige
+-- § 14 har egne sammensætningskontroller, men må ikke miste den eksplicitte
+-- kirkeskattekontrol for hovedperson/aktiv ægtefælle i nogen af grundlagene.
+| personskat_par14_kirkeskat_afklaret(resultat: PersonskatBeregningResultat) -> any(resultat.vurdering.kontroller, |kontrol: PersonskatInputkontrol| kontrol.sti == "lønmodtager.kirkeskat" && kontrol.gyldig) && all(resultat.vurdering.kontroller, |kontrol: PersonskatInputkontrol| (kontrol.sti != "lønmodtager.kirkeskat" && kontrol.sti != "ægtefælle.MedÆgtefælle.fakta.lønmodtager.kirkeskat") || kontrol.gyldig)
+| personskat_par14_ægtefællegrundlag_afklaret(resultat: PersonskatBeregningResultat) -> any(resultat.vurdering.kontroller, |kontrol: PersonskatInputkontrol| kontrol.sti == "ægtefælle.$variant" && kontrol.gyldig)
+-- Det særskilte § 14-grundlag skal også bevare en aktiv ægtefælles rutefejl.
+| personskat_par14_ejendomsdrift_afklaret(resultat: PersonskatBeregningResultat) -> all(resultat.vurdering.kontroller, |kontrol: PersonskatInputkontrol| (kontrol.sti != "kapitalindkomst.ejendomsdrift" && kontrol.sti != "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.ejendomsdrift") || kontrol.gyldig)
+| personskat_par14_finansielle_poster_afklaret(resultat: PersonskatBeregningResultat) -> all(resultat.vurdering.kontroller, |kontrol: PersonskatInputkontrol| (kontrol.sti != "kapitalindkomst.finansielle_poster" && kontrol.sti != "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.finansielle_poster") || kontrol.gyldig)
+| personskat_par14_resultatgrundlag_gyldigt(resultat: PersonskatBeregningResultat) -> personskat_par14_kildekontroller_gyldige(resultat.vurdering.kontrolgrundlag) && personskat_par14_finansielle_poster_afklaret(resultat) && personskat_par14_ejendomsdrift_afklaret(resultat) && personskat_par14_ægtefællegrundlag_afklaret(resultat) && personskat_par14_kirkeskat_afklaret(resultat) && resultat.personlig_indkomst.alle_input_gyldige && resultat.erhvervsbefordring.alle_input_gyldige && resultat.ligningsfradrag.alle_input_gyldige && resultat.kapitalindkomst.alle_input_gyldige && resultat.aktieavance.alle_input_gyldige && resultat.cfc.alle_input_gyldige && personskat_par14_pension_gyldig(resultat.pension) && personskat_par14_udenlandske_sociale_bidrag_gyldige(resultat.udenlandske_sociale_bidrag) && personskat_par14_kursgevinst_par32_gyldig(resultat.kursgevinst_par32) && resultat.kildeskat25a.alle_input_gyldige && resultat.underskudsår.alle_åbningsgrundlag_gyldige && resultat.personskattelov13a.alle_kildegrundlag_gyldige && resultat.personskattelov13a.stk2_nedsættelser_stabile && resultat.aktieindkomst_parår.input_gyldigt && resultat.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige && resultat.ejendomsskatter.alle_input_gyldige && resultat.ejendomsskatter.regelgrundlag_understøttet && resultat.ligningslov33.input_gyldigt && resultat.ligningslov33a.input_gyldigt && resultat.kildeskat_par8a_kredit_input_gyldigt && resultat.kildeskat_ambl_par6_kredit_input_gyldigt && resultat.kildeskat_al40c_acontoskat_input_gyldigt && resultat.afskrivningslov40c_acontoskat.kildefakta_gyldige && resultat.arbejdsfradrag_udland.alle_input_gyldige
+| personskat_par14_resultat_afstemt(resultat: PersonskatBeregningResultat) -> resultat.sømandsbeskatning.input_gyldigt && resultat.sømandsbeskatning_eksakt.input_gyldigt && resultat.eksakt_ordinær_skat_efter_dis_øre == resultat.sømandsbeskatning_eksakt.samlet_skat_inkl_am_efter_dis_lempelse_øre && resultat.sømandsbeskatning_eksakt.indkomstskat_før_dis_lempelse_øre == resultat.hovedskat_eksakt.samlet_indkomstskat_øre && resultat.sømandsbeskatning_eksakt.arbejdsmarkedsbidrag_øre == resultat.hovedskat_eksakt.arbejdsmarkedsbidrag_øre
+| personskat_par14_uden_ægtefællelempelse(input: PersonskatLigningslov33ParInput) -> input.ægtefælle == UdenLigningslov33 && input.ligningslov33a_ægtefælle == UdenLigningslov33A
+| personskat_par14_uden_afskrivningslov40c(input: PersonskatÅrsopgørelseInput) -> match personskat_afskrivningslov40c_acontoskat_kilde(input) {
+    | UdenAfskrivningslov40CAcontoskat -> Sandt
+    | MedAfskrivningslov40CAcontoskat(_) -> Falskt
+}
+| personskat_par14_uden_negativ_aktieskattekredit(resultat: PersonskatBeregningResultat) -> resultat.negativ_aktieindkomstskat.samlet_negativ_skat_kroner == 0 && resultat.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.samlet_negativ_skat_primo_kroner == 0
+| personskat_par14_personligt_grundlag_kroner(input: LønmodtagerInput) -> penge_positivt_beløb(personlig_indkomst_efter_am(input))
+| personskat_par14_positivt_kapitalgrundlag_kroner(input: LønmodtagerInput) -> penge_positivt_beløb(input.nettokapitalindkomst_kroner)
+| personskat_par14_par7_grundlag_kroner(input: LønmodtagerInput) -> personskat_par14_personligt_grundlag_kroner(input) + personskat_par14_positivt_kapitalgrundlag_kroner(input)
+| personskat_par14_bundskattegrundlag_kroner(input: LønmodtagerInput) -> personskat_par14_bundskattegrundlag_med_skatteforhold_kroner(input, lønmodtager_standard_skatteforhold())
+| personskat_par14_bundskattegrundlag_med_skatteforhold_kroner(input: LønmodtagerInput, forhold: LønmodtagerSkatteforhold) -> penge_positivt_beløb(lønmodtager_bundskat_grundlag_med_skatteforhold(input, forhold))
+| personskat_par14_skattepligtigt_grundlag_kroner(input: LønmodtagerInput) -> penge_positivt_beløb(almindelig_skattepligtig_indkomst_fixture(input))
+| personskat_par14_skattepligtigt_resultatgrundlag_kroner(resultat: LønmodtagerBreakdown) -> penge_positivt_beløb(resultat.almindelig_skattepligtig_indkomst_kroner)
+| personskat_par14_positiv_aktieindkomst_kroner(forhold: LønmodtagerSkatteforhold) -> penge_positivt_beløb(forhold.aktieindkomst_kroner)
+| personskat_par14_positiv_cfc_indkomst_kroner(forhold: LønmodtagerSkatteforhold) -> penge_positivt_beløb(forhold.cfc_indkomst_kroner)
+| personskat_par14_par8_grundlag_kroner(input: LønmodtagerInput): Int -> personskat_par14_skattepligtigt_grundlag_kroner(input) under input.skatteår < 2026
+| exception personskat_par14_toptopskat_personligt_grundlag personskat_par14_par8_grundlag_kroner(input) -> personskat_par14_personligt_grundlag_kroner(input) under input.skatteår >= 2026
+| personskat_par14_skattekomponent(art: Par14Skattekomponentart, helårsskat_øre: Heltal, delårsgrundlag_kroner: Heltal, helårsgrundlag_kroner: Heltal) -> par14_skattekomponent_resultat(Par14SkattekomponentInput(
+    art = art,
+    helårsskat_øre = helårsskat_øre,
+    delårsgrundlag_kroner = delårsgrundlag_kroner,
+    helårsgrundlag_kroner = helårsgrundlag_kroner
+))
+| personskat_par14_par11_skatter(komponenter: LønmodtagerEksakteSkattekomponenter) -> Par11NedslagSkatter(
+    par6_skat_kroner = komponenter.par6_skat_øre,
+    par7_skat_kroner = komponenter.par7_skat_øre,
+    par7a_skat_kroner = komponenter.par7a_skat_øre,
+    par8_skat_kroner = komponenter.par8_skat_øre,
+    par8a_stk2_skat_kroner = komponenter.par8a_stk2_skat_øre,
+    par8c_skat_kroner = komponenter.par8c_skat_øre,
+    kommuneskat_kroner = komponenter.kommuneskat_øre,
+    kirkeskat_kroner = komponenter.kirkeskat_øre
+)
+| personskat_par14_par11_anvendt_nedslag_øre(før: LønmodtagerEksakteSkattekomponenter, efter: LønmodtagerEksakteSkattekomponenter) -> lønmodtager_eksakte_statslige_skatter(før) + lønmodtager_eksakte_kommunale_og_kirkelige_skatter(før) - lønmodtager_eksakte_statslige_skatter(efter) - lønmodtager_eksakte_kommunale_og_kirkelige_skatter(efter)
+| personskat_par14_par11_modregning(nedslag_øre: Heltal, komponenter: LønmodtagerEksakteSkattekomponenter, gift_samlevende_ved_årets_udløb: Boolsk) -> par11_nedslag_modregning_resultat(Par11NedslagModregningInput(
+    nedslag_kroner = nedslag_øre,
+    skatter = personskat_par14_par11_skatter(komponenter),
+    gift_samlevende_ved_årets_udløb = gift_samlevende_ved_årets_udløb
+))
+
+-- Gendan PSL §§ 6 og 11's kapitalforhold fra den samme kanoniske beregning,
+-- som leverer skatten. Delår og dokumenteret helår må ikke dele et gættet
+-- ægtefællebeløb. Øvrige skatteforhold, herunder aktieindkomst, ændres ikke her.
+| personskat_par14_skatteforhold_med_kapital(input: PersonskatInput, resultat: PersonskatBeregningResultat) -> {
+    = forhold = personskat_skatteforhold(input.skatteforhold, resultat.personlig_indkomst, resultat.aktieavance, resultat.cfc)
+    match resultat.ægtefælle {
+        | IngenÆgtefælleberegning -> forhold
+        | BeregnetÆgtefælle(_, grundlag, _, samlevende_ved_indkomstårets_udløb) -> LønmodtagerSkatteforhold(
+            aktieindkomst_kroner = forhold.aktieindkomst_kroner,
+            ægtefælle_aktieindkomst_kroner = forhold.ægtefælle_aktieindkomst_kroner,
+            aktieindkomst_ægtefæller_samlevende_ved_årets_udløb = forhold.aktieindkomst_ægtefæller_samlevende_ved_årets_udløb,
+            ægtefælle_nettokapitalindkomst_kroner = grundlag.lønmodtager_input.nettokapitalindkomst_kroner,
+            kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb = samlevende_ved_indkomstårets_udløb && input.lønmodtager.skatteår == grundlag.fakta.lønmodtager.skatteår,
+            cfc_indkomst_kroner = forhold.cfc_indkomst_kroner,
+            par8c_status = forhold.par8c_status,
+            personfradrag_skattepligt = forhold.personfradrag_skattepligt,
+            personfradrag_valg_dato_yyyymmdd = forhold.personfradrag_valg_dato_yyyymmdd,
+            personfradrag_omvalg_dato_yyyymmdd = forhold.personfradrag_omvalg_dato_yyyymmdd
+        )
+    }
+}
+
+-- Kildeafstemningen ovenfor bruger egen aktieindkomst før PSL § 8 a.
+-- Skattekomponenterne skal derimod bruge den samme modregning og ægtefælles
+-- grundbeløb som den kanoniske skat, uden at omskrive kilderne.
+| personskat_par14_aktieskatteforhold(forhold: LønmodtagerSkatteforhold, parår: AktieindkomstParÅrsskatResultat) -> personskat_skatteforhold_med_aktieindkomster_og_ægtefælle(
+    forhold,
+    parår.egen_aktieindkomst_efter_ægtefællemodregning_kroner,
+    parår.ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner,
+    forhold.ægtefælle_nettokapitalindkomst_kroner,
+    parår.input.samlevende_ved_årets_udløb
+)
+
+# PersonskatPar14BeregningSag(input: PersonskatPar14Input) {
+    | skatteår() -> input.personskat.lønmodtager.skatteår
+    | delårsresultat() -> beregn_personskat(input.personskat)
+    | skatteforhold() -> personskat_par14_skatteforhold_med_kapital(input.personskat, delårsresultat())
+    | aktieskatteforhold() -> personskat_par14_aktieskatteforhold(skatteforhold(), delårsresultat().aktieindkomst_parår)
+    | delårsinput() -> personskat_par14_delårsinput(delårsresultat(), input.personskat)
+    | delårs_bundskattegrundlag_kroner() -> personskat_par14_bundskattegrundlag_med_skatteforhold_kroner(delårsinput(), skatteforhold())
+    | helårs_bundskattegrundlag_kroner() -> personskat_par14_bundskattegrundlag_med_skatteforhold_kroner(helårsinput(), helårsskatteforhold())
+    | delårs_dis_personlig_indkomst_kroner() -> delårsresultat().sømandsbeskatning_eksakt.dis_personlig_indkomst_kroner
+    | delårsberegning_eksakt() -> delårsresultat().hovedskat_eksakt
+    | skattepligtsdage() -> personskat_par14_skattepligtsdage(input.skattepligtsperiode)
+    | periode_gyldig() -> personskat_par14_periode_gyldig(input.skattepligtsændring, input.skattepligtsperiode, skatteår())
+    | valg() -> par14_valg_resultat(Par14ValgInput(
+        skatteår = skatteår(),
+        skattepligtsændring = input.skattepligtsændring,
+        valg_afgivet_ved_oplysninger = input.valg_afgivet_ved_oplysninger,
+        omvalg_dato = input.omvalg_dato
+    ))
+    | kilder_gyldige() -> personskat_par14_kilder_gyldige(input.kilder, valg()) && all(input.kilder, |kilde: PersonskatPar14Kilde| personskat_par14_aktiekilde_uændret(kilde, skattepligtsdage(), skatteår(), valg()))
+    | kilder_afstemt_med_personskat() -> personskat_par14_kilder_afstemt_med_delårsinput(input.kilder, delårsinput(), skatteforhold(), delårs_dis_personlig_indkomst_kroner()) && personskat_par14_ll9j_kilder_afstemt(input.kilder, delårsresultat().arbejdsfradrag_udland, input.helårsgrundlag)
+    | bruger_dokumenteret_helårsgrundlag() -> match input.helårsgrundlag {
+        | AfledtFraIdentificeredeKilder -> Falskt
+        | DokumenteretHelårsPersonskat(_) -> Sandt
+    }
+    | dokumenteret_helårspersonskat() -> match input.helårsgrundlag {
+        | AfledtFraIdentificeredeKilder -> input.personskat
+        | DokumenteretHelårsPersonskat(personskat) -> personskat
+    }
+    | helårsresultat() -> beregn_personskat(dokumenteret_helårspersonskat())
+    | helårsinput() -> match input.helårsgrundlag {
+        | AfledtFraIdentificeredeKilder -> personskat_par14_helårsinput(delårsinput(), input.kilder, skattepligtsdage(), valg())
+        | DokumenteretHelårsPersonskat(personskat) -> personskat_par14_delårsinput(helårsresultat(), personskat)
+    }
+    | helårsskatteforhold() -> match input.helårsgrundlag {
+        | AfledtFraIdentificeredeKilder -> personskat_par14_skatteforhold_med_valgte_helårsbeløb(skatteforhold(), input.kilder, skattepligtsdage(), skatteår(), valg())
+        | DokumenteretHelårsPersonskat(personskat) -> personskat_par14_skatteforhold_med_kapital(personskat, helårsresultat())
+    }
+    | helårsaktieskatteforhold() -> match input.helårsgrundlag {
+        | AfledtFraIdentificeredeKilder -> helårsskatteforhold()
+        | DokumenteretHelårsPersonskat(_) -> personskat_par14_aktieskatteforhold(helårsskatteforhold(), helårsresultat().aktieindkomst_parår)
+    }
+    | helårsberegning() -> match input.helårsgrundlag {
+        | AfledtFraIdentificeredeKilder -> beregn_lønmodtager_med_skatteforhold(helårsinput(), helårsskatteforhold())
+        | DokumenteretHelårsPersonskat(_) -> helårsresultat().skat
+    }
+    | helårsberegning_eksakt() -> match input.helårsgrundlag {
+        | AfledtFraIdentificeredeKilder -> beregn_lønmodtager_eksakt(helårsinput(), helårsskatteforhold(), lønmodtager_par13_standard_forhold())
+        | DokumenteretHelårsPersonskat(_) -> helårsresultat().hovedskat_eksakt
+    }
+    | helårs_dis_personlig_indkomst_kroner() -> match input.helårsgrundlag {
+        | AfledtFraIdentificeredeKilder -> personskat_par14_valgt_helårsbeløb_for_felt(input.kilder, Par14DisPersonligIndkomst, skattepligtsdage(), skatteår(), valg())
+        | DokumenteretHelårsPersonskat(_) -> helårsresultat().sømandsbeskatning_eksakt.dis_personlig_indkomst_kroner
+    }
+    | helårsgrundlag_gyldigt() -> {
+        = grundstruktur_forenelig = personskat_par14_helårsstruktur_forenelig(delårsinput(), helårsinput(), skatteforhold(), helårsskatteforhold())
+        = kilder_afstemt = personskat_par14_kilder_afstemt_med_valgt_helår(input.kilder, helårsinput(), helårsskatteforhold(), helårs_dis_personlig_indkomst_kroner(), skattepligtsdage(), valg())
+        = dokumenteret_resultat_gyldigt = match input.helårsgrundlag {
+            | AfledtFraIdentificeredeKilder -> Sandt
+            | DokumenteretHelårsPersonskat(personskat) -> personskat_par14_ægtefælleforhold_forenelige(input.personskat.ægtefælle, personskat.ægtefælle, skatteår()) && personskat_par14_resultatgrundlag_gyldigt(helårsresultat()) && personskat_par14_resultat_afstemt(helårsresultat()) && personskat_par14_ll9j_helårskilder_afstemt(input.kilder, helårsresultat().arbejdsfradrag_udland, skattepligtsdage(), skatteår(), valg())
+        }
+        grundstruktur_forenelig && kilder_afstemt && dokumenteret_resultat_gyldigt
+    }
+    | kanonisk_beregning_understøttet() -> {
+        = resultat = delårsresultat()
+        = grundstruktur_understøttet = (bruger_dokumenteret_helårsgrundlag() || (personskat_par14_uden_ægtefælle(input.personskat.ægtefælle) && personskat_par14_standardunderskud(input.personskat.underskudsforhold))) && personskat_par14_skattepligt_forenelig(input.skattepligtsændring, skatteforhold())
+        grundstruktur_understøttet && personskat_par14_resultatgrundlag_gyldigt(resultat) && personskat_par14_resultat_afstemt(resultat) && helårsgrundlag_gyldigt()
+    }
+    | omregning() -> Par14OmregningInput(
+        skatteår = skatteår(),
+        delårs_skattepligtig_indkomst_kroner = delårsresultat().skat.almindelig_skattepligtig_indkomst_kroner,
+        delårs_personlig_indkomst_kroner = delårsresultat().skat.personlig_indkomst_efter_am_kroner,
+        delårs_kapitalindkomst_kroner = delårsresultat().skat.nettokapitalindkomst_kroner,
+        skattepligtsdage = skattepligtsdage(),
+        skattepligtige_indkomstposter = [Par14Beløbspost(
+            identifikation = "kanonisk-skattepligtig-indkomst",
+            delårsbeløb_kroner = delårsresultat().skat.almindelig_skattepligtig_indkomst_kroner,
+            metode = Par14DokumenteretRetvisendeHelårsbeløb(helårsbeløb_kroner = helårsberegning().almindelig_skattepligtig_indkomst_kroner)
+        )],
+        personlige_indkomstposter = [Par14Beløbspost(
+            identifikation = "kanonisk-personlig-indkomst",
+            delårsbeløb_kroner = delårsresultat().skat.personlig_indkomst_efter_am_kroner,
+            metode = Par14DokumenteretRetvisendeHelårsbeløb(helårsbeløb_kroner = helårsberegning().personlig_indkomst_efter_am_kroner)
+        )],
+        kapitalindkomstposter = [Par14Beløbspost(
+            identifikation = "kanonisk-kapitalindkomst",
+            delårsbeløb_kroner = delårsresultat().skat.nettokapitalindkomst_kroner,
+            metode = Par14DokumenteretRetvisendeHelårsbeløb(helårsbeløb_kroner = helårsberegning().nettokapitalindkomst_kroner)
+        )]
+    )
+    | helårspositiv_aktieindkomstskat() -> personskat_positiv_aktieindkomstskat(skatteår(), helårsaktieskatteforhold())
+    | helårsendelig_aktieindkomstskat_øre() -> personskat_endelig_aktieindkomstskat_øre(skatteår(), helårspositiv_aktieindkomstskat())
+    | helårsendelig_aktieindkomstskat_kontrol_øre() -> match input.helårsgrundlag {
+        | AfledtFraIdentificeredeKilder -> helårsendelig_aktieindkomstskat_øre()
+        | DokumenteretHelårsPersonskat(_) -> helårsresultat().endelig_aktieindkomstskat_øre
+    }
+    | endelig_aktieindkomstskat_komponent() -> personskat_par14_skattekomponent(
+        Par14EndeligAktieindkomstskat,
+        helårsendelig_aktieindkomstskat_øre(),
+        personskat_par14_positiv_aktieindkomst_kroner(aktieskatteforhold()),
+        personskat_par14_positiv_aktieindkomst_kroner(helårsaktieskatteforhold())
+    )
+    | statslige_skattekomponenter() -> [
+        personskat_par14_skattekomponent(Par14Bundskat, helårsberegning_eksakt().efter_personfradrag.par6_skat_øre, delårs_bundskattegrundlag_kroner(), helårs_bundskattegrundlag_kroner()),
+        personskat_par14_skattekomponent(Par14Par7Skat, helårsberegning_eksakt().efter_personfradrag.par7_skat_øre, personskat_par14_par7_grundlag_kroner(delårsinput()), personskat_par14_par7_grundlag_kroner(helårsinput())),
+        personskat_par14_skattekomponent(Par14Par7ASkat, helårsberegning_eksakt().efter_personfradrag.par7a_skat_øre, personskat_par14_personligt_grundlag_kroner(delårsinput()), personskat_par14_personligt_grundlag_kroner(helårsinput())),
+        personskat_par14_skattekomponent(Par14Par8Skat, helårsberegning_eksakt().efter_personfradrag.par8_skat_øre, personskat_par14_par8_grundlag_kroner(delårsinput()), personskat_par14_par8_grundlag_kroner(helårsinput())),
+        personskat_par14_skattekomponent(Par14Par8AStk2Skat, helårsberegning_eksakt().efter_personfradrag.par8a_stk2_skat_øre, personskat_par14_positiv_aktieindkomst_kroner(aktieskatteforhold()), personskat_par14_positiv_aktieindkomst_kroner(helårsaktieskatteforhold())),
+        personskat_par14_skattekomponent(Par14CfcIndkomstskat, helårsberegning_eksakt().efter_personfradrag.cfc_indkomstskat_øre, personskat_par14_positiv_cfc_indkomst_kroner(skatteforhold()), personskat_par14_positiv_cfc_indkomst_kroner(helårsskatteforhold())),
+        personskat_par14_skattekomponent(Par14Par8CBegrænsetSkat, helårsberegning_eksakt().efter_personfradrag.par8c_skat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())),
+        endelig_aktieindkomstskat_komponent()
+    ]
+    | kommunale_og_kirkelige_skattekomponenter() -> [
+        personskat_par14_skattekomponent(Par14Kommuneskat, helårsberegning_eksakt().efter_personfradrag.kommuneskat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())),
+        personskat_par14_skattekomponent(Par14Kirkeskat, helårsberegning_eksakt().efter_personfradrag.kirkeskat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning()))
+    ]
+    | skatteloftsnedslag() -> [
+        personskat_par14_skattekomponent(Par14PersonligtSkatteloftsnedslag, helårsberegning_eksakt().skatteloft.personligt_nedslag_øre, personskat_par14_personligt_grundlag_kroner(delårsinput()), personskat_par14_personligt_grundlag_kroner(helårsinput())),
+        personskat_par14_skattekomponent(Par14PositivKapitalSkatteloftsnedslag, helårsberegning_eksakt().skatteloft.positiv_kapital_nedslag_øre, personskat_par14_positivt_kapitalgrundlag_kroner(delårsinput()), personskat_par14_positivt_kapitalgrundlag_kroner(helårsinput()))
+    ]
+    | komponenter_før_par11_efter_par14() -> LønmodtagerEksakteSkattekomponenter(
+        par6_skat_øre = personskat_par14_skattekomponent(Par14Bundskat, helårsberegning_eksakt().efter_personfradrag.par6_skat_øre, delårs_bundskattegrundlag_kroner(), helårs_bundskattegrundlag_kroner()).delårsskat_øre,
+        par7_skat_øre = personskat_par14_skattekomponent(Par14Par7Skat, helårsberegning_eksakt().efter_personfradrag.par7_skat_øre, personskat_par14_par7_grundlag_kroner(delårsinput()), personskat_par14_par7_grundlag_kroner(helårsinput())).delårsskat_øre,
+        par7a_skat_øre = personskat_par14_skattekomponent(Par14Par7ASkat, helårsberegning_eksakt().efter_personfradrag.par7a_skat_øre, personskat_par14_personligt_grundlag_kroner(delårsinput()), personskat_par14_personligt_grundlag_kroner(helårsinput())).delårsskat_øre,
+        par8_skat_øre = personskat_par14_skattekomponent(Par14Par8Skat, helårsberegning_eksakt().efter_personfradrag.par8_skat_øre, personskat_par14_par8_grundlag_kroner(delårsinput()), personskat_par14_par8_grundlag_kroner(helårsinput())).delårsskat_øre,
+        par8a_stk2_skat_øre = personskat_par14_skattekomponent(Par14Par8AStk2Skat, helårsberegning_eksakt().efter_personfradrag.par8a_stk2_skat_øre, personskat_par14_positiv_aktieindkomst_kroner(aktieskatteforhold()), personskat_par14_positiv_aktieindkomst_kroner(helårsaktieskatteforhold())).delårsskat_øre,
+        cfc_indkomstskat_øre = personskat_par14_skattekomponent(Par14CfcIndkomstskat, helårsberegning_eksakt().efter_personfradrag.cfc_indkomstskat_øre, personskat_par14_positiv_cfc_indkomst_kroner(skatteforhold()), personskat_par14_positiv_cfc_indkomst_kroner(helårsskatteforhold())).delårsskat_øre,
+        par8c_skat_øre = personskat_par14_skattekomponent(Par14Par8CBegrænsetSkat, helårsberegning_eksakt().efter_personfradrag.par8c_skat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())).delårsskat_øre,
+        kommuneskat_øre = personskat_par14_skattekomponent(Par14Kommuneskat, helårsberegning_eksakt().efter_personfradrag.kommuneskat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())).delårsskat_øre,
+        kirkeskat_øre = personskat_par14_skattekomponent(Par14Kirkeskat, helårsberegning_eksakt().efter_personfradrag.kirkeskat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())).delårsskat_øre
+    )
+    | delårs_par11_grundlag() -> par11_negativ_kapital_nedslag_resultat(Par11NegativKapitalNedslagInput(
+        skatteår = skatteår(),
+        nettokapitalindkomst_kroner = delårsinput().nettokapitalindkomst_kroner,
+        ægtefælle_nettokapitalindkomst_kroner = skatteforhold().ægtefælle_nettokapitalindkomst_kroner,
+        gift_samlevende_ved_årets_udløb = skatteforhold().kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb,
+        betaler_kommunal_eller_par8c = lønmodtager_kommunal_eller_par8c_basispoint(delårsinput(), skatteforhold()) > 0
+    ))
+    | helårs_par11_grundlag() -> par11_negativ_kapital_nedslag_resultat(Par11NegativKapitalNedslagInput(
+        skatteår = skatteår(),
+        nettokapitalindkomst_kroner = helårsinput().nettokapitalindkomst_kroner,
+        ægtefælle_nettokapitalindkomst_kroner = helårsskatteforhold().ægtefælle_nettokapitalindkomst_kroner,
+        gift_samlevende_ved_årets_udløb = helårsskatteforhold().kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb,
+        betaler_kommunal_eller_par8c = lønmodtager_kommunal_eller_par8c_basispoint(helårsinput(), helårsskatteforhold()) > 0
+    ))
+    | delårs_beregnet_par11_nedslag_øre() -> penge_beløb_gange_basispoint_øre(delårs_par11_grundlag().nedslagsgrundlag_kroner, delårs_par11_grundlag().sats_basispoint)
+    | helårs_beregnet_par11_nedslag_øre() -> penge_beløb_gange_basispoint_øre(helårs_par11_grundlag().nedslagsgrundlag_kroner, helårs_par11_grundlag().sats_basispoint)
+    | delårs_anvendt_par11_nedslag_i_kanonisk_beregning_øre() -> personskat_par14_par11_anvendt_nedslag_øre(delårsberegning_eksakt().efter_personfradrag, delårsberegning_eksakt().efter_par11)
+    | helårs_anvendt_par11_nedslag_i_kanonisk_beregning_øre() -> personskat_par14_par11_anvendt_nedslag_øre(helårsberegning_eksakt().efter_personfradrag, helårsberegning_eksakt().efter_par11)
+    | delårs_par11_kontrolmodregning() -> personskat_par14_par11_modregning(delårs_anvendt_par11_nedslag_i_kanonisk_beregning_øre(), delårsberegning_eksakt().efter_personfradrag, Falskt)
+    | helårs_par11_kontrolmodregning() -> personskat_par14_par11_modregning(helårs_anvendt_par11_nedslag_i_kanonisk_beregning_øre(), helårsberegning_eksakt().efter_personfradrag, Falskt)
+    | delårs_par11_afstemt() -> lønmodtager_eksakte_komponenter_fra_par11(delårs_par11_kontrolmodregning(), delårsberegning_eksakt().efter_personfradrag) == delårsberegning_eksakt().efter_par11
+    | helårs_par11_afstemt() -> lønmodtager_eksakte_komponenter_fra_par11(helårs_par11_kontrolmodregning(), helårsberegning_eksakt().efter_personfradrag) == helårsberegning_eksakt().efter_par11
+    | par11_modregning_efter_par14() -> personskat_par14_par11_modregning(delårs_anvendt_par11_nedslag_i_kanonisk_beregning_øre(), komponenter_før_par11_efter_par14(), skatteforhold().kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb)
+    | komponenter_efter_par11_og_par14() -> lønmodtager_eksakte_komponenter_fra_par11(par11_modregning_efter_par14(), komponenter_før_par11_efter_par14())
+    | anvendt_par11_nedslag_efter_par14_øre() -> personskat_par14_par11_anvendt_nedslag_øre(komponenter_før_par11_efter_par14(), komponenter_efter_par11_og_par14())
+    | par11() -> PersonskatPar14Par11Resultat(
+        input_gyldigt = delårs_par11_afstemt() && helårs_par11_afstemt(),
+        delårsgrundlag = delårs_par11_grundlag(),
+        helårsgrundlag = helårs_par11_grundlag(),
+        delårs_beregnet_nedslag_øre = delårs_beregnet_par11_nedslag_øre(),
+        helårs_beregnet_nedslag_øre = helårs_beregnet_par11_nedslag_øre(),
+        delårs_anvendt_nedslag_i_kanonisk_beregning_øre = delårs_anvendt_par11_nedslag_i_kanonisk_beregning_øre(),
+        helårs_anvendt_nedslag_i_kanonisk_beregning_øre = helårs_anvendt_par11_nedslag_i_kanonisk_beregning_øre(),
+        modregning_efter_par14 = par11_modregning_efter_par14(),
+        anvendt_nedslag_efter_par14_øre = anvendt_par11_nedslag_efter_par14_øre(),
+        ubrugt_nedslag_efter_par14_øre = par11_modregning_efter_par14().ubrugt_efter_egne_skatter_kroner,
+        delårsafstemt = delårs_par11_afstemt(),
+        helårsafstemt = helårs_par11_afstemt()
+    )
+    | statslig_ordinær_skat_før_skatteloftsnedslag_øre() -> lønmodtager_eksakte_statslige_skatter(komponenter_efter_par11_og_par14())
+    | kommunal_og_kirkelig_skat_efter_par11_og_par14_øre() -> lønmodtager_eksakte_kommunale_og_kirkelige_skatter(komponenter_efter_par11_og_par14())
+    | samlet_skatteloftsnedslag_øre() -> par14_samlet_delårsskat_for_komponenter_øre(skatteloftsnedslag())
+    | helårsskattekomponenter_afstemt() -> par14_samlet_helårsskat_for_komponenter_øre(statslige_skattekomponenter()) == lønmodtager_eksakte_statslige_skatter(helårsberegning_eksakt().efter_personfradrag) + helårsendelig_aktieindkomstskat_kontrol_øre() && par14_samlet_helårsskat_for_komponenter_øre(kommunale_og_kirkelige_skattekomponenter()) == lønmodtager_eksakte_kommunale_og_kirkelige_skatter(helårsberegning_eksakt().efter_personfradrag) && par14_samlet_helårsskat_for_komponenter_øre(skatteloftsnedslag()) == helårsberegning_eksakt().skatteloft.samlet_nedslag_øre && helårs_par11_afstemt()
+    | ligningslov33_skattekomponenter() -> LønmodtagerEksakteSkattekomponenter(
+        par6_skat_øre = personskat_par14_skattekomponent(Par14Bundskat, helårsberegning_eksakt().efter_par13.par6_skat_øre, delårs_bundskattegrundlag_kroner(), helårs_bundskattegrundlag_kroner()).delårsskat_øre,
+        par7_skat_øre = personskat_par14_skattekomponent(Par14Par7Skat, helårsberegning_eksakt().efter_par13.par7_skat_øre, personskat_par14_par7_grundlag_kroner(delårsinput()), personskat_par14_par7_grundlag_kroner(helårsinput())).delårsskat_øre,
+        par7a_skat_øre = personskat_par14_skattekomponent(Par14Par7ASkat, helårsberegning_eksakt().efter_par13.par7a_skat_øre, personskat_par14_personligt_grundlag_kroner(delårsinput()), personskat_par14_personligt_grundlag_kroner(helårsinput())).delårsskat_øre,
+        par8_skat_øre = personskat_par14_skattekomponent(Par14Par8Skat, helårsberegning_eksakt().efter_par13.par8_skat_øre, personskat_par14_par8_grundlag_kroner(delårsinput()), personskat_par14_par8_grundlag_kroner(helårsinput())).delårsskat_øre,
+        par8a_stk2_skat_øre = personskat_par14_skattekomponent(Par14Par8AStk2Skat, helårsberegning_eksakt().efter_par13.par8a_stk2_skat_øre, personskat_par14_positiv_aktieindkomst_kroner(aktieskatteforhold()), personskat_par14_positiv_aktieindkomst_kroner(helårsaktieskatteforhold())).delårsskat_øre,
+        cfc_indkomstskat_øre = personskat_par14_skattekomponent(Par14CfcIndkomstskat, helårsberegning_eksakt().efter_par13.cfc_indkomstskat_øre, personskat_par14_positiv_cfc_indkomst_kroner(skatteforhold()), personskat_par14_positiv_cfc_indkomst_kroner(helårsskatteforhold())).delårsskat_øre,
+        par8c_skat_øre = personskat_par14_skattekomponent(Par14Par8CBegrænsetSkat, helårsberegning_eksakt().efter_par13.par8c_skat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())).delårsskat_øre,
+        kommuneskat_øre = personskat_par14_skattekomponent(Par14Kommuneskat, helårsberegning_eksakt().efter_par13.kommuneskat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())).delårsskat_øre,
+        kirkeskat_øre = personskat_par14_skattekomponent(Par14Kirkeskat, helårsberegning_eksakt().efter_par13.kirkeskat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())).delårsskat_øre
+    )
+    | komponenter_før_nedsættelser_efter_par14() -> LønmodtagerEksakteSkattekomponenter(
+        par6_skat_øre = personskat_par14_skattekomponent(Par14Bundskat, helårsberegning_eksakt().før_nedsættelser.par6_skat_øre, delårs_bundskattegrundlag_kroner(), helårs_bundskattegrundlag_kroner()).delårsskat_øre,
+        par7_skat_øre = personskat_par14_skattekomponent(Par14Par7Skat, helårsberegning_eksakt().før_nedsættelser.par7_skat_øre, personskat_par14_par7_grundlag_kroner(delårsinput()), personskat_par14_par7_grundlag_kroner(helårsinput())).delårsskat_øre,
+        par7a_skat_øre = personskat_par14_skattekomponent(Par14Par7ASkat, helårsberegning_eksakt().før_nedsættelser.par7a_skat_øre, personskat_par14_personligt_grundlag_kroner(delårsinput()), personskat_par14_personligt_grundlag_kroner(helårsinput())).delårsskat_øre,
+        par8_skat_øre = personskat_par14_skattekomponent(Par14Par8Skat, helårsberegning_eksakt().før_nedsættelser.par8_skat_øre, personskat_par14_par8_grundlag_kroner(delårsinput()), personskat_par14_par8_grundlag_kroner(helårsinput())).delårsskat_øre,
+        par8a_stk2_skat_øre = personskat_par14_skattekomponent(Par14Par8AStk2Skat, helårsberegning_eksakt().før_nedsættelser.par8a_stk2_skat_øre, personskat_par14_positiv_aktieindkomst_kroner(aktieskatteforhold()), personskat_par14_positiv_aktieindkomst_kroner(helårsaktieskatteforhold())).delårsskat_øre,
+        cfc_indkomstskat_øre = personskat_par14_skattekomponent(Par14CfcIndkomstskat, helårsberegning_eksakt().før_nedsættelser.cfc_indkomstskat_øre, personskat_par14_positiv_cfc_indkomst_kroner(skatteforhold()), personskat_par14_positiv_cfc_indkomst_kroner(helårsskatteforhold())).delårsskat_øre,
+        par8c_skat_øre = personskat_par14_skattekomponent(Par14Par8CBegrænsetSkat, helårsberegning_eksakt().før_nedsættelser.par8c_skat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())).delårsskat_øre,
+        kommuneskat_øre = personskat_par14_skattekomponent(Par14Kommuneskat, helårsberegning_eksakt().før_nedsættelser.kommuneskat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())).delårsskat_øre,
+        kirkeskat_øre = personskat_par14_skattekomponent(Par14Kirkeskat, helårsberegning_eksakt().før_nedsættelser.kirkeskat_øre, personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat), personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())).delårsskat_øre
+    )
+    | dis_delårsgrundlag() -> PersonskatPar14DisGrundlag(
+        dis_personlig_indkomst_kroner = delårs_dis_personlig_indkomst_kroner(),
+        personlig_indkomstgrundlag_kroner = personskat_par14_personligt_grundlag_kroner(delårsinput()),
+        personlig_og_positiv_kapitalindkomstgrundlag_kroner = personskat_par14_par7_grundlag_kroner(delårsinput()),
+        skattepligtig_indkomstgrundlag_kroner = personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat)
+    )
+    | dis_helårsgrundlag() -> PersonskatPar14DisGrundlag(
+        dis_personlig_indkomst_kroner = helårs_dis_personlig_indkomst_kroner(),
+        personlig_indkomstgrundlag_kroner = personskat_par14_personligt_grundlag_kroner(helårsinput()),
+        personlig_og_positiv_kapitalindkomstgrundlag_kroner = personskat_par14_par7_grundlag_kroner(helårsinput()),
+        skattepligtig_indkomstgrundlag_kroner = personskat_par14_skattepligtigt_resultatgrundlag_kroner(helårsberegning())
+    )
+    | dis_kildegrundlag_gyldigt() -> delårsresultat().sømandsbeskatning_eksakt.input_gyldigt && delårs_dis_personlig_indkomst_kroner() >= 0 && helårs_dis_personlig_indkomst_kroner() >= 0
+    | dis_mellemskat_øre() -> hvis skatteår() >= 2026 { komponenter_før_nedsættelser_efter_par14().par7_skat_øre } ellers { 0 }
+    | dis_topskat_øre() -> hvis skatteår() >= 2026 { komponenter_før_nedsættelser_efter_par14().par7a_skat_øre } ellers { komponenter_før_nedsættelser_efter_par14().par7_skat_øre }
+    | dis_toptopskat_øre() -> hvis skatteår() >= 2026 { komponenter_før_nedsættelser_efter_par14().par8_skat_øre } ellers { 0 }
+    | dis_udligningsskat_øre() -> hvis skatteår() < 2026 { komponenter_før_nedsættelser_efter_par14().par7a_skat_øre } ellers { 0 }
+    | dis_sundhedsbidrag_øre() -> hvis skatteår() < 2026 { komponenter_før_nedsættelser_efter_par14().par8_skat_øre } ellers { 0 }
+    | dis_topskattegrundlag_kroner() -> hvis skatteår() >= 2026 { dis_delårsgrundlag().personlig_indkomstgrundlag_kroner } ellers { dis_delårsgrundlag().personlig_og_positiv_kapitalindkomstgrundlag_kroner }
+    | dis_lempelseskomponenter() -> [
+        søbl5_eksakt_komponent(Søbl5Bundskat, komponenter_før_nedsættelser_efter_par14().par6_skat_øre, delårs_dis_personlig_indkomst_kroner(), dis_delårsgrundlag().personlig_og_positiv_kapitalindkomstgrundlag_kroner),
+        søbl5_eksakt_komponent(Søbl5Mellemskat, dis_mellemskat_øre(), delårs_dis_personlig_indkomst_kroner(), dis_delårsgrundlag().personlig_og_positiv_kapitalindkomstgrundlag_kroner),
+        søbl5_eksakt_komponent(Søbl5Topskat, dis_topskat_øre(), delårs_dis_personlig_indkomst_kroner(), dis_topskattegrundlag_kroner()),
+        søbl5_eksakt_komponent(Søbl5Toptopskat, dis_toptopskat_øre(), delårs_dis_personlig_indkomst_kroner(), dis_delårsgrundlag().personlig_indkomstgrundlag_kroner),
+        søbl5_eksakt_komponent(Søbl5Udligningsskat, dis_udligningsskat_øre(), delårs_dis_personlig_indkomst_kroner(), dis_delårsgrundlag().personlig_indkomstgrundlag_kroner),
+        søbl5_eksakt_komponent(Søbl5Sundhedsbidrag, dis_sundhedsbidrag_øre(), delårs_dis_personlig_indkomst_kroner(), dis_delårsgrundlag().skattepligtig_indkomstgrundlag_kroner),
+        søbl5_eksakt_komponent(Søbl5KommunalLignendeStatsskat, komponenter_før_nedsættelser_efter_par14().par8c_skat_øre, delårs_dis_personlig_indkomst_kroner(), dis_delårsgrundlag().skattepligtig_indkomstgrundlag_kroner),
+        søbl5_eksakt_komponent(Søbl5Kommuneskat, komponenter_før_nedsættelser_efter_par14().kommuneskat_øre, delårs_dis_personlig_indkomst_kroner(), dis_delårsgrundlag().skattepligtig_indkomstgrundlag_kroner),
+        søbl5_eksakt_komponent(Søbl5Kirkeskat, komponenter_før_nedsættelser_efter_par14().kirkeskat_øre, delårs_dis_personlig_indkomst_kroner(), dis_delårsgrundlag().skattepligtig_indkomstgrundlag_kroner),
+    ]
+    | dis_lempelse_før_skatteloft_øre() -> søbl5_eksakt_lempelse_før_skatteloft_øre(dis_lempelseskomponenter())
+    | dis_henført_personligt_skatteloftsnedslag_beregning() -> søbl5_eksakt_forholdsmæssig_beregning(
+        skatteloftsnedslag()[0].delårsskat_øre,
+        delårs_dis_personlig_indkomst_kroner(),
+        dis_delårsgrundlag().personlig_indkomstgrundlag_kroner
+    )
+    | dis_højeste_lempelse_efter_par13_og_skatteloft_øre() -> penge_positivt_beløb(lønmodtager_eksakte_statslige_skatter(ligningslov33_skattekomponenter()) + lønmodtager_eksakte_kommunale_og_kirkelige_skatter(ligningslov33_skattekomponenter()) - samlet_skatteloftsnedslag_øre())
+    | dis_beregnet_lempelse_øre() -> penge_positivt_beløb(dis_lempelse_før_skatteloft_øre() - dis_henført_personligt_skatteloftsnedslag_beregning().øre_nedrundet)
+    | par14_kerne_gyldig() -> periode_gyldig() && valg().input_gyldigt && kilder_gyldige() && kilder_afstemt_med_personskat() && helårsgrundlag_gyldigt() && kanonisk_beregning_understøttet() && par14_omregningsinput_gyldigt(omregning()) && par14_skattekomponenter_gyldige(statslige_skattekomponenter()) && par14_skattekomponenter_gyldige(kommunale_og_kirkelige_skattekomponenter()) && par14_skattekomponenter_gyldige(skatteloftsnedslag()) && par11().input_gyldigt && dis_kildegrundlag_gyldigt() && helårsskattekomponenter_afstemt()
+    | statslig_ordinær_indkomstskat_efter_par14_øre() -> hvis par14_kerne_gyldig() { penge_positivt_beløb(statslig_ordinær_skat_før_skatteloftsnedslag_øre() - samlet_skatteloftsnedslag_øre()) } ellers { 0 }
+    | statslig_indkomstskat_efter_par14_øre() -> statslig_ordinær_indkomstskat_efter_par14_øre() + hvis par14_kerne_gyldig() { endelig_aktieindkomstskat_komponent().delårsskat_øre } ellers { 0 }
+    | kommunal_og_kirkelig_indkomstskat_efter_par14_øre() -> hvis par14_kerne_gyldig() { kommunal_og_kirkelig_skat_efter_par11_og_par14_øre() } ellers { 0 }
+    | ordinær_indkomstskat_før_dis_lempelse_øre() -> statslig_ordinær_indkomstskat_efter_par14_øre() + kommunal_og_kirkelig_indkomstskat_efter_par14_øre()
+    | dis_samlet_lempelse_øre() -> hvis par14_kerne_gyldig() { søbl5_mindste_beløb(dis_beregnet_lempelse_øre(), dis_højeste_lempelse_efter_par13_og_skatteloft_øre()) } ellers { 0 }
+    | ordinær_indkomstskat_efter_dis_lempelse_øre() -> penge_positivt_beløb(ordinær_indkomstskat_før_dis_lempelse_øre() - dis_samlet_lempelse_øre())
+    | dis_anvendt_lempelse_øre() -> ordinær_indkomstskat_før_dis_lempelse_øre() - ordinær_indkomstskat_efter_dis_lempelse_øre()
+    | dis_ubrugt_lempelse_øre() -> dis_samlet_lempelse_øre() - dis_anvendt_lempelse_øre()
+    | dis_afstemt() -> dis_samlet_lempelse_øre() == dis_anvendt_lempelse_øre() + dis_ubrugt_lempelse_øre() && ordinær_indkomstskat_før_dis_lempelse_øre() == ordinær_indkomstskat_efter_dis_lempelse_øre() + dis_anvendt_lempelse_øre()
+    | sømandsbeskatning() -> PersonskatPar14DisResultat(
+        input_gyldigt = par14_kerne_gyldig() && dis_afstemt(),
+        delårsgrundlag = dis_delårsgrundlag(),
+        helårsgrundlag = dis_helårsgrundlag(),
+        komponenter_efter_par14 = dis_lempelseskomponenter(),
+        lempelse_før_skatteloft_øre = dis_lempelse_før_skatteloft_øre(),
+        henført_personligt_skatteloftsnedslag_beregning = dis_henført_personligt_skatteloftsnedslag_beregning(),
+        henført_personligt_skatteloftsnedslag_øre = dis_henført_personligt_skatteloftsnedslag_beregning().øre_nedrundet,
+        højeste_lempelse_efter_par13_og_skatteloft_øre = dis_højeste_lempelse_efter_par13_og_skatteloft_øre(),
+        beregnet_lempelse_øre = dis_beregnet_lempelse_øre(),
+        samlet_lempelse_øre = dis_samlet_lempelse_øre(),
+        anvendt_lempelse_øre = dis_anvendt_lempelse_øre(),
+        ubrugt_lempelse_øre = dis_ubrugt_lempelse_øre(),
+        indkomstskat_før_dis_lempelse_øre = ordinær_indkomstskat_før_dis_lempelse_øre(),
+        indkomstskat_efter_dis_lempelse_øre = ordinær_indkomstskat_efter_dis_lempelse_øre(),
+        afstemt = dis_afstemt()
+    )
+    | arbejdsmarkedsbidrag_for_delåret_øre() -> delårsberegning_eksakt().arbejdsmarkedsbidrag_øre
+    | ejendomsskatter_øre() -> delårsresultat().ejendomsskatter.samlet_ejendomsskat_øre
+    | indkomstskat_inkl_am_før_ligningslov33_øre() -> ordinær_indkomstskat_efter_dis_lempelse_øre() + endelig_aktieindkomstskat_komponent().delårsskat_øre + arbejdsmarkedsbidrag_for_delåret_øre()
+    | ligningslov33_kontekst() -> PersonskatLigningslov33DanskKontekst(
+        skatteår = skatteår(),
+        skattepligtig_indkomst_kroner = personskat_par14_skattepligtigt_resultatgrundlag_kroner(delårsresultat().skat),
+        personlig_indkomst_kroner = personskat_par14_personligt_grundlag_kroner(delårsinput()),
+        positiv_kapitalindkomst_kroner = personskat_par14_positivt_kapitalgrundlag_kroner(delårsinput()),
+        aktieindkomst_kroner = personskat_par14_positiv_aktieindkomst_kroner(aktieskatteforhold()),
+        cfc_indkomst_kroner = personskat_par14_positiv_cfc_indkomst_kroner(skatteforhold()),
+        arbejdsmarkedsbidragsgrundlag_kroner = penge_positivt_beløb(delårsinput().bruttoløn_kroner),
+        skattekomponenter_efter_par13 = ligningslov33_skattekomponenter(),
+        arbejdsmarkedsbidrag_øre = arbejdsmarkedsbidrag_for_delåret_øre(),
+        lav_aktieindkomstskat_øre = endelig_aktieindkomstskat_komponent().delårsskat_øre,
+        tilgængelig_indkomstskat_øre = indkomstskat_inkl_am_før_ligningslov33_øre()
+    )
+    | ligningslov33() -> personskat_ligningslov33_personresultat(input.personskat.ligningslov33.hovedperson, ligningslov33_kontekst())
+    | ligningslov33a() -> personskat_ligningslov33a_personresultat(input.personskat.ligningslov33.ligningslov33a_hovedperson, ligningslov33_kontekst())
+    | ligningslov33_understøttet() -> personskat_par14_uden_ægtefællelempelse(input.personskat.ligningslov33) && personskat_ligningslov33_person_indkomstår_gyldigt(input.personskat.ligningslov33.hovedperson, skatteår()) && personskat_ligningslov33a_person_indkomstår_gyldigt(input.personskat.ligningslov33.ligningslov33a_hovedperson, skatteår()) && delårsresultat().ligningslov33.hovedpersons_par6_kildetilknytninger_gyldige && ligningslov33().input_gyldigt && ligningslov33a().input_gyldigt
+    | ligningslov33_og_33a_nedslag_øre() -> personskat_ligningslov33_og_33a_nedslag_øre(ligningslov33().samlet_nedslag_øre, ligningslov33a().samlet_nedslag_øre, ligningslov33_kontekst().tilgængelig_indkomstskat_øre)
+    | slutskat_før_kreditter_kandidat_øre() -> hvis sømandsbeskatning().input_gyldigt && ligningslov33_understøttet() { penge_positivt_beløb(indkomstskat_inkl_am_før_ligningslov33_øre() + ejendomsskatter_øre() - ligningslov33_og_33a_nedslag_øre()) } ellers { 0 }
+    | aktieskattekredit_understøttet() -> personskat_par14_uden_ægtefælle(input.personskat.ægtefælle) || personskat_par14_uden_negativ_aktieskattekredit(delårsresultat())
+    | negativ_aktieindkomstskat() -> aktieindkomst_negativ_skat_par_resultat(AktieindkomstNegativSkatParInput(
+        egen_negativ_skat_kroner = personskat_negativ_aktieindkomstskat_øre(skatteår(), delårsresultat().aktieindkomst_parår.egen_aktieindkomst_efter_ægtefællemodregning_kroner, delårsresultat().aktieindkomst_parår.eget_effektive_grundbeløb_kroner),
+        ægtefælles_negativ_skat_kroner = 0,
+        egen_slutskat_før_negativ_skat_kroner = slutskat_før_kreditter_kandidat_øre(),
+        ægtefælles_slutskat_før_negativ_skat_kroner = 0,
+        samlevende_ved_årets_udløb = Falskt
+    ))
+    | tidligere_fremført_negativ_aktieindkomstskat() -> aktieindkomst_negativ_skat_fremførselspar_resultat(AktieindkomstNegativSkatFremførselsparInput(
+        egne_trancher = personskat_negativ_aktieskat_generiske_trancher_øre(personskat_negativ_aktieskat_trancher_primo(input.personskat.negativ_aktieskat_fremførsel.hovedperson, skatteår(), HovedpersonensNegativAktieskat)),
+        ægtefælles_trancher = [],
+        egen_slutskat_før_fremført_negativ_skat_kroner = negativ_aktieindkomstskat().egen_slutskat_efter_negativ_skat_kroner,
+        ægtefælles_slutskat_før_fremført_negativ_skat_kroner = 0,
+        samlevende_ved_årets_udløb = Falskt
+    ))
+    | personskattelov_par8a_stk5_kredit_øre() -> negativ_aktieindkomstskat().egen.modregnet_i_egen_slutskat_kroner + tidligere_fremført_negativ_aktieindkomstskat().egen_slutskat_modregnet_kroner
+    | arbejdsmarkedsbidragslov_par6_kredit_øre() -> delårsresultat().arbejdsmarkedsbidragslov_par6_kredit_øre
+    | afskrivningslov40c_understøttet() -> personskat_par14_uden_ægtefælle(input.personskat.ægtefælle) || personskat_par14_uden_afskrivningslov40c(input.personskat.årsopgørelse)
+    | afskrivningslov40c_acontoskat() -> personskat_afskrivningslov40c_acontoskat_resultat(
+        personskat_afskrivningslov40c_acontoskat_kilde(input.personskat.årsopgørelse),
+        skatteår(),
+        personskat_årsopgørelse_slutskat_med_tillæg_før_al40c_øre(input.personskat.årsopgørelse, slutskat_før_kreditter_kandidat_øre(), delårsresultat().pension),
+        0,
+        Falskt,
+        delårsresultat().kapitalindkomst
+    )
+    | afskrivningslov40c_acontoskat_kredit_øre() -> hvis delårsresultat().kildeskat_al40c_acontoskat_input_gyldigt { afskrivningslov40c_acontoskat().kredit_til_egen_kildeskat_slutopgørelse_øre } ellers { 0 }
+    | senere_skat_understøttet() -> ligningslov33_understøttet() && aktieskattekredit_understøttet() && negativ_aktieindkomstskat().input_gyldigt && tidligere_fremført_negativ_aktieindkomstskat().input_gyldigt && afskrivningslov40c_understøttet() && afskrivningslov40c_acontoskat().kildefakta_gyldige
+    | beregningsgrundlag_gyldigt() -> par14_kerne_gyldig() && sømandsbeskatning().input_gyldigt && senere_skat_understøttet()
+    | input_gyldigt() -> beregningsgrundlag_gyldigt() && personskat_afregning_input_gyldigt(årsopgørelse())
+    | slutskat_før_kreditter_øre() -> hvis beregningsgrundlag_gyldigt() { slutskat_før_kreditter_kandidat_øre() } ellers { 0 }
+    | endelig_arbejdsudlejebeskatning_øre() -> delårsresultat().personlig_indkomst.samlet_endelig_arbejdsudlejebeskatning_kroner * 100
+    | efterfølgende_skat() -> PersonskatPar14EfterfølgendeSkatResultat(
+        ligningslov33 = ligningslov33(),
+        ligningslov33a = ligningslov33a(),
+        ligningslov33_og_33a_nedslag_øre = ligningslov33_og_33a_nedslag_øre(),
+        negativ_aktieindkomstskat = negativ_aktieindkomstskat(),
+        tidligere_fremført_negativ_aktieindkomstskat = tidligere_fremført_negativ_aktieindkomstskat(),
+        personskattelov_par8a_stk5_kredit_øre = personskattelov_par8a_stk5_kredit_øre(),
+        arbejdsmarkedsbidragslov_par6_kredit_øre = arbejdsmarkedsbidragslov_par6_kredit_øre(),
+        afskrivningslov40c_acontoskat = afskrivningslov40c_acontoskat(),
+        afskrivningslov40c_acontoskat_kredit_øre = afskrivningslov40c_acontoskat_kredit_øre(),
+        ligningslov33_understøttet = ligningslov33_understøttet(),
+        aktieskattekredit_understøttet = aktieskattekredit_understøttet(),
+        afskrivningslov40c_understøttet = afskrivningslov40c_understøttet(),
+        slutskat_før_kreditter_øre = slutskat_før_kreditter_øre(),
+        endelig_arbejdsudlejebeskatning_øre = endelig_arbejdsudlejebeskatning_øre(),
+        slutskat_inkl_endelig_arbejdsudlejebeskatning_øre = slutskat_før_kreditter_øre() + endelig_arbejdsudlejebeskatning_øre()
+    )
+    | slutskat_efter_par14_øre() -> slutskat_før_kreditter_øre()
+    | slutskat_inkl_endelig_arbejdsudlejebeskatning_øre() -> slutskat_efter_par14_øre() + endelig_arbejdsudlejebeskatning_øre()
+    | årsopgørelse() -> personskat_årsopgørelse(input.personskat.årsopgørelse, skatteår(), slutskat_efter_par14_øre(), delårsresultat().pension, personskattelov_par8a_stk5_kredit_øre(), arbejdsmarkedsbidragslov_par6_kredit_øre(), afskrivningslov40c_acontoskat_kredit_øre())
+    | inputkontroller() -> [
+        PersonskatInputkontrol(sti = "skattepligtsperiode", gyldig = periode_gyldig(), forklaring = "Periodens datoer og år skal være gyldige og svare til den oplyste indtræden eller ophør af skattepligt."),
+        PersonskatInputkontrol(sti = "valg_afgivet_ved_oplysninger", gyldig = valg().input_gyldigt, forklaring = "Skattepligtsændring, § 14-valg og eventuel omvalgsdato skal opfylde modellens betingelser for indkomståret."),
+        PersonskatInputkontrol(sti = "kilder", gyldig = kilder_gyldige(), forklaring = "Identificerede kilder skal være entydige og gyldige. Valg af faktisk helårsindkomst kræver oplyste faktiske helårsbeløb for andre kilder end aktieindkomst; ukendt er ikke nul. Hver kildes aktieindkomst skal indgå uændret uden helårsomregning, også ved § 14, stk. 2-valget. Aktiekildens gentagne årsbeløb kan udelades; et oplyst beløb skal stemme med delårsbeløbet. Afklar kilde og metode; ret ikke fakta for at opnå et match."),
+        PersonskatInputkontrol(sti = "kilder", gyldig = kilder_afstemt_med_personskat(), forklaring = "Kildernes delårsbeløb og eventuelle udlandsafgrænsninger skal stemme med Personskat-grundlaget. Ret ikke dokumenterede beløb blot for at opnå et match."),
+        PersonskatInputkontrol(sti = "helårsgrundlag", gyldig = helårsgrundlag_gyldigt(), forklaring = "Det afledte eller dokumenterede helårsgrundlag skal være gyldigt og stemme med de identificerede kilder og personforhold. Begge grundlag skal angive samme ægtefællestatus og samliv ved indkomstårets udløb; en aktiv ægtefælle skal vedrøre samme skatteår. Hovedpersonens fødselsdato skal være ens i de to grundlag, og det samme gælder den tilsvarende ægtefælles fødselsdato, også dag og måned. Ægtefællerne skal ikke have samme dato som hinanden. Indkomstomregning ændrer ikke fødselsdato; ens datoer beviser ikke identitet. Sammenhold også den tilsvarende ægtefælles lønmodtager.kommune, lønmodtager.kirkeskat og lønmodtager.personfradrag_alder_status mellem de to grundlag; de skal stemme for samme person, ikke mellem ægtefællerne. Afklar modstridende fakta, ikke det forventede skattebeløb."),
+        PersonskatInputkontrol(sti = "personskat", gyldig = kanonisk_beregning_understøttet(), forklaring = "Den kanoniske delårs- og helårssammensætning skal være understøttet. Se delårsresultatets domænekontroller og eventuelt det dokumenterede helårsgrundlag; et beregneligt mellemtrin er ikke en endelig delårskonklusion."),
+        PersonskatInputkontrol(sti = "helårsgrundlag", gyldig = helårsskattekomponenter_afstemt(), forklaring = "Helårets skattekomponenter skal afstemme før forholdsmæssig nedsættelse."),
+        PersonskatInputkontrol(sti = "kilder", gyldig = par14_kerne_gyldig(), forklaring = "Omregningsgrundlag, skattekomponenter, skatteloft, kapitalnedslag og eventuel DIS skal opfylde alle § 14-kernens kontroller."),
+        PersonskatInputkontrol(sti = "personskat.lønmodtager.personlig_indkomst.sømandsbeskatning", gyldig = sømandsbeskatning().input_gyldigt, forklaring = "Eventuel DIS-lempelse skal være gyldig og afstemt efter delårsomregningen."),
+        PersonskatInputkontrol(sti = "personskat", gyldig = senere_skat_understøttet(), forklaring = "Efterfølgende udenlandsk lempelse, negativ aktieskat og afskrivningslovens acontoskat skal have gyldigt grundlag og være understøttet i delårsforløbet."),
+        PersonskatInputkontrol(sti = "personskat", gyldig = beregningsgrundlag_gyldigt(), forklaring = "Det samlede delårsgrundlag skal opfylde modellens beregningskontroller før betalingsafregning. Ved fejl er de øvrige beløb kun diagnostik, også hvis de er nul.")
+    ]
+    | afregningskontroller() -> [PersonskatInputkontrol(sti = "personskat.årsopgørelse.afregningsfakta", gyldig = personskat_afregning_input_gyldigt(årsopgørelse()), forklaring = "En valgt betalingsafregning skal matche indkomståret og den endelige restskat eller overskydende skat efter § 14 samt opfylde KSL-modellens faktakontroller. Et gyldigt ordinært mellemtrin er ikke tilstrækkeligt.")]
+    | resultat() -> PersonskatPar14BeregningResultat(
+        vurdering = personskat_par14_beregningsvurdering(inputkontroller(), afregningskontroller(), slutskat_efter_par14_øre()),
+        input_gyldigt = input_gyldigt(),
+        periode_gyldig = periode_gyldig(),
+        kilder_gyldige = kilder_gyldige(),
+        kilder_afstemt_med_personskat = kilder_afstemt_med_personskat(),
+        helårsgrundlag_gyldigt = helårsgrundlag_gyldigt(),
+        kanonisk_beregning_understøttet = kanonisk_beregning_understøttet(),
+        helårsskattekomponenter_afstemt = helårsskattekomponenter_afstemt(),
+        skattepligtsdage = skattepligtsdage(),
+        valg = valg(),
+        delårsresultat = delårsresultat(),
+        delårsinput = delårsinput(),
+        helårsinput = helårsinput(),
+        helårsberegning = helårsberegning(),
+        helårsberegning_eksakt = helårsberegning_eksakt(),
+        statslige_skattekomponenter = statslige_skattekomponenter(),
+        kommunale_og_kirkelige_skattekomponenter = kommunale_og_kirkelige_skattekomponenter(),
+        skatteloftsnedslag = skatteloftsnedslag(),
+        par11 = par11(),
+        sømandsbeskatning = sømandsbeskatning(),
+        statslig_indkomstskat_efter_par14_øre = statslig_indkomstskat_efter_par14_øre(),
+        kommunal_og_kirkelig_indkomstskat_efter_par14_øre = kommunal_og_kirkelig_indkomstskat_efter_par14_øre(),
+        arbejdsmarkedsbidrag_for_delåret_øre = arbejdsmarkedsbidrag_for_delåret_øre(),
+        ejendomsskatter_øre = ejendomsskatter_øre(),
+        efterfølgende_skat = efterfølgende_skat(),
+        slutskat_efter_par14_øre = slutskat_efter_par14_øre(),
+        slutskat_efter_par14_kroner = slutskat_efter_par14_øre() / 100,
+        slutskat_inkl_endelig_arbejdsudlejebeskatning_øre = slutskat_inkl_endelig_arbejdsudlejebeskatning_øre(),
+        slutskat_inkl_endelig_arbejdsudlejebeskatning_kroner = slutskat_inkl_endelig_arbejdsudlejebeskatning_øre() / 100,
+        årsopgørelse = årsopgørelse()
+    )
+}
+
+| personskat_par14_beregningssag(input: PersonskatPar14Input) -> PersonskatPar14BeregningSag(input)
+
+@ meta(personskat_par14_beregningsmeta)
+@ entry("Dansk personskat ved delårsskattepligt")
+| beregn_personskat_delår(input: PersonskatPar14Input) -> personskat_par14_beregningssag(input).resultat()

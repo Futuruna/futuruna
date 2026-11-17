@@ -1,7 +1,7 @@
 //! Host effects: builtins that act on the machine running Futuruna (console
 //! input and output, files, the environment, clocks, network, processes).
 //!
-//! Compile-time evaluation (`@ comptime`), `@ calculate` entries and
+//! Compile-time evaluation (`@ comptime`), entries and
 //! `runa audit` never perform host effects. The checker rejects host effects
 //! reachable from those roots through local functions and rules, and the
 //! interpreter refuses them at run time for anything the static walk cannot

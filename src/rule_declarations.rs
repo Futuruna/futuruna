@@ -537,7 +537,7 @@ pub(crate) fn elaborate_rule_declarations(
             .any(|s| matches!(s, Stmt::Annot(name, _) if name == RULE_SIGNATURE_MARKER))
     {
         // Each result-type annotation stands before the annotations
-        // (`@ calculate`, `@ export`) of the declaring line, so that those
+        // (`@ entry`, `@ export`) of the declaring line, so that those
         // still stand directly before what they annotate.
         let mut elaborated = Vec::with_capacity(statements.len());
         for (index, statement) in std::mem::take(statements).into_iter().enumerate() {

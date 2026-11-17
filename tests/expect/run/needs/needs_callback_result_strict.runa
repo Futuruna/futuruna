@@ -28,5 +28,5 @@
     if length(issues) == 0 { Accepted(accounts = length(c.accounts)) } else { Rejected(issues = issues) }
 }
 
-@ calculate
+@ entry
 | check_case(c: Case) -> outcome(c)

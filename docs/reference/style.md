@@ -156,7 +156,7 @@ Experimental. Four annotations attach facts to the code below them:
 
 Each annotation stands on its own line directly above its item. Comments may
 stand between them; a blank line may not. Several annotations on one item are
-written one per line, and declaration annotations such as `@ calculate` or
+written one per line, and declaration annotations such as `@ entry` or
 `@ field` may stand between them and the item. An annotation that describes
 nothing it may describe is an error that says where it may stand.
 
@@ -364,8 +364,8 @@ or by domain type.
   attachments.
 - On a rule clause, a RuleScope member or a function, the value describes that
   item and gives it a code span. An `Assumption` written on a clause is
-  reported only when that clause fires. Metadata of a calculation entry stands
-  above its `@ calculate` line.
+  reported only when that clause fires. Metadata of an entry stands
+  above its `@ entry` line.
 - On a data type or a binding, the value describes the declaration.
 - `@ meta` cannot stand above a `----` block: a quoted document's role is
   written on the quote.
@@ -411,22 +411,22 @@ type and a stable value path. Tools can therefore select the values they
 understand while the annotation stays short and domain-neutral.
 
 ```runa
-# CalculationMeta(fields: List(CalculationField))
-# impl Meta for CalculationMeta {}
+# EntryMeta(fields: List(UseSiteField))
+# impl Meta for EntryMeta {}
 
-= amount_meta = CalculationMeta(fields = [
+= amount_meta = EntryMeta(fields = [
     amount_field,
     currency_field,
     period_field
 ])
 
 @ meta(amount_meta)
-@ calculate
+@ entry
 > calculate_amount(input: AmountInput) -> Amount { ... }
 ```
 
-`runa meta --type CalculationField` finds `amount_meta` because it contains
-typed `CalculationField` descendants. JSON output reports those descendants as
+`runa meta --type UseSiteField` finds `amount_meta` because it contains
+typed `UseSiteField` descendants. JSON output reports those descendants as
 `typed_values` with paths such as `$.fields[0]`. This behavior is generic: the
 aggregate and nested types are ordinary user-defined Futuruna types. Only the
 marker traits `Meta`, `MetaRole` and `Document` and the annotations are
@@ -714,7 +714,7 @@ If you need to see values, write `?` proofs with pass/fail blocks, not print sta
 ## Structure for multi-file models
 
 - **Source files** (kapitel-01.runa, kapitel-02.runa): types, `|` facts, `>` functions. No `@ print`. No verification. The law and nothing else.
-- **Calculation file** (personskat.calculate.runa): exposes one or more typed domain-object boundaries with `@ calculate`, suitable for `runa schema`, `runa template`, and `runa call`.
+- **Calculation file** (personskat.entry.runa): exposes one or more typed domain-object boundaries with `@ entry`, suitable for `runa schema`, `runa template`, and `runa call`.
 - **Scenario file** (loenmodtager.scenario.runa): contains concrete fictional or sourced input facts and executable `?` checks, fed to `runa run`.
 - **Audit file** (grundlov.audit.runa): collects all rules, defines `|` invariants, runs `?` proofs, fed to `runa audit`.
 - **Source text in `----` blocks**: the actual text being modeled, verbatim. The code that follows must be traceable to the text above it.

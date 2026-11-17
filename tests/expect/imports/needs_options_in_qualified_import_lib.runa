@@ -17,7 +17,7 @@
 
 }
 
-@ calculate
+@ entry
 | account_room(a: Account) -> Result(room = room(a.closed, a.value))
 
 > section_name(s: Option(ProgramReference)) -> String {
@@ -93,10 +93,10 @@
 )
 # Tax(amount: Int)
 
-@ calculate
+@ entry
 | share_income(s: Spouse) -> s.income
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Tax(amount = h.income - h.spouse_share_income)
 
 > provided() -> Household { Household(income = 500, spouse = Spouse(income = 50), spouse_share_income = unknown) }

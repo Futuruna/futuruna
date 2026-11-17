@@ -130,7 +130,7 @@ ikke en ny selvstændig beregning af renter eller hele korrektionshistorikken.
 Den [eksekverbare regression](../../tests/personskat_refund_mapping_test.runa)
 bevarer sondringen med fiktive linjer. Typede `Source`/`Warning`-metadata
 knytter lovgrundlag og forbehold til begge hjælpere, så `runa meta --json`
-kan følge dem. Den kanoniske `@ calculate`-kontrakt importerer ikke denne
+kan følge dem. Den kanoniske `@ entry`-kontrakt importerer ikke denne
 mappingfil: den understøtter interviewet, ikke automatisk PDF-læsning
 eller kontrol af ethvert indsendt kreditbeløb.
 

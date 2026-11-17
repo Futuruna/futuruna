@@ -4,5 +4,5 @@
 # Input(child: Child)
 # Result(value: Int)
 
-@ calculate
+@ entry
 | calculate(input: Input) -> Result(value = input.child.age)

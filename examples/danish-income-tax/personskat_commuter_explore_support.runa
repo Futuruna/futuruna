@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 ----
 Shared canonical Personskat adapter for bounded commuting explorations.

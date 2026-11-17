@@ -68,6 +68,16 @@ On the verification side, `runa verify` (Preview) checks `|` invariants with an
 SMT backend (Z3). PROVED means that for every value of the invariant's free variables (Int ranges over the 64-bit values; a variable used as an enum whose constructors carry no payload ranges over exactly those constructors) the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved. The command exits non-zero unless every
 invariant is PROVED.
 
+On the integration side (Experimental), an `@ entry` is a typed contract that
+`runa call` runs on a complete case or, with `--partial`, answers with the
+facts it still needs. `answer` asks an entry round by round in Futuruna,
+calling the integrator's `resolve` once per round with all of the round's
+needs, and the generated TypeScript SDK answers every entry the same way
+(`<entry>Answer`). Which source answers which need is the integrator's own
+code, routed on the needs' metadata. Answering runs in the interpreter only
+and does not yet batch `later` needs; see
+[docs/releases/0.6.0.md](releases/0.6.0.md).
+
 ## What Is Trusted Today
 
 ### Trusted conventional compiler/runtime code

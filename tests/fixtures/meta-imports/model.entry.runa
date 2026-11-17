@@ -1,0 +1,16 @@
+@ import ./registry
+
+# Input(value: Int)
+# Output(value: Int)
+# SourceMetaRole(a) = Source(value: a)
+# impl MetaRole for SourceMetaRole {}
+# impl Meta for SourceMetaRole {}
+
+@ meta(Source(value = registry_source))
+@ meta(Source(value = imported_source))
+@ section imported_calculation {
+
+@ entry
+| calculate_imported(input: Input) -> Output(value = input.value)
+
+}

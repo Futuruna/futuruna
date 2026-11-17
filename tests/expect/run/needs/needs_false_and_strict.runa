@@ -13,5 +13,5 @@
 | base_tax(h: Household): Int -> h.income / 4
 | exception married_relief base_tax(h) -> h.income / 5 under h.income > 100 && h.married
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = base_tax(h))

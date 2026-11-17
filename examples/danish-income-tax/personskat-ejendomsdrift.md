@@ -71,4 +71,4 @@ fra den friske skabelon. Bevar oprindelige kildefakta privat.
 De [fokuserede tests](../../tests/personskat_property_route.test.mjs)
 er model- og indgangskontroller med opdigtede fakta, ikke dokumentautentifikation,
 uafhængig officiel skatteberegning eller fuld dækning af udlejning. Typede
-`@ calculate`-kontrakter er fortsat Preview; skattemodellen er forskningssoftware.
+`@ entry`-kontrakter er fortsat Preview; skattemodellen er forskningssoftware.

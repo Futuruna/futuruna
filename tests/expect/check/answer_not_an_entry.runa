@@ -1,0 +1,9 @@
+-- `answer` asks an entry, as `query` does.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `answer` asks an entry (`@ entry`); `threshold` is not one
+
+@ import ./answer_law
+
+= h = Household(income = 1, married = False, spouse = None, children = [])
+= asked = answer(threshold, h, from_case(h))

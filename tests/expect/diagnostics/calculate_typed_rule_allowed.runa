@@ -4,5 +4,5 @@
 # Input(value: Int)
 # Output(value: Int)
 
-@ calculate
+@ entry
 | calculate(input: Input) -> Output(value = input.value + 1)

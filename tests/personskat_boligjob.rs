@@ -2,7 +2,7 @@
 use serde_json::{json, Value};
 use std::process::Command;
 
-const MODEL: &str = "examples/danish-income-tax/boligjob.calculate.runa";
+const MODEL: &str = "examples/danish-income-tax/boligjob.entry.runa";
 
 fn run(args: &[&str]) -> Value {
     let binary = std::env::var_os("FUTURUNA_MODEL_TEST_RUNA")

@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./ligningsloven_fradrag
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 -- Fokuserede scenarier for Ligningslovens § 9 D og den kanoniske Personskat-bro.
 

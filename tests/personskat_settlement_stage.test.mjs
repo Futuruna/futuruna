@@ -12,9 +12,9 @@ import { buildFictionalCases } from '../examples/danish-income-tax/bilag-demo.mj
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
 const enabled = { skip: !binary && 'Set FUTURUNA_MODEL_TEST_RUNA; no build or network.' };
-const canonical = 'examples/danish-income-tax/personskat.calculate.runa';
-const partYear = 'examples/danish-income-tax/personskat-par14.calculate.runa';
-const greenCheck = 'examples/danish-income-tax/personskat-groen-check.calculate.runa';
+const canonical = 'examples/danish-income-tax/personskat.entry.runa';
+const partYear = 'examples/danish-income-tax/personskat-par14.entry.runa';
+const greenCheck = 'examples/danish-income-tax/personskat-groen-check.entry.runa';
 const v = ($variant, fields = {}) => ({ $variant, ...fields });
 const creditNames = ['a_skat_og_am_indeholdt', 'par68_indbetalt', 'b_skat_betalt',
   'udbytteskat_modregningsberettiget', 'frivillig_indbetaling_par59', 'virksomhedsordning_beløb',

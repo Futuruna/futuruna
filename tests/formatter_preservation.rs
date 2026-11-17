@@ -236,6 +236,7 @@ fn repository_format_check_covers_valid_and_intentionally_invalid_sources() {
         "tests/expect/check/late_language_directive.runa",
         "tests/expect/check/missing_exception_label.runa",
         "tests/expect/check/single_equals_expression.runa",
+        "tests/expect/diagnostics/calculate_is_entry.runa",
         "tests/expect/diagnostics/date_shaped_number.runa",
         "tests/expect/diagnostics/depend_missing_quotes.runa",
         "tests/expect/diagnostics/depend_missing_version.runa",
@@ -243,11 +244,14 @@ fn repository_format_check_covers_valid_and_intentionally_invalid_sources() {
         "tests/expect/diagnostics/parse_bad_arrow.runa",
         "tests/expect/diagnostics/scoped_constructor_rule_family.runa",
         "tests/expect/diagnostics/thousands_comma_in_list.runa",
+        // `@ calculate` kept on purpose as `runa fmt --migrate` input.
+        "tests/expect/migrate/calculate_interview.runa",
+        "tests/expect/migrate/entry_strings.runa",
         // `unknown` as a name, kept on purpose as `runa fmt --migrate` input.
         "tests/expect/migrate/unknown_rename.runa",
         // Old comment-directive syntax kept on purpose as `runa fmt --migrate` input.
         "tests/fixtures/annotation-migration/domain_meta.runa",
-        "tests/fixtures/annotation-migration/model.calculate.runa",
+        "tests/fixtures/annotation-migration/model.entry.runa",
     ];
     fn collect(directory: &Path, files: &mut Vec<PathBuf>) {
         for entry in std::fs::read_dir(directory).unwrap() {

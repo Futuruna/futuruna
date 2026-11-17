@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 | personskat_fiskerfradrag_tidspunkt(dag: Heltal, time: Heltal) -> DatoTidspunkt(
     dato = Dato(år = 2026, måned = 6, dag = dag),

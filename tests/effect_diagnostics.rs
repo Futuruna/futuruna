@@ -110,7 +110,7 @@ fn real_effects_declaration_markers_and_algebraic_calls_keep_working() {
 @ print("world")
 assert(ordinary() == 7)
 # EffectInput(value: Int)
-@ calculate
+@ entry
 > calculation(input: EffectInput) -> Int { input.value }
 "#;
     assert!(diagnostics(source).is_empty(), "{:?}", diagnostics(source));

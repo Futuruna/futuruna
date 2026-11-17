@@ -11,7 +11,7 @@ import { buildFictionalCases } from '../examples/danish-income-tax/bilag-demo.mj
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
-const model = 'examples/danish-income-tax/personskat.calculate.runa';
+const model = 'examples/danish-income-tax/personskat.entry.runa';
 const path = 'lønmodtager.personlig_indkomst.ordinære_forhold.arbejdsgiverydelser';
 const group = 'GruppelivSomUadskiltDelAfPbl19Ordning';
 const aggregate = 'ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56';

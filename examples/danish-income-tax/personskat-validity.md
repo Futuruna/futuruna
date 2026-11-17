@@ -15,7 +15,7 @@ Gennemgå status igen efter ændringer. Se
 
 ```sh
 # Gem personlige filer uden for projektmappen.
-"$RUNA_BIN" call examples/danish-income-tax/personskat.calculate.runa --input PRIVATE_WORK_DIR/cases.json --output PRIVATE_WORK_DIR/results.json
+"$RUNA_BIN" call examples/danish-income-tax/personskat.entry.runa --input PRIVATE_WORK_DIR/cases.json --output PRIVATE_WORK_DIR/results.json
 node examples/danish-income-tax/personskat-resultat.mjs PRIVATE_WORK_DIR/results.json
 ```
 
@@ -710,7 +710,7 @@ or introduce a comparison tolerance. Do not infer that a small difference is
 necessarily rounding, or that it proves the taxpayer's return wrong.
 Input and result types are unchanged by this qualification. Recalculate saved
 results to include it; merely reopening an old output does not add new warnings.
-The [part-year entry](personskat-par14.calculate.runa) also preserves and
+The [part-year entry](personskat-par14.entry.runa) also preserves and
 reconciles the exclusion before recomputing annual deductions; check its own
 `input_gyldigt` rather than using a diagnostic scalar total.
 

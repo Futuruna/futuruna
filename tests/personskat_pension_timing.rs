@@ -5,7 +5,7 @@ use std::process::Command;
 #[path = "support/foreign_employment.rs"]
 mod foreign_employment;
 
-const MODEL: &str = "examples/danish-income-tax/personskat.calculate.runa";
+const MODEL: &str = "examples/danish-income-tax/personskat.entry.runa";
 
 #[path = "support/calculation_baseline.rs"]
 mod calculation_baseline;

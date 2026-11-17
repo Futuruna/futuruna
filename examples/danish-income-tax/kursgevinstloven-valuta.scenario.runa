@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 = kursgevinstloven_valuta_scenarier_metadata = Metadata(
     attachments = (

@@ -1,0 +1,30 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.entry.partial-output.v1",
+    "schema_hash": "1a3f7c7fa69199af327ce903c86f471d17fd1333823196c9092018eca6ac548f",
+    "entry": "sorted_count"
+  },
+  "results": [
+    {
+      "case_id": "one-account-unknown",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "events[11].account_id",
+            "waiting": [
+              {
+                "rule": "by_account"
+              },
+              {
+                "rule": "sorted_count"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

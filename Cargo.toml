@@ -1,6 +1,6 @@
 [package]
 name = "futuruna"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 autobins = false
 rust-version = "1.94"
@@ -18,6 +18,8 @@ publish = ["crates-io"]
 include = [
     "/src/**/*.rs",
     "/src/calculate/sdk_ts_runtime.ts",
+    "/src/calculate/sdk_ts_runtime.js",
+    "/src/calculate/sdk_ts_runtime.d.ts",
     "/docs/feature-stages.json",
     "/README.md",
     "/LICENSE",

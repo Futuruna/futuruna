@@ -6,14 +6,14 @@
 //! `runa call --input` reads and returns the document `runa call` writes, byte
 //! for byte.
 //!
-//! Each calculation entry is prepared on its first call: the interpreter
+//! Each entry is prepared on its first call: the interpreter
 //! initializes the model (prelude, declarations, the top-level and metadata
 //! bindings the entry reaches) once, and every later call of that entry, full
 //! or partial, runs its cases from that state. Each case still starts from
 //! the initialized state alone, as in `runa call`
-//! (`futuruna::calculate::PreparedCalculation`).
+//! (`futuruna::calculate::PreparedEntry`).
 
-use futuruna::calculate::{self, CalculationInputEnvelope, PreparedCalculation};
+use futuruna::calculate::{self, CalculationInputEnvelope, PreparedEntry};
 use futuruna::{
     parse_prelude, prepend_prelude, provide_source_files, with_constructor_elaboration, Lexer,
     Parser, TypeChecker,
@@ -41,12 +41,12 @@ fn report_panics() {
     });
 }
 
-/// A parsed and type-checked model with its calculation entries, each
+/// A parsed and type-checked model with its entries, each
 /// prepared on its first call and reused by every later one.
 #[wasm_bindgen]
 pub struct Model {
     files: Vec<(PathBuf, String)>,
-    entries: Vec<PreparedCalculation>,
+    entries: Vec<PreparedEntry>,
     /// The root file, as the interpreter sees it (`/model/<main>`).
     main: PathBuf,
 }
@@ -56,7 +56,7 @@ impl Model {
     /// Load the model whose root file is `main`.
     ///
     /// `sources` maps paths relative to the model root
-    /// (`src/tax_report.calculate.runa`) to their text, and must hold `main`
+    /// (`src/tax_report.entry.runa`) to their text, and must hold `main`
     /// and every file it imports. A model that does not parse or type-check is
     /// an error carrying the diagnostics. No entry is prepared yet: the first
     /// call of an entry also initializes the model for it.
@@ -103,7 +103,7 @@ impl Model {
             .calculation_contracts
             .into_iter()
             .map(|contract| {
-                PreparedCalculation::new(
+                PreparedEntry::new(
                     contract,
                     statements.clone(),
                     source_dir.clone(),
@@ -119,7 +119,7 @@ impl Model {
         })
     }
 
-    /// The model's calculation entries.
+    /// The model's entries.
     pub fn entries(&self) -> Vec<String> {
         self.entries
             .iter()
@@ -190,7 +190,7 @@ impl Model {
             .position(|prepared| prepared.contract().entry == entry)
         else {
             return Err(format!(
-                "unknown calculation entry `{entry}`; available entries: {}",
+                "unknown entry `{entry}`; available entries: {}",
                 self.entries().join(", ")
             ));
         };

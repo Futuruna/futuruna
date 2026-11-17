@@ -2,7 +2,7 @@
 -- expect-command: call
 -- expect-input: needs_optional_member.json
 -- expect-args: --entry household_tax --partial=check
--- expect-stdout: "schema": "futuruna.calculate.partial-output.v1"
+-- expect-stdout: "schema": "futuruna.entry.partial-output.v1"
 
 @ meta(spouse_meta)
 # Spouse(income: Int, age: Int, cohabiting: Bool)
@@ -42,7 +42,7 @@
 ])
 
 @ meta(household_meta)
-@ calculate
+@ entry
 | household_tax(h: Household) -> TaxResult(tax = match h.spouse {
         | None -> 0
         | Some(s) -> if s.cohabiting { s.income } else { s.age }

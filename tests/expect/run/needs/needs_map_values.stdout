@@ -1,7 +1,7 @@
 {
   "$futuruna": {
-    "schema": "futuruna.calculate.partial-output.v1",
-    "schema_hash": "2b91b69b5574df0231678233be4d6c9d9f86f878fe767480172b0e64eaaf8c7f",
+    "schema": "futuruna.entry.partial-output.v1",
+    "schema_hash": "e3b61532187b108568838a011af2e5f94da24a1774d6c74becfa1bdaff17f46b",
     "entry": "needs_map_values"
   },
   "results": [

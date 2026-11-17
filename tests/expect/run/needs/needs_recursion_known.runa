@@ -29,5 +29,5 @@
     }
 }
 
-@ calculate
+@ entry
 | needs_recursion_known(c: Case) -> outcome(c)

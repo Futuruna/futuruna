@@ -125,7 +125,7 @@ Lists use functions such as `length(items)` and `map(items, |x| x + 1)`.
 Do not assume that another language's `.len()` or `.map(...)` methods exist.
 `take(items, n)` returns a list of at most `n` elements, not a single element.
 
-`@ comptime` bindings, `@ calculate` entries, audited rules and the code they
+`@ comptime` bindings, entries, audited rules and the code they
 call are pure: reaching `@ print`, file access, the clock, the network or any
 other host effect there is an error. Keep effects in ordinary top-level code.
 

@@ -120,7 +120,7 @@ pub fn unknown(paths: BTreeSet<String>) -> Value {
 /// Per-case bookkeeping of a partial evaluation.
 #[derive(Debug, Default)]
 pub(crate) struct PartialState {
-    /// The calculation entry, the waiting rule of a value read by no rule.
+    /// The entry, the waiting rule of a value read by no rule.
     pub(crate) entry: String,
     /// Rules and named functions being evaluated, innermost last; `true`
     /// marks a rule family.
@@ -1333,7 +1333,8 @@ impl Interpreter {
     /// A builtin outside a partial case: an unplaced `unknown` it reads is an
     /// error. `fill` places unknowns and reads none.
     pub(crate) fn unplaced_builtin_read(&self, name: &str, args: &[Value]) -> Option<Value> {
-        if !self.query.unknown_built.get() || name == "__fill" {
+        // `fill` places unknowns; a round of `answer` passes the case on.
+        if !self.query.unknown_built.get() || name == "__fill" || name == "__answer_round" {
             return None;
         }
         let strictness = builtin_strictness(name);
@@ -1936,6 +1937,26 @@ mod tests {
         assert!(take_unknown_leak().is_some());
         let _ = value_sort_cmp(&unknown_value(), &Value::Int(1));
         assert_eq!(take_unknown_leak(), Some("ordering"));
+    }
+
+    /// An unknown sort key is read, and the comparisons stay a total order:
+    /// a sort long enough for the standard library to check its comparator
+    /// does not panic (0.5.0 compared an unknown equal to every value).
+    #[test]
+    fn an_unknown_sort_key_is_read_and_orders_consistently() {
+        let mut items: Vec<Value> = (0..48i64)
+            .map(|n| {
+                let key = if n % 7 == 3 {
+                    unknown_value()
+                } else {
+                    Value::Int(n * 37 % 23)
+                };
+                Value::Tuple(vec![key, Value::Int(n)])
+            })
+            .collect();
+        let mut read = BTreeSet::new();
+        items.sort_by(|a, b| crate::value_sort_cmp_reading(a, b, &mut read));
+        assert!(read.contains("taxpayer.married"), "{read:?}");
     }
 
     #[test]

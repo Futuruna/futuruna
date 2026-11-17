@@ -1,17 +1,18 @@
 // `runa sdk ts` end to end: generate an SDK, type-check it as strict
-// TypeScript, and run its calls, validators and resolver loop under Node.
+// TypeScript, and run its calls, validators and answering under Node, against
+// the @futuruna/runtime package `runa sdk runtime` writes.
 //
 // FUTURUNA_SDK_TS_DEPS names a directory whose node_modules holds `typescript`
 // (5.x) and `zod`; the test installs nothing. Where it also holds `eslint` (9.x)
-// and `typescript-eslint` (8.x), the generated SDK is linted with
-// strictTypeChecked. With FUTURUNA_SDK_TS_SOURCES (a directory of
-// *.calculate.runa files) and FUTURUNA_SDK_TS_CASES (a directory of NAME.json
+// and `typescript-eslint` (8.x), the generated SDK and the runtime are linted
+// with strictTypeChecked. With FUTURUNA_SDK_TS_SOURCES (a directory of
+// *.entry.runa files) and FUTURUNA_SDK_TS_CASES (a directory of NAME.json
 // input documents with NAME.expected.json outputs), the generated validators
 // also check those cases and results, through a transport that answers from
 // the expected outputs.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -29,7 +30,7 @@ const options = {
 const modelOptions = {
   skip: !(ready && sources && casesDir) && 'Set FUTURUNA_SDK_TS_SOURCES and FUTURUNA_SDK_TS_CASES as well.',
 };
-const fixture = 'tests/fixtures/calculation/tax.calculate.runa';
+const fixture = 'tests/fixtures/calculation/tax.entry.runa';
 const compilerFlags = ['--strict', '--target', 'es2022', '--module', 'nodenext', '--moduleResolution', 'nodenext'];
 
 function run(command, args, cwd = root) {
@@ -42,9 +43,18 @@ function run(command, args, cwd = root) {
   return p.stdout;
 }
 
+/**
+ * A project directory whose node_modules links every package of the deps and
+ * holds @futuruna/runtime as `runa sdk runtime` writes it.
+ */
 function project(name) {
   const dir = mkdtempSync(join(tmpdir(), `futuruna-sdk-ts-${name}-`));
-  symlinkSync(join(deps, 'node_modules'), join(dir, 'node_modules'), 'dir');
+  const modules = join(dir, 'node_modules');
+  mkdirSync(modules);
+  for (const entry of readdirSync(join(deps, 'node_modules'))) {
+    symlinkSync(join(deps, 'node_modules', entry), join(modules, entry), 'dir');
+  }
+  run(binary, ['sdk', 'runtime', '--out', join(modules, '@futuruna/runtime')]);
   writeFileSync(join(dir, 'package.json'), '{ "type": "module" }\n');
   return dir;
 }
@@ -63,8 +73,9 @@ const valueName = (entry) => {
 };
 
 const fixtureUsage = `import {
-  answer, ask, calculateTaxQuery, calculateTaxSetAt, none, resolve,
-  type CalculateTaxNeed, type CalculateTaxResolvers, type EngineTransport, type PartialTaxInput, type TaxInput,
+  calculateTaxAnswer, calculateTaxSetAt, given, none, open,
+  type CalculateTaxInputPatterns, type CalculateTaxNeed, type CalculateTaxResolve, type EngineTransport,
+  type PartialTaxInput, type Reply, type TaxInput,
 } from "./sdk/index.js";
 
 export const sample: TaxInput = {
@@ -113,47 +124,71 @@ export function wrongAnswers(partialCase: PartialTaxInput, need: CalculateTaxNee
   const forged: CalculateTaxNeed = { ...need, path: "children[-1].age" };
   void forged;
 }
-export const resolvers: CalculateTaxResolvers = {
-  "children[].age": () => (need) => answer(need, 4),
-  filingStatus: () => (need) => answer(need, "Married" as const),
-  monthlyIncome: () => () => ask,
-};
-// @ts-expect-error resolvers are keyed by pattern, not by concrete path
-export const concrete: CalculateTaxResolvers = { "children[0].age": () => (need) => answer(need, 4) };
-// @ts-expect-error a resolver answers each need with a function, not with a list that could be in another order
-export const listed: CalculateTaxResolvers = { "children[].age": (needs) => needs.map((need) => answer(need, 4)) };
-// @ts-expect-error an age is a number
-export const wrongAge: CalculateTaxResolvers = { "children[].age": () => (need) => answer(need, "four") };
-/** One resolver for every field of a child: each need's pattern types its answer. */
-export const children: CalculateTaxResolvers = {
-  "children[]": () => (need) => {
-    switch (need.pattern) {
-      case "children[].age":
-        return answer(need, 4);
-      case "children[].name":
-        return answer(need, "Ada");
-      default:
-        return ask;
-    }
-  },
-};
-export const swapped: CalculateTaxResolvers = {
-  // @ts-expect-error a name is a string, whatever another field below \`children[]\` holds
-  "children[]": () => (need) => (need.pattern === "children[].name" ? answer(need, 4) : ask),
-};
-// @ts-expect-error a need of several patterns is answered once its pattern is narrowed
-export const unnarrowed: CalculateTaxResolvers = { "children[]": () => (need) => answer(need, 4) };
-export const interviewChildren = (transport: EngineTransport, partialCase: PartialTaxInput) =>
-  resolve((c: PartialTaxInput) => calculateTaxQuery(transport, c), partialCase, children);
-export const interview = (transport: EngineTransport, partialCase: PartialTaxInput) =>
-  resolve((c: PartialTaxInput) => calculateTaxQuery(transport, c), partialCase, resolvers);
+
+function assertNever(value: never): never {
+  throw new Error(JSON.stringify(value));
+}
+
+type TaxReply = Reply<CalculateTaxInputPatterns, CalculateTaxNeed["pattern"]>;
+
+/** A reply to every need: the switch over the pattern union is exhaustive, each value typed by its pattern. */
+export function reply(need: CalculateTaxNeed): TaxReply {
+  switch (need.pattern) {
+    case "monthlyIncome":
+      return given(need, 50000);
+    case "filingStatus":
+      return given(need, "Married");
+    case "deduction":
+      return given(need, none);
+    case "children":
+      return given(need, []);
+    case "children[]":
+      return open;
+    case "children[].name":
+      return given(need, "Ada");
+    case "children[].age":
+      return given(need, 4);
+    default:
+      return assertNever(need);
+  }
+}
+export const resolveAll: CalculateTaxResolve = () => reply;
+
+// Type errors only; never called.
+export function forgetsAge(need: CalculateTaxNeed): TaxReply {
+  switch (need.pattern) {
+    case "monthlyIncome":
+    case "filingStatus":
+    case "deduction":
+    case "children":
+    case "children[]":
+    case "children[].name":
+      return open;
+    default:
+      // @ts-expect-error \`children[].age\` is not handled
+      return assertNever(need);
+  }
+}
+export function wrongAge(need: CalculateTaxNeed): TaxReply {
+  if (need.pattern === "children[].age") {
+    // @ts-expect-error an age is a number
+    return given(need, "four");
+  }
+  return open;
+}
+export function unnarrowed(need: CalculateTaxNeed): TaxReply {
+  // @ts-expect-error a need of several patterns takes no value until its pattern is narrowed
+  return given(need, 4);
+}
+export const answerAll = (transport: EngineTransport, partialCase: PartialTaxInput) =>
+  calculateTaxAnswer(transport, partialCase, resolveAll);
 `;
 
 /** The partial values and calls the reviews asked the types to check, on a small ledger model. */
 const ledgerModel = `# Date(year: Int, month: Int, day: Int)
 # Event = Deposit(amount: Int) | Withdrawal(amount: Int, reason: String?)
 # Ledger(events: List(Event), closed_on: Date?, note: String?)
-@ calculate
+@ entry
 > balance(input: Ledger) -> Int { 0 }
 `;
 
@@ -244,18 +279,20 @@ function fixturePartialEngine(hash) {
       : { $variant: 'Complete', result: { annual_income: income, taxable_income: income, annual_tax: income / 5 },
         assumptions: [{ section: 'tax', binding: 'flat_rate', value: { id: 'FLAT', resolve_with: 'the rate table' } }],
         unused_paths: ['children[0].name'] };
-    return { $futuruna: { schema: 'futuruna.calculate.partial-output.v1', schema_hash: hash, entry },
+    return { $futuruna: { schema: 'futuruna.entry.partial-output.v1', schema_hash: hash, entry },
       results: [{ case_id: 'case-1', result }], diagnostics: [] };
   };
   return { calls, callPartial };
 }
 
-test('runa sdk ts output type-checks and calls, validates and resolves through a transport', options, async () => {
+test('runa sdk ts output type-checks and calls and validates through a transport', options, async () => {
   const dir = project('fixture');
   run(binary, ['sdk', 'ts', fixture, '--out', join(dir, 'sdk')]);
   const again = project('fixture-again');
   run(binary, ['sdk', 'ts', fixture, '--out', join(again, 'sdk')]);
-  for (const name of ['types.ts', 'schema.ts', 'partial.ts', 'client.ts', 'index.ts', 'runtime.ts']) {
+  assert.deepEqual(readdirSync(join(dir, 'sdk')).sort(), ['client.ts', 'index.ts', 'partial.ts', 'schema.ts', 'types.ts'],
+    'answering is in client.ts, and the runtime is a package');
+  for (const name of ['types.ts', 'schema.ts', 'partial.ts', 'client.ts', 'index.ts']) {
     assert.equal(readFileSync(join(dir, 'sdk', name), 'utf8'), readFileSync(join(again, 'sdk', name), 'utf8'), name);
   }
   writeFileSync(join(dir, 'usage.ts'), fixtureUsage);
@@ -290,7 +327,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   await assert.rejects(sdk.calculateTax(cli, { ...usage.sample, monthly_income: 1 }), (error) => error.kind === 'input');
   const answering = (result, meta = {}, assumptions = undefined) => ({
     async call(entry) {
-      return { $futuruna: { schema: 'futuruna.calculate.output.v1', schema_hash: hash, entry, ...meta },
+      return { $futuruna: { schema: 'futuruna.entry.output.v1', schema_hash: hash, entry, ...meta },
         results: result === undefined ? [] : [{ case_id: 'case-1', result, ...(assumptions && { assumptions }) }],
         diagnostics: result === undefined ? [{ case_id: 'case-1', path: '$.cases[0].input', message: 'boom' }] : [] };
     },
@@ -355,77 +392,58 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   assert.throws(() => sdk.parsePath('a..b'), (error) => error.name === 'PathError');
   assert.equal(sdk.pathPattern('accounts[12].events[0].kind'), 'accounts[].events[].kind');
 
-  // The resolver loop: answers in rounds, stops at questions, then completes.
+  // The answer guide: every pattern a need can name, with the law's type and metadata.
+  assert.deepEqual(Object.keys(sdk.calculateTaxGuide),
+    ['monthlyIncome', 'filingStatus', 'deduction', 'children', 'children[].name', 'children[].age']);
+  assert.deepEqual([sdk.calculateTaxGuide.monthlyIncome.kind, sdk.calculateTaxGuide.monthlyIncome.type,
+    sdk.calculateTaxGuide.monthlyIncome.question, sdk.calculateTaxGuide.monthlyIncome.keys],
+  ['fact', 'Int', 'What is your income before tax each month?', []]);
+  assert.equal(sdk.calculateTaxGuide.deduction.type, 'Int?');
+  assert.equal(sdk.calculateTaxGuide.filingStatus.type, 'FilingStatus');
+
+  // Answering an entry against a partial engine: `resolve` is called once per round with every need.
   const engine = fixturePartialEngine(hash);
   const transport = { call: cli.call, callPartial: engine.callPartial };
-  const first = await usage.interview(transport, usage.started);
-  assert.equal(first.$variant, 'Questions');
-  assert.equal(first.rounds, 2);
-  assert.deepEqual(first.questions.map((need) => [need.pattern, need.path]), [['monthlyIncome', 'monthlyIncome']]);
-  assert.equal(first.questions[0].question, 'What is your income before tax each month?');
-  assert.deepEqual(first.questions[0].waiting, [{ rule: 'annual_income' }]);
+  const seen = [];
+  const first = await sdk.calculateTaxAnswer(transport, usage.started, (needs, context) => {
+    seen.push([needs.map((need) => need.path), context.partialCase]);
+    return (need) => (need.pattern === 'monthlyIncome' ? sdk.open : usage.reply(need));
+  });
+  assert.equal(first.$variant, 'Unanswered');
+  assert.deepEqual(first.rounds, [
+    { paths: ['children[0].age', 'filingStatus', 'monthlyIncome'], given: ['children[0].age', 'filingStatus'] },
+    { paths: ['monthlyIncome'], given: [] },
+  ]);
+  assert.deepEqual(seen.map(([paths]) => paths), [['children[0].age', 'filingStatus', 'monthlyIncome'], ['monthlyIncome']]);
+  assert.equal(seen[0][1], usage.started, 'resolve sees the case of its round');
+  assert.deepEqual(first.open.map((need) => [need.pattern, need.path]), [['monthlyIncome', 'monthlyIncome']],
+    'the last round\'s needs left open');
+  assert.equal(first.open[0].question, 'What is your income before tax each month?');
+  assert.deepEqual(first.open[0].waiting, [{ rule: 'annual_income' }]);
+  assert.equal(first.open[0].by, undefined);
   assert.deepEqual(first.partialCase, { children: [{ name: 'Ada', age: 4 }], filingStatus: 'Married' });
-  assert.ok(Array.isArray(first.later), 'Questions carries the last round\'s later facts');
-  const second = await usage.interview(transport, usage.answerNeed(first.partialCase, first.questions[0]));
-  assert.equal(second.$variant, 'Complete');
+  assert.ok(Array.isArray(first.later), 'Unanswered carries the last round\'s later facts');
+  assert.deepEqual(first.pending, []);
+  const second = await sdk.calculateTaxAnswer(transport, usage.answerNeed(first.partialCase, first.open[0]), () => () => sdk.open);
+  assert.equal(second.$variant, 'Answered');
   assert.deepEqual(second.result, { annualIncome: 600000, taxableIncome: 600000, annualTax: 120000 });
   assert.deepEqual(second.unusedPaths, ['children[0].name']);
-  assert.deepEqual(second.assumptions, [flatRate], 'a Complete result carries its assumptions through the resolver loop');
+  assert.deepEqual(second.assumptions, [flatRate], 'an Answered result carries its assumptions');
+  assert.deepEqual(second.rounds, []);
   assert.equal(engine.calls.at(-1).$futuruna.schema_hash, hash);
   assert.deepEqual(engine.calls.at(-1).cases[0].input,
     { children: [{ name: 'Ada', age: 4 }], filing_status: { $variant: 'Married' }, monthly_income: 50000 });
 
-  // A resolver is called once per round with all of the round's needs of its pattern, and the
-  // resolvers of different patterns run at the same time: each waits here until all three have begun.
-  const batches = [];
-  let begun = 0;
-  let allBegun;
-  const together = new Promise((resolveTogether) => { allBegun = resolveTogether; });
-  const batched = (pattern, value) => async (needs, context) => {
-    batches.push([pattern, needs.map((need) => need.path), context.partialCase]);
-    begun += 1;
-    if (begun === 3) allBegun();
-    await Promise.race([together, new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(`${pattern} waited for the other resolvers alone`)), 2000).unref();
-    })]);
-    return (need) => sdk.answer(need, value);
-  };
+  // A resolve that answers every need: one round.
   const three = { children: [{ name: 'Ada' }, { name: 'Bo' }, { name: 'Cy' }] };
-  const all = await sdk.resolve((c) => sdk.calculateTaxQuery(transport, c), three, {
-    'children[].age': batched('children[].age', 4),
-    filingStatus: batched('filingStatus', 'Married'),
-    monthlyIncome: batched('monthlyIncome', 50000),
-  });
-  assert.equal(all.$variant, 'Complete');
-  assert.equal(all.rounds, 2);
-  assert.deepEqual(batches.map(([pattern, paths]) => [pattern, paths]).sort(), [
-    ['children[].age', ['children[0].age', 'children[1].age', 'children[2].age']],
-    ['filingStatus', ['filingStatus']],
-    ['monthlyIncome', ['monthlyIncome']],
-  ]);
-  assert.ok(batches.every(([, , partialCase]) => partialCase === three), 'every resolver sees the case of its round');
+  const all = await sdk.calculateTaxAnswer(transport, three, usage.resolveAll);
+  assert.equal(all.$variant, 'Answered');
+  const asked3 = ['children[0].age', 'children[1].age', 'children[2].age', 'filingStatus', 'monthlyIncome'];
+  assert.deepEqual(all.rounds, [{ paths: asked3, given: asked3 }]);
   assert.deepEqual(all.partialCase.children.map((child) => child.age), [4, 4, 4]);
-
-  // A resolver on a list's elements receives every need below them, in one call per round; each need
-  // goes to the most specific pattern registered for it, never to two resolvers.
-  const below = [];
-  const elements = await sdk.resolve((c) => sdk.calculateTaxQuery(transport, c), three, {
-    'children[]': (needs) => { below.push(['children[]', needs.map((need) => need.path)]); return (need) => sdk.answer(need, 5); },
-    filingStatus: () => (need) => sdk.answer(need, 'Married'),
-    monthlyIncome: () => (need) => sdk.answer(need, 50000),
-  });
-  assert.equal(elements.$variant, 'Complete');
-  assert.deepEqual(below, [['children[]', ['children[0].age', 'children[1].age', 'children[2].age']]]);
-  below.length = 0;
-  await sdk.resolve((c) => sdk.calculateTaxQuery(transport, c), three, {
-    'children[]': (needs) => { below.push(['children[]', needs.length]); return () => sdk.ask; },
-    'children[].age': (needs) => { below.push(['children[].age', needs.length]); return (need) => sdk.answer(need, 5); },
-  });
-  assert.deepEqual(below, [['children[].age', 3]]);
   // A reply names the path it is for: one for another need is an error, not an answer in the wrong place.
-  await assert.rejects(sdk.resolve((c) => sdk.calculateTaxQuery(transport, c), three,
-    { 'children[]': (needs) => () => sdk.answer(needs[0], 5) }),
-  (error) => error.name === 'ResolveError' && /replied to `children\[1\]\.age` with a reply for `children\[0\]\.age`/.test(error.message));
+  await assert.rejects(sdk.calculateTaxAnswer(transport, three, (needs) => () => sdk.given(needs[0], 5)),
+    (error) => error.name === 'AnswerError' && /replied to `children\[1\]\.age` with a reply for `children\[0\]\.age`/.test(error.message));
 
   // Partial inputs and Needs results are validated too.
   await assert.rejects(sdk.calculateTaxQuery(transport, { children: [{ age: 2 ** 53 }] }), (error) => error.kind === 'input');
@@ -433,7 +451,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
     && error.issues[0].path.join('.') === 'deduction', 'a bare null is not "none"');
   const needing = (needs, later) => ({
     async callPartial(entry) {
-      return { $futuruna: { schema: 'futuruna.calculate.partial-output.v1', schema_hash: hash, entry },
+      return { $futuruna: { schema: 'futuruna.entry.partial-output.v1', schema_hash: hash, entry },
         results: [{ case_id: 'case-1', result: { $variant: 'Needs', needs, ...(later && { later }) } }], diagnostics: [] };
     },
   });
@@ -446,8 +464,8 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
     keys: [{ path: 'children[0]', field: 'name', value: 'Ada' }] }]), {}),
   (error) => error.kind === 'output', 'a key no list declares');
   const stuck = needing([{ kind: 'fact', path: 'children[0].age', waiting }]);
-  await assert.rejects(sdk.resolve((c) => sdk.calculateTaxQuery(stuck, c), { children: [{}] }, { 'children[].age': () => (need) => sdk.answer(need, 1) }),
-    (error) => error.name === 'ResolveError' && /still needs `children\[0\]\.age`/.test(error.message));
+  await assert.rejects(sdk.calculateTaxAnswer(stuck, { children: [{}] }, () => (need) => sdk.given(need, 1)),
+    (error) => error.name === 'AnswerError' && /still needs `children\[0\]\.age`/.test(error.message));
 
   // A need is tagged with its pattern; a date is needed whole; a list element's key comes at TypeScript paths.
   const passing = { safeParse: (data) => ({ success: true, data }) };
@@ -510,7 +528,7 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
   };
   const explainedEntry = { ...dateEntry, output: sdk.recordCodec({ bookedOn: ['booked_on', sdk.isoDateCodec],
     paidOn: ['paid_on', sdk.isoDateCodec], kind: ['kind', sdk.enumCodec] }) };
-  const document = { $futuruna: { schema: 'futuruna.calculate.output.v1', schema_hash: hash, entry: 'calculate_tax' },
+  const document = { $futuruna: { schema: 'futuruna.entry.output.v1', schema_hash: hash, entry: 'calculate_tax' },
     results: [{ case_id: 'case-1', result: {}, assumptions: [flatRate], explanation }], diagnostics: [] };
   const decoded = await sdk.explainEntry({ callExplained: async () => document }, explainedEntry, 'direct', passing, passing, {});
   assert.deepEqual(decoded.assumptions, [flatRate]);
@@ -524,26 +542,46 @@ test('runa sdk ts output type-checks and calls, validates and resolves through a
     'paidOn.year': { value: 2026, by: by('bookedOn') },
   });
 
-  // An entry that needs itself for the same subject is a cycle.
+  // An entry that needs itself for the same subject is a cycle: runEntry passes the stack on in `options`.
   const spouse = needing([{ kind: 'entry', path: 'deduction', entry: 'calculate_tax', subject: 'spouse', waiting }]);
-  const query = (c) => sdk.calculateTaxQuery(spouse, c);
-  const resolvers = { deduction: (_needs, context) => (need) => context.runEntry(need, query, {}, resolvers) };
-  await assert.rejects(sdk.resolve(query, {}, resolvers), (error) => error.name === 'ResolveCycleError'
+  const answerSpouse = (options) => sdk.calculateTaxAnswer(spouse, {}, cyclic, options);
+  const cyclic = (_needs, context) => (need) => context.runEntry(need, answerSpouse);
+  await assert.rejects(answerSpouse(), (error) => error.name === 'AnswerCycleError'
     && error.frames.length === 2 && error.frames.every((frame) => frame.subject === 'spouse'));
+  // Another entry's Answered result is written at the need's path.
+  let asked = 0;
+  const once = {
+    async callPartial(entry, document) {
+      asked += 1;
+      if (document.cases[0].input.deduction === undefined) return spouse.callPartial(entry);
+      return { $futuruna: { schema: 'futuruna.entry.partial-output.v1', schema_hash: hash, entry },
+        results: [{ case_id: 'case-1', result: { $variant: 'Complete', result: { annual_income: 1, taxable_income: 1, annual_tax: 1 },
+          unused_paths: [] } }],
+        diagnostics: [] };
+    },
+  };
+  const ran = await sdk.calculateTaxAnswer(once, {}, (_needs, context) => (need) => context.runEntry(need, async (options) => {
+    assert.deepEqual(options, { frames: [{ entry: 'calculate_tax', subject: 'spouse' }] });
+    return { $variant: 'Answered', result: 700, assumptions: [], unusedPaths: [], partialCase: {}, rounds: [] };
+  }));
+  assert.equal(ran.$variant, 'Answered');
+  assert.deepEqual(ran.partialCase, { deduction: 700 });
+  assert.deepEqual(ran.rounds, [{ paths: ['deduction'], given: ['deduction'] }]);
+  assert.equal(asked, 2);
 });
 
 test('generated SDKs validate a model\'s cases and expected results', modelOptions, async () => {
   const dir = project('model');
   const projectRoot = dirname(sources);
-  const models = readdirSync(sources).filter((name) => name.endsWith('.calculate.runa')).sort();
+  const models = readdirSync(sources).filter((name) => name.endsWith('.entry.runa')).sort();
   for (const model of models) {
-    const out = join(dir, model.replace(/\.calculate\.runa$/, ''));
+    const out = join(dir, model.replace(/\.entry\.runa$/, ''));
     run(binary, ['sdk', 'ts', relative(projectRoot, join(sources, model)), '--out', out], projectRoot);
   }
-  const indexes = models.map((model) => `${model.replace(/\.calculate\.runa$/, '')}/index.ts`);
+  const indexes = models.map((model) => `${model.replace(/\.entry\.runa$/, '')}/index.ts`);
   compile(dir, indexes);
   const sdks = await Promise.all(models.map((model) =>
-    import(pathToFileURL(join(dir, 'build', model.replace(/\.calculate\.runa$/, ''), 'index.js')))));
+    import(pathToFileURL(join(dir, 'build', model.replace(/\.entry\.runa$/, ''), 'index.js')))));
 
   const expectedFiles = readdirSync(casesDir).filter((name) => name.endsWith('.expected.json')).sort();
   assert.ok(expectedFiles.length > 0, `no *.expected.json in ${casesDir}`);
@@ -583,20 +621,22 @@ test('generated SDKs validate a model\'s cases and expected results', modelOptio
   }
 });
 
-const unitModel = `# unit Ore "DKK øre"
-# unit Micro "millionths of a share"
-# Holding(quantity_micro: Micro, value_ore: Ore, count: Int, history: List(Ore))
-@ calculate
+const unitModel = `# unit Ore "DKK øre" = DKK / 100
+# unit Micro "millionths of a share" = 1 / 1000000
+# unit Third "thirds of a krone" = DKK / 3
+# Holding(quantity_micro: Micro, value_ore: Ore, count: Int, history: List(Ore), share: Third)
+@ entry
 > holding_value(input: Holding) -> Ore { input.value_ore }
 `;
 
 const unitUsage = `import {
-  holdingValue, holdingValueSetAt, micro, ore, OreSchema, resolve, answer, holdingValueQuery,
-  type EngineTransport, type Holding, type HoldingValueNeed, type HoldingValueResolvers, type Micro, type Ore,
-  type PartialHolding,
+  holdingValue, holdingValueSetAt, micro, ore, third, OreSchema,
+  type EngineTransport, type Holding, type HoldingValueNeed, type Micro, type Ore, type PartialHolding,
 } from "./sdk/index.js";
 
-export const holding: Holding = { quantityMicro: micro(2_000_000), valueOre: ore(1200), count: 3, history: [ore(1100)] };
+export const holding: Holding = {
+  quantityMicro: micro(2_000_000), valueOre: ore.fromDecimal("12.00"), count: 3, history: [ore(1100)], share: third(1),
+};
 const shares: Micro = holding.quantityMicro;
 // @ts-expect-error a Micro is not an Ore
 export const wrongUnit: Holding = { ...holding, valueOre: shares };
@@ -604,10 +644,14 @@ export const wrongUnit: Holding = { ...holding, valueOre: shares };
 export const bare: Holding = { ...holding, valueOre: 1200 };
 // @ts-expect-error a bare number is not an Ore in a list either
 export const bareItem: Holding = { ...holding, history: [1100] };
+// @ts-expect-error a Micro converted from a decimal is still a Micro
+export const convertedWrong: Holding = { ...holding, valueOre: micro.fromDecimal("1.5") };
+// @ts-expect-error a decimal amount is text, never a float
+export const floated: Ore = ore.fromDecimal(12.5);
 export const plain: Holding = { ...holding, count: 4 };
 export const started: PartialHolding = {};
 export function answerNeed(partialCase: PartialHolding, need: HoldingValueNeed): PartialHolding {
-  if (need.pattern === "valueOre") return holdingValueSetAt(partialCase, need, ore(5));
+  if (need.pattern === "valueOre") return holdingValueSetAt(partialCase, need, ore.fromDecimal("0.05"));
   if (need.pattern === "history[]") {
     // @ts-expect-error a Micro is not an Ore at an Ore path
     holdingValueSetAt(partialCase, need, shares);
@@ -616,20 +660,16 @@ export function answerNeed(partialCase: PartialHolding, need: HoldingValueNeed):
   }
   return partialCase;
 }
-export const resolvers: HoldingValueResolvers = {
-  valueOre: () => (need) => answer(need, ore(7)),
-  quantityMicro: () => (need) => answer(need, micro(1)),
-};
 export const parsed: Ore = OreSchema.parse(1200);
-export const result = async (transport: EngineTransport): Promise<Ore> => (await holdingValue(transport, holding)).result;
-export const interview = (transport: EngineTransport) =>
-  resolve((c: PartialHolding) => holdingValueQuery(transport, c), started, resolvers);
+/** How the integrator reads a figure in kroner. */
+export const inKroner = async (transport: EngineTransport): Promise<string> =>
+  ore.toDecimal((await holdingValue(transport, holding)).result);
 `;
 
-test('a unit of measure is a branded number type in the SDK', options, async () => {
+test('a unit of measure is a branded number type, and its scale gives exact decimal converters', options, async () => {
   const dir = project('units');
-  writeFileSync(join(dir, 'holding.calculate.runa'), unitModel);
-  run(binary, ['sdk', 'ts', 'holding.calculate.runa', '--out', 'sdk'], dir);
+  writeFileSync(join(dir, 'holding.entry.runa'), unitModel);
+  run(binary, ['sdk', 'ts', 'holding.entry.runa', '--out', 'sdk'], dir);
   writeFileSync(join(dir, 'usage.ts'), unitUsage);
   compile(dir, ['sdk/index.ts', 'usage.ts']);
   const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
@@ -637,15 +677,50 @@ test('a unit of measure is a branded number type in the SDK', options, async () 
   assert.throws(() => sdk.ore(1.5), RangeError);
   assert.throws(() => sdk.micro(2 ** 53), RangeError);
   assert.ok(!sdk.OreSchema.safeParse(0.5).success);
+
+  // Decimal amounts convert exactly, in integer arithmetic.
+  assert.equal(sdk.ore.fromDecimal('1740.25'), 174025);
+  assert.equal(sdk.ore.fromDecimal('1740.2'), 174020);
+  assert.equal(sdk.ore.fromDecimal('1740.250000'), 174025, 'trailing zeros are no finer amount');
+  assert.equal(sdk.ore.fromDecimal('-0.05'), -5);
+  assert.equal(sdk.ore.fromDecimal('+3'), 300);
+  assert.equal(sdk.ore.fromDecimal('0.29'), 29, 'no float rounding: 0.29 * 100 is 28.999999999999996 as a float');
+  assert.equal(sdk.ore.fromDecimal('90071992547409.91'), Number.MAX_SAFE_INTEGER);
+  assert.equal(sdk.micro.fromDecimal('2.5'), 2500000);
+  assert.equal(sdk.ore.toDecimal(sdk.ore(174025)), '1740.25');
+  assert.equal(sdk.ore.toDecimal(sdk.ore(174000)), '1740.00');
+  assert.equal(sdk.ore.toDecimal(sdk.ore(-5)), '-0.05');
+  assert.equal(sdk.ore.toDecimal(sdk.ore(Number.MAX_SAFE_INTEGER)), '90071992547409.91');
+  assert.equal(sdk.micro.toDecimal(sdk.micro(2500000)), '2.500000');
+  for (const text of ['0.29', '1740.25', '-12.07', '0.00']) {
+    assert.equal(sdk.ore.toDecimal(sdk.ore.fromDecimal(text)), text.replace(/^-0\.00$/, '0.00'));
+  }
+  // An amount finer than the unit is refused, naming the unit and the amount.
+  assert.throws(() => sdk.ore.fromDecimal('1740.255'), (error) => {
+    assert.equal(error.name, 'CalculationError');
+    assert.equal(error.kind, 'amount');
+    assert.equal(error.entry, 'Ore');
+    assert.equal(error.message, 'Ore: 1740.255 DKK is finer than one Ore (1/100 DKK)');
+    return true;
+  });
+  assert.throws(() => sdk.micro.fromDecimal('0.0000005'), (error) => error.kind === 'amount'
+    && error.message === 'Micro: 0.0000005 is finer than one Micro (1/1000000)');
+  for (const text of ['1,5', '1.', '.5', '', '1e3', ' 1']) {
+    assert.throws(() => sdk.ore.fromDecimal(text), (error) => error.kind === 'amount' && /is not a decimal number of DKK/.test(error.message), text);
+  }
+  assert.throws(() => sdk.ore.fromDecimal('90071992547409.92'), (error) => error.kind === 'amount'
+    && /beyond a safe integer of Ore/.test(error.message));
+  assert.equal(sdk.third.fromDecimal, undefined, '1/3 DKK is no finite decimal: no converters');
+
   const cli = {
     async call(entry, document) {
       writeFileSync(join(dir, 'call.json'), JSON.stringify(document));
-      return run(binary, ['call', 'holding.calculate.runa', '--entry', entry, '--input', 'call.json'], dir);
+      return run(binary, ['call', 'holding.entry.runa', '--entry', entry, '--input', 'call.json'], dir);
     },
     async callPartial() { throw new Error('not used'); },
   };
   const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
-  assert.equal(await usage.result(cli), 1200);
+  assert.equal(await usage.inKroner(cli), '12.00');
 });
 
 const scalarModel = `| isin_ok(text: String) -> string_length(text) == 12
@@ -653,7 +728,7 @@ const scalarModel = `| isin_ok(text: String) -> string_length(text) == 12
 # AccountId: String "an account id"
 # Holding(isin: Isin, account: AccountId, count: Int)
 # Book(holdings: List(Holding))
-@ calculate
+@ entry
 > first_isin(input: Book) -> Isin { head(input.holdings).isin }
 `;
 
@@ -678,8 +753,8 @@ export const result = async (transport: EngineTransport, book: Book): Promise<Is
 
 test('a named scalar is a branded type in the SDK, and a value the engine refuses is an input error at its path', options, async () => {
   const dir = project('scalars');
-  writeFileSync(join(dir, 'book.calculate.runa'), scalarModel);
-  run(binary, ['sdk', 'ts', 'book.calculate.runa', '--out', 'sdk'], dir);
+  writeFileSync(join(dir, 'book.entry.runa'), scalarModel);
+  run(binary, ['sdk', 'ts', 'book.entry.runa', '--out', 'sdk'], dir);
   writeFileSync(join(dir, 'usage.ts'), scalarUsage);
   compile(dir, ['sdk/index.ts', 'usage.ts']);
   const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
@@ -690,7 +765,7 @@ test('a named scalar is a branded type in the SDK, and a value the engine refuse
     async call(entry, document) {
       writeFileSync(join(dir, 'call.json'), JSON.stringify(document));
       // The engine exits non-zero when it refuses a case; its reply is still the document.
-      const p = spawnSync(binary, ['call', 'book.calculate.runa', '--entry', entry, '--input', 'call.json'], {
+      const p = spawnSync(binary, ['call', 'book.entry.runa', '--entry', entry, '--input', 'call.json'], {
         cwd: dir, encoding: 'utf8', timeout: 600000,
       });
       assert.ifError(p.error);
@@ -712,8 +787,8 @@ test('a named scalar is a branded type in the SDK, and a value the engine refuse
 
 test('partial values, dates, paths and explained calls are checked by the types', options, async () => {
   const dir = project('ledger');
-  writeFileSync(join(dir, 'ledger.calculate.runa'), ledgerModel);
-  run(binary, ['sdk', 'ts', 'ledger.calculate.runa', '--out', 'sdk'], dir);
+  writeFileSync(join(dir, 'ledger.entry.runa'), ledgerModel);
+  run(binary, ['sdk', 'ts', 'ledger.entry.runa', '--out', 'sdk'], dir);
   writeFileSync(join(dir, 'usage.ts'), ledgerUsage);
   compile(dir, ['sdk/index.ts', 'usage.ts']);
   const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
@@ -737,13 +812,13 @@ const keyedModel = `# Event =
         | Withdrawal -> 0 - e.amount - e.fee
     }
 }
-@ calculate
+@ entry
 > balance(input: Ledger) -> Int { foldl(input.events, 0, |sum, e| sum + signed(e)) }
 `;
 
 const keyedUsage = `import {
-  answer, ask, balanceQuery, resolve,
-  type BalanceElementKey, type BalanceNeed, type BalanceResolvers, type EngineTransport, type PartialEvent, type PartialLedger,
+  balanceAnswer, given, open,
+  type BalanceElementKey, type BalanceNeed, type BalanceResolve, type EngineTransport, type PartialEvent,
 } from "./sdk/index.js";
 
 export type Row = { readonly amount: number; readonly fee: number };
@@ -761,57 +836,67 @@ export function eventId(need: BalanceNeed): string {
   return id;
 }
 
-export function resolvers(backend: Backend): BalanceResolvers {
-  return {
-    // The list, as skeletons: each event's variant, id and date, its details left out.
-    events: async () => {
-      const skeletons = await backend.skeletons();
-      return (need) => (need.pattern === "events" ? answer(need, skeletons) : ask);
-    },
-    // Every field of the events, from one lookup of their ids.
-    "events[]": async (needs) => {
-      const rows = await backend.details([...new Set(needs.map(eventId))]);
-      return (need) => {
-        const row = rows.get(eventId(need));
-        if (row === undefined) return ask;
-        switch (need.pattern) {
-          case "events[].amount":
-            return answer(need, row.amount);
-          case "events[].fee":
-            return answer(need, row.fee);
-          default:
-            return ask;
+/** One resolve: the list as skeletons when it is asked, and every field the law reads of the events from one lookup of their ids. */
+export function resolve(backend: Backend): BalanceResolve {
+  return async (needs) => {
+    const skeletons = needs.some((need) => need.pattern === "events") ? await backend.skeletons() : [];
+    const ids = needs.filter((need) => need.pattern === "events[].amount" || need.pattern === "events[].fee").map(eventId);
+    const rows = ids.length > 0 ? await backend.details([...new Set(ids)]) : new Map<string, Row>();
+    return (need) => {
+      switch (need.pattern) {
+        case "events":
+          return given(need, skeletons);
+        case "events[].amount":
+        case "events[].fee": {
+          const row = rows.get(eventId(need));
+          if (row === undefined) return open;
+          return need.pattern === "events[].amount" ? given(need, row.amount) : given(need, row.fee);
         }
-      };
+        default:
+          return open;
+      }
+    };
+  };
+}
+
+export const answerLedger = (transport: EngineTransport, backend: Backend) => balanceAnswer(transport, {}, resolve(backend));
+`;
+
+/** A transport that runs `runa call --partial` on `model` in `dir`, keeping each partial case it sends. */
+function partialCli(dir, model) {
+  const queried = [];
+  return {
+    queried,
+    async call() { throw new Error('not used'); },
+    async callPartial(entry, document) {
+      const path = join(dir, `partial-${queried.length}.json`);
+      queried.push(document.cases[0].input);
+      writeFileSync(path, JSON.stringify(document));
+      return run(binary, ['call', model, '--entry', entry, '--input', path, '--partial'], dir);
     },
   };
 }
 
-export const interview = (transport: EngineTransport, backend: Backend) =>
-  resolve((c: PartialLedger) => balanceQuery(transport, c), {}, resolvers(backend));
-`;
-
-test('second-order resolution: a list of skeletons, then the fields the law reads, by key', options, async () => {
+test('second-order answering: a list of skeletons, then the fields the law reads, by key', options, async () => {
   const dir = project('keyed');
-  writeFileSync(join(dir, 'keyed.calculate.runa'), keyedModel);
-  run(binary, ['sdk', 'ts', 'keyed.calculate.runa', '--out', 'sdk'], dir);
+  writeFileSync(join(dir, 'keyed.entry.runa'), keyedModel);
+  run(binary, ['sdk', 'ts', 'keyed.entry.runa', '--out', 'sdk'], dir);
   writeFileSync(join(dir, 'usage.ts'), keyedUsage);
   compile(dir, ['sdk/index.ts', 'usage.ts']);
   const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
   const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
   assert.match(readFileSync(join(dir, 'sdk/partial.ts'), 'utf8'),
     /export type BalanceElementKey =\n {2}\| ElementKey<"events\[\]", "id", string>;/);
+  // The guide's values, whichever way the module spells them.
+  assert.deepEqual(sdk.balanceGuide, {
+    events: { kind: 'fact', type: 'List(Event)', keys: [], sources: [] },
+    'events[].$variant': { kind: 'fact', type: 'Event', keys: ['events[].id'], sources: [] },
+    'events[].id': { kind: 'fact', type: 'String', label: 'Event id', keys: ['events[].id'], sources: [] },
+    'events[].amount': { kind: 'fact', type: 'Int', label: 'Amount', keys: ['events[].id'], sources: [] },
+    'events[].fee': { kind: 'fact', type: 'Int', label: 'Fee', keys: ['events[].id'], sources: [] },
+  });
 
-  const queried = [];
-  const transport = {
-    async call() { throw new Error('not used'); },
-    async callPartial(entry, document) {
-      const path = join(dir, `partial-${queried.length}.json`);
-      queried.push(document.cases[0].input);
-      writeFileSync(path, JSON.stringify(document));
-      return run(binary, ['call', 'keyed.calculate.runa', '--entry', entry, '--input', path, '--partial'], dir);
-    },
-  };
+  const transport = partialCli(dir, 'keyed.entry.runa');
   const skeletons = [{ $variant: 'Deposit', id: 'e1' }, { $variant: 'Withdrawal', id: 'e2' }, { $variant: 'Deposit', id: 'e3' }];
 
   // The needs inside a skeleton carry its event's id.
@@ -825,10 +910,10 @@ test('second-order resolution: a list of skeletons, then the fields the law read
   ]);
 
   // Round 1 asks for the list, round 2 for every field of the events by their ids: one backend call per round.
-  queried.length = 0;
+  transport.queried.length = 0;
   const rows = new Map([['e1', { amount: 100, fee: 0 }], ['e2', { amount: 30, fee: 2 }], ['e3', { amount: 7, fee: 0 }]]);
   const backend = { skeletons: 0, details: [] };
-  const resolution = await usage.interview(transport, {
+  const answering = await usage.answerLedger(transport, {
     async skeletons() {
       backend.skeletons += 1;
       return skeletons;
@@ -838,33 +923,222 @@ test('second-order resolution: a list of skeletons, then the fields the law read
       return new Map(ids.map((id) => [id, rows.get(id)]));
     },
   });
-  assert.equal(resolution.$variant, 'Complete', JSON.stringify(resolution));
-  assert.equal(resolution.result, 100 - 30 - 2 + 7);
-  assert.equal(resolution.rounds, 3);
-  assert.deepEqual(queried, [{}, { events: skeletons }, { events: [
+  assert.equal(answering.$variant, 'Answered', JSON.stringify(answering));
+  const details = ['events[0].amount', 'events[1].amount', 'events[1].fee', 'events[2].amount'];
+  assert.equal(answering.result, 100 - 30 - 2 + 7);
+  assert.deepEqual(answering.rounds, [
+    { paths: ['events'], given: ['events'] },
+    { paths: details, given: details },
+  ]);
+  assert.deepEqual(transport.queried, [{}, { events: skeletons }, { events: [
     { $variant: 'Deposit', id: 'e1', amount: 100 }, { $variant: 'Withdrawal', id: 'e2', amount: 30, fee: 2 },
     { $variant: 'Deposit', id: 'e3', amount: 7 }] }]);
   assert.equal(backend.skeletons, 1);
   assert.deepEqual(backend.details, [['e1', 'e2', 'e3']]);
 });
 
-test('the generated SDK passes typescript-eslint strictTypeChecked', {
+/** The household of tests/expect/run/needs/answer_household_law.runa, answered from TypeScript. */
+const householdModel = `# Spouse(income: Int, cohabiting: Bool)
+# Child(name: String, age: Int)
+# Household(income: Int, married: Bool, spouse: Option(Spouse), children: List(Child))
+# Result(tax: Int)
+
+| threshold(h: Household) -> match h.spouse {
+    | Some(s) -> if s.cohabiting { 200 - s.income } else { 100 }
+    | None -> 100
+}
+
+| child_allowance(h: Household) -> foldl(map(h.children, |c| if c.age < 18 { 10 } else { 0 }), 0, |sum, x| sum + x)
+
+@ entry("Household tax")
+| household_tax(h: Household) -> Result(tax = h.income - threshold(h) - child_allowance(h))
+`;
+
+const householdUsage = `import {
+  given, householdTaxAnswer, open,
+  type EngineTransport, type HouseholdTaxInputPatterns, type HouseholdTaxNeed, type HouseholdTaxResolve,
+  type PartialHousehold, type Reply,
+} from "./sdk/index.js";
+
+/** Each call of resolve: the paths of its round's needs. */
+export const calls: string[][] = [];
+
+export const started: PartialHousehold = { income: 500, married: true, children: [{ name: "Ada" }, { name: "Bo" }] };
+
+const ages: ReadonlyMap<string, number> = new Map([["children[0].age", 4], ["children[1].age", 19]]);
+
+function assertNever(value: never): never {
+  throw new Error(JSON.stringify(value));
+}
+
+type HouseholdReply = Reply<HouseholdTaxInputPatterns, HouseholdTaxNeed["pattern"]>;
+
+/** A reply to every need, the switch exhaustive; the ages only when \`ask\`. */
+export function reply(need: HouseholdTaxNeed, ask: boolean): HouseholdReply {
+  switch (need.pattern) {
+    case "income":
+      return given(need, 500);
+    case "married":
+      return given(need, true);
+    case "spouse":
+      return given(need, {});
+    case "spouse.income":
+      return given(need, 50);
+    case "spouse.cohabiting":
+      return given(need, true);
+    case "children":
+      return given(need, []);
+    case "children[]":
+    case "children[].name":
+      return open;
+    case "children[].age": {
+      const age = ask ? ages.get(need.path) : undefined;
+      return age === undefined ? open : given(need, age);
+    }
+    default:
+      return assertNever(need);
+  }
+}
+
+export const resolveAll: HouseholdTaxResolve = (needs) => {
+  calls.push(needs.map((need) => need.path));
+  return (need) => reply(need, true);
+};
+/** Nobody can give the ages yet. */
+export const agesOpen: HouseholdTaxResolve = () => (need) => reply(need, false);
+
+// Type errors only; never called.
+export function forgetsAge(need: HouseholdTaxNeed): HouseholdReply {
+  switch (need.pattern) {
+    case "income":
+    case "married":
+    case "spouse":
+    case "spouse.income":
+    case "spouse.cohabiting":
+    case "children":
+    case "children[]":
+    case "children[].name":
+      return open;
+    default:
+      // @ts-expect-error \`children[].age\` is not handled
+      return assertNever(need);
+  }
+}
+export function wrongAge(need: HouseholdTaxNeed): HouseholdReply {
+  if (need.pattern === "children[].age") {
+    // @ts-expect-error an age is a number
+    return given(need, "four");
+  }
+  return open;
+}
+
+export const answerHousehold = (transport: EngineTransport, partialCase: PartialHousehold, resolve: HouseholdTaxResolve) =>
+  householdTaxAnswer(transport, partialCase, resolve);
+
+/** The paths of the needs left open. */
+export async function openPaths(transport: EngineTransport): Promise<string[]> {
+  const answering = await householdTaxAnswer(transport, started, agesOpen);
+  if (answering.$variant === "Answered") return [];
+  return answering.open.map((need) => need.path);
+}
+`;
+
+test('answering an entry: one resolve per round with every need, the needs left open, the answer guide', options, async () => {
+  const dir = project('household');
+  writeFileSync(join(dir, 'household.entry.runa'), householdModel);
+  run(binary, ['sdk', 'ts', 'household.entry.runa', '--out', 'sdk'], dir);
+  assert.ok(!existsSync(join(dir, 'sdk/answer.ts')));
+  writeFileSync(join(dir, 'usage.ts'), householdUsage);
+  compile(dir, ['sdk/index.ts', 'usage.ts']);
+  const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
+  const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
+
+  // The answer guide, from the law: every pattern a need can name, with its type.
+  assert.deepEqual(Object.entries(sdk.householdTaxGuide).map(([pattern, need]) => [pattern, need.kind, need.type]), [
+    ['income', 'fact', 'Int'], ['married', 'fact', 'Bool'], ['spouse', 'fact', 'Spouse?'],
+    ['spouse.income', 'fact', 'Int'], ['spouse.cohabiting', 'fact', 'Bool'], ['children', 'fact', 'List(Child)'],
+    ['children[].name', 'fact', 'String'], ['children[].age', 'fact', 'Int'],
+  ]);
+
+  // resolve is called once per round with every need of the round.
+  const transport = partialCli(dir, 'household.entry.runa');
+  const answered = await usage.answerHousehold(transport, usage.started, usage.resolveAll);
+  assert.equal(answered.$variant, 'Answered', JSON.stringify(answered));
+  assert.deepEqual(answered.result, { tax: 500 - (200 - 50) - 10 });
+  const round1 = ['children[0].age', 'children[1].age', 'spouse'];
+  const round2 = ['spouse.cohabiting', 'spouse.income'];
+  assert.deepEqual(answered.rounds, [{ paths: round1, given: round1 }, { paths: round2, given: round2 }]);
+  assert.deepEqual(usage.calls, [round1, round2]);
+  assert.deepEqual(answered.partialCase, { ...usage.started, children: [{ name: 'Ada', age: 4 }, { name: 'Bo', age: 19 }],
+    spouse: { cohabiting: true, income: 50 } });
+  assert.equal(transport.queried.length, 3);
+
+  // A round that answers nothing ends Unanswered, with that round's needs open.
+  const closed = await usage.answerHousehold(transport, usage.started, usage.agesOpen);
+  assert.equal(closed.$variant, 'Unanswered');
+  assert.equal(closed.rounds.length, 3);
+  assert.deepEqual(closed.rounds.at(-1), { paths: ['children[0].age', 'children[1].age'], given: [] });
+  assert.deepEqual(closed.open.map((need) => [need.pattern, need.path]),
+    [['children[].age', 'children[0].age'], ['children[].age', 'children[1].age']]);
+  assert.deepEqual(closed.partialCase.spouse, { cohabiting: true, income: 50 });
+  assert.deepEqual(await usage.openPaths(transport), ['children[0].age', 'children[1].age']);
+
+  // Given facts are not asked.
+  usage.calls.length = 0;
+  const known = await usage.answerHousehold(transport, { ...usage.started, spouse: { income: 50, cohabiting: true } }, usage.resolveAll);
+  assert.equal(known.$variant, 'Answered');
+  assert.deepEqual(usage.calls, [['children[0].age', 'children[1].age']]);
+});
+
+test('the runtime package is the compilation of the runtime source, at Futuruna\'s version', options, async () => {
+  const { compileRuntime, runtimeJs, runtimeDts } = await import(pathToFileURL(join(root, 'scripts/sdk-runtime.mjs')));
+  const { js, dts } = compileRuntime(deps);
+  assert.equal(readFileSync(runtimeJs, 'utf8'), js, 'stale src/calculate/sdk_ts_runtime.js: run node scripts/sdk-runtime.mjs');
+  assert.equal(readFileSync(runtimeDts, 'utf8'), dts, 'stale src/calculate/sdk_ts_runtime.d.ts: run node scripts/sdk-runtime.mjs');
+
+  const dir = project('runtime');
+  const runtimeDir = join(dir, 'node_modules/@futuruna/runtime');
+  const version = run(binary, ['--version']).trim().split(/\s+/).at(-1);
+  const manifest = JSON.parse(readFileSync(join(runtimeDir, 'package.json'), 'utf8'));
+  assert.equal(manifest.name, '@futuruna/runtime');
+  assert.equal(manifest.version, version);
+  assert.deepEqual(manifest.files, ['index.js', 'index.d.ts']);
+  const runtime = await import(pathToFileURL(join(runtimeDir, 'index.js')));
+  assert.match(runtime.INPUT_SCHEMA, /^futuruna\.entry\.input\.v\d+$/);
+  assert.equal(typeof runtime.answerEntry, 'function');
+  assert.equal(runtime.resolve, undefined);
+  // npm packs it as the release asset futuruna-runtime-<version>.tgz.
+  const pack = spawnSync('npm', ['pack', '--dry-run', '--json'], { cwd: runtimeDir, encoding: 'utf8' });
+  assert.ifError(pack.error);
+  assert.equal(pack.status, 0, pack.stderr);
+  const [packed] = JSON.parse(pack.stdout);
+  assert.equal(packed.filename, `futuruna-runtime-${version}.tgz`);
+  assert.deepEqual(packed.files.map((file) => file.path).sort(), ['index.d.ts', 'index.js', 'package.json']);
+});
+
+test('the generated SDK and the runtime pass typescript-eslint strictTypeChecked', {
   skip: !(ready && existsSync(join(deps, 'node_modules/typescript-eslint')))
     && 'Set FUTURUNA_SDK_TS_DEPS to node_modules that also hold eslint and typescript-eslint.',
 }, () => {
   const dir = project('lint');
-  run(binary, ['sdk', 'ts', fixture, '--out', join(dir, 'sdk/tax'), '--runtime', '../runtime.ts']);
-  writeFileSync(join(dir, 'ledger.calculate.runa'), ledgerModel);
-  run(binary, ['sdk', 'ts', 'ledger.calculate.runa', '--out', 'sdk/ledger', '--runtime', '../runtime.ts'], dir);
+  run(binary, ['sdk', 'ts', fixture, '--out', join(dir, 'sdk/tax')]);
+  writeFileSync(join(dir, 'ledger.entry.runa'), ledgerModel);
+  run(binary, ['sdk', 'ts', 'ledger.entry.runa', '--out', 'sdk/ledger'], dir);
+  writeFileSync(join(dir, 'household.entry.runa'), householdModel);
+  run(binary, ['sdk', 'ts', 'household.entry.runa', '--out', 'sdk/household'], dir);
+  writeFileSync(join(dir, 'holding.entry.runa'), unitModel);
+  run(binary, ['sdk', 'ts', 'holding.entry.runa', '--out', 'sdk/holding'], dir);
+  mkdirSync(join(dir, 'runtime'));
+  copyFileSync(join(root, 'src/calculate/sdk_ts_runtime.ts'), join(dir, 'runtime/index.ts'));
   writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify({
     compilerOptions: { target: 'es2023', module: 'nodenext', moduleResolution: 'nodenext', strict: true,
       noUncheckedIndexedAccess: true, exactOptionalPropertyTypes: true, noEmit: true, types: [] },
-    include: ['sdk/**/*.ts'],
+    include: ['sdk/**/*.ts', 'runtime/**/*.ts'],
   }));
   writeFileSync(join(dir, 'eslint.config.mjs'), `import tseslint from "typescript-eslint";
 export default tseslint.config(...tseslint.configs.strictTypeChecked, {
   languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname } },
 });
 `);
-  run(process.execPath, [join(deps, 'node_modules/eslint/bin/eslint.js'), '--max-warnings', '0', 'sdk'], dir);
+  run(process.execPath, [join(deps, 'node_modules/eslint/bin/eslint.js'), '--max-warnings', '0', 'sdk', 'runtime'], dir);
 });

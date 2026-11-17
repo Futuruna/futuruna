@@ -3,7 +3,7 @@
 -- expect-command: call
 -- expect-input: needs_callback_result.json
 -- expect-args: --partial=check
--- expect-stdout: "schema": "futuruna.calculate.partial-output.v1"
+-- expect-stdout: "schema": "futuruna.entry.partial-output.v1"
 
 # Account(id: String, ask: Bool, deposits: Int)
 # Case(liable: Bool, accounts: List(Account))
@@ -28,5 +28,5 @@
     if length(issues) == 0 { Accepted(accounts = length(c.accounts)) } else { Rejected(issues = issues) }
 }
 
-@ calculate
+@ entry
 | check_case(c: Case) -> outcome(c)

@@ -1,0 +1,10 @@
+-- `@ calculate` is now `@ entry`: the old marker is an error that names the
+-- new one and the migration that rewrites it.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ calculate` is now `@ entry`
+-- expect-stderr: `runa fmt --migrate` rewrites it
+# Input(value: Int)
+
+@ calculate
+> double(input: Input) -> Int { input.value * 2 }

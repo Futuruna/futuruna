@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 | pbl53a_stk2_stk5_scenarieordning(identifikation: Tekst, omfangsfakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> PersonskatPbl53AOrdningFakta(
     identifikation = identifikation,

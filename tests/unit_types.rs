@@ -425,7 +425,7 @@ const CALCULATION: &str = "# unit Ore \"DKK øre\"
 ])
 
 @ meta(guide)
-@ calculate(\"Total of an account\")
+@ entry(\"Total of an account\")
 > account_total(a: Account) -> Result { Result(total_ore = a.cash_ore + sum_list(a.holdings)) }
 ";
 
@@ -766,13 +766,13 @@ fn the_clause_audit_and_verify_see_units_as_int() {
     )
     .unwrap();
     std::fs::write(
-        dir.join("tax.calculate.runa"),
+        dir.join("tax.entry.runa"),
         "@ import ./money\n\
          | band(x: Ore) -> 1 under x >= 0\n\
          | band(x) -> 2 under x < 0\n\
          # Input(own_ore: Ore)\n\
          # Output(tax_ore: Ore, band: Int, bracket: Int)\n\
-         @ calculate(\"Units in the clause audit\")\n\
+         @ entry(\"Units in the clause audit\")\n\
          | share_tax(input: Input) -> Output(tax_ore = ShareTax(own_ore = input.own_ore).tax_ore(), band = band(input.own_ore), bracket = bracket(input.own_ore))\n",
     )
     .unwrap();
@@ -789,7 +789,7 @@ fn the_clause_audit_and_verify_see_units_as_int() {
             .output()
             .unwrap()
     };
-    let audit = run(&["audit", "--json"], "tax.calculate.runa");
+    let audit = run(&["audit", "--json"], "tax.entry.runa");
     let verify = run(&["verify"], "proofs.runa");
     let _ = std::fs::remove_dir_all(&dir);
     assert!(audit.status.success(), "{}", stderr(&audit));

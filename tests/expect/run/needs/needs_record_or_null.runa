@@ -10,7 +10,7 @@
 # Household(income: Int, married: Bool, filing: Filing, spouse: Spouse?, accounts: List(Account), phone: String, n: Int)
 # Result(tax: Int)
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = match h.spouse {
         | None -> 0
         | Some(s) -> s.income

@@ -11,7 +11,7 @@ import { buildFictionalCases } from '../examples/danish-income-tax/bilag-demo.mj
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
 const enabled = { skip: !binary && 'Set FUTURUNA_MODEL_TEST_RUNA; no compiler build.' };
-const model = 'examples/danish-income-tax/personskat.calculate.runa';
+const model = 'examples/danish-income-tax/personskat.entry.runa';
 const v = ($variant, fields = {}) => ({ $variant, ...fields });
 const date = (år, måned = 1, dag = 1) => ({ år, måned, dag });
 function run(args) {

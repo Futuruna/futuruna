@@ -16,7 +16,7 @@ Bevar `RUNA_BIN` som den absolutte sti til den compiler, der bestod kontrollen.
 Fra projektmappen kan du lave en lille skabelon uden hele Personskat-arbejdsbogen:
 
 ```sh
-"$RUNA_BIN" template examples/danish-income-tax/personskat-dagpenge.calculate.runa \
+"$RUNA_BIN" template examples/danish-income-tax/personskat-dagpenge.entry.runa \
   --format json --output /tmp/futuruna-dagpenge.json
 ```
 
@@ -42,7 +42,7 @@ ikke en godkendelse af bilaget eller skatten.
 
 ```sh
 FUTURUNA_CALCULATION_JOBS=1 "$RUNA_BIN" call \
-  examples/danish-income-tax/personskat-dagpenge.calculate.runa \
+  examples/danish-income-tax/personskat-dagpenge.entry.runa \
   --input /tmp/futuruna-dagpenge.json
 ```
 

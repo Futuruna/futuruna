@@ -15,7 +15,7 @@
     if liable { [] } else { [a.id] }
 }
 
-@ calculate
+@ entry
 | needs_sort_carries(c: Case) -> Checked(
     issues = length(flat_map(sort(map(enumerate(c.accounts), |p| (snd(p).id, fst(p), snd(p)))), |t| account_issue(c.owner_liable, trd(t)))),
     total = foldl(map(c.accounts, |a| a.opening_ore), 0, |sum, x| sum + x)

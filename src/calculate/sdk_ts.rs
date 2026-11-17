@@ -1,43 +1,40 @@
-//! TypeScript SDK generation for calculation contracts (`runa sdk ts`).
+//! TypeScript SDK generation for calculation contracts (`runa sdk ts`), and
+//! the runtime package the SDKs import (`runa sdk runtime`).
 //!
 //! Everything is derived from the contracts `runa schema` emits. The SDK reads
 //! as ordinary TypeScript: camelCase field names, a sum type whose variants
 //! carry no fields as a string union, and `Date` as an ISO `YYYY-MM-DD` string.
 //! The wire is unchanged: the canonical JSON encoding that `decode_value`
 //! reads and `encode_value` writes. Each entry's modules carry codec tables
-//! (TypeScript name, wire name, encoding), and the shared runtime encodes a
-//! case before a call and decodes the result and the needs' paths after it.
-//! The partial-case types and the `Complete`/`Needs` result follow
-//! `docs/rfcs/calculation-needs.md`; the client reaches an engine only through
-//! a transport. The output depends only on the contracts, the source label and
-//! the runtime path, so regenerating an unchanged model rewrites identical
-//! files.
+//! (TypeScript name, wire name, encoding), and the runtime package
+//! `@futuruna/runtime` encodes a case before a call and decodes the result and
+//! the needs' paths after it. The partial-case types and the
+//! `Complete`/`Needs` result follow `docs/rfcs/calculation-needs.md`; the
+//! client reaches an engine only through a transport. Every entry is also
+//! answered round by round: `<entry>Answer` calls one `resolve` per round with
+//! every need. The output depends only on the contracts and the source label,
+//! so regenerating an unchanged model rewrites identical files.
 
+use super::answer_guide::{answer_guide, is_date, written_type, GuideNeed};
 use super::{
     calculation_type_occurrence_paths, definition_substitutions, joined_column_path,
     product_variant, substitute_contract_type, CalculationContract, CalculationField,
-    CalculationFieldMetadata, CalculationScalar, CalculationTypeDefinition, CalculationTypeRef,
-    CalculationVariant, CONTRACT_SCHEMA, INPUT_SCHEMA, OUTPUT_SCHEMA,
+    CalculationFieldMetadata, CalculationNeedKind, CalculationScalar, CalculationTypeDefinition,
+    CalculationTypeRef, CalculationUnit, CalculationVariant, CONTRACT_SCHEMA, INPUT_SCHEMA,
+    OUTPUT_SCHEMA,
 };
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write as _;
 
 /// The output envelope schema of `runa call --partial`.
-pub const PARTIAL_OUTPUT_SCHEMA: &str = "futuruna.calculate.partial-output.v1";
+pub const PARTIAL_OUTPUT_SCHEMA: &str = "futuruna.entry.partial-output.v1";
 
-/// Where the runtime module goes, relative to the output directory, unless
-/// `--runtime` says otherwise.
-pub const DEFAULT_RUNTIME_PATH: &str = "runtime.ts";
+/// The npm package of the runtime every generated SDK imports.
+pub const RUNTIME_PACKAGE: &str = "@futuruna/runtime";
 
-/// The modules generated for the entries of one source file.
-const ENTRY_MODULES: [&str; 5] = [
-    "types.ts",
-    "schema.ts",
-    "partial.ts",
-    "client.ts",
-    "index.ts",
-];
+/// The version of the runtime package: Futuruna's.
+pub const RUNTIME_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// The fields of a Futuruna `Date`, in the order the engine sorts the paths of
 /// a date's parts (`date.day` < `date.month` < `date.year`).
@@ -102,22 +99,19 @@ pub struct GeneratedFile {
     pub contents: String,
 }
 
-/// Generate the TypeScript SDK for every calculation entry of one source file.
+/// Generate the TypeScript SDK for every entry of one source file.
 ///
-/// `source` names the file in the generated headers. `runtime_path` is where
-/// the runtime module goes, relative to the output directory (`runtime.ts`,
-/// or `../runtime.ts` for one runtime shared by the SDKs of several files);
-/// the entry modules import it from there. A file whose contracts cannot be
-/// expressed (an unsupported type, two entries disagreeing on a type, two
-/// fields with the same camelCase name, or a contract name that collides with
-/// a generated name) is an error.
+/// `source` names the file in the generated headers. The modules import the
+/// runtime from the package `@futuruna/runtime` ([`runtime_package`]). A file
+/// whose contracts cannot be expressed (an unsupported type, two entries
+/// disagreeing on a type, two fields with the same camelCase name, or a
+/// contract name that collides with a generated name) is an error.
 pub fn generate_typescript_sdk(
     contracts: &[CalculationContract],
     source: &str,
-    runtime_path: &str,
 ) -> Result<Vec<GeneratedFile>, String> {
-    let sdk = Sdk::new(contracts, source, runtime_specifier(runtime_path)?)?;
-    Ok(vec![
+    let sdk = Sdk::new(contracts, source)?;
+    let files = vec![
         GeneratedFile {
             name: "types.ts".to_string(),
             contents: sdk.types_module(),
@@ -138,36 +132,63 @@ pub fn generate_typescript_sdk(
             name: "index.ts".to_string(),
             contents: sdk.index_module(),
         },
-        GeneratedFile {
-            name: runtime_path.to_string(),
-            contents: runtime_module(),
-        },
-    ])
+    ];
+    Ok(files)
 }
 
-/// The module specifier the entry modules import the runtime by:
-/// `../runtime.ts` → `../runtime.js`, `runtime.ts` → `./runtime.js`.
-fn runtime_specifier(path: &str) -> Result<String, String> {
-    let invalid = |reason: &str| Err(format!("the runtime path `{path}` {reason}"));
-    let Some(stem) = path.strip_suffix(".ts") else {
-        return invalid("must name a `.ts` file");
-    };
-    if stem.is_empty() || stem.ends_with('/') || stem.ends_with(".d") {
-        return invalid("must name a `.ts` file");
-    }
-    if path.starts_with('/') || path.contains('\\') || path.contains(':') {
-        return invalid("must be relative to the output directory, with `/` between directories");
-    }
-    let file = path.strip_prefix("./").unwrap_or(path);
-    if ENTRY_MODULES.contains(&file) {
-        return invalid("is the path of a generated entry module");
-    }
-    let specifier = format!("{stem}.js");
-    if specifier.starts_with("./") || specifier.starts_with("../") {
-        Ok(specifier)
-    } else {
-        Ok(format!("./{specifier}"))
-    }
+/// The npm package `@futuruna/runtime` (`runa sdk runtime --out DIR`): what
+/// every generated SDK shares, as an ES module with its declarations, at
+/// Futuruna's version. It depends on no model; `zod` is its peer dependency,
+/// so the SDK and the runtime validate with one `zod`.
+pub fn runtime_package() -> Vec<GeneratedFile> {
+    let header = format!(
+        "// {RUNTIME_PACKAGE} {RUNTIME_VERSION}, written by `runa sdk runtime`. Do not edit.\n// The runtime of the SDKs `runa sdk ts` generates: the wire codec, paths and setAt,\n// needs, calls through an engine transport, answering an entry and unit converters.\n"
+    );
+    let package = format!(
+        r#"{{
+  "name": {name},
+  "version": {version},
+  "description": "The runtime of the TypeScript SDKs that `runa sdk ts` generates from Futuruna models.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {{
+    ".": {{
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }}
+  }},
+  "types": "./index.d.ts",
+  "files": ["index.js", "index.d.ts"],
+  "sideEffects": false,
+  "peerDependencies": {{
+    "zod": "^4.0.0"
+  }}
+}}
+"#,
+        name = string_literal(RUNTIME_PACKAGE),
+        version = string_literal(RUNTIME_VERSION),
+    );
+    vec![
+        GeneratedFile {
+            name: "package.json".to_string(),
+            contents: package,
+        },
+        GeneratedFile {
+            name: "index.js".to_string(),
+            contents: format!("{header}{}", with_schemas(RUNTIME_JS)),
+        },
+        GeneratedFile {
+            name: "index.d.ts".to_string(),
+            contents: format!("{header}{}", with_schemas(RUNTIME_DTS)),
+        },
+    ]
+}
+
+/// The runtime's text with the wire schema ids filled in.
+fn with_schemas(text: &str) -> String {
+    text.replace("{INPUT_SCHEMA}", INPUT_SCHEMA)
+        .replace("{OUTPUT_SCHEMA}", OUTPUT_SCHEMA)
+        .replace("{PARTIAL_OUTPUT_SCHEMA}", PARTIAL_OUTPUT_SCHEMA)
 }
 
 /// Where a type is written: inside `types.ts`, from another module (complete
@@ -212,21 +233,6 @@ fn shape(definition: &CalculationTypeDefinition) -> Shape<'_> {
     }
 }
 
-fn is_date(definition: &CalculationTypeDefinition) -> bool {
-    definition.name == "Date"
-        && definition.parameters.is_empty()
-        && product_variant(definition).is_some_and(|variant| {
-            variant.fields.len() == 3
-                && ["year", "month", "day"]
-                    .iter()
-                    .zip(&variant.fields)
-                    .all(|(name, field)| {
-                        field.name == *name
-                            && matches!(&field.ty, CalculationTypeRef::Primitive { name, unit: None, scalar: None } if name == "Int")
-                    })
-        })
-}
-
 fn without_optional(ty: &CalculationTypeRef) -> &CalculationTypeRef {
     match ty {
         CalculationTypeRef::Optional { item } => without_optional(item),
@@ -259,14 +265,13 @@ struct ElementKey {
 
 struct Sdk<'a> {
     source: &'a str,
-    /// The module specifier of the runtime, such as `../runtime.js`.
-    runtime: String,
     entries: Vec<Entry<'a>>,
     definitions: BTreeMap<&'a str, &'a CalculationTypeDefinition>,
     input_definitions: BTreeSet<&'a str>,
     /// The units of measure (`# unit Ore "DKK øre"`) the contracts use, by
-    /// name, with their descriptions: each is a branded number type.
-    units: BTreeMap<&'a str, &'a str>,
+    /// name: each is a branded number type, and one with a scale whose
+    /// values are all finite decimals also has decimal converters.
+    units: BTreeMap<&'a str, &'a CalculationUnit>,
     /// The named scalar types (`# Isin: String "..." where ...`) the
     /// contracts use, by name: each is a branded string or number type.
     scalars: BTreeMap<&'a str, &'a CalculationScalar>,
@@ -277,13 +282,9 @@ struct Sdk<'a> {
 }
 
 impl<'a> Sdk<'a> {
-    fn new(
-        contracts: &'a [CalculationContract],
-        source: &'a str,
-        runtime: String,
-    ) -> Result<Self, String> {
+    fn new(contracts: &'a [CalculationContract], source: &'a str) -> Result<Self, String> {
         if contracts.is_empty() {
-            return Err(format!("{source} declares no `@ calculate` entry"));
+            return Err(format!("{source} declares no `@ entry`"));
         }
         let mut contracts: Vec<&CalculationContract> = contracts.iter().collect();
         contracts.sort_by(|left, right| left.entry.cmp(&right.entry));
@@ -291,10 +292,7 @@ impl<'a> Sdk<'a> {
             .windows(2)
             .find(|pair| pair[0].entry == pair[1].entry)
         {
-            return Err(format!(
-                "calculation entry `{}` is declared twice",
-                pair[0].entry
-            ));
+            return Err(format!("entry `{}` is declared twice", pair[0].entry));
         }
 
         let mut definitions: BTreeMap<&str, &CalculationTypeDefinition> = BTreeMap::new();
@@ -304,7 +302,7 @@ impl<'a> Sdk<'a> {
                 match definitions.get(definition.name.as_str()) {
                     Some(existing) if *existing != definition => {
                         return Err(format!(
-                            "type `{}` differs between calculation entries `{}` and `{}`",
+                            "type `{}` differs between entries `{}` and `{}`",
                             definition.name,
                             owners[definition.name.as_str()],
                             contract.entry
@@ -319,14 +317,14 @@ impl<'a> Sdk<'a> {
             }
         }
 
-        let mut units: BTreeMap<&str, &str> = BTreeMap::new();
+        let mut units: BTreeMap<&str, &CalculationUnit> = BTreeMap::new();
         for contract in &contracts {
             for unit in &contract.units {
-                match units.insert(&unit.name, &unit.description) {
-                    Some(other) if other != unit.description => {
+                match units.insert(&unit.name, unit) {
+                    Some(other) if other != unit => {
                         return Err(format!(
-                            "unit `{}` is described both as {other:?} and as {:?}",
-                            unit.name, unit.description
+                            "unit `{}` is declared differently by two entries: {:?} and {:?}",
+                            unit.name, other, unit
                         ));
                     }
                     _ => {}
@@ -340,7 +338,7 @@ impl<'a> Sdk<'a> {
                 match scalars.insert(&scalar.name, scalar) {
                     Some(other) if other != scalar => {
                         return Err(format!(
-                            "named scalar type `{}` differs between calculation entries",
+                            "named scalar type `{}` differs between entries",
                             scalar.name
                         ));
                     }
@@ -351,7 +349,6 @@ impl<'a> Sdk<'a> {
 
         let mut sdk = Sdk {
             source,
-            runtime,
             entries: Vec::new(),
             definitions,
             input_definitions: BTreeSet::new(),
@@ -801,12 +798,14 @@ impl<'a> Sdk<'a> {
                 names.push((format!("{types}{suffix}"), "partial.ts"));
             }
             names.push((format!("{values}SetAt"), "partial.ts"));
+            names.push((format!("{values}Guide"), "partial.ts"));
             names.push((values.clone(), "client.ts"));
             names.push((format!("{values}Query"), "client.ts"));
             names.push((format!("{values}Explained"), "client.ts"));
             names.push((format!("{values}QueryExplained"), "client.ts"));
             names.push((format!("{values}Entry"), "client.ts"));
-            names.push((format!("{types}Resolvers"), "client.ts"));
+            names.push((format!("{types}Resolve"), "client.ts"));
+            names.push((format!("{values}Answer"), "client.ts"));
         }
         let mut seen: BTreeMap<&str, &str> = BTreeMap::new();
         for (name, module) in &names {
@@ -1049,6 +1048,10 @@ impl<'a> Sdk<'a> {
             self.source
         );
         let _ = writeln!(out, "// {purpose}");
+        let _ = writeln!(
+            out,
+            "// Imports {RUNTIME_PACKAGE} {RUNTIME_VERSION}, the runtime of the runa that generated it."
+        );
         let _ = writeln!(out, "// Contract {CONTRACT_SCHEMA}; schema hash per entry:");
         for entry in &self.entries {
             let _ = writeln!(
@@ -1096,7 +1099,7 @@ impl<'a> Sdk<'a> {
             .collect();
         if !used.is_empty() {
             let keyword = if type_only { "import type" } else { "import" };
-            let specifier = string_literal(&self.runtime);
+            let specifier = string_literal(RUNTIME_PACKAGE);
             let line = format!("{keyword} {{ {} }} from {specifier};", used.join(", "));
             if line.len() <= 100 {
                 let _ = writeln!(out, "{line}");
@@ -1116,19 +1119,32 @@ impl<'a> Sdk<'a> {
 
     fn types_module(&self) -> String {
         let mut body = String::new();
-        for (unit, description) in &self.units {
-            write_doc(
-                &mut body,
-                "",
-                &[
-                    sentence(description),
-                    String::new(),
-                    format!(
-                        "A Futuruna `{unit}`: a safe integer of this unit, on the wire the same JSON number. Only `{}(n)` and the validators make one; a bare number or a value of another unit is not one.",
-                        value_identifier(unit)
+        for (unit, declared) in &self.units {
+            let mut doc = vec![
+                sentence(&declared.description),
+                String::new(),
+                format!(
+                    "A Futuruna `{unit}`: a safe integer of this unit, on the wire the same JSON number. Only `{}(n)` and the validators make one; a bare number or a value of another unit is not one.",
+                    value_identifier(unit)
+                ),
+            ];
+            if let Some(scale) = &declared.scale {
+                doc.push(String::new());
+                doc.push(match decimal_places(scale.per) {
+                    Some(_) => format!(
+                        "One `{unit}` is 1/{}{}. `{name}.fromDecimal` and `{name}.toDecimal` convert a decimal amount exactly.",
+                        scale.per,
+                        scale_base(&scale.of),
+                        name = value_identifier(unit)
                     ),
-                ],
-            );
+                    None => format!(
+                        "One `{unit}` is 1/{}{}, which is no finite decimal: the SDK has no decimal converters for it.",
+                        scale.per,
+                        scale_base(&scale.of)
+                    ),
+                });
+            }
+            write_doc(&mut body, "", &doc);
             let _ = writeln!(
                 body,
                 "export type {unit} = number & {{ readonly __unit: {} }};\n",
@@ -1319,7 +1335,7 @@ impl<'a> Sdk<'a> {
         if self.mentions_date(&field.ty) {
             notes.push("a `Date` is an ISO `YYYY-MM-DD` string");
         }
-        let mut type_line = format!("Futuruna type: `{}`", futuruna_type(&field.ty));
+        let mut type_line = format!("Futuruna type: `{}`", written_type(&field.ty));
         for note in notes {
             type_line.push_str("; ");
             type_line.push_str(note);
@@ -1349,7 +1365,9 @@ impl<'a> Sdk<'a> {
 
     fn schema_module(&self) -> String {
         let mut body = String::new();
-        body.push_str("/** The contract fingerprint of each calculation entry. */\nexport const SCHEMA_HASH = {\n");
+        body.push_str(
+            "/** The contract fingerprint of each entry. */\nexport const SCHEMA_HASH = {\n",
+        );
         for entry in &self.entries {
             let _ = writeln!(
                 body,
@@ -1359,17 +1377,62 @@ impl<'a> Sdk<'a> {
             );
         }
         body.push_str("} as const;\n");
-        for (unit, description) in &self.units {
+        for (unit, declared) in &self.units {
             let _ = writeln!(
                 body,
                 "\n/** Validates a `{unit}` ({}): a safe integer, typed `{unit}` once parsed. */\nexport const {unit}Schema: z.ZodType<types.{unit}> = unitSchema<types.{unit}>({});\n",
-                escape_doc(description),
+                escape_doc(&declared.description),
                 string_literal(unit)
+            );
+            let name = value_identifier(unit);
+            let _ = writeln!(
+                body,
+                "/** `value` as a `{unit}`; throws a `RangeError` unless it is a safe integer. */\nexport function {name}(value: number): types.{unit} {{\n  return unitValue<types.{unit}>({}, value);\n}}",
+                string_literal(unit)
+            );
+            let Some(scale) = &declared.scale else {
+                continue;
+            };
+            let Some(places) = decimal_places(scale.per) else {
+                continue;
+            };
+            let base = scale_base(&scale.of);
+            let of = if base.is_empty() {
+                String::new()
+            } else {
+                format!(" of{base}")
+            };
+            let scale_literal = format!(
+                "{{ of: {}, per: {} }}",
+                string_literal(&scale.of),
+                scale.per
+            );
+            body.push('\n');
+            write_doc(
+                &mut body,
+                "",
+                &[format!(
+                    "`amount`, a decimal number{of} as text (`\"1740.25\"`), as a `{unit}`, exactly: never through a float. Throws a `CalculationError` of kind `amount`, naming the unit and the amount, when it is finer than one `{unit}` (1/{}{base}) or not a decimal number.",
+                    scale.per
+                )],
             );
             let _ = writeln!(
                 body,
-                "/** `value` as a `{unit}`; throws a `RangeError` unless it is a safe integer. */\nexport function {}(value: number): types.{unit} {{\n  return unitValue<types.{unit}>({}, value);\n}}",
-                value_identifier(unit),
+                "{name}.fromDecimal = (amount: string): types.{unit} =>\n  unitFromDecimal<types.{unit}>({}, {scale_literal}, amount);\n",
+                string_literal(unit)
+            );
+            write_doc(
+                &mut body,
+                "",
+                &[format!(
+                    "`value` as a decimal number{of}, exactly, with {places} decimal{}: how a figure in `{unit}` reads{}.",
+                    if places == 1 { "" } else { "s" },
+                    if base.is_empty() { String::new() } else { format!(" in{base}") }
+                )],
+            );
+            let _ = writeln!(
+                body,
+                "{name}.toDecimal = (value: types.{unit}): string => unitToDecimal({}, {scale_literal}, value);",
                 string_literal(unit)
             );
         }
@@ -1753,7 +1816,7 @@ impl<'a> Sdk<'a> {
         );
         let _ = writeln!(out, "export interface {types}InputPatterns {{");
         for (pattern, value_types) in &entry.patterns {
-            let value = value_types.iter().cloned().collect::<Vec<_>>().join(" | ");
+            let value = union_of(value_types);
             let _ = writeln!(out, "  {}: {value};", string_literal(pattern));
         }
         if entry.open_paths {
@@ -1876,6 +1939,224 @@ impl<'a> Sdk<'a> {
             out,
             "export function {values}SetAt<N extends {types}Need>(\n  partialCase: {input},\n  need: N,\n  value: AnswerTo<{types}InputPatterns, N>,\n): {input} {{\n  return setAt(partialCase, need.path, value);\n}}"
         );
+        self.write_guide(out, entry);
+    }
+
+    /// `<entry>Guide`: the entry's answer guide ([`answer_guide`]), keyed by
+    /// the TypeScript need pattern, each pattern a need can name once.
+    fn write_guide(&self, out: &mut String, entry: &Entry<'_>) {
+        let contract = entry.contract;
+        let types = &entry.type_name;
+        out.push('\n');
+        write_doc(
+            out,
+            "",
+            &[
+                format!("The answer guide of `{}`, from its law: every input path pattern at which a need can arise, with the type of the value there and the law's metadata.", contract.entry),
+                "Data for documentation and forms; a pattern no need can name (a record, a list of records' element) is not in it.".to_string(),
+            ],
+        );
+        let needs: Vec<(String, GuideNeed)> = answer_guide(contract)
+            .into_iter()
+            .map(|need| (camel_case_path(&need.pattern), need))
+            .filter(|(pattern, _)| entry.open_paths || entry.patterns.contains_key(pattern))
+            .collect();
+        if needs.is_empty() {
+            let _ = writeln!(
+                out,
+                "export const {}Guide: AnswerGuide<{types}Need[\"pattern\"]> = {{}};",
+                entry.value_name
+            );
+            return;
+        }
+        // Each source once, and each field's text (label, question, help,
+        // unit, sources) once: a declaration's text repeats at every pattern
+        // it lies at, thousands in a large law. A text of one pattern stays
+        // in it.
+        let mut sources: Vec<serde_json::Value> = Vec::new();
+        let mut source_index: HashMap<String, usize> = HashMap::new();
+        let mut texts: Vec<(Vec<String>, usize)> = Vec::new();
+        let mut text_index: HashMap<Vec<String>, usize> = HashMap::new();
+        let source_name = |index: usize| format!("{}GuideSource{index}", entry.value_name);
+        let said: Vec<Option<usize>> = needs
+            .iter()
+            .map(|(_, need)| {
+                let mut members: Vec<String> = [
+                    ("label", &need.label),
+                    ("question", &need.question),
+                    ("help", &need.help),
+                    ("unit", &need.unit),
+                ]
+                .into_iter()
+                .filter_map(|(member, value)| {
+                    Some(format!("{member}: {}", string_literal(value.as_ref()?)))
+                })
+                .collect();
+                if members.is_empty() && need.sources.is_empty() {
+                    return None;
+                }
+                let cited = need
+                    .sources
+                    .iter()
+                    .map(|source| {
+                        let value =
+                            serde_json::to_value(source).expect("a source reference serializes");
+                        let index = *source_index.entry(value.to_string()).or_insert_with(|| {
+                            sources.push(value);
+                            sources.len() - 1
+                        });
+                        source_name(index)
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                members.push(format!("sources: [{cited}]"));
+                let index = *text_index.entry(members).or_insert_with_key(|members| {
+                    texts.push((members.clone(), 0));
+                    texts.len() - 1
+                });
+                texts[index].1 += 1;
+                Some(index)
+            })
+            .collect();
+        // The const of each text said at several patterns.
+        let mut shared = 0;
+        let text_names: Vec<Option<String>> = texts
+            .iter()
+            .map(|(_, uses)| {
+                (*uses > 1).then(|| {
+                    shared += 1;
+                    format!("{}GuideText{}", entry.value_name, shared - 1)
+                })
+            })
+            .collect();
+        // What a source cites (its binding, the value bound, its text) once:
+        // the declarations citing one law differ only in label and role.
+        let mut bound: Vec<(String, usize)> = Vec::new();
+        let mut bound_index: HashMap<String, usize> = HashMap::new();
+        let split: Vec<Option<(String, usize)>> = sources
+            .iter()
+            .map(|source| {
+                let mut members = source.as_object()?.clone();
+                let label = members.remove("label")?;
+                let role = members.remove("role")?;
+                let rest = serde_json::Value::Object(members).to_string();
+                let index = *bound_index.entry(rest).or_insert_with_key(|rest| {
+                    bound.push((rest.clone(), 0));
+                    bound.len() - 1
+                });
+                bound[index].1 += 1;
+                Some((format!("label: {label}, role: {role}"), index))
+            })
+            .collect();
+        let mut shared_bound = 0;
+        let bound_names: Vec<Option<String>> = bound
+            .iter()
+            .map(|(_, uses)| {
+                (*uses > 1).then(|| {
+                    shared_bound += 1;
+                    format!("{}GuideCited{}", entry.value_name, shared_bound - 1)
+                })
+            })
+            .collect();
+        if shared_bound > 0 {
+            let _ = writeln!(
+                out,
+                "// What several sources the guide of `{}` cites cite, each once.",
+                contract.entry
+            );
+            for ((rest, _), name) in bound.iter().zip(&bound_names) {
+                if let Some(name) = name {
+                    let _ = writeln!(
+                        out,
+                        "const {name}: Omit<SourceReference, \"label\" | \"role\"> = {rest};"
+                    );
+                }
+            }
+            out.push('\n');
+        }
+        if !sources.is_empty() {
+            let _ = writeln!(
+                out,
+                "// The sources the guide of `{}` cites, each once.",
+                contract.entry
+            );
+            for (index, (source, split)) in sources.iter().zip(&split).enumerate() {
+                let name = source_name(index);
+                let shared = split
+                    .as_ref()
+                    .and_then(|(head, bound)| Some((head, bound_names[*bound].as_deref()?)));
+                if let Some((head, cited)) = shared {
+                    let _ = writeln!(
+                        out,
+                        "const {name}: SourceReference = {{ {head}, ...{cited} }};"
+                    );
+                } else {
+                    let _ = writeln!(out, "const {name}: SourceReference = {source};");
+                }
+            }
+            out.push('\n');
+        }
+        if shared > 0 {
+            let _ = writeln!(
+                out,
+                "// What the law says of the values at several patterns of the guide of `{}`, each once.",
+                contract.entry
+            );
+            for ((members, _), name) in texts.iter().zip(&text_names) {
+                if let Some(name) = name {
+                    let _ = writeln!(out, "const {name} = {{ {} }};", members.join(", "));
+                }
+            }
+            out.push('\n');
+        }
+        let _ = writeln!(
+            out,
+            "export const {}Guide: AnswerGuide<{types}Need[\"pattern\"]> = {{",
+            entry.value_name
+        );
+        for ((pattern, need), said) in needs.into_iter().zip(said) {
+            let _ = writeln!(out, "  {}: {{", string_literal(&pattern));
+            let kind = match need.kind {
+                CalculationNeedKind::Fact => "fact",
+                CalculationNeedKind::Entry => "entry",
+            };
+            let _ = writeln!(out, "    kind: \"{kind}\",");
+            let _ = writeln!(out, "    type: {},", string_literal(&need.ty));
+            if let Some(index) = said {
+                match &text_names[index] {
+                    Some(name) => {
+                        let _ = writeln!(out, "    ...{name},");
+                    }
+                    None => {
+                        for member in &texts[index].0 {
+                            let _ = writeln!(out, "    {member},");
+                        }
+                    }
+                }
+            }
+            if let Some(entry) = &need.entry {
+                let _ = writeln!(out, "    entry: {},", string_literal(entry));
+            }
+            if let Some(subject) = &need.subject {
+                let _ = writeln!(
+                    out,
+                    "    subject: {},",
+                    string_literal(&camel_case_path(subject))
+                );
+            }
+            let keys = need
+                .keys
+                .iter()
+                .map(|key| string_literal(&camel_case_path(key)))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let _ = writeln!(out, "    keys: [{keys}],");
+            if said.is_none() {
+                out.push_str("    sources: [],\n");
+            }
+            out.push_str("  },\n");
+        }
+        out.push_str("};\n");
     }
 
     fn client_module(&self) -> String {
@@ -1894,6 +2175,10 @@ impl<'a> Sdk<'a> {
             let title = match &contract.label {
                 Some(label) => format!("`{}`: {}.", contract.entry, escape_doc(label)),
                 None => format!("`{}`.", contract.entry),
+            };
+            let answer_title = match &contract.label {
+                Some(label) => format!("`{}` ({})", contract.entry, escape_doc(label)),
+                None => format!("`{}`", contract.entry),
             };
             if !first {
                 body.push('\n');
@@ -1965,20 +2250,36 @@ impl<'a> Sdk<'a> {
                 body,
                 "export function {values}QueryExplained(\n  transport: ExplainingTransport,\n  input: {partial_input},\n  depth: ExplainDepth = \"direct\",\n): Promise<ExplainedQuery<partial.{types}QueryResult>> {{\n  return explainQueryEntry(transport, {values}Entry, depth, {partial_schema}, partial.{types}QueryResultSchema, input);\n}}\n"
             );
-            let _ = writeln!(
-                body,
-                "/** Resolvers for the needs of `{}`, keyed by pattern; each is called once per round with that round's needs at and below its pattern, its replies typed by each need's pattern. */",
-                contract.entry
+            write_doc(
+                &mut body,
+                "",
+                &[format!(
+                    "How the needs of `{}` are answered: called once per round with every need of the round, it returns the reply to each need, typed by the need's pattern (`given(need, value)`, `open`, or another entry's outcome through `context.runEntry`).",
+                    contract.entry
+                )],
             );
             let _ = writeln!(
                 body,
-                "export type {types}Resolvers = Resolvers<{partial_input}, partial.{types}Need, partial.{types}InputPatterns>;"
+                "export type {types}Resolve = Resolve<{partial_input}, partial.{types}InputPatterns, partial.{types}Need>;\n"
+            );
+            write_doc(
+                &mut body,
+                "",
+                &[
+                    format!("Answer {answer_title}, round by round."),
+                    String::new(),
+                    "Queries the partial case through `transport.callPartial`, calls `resolve` once per round with every need, writes the values it gives and queries again. Ends `Answered` with the result, or `Unanswered` with the last round's needs left open. A reply for another path, or a path still needed after it was given, throws `AnswerError`. From inside another entry's `resolve`, pass on the `options` that `context.runEntry` gives.".to_string(),
+                ],
+            );
+            let _ = writeln!(
+                body,
+                "export function {values}Answer(\n  transport: EngineTransport,\n  partialCase: {partial_input},\n  resolve: {types}Resolve,\n  options: AnswerOptions = {{}},\n): Promise<Answering<{output}, partial.{types}Need, {partial_input}>> {{\n  return answerEntry<{partial_input}, {output}, partial.{types}Need, partial.{types}InputPatterns>(\n    (current) => {values}Query(transport, current),\n    partialCase,\n    resolve,\n    options,\n  );\n}}\n"
             );
         }
         let mut out = String::new();
         self.header(
             &mut out,
-            "Typed calls of each calculation entry through an engine transport.",
+            "Typed calls of each entry through an engine transport.",
         );
         out.push_str(&self.imports(
             &body,
@@ -2000,21 +2301,37 @@ impl<'a> Sdk<'a> {
             "The SDK's public surface, with the runtime it imports.",
         );
         out.push_str("export * from \"./types.js\";\nexport * from \"./schema.js\";\nexport * from \"./partial.js\";\nexport * from \"./client.js\";\n");
-        let _ = writeln!(out, "export * from {};", string_literal(&self.runtime));
+        let _ = writeln!(out, "export * from {};", string_literal(RUNTIME_PACKAGE));
         out
     }
 }
 
-/// The runtime module: the same text for every model, so the SDKs of several
-/// source files can share one copy.
-fn runtime_module() -> String {
-    format!(
-        "// Generated by `runa sdk ts`. Do not edit; regenerate instead.\n// The runtime of the SDKs `runa sdk ts` generates: the wire codec, paths and setAt,\n// needs, calls through an engine transport, and the resolver loop. It depends on\n// no model, so the SDKs generated by one `runa` can share one copy (`--runtime`).\n\n{}",
-        RUNTIME
-            .replace("{INPUT_SCHEMA}", INPUT_SCHEMA)
-            .replace("{OUTPUT_SCHEMA}", OUTPUT_SCHEMA)
-            .replace("{PARTIAL_OUTPUT_SCHEMA}", PARTIAL_OUTPUT_SCHEMA)
-    )
+/// The decimal places of `1 / per` when `per` is built from 2s and 5s only,
+/// so every value of the unit is a finite decimal of its base; otherwise
+/// `None`.
+fn decimal_places(per: i64) -> Option<u32> {
+    if per < 1 {
+        return None;
+    }
+    let (mut rest, mut twos, mut fives) = (per, 0, 0);
+    while rest % 2 == 0 {
+        rest /= 2;
+        twos += 1;
+    }
+    while rest % 5 == 0 {
+        rest /= 5;
+        fives += 1;
+    }
+    (rest == 1).then_some(twos.max(fives))
+}
+
+/// ` DKK` for a scale of a base, nothing for a plain number (`"1"`).
+fn scale_base(of: &str) -> String {
+    if of == "1" {
+        String::new()
+    } else {
+        format!(" {of}")
+    }
 }
 
 /// The metadata of a `Date` field from the metadata of its parts: the label
@@ -2179,30 +2496,6 @@ fn sentence(text: &str) -> String {
     }
 }
 
-/// The Futuruna type as the model writes it: an `Int` with a unit is the unit.
-fn futuruna_type(ty: &CalculationTypeRef) -> String {
-    match ty {
-        CalculationTypeRef::Primitive {
-            unit: Some(unit), ..
-        } => unit.clone(),
-        CalculationTypeRef::Optional { item } => format!("{}?", futuruna_type(item)),
-        CalculationTypeRef::List { item } => format!("List({})", futuruna_type(item)),
-        CalculationTypeRef::Set { item } => format!("Set({})", futuruna_type(item)),
-        CalculationTypeRef::Map { key, value } => {
-            format!("Map({}, {})", futuruna_type(key), futuruna_type(value))
-        }
-        CalculationTypeRef::Named { name, arguments } if !arguments.is_empty() => format!(
-            "{name}({})",
-            arguments
-                .iter()
-                .map(futuruna_type)
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-        _ => ty.display_name(),
-    }
-}
-
 fn mentions_int(ty: &CalculationTypeRef) -> bool {
     match ty {
         CalculationTypeRef::Primitive { name, .. } => name == "Int",
@@ -2361,11 +2654,15 @@ fn value_identifier(name: &str) -> String {
     }
 }
 
-/// The runtime module's source: the same for every model.
+/// The runtime's TypeScript source: the same for every model.
 const RUNTIME: &str = include_str!("sdk_ts_runtime.ts");
 
-/// Every name the runtime exports, and whether it is a type only, read from
-/// its `export` declarations.
+/// The runtime compiled to an ES module, and its declarations
+/// (`scripts/sdk-runtime.mjs` writes both from [`RUNTIME`];
+/// `tests/sdk_ts.test.mjs` checks they are its compilation).
+const RUNTIME_JS: &str = include_str!("sdk_ts_runtime.js");
+const RUNTIME_DTS: &str = include_str!("sdk_ts_runtime.d.ts");
+
 /// The TypeScript type of a named scalar's value on the wire.
 fn scalar_wire_type(scalar: &CalculationScalar) -> &'static str {
     if scalar.of == "Int" {
@@ -2396,6 +2693,8 @@ fn scalar_doc(scalar: &CalculationScalar) -> Vec<String> {
     doc
 }
 
+/// Every name the runtime exports, and whether it is a type only, read from
+/// its `export` declarations.
 fn runtime_exports() -> impl Iterator<Item = (&'static str, bool)> {
     RUNTIME.lines().filter_map(|line| {
         let rest = line.strip_prefix("export ")?;
@@ -2427,15 +2726,11 @@ mod tests {
     }
 
     fn generate(source: &str) -> BTreeMap<String, String> {
-        generate_typescript_sdk(
-            &contracts(source),
-            "model.calculate.runa",
-            DEFAULT_RUNTIME_PATH,
-        )
-        .expect("generate SDK")
-        .into_iter()
-        .map(|file| (file.name, file.contents))
-        .collect()
+        generate_typescript_sdk(&contracts(source), "model.entry.runa")
+            .expect("generate SDK")
+            .into_iter()
+            .map(|file| (file.name, file.contents))
+            .collect()
     }
 
     fn assert_contains(text: &str, expected: &str) {
@@ -2465,7 +2760,7 @@ mod tests {
 = age_field = CalculationField(path = "children.age", label = "Child's age", question = None, help = None, unit = Some("years"))
 = household_meta = CalculationMeta(fields = [income_field, age_field], attachments = (Source(value = law),))
 @ meta(household_meta)
-@ calculate("Household tax")
+@ entry("Household tax")
 > household_tax(input: Household) -> Result {{ Result(tax = input.income / 4) }}
 "#
         )
@@ -2486,7 +2781,7 @@ mod tests {
 = direction_field = CalculationField(path = "movements.direction", label = "In or out", question = Some("Did the money go in or out?"), help = None, unit = None)
 = ledger_meta = CalculationMeta(fields = [year_field, month_field, day_field, direction_field], attachments = ())
 @ meta(ledger_meta)
-@ calculate
+@ entry
 > ledger_balance(input: Ledger) -> Summary {{ Summary(closing_cash_ore = input.opening_cash_ore, last_booked_on = Date(year = 2026, month = 1, day = 1)) }}
 "#
         )
@@ -2503,7 +2798,7 @@ mod tests {
 = cohabiting_field = CalculationField(path = pathof(Household::spouse::cohabiting), label = "Spouse cohabiting", question = Some("Did you live together at the end of the year?"), help = None, unit = None)
 = household_meta = CalculationMeta(fields = [cohabiting_field], attachments = ())
 @ meta(household_meta)
-@ calculate
+@ entry
 > household_tax(input: Household) -> Result {{ Result(tax = input.income / 4) }}
 "#
         ));
@@ -2535,7 +2830,7 @@ mod tests {
             schema,
             "import { z } from \"zod\";\nimport type * as types from \"./types.js\";\nimport {",
         );
-        assert_contains(schema, "} from \"./runtime.js\";");
+        assert_contains(schema, "} from \"@futuruna/runtime\";");
         assert_contains(
             schema,
             "export const HouseholdSchema: z.ZodType<types.Household> = z.lazy(() =>",
@@ -2594,7 +2889,7 @@ mod tests {
     fn fields_are_camel_case_enums_are_names_and_dates_are_iso_strings() {
         let files = generate(&ledger_source());
         let types = &files["types.ts"];
-        assert_contains(types, "import type { IsoDate } from \"./runtime.js\";");
+        assert_contains(types, "import type { IsoDate } from \"@futuruna/runtime\";");
         assert!(!types.contains("export type Date"), "a Date is an IsoDate");
         assert_contains(
             types,
@@ -2677,9 +2972,8 @@ mod tests {
     #[test]
     fn two_fields_with_one_camel_case_name_are_an_error() {
         let error = generate_typescript_sdk(
-            &contracts("# Input(tax_year: Int, taxYear: Int)\n@ calculate\n> both(input: Input) -> Int { input.tax_year }\n"),
-            "model.calculate.runa",
-            DEFAULT_RUNTIME_PATH,
+            &contracts("# Input(tax_year: Int, taxYear: Int)\n@ entry\n> both(input: Input) -> Int { input.tax_year }\n"),
+            "model.entry.runa",
         )
         .expect_err("`tax_year` and `taxYear` collide");
         assert!(error.contains("are both `taxYear`"), "{error}");
@@ -2691,7 +2985,7 @@ mod tests {
             r#"# Shape = Circle(Int) | Rect(w: Int, h: Int) | Empty
 # Pair(a, b) = Pair(first: a, second: b)
 # Input(shape: Shape, pair: Pair(Int, Bool), maybe: Shape?)
-@ calculate
+@ entry
 > area(input: Input) -> Pair(Int, String) { Pair(first = 1, second = "x") }
 "#,
         );
@@ -2790,9 +3084,9 @@ mod tests {
     fn several_entries_each_get_calls_hashes_and_paths() {
         let source = r#"# Person(name: String, income: Int)
 # Couple(first: Person, second: Person)
-@ calculate("One person")
+@ entry("One person")
 > person_tax(input: Person) -> Int { input.income / 4 }
-@ calculate
+@ entry
 > couple_tax(input: Couple) -> Int { input.first.income + input.second.income }
 "#;
         let contracts = contracts(source);
@@ -2807,13 +3101,11 @@ mod tests {
             "export function coupleTaxQuery(\n  transport: EngineTransport,\n  input: partial.PartialCouple,\n): Promise<partial.CoupleTaxQueryResult> {",
         );
         assert_contains(client, "/**\n * Calculate `person_tax`: One person.");
-        assert_contains(client, "export type PersonTaxResolvers = Resolvers<");
         for expected in [
             "export function personTaxExplained(\n  transport: ExplainingTransport,\n  input: types.Person,\n  depth: ExplainDepth = \"direct\",\n): Promise<Explained<number>> {\n  return explainEntry(transport, personTaxEntry, depth, schema.PersonSchema, IntSchema, input);",
             "export function coupleTaxQueryExplained(\n  transport: ExplainingTransport,\n  input: partial.PartialCouple,\n  depth: ExplainDepth = \"direct\",\n): Promise<ExplainedQuery<partial.CoupleTaxQueryResult>> {",
             "export function personTax(transport: EngineTransport, input: types.Person)",
             "  patterns: partial.PersonTaxInputPatternList,\n};",
-            "export type CoupleTaxResolvers = Resolvers<partial.PartialCouple, partial.CoupleTaxNeed, partial.CoupleTaxInputPatterns>;",
             "type ExplainDepth",
             "type Explained,",
             "type ExplainedQuery",
@@ -2831,84 +3123,270 @@ mod tests {
                 &format!("//   {}: {}", contract.entry, contract.schema_hash),
             );
         }
-        assert_contains(&files["index.ts"], "export * from \"./runtime.js\";");
+        assert_contains(&files["index.ts"], "export * from \"@futuruna/runtime\";");
+        assert!(
+            !files.contains_key("answer.ts"),
+            "answering is in client.ts, no answer module"
+        );
         // Entries are ordered by name, so declaration order does not matter.
         assert!(schema.find("  couple_tax:").unwrap() < schema.find("  person_tax:").unwrap());
         let mut reversed = contracts.clone();
         reversed.reverse();
         assert_eq!(
-            generate_typescript_sdk(&contracts, "model.calculate.runa", DEFAULT_RUNTIME_PATH)
-                .unwrap(),
-            generate_typescript_sdk(&reversed, "model.calculate.runa", DEFAULT_RUNTIME_PATH)
-                .unwrap()
+            generate_typescript_sdk(&contracts, "model.entry.runa").unwrap(),
+            generate_typescript_sdk(&reversed, "model.entry.runa").unwrap()
         );
     }
 
     #[test]
-    fn the_runtime_is_one_module_every_model_shares() {
-        let ledger = generate_typescript_sdk(
-            &contracts(&ledger_source()),
-            "ledger.calculate.runa",
-            "../runtime.ts",
-        )
-        .unwrap();
-        let household = generate_typescript_sdk(
-            &contracts(&records_source()),
-            "household.calculate.runa",
-            "../runtime.ts",
-        )
-        .unwrap();
-        let runtime = |files: &[GeneratedFile]| {
-            files
-                .iter()
-                .find(|file| file.name == "../runtime.ts")
-                .expect("the runtime is generated")
-                .contents
-                .clone()
-        };
-        assert_eq!(runtime(&ledger), runtime(&household));
-        assert_contains(
-            &runtime(&ledger),
-            "export async function resolve<C, R, N extends Need, Patterns = AnyPatterns>(",
+    fn every_sdk_imports_the_runtime_package() {
+        let ledger = generate(&ledger_source());
+        assert!(
+            !ledger.keys().any(|name| name.contains("runtime")),
+            "the runtime is a package, not a module of the SDK"
         );
-        assert!(!runtime(&ledger).contains("{INPUT_SCHEMA}"));
-        for file in &ledger {
-            if file.name != "../runtime.ts" {
-                assert!(
-                    !file.contents.contains("export class"),
-                    "{} holds runtime code",
-                    file.name
-                );
-                assert!(
-                    !file.contents.contains("\"./runtime.js\""),
-                    "{} imports the default runtime",
-                    file.name
-                );
+        for (name, contents) in &ledger {
+            assert!(
+                !contents.contains("export class"),
+                "{name} holds runtime code"
+            );
+            assert!(
+                !contents.contains("runtime.js"),
+                "{name} imports a local runtime"
+            );
+            assert_contains(
+                contents,
+                &format!("// Imports @futuruna/runtime {RUNTIME_VERSION}, the runtime of the runa that generated it."),
+            );
+        }
+        assert_contains(&ledger["index.ts"], "export * from \"@futuruna/runtime\";");
+
+        let package: BTreeMap<String, String> = runtime_package()
+            .into_iter()
+            .map(|file| (file.name, file.contents))
+            .collect();
+        assert_eq!(
+            package.keys().map(String::as_str).collect::<Vec<_>>(),
+            ["index.d.ts", "index.js", "package.json"]
+        );
+        let manifest: serde_json::Value =
+            serde_json::from_str(&package["package.json"]).expect("package.json is JSON");
+        assert_eq!(manifest["name"], "@futuruna/runtime");
+        assert_eq!(manifest["version"], RUNTIME_VERSION);
+        assert_eq!(manifest["type"], "module");
+        assert_eq!(manifest["exports"]["."]["types"], "./index.d.ts");
+        assert_eq!(manifest["exports"]["."]["default"], "./index.js");
+        assert!(manifest["peerDependencies"]["zod"].is_string());
+        assert!(manifest.get("dependencies").is_none());
+        assert_contains(&package["index.js"], "export async function answerEntry(");
+        assert_contains(&package["index.js"], "export function unitFromDecimal(");
+        assert_contains(&package["index.d.ts"], "export declare function given<");
+        assert_contains(&package["index.d.ts"], "export type Resolve<");
+        for text in package.values() {
+            assert!(
+                !text.contains("{INPUT_SCHEMA}"),
+                "the schema ids are filled in"
+            );
+        }
+        assert_contains(&package["index.js"], INPUT_SCHEMA);
+        for gone in [
+            "function resolve",
+            "export type Resolvers<",
+            "GroupResolvers",
+            "guidePath",
+            "guideGroup",
+            "leaveOpen",
+            "MissingFactError",
+            "ResolveError",
+            "export const ask",
+        ] {
+            assert!(!RUNTIME.contains(gone), "the runtime still has `{gone}`");
+        }
+    }
+
+    const PERSON_MODEL: &str = r#"# Event = Trade(@ field(label = "Amount") amount: Int, fee: Int) | Dividend(gross: Int)
+# Spouse(income: Int, cohabiting: Bool)
+# Person(year: Int, income: Int, spouse: Spouse?, events: List(Event))
+@ entry("Tax")
+> tax(p: Person) -> Int { p.income }
+"#;
+
+    #[test]
+    fn every_entry_is_answered_round_by_round_by_one_resolve() {
+        let files = generate(PERSON_MODEL);
+        let client = &files["client.ts"];
+        for expected in [
+            "export type TaxResolve = Resolve<partial.PartialPerson, partial.TaxInputPatterns, partial.TaxNeed>;",
+            " * Answer `tax` (Tax), round by round.",
+            "export function taxAnswer(\n  transport: EngineTransport,\n  partialCase: partial.PartialPerson,\n  resolve: TaxResolve,\n  options: AnswerOptions = {},\n): Promise<Answering<number, partial.TaxNeed, partial.PartialPerson>> {\n  return answerEntry<partial.PartialPerson, number, partial.TaxNeed, partial.TaxInputPatterns>(\n    (current) => taxQuery(transport, current),\n    partialCase,\n    resolve,\n    options,\n  );\n}",
+            "type Resolve,",
+            "type AnswerOptions",
+            "type Answering",
+            "answerEntry",
+        ] {
+            assert_contains(client, expected);
+        }
+        assert!(
+            !files.contains_key("answer.ts"),
+            "answering is in client.ts"
+        );
+        for gone in [
+            "GroupResolvers",
+            "GuidedNeed",
+            "Facts",
+            "Resolvers",
+            "leaveOpen",
+            "by:",
+        ] {
+            for (name, contents) in &files {
+                assert!(!contents.contains(gone), "{name} still has `{gone}`");
             }
         }
-        let index = &ledger
-            .iter()
-            .find(|file| file.name == "index.ts")
-            .unwrap()
-            .contents;
-        assert_contains(index, "export * from \"../runtime.js\";");
+    }
 
-        assert_eq!(runtime_specifier("runtime.ts").unwrap(), "./runtime.js");
-        assert_eq!(
-            runtime_specifier("./shared/sdk.ts").unwrap(),
-            "./shared/sdk.js"
+    #[test]
+    fn every_entry_gets_its_answer_guide_from_the_law() {
+        let files = generate(PERSON_MODEL);
+        let partial = &files["partial.ts"];
+        assert_contains(
+            partial,
+            "export const taxGuide: AnswerGuide<TaxNeed[\"pattern\"]> = {\n  \"year\": {\n    kind: \"fact\",\n    type: \"Int\",\n    keys: [],\n    sources: [],\n  },",
         );
-        for invalid in [
-            "/tmp/runtime.ts",
-            "runtime.js",
-            "types.ts",
-            "./index.ts",
-            ".ts",
-            "lib/.d.ts",
-            "a\\b.ts",
-        ] {
-            assert!(runtime_specifier(invalid).is_err(), "{invalid}");
+        assert_contains(
+            partial,
+            "  \"spouse\": {\n    kind: \"fact\",\n    type: \"Spouse?\",\n    keys: [],\n    sources: [],\n  },",
+        );
+        assert_contains(
+            partial,
+            "  \"events[].amount\": {\n    kind: \"fact\",\n    type: \"Int\",\n    label: \"Amount\",\n    sources: [],\n    keys: [],\n  },",
+        );
+        assert!(
+            !partial.contains("GuideText"),
+            "a text of one pattern stays in it"
+        );
+        assert_contains(
+            partial,
+            "  \"events[].$variant\": {\n    kind: \"fact\",\n    type: \"Event\",",
+        );
+        assert_contains(partial, "type AnswerGuide");
+        let patterns: Vec<&str> = partial
+            .lines()
+            .skip_while(|line| !line.starts_with("export const taxGuide"))
+            .filter_map(|line| line.strip_prefix("  \"")?.strip_suffix("\": {"))
+            .collect();
+        assert_eq!(
+            patterns,
+            [
+                "year",
+                "income",
+                "spouse",
+                "spouse.income",
+                "spouse.cohabiting",
+                "events",
+                "events[].$variant",
+                "events[].amount",
+                "events[].fee",
+                "events[].gross",
+            ]
+        );
+    }
+
+    #[test]
+    fn the_guide_says_a_fields_text_once_for_every_pattern_it_lies_at() {
+        let files = generate(
+            "# Spouse(@ field(label = \"Income\", question = \"What did they earn?\") income: Int)\n# Person(spouse: Spouse?, partner: Spouse?)\n@ entry\n> tax(p: Person) -> Int { 0 }\n",
+        );
+        let partial = &files["partial.ts"];
+        assert_eq!(
+            partial.matches("\"What did they earn?\"").count(),
+            1,
+            "{partial}"
+        );
+        assert_contains(
+            partial,
+            "const taxGuideText0 = { label: \"Income\", question: \"What did they earn?\", sources: [] };",
+        );
+        for pattern in ["spouse.income", "partner.income"] {
+            assert_contains(
+                partial,
+                &format!("  \"{pattern}\": {{\n    kind: \"fact\",\n    type: \"Int\",\n    ...taxGuideText0,\n    keys: [],\n  }},"),
+            );
         }
+    }
+
+    #[test]
+    fn the_guide_says_what_a_source_cites_once_for_every_role_it_has() {
+        let partial = &generate(
+            r#"# SourceInfo(url: String, section: String)
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
+# CalculationMetaRole(a) = Source(value: a) | DependencySource(value: a)
+# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
+# impl MetaRole for CalculationMetaRole {}
+# impl Meta for CalculationMeta {}
+# Household(income: Int)
+
+= law = SourceInfo(url = "https://example.invalid/law", section = "§ 1")
+= income_field = CalculationField(path = "income", label = "Yearly income", question = None, help = None, unit = None)
+= household_meta = CalculationMeta(fields = [income_field], attachments = (Source(value = law), DependencySource(value = law)))
+@ meta(household_meta)
+@ entry
+> household_tax(input: Household) -> Int { input.income }
+"#,
+        )["partial.ts"];
+        assert_eq!(
+            partial.matches("https://example.invalid/law").count(),
+            2,
+            "the url once in `value`, once in `data`:\n{partial}"
+        );
+        assert_contains(
+            partial,
+            "const householdTaxGuideCited0: Omit<SourceReference, \"label\" | \"role\"> = {\"binding\":\"law\",",
+        );
+        for (index, role) in ["source", "dependency_source"].into_iter().enumerate() {
+            assert_contains(
+                partial,
+                &format!("const householdTaxGuideSource{index}: SourceReference = {{ label: \"household_tax\", role: \"{role}\", ...householdTaxGuideCited0 }};"),
+            );
+        }
+    }
+
+    #[test]
+    fn a_unit_whose_scale_is_a_finite_decimal_gets_decimal_converters() {
+        let files = generate(
+            "# unit Øre \"DKK øre\" = DKK / 100\n# unit Micro \"millionths\" = 1 / 1000000\n# unit Third \"thirds\" = DKK / 3\n# unit Plain \"plain\"\n# Holding(value: Øre, quantity: Micro, share: Third, count: Plain)\n@ entry\n> worth(input: Holding) -> Øre { input.value }\n",
+        );
+        let schema = &files["schema.ts"];
+        assert_contains(
+            schema,
+            "øre.fromDecimal = (amount: string): types.Øre =>\n  unitFromDecimal<types.Øre>(\"Øre\", { of: \"DKK\", per: 100 }, amount);",
+        );
+        assert_contains(
+            schema,
+            "øre.toDecimal = (value: types.Øre): string => unitToDecimal(\"Øre\", { of: \"DKK\", per: 100 }, value);",
+        );
+        assert_contains(
+            schema,
+            "with 2 decimals: how a figure in `Øre` reads in DKK.",
+        );
+        assert_contains(
+            schema,
+            "micro.fromDecimal = (amount: string): types.Micro =>\n  unitFromDecimal<types.Micro>(\"Micro\", { of: \"1\", per: 1000000 }, amount);",
+        );
+        assert!(
+            !schema.contains("third.fromDecimal"),
+            "1/3 is no finite decimal"
+        );
+        assert!(
+            !schema.contains("plain.fromDecimal"),
+            "a unit without a scale"
+        );
+        let types = &files["types.ts"];
+        assert_contains(types, "One `Øre` is 1/100 DKK. `øre.fromDecimal` and `øre.toDecimal` convert a decimal amount exactly.");
+        assert_contains(types, "One `Third` is 1/3 DKK, which is no finite decimal: the SDK has no decimal converters for it.");
+        assert_eq!(decimal_places(100), Some(2));
+        assert_eq!(decimal_places(1), Some(0));
+        assert_eq!(decimal_places(8), Some(3));
+        assert_eq!(decimal_places(3), None);
     }
 
     #[test]
@@ -2945,7 +3423,7 @@ mod tests {
     #[test]
     fn map_values_and_list_elements_are_patterns() {
         let partial = &generate(
-            "# Item(code: String, amount: Int?)\n# Input(items: Map(String, Item), tags: List(String))\n@ calculate\n> count(input: Input) -> Int { 0 }\n",
+            "# Item(code: String, amount: Int?)\n# Input(items: Map(String, Item), tags: List(String))\n@ entry\n> count(input: Input) -> Int { 0 }\n",
         )["partial.ts"];
         assert_contains(partial, "  \"items.*\": PartialItem;");
         assert_contains(partial, "  \"items.*.amount\": number | None;");
@@ -2959,7 +3437,7 @@ mod tests {
     #[test]
     fn a_list_element_key_types_the_needs_keys() {
         let mut contracts = contracts(
-            "# unit Ore \"DKK øre\"\n# Position(isin: String, value_ore: Ore)\n# Account(positions: List(Position), owner: String)\n@ calculate\n> worth(input: Account) -> Int { 0 }\n",
+            "# unit Ore \"DKK øre\"\n# Position(isin: String, value_ore: Ore)\n# Account(positions: List(Position), owner: String)\n@ entry\n> worth(input: Account) -> Int { 0 }\n",
         );
         for contract in &mut contracts {
             for definition in &mut contract.definitions {
@@ -2969,7 +3447,7 @@ mod tests {
             }
         }
         let files: BTreeMap<String, String> =
-            generate_typescript_sdk(&contracts, "model.calculate.runa", DEFAULT_RUNTIME_PATH)
+            generate_typescript_sdk(&contracts, "model.entry.runa")
                 .expect("generate SDK")
                 .into_iter()
                 .map(|file| (file.name, file.contents))
@@ -2993,7 +3471,7 @@ mod tests {
     fn recursive_input_types_have_open_paths() {
         let files = generate(
             r#"# Node = Leaf(value: Int) | Branch(left: Node, right: Node)
-@ calculate
+@ entry
 > total(input: Node) -> Int { 0 }
 "#,
         );
@@ -3013,10 +3491,10 @@ mod tests {
     #[test]
     fn a_contract_name_that_collides_with_a_generated_name_is_an_error() {
         for (source, name) in [
-            ("# Need(amount: Int)\n@ calculate\n> needed(input: Need) -> Int { input.amount }\n", "`Need`"),
-            ("# Unknown(amount: Int)\n@ calculate\n> needed(input: Unknown) -> Int { input.amount }\n", "`Unknown`"),
+            ("# Need(amount: Int)\n@ entry\n> needed(input: Need) -> Int { input.amount }\n", "`Need`"),
+            ("# Unknown(amount: Int)\n@ entry\n> needed(input: Unknown) -> Int { input.amount }\n", "`Unknown`"),
         ] {
-            let error = generate_typescript_sdk(&contracts(source), "model.calculate.runa", DEFAULT_RUNTIME_PATH)
+            let error = generate_typescript_sdk(&contracts(source), "model.entry.runa")
                 .expect_err("the name collides with a runtime export");
             assert!(error.contains(name), "{error}");
         }
@@ -3027,7 +3505,7 @@ mod tests {
         let source = r#"# unit Ore "DKK øre"
 # unit Micro "millionths of a share"
 # Holding(quantity_micro: Micro, value_ore: Ore, count: Int, history: List(Ore)?)
-@ calculate
+@ entry
 > holding_value(input: Holding) -> Ore { input.value_ore }
 "#;
         let files = generate(source);
@@ -3068,12 +3546,13 @@ mod tests {
             "export function holdingValue(transport: EngineTransport, input: types.Holding): Promise<Calculated<types.Ore>> {\n  return callEntry(transport, holdingValueEntry, schema.HoldingSchema, schema.OreSchema, input);",
         );
         let error = generate_typescript_sdk(
-            &contracts("# unit Answer \"replies\"\n# In(n: Answer)\n@ calculate\n> f(input: In) -> Int { 0 }\n"),
-            "model.calculate.runa",
-            DEFAULT_RUNTIME_PATH,
+            &contracts(
+                "# unit Given \"replies\"\n# In(n: Given)\n@ entry\n> f(input: In) -> Int { 0 }\n",
+            ),
+            "model.entry.runa",
         )
-        .expect_err("`answer` is a runtime export");
-        assert!(error.contains("`answer`"), "{error}");
+        .expect_err("`given` is a runtime export");
+        assert!(error.contains("`given`"), "{error}");
     }
 
     #[test]
@@ -3091,4 +3570,57 @@ mod tests {
         assert!(!uses_identifier("  name: \"a\",", "name"));
         assert!(!uses_identifier("schema.IntSchema", "IntSchema"));
     }
+
+    #[test]
+    fn a_pattern_two_alternatives_share_names_each_type_once() {
+        let types = BTreeSet::from([
+            "types.AskDepositPurpose | None".to_string(),
+            "types.AskWithdrawalPurpose | None".to_string(),
+            "Map<string, A | B> | None".to_string(),
+        ]);
+        assert_eq!(
+            super::union_of(&types),
+            "Map<string, A | B> | None | types.AskDepositPurpose | types.AskWithdrawalPurpose"
+        );
+    }
+}
+
+/// The union of `types`, each member once: two alternatives of a sum type that
+/// share a pattern (`A | None`, `B | None`) give `A | None | B`, not `None` twice.
+fn union_of(types: &BTreeSet<String>) -> String {
+    let mut members: Vec<&str> = Vec::new();
+    for ty in types {
+        for member in top_level_members(ty) {
+            if !members.contains(&member) {
+                members.push(member);
+            }
+        }
+    }
+    members.join(" | ")
+}
+
+/// The members of a TypeScript union, split only where ` | ` is outside every
+/// bracket, so a union inside a generic, object or tuple type stays whole.
+fn top_level_members(ty: &str) -> Vec<&str> {
+    let mut members = Vec::new();
+    let mut depth = 0usize;
+    let mut start = 0;
+    let bytes = ty.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'<' | b'{' | b'(' | b'[' => depth += 1,
+            b'>' | b'}' | b')' | b']' => depth = depth.saturating_sub(1),
+            b' ' if depth == 0 && ty[i..].starts_with(" | ") => {
+                members.push(ty[start..i].trim());
+                i += 3;
+                start = i;
+                continue;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    members.push(ty[start..].trim());
+    members
 }

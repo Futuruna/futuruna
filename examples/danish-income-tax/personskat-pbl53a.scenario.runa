@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 ----
 Scenariet validerer den kanoniske kildefaktabro fra identificerede ordninger

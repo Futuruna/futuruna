@@ -9,9 +9,9 @@ import test from 'node:test';
 import { fillFictionalPersonskat } from '../examples/danish-income-tax/personskat-fiktiv-input.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const model = 'examples/danish-income-tax/personskat-groen-check.calculate.runa';
+const model = 'examples/danish-income-tax/personskat-groen-check.entry.runa';
 const entry = 'beregn_personskat_med_grøn_check';
-const canonical = 'examples/danish-income-tax/personskat.calculate.runa';
+const canonical = 'examples/danish-income-tax/personskat.entry.runa';
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
 function run(args) {
   // Cold Personskat validation can exceed ten minutes on the shared 8 GB

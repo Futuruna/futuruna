@@ -503,15 +503,15 @@ eller kontrakthashes.
 ## Beregn før og efter fra samme grundlag
 
 Når de nødvendige kildefakta foreligger, brug den eksisterende
-`beregn_personskat` i [personskat.calculate.runa](personskat.calculate.runa).
+`beregn_personskat` i [personskat.entry.runa](personskat.entry.runa).
 Der skal ikke skrives en ny skatteformel eller startes en Explore-strøm.
 
 Fra projektets rod, med `PRIVATE_WORK_DIR` erstattet af din private mappe:
 
 ```sh
-"$RUNA_BIN" template examples/danish-income-tax/personskat.calculate.runa --format json --output PRIVATE_WORK_DIR/pension-cases.json
+"$RUNA_BIN" template examples/danish-income-tax/personskat.entry.runa --format json --output PRIVATE_WORK_DIR/pension-cases.json
 # Udfyld og gennemgå fakta; sæt hver sags input_status ved siden af case_id til "ready".
-FUTURUNA_CALCULATION_JOBS=1 "$RUNA_BIN" call examples/danish-income-tax/personskat.calculate.runa --input PRIVATE_WORK_DIR/pension-cases.json --output PRIVATE_WORK_DIR/pension-results.json
+FUTURUNA_CALCULATION_JOBS=1 "$RUNA_BIN" call examples/danish-income-tax/personskat.entry.runa --input PRIVATE_WORK_DIR/pension-cases.json --output PRIVATE_WORK_DIR/pension-results.json
 ```
 
 Én worker holder hukommelsesforbruget nede, også når de fire ægtefællesager

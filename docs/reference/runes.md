@@ -907,7 +907,7 @@ Marks the next definition as public. Without `@ export`, definitions are private
 
 ### Calculate (typed external input)
 ```runa
-@ calculate("Danish personal income tax")
+@ entry("Danish personal income tax")
 | calculate_tax(input: TaxInput) -> TaxResult(annual_tax = annual_tax(input))
 ```
 
@@ -1159,7 +1159,7 @@ remains a Preview surface.
 
 `runa audit` (Experimental) uses the same SMT translation of rule groups and
 Z3 to check rule families (same scope, name, and arity). For a file with one
-`@ calculate` entry, or with `--entry`, it checks every family that entry
+`@ entry`, or with `--entry`, it checks every family that entry
 reaches, in whichever imported file it is declared, plus the families with a
 clause in the audited file; for any other file it checks the families with a
 clause in that file. Imported clauses of a checked family are always included.

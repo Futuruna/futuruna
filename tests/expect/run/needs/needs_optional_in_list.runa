@@ -31,5 +31,5 @@
 }
 
 @ meta(household_meta)
-@ calculate
+@ entry
 | household_tax(h: Household) -> TaxResult(tax = foldl(map(h.accounts, |a| account_tax(a)), 0, |total, tax| total + tax))

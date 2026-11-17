@@ -1,7 +1,7 @@
 {
   "$futuruna": {
-    "schema": "futuruna.calculate.partial-output.v1",
-    "schema_hash": "4b3f76eb421e22d7c0b80a8ca991e1f3cfc05aa50bc00cae0a3e427dda629d00",
+    "schema": "futuruna.entry.partial-output.v1",
+    "schema_hash": "f70c55a768e9b18e139a62d245394c9a826eb731f170d38c3825d7d35d60cc5f",
     "entry": "household_tax"
   },
   "results": [

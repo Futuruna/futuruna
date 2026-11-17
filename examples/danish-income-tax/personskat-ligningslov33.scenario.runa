@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 = personskat_ligningslov33_scenarier_metadata = Metadata(
     attachments = (

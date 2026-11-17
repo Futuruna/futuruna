@@ -20,7 +20,7 @@
 //! check makes its program's elaboration current, for a consumer that checks
 //! and then runs one program on its thread; a host holding several programs
 //! runs each inside [`with_constructor_elaboration`] with that program's own
-//! elaboration, as `calculate::PreparedCalculation` does.
+//! elaboration, as `calculate::PreparedEntry` does.
 
 use super::*;
 use std::borrow::Cow;

@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 ----
 Regressionsscenarier for den kanoniske afledning af aktieindkomstkontekst til

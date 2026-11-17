@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 ----
 Scenariet validerer, at en statusændring efter ABL § 44, stk. 3, føder den

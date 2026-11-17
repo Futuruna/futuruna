@@ -5,13 +5,14 @@ feature_stage_surfaces:
   - calculation-field-declarations
   - calculation-needs
   - needs-in-the-language
+  - answer
   - typescript-sdk
   - annotations
 ---
 
-# Typed Calculations
+# Entries
 
-`@ calculate` marks an ordinary typed rule or function as an external
+`@ entry` marks an ordinary typed rule or function as an external
 calculation boundary. It does not change rule evaluation and is not an effect.
 
 A calculation is pure: its entry, and every function and rule it reaches, must
@@ -25,7 +26,7 @@ data enters only through the typed input.
 # Input(monthly_income: Int, status: FilingStatus)
 # Result(annual_tax: Int)
 
-@ calculate("Household tax calculation")
+@ entry("Household tax calculation")
 | calculate(input: Input) -> Result(annual_tax = annual_tax(input))
 ```
 
@@ -34,8 +35,8 @@ must infer to one concrete serializable type; a function must declare its result
 type. The input is one named domain type. Conditions, defaults, exceptions,
 matches, rule scopes, and ordinary rule dependencies continue to work normally.
 
-Use plain `@ calculate` when the rule name is sufficient, or provide one
-human-readable title with `@ calculate("Household tax calculation")`. The title
+Use plain `@ entry` when the rule name is sufficient, or provide one
+human-readable title with `@ entry("Household tax calculation")`. The title
 names the whole calculation and appears in its schema and generated workbook.
 It does not label every nested input field. Field labels, interview questions,
 help, units, and sources belong in field metadata.
@@ -49,8 +50,8 @@ declaration of the field it describes:
 
 ```runa
 # SourceInfo(url: String, section: String)
-# CalculationMetaRole(a) = Source(value: a)
-# impl MetaRole for CalculationMetaRole {}
+# EntryMetaRole(a) = Source(value: a)
+# impl MetaRole for EntryMetaRole {}
 
 = tax_source = SourceInfo(url = "https://example.invalid/tax", section = "income")
 
@@ -76,7 +77,7 @@ and map wrappers are transparent, as in `pathof`.
 | `label` | required `String` |
 | `question`, `help`, `unit` | `String` |
 | `sources` | list of source values such as `[Source(value = law)]`, whose type implements `MetaRole` |
-| `entry`, `subject` | together: `entry = refof(<calculation>)`, the `@ calculate` entry that provides the field, and `subject = pathof(<Input>::...)`, the input path it runs for, rooted at the calculation's input type (see [Needs](#needs) below). The older strings (`entry = "share_income"`, `subject = "taxpayer.spouse"`) are still read; `runa fmt --migrate` rewrites them |
+| `entry`, `subject` | together: `entry = refof(<calculation>)`, the `@ entry` that provides the field, and `subject = pathof(<Input>::...)`, the input path it runs for, rooted at the calculation's input type (see [Needs](#needs) below). The older strings (`entry = "share_income"`, `subject = "taxpayer.spouse"`) are still read; `runa fmt --migrate` rewrites them |
 | `key` | `Bool`: `True` makes this `String` or `Int` field of a record type the key that identifies an element of the type in a list (one per type); the contract's definition of the type names it as `key`, and a need inside such an element carries the element's key |
 
 A key that does not apply is left out; values are plain strings (`key` a
@@ -110,31 +111,31 @@ asked.
 ### Metadata for one calculation
 
 When metadata depends on where a type is used, such as help that holds for one
-calculation only, attach typed field records to the calculation entry with
+calculation only, attach typed field records to the entry with
 `@ meta`. A field binding is an ordinary pure ground record. Its typed field
 shape and canonical `path` give it calculation meaning; `@ meta` stands on the
-calculation entry, and its value contains the fields and their provenance.
+entry, and its value contains the fields and their provenance.
 
 ```runa
-# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
+# UseSiteField(path: String, label: String, question: String?, help: String?, unit: String?)
 # SourceInfo(url: String, section: String)
-# CalculationMetaRole(a) = Source(value: a)
-# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
-# impl MetaRole for CalculationMetaRole {}
-# impl Meta for CalculationMeta {}
+# EntryMetaRole(a) = Source(value: a)
+# EntryMeta(a) = EntryMeta(fields: List(UseSiteField), attachments: a)
+# impl MetaRole for EntryMetaRole {}
+# impl Meta for EntryMeta {}
 
 = tax_source = SourceInfo(
     url = "https://example.invalid/tax",
     section = "income"
 )
-= monthly_income_field = CalculationField(
+= monthly_income_field = UseSiteField(
     path = pathof(Input::monthly_income),
     label = "Monthly income before tax",
     question = Some("What do you earn before tax each month?"),
     help = Some("Use the gross amount before deductions."),
     unit = Some("currency/month")
 )
-= monthly_income_meta = CalculationMeta(
+= monthly_income_meta = EntryMeta(
     fields = [monthly_income_field],
     attachments = (
         Source(value = tax_source),
@@ -142,7 +143,7 @@ calculation entry, and its value contains the fields and their provenance.
 )
 
 @ meta(monthly_income_meta)
-@ calculate
+@ entry
 > calculate_tax(input: Input) -> Int { ... }
 ```
 
@@ -228,7 +229,7 @@ typed descendants recursively; other metadata consumers remain free to query
 the same object by its own nested types.
 
 ```runa
-= tax_input_meta = CalculationMeta(
+= tax_input_meta = EntryMeta(
     fields = [
         monthly_income_field,
         filing_status_field,
@@ -240,7 +241,7 @@ the same object by its own nested types.
 )
 
 @ meta(tax_input_meta)
-@ calculate
+@ entry
 > calculate_tax(input: Input) -> Int { ... }
 ```
 
@@ -252,7 +253,7 @@ domain component retains its own source, warning, and guidance trace.
 
 The metadata value may live in a recursively imported metadata module, and
 `@ meta(<value>) for <name>` may attach it from such a module. Calculation
-tooling collects only imported metadata on an actual calculation entry or a
+tooling collects only imported metadata on an actual entry or a
 reachable input type, so unrelated dependency metadata cannot alter the
 contract. Imported fields use the same exact-path validation and duplicate
 checks as local fields.
@@ -293,11 +294,11 @@ final interview wording.
 ## Inspect The Contract
 
 ```sh
-runa schema model.calculate.runa
-runa schema model.calculate.runa --entry calculate_tax
+runa schema model.entry.runa
+runa schema model.entry.runa --entry calculate_tax
 ```
 
-The command emits `futuruna.calculate.v1` JSON with input and output types,
+The command emits `futuruna.entry.v1` JSON with input and output types,
 reachable type definitions, linked metadata, and a SHA-256 schema fingerprint.
 Use `--entry` when a file declares more than one calculation.
 
@@ -305,10 +306,10 @@ For models with repeated field-source provenance, opt into a lossless compact
 schema export:
 
 ```sh
-runa schema model.calculate.runa --format compact-json --output schema.json
+runa schema model.entry.runa --format compact-json --output schema.json
 ```
 
-The distinct wire schema `futuruna.calculate.compact.v1` stores each exact source
+The distinct wire schema `futuruna.entry.compact.v1` stores each exact source
 object once in `source_objects`, ordered source lists in `source_groups`, and
 a `source_group` reference on each field that has sources. Source order,
 repetitions, text, structured data and field associations are preserved. Root
@@ -463,7 +464,7 @@ The default cache is under the operating system's user cache directory. Set
 standard error. The cache contains contracts only; calculation inputs and
 results are not stored.
 
-A call prepares its calculation entry once: the runtime rule-dispatch metadata
+A call prepares its entry once: the runtime rule-dispatch metadata
 and an interpreter that has initialized the program (the prelude, the
 declarations, and the top-level and metadata bindings the entry reaches). Every
 case runs from that prepared state and starts from it alone: a fresh
@@ -475,7 +476,7 @@ next case, so no case sees the messages or values of another. A host that keeps
 the prepared entry reuses it for every later call: the WebAssembly engine's
 `Model` prepares an entry on its first call (full or partial), and later calls
 run only their cases, with results byte-identical to a fresh call's. In Rust,
-`futuruna::calculate::PreparedCalculation` is that prepared entry.
+`futuruna::calculate::PreparedEntry` is that prepared entry.
 
 Calculation batches with at least four ready cases run independent cases
 concurrently and retain their original result and diagnostic order. The
@@ -498,8 +499,8 @@ substantially faster.
 ## Audit Calculation Reachability
 
 ```sh
-runa audit model.calculate.runa --entry calculate_tax
-runa audit model.calculate.runa --entry calculate_tax --json
+runa audit model.entry.runa --entry calculate_tax
+runa audit model.entry.runa --entry calculate_tax --json
 ```
 
 Entry-specific audit mode reports the conservative runtime-symbol closure used
@@ -521,7 +522,7 @@ connecting it.
 audit as `topology` (`summary` counts of rules, invariants, `contradictions`,
 `tensions`, `asymmetries` and `invariant_gaps`; `findings` with `kind`,
 `severity`, `title`, `rules` and `explanation`). For a file without
-`@ calculate`, the entry sections (`entry`, `label`, `input_type`,
+`@ entry`, the entry sections (`entry`, `label`, `input_type`,
 `output_type`, `analysis`, `summary`, `reachable_symbols`, `required_bindings`,
 `loaded_sources`, `callables`, `not_reached_candidates`) are `null`. With
 `--json`, a file with several calculations needs `--entry`. Running `runa audit` without
@@ -559,9 +560,9 @@ are informational and do not change the exit status of `runa audit`.
 ## Generate Input
 
 ```sh
-runa template model.calculate.runa --format json --output cases.json
-runa template model.calculate.runa --format toml --output cases.toml
-runa template model.calculate.runa --format xlsx --output cases.xlsx
+runa template model.entry.runa --format json --output cases.json
+runa template model.entry.runa --format toml --output cases.toml
+runa template model.entry.runa --format xlsx --output cases.xlsx
 ```
 
 JSON is the canonical value model. TOML omits absent optional record fields.
@@ -613,7 +614,7 @@ workbook writes version 8 without changing its decoded values.
 `cases` is the first visible worksheet and contains scalar fields for the named
 input record. `input_status` beside `case_id` offers `draft` and `ready`; it
 applies to that case's inputs on all related sheets. Its first row visibly
-shows the `@ calculate` title, and every related collection sheet combines that
+shows the `@ entry` title, and every related collection sheet combines that
 title with the collection's field label.
 Explicit field labels replace machine paths only in visible headers; hidden
 topology retains the paths. Every collection row
@@ -641,7 +642,7 @@ After changing a variant or adding parent rows, refresh the workbook to add any
 newly reachable collection sheets:
 
 ```sh
-runa template model.calculate.runa --input cases.xlsx --output refreshed.xlsx
+runa template model.entry.runa --input cases.xlsx --output refreshed.xlsx
 ```
 
 Refresh validates and preserves existing values and readiness, except that cases
@@ -675,9 +676,9 @@ instead of coercing the data.
 ## Invoke Cases
 
 ```sh
-runa call model.calculate.runa --input cases.json
-runa call model.calculate.runa --input cases.toml --output results.json
-runa call model.calculate.runa --input cases.xlsx --output results.xlsx
+runa call model.entry.runa --input cases.json
+runa call model.entry.runa --input cases.toml --output results.json
+runa call model.entry.runa --input cases.xlsx --output results.xlsx
 ```
 
 Each case is decoded through the same Futuruna contract and evaluated in an
@@ -733,10 +734,10 @@ answers some needs, writes the answers into the same case at their paths and
 calls again, until the case is `Complete`.
 
 ```sh
-runa call model.calculate.runa --partial --input partial.json
-runa call model.calculate.runa --partial=strict --input partial.json
-runa call model.calculate.runa --partial=check --input partial.json
-runa schema model.calculate.runa --format partial-result
+runa call model.entry.runa --partial --input partial.json
+runa call model.entry.runa --partial=strict --input partial.json
+runa call model.entry.runa --partial=check --input partial.json
+runa schema model.entry.runa --format partial-result
 ```
 
 In a partial case a value means the answer, `{}` for a record means the
@@ -806,7 +807,7 @@ cannot finish. `later` lists the facts evaluation did read behind such a
 condition (in a branch that failed, was cut, or was undecided because of
 another branch) and that are not needs: they may become needs once the needs
 are answered. The output envelope's schema is
-`futuruna.calculate.partial-output.v1`, and `runa schema --format
+`futuruna.entry.partial-output.v1`, and `runa schema --format
 partial-result` prints the JSON Schema of `result`.
 
 Evaluation carries unknown values freely and decides wherever the known part
@@ -837,7 +838,7 @@ the path string). Its need has kind `entry`: the client runs that entry for
 the subject and writes the entry's result at `path`. The contract and the
 need carry the entry's name and the subject's input path
 (`"entry": "share_income"`, `"subject": "taxpayer.spouse"`). `runa check`
-reports, naming the field: an `entry` that is not an `@ calculate` entry of
+reports, naming the field: an `entry` that is not an `@ entry` of
 the program, a `subject` rooted at another type than the calculation's input,
 a subject whose value (through optional, list, set and map wrappers) does not
 have the entry's input type, and a field whose type is not the entry's result
@@ -869,7 +870,7 @@ cases and their needs are specified in
 
 ## Needs in the language
 
-Experimental. A program asks a calculation entry about a case that holds
+Experimental. A program asks an entry about a case that holds
 facts not known yet, in Futuruna, and a test states an interview round by
 round. Queries run in the interpreter, as `runa call --partial` does.
 
@@ -885,16 +886,16 @@ round. Queries run in the interpreter, as `runa call --partial` does.
 }
 }
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = h.income - threshold(h))
 
 = with_spouse = Household(income = 500, married = True, spouse = Some(Spouse(income = 50, cohabiting = True)))
 = first = query household_tax(Household(income = 500, married = True, spouse = unknown))
-= asked = interview(|c| query household_tax(c), Household(income = 500, married = True, spouse = unknown), with_spouse)
+= asked = answer(household_tax, Household(income = 500, married = True, spouse = unknown), from_case(with_spouse))
 
 @ print(match first { | Needs -> map(first.needs, |n| n.path) == [pathof(Household::spouse)] | Complete -> False }) -- true
-@ print(asked.rounds == [[pathof(Household::spouse)], [pathof(Household::spouse::cohabiting), pathof(Household::spouse::income)]]) -- true
-@ print(asked.result == household_tax(with_spouse)) -- true
+@ print(map(asked.rounds, |r| r.paths) == [[pathof(Household::spouse)], [pathof(Household::spouse::cohabiting), pathof(Household::spouse::income)]]) -- true
+@ print(asked.outcome == Answered(result = household_tax(with_spouse))) -- true
 ```
 
 **`unknown`** is a value not known yet. It means what a left-out field means
@@ -920,8 +921,8 @@ places it stops with an error naming the `unknown`'s line. `unknown` is a
 reserved word; `runa fmt --migrate` renames a binding, parameter or function
 called `unknown` to `unknown_`.
 
-**`query entry(case)`** asks the calculation entry `entry` (an
-`@ calculate` declared in the asking file or a file it imports) about
+**`query entry(case)`** asks the entry `entry` (an
+`@ entry` declared in the asking file or a file it imports) about
 `case`. It returns
 
 ```text
@@ -933,8 +934,8 @@ with what `runa call --partial` returns for the case: the entry is checked
 and prepared as `runa call` prepares it, the case crosses as a partial JSON
 case, and the result and needs cross back. `query` is a contextual keyword:
 only `query name(...)` is a query, and `runa check` rejects a query of a
-name that is not a calculation entry. No calculation may reach a `query` or
-an `unknown`: `runa check` reports one that any `@ calculate` entry can
+name that is not an entry. No calculation may reach a `query` or
+an `unknown`: `runa check` reports one that any `@ entry` can
 reach, with the call chain.
 
 A `Complete` carries the assumptions its result rests on, as `runa call`
@@ -951,9 +952,10 @@ List(NeedWaiting)`. A waiting rule's `section` is a
 `ProgramSectionReference`, so a test compares it with
 `Some(refof(section transfer))`; `refof(section name)` names a section of the
 file it stands in or of a file it imports, and a name two files declare is a
-check error. These types, `fill` and `interview` join the prelude of a
-program that asks a query, places an `unknown`, or calls `fill` or
-`interview`.
+check error. These types and `fill` join the prelude of a program that asks
+a query, places an `unknown`, or calls `fill`; the types of
+[Answering an entry](#answering-an-entry) join it as well when the program
+calls `answer` or `answer_guide`.
 
 **`Path(i)`** is a path into a value of type `i`. `pathof(T::...)` is a
 `Path(T)` where a path is expected and a `String` elsewhere; it takes list
@@ -967,9 +969,7 @@ writes every path it returns in this form.
 **`fill(partial, complete, paths)`** writes into `partial`, at each path, the
 value of `complete` there: a record as existing with its fields unknown, a
 variant by its tag, every other value (a `Date` too) whole.
-**`interview(ask, partial, complete)`** asks `ask(case)`, fills each round's
-needs from `complete` and asks again until the answer is `Complete`; it
-returns `Interview(rounds: List(List(Path(i))), result: o)`.
+[Answering an entry](#answering-an-entry) answers an entry round by round.
 
 **What `runa test` checks per query.** Outside tests a query only
 propagates. Under `runa test`, every query also runs the two checks of
@@ -984,11 +984,123 @@ the completion that disproves it:
 asks_income.runa:7: query tax_of, round 1: the propagated result is Complete, but the completion income = -1 returns a different result: {"tax":0} instead of {"tax":-10}
 ```
 
-`runa build` and `runa run` refuse a program with a `query` or `unknown`,
-naming each; `runa check` checks its frontend and reports `interpreted
-(query)`, and `runa test --run` runs such a test in the interpreter and marks
-it `interpreted (query)`. Specified in
+`runa build` and `runa run` refuse a program with a `query`, an `unknown` or
+an `answer`, naming each; `runa check` checks its frontend and reports
+`interpreted (query)`, and
+`runa test --run` runs such a test in the interpreter and marks it
+`interpreted (query)`. Specified in
 [Needs in the language](../rfcs/needs-in-the-language.md).
+
+## Answering an entry
+
+Experimental. A partial case says which facts are missing; Futuruna knows the
+law, the facts it reads (types, labels, questions, help, sources) and what is
+missing (needs with what they wait on). Which source answers which need is
+the integrator's own code, routed on that metadata. `answer` asks an entry
+round by round and hands each round's needs to one `resolve` function.
+
+```runa
+-- household.answer.runa: the law, household.entry.runa, declares
+-- Spouse(income, cohabiting), Child(name, age),
+-- Household(income, married, spouse: Option(Spouse), children: List(Child)),
+-- Result(tax) and the entry household_tax
+@ import ./household.entry
+
+= complete = Household(income = 500, married = True, spouse = Some(Spouse(income = 50, cohabiting = True)), children = [Child(name = "Ada", age = 4)])
+= started: Household = Household(income = 500, married = True, spouse = unknown, children = [Child(name = "Ada", age = unknown)])
+= answered = answer(household_tax, started, from_case(complete))
+
+> nobody(needs: List(Need(Household)), case: Household) -> Answers(Household) {
+    Answers(from = case, given = [])
+}
+= stuck = answer(household_tax, started, nobody)
+```
+
+Here `answered.outcome` is `Answered(result = household_tax(complete))`, and
+`stuck.outcome` is `Unanswered` with the first round's needs (the spouse and
+Ada's age) open. The prelude of a program that calls `answer`:
+
+```text
+Answers(i)        = Answers(from: i, given: List(Path(i)))
+Round(i)          = Round(paths: List(Path(i)), given: List(Path(i)))
+Outcome(o, i)     = Answered(result: o) | Unanswered(open: List(Need(i)), case: i)
+Answering(o, i)   = Answering(rounds: List(Round(i)), outcome: Outcome(o, i))
+```
+
+**`answer(e, case, resolve)`** answers the `@ entry` `e` about `case`, round
+by round:
+
+1. it asks `query e(case)`, with the strict-mode oracle and the completion
+   test under `runa test`;
+2. on `Complete` it ends with `Answered(result)`;
+3. it calls `resolve(needs, case)` once, with all of the round's needs. It
+   returns `Answers(from, given)`: the paths it answers and a case holding
+   their values. Answering a path that was not asked is an error;
+4. it writes the answers into the case with `fill` and asks again;
+5. a round that answers nothing ends with `Unanswered(open, case)`: that
+   round's needs, and the case as far as it got.
+
+`rounds` records, for each round, the paths asked and the paths answered, so
+a test states "the ages and the spouse are asked, then the spouse's fields".
+What `resolve` does inside (read a database, ask a person, run another entry)
+is the integrator's business; `answer` only sees which paths it answered.
+
+**`from_case(complete)`** is the test oracle: a resolve that answers every
+need from `complete`, so `answer(e, partial, from_case(complete))` answers a
+case from a complete one, round by round. `runa fmt --migrate` rewrites a 0.5
+`interview(|c| query e(c), partial, complete)` to that form, with its
+`.rounds` and `.result == v`.
+
+`answer` is the integrator's, not the law's: `runa check` reports `answer` of
+a name that is not an `@ entry`, and `answer` reached from an `@ entry`.
+
+**Composition and running another entry** are different things. An entry
+that calls another entry makes an ordinary call: under a query the callee's
+needs are the caller's, at the caller's paths. Running another entry
+separately is something `resolve` may do, for a field whose metadata names
+the entry that provides it (`@ field(entry = refof(share_income), subject =
+...)`): it may run `answer` on that entry, read a stored figure, or ask
+someone. That second `answer`'s needs are its own, not the caller's.
+
+### The generated AnswerGuide
+
+Every `@ entry` generates its **AnswerGuide** from the law: one item for every
+input path pattern at which a need can arise, with its type and the law's
+metadata (label, question, help, unit, key fields, sources; for an entry need,
+the entry and subject). It says nothing about the integrator: no sources of
+its own, no groups. The integrator writes only the mapping of its data into a
+case and `resolve`; which need goes to the customer, another bank or the back
+office is its own code, and the guide is what it reads to write it.
+
+**`answer_guide(entry)`** returns the guide of an `@ entry`, in the
+interpreter only, like `query`:
+
+```text
+AnswerGuide = AnswerGuide(entry: String, needs: List(GuideNeed))
+GuideNeed   = GuideNeed(pattern: String, kind: NeedKind, value_type: String,
+                        label: Option(String), question: Option(String),
+                        help: Option(String), unit: Option(String),
+                        keys: List(String), sources: List(NeedSource),
+                        entry: Option(ProgramReference), subject: Option(String))
+```
+
+A pattern is spelled as a need's path, with `[]` for every list index and
+`*` for every map key (`children[].age`); a sum type's alternative is
+`path.$variant`, and an alternative's fields stand directly under the sum
+type's path. `value_type` is the type as written (`Spouse?`, `List(Child)`).
+`keys` are the patterns of the key fields of the list elements the pattern
+lies in. The patterns come in the order the input type declares them, a
+value before what lies inside it.
+
+```runa
+= guide = answer_guide(household_tax)
+@ print(show(map(guide.needs, |n| n.pattern)))
+-- [income, married, spouse, spouse.income, spouse.cohabiting, children, children[].name, children[].age]
+```
+
+The guide is derived from the entry's contract; the engine, its JSON and the
+WebAssembly build are unchanged. The TypeScript SDK exports it as
+`<entry>Guide`.
 
 ## Explanations
 
@@ -998,10 +1110,10 @@ the law section and cited paragraphs of that clause, and the rules and inputs
 it was computed from.
 
 ```sh
-runa call model.calculate.runa --input cases.json --explain
-runa call model.calculate.runa --input cases.json --explain=full
-runa call model.calculate.runa --input partial.json --partial --explain
-runa schema model.calculate.runa --format explanation
+runa call model.entry.runa --input cases.json --explain
+runa call model.entry.runa --input cases.json --explain=full
+runa call model.entry.runa --input partial.json --partial --explain
+runa schema model.entry.runa --format explanation
 ```
 
 ```json
@@ -1165,40 +1277,69 @@ every call (`Calculated<R>`), and `Complete` carries `assumptions`.
 ## TypeScript SDK
 
 Experimental. `runa sdk ts` generates a typed TypeScript client from the
-contracts of every `@ calculate` entry in one file:
+contracts of every `@ entry` in one file:
 
 ```sh
-runa sdk ts model.calculate.runa --out sdk/
+runa sdk ts model.entry.runa --out sdk/
 ```
 
-The output is five ES modules for the file's entries and one runtime module,
-whose only dependency is [`zod`](https://zod.dev):
+The output is five ES modules for the file's entries. They
+import [`zod`](https://zod.dev) and the runtime package `@futuruna/runtime`
+([The runtime package](#the-runtime-package)):
 
 | File | Contents |
 |------|----------|
 | `types.ts` | One type per contract type, as TypeScript writes it (see [Types](#types)). Every field carries its label, question, help, unit and source labels as TSDoc. |
-| `schema.ts` | A Zod validator for every type, `SCHEMA_HASH` per entry, and a wire codec (`<Type>Codec`) for every record and every sum type with payload variants. Records reject unknown fields. `Int` is `number` and validates as a safe integer: a value beyond ±(2^53 − 1) is rejected, never rounded. |
+| `schema.ts` | A Zod validator for every type, `SCHEMA_HASH` per entry, and a wire codec (`<Type>Codec`) for every record and every sum type with payload variants. Records reject unknown fields. `Int` is `number` and validates as a safe integer: a value beyond ±(2^53 − 1) is rejected, never rounded. Each unit's constructor, with its decimal converters where its scale allows them. |
 | `partial.ts` | `Partial<Type>` for every input record and sum type, in which any field may be left out and a record may be `{}`, with the same field TSDoc as `types.ts`; each entry's input path patterns (`<Entry>InputPatterns`, with the value written at each), its `Need` tagged by pattern, the `Complete`/`Needs` result, and `<entry>SetAt`. |
-| `client.ts` | A call and a query function per entry, each also explained (`<entry>Explained`, `<entry>QueryExplained`), the entry's descriptor (`<entry>Entry`: name, schema hash, codecs, path patterns), and its resolver map type. |
-| `index.ts` | Re-exports the other modules and the runtime. |
-| `runtime.ts` | What every SDK shares: the value validators and `isoDate`, `none`, the wire codec, `setAt` and paths, needs, the calls through a transport, `resolve`, and the error classes. It depends on no model, and it passes typescript-eslint's `strictTypeChecked` as generated. |
+| `client.ts` | A call, a query and an answer function per entry, the first two also explained (`<entry>Explained`, `<entry>QueryExplained`), the entry's resolve type (`<Entry>Resolve`) and generated guide (`<entry>Guide`), see [Answering an entry](#answering-an-entry-1), and the entry's descriptor (`<entry>Entry`: name, schema hash, codecs, path patterns). |
+| `index.ts` | Re-exports the other modules and the runtime package. |
 
-`--runtime PATH` writes the runtime at `PATH`, relative to the output
-directory, and the entry modules import it from there. The SDKs of several
-source files then share one runtime, generated by the same `runa`:
+Each module starts with a header naming the source file, the runtime version
+it imports and the schema hash of every entry. The output depends only on the
+contracts, so regenerating an unchanged model rewrites
+identical files. A contract type whose name collides with a generated name (a
+runtime name such as `Need`, `Complete`, `Needs`, `Unknown` or `given`, or a
+`Partial`, `Schema`, `Codec` or entry-derived name) is an error, and so are
+two fields of one record or variant with the same camelCase name; rename one.
 
-```sh
-runa sdk ts src/tax_report.calculate.runa --out sdk/tax_report --runtime ../runtime.ts
-runa sdk ts src/ekapital_ask.calculate.runa --out sdk/ekapital_ask --runtime ../runtime.ts
+### The runtime package
+
+`@futuruna/runtime` is what every SDK shares: the value validators and
+`isoDate`, `none`, the wire codec, `setAt` and paths, needs, the calls through
+a transport, answering an entry, the unit converters and the error classes.
+It depends on no model, so one copy serves the SDKs of every source file, and
+`instanceof` on its error classes holds across them. Its source passes
+typescript-eslint's `strictTypeChecked`.
+
+`runa sdk runtime --out DIR` writes the package at `runa`'s own version:
+`package.json`, the ES module `index.js` and its declarations `index.d.ts`.
+`zod` (4.x) is its peer dependency, so the SDK and the runtime validate with
+one `zod`. Every Futuruna release also attaches it, packed, as
+`futuruna-runtime-<version>.tgz`.
+
+The package that holds a generated SDK (the model package) depends on the
+runtime as on any package, at the version of the `runa` that generated the
+SDK; the SDK carries no copy of it. Either from the release, here 0.6.0:
+
+```json
+"dependencies": {
+  "@futuruna/runtime": "https://github.com/Futuruna/futuruna/releases/download/v0.6.0/futuruna-runtime-0.6.0.tgz",
+  "zod": "^4.0.0"
+}
 ```
 
-Each entry module starts with a header naming the source file and the schema
-hash of every entry. The output depends only on the contracts, so
-regenerating an unchanged model rewrites identical files. A contract type
-whose name collides with a generated name (a runtime name such as `Need`,
-`Complete`, `Needs` or `Unknown`, or a `Partial`, `Schema`, `Codec` or
-entry-derived name) is an error, and so are two fields of one record or
-variant with the same camelCase name; rename one.
+or vendored, from the `runa` that generates the SDK:
+
+```sh
+runa sdk runtime --out build/runtime
+mkdir -p vendor && npm pack ./build/runtime --pack-destination vendor
+npm install ./vendor/futuruna-runtime-0.6.0.tgz
+```
+
+which records `"@futuruna/runtime": "file:vendor/futuruna-runtime-0.6.0.tgz"`.
+Check the tarball in with the SDK, so that building the model package needs
+neither the network nor `runa`.
 
 ### Types
 
@@ -1231,6 +1372,26 @@ constructor `ore(n)`, which throws a `RangeError` unless `n` is a safe
 integer. Wherever the contract says `Ore` (fields, results, the answers of
 `<entry>SetAt` and the resolvers) a bare number or a `Micro` is a type error,
 while a plain `Int` stays `number`.
+
+A unit declared with a scale whose values are all finite decimals of its base
+(`# unit Ore "DKK øre" = DKK / 100`, or `= 1 / 1000000`: a `per` built from
+2s and 5s) also gets two exact converters, in integer arithmetic and never
+through a float:
+
+```ts
+const price: Ore = ore.fromDecimal("1740.25"); // 174025
+ore.toDecimal(result.taxOre);                   // "1740.25": how the integrator reads a figure in kroner
+ore.toDecimal(ore(174000));                     // "1740.00", with as many decimals as one Ore has
+```
+
+`fromDecimal` takes the amount as text, a decimal number of the base, and
+refuses an amount finer than one unit (`"1740.255"`), text that is not a
+decimal number (`"1,5"`, `"1e3"`) and a result beyond a safe integer: it
+throws a `CalculationError` of kind `amount`, whose `entry` is the unit and
+whose message names the amount, as in `Ore: 1740.255 DKK is finer than one
+Ore (1/100 DKK)`. Rounding an amount instead is the model's decision, which a
+unit cannot declare yet. A unit whose scale is no finite decimal (`= DKK / 3`)
+and a unit without a scale get no converters.
 
 `toWire(codec, value)` and `fromWire(codec, value)` convert a value either way
 with a codec from `schema.ts` (or `<entry>Entry.input` and `.output`), for
@@ -1348,65 +1509,91 @@ function answerFromLedger(c: PartialTaxCase, need: TaxReportNeed): PartialTaxCas
 }
 ```
 
-### Resolving needs
+### Answering an entry
 
-`resolve(query, initialCase, resolvers)` runs the interview loop. It queries the
-case, calls each registered resolver once with all of that round's needs at
-and below its pattern, the resolvers at the same time, writes the answers into
-the case and queries again. A resolver may be registered on a field
-(`accounts[].closingCashOre`), on a list's elements (`accounts[]`, every field
-of every account) or on a record (`taxpayer`, every field below it); each need
-goes to the most specific pattern registered for it, and never to two
-resolvers. A resolver fetches what its needs ask for in one batch and returns
-the function that answers each need:
+Every entry gets `<entry>Answer` and its resolve type `<Entry>Resolve` in
+`client.ts`, the TypeScript form of [`answer`](#answering-an-entry):
 
 ```ts
-const accountId = (need: TaxReportNeed) => need.keys?.find((key) => key.field === "accountId")?.value;
-const resolvers: TaxReportResolvers = {
-  "accounts[]": async (needs) => {
-    const accounts = await ledger.accounts(needs.map(accountId));
-    return (need) => {
-      const account = accounts.get(accountId(need));
-      switch (need.pattern) {
-        case "accounts[].openingCashOre":
-          return answer(need, account.openingCashOre);
-        case "accounts[].closingCashOre":
-          return answer(need, account.closingCashOre);
-        default:
-          return ask;
-      }
-    };
-  },
-  "taxpayer.married": () => () => ask,
-};
-const outcome = await resolve((c) => taxReportQuery(transport, c), {}, resolvers);
-if (outcome.$variant === "Complete") report(outcome.result);
-else store(outcome.partialCase, outcome.questions);
+export type HouseholdTaxResolve = Resolve<partial.PartialHousehold, partial.HouseholdTaxInputPatterns, partial.HouseholdTaxNeed>;
+export function householdTaxAnswer(
+  transport: EngineTransport,
+  partialCase: partial.PartialHousehold,
+  resolve: HouseholdTaxResolve,
+  options?: AnswerOptions,
+): Promise<Answering<Result, partial.HouseholdTaxNeed, partial.PartialHousehold>>;
 ```
 
-The loop calls the returned function once per need, so every need gets a
-reply made from that need, and none is left out. It returns
-`answer(need, value)`, `ask` for a question only the customer can answer, or
-the resolution of another entry from `context.runEntry(need, query, case,
-resolvers)`, which runs the entry an entry need names (a fact need is given
-one: `{ ...need, entry, subject }`). A reply names the need's path and its
-value is typed by the need's pattern, so a resolver of several patterns
-narrows `need.pattern` before it answers, and an answer cannot land at
-another need's path, as one from a list of answers in another order (the
-backend's rows) would: a reply for another path throws `ResolveError`.
-`context.partialCase` is the case of the round, with every answer so far. A
-need no registered pattern covers is a question. The loop stops
-with `Complete`, or with `Questions` (the questions, entry needs waiting on
-another case's questions, the last round's `later` facts that may be asked
-once the questions are answered, and the partial case) when a round adds no
-answer.
-It keeps the stack of `(entry, subject)` pairs it runs: a pair that repeats
-throws `ResolveCycleError`, since entries that need each other belong in one
-joint entry. A path the engine still needs after it was answered throws
-`ResolveError`.
+`<entry>Answer(transport, partialCase, resolve)` queries the case, calls
+`resolve` once per round with all of that round's needs, writes the answers
+into the case and queries again. Which source answers which need is the
+integrator's code: it routes on the need's pattern and its metadata (label,
+question, help, unit, sources, `keys`, `waiting`). `resolve` fetches what the
+needs ask for in one batch and returns the function that answers each need:
 
-Batches make second-order resolution cheap: a resolver for a list
+```ts
+const resolve: HouseholdTaxResolve = async (needs) => {
+  const ages = await registry.ages(needs.filter((n) => n.pattern === "children[].age").map((n) => n.path));
+  return (need) => {
+    switch (need.pattern) {
+      case "children[].age": {
+        const age = ages.get(need.path);
+        return age === undefined ? open : given(need, age);
+      }
+      case "spouse":
+      case "spouse.income":
+      case "spouse.cohabiting":
+        return open; // a question for the customer
+      // …one case per pattern of the entry's input
+    }
+  };
+};
+const answering = await householdTaxAnswer(transport, started, resolve);
+if (answering.$variant === "Answered") report(answering.result);
+else store(answering.partialCase, answering.open);
+```
+
+The need pattern union is generated, so a `switch (need.pattern)` without a
+`default` is exhaustive and a pattern the model adds does not compile until it
+is handled. The loop calls the returned function once per need, so every need
+gets a reply made from that need. It returns `given(need, value)`, `open` for
+a need nobody can fill yet, or another entry's outcome from
+`context.runEntry(need, run)`. `runEntry` runs the entry an entry need names
+(a fact need is given one: `{ ...need, entry, subject }`) through `run`, which
+passes its `options` on to that entry's answer, as
+`(options) => shareIncomeAnswer(transport, partialCase, resolve, options)`; an
+`Answered` result is written at the need's path, and an `Unanswered` one waits
+in `pending`. A reply's value is typed by the need's pattern and names the
+need's path, so an answer cannot land at another need's path, as one from a
+list of answers in another order (the backend's rows) would: a reply for
+another path throws `AnswerError`. `context.partialCase` is the case of the
+round, with every answer so far.
+
+Answering ends `Answered`, with the result, its assumptions and the rounds,
+or `Unanswered` when a round answers nothing: `open` holds that round's needs
+(`readonly N[]`), `pending` the entry needs waiting on another entry, `later`
+the round's `later` facts, `partialCase` the case as far as it got, and
+`rounds` each round as `{ paths, given }`: the paths asked and the paths
+answered. A pair of `(entry, subject)` that repeats on the stack of entries
+being answered throws `AnswerCycleError`, since entries that need each other
+belong in one joint entry. A path the engine still needs after it was given
+throws `AnswerError`.
+
+Batches make second-order resolution cheap: a source that gives a list
 (`events`) answers skeletons that give each element's key and variant and
 leave its details out; the next round needs only the fields the law reads,
 inside those elements, each need with the element's key in `keys`, and one
-resolver on the elements (`events[]`) fetches them all in one call.
+call fetches them all.
+
+**The generated guide.** Every entry also gets `<entry>Guide`, its
+[AnswerGuide](#the-generated-answerguide) as data for documentation and UIs:
+
+```ts
+export const householdTaxGuide: AnswerGuide<HouseholdTaxNeed["pattern"]> = {
+  "children[].age": { kind: "fact", valueType: "Int", label: "Age", question: "How old is the child?", keys: ["name"], sources: [ … ] },
+  // … one item for every pattern of the Need union
+};
+```
+
+It is keyed by need pattern and complete over the entry's `Need` union, so a
+form or a routing table built from it covers every need the entry can ask.

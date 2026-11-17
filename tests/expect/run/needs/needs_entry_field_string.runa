@@ -10,16 +10,16 @@
 # Household(
     income: Int,
     spouse: Spouse,
-    @ field(label = "Spouse's share income", unit = "øre", entry = "share_income", subject = "spouse")
+    @ field(label = "Spouse's share income", unit = "øre", entry = refof(share_income), subject = pathof(Household::spouse))
     spouse_share_income: Int
 )
 # Result(tax: Int)
 
-@ calculate
+@ entry
 | share_income(s: Spouse) -> s.income
 
 | threshold(h: Household): Int -> 100
 | exception transferred threshold(h) -> 200 - h.spouse_share_income under h.spouse_share_income < 100
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = h.income - threshold(h))

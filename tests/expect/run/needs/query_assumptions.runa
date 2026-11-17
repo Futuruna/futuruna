@@ -29,7 +29,7 @@
 @ meta(Assumption(value = whole_kroner))
 @ section report {
 
-@ calculate
+@ entry
 | account_room(a: Account) -> Result(room = room(a.closed, a.value))
 
 }

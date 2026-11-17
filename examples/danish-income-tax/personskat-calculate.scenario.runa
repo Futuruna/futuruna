@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 ----
 Regressionsscenarie for den maskinlæsbare beregningsgrænse.

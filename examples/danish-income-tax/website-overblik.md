@@ -76,7 +76,7 @@ separat beregningsmotor.
 
 ## Fra interview til deterministisk resultat
 
-`@ calculate("Dansk personskat")` udstiller den typede
+`@ entry("Dansk personskat")` udstiller den typede
 `PersonskatInput`-grænse. Ud fra den samme Futuruna-kode kan værktøjet:
 
 1. generere en XLSX-arbejdsbog, et JSON-dokument eller en TOML-skabelon,
@@ -146,7 +146,7 @@ klassifikationer og usædvanlige regelkaskader.
 
 Den kanoniske kontrakt omfatter hovedperson og ægtefælle, relationelle
 kildefakta og en slutopgørelse for dækkede forhold. Beregningsgrænsefladen
-`@ calculate` samt `schema`, `template` og `call` er Preview, og skattemodellen
+`@ entry` samt `schema`, `template` og `call` er Preview, og skattemodellen
 er forskningssoftware. De konkrete scenarier ovenfor er afgrænset evidens,
 ikke verifikation af vilkårlige danske årsopgørelser.
 

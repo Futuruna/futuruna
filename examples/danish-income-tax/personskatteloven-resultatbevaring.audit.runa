@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 # PersonskatResultatAuditKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 # PersonskatResultatEnhed = ResultatIKroner | ResultatIØre

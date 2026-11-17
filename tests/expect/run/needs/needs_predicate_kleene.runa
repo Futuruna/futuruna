@@ -19,7 +19,7 @@
     if x == 1 { c.d } else { if x == 2 { c.e } else { c.sixth } }
 }
 
-@ calculate
+@ entry
 | needs_predicate_kleene(c: Case) -> Checked(
     any_holds = any([1, 2, 3], |x| any_answer(c, x)),
     all_hold = all([1, 2, 3], |x| all_answer(c, x))

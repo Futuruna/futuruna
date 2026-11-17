@@ -48,5 +48,5 @@ Stk. 2. For indkomstår før 2020 er skatten 15 pct.
 
 }
 
-@ calculate
+@ entry
 | explain_rules(c: Case) -> Result(name = c.name, base = base_of(c.items), rate_bp = rate_bp(c.year), tax = Year(base = base_of(c.items), year = c.year).tax(), carried = carried_over(base_of(c.items)))

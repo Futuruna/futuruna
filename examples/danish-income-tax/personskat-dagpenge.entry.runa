@@ -1,0 +1,6 @@
+@ sprog da
+
+@ importer ./personskat-dagpenge
+
+@ entry("Danske dagpenge: personlig indkomst og kørselsfradragets indkomstgrundlag")
+| vurder_dagpenge(fakta: PersonskatDagpengeFakta) -> personskat_dagpenge_resultat(fakta)

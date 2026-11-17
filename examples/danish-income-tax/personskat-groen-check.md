@@ -1,6 +1,6 @@
 # Personskat med kildeafledt grøn check
 
-[Denne beregning](personskat-groen-check.calculate.runa) forbinder grøn check med
+[Denne beregning](personskat-groen-check.entry.runa) forbinder grøn check med
 Personskats indkomst-, pensions- og fradragsberegning. Du indtaster ikke personlig
 indkomst og nettokapitalindkomst igen: de udledes af de samme kildefakta som skatten.
 Kreditten indsættes én gang i slutopgørelsen. Reglerne kører i Futuruna, ikke en LLM.
@@ -28,9 +28,9 @@ Bevar `RUNA_BIN` som den absolutte sti til den compiler, der bestod kontrollen.
 Fra checkoutens rod:
 
 ```sh
-"$RUNA_BIN" template examples/danish-income-tax/personskat-groen-check.calculate.runa --entry beregn_personskat_med_grøn_check --format json --output /absolut/privat/sti/input.json
+"$RUNA_BIN" template examples/danish-income-tax/personskat-groen-check.entry.runa --entry beregn_personskat_med_grøn_check --format json --output /absolut/privat/sti/input.json
 # Udfyld og gennemgå fakta; sæt sagens input_status ved siden af case_id til "ready".
-"$RUNA_BIN" call examples/danish-income-tax/personskat-groen-check.calculate.runa --entry beregn_personskat_med_grøn_check --input /absolut/privat/sti/input.json --output /absolut/privat/sti/resultat.json
+"$RUNA_BIN" call examples/danish-income-tax/personskat-groen-check.entry.runa --entry beregn_personskat_med_grøn_check --input /absolut/privat/sti/input.json --output /absolut/privat/sti/resultat.json
 ```
 
 Erstat stierne med en eksisterende privat mappe uden for checkouten. Udfyld input

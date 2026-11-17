@@ -1,7 +1,7 @@
--- An entry need must name a calculation entry of the program.
+-- An entry need must name an entry of the program.
 -- expect-command: check
 -- expect-status: fail
--- expect-stderr: field `spouse_share_income` is provided by `spouse_income`, which is not a calculation entry of this program
+-- expect-stderr: field `spouse_share_income` is provided by `spouse_income`, which is not an entry of this program
 
 # Spouse(income: Int)
 # Household(income: Int, spouse: Spouse, spouse_share_income: Int)
@@ -28,7 +28,7 @@
     attachments = ()
 )
 
-@ calculate
+@ entry
 | share_income(s: Spouse) -> s.income
 
 | spouse_income(s: Spouse) -> s.income
@@ -37,5 +37,5 @@
 | exception transferred threshold(h) -> 200 - h.spouse_share_income under h.spouse_share_income < 100
 
 @ meta(household_meta)
-@ calculate
+@ entry
 | household_tax(h: Household) -> Result(tax = h.income - threshold(h))

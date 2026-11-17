@@ -3,7 +3,7 @@
 The canonical calculation includes a fact-based LL § 8 V route for service and
 green home-improvement deductions. It does not accept the tax report's deduction
 as an unrestricted balancing input. The same component is available separately
-through `boligjob.calculate.runa`, so an invoice can be reviewed without filling
+through `boligjob.entry.runa`, so an invoice can be reviewed without filling
 the entire personal-income-tax contract.
 
 This remains research software. A person must classify the actual work against
@@ -134,9 +134,9 @@ switch back to a different compiler from your PATH. Keep invoice documents
 and filled templates outside the checkout:
 
 ```sh
-"$RUNA_BIN" template examples/danish-income-tax/boligjob.calculate.runa --format json --output PRIVATE_WORK_DIR/boligjob.json
+"$RUNA_BIN" template examples/danish-income-tax/boligjob.entry.runa --format json --output PRIVATE_WORK_DIR/boligjob.json
 # Fill and review the facts, then set the case's input_status beside case_id to "ready".
-"$RUNA_BIN" call examples/danish-income-tax/boligjob.calculate.runa --input PRIVATE_WORK_DIR/boligjob.json --output PRIVATE_WORK_DIR/boligjob-results.json
+"$RUNA_BIN" call examples/danish-income-tax/boligjob.entry.runa --input PRIVATE_WORK_DIR/boligjob.json --output PRIVATE_WORK_DIR/boligjob-results.json
 ```
 
 In the component output, inspect `input_gyldigt` and each post's conditions and
@@ -183,7 +183,7 @@ An overall launch/conformance sign-off remains separate.
 Focused regression commands:
 
 ```sh
-"$RUNA_BIN" check examples/danish-income-tax/boligjob.calculate.runa
+"$RUNA_BIN" check examples/danish-income-tax/boligjob.entry.runa
 "$RUNA_BIN" run tests/personskat_boligjob_rules_test.runa
 FUTURUNA_MODEL_TEST_RUNA="$RUNA_BIN" cargo test --quiet --test personskat_boligjob -j 1
 FUTURUNA_MODEL_TEST_RUNA="$RUNA_BIN" cargo test --quiet --test personskat_validity -j 1

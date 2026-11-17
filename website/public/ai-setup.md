@@ -22,7 +22,7 @@ If you are the AI, follow the guide below. Adapt commands to the user's operatin
 - **Final check:** Print the Futuruna version and run a known example on the computer where the user will work. Before tax calculations, also run the small runtime compatibility check below. Do not run the full project test suite merely to check an installation.
 
 **Tax-audit compatibility:** Use the verified
-[v0.5.0 release](https://github.com/Futuruna/futuruna/releases/tag/v0.5.0) or a
+[v0.6.0 release](https://github.com/Futuruna/futuruna/releases/tag/v0.6.0) or a
 source build of the same checkout as the models. A version string alone does
 not prove that a binary matches the models, so run the
 [runtime compatibility check](#tax-audit-runtime-check) on the exact binary
@@ -123,7 +123,7 @@ Choose the filename for the user's operating system and processor:
 | macOS `x86_64` | `runa-macos-x86_64` |
 
 From the repository root, replace `DOWNLOAD_NAME` below with that exact filename.
-`RELEASE_TAG` is `v0.5.0`; use one explicit tag for both files, never two
+`RELEASE_TAG` is `v0.6.0`; use one explicit tag for both files, never two
 independently changing `latest` downloads. This block leaves the verified binary
 in a new directory and prints its path; it never overwrites an existing
 compiler such as a source build in `target/release/runa`.
@@ -132,7 +132,7 @@ compiler such as a source build in `target/release/runa`.
 (
 set -eu
 BINARY=DOWNLOAD_NAME
-RELEASE_TAG=v0.5.0
+RELEASE_TAG=v0.6.0
 case "$BINARY" in
     runa-linux-x86_64|runa-linux-arm64|runa-macos-arm64|runa-macos-x86_64) ;;
     *) echo "Choose the exact download filename first." >&2; exit 1 ;;
@@ -192,12 +192,12 @@ When Cargo is already available and the user approves a user-level Cargo
 installation, install the exact release tag from the canonical repository:
 
 ```
-cargo install --git https://github.com/Futuruna/futuruna --tag v0.5.0 --locked futuruna
+cargo install --git https://github.com/Futuruna/futuruna --tag v0.6.0 --locked futuruna
 runa --version
 ```
 
-The version must print `0.5.0`. Do not use `cargo install futuruna` unless
-[crates.io](https://crates.io/crates/futuruna) lists version 0.5.0; the
+The version must print `0.6.0`. Do not use `cargo install futuruna` unless
+[crates.io](https://crates.io/crates/futuruna) lists version 0.6.0; the
 crates.io package is not guaranteed to match the current release.
 This installs into Cargo's configured binary directory, normally
 `~/.cargo/bin`. If the installation fails, diagnose the error before
@@ -208,7 +208,7 @@ unless the user asks.
 
 Check for Rust and Cargo with `rustc --version` and `cargo --version`. If Rust is
 missing, use the official instructions at https://rustup.rs and ask before
-installing software or changing a shell profile. Futuruna 0.5.0 requires Rust
+installing software or changing a shell profile. Futuruna 0.6.0 requires Rust
 1.94 or newer for source and Cargo installation.
 
 Build on the same operating system and architecture where the resulting binary
@@ -359,7 +359,7 @@ Start by reading:
 - `docs/reference/calculations.md`
 
 Use the generated contract to locate relevant fields, then inspect their types,
-rules and source anchors in `personskat.calculate.runa` and its imports. Reading
+rules and source anchors in `personskat.entry.runa` and its imports. Reading
 every imported law file before asking the first factual question is not required.
 
 Choose the review route before generating a workbook. If the calculation uses
@@ -418,8 +418,8 @@ optional alternative, not a prerequisite. Replace `PRIVATE_WORK_DIR` with the
 private directory chosen by the user:
 
 ```
-"$RUNA_BIN" schema examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --format compact-json --output PRIVATE_WORK_DIR/personskat-schema.json
-"$RUNA_BIN" template examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --format json --output PRIVATE_WORK_DIR/personskat-cases.json
+"$RUNA_BIN" schema examples/danish-income-tax/personskat.entry.runa --entry beregn_personskat --format compact-json --output PRIVATE_WORK_DIR/personskat-schema.json
+"$RUNA_BIN" template examples/danish-income-tax/personskat.entry.runa --entry beregn_personskat --format json --output PRIVATE_WORK_DIR/personskat-cases.json
 ```
 
 Use the field labels, questions, help, units, choices, and source traces in the generated contract to interview the user. Record only facts the user can support. Keep a list of unknown, ambiguous, and unsupported fields instead of filling them speculatively.
@@ -507,7 +507,7 @@ invoice calculation is available before filling the full tax contract.
 When the supported input facts have been reviewed, run:
 
 ```
-"$RUNA_BIN" call examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --input PRIVATE_WORK_DIR/personskat-cases.json --output PRIVATE_WORK_DIR/personskat-results.json
+"$RUNA_BIN" call examples/danish-income-tax/personskat.entry.runa --entry beregn_personskat --input PRIVATE_WORK_DIR/personskat-cases.json --output PRIVATE_WORK_DIR/personskat-results.json
 ```
 
 Before comparing totals, read the canonical result's `vurdering` as described in
@@ -579,7 +579,7 @@ Work with the user to:
 2. Identify parties, definitions, dates, obligations, permissions, exceptions, defaults, remedies, and unresolved terms.
 3. Encode those concepts as typed Futuruna definitions and rules, with source references and explicit assumptions.
 4. Add concrete scenarios for the user's case and boundary cases for ambiguous or conflicting terms.
-5. Expose a typed `@ calculate` entry when a formal rule-model workbook would help collect facts.
+5. Expose a typed `@ entry` when a formal rule-model workbook would help collect facts.
 6. Run `runa check` and `runa fmt --check` on the model, then execute the relevant scenarios.
 7. Generate the workbook, interview the user, and complete a self-audit or exploration using the formal rule model available through Futuruna.
 
@@ -595,7 +595,7 @@ Work with the user to:
 2. Model definitions, scope, conditions, exceptions, transitions, decisions, and effects explicitly.
 3. Keep source-backed legal rules separate from assumptions or interpretations.
 4. Add scenarios for ordinary cases and audits for gaps, tensions, loopholes, missing definitions, and unusual rule interactions.
-5. Expose a typed `@ calculate` entry when the law can be explored through structured case facts.
+5. Expose a typed `@ entry` when the law can be explored through structured case facts.
 6. Check and format the model, run its scenarios, and complete a self-audit or exploration using the formal rule model available through Futuruna.
 
 State the model's coverage and limitations. Futuruna can make the encoded reasoning deterministic and auditable; it does not make an incomplete legal model complete.

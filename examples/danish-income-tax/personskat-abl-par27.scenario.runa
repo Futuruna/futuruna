@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./personskat.calculate
+@ importer ./personskat.entry
 
 ----
 Scenariet validerer, at et anskaffelsessumtillæg efter ABL § 27 føres gennem

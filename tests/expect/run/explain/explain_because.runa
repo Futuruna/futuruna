@@ -54,5 +54,5 @@
 
 }
 
-@ calculate
+@ entry
 | explain_because(a: Account) -> Result(room = room(is_some(a.ending), a.value), received = if a.transferred { received(a.value) } else { 0 })

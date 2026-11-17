@@ -146,7 +146,7 @@ fn authored_length_functions_and_local_callbacks_keep_their_own_types() {
 
 #[test]
 fn calculation_commands_reject_invalid_length_models_before_execution() {
-    let source = fixture("# Input(values: Map(String, Int))\n# CountOutput(count: Int)\n@ calculate\n> calculate_count(input: Input) -> CountOutput { CountOutput(count = length(input.values)) }\n", "runa");
+    let source = fixture("# Input(values: Map(String, Int))\n# CountOutput(count: Int)\n@ entry\n> calculate_count(input: Input) -> CountOutput { CountOutput(count = length(input.values)) }\n", "runa");
     let input = fixture(
         r#"{"cases":[{"case_id":"one","input":{"values":{"key":1}}}]}"#,
         "json",

@@ -7,7 +7,7 @@ fn runa() -> &'static str {
 }
 
 fn fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/audit/reachability.calculate.runa")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/audit/reachability.entry.runa")
 }
 
 fn topology_fixture(name: &str) -> PathBuf {
@@ -120,7 +120,7 @@ fn calculation_reachability_requires_entry_for_multiple_calculations() {
     let fixture = fixture();
     let output = run(&["audit", fixture.to_str().expect("fixture path"), "--json"]);
     assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("source has multiple calculations"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("source has multiple entries"));
 }
 
 #[test]
@@ -135,7 +135,7 @@ fn calculation_reachability_rejects_unknown_entry() {
     ]);
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("unknown calculation entry `missing_calculation`"));
+    assert!(stderr.contains("unknown entry `missing_calculation`"));
     assert!(stderr.contains("`calculate_reachability`"));
     assert!(stderr.contains("`calculate_alternate`"));
 }
@@ -425,7 +425,7 @@ fn clause_audit_reports_untranslatable_guards_as_not_analyzed() {
 
 #[test]
 fn clause_audit_json_carries_findings_across_imports() {
-    let fixture = topology_fixture("clause_reachability.calculate.runa");
+    let fixture = topology_fixture("clause_reachability.entry.runa");
     let output = run(&["audit", fixture.to_str().expect("fixture path"), "--json"]);
     assert!(
         output.status.success(),
@@ -459,11 +459,7 @@ fn clause_audit_json_carries_findings_across_imports() {
     assert_eq!(surcharge["cause"], "shadowed");
     assert_eq!(surcharge["clause"]["tier"], "guarded_default");
     assert!(
-        located(
-            &surcharge["clause"],
-            "clause_reachability.calculate.runa",
-            4
-        ),
+        located(&surcharge["clause"], "clause_reachability.entry.runa", 4),
         "{surcharge}"
     );
     let shadows = surcharge["shadowed_by"].as_array().expect("shadowed_by");
@@ -479,15 +475,11 @@ fn clause_audit_json_carries_findings_across_imports() {
         .expect("overlap finding");
     assert_eq!(overlap["family"], "rate/1");
     assert!(
-        located(&overlap["clause"], "clause_reachability.calculate.runa", 8),
+        located(&overlap["clause"], "clause_reachability.entry.runa", 8),
         "{overlap}"
     );
     assert!(
-        located(
-            &overlap["overlaps"],
-            "clause_reachability.calculate.runa",
-            7
-        ),
+        located(&overlap["overlaps"], "clause_reachability.entry.runa", 7),
         "{overlap}"
     );
     let witness: i64 = overlap["witness"]["x"]
@@ -617,7 +609,7 @@ fn clause_audit_does_not_check_gaps_past_an_untranslatable_guard() {
 
 #[test]
 fn clause_audit_json_reports_gaps() {
-    let fixture = topology_fixture("clause_gaps.calculate.runa");
+    let fixture = topology_fixture("clause_gaps.entry.runa");
     let output = run(&["audit", fixture.to_str().expect("fixture path"), "--json"]);
     assert!(
         output.status.success(),
@@ -684,7 +676,7 @@ fn audit_json_works_for_a_file_without_a_calculation() {
 
 #[test]
 fn calculation_audit_covers_the_families_it_reaches_through_imports() {
-    let fixture = topology_fixture("clause_gaps_import.calculate.runa");
+    let fixture = topology_fixture("clause_gaps_import.entry.runa");
     let output = run(&["audit", fixture.to_str().expect("fixture path"), "--json"]);
     assert!(
         output.status.success(),
@@ -795,7 +787,7 @@ fn clause_audit_translates_not_string_length_option_results_and_arithmetic() {
 fn clause_audit_runs_with_keys_on_shared_constructors() {
     let dir = std::env::temp_dir().join(format!("runa-audit-keyed-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("fixture directory");
-    let path = dir.join("keyed.calculate.runa");
+    let path = dir.join("keyed.entry.runa");
     std::fs::write(
         &path,
         "# Event = Trade(@ field(label = \"Id\", key = True) id: String, amount: Int) | Fee(@ field(label = \"Id\", key = True) id: String)\n\
@@ -803,7 +795,7 @@ fn clause_audit_runs_with_keys_on_shared_constructors() {
          | sign(amount: Int) -> 1 under amount > 0\n\
          | sign(amount) -> 0 under amount <= 0\n\
          # Input(events: List(AskEvent), amount: Int)\n\
-         @ calculate(\"Keyed shared constructors\")\n\
+         @ entry(\"Keyed shared constructors\")\n\
          > count(input: Input) -> Int { length(input.events) + sign(input.amount) }\n",
     )
     .expect("write fixture");

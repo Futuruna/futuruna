@@ -5,7 +5,7 @@ use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT: AtomicU64 = AtomicU64::new(0);
-const MODEL: &str = "# Details(id: Int, label: String)\n# Choice = Named(details: Details, flag: Bool) | Positional(Details, Int)\n# Input(profile: Details, rows: List(Details), entries: Map(String, Details), tags: Set(Int), choice: Choice, extra: Details?)\n@ calculate\n> report(input: Input) -> Int { 42 }\n";
+const MODEL: &str = "# Details(id: Int, label: String)\n# Choice = Named(details: Details, flag: Bool) | Positional(Details, Int)\n# Input(profile: Details, rows: List(Details), entries: Map(String, Details), tags: Set(Int), choice: Choice, extra: Details?)\n@ entry\n> report(input: Input) -> Int { 42 }\n";
 
 struct Fixture {
     directory: PathBuf,
@@ -107,7 +107,7 @@ fn expected(paths: &[&str]) -> BTreeSet<String> {
 
 #[test]
 fn missing_and_unknown_record_fields_are_reported_together() {
-    let fixture = Fixture::new("# Input(first: Int, second: String, optional: Bool?)\n@ calculate\n> report(input: Input) -> Int { input.first }\n");
+    let fixture = Fixture::new("# Input(first: Int, second: String, optional: Bool?)\n@ entry\n> report(input: Input) -> Int { input.first }\n");
     fixture.input(json!([
         {"case_id":"before", "input_status":"ready", "input":{"first":1,"second":"good"}},
         {"case_id":"empty", "input_status":"ready", "input":{}},
@@ -219,7 +219,7 @@ fn invalid_parent_shapes_do_not_invent_child_errors_and_template_reports_all_cas
 
 #[test]
 fn complete_diagnostics_and_legacy_single_error_api_share_the_same_decoder() {
-    let fixture = Fixture::new("# Input(first: Int, second: String, optional: Bool?)\n@ calculate\n> report(input: Input) -> Input { input }\n");
+    let fixture = Fixture::new("# Input(first: Int, second: String, optional: Bool?)\n@ entry\n> report(input: Input) -> Input { input }\n");
     let output = Command::new(runa())
         .arg("schema")
         .arg(fixture.directory.join("model.runa"))

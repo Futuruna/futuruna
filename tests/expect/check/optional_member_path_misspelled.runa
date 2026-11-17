@@ -24,5 +24,5 @@
 )
 
 @ meta(household_meta)
-@ calculate
+@ entry
 | household_tax(h: Household) -> TaxResult(tax = h.income)

@@ -1,7 +1,7 @@
 -- Storage belongs to the host; ordinary data, logic, scopes and names still work.
 # Input(income: Int)
 # Db(id: Int)
-@ calculate
+@ entry
 > eligible(input: Input) -> Bool { input.income <= 100 }
 
 | member("Ada")

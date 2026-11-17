@@ -12,7 +12,7 @@ import { buildFictionalCases } from '../examples/danish-income-tax/bilag-demo.mj
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = process.env.FUTURUNA_MODEL_TEST_RUNA;
 const enabled = { skip: !binary && 'Set FUTURUNA_MODEL_TEST_RUNA; no build or network.' };
-const model = 'examples/danish-income-tax/personskat.calculate.runa';
+const model = 'examples/danish-income-tax/personskat.entry.runa';
 const source = 'https://www.retsinformation.dk/eli/lta/2024/460';
 const v = ($variant, fields = {}) => ({ $variant, ...fields });
 function run(args, status = 0) {
@@ -77,7 +77,7 @@ test('canonical credit guidance distinguishes assessed amounts from cash payment
 });
 
 test('credit metadata follows reusable types through nested collection inputs', enabled, () => {
-  const schema = run(['schema', 'tests/fixtures/calculation/tax_credit_metadata.calculate.runa',
+  const schema = run(['schema', 'tests/fixtures/calculation/tax_credit_metadata.entry.runa',
     '--format', 'compact-json']);
   const fields = assertGuidance(schema, [['direct', 'øre'], ['nested.exact', 'øre'], ['nested.whole', 'kroner']]);
   for (let i = 0; i < guidance.length; i++) {

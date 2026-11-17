@@ -20,5 +20,5 @@
     }
 }
 
-@ calculate
+@ entry
 | needs_variant_key(c: Case) -> Result(total = foldl(c.events, 0, |sum, e| sum + signed(e)))

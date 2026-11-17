@@ -19,5 +19,5 @@
     RelativeField(path = refof(Child::age), label = "Child age")
 ])
 
-@ calculate
+@ entry
 | tax(input: Input) -> TaxResult(tax = input.child.age)

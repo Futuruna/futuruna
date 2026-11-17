@@ -88,27 +88,28 @@ impl CheckOutput<'_> {
                 "ok": ok,
                 "file": self.filename,
                 "phase": phase,
-                "backend_validated": ok && !self.frontend_only,
+                "backend_validated": ok && phase == "backend",
                 "diagnostics": diagnostics,
                 "summary": summary,
             })
         );
     }
 
+    /// `note` follows the line count: whether generated Rust came from the
+    /// cache, or `interpreted (...)` for a program that runs in the
+    /// interpreter only, which has no Rust, so only the frontend is claimed.
     pub(super) fn success(
         &self,
         summary: &CheckArtifactSummary,
-        cached: Option<&str>,
+        note: Option<&str>,
         elapsed: std::time::Duration,
     ) {
+        let frontend =
+            self.frontend_only || note.is_some_and(|note| note.starts_with("interpreted"));
         if self.json {
             self.report(
                 true,
-                if self.frontend_only {
-                    "frontend"
-                } else {
-                    "backend"
-                },
+                if frontend { "frontend" } else { "backend" },
                 vec![],
                 Some(summary),
             );
@@ -124,16 +125,18 @@ impl CheckOutput<'_> {
         } else {
             "check ok"
         };
-        let backend = if self.frontend_only {
-            "; Rust backend not validated".to_string()
-        } else {
-            let deps = if summary.cargo_dependency_count == 0 {
-                String::new()
-            } else {
-                format!(", {} deps", summary.cargo_dependency_count)
-            };
-            let cache = cached.map(|kind| format!(", {kind}")).unwrap_or_default();
-            format!("{deps}, {} lines of Rust{cache}", summary.rust_line_count)
+        let backend = match note {
+            _ if self.frontend_only => "; Rust backend not validated".to_string(),
+            Some(note) if frontend => format!("; {note}: no Rust"),
+            _ => {
+                let deps = if summary.cargo_dependency_count == 0 {
+                    String::new()
+                } else {
+                    format!(", {} deps", summary.cargo_dependency_count)
+                };
+                let cache = note.map(|kind| format!(", {kind}")).unwrap_or_default();
+                format!("{deps}, {} lines of Rust{cache}", summary.rust_line_count)
+            }
         };
         eprintln!(
             "{green}{label}{reset}: {} ({} stmts, {} fns, {} types{backend}) {dim}[{:.1}s]{reset}",
@@ -143,7 +146,7 @@ impl CheckOutput<'_> {
             summary.type_count,
             elapsed.as_secs_f64()
         );
-        if self.frontend_only {
+        if frontend {
             ToolGuarantee::FrontendCheck.print(true);
         } else {
             ToolGuarantee::Check.print(true);

@@ -119,7 +119,7 @@ have distinct supported result contracts.
   The possible negative-net-credit floor and correction histories remain
   separate from sign checks (`td-145088`).
 - **Native calculation coverage is bounded.** The full canonical
-  `personskat.calculate.runa` passes native compilation. The fictional
+  `personskat.entry.runa` passes native compilation. The fictional
   [2026 employer-rate profile](../examples/danish-income-tax/skatdk-arbejdsgiverpension-ekstern.md#særskilt-forskudsprofil-2026)
   and an unknown-ATP control produce identical interpreted/native assessments;
   both runtimes reject unsupported 2027. These checks do not validate every
@@ -136,7 +136,7 @@ have distinct supported result contracts.
 ## Correctness evidence and law navigation
 
 Law text, effective-year rules and typed source links belong with the
-[executable corpus](../examples/danish-income-tax/personskat.calculate.runa)
+[executable corpus](../examples/danish-income-tax/personskat.entry.runa)
 and its imports. The [source registry](../examples/danish-income-tax/source-status.runa)
 distinguishes recorded legal status from metadata freshness. Read these sources,
 not an old milestone's completion estimate, when investigating a rule.

@@ -13,7 +13,7 @@ const script = join(root, 'examples/danish-income-tax/afstemning-resultat.mjs');
 const variant = $variant => ({ $variant });
 function baseline() {
   return {
-    $futuruna: { schema: 'futuruna.calculate.output.v1', schema_hash: 'a'.repeat(64), entry: 'afstem_årsopgørelse' },
+    $futuruna: { schema: 'futuruna.entry.output.v1', schema_hash: 'a'.repeat(64), entry: 'afstem_årsopgørelse' },
     results: [{ case_id: 'fiktiv-rapport', result: {
       status: variant('BetingetAfstemt'), uafhængig_skatteberegning_udført: false,
       kontroller: [{ navn: 'Fiktiv kontrol', enhed: 'øre', forventet: 380000, oplyst: 380000, difference: 0, status: variant('Stemmer') }],
@@ -129,7 +129,7 @@ test('strict parser rejects ambiguous, lossy, malformed and excessive-depth outp
 test('wrong contracts and incompatible or contradictory presentation structures fail closed', () => {
   const edits = [
     value => { value.$futuruna.entry = 'beregn_personskat'; },
-    value => { value.$futuruna.schema = 'futuruna.calculate.input.v1'; },
+    value => { value.$futuruna.schema = 'futuruna.entry.input.v1'; },
     value => { value.$futuruna.schema_hash = 'bad'; },
     value => { resultOf(value).uafhængig_skatteberegning_udført = true; },
     value => { resultOf(value).status = variant('NyUkendtStatus'); },

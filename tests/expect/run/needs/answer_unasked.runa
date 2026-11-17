@@ -1,0 +1,18 @@
+-- A resolver answers only the needs it is given: a path it was not asked is
+-- an error that names the path and the round.
+-- expect-command: interp
+-- expect-status: fail
+-- roundtrip-skip: `answer`, `query` and `unknown` run only in the interpreter
+-- expect-stderr: `answer(household_tax, …)`, round 1: the resolver gives `married`, which it was not asked; a resolver answers only the needs it is given
+
+@ import ./answer_household_law
+
+= complete = Household(income = 500, married = False, spouse = None, children = [])
+= started: Household = Household(income = unknown, married = False, spouse = None, children = [])
+
+> overeager(needs: List(Need(Household)), case: Household) -> Answers(Household) {
+    Answers(from = complete, given = [pathof(Household::married)])
+}
+
+= answered = answer(household_tax, started, overeager)
+@ print(show(length(answered.rounds)))

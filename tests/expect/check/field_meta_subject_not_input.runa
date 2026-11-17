@@ -11,8 +11,8 @@
 )
 # TaxResult(tax: Int)
 
-@ calculate
+@ entry
 | income(s: Spouse) -> s.income
 
-@ calculate
+@ entry
 | household_tax(h: Household) -> TaxResult(tax = h.spouse_income)

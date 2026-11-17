@@ -21,8 +21,8 @@ function run(args, expectedStatus = 0) {
 }
 
 for (const [model, entry, prefixes] of [
-  ['personskat.calculate.runa', 'beregn_personskat', ['']],
-  ['personskat-par14.calculate.runa', 'beregn_personskat_delår',
+  ['personskat.entry.runa', 'beregn_personskat', ['']],
+  ['personskat-par14.entry.runa', 'beregn_personskat_delår',
     ['personskat.', 'helårsgrundlag.DokumenteretHelårsPersonskat.personskat.']],
 ]) {
   test(`${entry}: income-year church guidance follows taxpayer and spouse`, enabled, () => {
@@ -62,7 +62,7 @@ test('the four source statuses retain their coverage boundary and diagnostic bri
 });
 
 test('canonical main and spouse comparisons withhold unknown or part-year church status', enabled, () => {
-  const model = 'examples/danish-income-tax/personskat.calculate.runa';
+  const model = 'examples/danish-income-tax/personskat.entry.runa';
   const envelope = JSON.parse(run(['template', model, '--format', 'json']));
   assert.match(envelope.cases[0].input.lønmodtager.kirkeskat.$fill, /KirkeskatUoplyst/,
     'generated placeholders must not assert known nonmembership');
@@ -123,7 +123,7 @@ test('canonical main and spouse comparisons withhold unknown or part-year church
 });
 
 test('an unsupported documented annual basis cannot escape the final part-year gate', enabled, () => {
-  const model = 'examples/danish-income-tax/personskat-par14.calculate.runa', entry = 'beregn_personskat_delår';
+  const model = 'examples/danish-income-tax/personskat-par14.entry.runa', entry = 'beregn_personskat_delår';
   const v = $variant => ({ $variant });
   const envelope = JSON.parse(run(['template', model, '--entry', entry, '--format', 'json']));
   const person = buildFictionalCases({ cases: [{ input: envelope.cases[0].input.personskat }] }).envelope.cases[0].input;

@@ -196,7 +196,7 @@ fn calculation_contracts_publish_declared_danish_variants() {
 # Kontrol = Godkendt | Fejl
 # Ind(beløb: Heltal)
 # Ud(kontrol: Kontrol)
-@ calculate
+@ entry
 > kontroller(ind: Ind) -> Ud {
     hvis ind.beløb > 0 { Ud(Godkendt) } ellers { Ud(Fejl) }
 }

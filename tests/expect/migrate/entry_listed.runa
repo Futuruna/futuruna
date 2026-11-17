@@ -24,11 +24,11 @@
 # First(owner: Owner)
 # Second(owner: Owner)
 
-@ calculate
+@ entry
 | share(p: Person) -> p.income
 
-@ calculate
+@ entry
 | first(x: First) -> x.owner.share
 
-@ calculate
+@ entry
 | second(x: Second) -> x.owner.share * 2

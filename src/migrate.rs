@@ -24,6 +24,7 @@
 //! Quoted text with no `[sources/...]` document is not a quote of a saved
 //! file: it stays a `----` block comment, above the section.
 
+pub mod entries;
 pub mod rule_types;
 
 use crate::annotations::quote_argument;
@@ -45,7 +46,7 @@ pub struct MigrationProgram {
     meta_role_types: BTreeSet<String>,
     /// The constructors each declared type has.
     constructors: BTreeMap<String, Vec<String>>,
-    /// Files with an `@ calculate` entry: the calculations whose inputs may
+    /// Files with an `@ entry`: the calculations whose inputs may
     /// reach a field another file declares.
     calculation_files: Vec<PathBuf>,
     /// Some file uses `unknown` as a name, which 0.5 reserves.
@@ -144,6 +145,9 @@ impl MigrationProgram {
     }
 
     pub fn add_source(&mut self, path: &Path, source: &str) {
+        // Read as 0.6 reads it: every file is migrated before the others.
+        let migrated = entries::migrate_entries(source);
+        let source = migrated.source.as_str();
         if let Ok(module) = crate::parse_source_module_cached(path, source) {
             for statement in module.statements() {
                 if let crate::Stmt::TypeDecl(crate::TypeDecl::Scalar {
@@ -163,7 +167,7 @@ impl MigrationProgram {
         }
         if source
             .lines()
-            .any(|line| line.trim_start().starts_with("@ calculate"))
+            .any(|line| line.trim_start().starts_with("@ entry"))
         {
             self.calculation_files.push(path.to_path_buf());
         }
@@ -764,7 +768,7 @@ fn items_between(lines: &[&str], start: usize, end: usize) -> Vec<(usize, Option
     items
 }
 
-/// The first line of the declaration annotations (`@ calculate(...)`,
+/// The first line of the declaration annotations (`@ entry(...)`,
 /// `@ field(...)`) directly above `line`.
 fn declaration_start(lines: &[&str], line: usize) -> usize {
     let mut start = line;
@@ -1682,6 +1686,7 @@ fn reaching_contracts(
         let Ok(other) = std::fs::read_to_string(file) else {
             continue;
         };
+        let other = entries::migrate_entries(&other).source;
         let Ok(other_stmts) =
             crate::Parser::new(crate::Lexer::new(&other).tokenize(), &other).parse_program()
         else {
@@ -2001,7 +2006,7 @@ Guide text.
 
 --@label:entry::meta:guide_meta--
 --@begin:entry--
-@ calculate
+@ entry
 > entry(x: Int) -> Int {
     f(x)
 }
@@ -2043,7 +2048,7 @@ Guide text.
 }
 
 @ meta(guide_meta)
-@ calculate
+@ entry
 > entry(x: Int) -> Int {
     f(x)
 }
@@ -2222,12 +2227,12 @@ Guide text.
 = household_meta = CalculationMeta(fields = [
     CalculationField(path = pathof(Household::spouse_tax), label = \"Spouse's tax\", question = None, help = None, unit = None, entry = Some(\"spouse_tax\"), subject = Some(\"spouse\"))
 ])
-@ calculate
+@ entry
 | spouse_income(s: Spouse) -> s.income
-@ calculate
+@ entry
 | spouse_tax(s: Spouse) -> s.income / 4
 @ meta(household_meta)
-@ calculate
+@ entry
 | household_tax(h: Household) -> TaxResult(tax = h.spouse_income - h.spouse_tax)
 ";
 

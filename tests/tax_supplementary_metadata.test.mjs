@@ -69,7 +69,7 @@ test('source roles and limitations follow all single-parent fields to taxpayer a
 }, () => {
   const evidence = mkdtempSync(join(tmpdir(), 'futuruna-supplementary-metadata-'));
   console.log(`Supplementary deduction metadata evidence: ${evidence}`);
-  const schema = run(['schema', 'examples/danish-income-tax/personskat.calculate.runa',
+  const schema = run(['schema', 'examples/danish-income-tax/personskat.entry.runa',
     '--entry', 'beregn_personskat', '--format', 'compact-json']);
   const checked = [];
   for (const prefix of ['', 'ægtefælle.MedÆgtefælle.fakta.']) {
