@@ -2611,6 +2611,8 @@ impl<'a> Sdk<'a> {
                 self.ts_type(ty, Side::Partial)
             })
         };
+        // The value at `path` is one held fact (a scalar, an enum, a date, a
+        // collection as a whole, an optional's existence): never unknown.
         let known = element || guided.held.contains(path);
         let unknown = if known { "" } else { " | undefined" };
         match &ty {
@@ -2620,7 +2622,7 @@ impl<'a> Sdk<'a> {
                         item,
                         substitutions,
                         path,
-                        own,
+                        false,
                         element,
                         active,
                         guided,
@@ -2680,8 +2682,13 @@ impl<'a> Sdk<'a> {
                     self.held_record(&variant.fields, &local, path, active, guided, indent, &[])
                 } else {
                     let member_indent = format!("{indent}    ");
+                    // A sum type's fact is its tag, at `path.$variant`: when it is
+                    // held the variant is always given, never `Unknown` or left out.
+                    // Inside an optional, the optional's existence says whether
+                    // the value may be left out.
+                    let tag_held = guided.held.contains(&joined_column_path(path, "$variant"));
                     let mut members = Vec::new();
-                    if !guided.held.contains(path) {
+                    if !tag_held {
                         members.push(format!("Unknown<{}>", self.ts_type(&ty, Side::Qualified)));
                     }
                     for variant in &definition.variants {
@@ -2713,7 +2720,7 @@ impl<'a> Sdk<'a> {
                             ));
                         }
                     }
-                    if !known {
+                    if !element && own && !tag_held {
                         members.push("undefined".to_string());
                     }
                     members
@@ -2767,7 +2774,9 @@ impl<'a> Sdk<'a> {
                 &inner,
             ) {
                 Some(held) => {
-                    let _ = writeln!(out, "{inner}readonly {property}: {held};");
+                    // A union's members each start on their own line.
+                    let space = if held.starts_with('\n') { "" } else { " " };
+                    let _ = writeln!(out, "{inner}readonly {property}:{space}{held};");
                 }
                 None => {
                     let groups: Vec<&String> = guided
@@ -3794,7 +3803,7 @@ mod tests {
             "export type TaxGroup = \"Bookings\" | \"Customer\";",
             "export interface TaxGroupPatterns {\n  Bookings:\n    | \"events\"\n    | \"events[].$variant\"\n    | \"events[].amount\"\n    | \"events[].gross\";\n  Customer:\n    | \"events[].fee\"\n    | \"spouse\"\n    | \"spouse.cohabiting\"\n    | \"spouse.income\";\n}",
             "export type TaxGuidedNeed<G extends TaxGroup = TaxGroup> = G extends TaxGroup\n  ? GuidedNeed<Need<TaxGroupPatterns[G], never>, G>\n  : never;",
-            "export type TaxHeld = {\n  readonly year: number | undefined;\n  readonly income: number | undefined;\n  /** Resolved by `Customer`. */\n  readonly spouse?: partial.PartialSpouse | None | undefined;\n  /** Resolved by `Bookings` and `Customer`. */\n  readonly events?: partial.PartialEvent[] | undefined;\n};",
+            "export type TaxHeld = {\n  readonly year: number;\n  readonly income: number;\n  /** Resolved by `Customer`. */\n  readonly spouse?: partial.PartialSpouse | None | undefined;\n  /** Resolved by `Bookings` and `Customer`. */\n  readonly events?: partial.PartialEvent[] | undefined;\n};",
             "export type TaxResolvers = GroupResolvers<partial.PartialPerson, partial.TaxInputPatterns, TaxGroupPatterns, never>;",
             "export const taxGuide: Guide<TaxGroup> = {\n  name: \"person_guide\",\n  paths: {\n    \"events\": \"Bookings\",\n    \"events[].$variant\": \"Bookings\",\n    \"events[].Dividend.gross\": \"Bookings\",\n    \"events[].Trade.amount\": \"Bookings\",\n    \"events[].Trade.fee\": \"Customer\",\n    \"spouse\": \"Customer\",\n    \"spouse.cohabiting\": \"Customer\",\n    \"spouse.income\": \"Customer\",\n  },\n};",
             " * Answer `tax` (Tax) by the guide `person_guide`.",
@@ -3819,10 +3828,28 @@ mod tests {
         let answer = &files["answer.ts"];
         assert_contains(
             answer,
-            "  readonly spouse: {\n    readonly income: number | undefined;\n    readonly cohabiting: boolean | undefined;\n  } | None | undefined;",
+            "  readonly spouse: {\n    readonly income: number;\n    readonly cohabiting: boolean;\n  } | None;",
         );
-        assert_contains(answer, "  readonly events: (\n    | Unknown<types.Event>\n    | {\n        readonly $variant: \"Trade\";\n        readonly amount: number | undefined;\n        /** Resolved by `Customer`. */\n        readonly fee?: number | undefined;\n      }\n    | {\n        readonly $variant: \"Dividend\";\n        readonly gross: number | undefined;\n      })[] | undefined;");
+        assert_contains(answer, "  readonly events: (\n    | {\n        readonly $variant: \"Trade\";\n        readonly amount: number;\n        /** Resolved by `Customer`. */\n        readonly fee?: number | undefined;\n      }\n    | {\n        readonly $variant: \"Dividend\";\n        readonly gross: number;\n      })[];");
         assert_contains(answer, "  Customer: \"events[].fee\";");
+    }
+
+    #[test]
+    fn a_held_sum_type_tag_is_always_given() {
+        let model = "# Shape = Circle(r: Int) | Square(side: Int)\n# Drawing(main: Shape, extra: Shape)\n@ entry\n> area(d: Drawing) -> Int { 0 }\n";
+        let held_tag = "# G = A\n= g = AnswerGuide(fields = [\n    EntryField(path = pathof(Drawing::main::Circle::r), by = A),\n    EntryField(path = pathof(Drawing::extra), by = A)\n])\n";
+        let files = generate_guided(model, "area", held_tag, &["A"]).expect("generate");
+        let answer = &files["answer.ts"];
+        assert_contains(answer, "  readonly main:\n    | {\n        readonly $variant: \"Circle\";\n        /** Resolved by `A`. */\n        readonly r?: number | undefined;\n      }\n    | {\n        readonly $variant: \"Square\";\n        readonly side: number;\n      };");
+        assert_contains(
+            answer,
+            "  /** Resolved by `A`. */\n  readonly extra?: partial.PartialShape | undefined;",
+        );
+
+        let resolved_tag = "# G = A\n= g = AnswerGuide(fields = [\n    EntryField(path = pathof(Drawing::main::$variant), by = A),\n    EntryField(path = pathof(Drawing::extra), by = A)\n])\n";
+        let files = generate_guided(model, "area", resolved_tag, &["A"]).expect("generate");
+        let answer = &files["answer.ts"];
+        assert_contains(answer, "  readonly main:\n    | Unknown<types.Shape>\n    | {\n        readonly $variant: \"Circle\";\n        readonly r: number;\n      }\n    | {\n        readonly $variant: \"Square\";\n        readonly side: number;\n      }\n    | undefined;");
     }
 
     #[test]
