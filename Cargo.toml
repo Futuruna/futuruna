@@ -18,6 +18,8 @@ publish = ["crates-io"]
 include = [
     "/src/**/*.rs",
     "/src/calculate/sdk_ts_runtime.ts",
+    "/src/calculate/sdk_ts_runtime.js",
+    "/src/calculate/sdk_ts_runtime.d.ts",
     "/docs/feature-stages.json",
     "/README.md",
     "/LICENSE",

@@ -589,6 +589,77 @@ export function unitValue<U extends UnitValue>(unit: U["__unit"], value: number)
   return value as U;
 }
 
+/** A unit's declared scale: `per` of the unit make one `of` (`{ of: "DKK", per: 100 }` for øre). */
+export type UnitScale = { readonly of: string; readonly per: number };
+
+/** The decimal places of `1 / per`, when `per` is built from 2s and 5s only; otherwise `undefined`. */
+function scaleDigits(per: number): number | undefined {
+  let rest = per;
+  let twos = 0;
+  let fives = 0;
+  while (rest % 2 === 0) {
+    rest /= 2;
+    twos += 1;
+  }
+  while (rest % 5 === 0) {
+    rest /= 5;
+    fives += 1;
+  }
+  return rest === 1 ? Math.max(twos, fives) : undefined;
+}
+
+function amountOf(scale: UnitScale, amount: string): string {
+  return scale.of === "1" ? amount : `${amount} ${scale.of}`;
+}
+
+/**
+ * `amount`, a decimal number of the unit's base as text (`"1740.25"` DKK), as
+ * a `U`: exact, in integer arithmetic, never through a float. An amount finer
+ * than one `U`, text that is not a decimal number, and a result beyond a safe
+ * integer throw a {@link CalculationError} of kind `amount` naming the unit
+ * and the amount. The SDK's converters (`øre.fromDecimal`) call it.
+ */
+export function unitFromDecimal<U extends UnitValue>(unit: U["__unit"], scale: UnitScale, amount: string): U {
+  const match = /^([+-]?)(\d+)(?:\.(\d+))?$/.exec(amount);
+  if (match === null) {
+    throw new CalculationError("amount", unit, `\`${amount}\` is not a decimal number${scale.of === "1" ? "" : ` of ${scale.of}`}`);
+  }
+  const [, sign = "", whole = "", fraction = ""] = match;
+  const scaled = BigInt(whole + fraction) * BigInt(scale.per);
+  const divisor = 10n ** BigInt(fraction.length);
+  if (scaled % divisor !== 0n) {
+    throw new CalculationError(
+      "amount",
+      unit,
+      `${amountOf(scale, amount)} is finer than one ${unit} (1/${String(scale.per)}${scale.of === "1" ? "" : ` ${scale.of}`})`,
+    );
+  }
+  const magnitude = scaled / divisor;
+  if (magnitude > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new CalculationError("amount", unit, `${amountOf(scale, amount)} is beyond a safe integer of ${unit}`);
+  }
+  const value = Number(magnitude);
+  return (sign === "-" && value !== 0 ? -value : value) as U;
+}
+
+/**
+ * `value` as a decimal number of the unit's base, exact, with as many
+ * decimals as one `U` has (`"1740.25"` for 174025 øre, `"1740.00"` for
+ * 174000). Throws a `RangeError` unless `value` is a safe integer, or when the
+ * scale is not built from 2s and 5s (a unit the SDK gives no converters).
+ */
+export function unitToDecimal<U extends UnitValue>(unit: U["__unit"], scale: UnitScale, value: U): string {
+  if (!Number.isSafeInteger(value)) throw new RangeError(`${unit}: expected a safe integer, got ${String(value)}`);
+  const digits = scaleDigits(scale.per);
+  if (digits === undefined) throw new RangeError(`${unit}: 1/${String(scale.per)} has no finite decimal form`);
+  const scaled = BigInt(value) * (10n ** BigInt(digits) / BigInt(scale.per));
+  const negative = scaled < 0n;
+  const text = (negative ? -scaled : scaled).toString().padStart(digits + 1, "0");
+  const whole = text.slice(0, text.length - digits);
+  const fraction = digits > 0 ? `.${text.slice(text.length - digits)}` : "";
+  return `${negative ? "-" : ""}${whole}${fraction}`;
+}
+
 // Named scalar types
 
 /** A named scalar type: a string or number branded with its type's name. */
@@ -748,14 +819,14 @@ export type FactNeed<P extends string = string, K = ElementKey> = NeedMetadata<K
   path: InputPath<P>;
 };
 
-/** A value another calculation entry provides: run `entry` for `subject` and write its result at `path`. */
+/** A value another entry provides: run `entry` for `subject` and write its result at `path`. */
 export type EntryNeed<P extends string = string, K = ElementKey> = NeedMetadata<K> & {
   kind: "entry";
   /** The input path pattern of `path`. */
   pattern: P;
   /** The concrete input path the entry's result is written at. */
   path: InputPath<P>;
-  /** The calculation entry that provides the value. */
+  /** The entry that provides the value. */
   entry: string;
   /** The input path of the subject the entry runs for. */
   subject: string;
@@ -985,7 +1056,7 @@ export interface ExplainingTransport extends EngineTransport {
 }
 
 /**
- * One calculation entry: its name, its contract hash, the wire codecs of its
+ * One entry: its name, its contract hash, the wire codecs of its
  * input and result, and its input path patterns, which tag its needs.
  */
 export type CalculationEntry = {
@@ -999,9 +1070,10 @@ export type CalculationEntry = {
 /**
  * Why a call failed: the input did not validate, the output did not validate,
  * the envelope is for another contract or entry, or the engine reported
- * diagnostics for the case.
+ * diagnostics for the case. `amount` is no call: a unit converter refused an
+ * amount finer than its unit, or one that is not a decimal number.
  */
-export type CalculationErrorKind = "input" | "output" | "envelope" | "diagnostics";
+export type CalculationErrorKind = "input" | "output" | "envelope" | "diagnostics" | "amount";
 
 /**
  * A diagnostic the engine reported for the case, at its path in the input
@@ -1024,6 +1096,7 @@ export type ScalarIssue = { path: string; message: string; scalar: string; check
 
 export class CalculationError extends Error {
   readonly kind: CalculationErrorKind;
+  /** The entry called; for `amount`, the unit converting the amount. */
   readonly entry: string;
   /** The validation issues, for `input` and `output`. */
   readonly issues: readonly unknown[];
@@ -1494,51 +1567,65 @@ export async function explainQueryEntry<I, R, N extends Need>(
   return { result, explanation: explanationFromWire(entry, wireCase, wireResult, output["explanation"]) };
 }
 
-// The resolver loop
+// Answering by a guide (docs/rfcs/answer-guide.md)
 
-/** One calculation entry running for one subject, on the resolver stack. */
+/** One entry running for one subject, on the stack of entries being answered. */
 export type EntryFrame = { readonly entry: string; readonly subject: string };
 
-/**
- * What a resolver gives for a need at a path of `P`: an answer to write at the
- * need's path, `ask` when only the customer knows, or the resolution of
- * another entry ({@link ResolverContext.runEntry}). An answer names the path
- * it is for, so it is checked against the need it answers.
- */
-export type ResolverAnswer<V = unknown, P extends string = string> =
-  | { readonly kind: "answer"; readonly path: InputPath<P>; readonly value: V }
-  | { readonly kind: "ask" }
-  | { readonly kind: "entry"; readonly path: InputPath<P>; readonly resolution: Resolution<unknown, V> };
-
-/** The resolver reply for a need only the customer can answer. */
-export const ask: { readonly kind: "ask" } = Object.freeze({ kind: "ask" });
+/** The reply for a need a resolver cannot fill: it stays open. */
+export type Open = { readonly kind: "open" };
 
 /**
- * The resolver reply that answers `need` with `value`. In a resolver the value
- * is checked against the type at the need's pattern, so a resolver of several
- * patterns narrows `need.pattern` first.
+ * What a resolver gives for a need at a path of `P`: `given(need, value)`, a
+ * value to write at the need's path; `open`, when it cannot fill the need; or
+ * the outcome of another entry ({@link ResolverContext.runEntry}). A reply
+ * names the path it is for, so it is checked against the need it answers.
  */
-export function answer<P extends string, V>(need: { readonly path: InputPath<P> }, value: V): ResolverAnswer<V, P> {
-  return { kind: "answer", path: need.path, value };
+export type ResolverReply<V = unknown, P extends string = string> =
+  | { readonly kind: "given"; readonly path: InputPath<P>; readonly value: V }
+  | Open
+  | { readonly kind: "entry"; readonly path: InputPath<P>; readonly answering: Answering<V> };
+
+/** The reply for a need the resolver cannot fill: it stays open. */
+export const open: Open = Object.freeze({ kind: "open" });
+
+/**
+ * The reply that gives `value` for `need`. In a resolver the value is checked
+ * against the type at the need's pattern, so a resolver of several patterns
+ * narrows `need.pattern` first.
+ */
+export function given<P extends string, V>(need: { readonly path: InputPath<P> }, value: V): ResolverReply<V, P> {
+  return { kind: "given", path: need.path, value };
 }
 
+/**
+ * The resolver of a group nobody can fill yet, used as the resolver itself
+ * (`{ Snapshots: leaveOpen }`): it leaves every need of its group open. Every
+ * group's resolver is required, so `leaveOpen` states that decision in one
+ * line, and that line is the one that changes when a source appears.
+ */
+export function leaveOpen(): () => Open {
+  return () => open;
+}
+
+/** What a resolver is given besides its needs. */
 export interface ResolverContext<C> {
-  /** The case sent in this round: every answer written so far. */
+  /** The case sent in this round: the held facts and every answer written so far. */
   readonly partialCase: C;
-  /** The entries running above this loop, outermost first. */
-  readonly frames: readonly EntryFrame[];
   /**
-   * Resolve another entry through the same loop for `need`, as the entry
-   * `need.entry` running for `need.subject`: an entry need names them, a fact
-   * need is given them (`{ ...need, entry, subject }`). A frame already on the
-   * stack is a cycle and throws {@link ResolveCycleError}.
+   * Answer another entry for `need`, as the entry `need.entry` running for
+   * `need.subject`: an entry need names them, a fact need is given them
+   * (`{ ...need, entry: "share_income", subject: "taxpayer.spouse" }`). `run`
+   * answers that entry, passing `options` on, as
+   * `(options) => shareIncomeAnswer(transport, held, resolvers, options)`.
+   * Its result is written at the need's path when it is `Answered`; when it is
+   * `Unanswered` the need waits in `pending`. An entry already being answered
+   * for the same subject is a cycle and throws {@link AnswerCycleError}.
    */
-  runEntry<P extends string, C2, R2, N2 extends Need, Patterns2>(
+  runEntry<P extends string, R2>(
     need: { readonly path: InputPath<P> } & EntryFrame,
-    query: Query<C2, R2, N2>,
-    initialCase: C2,
-    resolvers: Resolvers<C2, N2, Patterns2>,
-  ): Promise<ResolverAnswer<R2, P>>;
+    run: (options: AnswerOptions) => Promise<Answering<R2>>,
+  ): Promise<ResolverReply<R2, P>>;
 }
 
 /** A partial call of one entry, such as `(c) => taxReportQuery(transport, c)`. */
@@ -1547,8 +1634,8 @@ export type Query<C, R, N extends Need = Need> = (partialCase: C) => Promise<Que
 /** The value types of an entry's input patterns, when not known: any value at any pattern. */
 export type AnyPatterns = { readonly [pattern: string]: unknown };
 
-/** A reply to a need of the pattern `P`, its value of the type `Patterns` gives `P`. */
-export type Reply<Patterns, P extends string> = P extends keyof Patterns ? ResolverAnswer<Patterns[P], P> : never;
+/** A reply to a need of the pattern `P`: its value of the type `Patterns` gives `P`, or `open`. */
+export type Reply<Patterns, P extends string> = (P extends keyof Patterns ? ResolverReply<Patterns[P], P> : never) | Open;
 
 /** Answers one need of a resolver's batch, with a reply typed by the need's own pattern. */
 export type AnswerEach<Patterns, N extends Need = Need> = (
@@ -1556,12 +1643,10 @@ export type AnswerEach<Patterns, N extends Need = Need> = (
 ) => Reply<Patterns, N["pattern"]> | Promise<Reply<Patterns, N["pattern"]>>;
 
 /**
- * Resolves the needs `N` at a pattern and below it, a round's at a time: the
- * loop calls it once per round with every such need of that round, so it can
- * fetch what they ask for in one batch (by `need.keys` or `need.path`), and
- * it returns the function that answers each need, which the loop calls once
- * per need. Registered on a list's elements (`events[]`), it receives the
- * needs of every field of the elements:
+ * The resolver of one group: called once per round with all of that round's
+ * needs of the group, so it can fetch what they ask for in one batch (by
+ * `need.keys` or `need.path`), it returns the function that answers each
+ * need, which is called once per need:
  *
  * ```ts
  * async (needs) => {
@@ -1570,11 +1655,9 @@ export type AnswerEach<Patterns, N extends Need = Need> = (
  *     const row = rows.get(eventId(need));
  *     switch (need.pattern) {
  *       case "events[].amountOre":
- *         return answer(need, row.amountOre);
- *       case "events[].foreignTaxOre":
- *         return answer(need, row.foreignTaxOre);
+ *         return given(need, row.amountOre);
  *       default:
- *         return ask;
+ *         return open;
  *     }
  *   };
  * }
@@ -1582,129 +1665,224 @@ export type AnswerEach<Patterns, N extends Need = Need> = (
  *
  * It returns a function rather than a list of answers so that each answer is
  * made from its own need: no need is left without a reply, and a reply names
- * the need's path, typed by its pattern, so an answer cannot land at another
- * need's path, as one from a list in another order (the backend's rows, say)
- * would. A reply for another path throws {@link ResolveError}.
+ * the need's path, typed by its pattern. A reply for another path throws
+ * {@link AnswerError}.
  */
 export type Resolver<C, Patterns = AnyPatterns, N extends Need = Need> = (
   needs: readonly N[],
   context: ResolverContext<C>,
 ) => AnswerEach<Patterns, N> | Promise<AnswerEach<Patterns, N>>;
 
-/** The needs `N` at the pattern `P` or below it: its fields, its list elements and its map values. */
-export type NeedsBelow<N extends Need, P extends string> = Extract<
-  N,
-  { readonly pattern: P | `${P}.${string}` | `${P}[]${string}` }
->;
-
-declare const resolversPatterns: unique symbol;
+/** A need with the group of the guide that resolves it. */
+export type GuidedNeed<N extends Need = Need, G extends string = string> = N & { readonly by: G };
 
 /**
- * Resolvers keyed by an input pattern, with `[]` for any list index
- * (`accounts[].closingCashOre`) and `*` for any map key. A resolver receives a
- * round's needs at its pattern and below it, such as every field of a list's
- * elements (`accounts[]`) or of a record (`owner`); each need goes to the
- * resolver of the most specific pattern registered for it, and a need no
- * resolver's pattern covers is a question. `Patterns` types the replies; the
- * type-only member that holds it lets {@link resolve} infer it.
+ * One resolver per group of a guide, every group required. `PatternsOf` gives
+ * each group the input path patterns it resolves, so its resolver receives
+ * needs of those patterns only, with element keys `K`.
  */
-export type Resolvers<C, N extends Need = Need, Patterns = AnyPatterns> = {
-  readonly [P in N["pattern"]]?: Resolver<C, Patterns, NeedsBelow<N, P>>;
-} & { readonly [resolversPatterns]?: Patterns };
+export type GroupResolvers<C, Patterns, PatternsOf, K extends ElementKey = ElementKey> = {
+  readonly [G in Extract<keyof PatternsOf, string>]: Resolver<
+    C,
+    Patterns,
+    GuidedNeed<Need<Extract<PatternsOf[G], string>, K>, G>
+  >;
+};
 
-/** The most specific pattern of `byPattern` at or above `pattern`: itself, or the nearest record, element or map value pattern holding it. */
-function resolverPattern(byPattern: { readonly [pattern: string]: unknown }, pattern: string): string | undefined {
-  for (let end = pattern.length; end > 0; end = Math.max(pattern.lastIndexOf(".", end - 1), pattern.lastIndexOf("[", end - 1))) {
-    const prefix = pattern.slice(0, end);
-    if (hasOwn(byPattern, prefix) && byPattern[prefix] !== undefined) return prefix;
-  }
-  return undefined;
-}
+/** A group's resolver as the round loop holds it, whatever the needs of its group. */
+export type AnyResolver<C> = (needs: never, context: ResolverContext<C>) => unknown;
 
-/** An entry need whose own loop stopped at questions about its subject. */
-export type PendingEntry = { readonly need: Need; readonly resolution: Resolution<unknown, unknown> };
+type LooseAnswerEach<N> = (need: N) => ResolverReply | Promise<ResolverReply>;
+type LooseResolver<C, N> = (
+  needs: readonly N[],
+  context: ResolverContext<C>,
+) => LooseAnswerEach<N> | Promise<LooseAnswerEach<N>>;
 
 /**
- * Where a resolver loop stopped: `Complete`, or `Questions` when a round
- * produced no answer. The partial case holds every answer written so far.
+ * A guide as the SDK generates it: its name, and the group of every input
+ * path pattern it resolves, each alternative of a sum type named before its
+ * fields (`events[].Trade.amountOre`). Every other path is held.
  */
-export type Resolution<C, R, N extends Need = Need> =
+export type Guide<G extends string = string> = {
+  readonly name: string;
+  readonly paths: { readonly [path: string]: G };
+};
+
+/** One round: the paths of its needs, and the needs each group was asked, by group. */
+export type Round<N extends Need = Need, G extends string = string> = {
+  readonly paths: readonly InputPath<N["pattern"]>[];
+  readonly groups: { readonly [K in G]?: readonly GuidedNeed<N, K>[] };
+};
+
+/** An entry need waiting on what another entry left open. */
+export type PendingEntry = { readonly need: Need; readonly answering: Answering<unknown> };
+
+/**
+ * Where answering an entry ended: `Answered`, or `Unanswered` when a round
+ * answered nothing, with the needs left open keyed by group: `open.Customer`
+ * holds questions, `open.Snapshots` facts a source did not have. The partial
+ * case holds the held facts and every answer written.
+ */
+export type Answering<R, N extends Need = Need, G extends string = string, C = unknown> =
   | {
-      readonly $variant: "Complete";
+      readonly $variant: "Answered";
       readonly result: R;
       /** The assumptions the result rests on. */
       readonly assumptions: readonly CalculationAssumption[];
       readonly unusedPaths: readonly InputPath<N["pattern"]>[];
       readonly partialCase: C;
-      readonly rounds: number;
+      readonly rounds: readonly Round<N, G>[];
     }
   | {
-      readonly $variant: "Questions";
-      /** The needs to ask the customer. */
-      readonly questions: readonly N[];
-      /** Entry needs waiting on questions in another entry's case. */
+      readonly $variant: "Unanswered";
+      /** The needs of the last round, by the group that left them open. */
+      readonly open: { readonly [K in G]?: readonly GuidedNeed<N, K>[] };
+      /** Entry needs waiting on what another entry left open. */
       readonly pending: readonly PendingEntry[];
       /**
        * Facts read only behind an unknown condition in the last round: what the
-       * engine may ask once the questions are answered.
+       * engine may need once the open needs are answered, in the next round.
        */
       readonly later: readonly N[];
       readonly partialCase: C;
-      readonly rounds: number;
+      readonly rounds: readonly Round<N, G>[];
     };
 
-export type ResolveOptions = {
-  /** The entries already running above this loop; nested loops pass their stack. */
+/**
+ * How an entry is answered from inside another's resolver: what
+ * {@link ResolverContext.runEntry} passes to its `run`, to be passed on to
+ * `<entry>Answer` unchanged.
+ */
+export type AnswerOptions = {
+  /** The entries being answered above this one, outermost first. */
   readonly frames?: readonly EntryFrame[];
 };
 
-/** The resolver loop cannot continue. */
-export class ResolveError extends Error {
+/** Answering cannot continue. */
+export class AnswerError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "ResolveError";
+    this.name = "AnswerError";
   }
 }
 
 /** Two entries need each other for the same subjects: a model error; join them into one entry. */
-export class ResolveCycleError extends ResolveError {
+export class AnswerCycleError extends AnswerError {
   readonly frames: readonly EntryFrame[];
 
   constructor(frames: readonly EntryFrame[]) {
     super(
-      `calculation entries need each other: ${frames.map((frame) => `${frame.entry}(${frame.subject})`).join(" → ")}; model them as one joint entry`,
+      `entries need each other: ${frames.map((frame) => `${frame.entry}(${frame.subject})`).join(" → ")}; model them as one joint entry`,
     );
-    this.name = "ResolveCycleError";
+    this.name = "AnswerCycleError";
     this.frames = frames;
   }
 }
 
 /**
- * Resolve a partial case: query it, call each resolver once with all of the
- * round's needs at and below its pattern (each need going to the most
- * specific pattern registered for it; the resolvers at the same time), write
- * their answers into the case with {@link setAt}, and query again. Stops with
- * `Complete`, or with `Questions` when a round adds no answer. A reply for
- * another need's path, or a path that is still needed after it was answered,
- * is a {@link ResolveError}; an entry that needs itself for the same subject
- * is a {@link ResolveCycleError}.
+ * Needs at held paths: the guide names no group for them, so the held case
+ * should have had them. A defect in the integrator's data that the held type
+ * cannot see: a held fact given as `undefined`, or a list's element held but
+ * left out of an element a resolver gave.
  */
-export async function resolve<C, R, N extends Need, Patterns = AnyPatterns>(
+export class HeldMissingError extends AnswerError {
+  /** The guide's name. */
+  readonly guide: string;
+  /** The round's needs at held paths, in the engine's order. */
+  readonly needs: readonly Need[];
+
+  constructor(guide: string, round: number, needs: readonly Need[]) {
+    const paths = needs.map((need) => `\`${need.path}\``).join(", ");
+    super(
+      `round ${String(round)}: ${paths} ${needs.length === 1 ? "is" : "are"} held (the guide \`${guide}\` names no group for ${needs.length === 1 ? "it" : "them"}), but the held case leaves ${needs.length === 1 ? "it" : "them"} unknown`,
+    );
+    this.name = "HeldMissingError";
+    this.guide = guide;
+    this.needs = needs;
+  }
+}
+
+/** The steps of an input path pattern: fields, `[]` (or a positional `[0]`) and `*`. */
+function patternSteps(pattern: string): string[] {
+  const steps: string[] = [];
+  for (const part of pattern.split(".")) {
+    const bracket = part.indexOf("[");
+    const name = bracket === -1 ? part : part.slice(0, bracket);
+    if (name !== "") steps.push(name);
+    if (bracket !== -1) steps.push(...(part.slice(bracket).match(/\[\d*\]/g) ?? []));
+  }
+  return steps;
+}
+
+/**
+ * A need's pattern as a guide's paths name it: each alternative of a sum type
+ * named before its fields, read from the case the need was found in
+ * (`events[2].amountOre` in a `Trade` is `events[].Trade.amountOre`).
+ */
+export function guidePath(partialCase: unknown, need: { readonly pattern: string; readonly path: string }): string {
+  const segments = parsePath(need.path);
+  let key = "";
+  let node: unknown = partialCase;
+  patternSteps(need.pattern).forEach((step, at) => {
+    const segment = segments[at];
+    if (step.startsWith("[")) {
+      key += step;
+      node = Array.isArray(node) && segment !== undefined && "index" in segment ? (node as unknown[])[segment.index] : undefined;
+      return;
+    }
+    const variant = isObject(node) ? node["$variant"] : undefined;
+    if (step !== "$variant" && typeof variant === "string") key = key === "" ? variant : `${key}.${variant}`;
+    key = key === "" ? step : `${key}.${step}`;
+    node = isObject(node) && segment !== undefined && "field" in segment ? node[segment.field] : undefined;
+  });
+  return key;
+}
+
+/**
+ * The group that resolves a path of {@link guidePath}: the group of the path,
+ * or of the nearest path above it the guide resolves (below a recursive
+ * type's cut); `undefined` when the path is held.
+ */
+export function guideGroup<G extends string>(guide: Guide<G>, path: string): G | undefined {
+  let key = path;
+  for (;;) {
+    if (Object.hasOwn(guide.paths, key)) return guide.paths[key];
+    const cut = Math.max(key.lastIndexOf("."), key.lastIndexOf("["));
+    if (cut <= 0) return undefined;
+    key = key.slice(0, cut);
+  }
+}
+
+/**
+ * Answer an entry by a guide: query it on the held case, give each need the
+ * group the guide names for its path (`by`), call each group's resolver once
+ * per round with all of that group's needs, the groups at the same time,
+ * write the given values with {@link setAt}, and query again. Ends
+ * `Answered`, or `Unanswered` when a round answers nothing. Needs at held
+ * paths throw {@link HeldMissingError}; a reply for another need's path, or a
+ * path still needed after it was given, throws {@link AnswerError}; an entry
+ * that needs itself for the same subject throws {@link AnswerCycleError}. The
+ * SDK's `<entry>Answer` calls it.
+ */
+export async function answerEntry<C, R, N extends Need, G extends string>(
   query: Query<C, R, N>,
-  initialCase: C,
-  resolvers: Resolvers<C, N, Patterns>,
-  options: ResolveOptions = {},
-): Promise<Resolution<C, R, N>> {
+  held: C,
+  guide: Guide<G>,
+  resolvers: { readonly [K in G]: AnyResolver<C> },
+  options: AnswerOptions = {},
+): Promise<Answering<R, N, G, C>> {
   const frames = options.frames ?? [];
-  // Each resolver is keyed by the pattern its needs lie at or below.
-  const byPattern = resolvers as { readonly [pattern: string]: Resolver<C, AnyPatterns, N> | undefined };
+  const byGroup = resolvers as unknown as {
+    readonly [group: string]: LooseResolver<C, GuidedNeed<N, G>> | undefined;
+  };
   const answered = new Set<string>();
-  let partialCase = initialCase;
-  for (let rounds = 1; ; rounds += 1) {
+  const rounds: Round<N, G>[] = [];
+  let partialCase = held;
+  for (;;) {
     const result = await query(partialCase);
     if (result.$variant === "Complete") {
       return {
-        $variant: "Complete",
+        $variant: "Answered",
         result: result.result,
         assumptions: result.assumptions,
         unusedPaths: result.unusedPaths,
@@ -1712,66 +1890,75 @@ export async function resolve<C, R, N extends Need, Patterns = AnyPatterns>(
         rounds,
       };
     }
-    // The round's needs of each registered pattern, in the engine's order.
-    const batches = new Map<string, N[]>();
+    // The round's needs of each group, in the engine's order.
+    const batches = new Map<G, GuidedNeed<N, G>[]>();
+    const heldNeeds: N[] = [];
     for (const need of result.needs) {
       if (answered.has(need.path)) {
-        throw new ResolveError(`the engine still needs \`${need.path}\` after it was answered`);
+        throw new AnswerError(`the engine still needs \`${need.path}\` after it was given`);
       }
-      const pattern = resolverPattern(byPattern, need.pattern);
-      if (pattern === undefined) continue;
-      const batch = batches.get(pattern);
-      if (batch === undefined) batches.set(pattern, [need]);
-      else batch.push(need);
+      const by = guideGroup(guide, guidePath(partialCase, need));
+      if (by === undefined) {
+        heldNeeds.push(need);
+        continue;
+      }
+      const guided: GuidedNeed<N, G> = { ...need, by };
+      const batch = batches.get(by);
+      if (batch === undefined) batches.set(by, [guided]);
+      else batch.push(guided);
     }
+    if (heldNeeds.length > 0) throw new HeldMissingError(guide.name, rounds.length + 1, heldNeeds);
     const context: ResolverContext<C> = {
       partialCase,
-      frames,
-      async runEntry(need, nestedQuery, nestedCase, nestedResolvers) {
+      async runEntry(need, run) {
         const stack = [...frames, { entry: need.entry, subject: need.subject }];
         if (frames.some((active) => active.entry === need.entry && active.subject === need.subject)) {
-          throw new ResolveCycleError(stack);
+          throw new AnswerCycleError(stack);
         }
-        const resolution = await resolve(nestedQuery, nestedCase, nestedResolvers, { frames: stack });
-        return { kind: "entry", path: need.path, resolution };
+        return { kind: "entry", path: need.path, answering: await run({ frames: stack }) };
       },
     };
-    const replies = new Map<N, ResolverAnswer>();
+    const replies = new Map<string, ResolverReply>();
     await Promise.all(
-      Array.from(batches, async ([pattern, needs]) => {
-        const resolver = byPattern[pattern];
-        if (resolver === undefined) return;
+      Array.from(batches, async ([group, needs]) => {
+        const resolver = byGroup[group];
+        if (resolver === undefined) throw new AnswerError(`no resolver for the group \`${group}\``);
         const answerEach = await resolver(needs, context);
         await Promise.all(
           needs.map(async (need) => {
-            const reply: ResolverAnswer = await answerEach(need);
-            if (reply.kind !== "ask" && reply.path !== need.path) {
-              throw new ResolveError(`a resolver replied to \`${need.path}\` with a reply for \`${reply.path}\``);
+            const reply = await answerEach(need);
+            if (reply.kind !== "open" && reply.path !== need.path) {
+              throw new AnswerError(`the resolver for \`${group}\` replied to \`${need.path}\` with a reply for \`${reply.path}\``);
             }
-            replies.set(need, reply);
+            replies.set(need.path, reply);
           }),
         );
       }),
     );
-    const questions: N[] = [];
+    const groups: { [K in G]?: GuidedNeed<N, K>[] } = {};
+    for (const [group, needs] of batches) groups[group] = needs;
+    rounds.push({ paths: result.needs.map((need) => need.path), groups });
+    const left: { [K in G]?: GuidedNeed<N, K>[] } = {};
     const pending: PendingEntry[] = [];
     let next = partialCase;
-    for (const need of result.needs) {
-      const reply = replies.get(need);
-      if (reply === undefined || reply.kind === "ask") {
-        questions.push(need);
-      } else if (reply.kind === "answer") {
-        next = setAt(next, need.path, reply.value);
-        answered.add(need.path);
-      } else if (reply.resolution.$variant === "Complete") {
-        next = setAt(next, need.path, reply.resolution.result);
-        answered.add(need.path);
-      } else {
-        pending.push({ need, resolution: reply.resolution });
+    for (const [group, needs] of batches) {
+      for (const need of needs) {
+        const reply = replies.get(need.path);
+        if (reply === undefined || reply.kind === "open") {
+          (left[group] ??= []).push(need);
+        } else if (reply.kind === "given") {
+          next = setAt(next, need.path, reply.value);
+          answered.add(need.path);
+        } else if (reply.answering.$variant === "Answered") {
+          next = setAt(next, need.path, reply.answering.result);
+          answered.add(need.path);
+        } else {
+          pending.push({ need, answering: reply.answering });
+        }
       }
     }
     if (next === partialCase) {
-      return { $variant: "Questions", questions, pending, later: result.later ?? [], partialCase, rounds };
+      return { $variant: "Unanswered", open: left, pending, later: result.later ?? [], partialCase, rounds };
     }
     partialCase = next;
   }
