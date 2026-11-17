@@ -2,6 +2,7 @@
 -- a group resolves as any constructor does, bare where the guide's declared
 -- type gives it a type and qualified where nothing does.
 -- expect-command: check
+-- roundtrip-skip: a file of guides runs only in the interpreter
 -- expect-status: pass
 
 @ import ./answer_law

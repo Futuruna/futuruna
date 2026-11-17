@@ -1,4 +1,5 @@
 -- expect-skip: the guides tests/answer_guide_cli.rs calls with: two guides, each with its own group type declaring `Customer`
+-- roundtrip-skip: a file of guides runs only in the interpreter
 @ import ./answer_household_law
 
 # Origin = Registry | Customer
