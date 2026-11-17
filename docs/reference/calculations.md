@@ -50,8 +50,8 @@ declaration of the field it describes:
 
 ```runa
 # SourceInfo(url: String, section: String)
-# CalculationMetaRole(a) = Source(value: a)
-# impl MetaRole for CalculationMetaRole {}
+# EntryMetaRole(a) = Source(value: a)
+# impl MetaRole for EntryMetaRole {}
 
 = tax_source = SourceInfo(url = "https://example.invalid/tax", section = "income")
 
@@ -117,25 +117,25 @@ shape and canonical `path` give it calculation meaning; `@ meta` stands on the
 entry, and its value contains the fields and their provenance.
 
 ```runa
-# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
+# UseSiteField(path: String, label: String, question: String?, help: String?, unit: String?)
 # SourceInfo(url: String, section: String)
-# CalculationMetaRole(a) = Source(value: a)
-# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
-# impl MetaRole for CalculationMetaRole {}
-# impl Meta for CalculationMeta {}
+# EntryMetaRole(a) = Source(value: a)
+# EntryMeta(a) = EntryMeta(fields: List(UseSiteField), attachments: a)
+# impl MetaRole for EntryMetaRole {}
+# impl Meta for EntryMeta {}
 
 = tax_source = SourceInfo(
     url = "https://example.invalid/tax",
     section = "income"
 )
-= monthly_income_field = CalculationField(
+= monthly_income_field = UseSiteField(
     path = pathof(Input::monthly_income),
     label = "Monthly income before tax",
     question = Some("What do you earn before tax each month?"),
     help = Some("Use the gross amount before deductions."),
     unit = Some("currency/month")
 )
-= monthly_income_meta = CalculationMeta(
+= monthly_income_meta = EntryMeta(
     fields = [monthly_income_field],
     attachments = (
         Source(value = tax_source),
@@ -229,7 +229,7 @@ typed descendants recursively; other metadata consumers remain free to query
 the same object by its own nested types.
 
 ```runa
-= tax_input_meta = CalculationMeta(
+= tax_input_meta = EntryMeta(
     fields = [
         monthly_income_field,
         filing_status_field,

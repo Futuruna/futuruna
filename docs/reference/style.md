@@ -411,10 +411,10 @@ type and a stable value path. Tools can therefore select the values they
 understand while the annotation stays short and domain-neutral.
 
 ```runa
-# CalculationMeta(fields: List(CalculationField))
-# impl Meta for CalculationMeta {}
+# EntryMeta(fields: List(UseSiteField))
+# impl Meta for EntryMeta {}
 
-= amount_meta = CalculationMeta(fields = [
+= amount_meta = EntryMeta(fields = [
     amount_field,
     currency_field,
     period_field
@@ -425,8 +425,8 @@ understand while the annotation stays short and domain-neutral.
 > calculate_amount(input: AmountInput) -> Amount { ... }
 ```
 
-`runa meta --type CalculationField` finds `amount_meta` because it contains
-typed `CalculationField` descendants. JSON output reports those descendants as
+`runa meta --type UseSiteField` finds `amount_meta` because it contains
+typed `UseSiteField` descendants. JSON output reports those descendants as
 `typed_values` with paths such as `$.fields[0]`. This behavior is generic: the
 aggregate and nested types are ordinary user-defined Futuruna types. Only the
 marker traits `Meta`, `MetaRole` and `Document` and the annotations are

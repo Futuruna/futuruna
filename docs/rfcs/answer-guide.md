@@ -439,6 +439,10 @@ These go:
 - in `src/tax_report.calculate.runa`, line 18 (`@ import ./input_guide`) and
   line 137 (`@ meta(tax_case_guide)`).
 
+**Deferred:** `@ field(at = …)` is not in 0.6; it moves to a later release.
+Until then a use-site label keeps its 0.5 form, an `@ meta` record that names
+the field by `pathof` (as the Danish examples' use-site records do).
+
 The two use-site labels become `@ field(at = …)`. This is the exact-path
 precedence level (calculations.md:194-198), written without a record type
 (field-metadata.md:111-112):
@@ -634,8 +638,8 @@ The rule: where a name says "calculation" for the entry concept, it says
 | `interview`, `interview_from`, `Interview(o, i)` | `answer`, `Answering(o, i, g)` | prelude, `src/query.rs:149-163` |
 | answering from a complete case | `from_case`, `whole_case_guide()` | prelude |
 | `CustomerQuestion(s)`, `InterviewGuide` (tax-service) | `@ field(label, question, help, sources)` on declarations; groups in an `AnswerGuide` | `src/sources.runa:26-32` |
-| `CalculationField`, `CalculationGuide` (tax-service) | `@ field(at = …)`; `EntryField(path, by)` is the guide's item | `src/sources.runa:20-21` |
-| `CalculationField`, `CalculationMeta`, `CalculationMetaRole` (docs examples) | `@ field(at = …)`; `EntryMeta`, `EntryMetaRole` where a record example stays | calculations.md:51-53, 110-147 |
+| `CalculationField`, `CalculationGuide` (tax-service) | `@ field(at = …)` (deferred past 0.6: meanwhile an `@ meta` record naming the field by `pathof`); `EntryField(path, by)` is the guide's item | `src/sources.runa:20-21` |
+| `CalculationField`, `CalculationMeta`, `CalculationMetaRole` (docs examples) | `@ field(at = …)` (deferred past 0.6); `EntryMeta`, `EntryMetaRole` where a record example stays | calculations.md:51-53, 110-147 |
 | `resolve()`, pattern-keyed `Resolvers` | `<entry>Answer(transport, held, resolvers)`, resolvers by group | `sdk_ts_runtime.ts:1611`, `1692` |
 | replies `answer(need, value)`, `ask`; `Resolution` (`Complete`/`Questions`) | `given(need, value)`, `open`; `Answering` (`Answered`/`Unanswered`) | `sdk_ts_runtime.ts:1514-1521`, `1631` |
 | `PreparedCalculation` | `PreparedEntry` | `src/calculate.rs:7131` |
@@ -663,7 +667,9 @@ These stay, because they name the computation: `runa call`, `Calculated<R>`,
 - **tax-service, by hand:**
   - remove `src/input_guide.runa` and `src/sources.runa:17-39`;
   - move the 26 questions onto declarations, and add one to `AskOwner`;
-  - replace the two `CalculationGuide`s with `@ field(at = …)`;
+  - replace the two `CalculationGuide`s with `@ field(at = …)` once it ships
+    (deferred past 0.6); until then keep them as `@ meta` records naming the
+    field by `pathof`;
   - declare the unit scales;
   - write `guides/endavu.guide.runa`;
   - move the interviews to `answer`.
