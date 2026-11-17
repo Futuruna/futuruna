@@ -1558,17 +1558,19 @@ entry given a guide, `answer.ts` holds:
 export type AktiesparekontoYearGroup = "Snapshots" | "GivingInstitute" | "Bookings" | "PreviousYear" | "Backoffice" | "Customer";
 export interface AktiesparekontoYearGroupPatterns { Snapshots: "account.openingCashMicroDkk" | …; … }
 export type AktiesparekontoYearGuidedNeed<G extends AktiesparekontoYearGroup = AktiesparekontoYearGroup> = …;
-export type AktiesparekontoYearHeld = { readonly incomeYear: number | undefined; readonly account: { … }; … };
+export type AktiesparekontoYearHeld = { readonly incomeYear: number; readonly account: { … }; … };
 export type AktiesparekontoYearResolvers = GroupResolvers<…>;
 export const aktiesparekontoYearGuide: Guide<AktiesparekontoYearGroup> = { name: "endavu_ask_year", paths: { … } };
 export function aktiesparekontoYearAnswer(transport, held, resolvers, options?): Promise<Answering<…>>;
 ```
 
 - **The held case** (`<Entry>Held`) is the backend's checklist: the partial
-  case with the key of every held fact required, so a fact the model adds does
-  not compile until the backend gives it. A held fact may be `undefined`, for
-  not known. A fact the guide resolves may be left out, or given when known;
-  its TSDoc names the group that resolves it.
+  case with the key of every held fact required and its value of the model's
+  type, never `undefined`, so leaving a held fact out, or a fact the model
+  adds, does not compile. An optional fact may be `none` where the model
+  allows it. A builder whose source may lack a value must decide there what a
+  missing value means. A fact the guide resolves may be left out, or given
+  when known; its TSDoc names the group that resolves it.
 - **The resolvers** (`<Entry>Resolvers`) are keyed by group, and every group
   is required. Each receives the needs of its group's patterns only
   (`<Entry>GroupPatterns`), so a `switch` on `need.pattern` can be exhaustive.
@@ -1632,7 +1634,8 @@ questions, `open.Snapshots` facts a source did not have), with entry needs
 waiting on another entry in `pending`, the last round's `later` facts and the
 partial case. Each round records its needs' paths and each group's needs. A
 need at a held path throws `HeldMissingError` naming the paths, the guide and
-the round, before any resolver runs: the held case should have had it. A pair
+the round, before any resolver runs; the types rule this out, so it catches
+only what they cannot see, such as untyped data or an `as` cast. A pair
 of `(entry, subject)` that repeats on the stack of entries being answered
 throws `AnswerCycleError`, since entries that need each other belong in one
 joint entry. A path the engine still needs after it was given throws

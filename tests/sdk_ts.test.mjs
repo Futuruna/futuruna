@@ -952,8 +952,10 @@ export const held: HouseholdTaxHeld = { income: 500, married: true, children: [{
 export const forgotIncome: HouseholdTaxHeld = { married: true, children: [] };
 // @ts-expect-error a child's name is held too
 export const namelessChild: HouseholdTaxHeld = { income: 500, married: true, children: [{ age: 4 }] };
-/** A held fact given as \`undefined\`, not known: the type cannot see it, answering can. */
-export const unknownIncome: HouseholdTaxHeld = { ...held, income: undefined };
+// @ts-expect-error a held fact is never \`undefined\`: the builder decides what a missing value means
+export const undefinedIncome: HouseholdTaxHeld = { ...held, income: undefined };
+/** Untyped data the type cannot see: answering throws \`HeldMissingError\`. */
+export const unknownIncome = { ...held, income: undefined } as unknown as HouseholdTaxHeld;
 /** A resolved fact may be given when known. */
 export const knownSpouse: HouseholdTaxHeld = { ...held, spouse: { income: 50, cohabiting: true } };
 

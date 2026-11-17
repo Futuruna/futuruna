@@ -2514,7 +2514,7 @@ impl<'a> Sdk<'a> {
             out,
             "",
             &[
-                format!("The case of `{name}` built from the integrator's own data. Every fact the guide `{guide}` does not name is held: its key is required, so a fact the model adds does not compile until it is given. `undefined` there means not known, and when the engine needs it, `{values}Answer` throws `HeldMissingError`."),
+                format!("The case of `{name}` built from the integrator's own data. Every fact the guide `{guide}` does not name is held: its key is required and its value is the model's type, never `undefined`, so leaving a held fact out, or a fact the model adds, does not compile. A builder whose source may lack a value decides there what a missing value means. `{values}Answer` throws `HeldMissingError` only for what the types cannot see, such as untyped data or an `as` cast."),
                 String::new(),
                 "A fact the guide resolves may be left out, or given when known: its group's resolver is asked only for what is missing.".to_string(),
             ],
@@ -2579,8 +2579,11 @@ impl<'a> Sdk<'a> {
     /// type with the keys of held facts required, or `None` when nothing at
     /// or below `path` is held, so the partial type stands. `own` counts the
     /// value at `path` itself: not for an optional's inner value or a list's
-    /// elements, which share the path. A held fact is `T | undefined`, as a
-    /// partial value may be unknown; a record is required whole.
+    /// elements, which share the path. A held fact is its plain model type:
+    /// never `undefined` (unknown), and a sum type's tag never `Unknown`, so
+    /// leaving it out does not compile; an optional may still be `None`. A
+    /// value with held facts only below it may be unknown; a record is
+    /// required whole.
     #[allow(clippy::too_many_arguments)]
     fn held_value(
         &self,
@@ -2608,7 +2611,8 @@ impl<'a> Sdk<'a> {
                 self.ts_type(ty, Side::Partial)
             })
         };
-        let unknown = if element { "" } else { " | undefined" };
+        let known = element || guided.held.contains(path);
+        let unknown = if known { "" } else { " | undefined" };
         match &ty {
             CalculationTypeRef::Optional { item } => {
                 let inner = self
@@ -2616,7 +2620,7 @@ impl<'a> Sdk<'a> {
                         item,
                         substitutions,
                         path,
-                        false,
+                        own,
                         element,
                         active,
                         guided,
@@ -2676,8 +2680,10 @@ impl<'a> Sdk<'a> {
                     self.held_record(&variant.fields, &local, path, active, guided, indent, &[])
                 } else {
                     let member_indent = format!("{indent}    ");
-                    let mut members =
-                        vec![format!("Unknown<{}>", self.ts_type(&ty, Side::Qualified))];
+                    let mut members = Vec::new();
+                    if !guided.held.contains(path) {
+                        members.push(format!("Unknown<{}>", self.ts_type(&ty, Side::Qualified)));
+                    }
                     for variant in &definition.variants {
                         let tag = format!("$variant: {}", string_literal(&variant.name));
                         if variant.positional {
@@ -2707,7 +2713,7 @@ impl<'a> Sdk<'a> {
                             ));
                         }
                     }
-                    if !element {
+                    if !known {
                         members.push("undefined".to_string());
                     }
                     members
