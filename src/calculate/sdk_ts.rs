@@ -24,7 +24,7 @@ use super::{
     OUTPUT_SCHEMA,
 };
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write as _;
 
 /// The output envelope schema of `runa call --partial`.
@@ -1969,40 +1969,143 @@ impl<'a> Sdk<'a> {
             );
             return;
         }
-        // Each source once: a law's sources repeat across many patterns.
-        let mut sources: Vec<String> = Vec::new();
-        let cited: Vec<Vec<usize>> = needs
+        // Each source once, and each field's text (label, question, help,
+        // unit, sources) once: a declaration's text repeats at every pattern
+        // it lies at, thousands in a large law. A text of one pattern stays
+        // in it.
+        let mut sources: Vec<serde_json::Value> = Vec::new();
+        let mut source_index: HashMap<String, usize> = HashMap::new();
+        let mut texts: Vec<(Vec<String>, usize)> = Vec::new();
+        let mut text_index: HashMap<Vec<String>, usize> = HashMap::new();
+        let source_name = |index: usize| format!("{}GuideSource{index}", entry.value_name);
+        let said: Vec<Option<usize>> = needs
             .iter()
             .map(|(_, need)| {
-                need.sources
+                let mut members: Vec<String> = [
+                    ("label", &need.label),
+                    ("question", &need.question),
+                    ("help", &need.help),
+                    ("unit", &need.unit),
+                ]
+                .into_iter()
+                .filter_map(|(member, value)| {
+                    Some(format!("{member}: {}", string_literal(value.as_ref()?)))
+                })
+                .collect();
+                if members.is_empty() && need.sources.is_empty() {
+                    return None;
+                }
+                let cited = need
+                    .sources
                     .iter()
                     .map(|source| {
-                        let json =
-                            serde_json::to_string(source).expect("a source reference serializes");
-                        sources
-                            .iter()
-                            .position(|known| *known == json)
-                            .unwrap_or_else(|| {
-                                sources.push(json);
-                                sources.len() - 1
-                            })
+                        let value =
+                            serde_json::to_value(source).expect("a source reference serializes");
+                        let index = *source_index.entry(value.to_string()).or_insert_with(|| {
+                            sources.push(value);
+                            sources.len() - 1
+                        });
+                        source_name(index)
                     })
-                    .collect()
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                members.push(format!("sources: [{cited}]"));
+                let index = *text_index.entry(members).or_insert_with_key(|members| {
+                    texts.push((members.clone(), 0));
+                    texts.len() - 1
+                });
+                texts[index].1 += 1;
+                Some(index)
             })
             .collect();
-        let source_name = |index: usize| format!("{}GuideSource{index}", entry.value_name);
+        // The const of each text said at several patterns.
+        let mut shared = 0;
+        let text_names: Vec<Option<String>> = texts
+            .iter()
+            .map(|(_, uses)| {
+                (*uses > 1).then(|| {
+                    shared += 1;
+                    format!("{}GuideText{}", entry.value_name, shared - 1)
+                })
+            })
+            .collect();
+        // What a source cites (its binding, the value bound, its text) once:
+        // the declarations citing one law differ only in label and role.
+        let mut bound: Vec<(String, usize)> = Vec::new();
+        let mut bound_index: HashMap<String, usize> = HashMap::new();
+        let split: Vec<Option<(String, usize)>> = sources
+            .iter()
+            .map(|source| {
+                let mut members = source.as_object()?.clone();
+                let label = members.remove("label")?;
+                let role = members.remove("role")?;
+                let rest = serde_json::Value::Object(members).to_string();
+                let index = *bound_index.entry(rest).or_insert_with_key(|rest| {
+                    bound.push((rest.clone(), 0));
+                    bound.len() - 1
+                });
+                bound[index].1 += 1;
+                Some((format!("label: {label}, role: {role}"), index))
+            })
+            .collect();
+        let mut shared_bound = 0;
+        let bound_names: Vec<Option<String>> = bound
+            .iter()
+            .map(|(_, uses)| {
+                (*uses > 1).then(|| {
+                    shared_bound += 1;
+                    format!("{}GuideCited{}", entry.value_name, shared_bound - 1)
+                })
+            })
+            .collect();
+        if shared_bound > 0 {
+            let _ = writeln!(
+                out,
+                "// What several sources the guide of `{}` cites cite, each once.",
+                contract.entry
+            );
+            for ((rest, _), name) in bound.iter().zip(&bound_names) {
+                if let Some(name) = name {
+                    let _ = writeln!(
+                        out,
+                        "const {name}: Omit<SourceReference, \"label\" | \"role\"> = {rest};"
+                    );
+                }
+            }
+            out.push('\n');
+        }
         if !sources.is_empty() {
             let _ = writeln!(
                 out,
                 "// The sources the guide of `{}` cites, each once.",
                 contract.entry
             );
-            for (index, source) in sources.iter().enumerate() {
-                let _ = writeln!(
-                    out,
-                    "const {}: SourceReference = {source};",
-                    source_name(index)
-                );
+            for (index, (source, split)) in sources.iter().zip(&split).enumerate() {
+                let name = source_name(index);
+                let shared = split
+                    .as_ref()
+                    .and_then(|(head, bound)| Some((head, bound_names[*bound].as_deref()?)));
+                if let Some((head, cited)) = shared {
+                    let _ = writeln!(
+                        out,
+                        "const {name}: SourceReference = {{ {head}, ...{cited} }};"
+                    );
+                } else {
+                    let _ = writeln!(out, "const {name}: SourceReference = {source};");
+                }
+            }
+            out.push('\n');
+        }
+        if shared > 0 {
+            let _ = writeln!(
+                out,
+                "// What the law says of the values at several patterns of the guide of `{}`, each once.",
+                contract.entry
+            );
+            for ((members, _), name) in texts.iter().zip(&text_names) {
+                if let Some(name) = name {
+                    let _ = writeln!(out, "const {name} = {{ {} }};", members.join(", "));
+                }
             }
             out.push('\n');
         }
@@ -2011,7 +2114,7 @@ impl<'a> Sdk<'a> {
             "export const {}Guide: AnswerGuide<{types}Need[\"pattern\"]> = {{",
             entry.value_name
         );
-        for ((pattern, need), cited) in needs.into_iter().zip(cited) {
+        for ((pattern, need), said) in needs.into_iter().zip(said) {
             let _ = writeln!(out, "  {}: {{", string_literal(&pattern));
             let kind = match need.kind {
                 CalculationNeedKind::Fact => "fact",
@@ -2019,16 +2122,20 @@ impl<'a> Sdk<'a> {
             };
             let _ = writeln!(out, "    kind: \"{kind}\",");
             let _ = writeln!(out, "    type: {},", string_literal(&need.ty));
-            for (member, value) in [
-                ("label", &need.label),
-                ("question", &need.question),
-                ("help", &need.help),
-                ("unit", &need.unit),
-                ("entry", &need.entry),
-            ] {
-                if let Some(value) = value {
-                    let _ = writeln!(out, "    {member}: {},", string_literal(value));
+            if let Some(index) = said {
+                match &text_names[index] {
+                    Some(name) => {
+                        let _ = writeln!(out, "    ...{name},");
+                    }
+                    None => {
+                        for member in &texts[index].0 {
+                            let _ = writeln!(out, "    {member},");
+                        }
+                    }
                 }
+            }
+            if let Some(entry) = &need.entry {
+                let _ = writeln!(out, "    entry: {},", string_literal(entry));
             }
             if let Some(subject) = &need.subject {
                 let _ = writeln!(
@@ -2044,12 +2151,9 @@ impl<'a> Sdk<'a> {
                 .collect::<Vec<_>>()
                 .join(", ");
             let _ = writeln!(out, "    keys: [{keys}],");
-            let sources = cited
-                .iter()
-                .map(|index| source_name(*index))
-                .collect::<Vec<_>>()
-                .join(", ");
-            let _ = writeln!(out, "    sources: [{sources}],");
+            if said.is_none() {
+                out.push_str("    sources: [],\n");
+            }
             out.push_str("  },\n");
         }
         out.push_str("};\n");
@@ -3154,7 +3258,11 @@ mod tests {
         );
         assert_contains(
             partial,
-            "  \"events[].amount\": {\n    kind: \"fact\",\n    type: \"Int\",\n    label: \"Amount\",\n    keys: [],\n    sources: [],\n  },",
+            "  \"events[].amount\": {\n    kind: \"fact\",\n    type: \"Int\",\n    label: \"Amount\",\n    sources: [],\n    keys: [],\n  },",
+        );
+        assert!(
+            !partial.contains("GuideText"),
+            "a text of one pattern stays in it"
         );
         assert_contains(
             partial,
@@ -3181,6 +3289,65 @@ mod tests {
                 "events[].gross",
             ]
         );
+    }
+
+    #[test]
+    fn the_guide_says_a_fields_text_once_for_every_pattern_it_lies_at() {
+        let files = generate(
+            "# Spouse(@ field(label = \"Income\", question = \"What did they earn?\") income: Int)\n# Person(spouse: Spouse?, partner: Spouse?)\n@ entry\n> tax(p: Person) -> Int { 0 }\n",
+        );
+        let partial = &files["partial.ts"];
+        assert_eq!(
+            partial.matches("\"What did they earn?\"").count(),
+            1,
+            "{partial}"
+        );
+        assert_contains(
+            partial,
+            "const taxGuideText0 = { label: \"Income\", question: \"What did they earn?\", sources: [] };",
+        );
+        for pattern in ["spouse.income", "partner.income"] {
+            assert_contains(
+                partial,
+                &format!("  \"{pattern}\": {{\n    kind: \"fact\",\n    type: \"Int\",\n    ...taxGuideText0,\n    keys: [],\n  }},"),
+            );
+        }
+    }
+
+    #[test]
+    fn the_guide_says_what_a_source_cites_once_for_every_role_it_has() {
+        let partial = &generate(
+            r#"# SourceInfo(url: String, section: String)
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
+# CalculationMetaRole(a) = Source(value: a) | DependencySource(value: a)
+# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
+# impl MetaRole for CalculationMetaRole {}
+# impl Meta for CalculationMeta {}
+# Household(income: Int)
+
+= law = SourceInfo(url = "https://example.invalid/law", section = "§ 1")
+= income_field = CalculationField(path = "income", label = "Yearly income", question = None, help = None, unit = None)
+= household_meta = CalculationMeta(fields = [income_field], attachments = (Source(value = law), DependencySource(value = law)))
+@ meta(household_meta)
+@ entry
+> household_tax(input: Household) -> Int { input.income }
+"#,
+        )["partial.ts"];
+        assert_eq!(
+            partial.matches("https://example.invalid/law").count(),
+            2,
+            "the url once in `value`, once in `data`:\n{partial}"
+        );
+        assert_contains(
+            partial,
+            "const householdTaxGuideCited0: Omit<SourceReference, \"label\" | \"role\"> = {\"binding\":\"law\",",
+        );
+        for (index, role) in ["source", "dependency_source"].into_iter().enumerate() {
+            assert_contains(
+                partial,
+                &format!("const householdTaxGuideSource{index}: SourceReference = {{ label: \"household_tax\", role: \"{role}\", ...householdTaxGuideCited0 }};"),
+            );
+        }
     }
 
     #[test]

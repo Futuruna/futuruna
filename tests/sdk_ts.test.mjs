@@ -887,6 +887,14 @@ test('second-order answering: a list of skeletons, then the fields the law reads
   const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
   assert.match(readFileSync(join(dir, 'sdk/partial.ts'), 'utf8'),
     /export type BalanceElementKey =\n {2}\| ElementKey<"events\[\]", "id", string>;/);
+  // The guide's values, whichever way the module spells them.
+  assert.deepEqual(sdk.balanceGuide, {
+    events: { kind: 'fact', type: 'List(Event)', keys: [], sources: [] },
+    'events[].$variant': { kind: 'fact', type: 'Event', keys: ['events[].id'], sources: [] },
+    'events[].id': { kind: 'fact', type: 'String', label: 'Event id', keys: ['events[].id'], sources: [] },
+    'events[].amount': { kind: 'fact', type: 'Int', label: 'Amount', keys: ['events[].id'], sources: [] },
+    'events[].fee': { kind: 'fact', type: 'Int', label: 'Fee', keys: ['events[].id'], sources: [] },
+  });
 
   const transport = partialCli(dir, 'keyed.entry.runa');
   const skeletons = [{ $variant: 'Deposit', id: 'e1' }, { $variant: 'Withdrawal', id: 'e2' }, { $variant: 'Deposit', id: 'e3' }];
