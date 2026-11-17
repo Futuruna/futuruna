@@ -1816,7 +1816,7 @@ impl<'a> Sdk<'a> {
         );
         let _ = writeln!(out, "export interface {types}InputPatterns {{");
         for (pattern, value_types) in &entry.patterns {
-            let value = value_types.iter().cloned().collect::<Vec<_>>().join(" | ");
+            let value = union_of(value_types);
             let _ = writeln!(out, "  {}: {value};", string_literal(pattern));
         }
         if entry.open_paths {
@@ -3570,4 +3570,57 @@ mod tests {
         assert!(!uses_identifier("  name: \"a\",", "name"));
         assert!(!uses_identifier("schema.IntSchema", "IntSchema"));
     }
+
+    #[test]
+    fn a_pattern_two_alternatives_share_names_each_type_once() {
+        let types = BTreeSet::from([
+            "types.AskDepositPurpose | None".to_string(),
+            "types.AskWithdrawalPurpose | None".to_string(),
+            "Map<string, A | B> | None".to_string(),
+        ]);
+        assert_eq!(
+            super::union_of(&types),
+            "Map<string, A | B> | None | types.AskDepositPurpose | types.AskWithdrawalPurpose"
+        );
+    }
+}
+
+/// The union of `types`, each member once: two alternatives of a sum type that
+/// share a pattern (`A | None`, `B | None`) give `A | None | B`, not `None` twice.
+fn union_of(types: &BTreeSet<String>) -> String {
+    let mut members: Vec<&str> = Vec::new();
+    for ty in types {
+        for member in top_level_members(ty) {
+            if !members.contains(&member) {
+                members.push(member);
+            }
+        }
+    }
+    members.join(" | ")
+}
+
+/// The members of a TypeScript union, split only where ` | ` is outside every
+/// bracket, so a union inside a generic, object or tuple type stays whole.
+fn top_level_members(ty: &str) -> Vec<&str> {
+    let mut members = Vec::new();
+    let mut depth = 0usize;
+    let mut start = 0;
+    let bytes = ty.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'<' | b'{' | b'(' | b'[' => depth += 1,
+            b'>' | b'}' | b')' | b']' => depth = depth.saturating_sub(1),
+            b' ' if depth == 0 && ty[i..].starts_with(" | ") => {
+                members.push(ty[start..i].trim());
+                i += 3;
+                start = i;
+                continue;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    members.push(ty[start..].trim());
+    members
 }
