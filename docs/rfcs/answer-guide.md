@@ -83,8 +83,8 @@ derivable from the model is generated:
    # CustomerQuestions(a) = CustomerQuestions(questions: List(CustomerQuestion), attachments: a)
    ```
 
-3. **The backend holds it as code.** endavu-service-proof
-   `src/infrastructure/investment/taxEngine/aktiesparekontoYearCase.ts:222-228`:
+3. **The backend holds it as code.** endavu-service-proof `66e98411b`,
+   `src/infrastructure/investment/taxEngine/aktiesparekontoYearCase.ts:210-216`:
 
    ```ts
    /**
@@ -96,8 +96,8 @@ derivable from the model is generated:
    } = {
    ```
 
-   The map has 77 entries (lines 229-308). Which of these facts the backend
-   holds is prose: PROOF.md:73-81, "These facts are left out of the case, so
+   The map has 76 entries (lines 217-295). Which of these facts the backend
+   holds is prose: PROOF.md:75-82, "These facts are left out of the case, so
    the engine reports them as Needs".
 
 4. **The SDK registry holds it**, where a need that no pattern covers silently
@@ -105,16 +105,16 @@ derivable from the model is generated:
    `1761-1762`).
 
 **Nothing checks that every fact has someone to answer it.** These figures are
-derived by a script from `runa schema` (v0.5.0, tax-service `ba2eb2c`)
+derived by a script from `runa schema` (v0.5.0, tax-service `4284501a`)
 applying the table under *Which paths can become a need*; they are not tool
 output.
 
-- `TaxCase` has 108 paths at which a need can arise. The 26
-  `CustomerQuestion`s name 26 of them. For the other 82, nothing says who
+- `TaxCase` has 107 paths at which a need can arise. The 26
+  `CustomerQuestion`s name 26 of them. For the other 81, nothing says who
   answers.
 - `FACT_OF_INPUT` is exhaustive over the SDK's patterns, not over the paths
-  that can become needs. The 82 need-able paths of `aktiesparekonto_year` are
-  66 TypeScript patterns. The map names those 66 and 11 that can never be
+  that can become needs. The 81 need-able paths of `aktiesparekonto_year` are
+  65 TypeScript patterns. The map names those 65 and 11 that can never be
   needs:
   - the required records `owner`, `account` and `carriedForward`;
   - six list elements, such as `events[]`;
@@ -136,12 +136,12 @@ calls `resolve()`: the needs end in the backoffice response").
 tax-service `docs/business-scenarios.md` names missing facts that are not the
 customer's to answer:
 
-- the closing cause (gap 1, lines 107-112: "The backend holds the closing
-  day but not why the account closed");
-- the giving institute's § 11, stk. 2 statement (gap 2, lines 113-116);
-- a fund's tax character off SKAT's ABIS list (gap 6, lines 131-132).
+- the giving institute's § 11, stk. 2 statement (gap 2, lines 119-122);
+- a fund's tax character off SKAT's ABIS list (gap 6, lines 138-139).
 
-Yet PROOF.md:29 calls every need "the customer's questions".
+A third, the closing cause, is gone from the model since (gap 1, lines
+109-118), because nothing but a report field read it. Yet PROOF.md:29 calls
+every need "the customer's questions".
 
 ## Design
 
@@ -169,8 +169,14 @@ Children`, moved to the caller's side:
 ])
 ```
 
-- **Held by default.** Held facts have no resolver, so a group name for them
-  would carry nothing.
+- **Held by default.** A held fact must be present: a need there is a defect
+  in the integrator's data. Held facts have no resolver, so a group name for
+  them would carry nothing.
+- **A named path may be missing.** The case builder still fills it whenever
+  it has it, and the group's resolver is asked only for what is missing. This
+  is why `endavu_ask_year` (below) names 68 of its 81 paths while the backend
+  builds nearly all of them in one query: naming a path says "this one may be
+  missing, and here is who to ask", not "this one is not built".
 - **Resolved, most specific item first.** A named path and every path below it
   belong to its group, unless a more specific item names a path below. This is
   the rule of field metadata (calculations.md:191-192) and of today's resolver
@@ -188,13 +194,29 @@ Children`, moved to the caller's side:
   - a field: `taxpayer::spouse`;
   - a list, with its elements' fields: `events`;
   - an element field: `opening_positions::isin`;
-  - an alternative's field: `events::Trade::amount_ore`;
+  - an alternative's field: `events::Trade::amount_øre`;
   - a tag: `events::$variant`;
   - the whole input: `pathof(T)` (new).
 
   Indices and keys are errors, because who answers does not depend on which
   element. Where it seems to, the fact is resolved, and the held data fills
   the elements it has.
+
+**A group nobody can fill is one line.** Some groups can only leave their needs
+open. `Snapshots` is one: the builder has already read every snapshot that
+exists. Its resolver is still required, and the runtime gives it a name:
+
+```ts
+// proposed
+const resolvers: AktiesparekontoYearResolvers = { Snapshots: leaveOpen, GivingInstitute: leaveOpen, … };
+```
+
+This is the boring option, and the right one. Making such keys optional
+would bring back today's silent fall-through (calculations.md:1397-1398).
+Leaving the paths unnamed would make them held, so a missing snapshot would
+become a data error instead of an open need. A required `leaveOpen` puts the
+decision "nobody can fill this yet" in one visible line. When a source
+appears, that line is the one that changes.
 
 ### Questions stay in the model
 
@@ -376,10 +398,13 @@ export function aktiesparekontoYearAnswer(transport: EngineTransport, held: Akti
   `open.Customer` then holds questions, and `open.Snapshots` holds facts a
   source did not have.
 - **Amounts are converted by generated code.** A unit that declares its scale
-  (`# unit Ore = DKK / 100`, calculations.md:346-353) gets `ore.fromDecimal`
-  and `ore.toDecimal`. The model decides what happens to a finer amount;
-  until it can declare that, the converter refuses. The proof's adapter does
-  this by hand today (`aktiesparekontoYearCase.ts:74-81`).
+  (`# unit Øre = DKK / 100`, calculations.md:346-353) gets `øre.fromDecimal`
+  and `øre.toDecimal`. Refusing or rounding a finer amount is the model's
+  decision, as it already is for the figures the model computes: tax-service's
+  truncating rules state ASKL-ØRE-TRUNCATION (`src/ask.runa:147-151`,
+  `src/money.runa:32-36`). Until a unit can declare its policy, the converter
+  refuses. The proof's adapter does that by hand today
+  (`aktiesparekontoYearCase.ts:63-69`, `wholeUnits`).
 - **Pattern-keyed resolvers and `resolve()` go.**
 
 Two things are still on the integrator's side, and should not be:
@@ -387,7 +412,7 @@ Two things are still on the integrator's side, and should not be:
 - **Unit scales.** tax-service declares none (`src/money.runa:11-13`), and
   there is no syntax yet for the finer-amount policy.
 - **Rendering `waiting`.** This is the proof's `actOf`
-  (`aktiesparekontoYearCase.ts:337-341`). It belongs in the runtime.
+  (`aktiesparekontoYearCase.ts:324-328`). It belongs in the runtime.
 
 ### `@ entry`
 
@@ -440,9 +465,9 @@ its group's `attachments` as `sources`. The text below is generated from
     @ field(label = "Living together with the spouse at the end of the year", question = "Were you and your spouse living together (samlevende) at the end of the income year?", help = "Only then does an excess loss on listed shares move between the spouses (aktieavancebeskatningsloven § 13 A, stk. 3), an unused grundbeløb raise the other spouse's (personskatteloven § 8 a, stk. 4) and a negative share income be set off in the other spouse's positive one (stk. 6).", sources = spouse_sources)
     cohabiting_at_year_end: Bool,
     @ field(label = "Spouse's share income", question = "What was your spouse's share income (aktieindkomst) for the income year?", help = "The spouse's own aktieindkomst (personskatteloven § 4 a), before any transfer between the spouses; negative if it is negative.", sources = spouse_sources)
-    share_income_ore: Ore,
+    share_income_øre: Øre,
     @ field(label = "Spouse's net result on listed shares", question = "What was the net amount of your spouse's dividends, gains and losses on listed shares (nettobeløbet af ægtefællens samlede udbytter, gevinster og tab) for the income year?", help = "Shares admitted to trading on a regulated market or a multilateral trading facility, after the spouse's own losses brought forward and before any transfer between the spouses (aktieavancebeskatningsloven § 13 A, stk. 3); negative when the spouse has a loss left over.", sources = spouse_sources)
-    listed_share_net_ore: Ore
+    listed_share_net_øre: Øre
 )
 
 # Taxpayer(
@@ -457,11 +482,11 @@ its group's `attachments` as `sources`. The text below is generated from
 
 The other 21 go the same way:
 
-- on `OutsideEndavu` (its type and `other_share_income_ore`);
+- on `OutsideEndavu` (its type and `other_share_income_øre`);
 - on `Account.kind` and `Account.acquisitions_reported_to_skat`;
 - on five fields of `OpeningPosition`;
 - on five of `Event.Trade` and six of `Event.DividendPaid`;
-- on `CarriedForward.listed_share_loss_ore`.
+- on `CarriedForward.listed_share_loss_øre`.
 
 Seven labels exist today, on the field or on its type (`Isin`, `Side`). A
 field-level `@ field` restates the type's label, because the most specific
@@ -469,7 +494,7 @@ metadata wins whole.
 
 The same liability fact in the Aktiesparekonto entry, `AskOwner`, has no
 question (`src/aktiesparekonto.calculate.runa:27-30`). So the backend's need
-for it says `"question": null` (PROOF.md:265). The model adds the question
+for it says `"question": null` (PROOF.md:266). The model adds the question
 once, and every integrator has it.
 
 ### The guides
@@ -492,38 +517,37 @@ once, and every integrator has it.
     EntryField(path = pathof(TaxCase::accounts::acquisitions_reported_to_skat), by = Customer),
     EntryField(path = pathof(TaxCase::opening_positions::isin), by = Customer),
     EntryField(path = pathof(TaxCase::opening_positions::quantity_micro), by = Customer),
-    EntryField(path = pathof(TaxCase::opening_positions::cost_basis_ore), by = Customer),
-    EntryField(path = pathof(TaxCase::opening_positions::market_value_ore), by = Customer),
+    EntryField(path = pathof(TaxCase::opening_positions::cost_basis_øre), by = Customer),
+    EntryField(path = pathof(TaxCase::opening_positions::market_value_øre), by = Customer),
     EntryField(path = pathof(TaxCase::opening_positions::acquisition_reported), by = Customer),
     EntryField(path = pathof(TaxCase::events::Trade::date), by = Customer),
     EntryField(path = pathof(TaxCase::events::Trade::isin), by = Customer),
     EntryField(path = pathof(TaxCase::events::Trade::side), by = Customer),
     EntryField(path = pathof(TaxCase::events::Trade::quantity_micro), by = Customer),
-    EntryField(path = pathof(TaxCase::events::Trade::amount_ore), by = Customer),
+    EntryField(path = pathof(TaxCase::events::Trade::amount_øre), by = Customer),
     EntryField(path = pathof(TaxCase::events::DividendPaid::date), by = Customer),
     EntryField(path = pathof(TaxCase::events::DividendPaid::isin), by = Customer),
     EntryField(path = pathof(TaxCase::events::DividendPaid::decided), by = Customer),
-    EntryField(path = pathof(TaxCase::events::DividendPaid::gross_ore), by = Customer),
-    EntryField(path = pathof(TaxCase::events::DividendPaid::danish_tax_withheld_ore), by = Customer),
-    EntryField(path = pathof(TaxCase::events::DividendPaid::foreign_tax_withheld_ore), by = Customer),
-    EntryField(path = pathof(TaxCase::carried_forward::listed_share_loss_ore), by = Customer)
+    EntryField(path = pathof(TaxCase::events::DividendPaid::gross_øre), by = Customer),
+    EntryField(path = pathof(TaxCase::events::DividendPaid::danish_tax_withheld_øre), by = Customer),
+    EntryField(path = pathof(TaxCase::events::DividendPaid::foreign_tax_withheld_øre), by = Customer),
+    EntryField(path = pathof(TaxCase::carried_forward::listed_share_loss_øre), by = Customer)
 ])
 
--- PROOF.md:73-86, as data. Everything not named is built from the repositories.
+-- PROOF.md:75-87, as data. Everything not named is built from the repositories.
 # AskYearOrigin = Snapshots | GivingInstitute | Bookings | PreviousYear | Backoffice | Customer
 = endavu_ask_year = AnswerGuide(fields = [
-    EntryField(path = pathof(AskYearCase::owner::fully_tax_liable_in_denmark), by = Customer),     -- PROOF.md:75
-    EntryField(path = pathof(AskYearCase::account::opening_cash_micro_dkk), by = Snapshots),       -- PROOF.md:76-77
+    EntryField(path = pathof(AskYearCase::owner::fully_tax_liable_in_denmark), by = Customer),     -- PROOF.md:77
+    EntryField(path = pathof(AskYearCase::account::opening_cash_micro_dkk), by = Snapshots),       -- PROOF.md:78-79
     EntryField(path = pathof(AskYearCase::account::closing_cash_micro_dkk), by = Snapshots),
     EntryField(path = pathof(AskYearCase::opening_positions), by = Snapshots),
     EntryField(path = pathof(AskYearCase::year_end_prices), by = Snapshots),
     EntryField(path = pathof(AskYearCase::account::ending::Closed::prices), by = Snapshots),
-    EntryField(path = pathof(AskYearCase::account::transfer_in), by = GivingInstitute),            -- PROOF.md:78
-    EntryField(path = pathof(AskYearCase::events), by = Bookings),                                 -- PROOF.md:81
-    EntryField(path = pathof(AskYearCase::events::$variant), by = Backoffice),                     -- PROOF.md:80
-    EntryField(path = pathof(AskYearCase::account::ending::Closed::cause), by = Backoffice),       -- gap 1
+    EntryField(path = pathof(AskYearCase::account::transfer_in), by = GivingInstitute),            -- PROOF.md:80
+    EntryField(path = pathof(AskYearCase::events), by = Bookings),                                 -- PROOF.md:82
+    EntryField(path = pathof(AskYearCase::events::$variant), by = Backoffice),                     -- PROOF.md:81
     EntryField(path = pathof(AskYearCase::instruments::kind), by = Backoffice),                    -- gap 6
-    EntryField(path = pathof(AskYearCase::carried_forward), by = PreviousYear)                     -- PROOF.md:83-86
+    EntryField(path = pathof(AskYearCase::carried_forward), by = PreviousYear)                     -- PROOF.md:84-87
 ])
 ```
 
@@ -531,9 +555,9 @@ Counted with the same script:
 
 | Entry and guide | Need-able paths | Resolved | Held |
 |---|---|---|---|
-| `tax_report`, today | 108 | 26 asked through `CustomerQuestions` | 82, unstated |
-| `tax_report`, `endavu_tax_report` (24 items) | 108 | 26 `Customer`, 6 `PriceFeed` | 76, required by the held type |
-| `aktiesparekonto_year`, `endavu_ask_year` (12 items) | 82 | 69, in six groups | 13 |
+| `tax_report`, today | 107 | 26 asked through `CustomerQuestions` | 81, unstated |
+| `tax_report`, `endavu_tax_report` (24 items) | 107 | 26 `Customer`, 6 `PriceFeed` | 75, required by the held type |
+| `aktiesparekonto_year`, `endavu_ask_year` (11 items) | 81 | 68, in six groups | 13 |
 
 ### The tests
 
@@ -549,8 +573,8 @@ Counted with the same script:
     [Asking(group = Customer, paths = [pathof(TaxCase::taxpayer::spouse)])],
     [Asking(group = Customer, paths = [
         pathof(TaxCase::taxpayer::spouse::cohabiting_at_year_end),
-        pathof(TaxCase::taxpayer::spouse::listed_share_net_ore),
-        pathof(TaxCase::taxpayer::spouse::share_income_ore)
+        pathof(TaxCase::taxpayer::spouse::listed_share_net_øre),
+        pathof(TaxCase::taxpayer::spouse::share_income_øre)
     ])]
 ]
 | spouse_answers_end_in_the_complete_result: spouse_answered -> spouse_answered.outcome == Answered(result = tax_report(married))
@@ -564,12 +588,12 @@ generated from.
 
 Three things in the backend change:
 
-- **`FACT_OF_INPUT` goes** (`aktiesparekontoYearCase.ts:226-309`). The
+- **`FACT_OF_INPUT` goes** (`aktiesparekontoYearCase.ts:214-296`). The
   generated held type now fails the build on a new input. The need's `by` and
   label name the need.
-- **PROOF.md:73-81 becomes `endavu_ask_year`.**
-- **The hand-written unit code** (lines 36-111) goes once the units declare
-  scales. `inDkk` (lines 83-88) stays: that a `Money` is in DKK is the
+- **PROOF.md:75-82 becomes `endavu_ask_year`.**
+- **The hand-written unit code** (lines 35-100) goes once the units declare
+  scales. `inDkk` (lines 72-77) stays: that a `Money` is in DKK is the
   backend's own fact.
 
 What remains is what the backend alone can define:
@@ -584,12 +608,12 @@ const held: AktiesparekontoYearHeld = {
   …
 };
 const answering = await engine.aktiesparekontoYearAnswer(held, {
-  Snapshots: () => () => open,  GivingInstitute: () => () => open,  Bookings: () => () => open,
-  PreviousYear: () => () => open,  Backoffice: () => () => open,  Customer: () => () => open,
+  Snapshots: leaveOpen, GivingInstitute: leaveOpen, Bookings: leaveOpen,
+  PreviousYear: leaveOpen, Backoffice: leaveOpen, Customer: leaveOpen,
 });
 ```
 
-Every resolver above leaves its needs open, which is today's behaviour, now
+Every resolver above is `leaveOpen`, which is today's behaviour, now
 stated. When a source becomes worth reading on demand, only its resolver
 changes, and it is still called once per round with all of its needs.
 
@@ -663,7 +687,7 @@ These stay, because they name the computation: `runa call`, `Calculated<R>`,
   versioned with the model it defines. The app translates or restyles what
   the need carries.
 - **Origins in the law, or a `DataSource` enum on `@ field`.** The same fact
-  is held by one integrator and asked by another (PROOF.md:75). A law module
+  is held by one integrator and asked by another (PROOF.md:77). A law module
   that names `Ledger` names one backend.
 - **The guide declared on the entry** (`@ guide(g)`, or `@ meta(g) for e`).
   Either the law names its caller, or which guide applies depends on imports.
@@ -698,8 +722,9 @@ These stay, because they name the computation: `runa call`, `Calculated<R>`,
   on the wire.
 - **The `.calculate.runa` convention** (tax-service's files, CLI examples,
   `src/bin/runa.rs:2385`). `runa` does not depend on it.
-- **The finer-amount policy.** Who declares it, the unit or the field, and
-  with what syntax.
+- **The finer-amount policy for incoming amounts.** The model already decides
+  it for computed figures (ASKL-ØRE-TRUNCATION). For a unit converter, it is
+  open whether the unit or the field declares it, and with what syntax.
 - **A list from two sources.** `opening_positions` holds Endavu's and the
   customer's positions. The list is held and the customer's fields are
   resolved. Should a guide be able to say "elements added by the customer"?
