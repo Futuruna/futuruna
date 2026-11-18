@@ -1280,7 +1280,11 @@ impl<'a> Sdk<'a> {
     ) {
         write_doc(out, indent, &self.field_doc(definition, variant, field));
         // An open collection may be left out: no entries given yet.
-        let (optional, undefined) = if field.open { ("?", " | undefined") } else { ("", "") };
+        let (optional, undefined) = if field.open {
+            ("?", " | undefined")
+        } else {
+            ("", "")
+        };
         let _ = writeln!(
             out,
             "{indent}{}{optional}: {}{undefined};",

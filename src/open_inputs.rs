@@ -433,15 +433,16 @@ impl Interpreter {
                         if self.partial_mode.is_some() {
                             self.partial_field_read(&receiver, field, &value);
                         }
-                        let open = self
-                            .open_inputs
-                            .open_element(constructor, field)
-                            .map(|element| OpenCollection {
-                                field: field.clone(),
-                                element: element.to_string(),
-                                path: self.tracked_path(&receiver)
-                                    .map(|path| partial::join_path(&path, field)),
-                            });
+                        let open =
+                            self.open_inputs
+                                .open_element(constructor, field)
+                                .map(|element| OpenCollection {
+                                    field: field.clone(),
+                                    element: element.to_string(),
+                                    path: self
+                                        .tracked_path(&receiver)
+                                        .map(|path| partial::join_path(&path, field)),
+                                });
                         (value, open)
                     }
                     None => (self.eval(collection, env), None),
