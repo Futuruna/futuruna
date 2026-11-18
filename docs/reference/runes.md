@@ -613,6 +613,22 @@ applies; a family of any other declared type stops with
 `runa fmt --migrate` writes existing families' types once and declares their
 result types where that changes nothing.
 
+A family whose unguarded clause heads together match every value of the
+parameter types, as the arms of a `match` would, never misses and needs no
+fallback clause:
+
+```runa
+# TaxChange = ChangedBySkat(day: Date) | CorrectedByInstitute(year: Int)
+
+| changed_tax_due(year: Int, change: TaxChange): Int
+| changed_tax_due(y, ChangedBySkat(d)) -> d.year + 3
+| changed_tax_due(y, CorrectedByInstitute(r)) -> r
+```
+
+Each clause can carry its own `@ cite`. Generated code, `runa verify` and
+`runa audit` read the family as total: the last clause's value is the
+otherwise of the translation, and the audit reports no gap.
+
 ### Named invariants (verification targets)
 ```runa
 | name: subject_expr -> predicate_expr

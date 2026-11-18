@@ -16671,6 +16671,13 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             for (applicability, selected_value, _) in candidates.into_iter().rev() {
                 fallback = Some(if smt_is_true(&applicability) {
                     selected_value
+                } else if fallback.is_none()
+                    && group.totality == RuleDispatchTotality::IrrefutableCandidate
+                {
+                    // Some candidate applies to every input (its head
+                    // patterns cover the parameter types), so no input
+                    // reaches past the last one: its value is the otherwise.
+                    selected_value
                 } else if let Some(next) = fallback {
                     Expr::unspanned(ExprKind::If(
                         Box::new(applicability),

@@ -1,0 +1,13 @@
+-- expect-command: interp
+-- expect-stdout-file: ../../golden/run/date_guards.stdout
+-- A date comparison guards an exception and is a rule's value, natively as in
+-- the interpreter.
+# Date(year: Int, month: Int, day: Int)
+
+| due(year: Int, decided: Date): Date -> Date(year = year + 1, month = 2, day = 22)
+| exception late due(year, decided) -> decided under decided > Date(year = year + 1, month = 2, day = 22)
+| in_time(ended: Date, deadline: Date) -> ended <= deadline
+
+@ print(show(due(2025, Date(year = 2026, month = 1, day = 5)).month))
+@ print(show(due(2025, Date(year = 2026, month = 3, day = 5)).month))
+@ print(show(in_time(Date(year = 2026, month = 3, day = 5), Date(year = 2026, month = 3, day = 5))))

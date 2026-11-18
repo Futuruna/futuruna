@@ -7317,19 +7317,100 @@ fn rule_head_is_irrefutable(rule: &Rule) -> bool {
 /// Whether a candidate selects a value for every argument once dispatch
 /// reaches it: an irrefutable head with no guard.
 pub fn rule_dispatch_candidate_is_total(rule: &Rule, return_type: &str) -> bool {
-    rule_head_is_irrefutable(rule)
-        && match rule {
-            Rule::Exception {
-                condition: None, ..
-            }
-            | Rule::Default {
-                condition: None, ..
-            } => true,
-            Rule::Clause { body, .. } => {
-                body.is_some() && TypeChecker::canonical_explore_type_name(return_type) != "Bool"
-            }
-            _ => false,
+    rule_head_is_irrefutable(rule) && rule_dispatch_candidate_is_unguarded(rule, return_type)
+}
+
+/// Whether a candidate whose head matches selects a value: it has no guard.
+fn rule_dispatch_candidate_is_unguarded(rule: &Rule, return_type: &str) -> bool {
+    match rule {
+        Rule::Exception {
+            condition: None, ..
         }
+        | Rule::Default {
+            condition: None, ..
+        } => true,
+        Rule::Clause { body, .. } => {
+            body.is_some() && TypeChecker::canonical_explore_type_name(return_type) != "Bool"
+        }
+        _ => false,
+    }
+}
+
+/// A rule head's arguments as match patterns, one per parameter, as
+/// `match_rule_param` matches them; `None` for a head with a form that is not
+/// an ordinary pattern there (a list, a signed number, a variable repeated, a
+/// bare tag of a fielded constructor).
+fn rule_head_patterns(head: &Expr, checker: &TypeChecker) -> Option<Vec<Pat>> {
+    fn pattern(
+        argument: &Expr,
+        checker: &TypeChecker,
+        bound: &mut BTreeSet<String>,
+    ) -> Option<Pat> {
+        let argument = typed_rule_head_argument(argument).map_or(argument, |(inner, _)| inner);
+        match &argument.kind {
+            ExprKind::Var(name) if name == "_" => Some(Pat::Wild),
+            ExprKind::Var(name) if name.starts_with(|c: char| c.is_uppercase()) => {
+                // A nullary constructor; `True` and `False` are literals here.
+                let signatures = checker.constructor_signatures.get(name)?;
+                (!matches!(name.as_str(), "True" | "False")
+                    && signatures.iter().all(|signature| signature.arity() == 0))
+                .then(|| Pat::Con(name.clone(), Vec::new()))
+            }
+            // A name bound twice compares the two values.
+            ExprKind::Var(name) => bound.insert(name.clone()).then(|| Pat::Var(name.clone())),
+            ExprKind::Lit(Literal::Float(_)) => None,
+            ExprKind::Lit(literal) => Some(Pat::Lit(literal.clone())),
+            ExprKind::Tuple(items) => Some(Pat::Tuple(
+                items
+                    .iter()
+                    .map(|item| pattern(item, checker, bound))
+                    .collect::<Option<_>>()?,
+            )),
+            ExprKind::App(function, arguments) => {
+                let ExprKind::Var(name) = &function.kind else {
+                    return None;
+                };
+                checker.constructor_signatures.get(name)?;
+                if arguments
+                    .iter()
+                    .all(|argument| named_arg_parts(argument).is_some())
+                {
+                    Some(Pat::NamedCon(
+                        name.clone(),
+                        arguments
+                            .iter()
+                            .map(|argument| {
+                                let (field, value) = named_arg_parts(argument)?;
+                                Some((field.to_string(), pattern(value, checker, bound)?))
+                            })
+                            .collect::<Option<_>>()?,
+                    ))
+                } else {
+                    Some(Pat::Con(
+                        name.clone(),
+                        arguments
+                            .iter()
+                            .map(|argument| {
+                                if named_arg_parts(argument).is_some() {
+                                    return None;
+                                }
+                                pattern(argument, checker, bound)
+                            })
+                            .collect::<Option<_>>()?,
+                    ))
+                }
+            }
+            _ => None,
+        }
+    }
+    let ExprKind::App(_, arguments) = &head.kind else {
+        return None;
+    };
+    let mut bound = BTreeSet::new();
+    arguments
+        .iter()
+        .map(|argument| pattern(argument, checker, &mut bound))
+        .collect()
 }
 
 impl<'a> RuleDispatchRegistry<'a> {
@@ -33289,6 +33370,10 @@ pub struct TypeChecker {
     /// checked-False miss value.
     rule_dispatch_irrefutable_keys: BTreeSet<RuleDispatchKey>,
     rule_dispatch_runtime_irrefutable_keys: BTreeSet<RuleDispatchKey>,
+    /// Families whose unguarded clause heads cover the parameter types. The
+    /// solver encodings read the last candidate's value as the otherwise of
+    /// such a family even when its values are not proved total.
+    rule_dispatch_head_pattern_total_keys: BTreeSet<RuleDispatchKey>,
     runtime_guarded_rule_calls: RuntimeGuardedRuleCalls,
     /// Every canonical rule identity declared in the flattened program.
     rule_dispatch_keys: BTreeSet<RuleDispatchKey>,
@@ -50166,6 +50251,7 @@ impl TypeChecker {
             runtime_guarded_rule_calls: RuntimeGuardedRuleCalls::default(),
             rule_dispatch_irrefutable_keys: BTreeSet::new(),
             rule_dispatch_runtime_irrefutable_keys: BTreeSet::new(),
+            rule_dispatch_head_pattern_total_keys: BTreeSet::new(),
             rule_dispatch_keys: BTreeSet::new(),
             rule_dispatch_has_opaque_runtime_graph: false,
             plain_import_rule_dispatch_statements: Arc::from([]),
@@ -57460,7 +57546,10 @@ impl TypeChecker {
                 match operator.as_str() {
                     "&&" | "||" if left_type == "Bool" && right_type == "Bool" => inferred(),
                     "&&" | "||" => self.canonical_dispatch_type_error(),
-                    "<" | ">" | "<=" | ">=" if left_type == "Int" && right_type == "Int" => {
+                    "<" | ">" | "<=" | ">="
+                        if (left_type == "Int" && right_type == "Int")
+                            || (left_type == "Date" && right_type == "Date") =>
+                    {
                         inferred()
                     }
                     "<" | ">" | "<=" | ">=" if numeric(&left_type) && numeric(&right_type) => None,
@@ -57776,6 +57865,7 @@ impl TypeChecker {
         self.rule_dispatch_parameter_issues.clear();
         self.rule_dispatch_irrefutable_keys.clear();
         self.rule_dispatch_runtime_irrefutable_keys.clear();
+        self.rule_dispatch_head_pattern_total_keys.clear();
         self.runtime_guarded_rule_calls = RuntimeGuardedRuleCalls::default();
         self.rule_dispatch_keys = groups.keys().cloned().collect();
         let declared = self.note_declared_dispatch_results(&dispatch_statements);
@@ -58049,15 +58139,22 @@ impl TypeChecker {
         // consumes this map and proves definedness over its finite domain.
         self.rule_dispatch_type_return_types = self.rule_dispatch_return_types.clone();
         self.rule_dispatch_type_return_issues = self.rule_dispatch_return_issues.clone();
+        // A family selects a candidate for every argument tuple when one
+        // candidate is irrefutable and unguarded, or when the head patterns of
+        // its unguarded candidates cover the parameter types together.
         for (key, (_, rules)) in &groups {
-            if self
-                .rule_dispatch_return_types
-                .get(key)
-                .is_some_and(|return_type| {
-                    rules
-                        .iter()
-                        .any(|rule| rule_dispatch_candidate_is_total(rule, return_type))
-                })
+            let Some(return_type) = self.rule_dispatch_return_types.get(key) else {
+                continue;
+            };
+            let covered_by_heads = self.rule_head_patterns_cover(key, rules, return_type);
+            if covered_by_heads {
+                self.rule_dispatch_head_pattern_total_keys
+                    .insert(key.clone());
+            }
+            if covered_by_heads
+                || rules
+                    .iter()
+                    .any(|rule| rule_dispatch_candidate_is_total(rule, return_type))
             {
                 self.rule_dispatch_irrefutable_keys.insert(key.clone());
             }
@@ -65045,6 +65142,36 @@ impl TypeChecker {
         }
     }
 
+    /// Whether the unguarded candidates' head patterns cover every argument
+    /// tuple of the family's parameter types, as the rows of a `match` do:
+    /// `| due(y, ChangedBySkat(d)) -> … | due(y, CorrectedByInstitute(r)) -> …`
+    /// over both variants cannot miss. Guarded candidates are left out.
+    fn rule_head_patterns_cover(
+        &self,
+        key: &RuleDispatchKey,
+        rules: &[&Rule],
+        return_type: &str,
+    ) -> bool {
+        let Some(types) = self.rule_dispatch_parameter_types.get(key) else {
+            return false;
+        };
+        if key.arity == 0 || types.iter().any(Option::is_none) {
+            return false;
+        }
+        let rows = rules
+            .iter()
+            .filter(|rule| rule_dispatch_candidate_is_unguarded(rule, return_type))
+            .filter_map(|rule| rule_head_patterns(rule.head()?, self))
+            .filter(|row| row.len() == key.arity)
+            .collect::<Vec<_>>();
+        let types = types
+            .iter()
+            .map(|ty| ty.as_ref().map(Self::canonical_explore_ty_name))
+            .collect::<Vec<_>>();
+        let mut budget = 10_000;
+        self.match_pattern_rows_cover(&rows, &types, &mut budget, 0) == Some(true)
+    }
+
     pub fn is_rule_function(&self, name: &str) -> bool {
         !self.user_functions.contains(name)
     }
@@ -65372,7 +65499,11 @@ impl TypeChecker {
             rule_dispatch_parameter_issues: tc.rule_dispatch_parameter_issues,
             rule_dispatch_boolean_miss_safe_keys: tc.rule_dispatch_boolean_miss_safe_keys,
             rule_dispatch_runtime_boolean_miss_keys: tc.rule_dispatch_runtime_boolean_miss_keys,
-            rule_dispatch_total_value_keys: tc.rule_dispatch_irrefutable_keys,
+            rule_dispatch_total_value_keys: tc
+                .rule_dispatch_irrefutable_keys
+                .into_iter()
+                .chain(tc.rule_dispatch_head_pattern_total_keys)
+                .collect(),
             rule_dispatch_runtime_irrefutable_keys: tc.rule_dispatch_runtime_irrefutable_keys,
             runtime_guarded_rule_calls: tc.runtime_guarded_rule_calls,
             exploration_queries,

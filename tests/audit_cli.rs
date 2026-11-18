@@ -908,3 +908,15 @@ fn clause_audit_analyses_tuple_matches() {
     );
     assert!(!stdout.contains("in state/2"), "{stdout}");
 }
+
+/// A family whose clause heads match every variant has no gap.
+#[test]
+fn clause_audit_reads_constructor_heads_as_total() {
+    let fixture = topology_fixture("clause_constructors.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(!stdout.contains("in due/2"), "{stdout}");
+}

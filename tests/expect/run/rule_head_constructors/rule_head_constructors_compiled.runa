@@ -1,0 +1,13 @@
+-- expect-command: run
+-- expect-stdout-file: ../../golden/run/rule_head_constructors.stdout
+-- A family whose clause heads match every variant of a parameter's type is a
+-- rule family over the variants: it never misses, so it needs no fallback.
+# Date(year: Int, month: Int, day: Int)
+# TaxChange = ChangedBySkat(day: Date) | CorrectedByInstitute(year: Int)
+
+| due(year: Int, change: TaxChange): Int
+| due(year, ChangedBySkat(d)) -> d.year + 3
+| due(year, CorrectedByInstitute(r)) -> r
+
+@ print(show(due(2025, ChangedBySkat(Date(2026, 5, 1)))))
+@ print(show(due(2025, CorrectedByInstitute(2020))))
