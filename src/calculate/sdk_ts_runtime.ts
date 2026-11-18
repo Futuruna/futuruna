@@ -1646,14 +1646,13 @@ export type Open = { readonly kind: "open" };
 
 /**
  * What `resolve` gives for a need at a path of `P`: `given(need, value)`, a
- * value to write at the need's path; `open`, when it cannot fill the need; or
- * the outcome of another entry ({@link ResolverContext.runEntry}). A reply
- * names the path it is for, so it is checked against the need it answers.
+ * value to write at the need's path, or `open`, when it cannot fill the need.
+ * A reply names the path it is for, so it is checked against the need it
+ * answers.
  */
 export type ResolverReply<V = unknown, P extends string = string> =
   | { readonly kind: "given"; readonly path: InputPath<P>; readonly value: V }
-  | Open
-  | { readonly kind: "entry"; readonly path: InputPath<P>; readonly answering: Answering<V> };
+  | Open;
 
 /** The reply for a need `resolve` cannot fill: it stays open. */
 export const open: Open = Object.freeze({ kind: "open" });
@@ -1674,20 +1673,6 @@ export function given<P extends string, V extends AnyValue>(need: { readonly pat
 export interface ResolverContext<C> {
   /** The case sent in this round: the partial case and every answer written so far. */
   readonly partialCase: C;
-  /**
-   * Answer another entry for `need`, as the entry `need.entry` running for
-   * `need.subject`: an entry need names them, a fact need is given them
-   * (`{ ...need, entry: "share_income", subject: "taxpayer.spouse" }`). `run`
-   * answers that entry, passing `options` on, as
-   * `(options) => shareIncomeAnswer(transport, partialCase, resolve, options)`.
-   * Its result is written at the need's path when it is `Answered`; when it is
-   * `Unanswered` the need waits in `pending`. An entry already being answered
-   * for the same subject is a cycle and throws {@link AnswerCycleError}.
-   */
-  runEntry<P extends string, R2>(
-    need: { readonly path: InputPath<P> } & EntryFrame,
-    run: (options: AnswerOptions) => Promise<Answering<R2>>,
-  ): Promise<ResolverReply<R2, P>>;
 }
 
 /** A partial call of one entry, such as `(c) => taxReportQuery(transport, c)`. */
@@ -1746,9 +1731,6 @@ export type Round<N extends Need = Need> = {
   readonly given: readonly InputPath<N["pattern"]>[];
 };
 
-/** An entry need waiting on what another entry left open. */
-export type PendingEntry = { readonly need: Need; readonly answering: Answering<unknown> };
-
 /**
  * Where answering an entry ended: `Answered`, or `Unanswered` when a round
  * answered nothing, with that round's needs left open. The partial case holds
@@ -1768,8 +1750,6 @@ export type Answering<R, N extends Need = Need, C = unknown> =
       readonly $variant: "Unanswered";
       /** The needs of the last round `resolve` left open. */
       readonly open: readonly N[];
-      /** Entry needs waiting on what another entry left open. */
-      readonly pending: readonly PendingEntry[];
       /**
        * Facts read only behind an unknown condition in the last round: what the
        * engine may need once the open needs are answered, in the next round.
@@ -1779,16 +1759,6 @@ export type Answering<R, N extends Need = Need, C = unknown> =
       readonly rounds: readonly Round<N>[];
     };
 
-/**
- * How an entry is answered from inside another's `resolve`: what
- * {@link ResolverContext.runEntry} passes to its `run`, to be passed on to
- * `<entry>Answer` unchanged.
- */
-export type AnswerOptions = {
-  /** The entries being answered above this one, outermost first. */
-  readonly frames?: readonly EntryFrame[];
-};
-
 /** Answering cannot continue. */
 export class AnswerError extends Error {
   constructor(message: string) {
@@ -1797,35 +1767,19 @@ export class AnswerError extends Error {
   }
 }
 
-/** Two entries need each other for the same subjects: a model error; join them into one entry. */
-export class AnswerCycleError extends AnswerError {
-  readonly frames: readonly EntryFrame[];
-
-  constructor(frames: readonly EntryFrame[]) {
-    super(
-      `entries need each other: ${frames.map((frame) => `${frame.entry}(${frame.subject})`).join(" → ")}; model them as one joint entry`,
-    );
-    this.name = "AnswerCycleError";
-    this.frames = frames;
-  }
-}
-
 /**
  * Answer an entry round by round: query it on the partial case, call `resolve`
  * once per round with every need, write the given values with {@link setAt},
  * and query again. Ends `Answered`, or `Unanswered` when a round answers
  * nothing. A reply for another need's path, or a path still needed after it
- * was given, throws {@link AnswerError}; an entry that needs itself for the
- * same subject throws {@link AnswerCycleError}. The SDK's `<entry>Answer`
- * calls it.
+ * was given, throws {@link AnswerError}. An entry need is answered like any
+ * other need. The SDK's `<entry>Answer` calls it.
  */
 export async function answerEntry<C, R, N extends Need, Patterns>(
   query: Query<C, R, N>,
   partialCase: C,
   resolve: Resolve<C, Patterns, N>,
-  options: AnswerOptions = {},
 ): Promise<Answering<R, N, C>> {
-  const frames = options.frames ?? [];
   const resolveLoose = resolve as unknown as LooseResolve<C, N>;
   const answered = new Set<string>();
   const rounds: Round<N>[] = [];
@@ -1847,16 +1801,7 @@ export async function answerEntry<C, R, N extends Need, Patterns>(
         throw new AnswerError(`the engine still needs \`${need.path}\` after it was given`);
       }
     }
-    const context: ResolverContext<C> = {
-      partialCase: current,
-      async runEntry(need, run) {
-        const stack = [...frames, { entry: need.entry, subject: need.subject }];
-        if (frames.some((active) => active.entry === need.entry && active.subject === need.subject)) {
-          throw new AnswerCycleError(stack);
-        }
-        return { kind: "entry", path: need.path, answering: await run({ frames: stack }) };
-      },
-    };
+    const context: ResolverContext<C> = { partialCase: current };
     const answerEach = await resolveLoose(result.needs, context);
     const replies = await Promise.all(
       result.needs.map(async (need) => {
@@ -1868,7 +1813,6 @@ export async function answerEntry<C, R, N extends Need, Patterns>(
       }),
     );
     const left: N[] = [];
-    const pending: PendingEntry[] = [];
     const givenPaths: InputPath<N["pattern"]>[] = [];
     let next = current;
     result.needs.forEach((need, at) => {
@@ -1877,20 +1821,13 @@ export async function answerEntry<C, R, N extends Need, Patterns>(
         left.push(need);
         return;
       }
-      if (reply.kind === "given") {
-        next = setAt(next, need.path, reply.value);
-      } else if (reply.answering.$variant === "Answered") {
-        next = setAt(next, need.path, reply.answering.result);
-      } else {
-        pending.push({ need, answering: reply.answering });
-        return;
-      }
+      next = setAt(next, need.path, reply.value);
       answered.add(need.path);
       givenPaths.push(need.path);
     });
     rounds.push({ paths: result.needs.map((need) => need.path), given: givenPaths });
     if (givenPaths.length === 0) {
-      return { $variant: "Unanswered", open: left, pending, later: result.later ?? [], partialCase: current, rounds };
+      return { $variant: "Unanswered", open: left, later: result.later ?? [], partialCase: current, rounds };
     }
     current = next;
   }

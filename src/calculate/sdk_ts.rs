@@ -2039,7 +2039,7 @@ impl<'a> Sdk<'a> {
                 &mut body,
                 "",
                 &[format!(
-                    "How the needs of `{}` are answered: called once per round with every need of the round, it returns the reply to each need, typed by the need's pattern (`given(need, value)`, `open`, or another entry's outcome through `context.runEntry`).",
+                    "How the needs of `{}` are answered: called once per round with every need of the round, it returns the reply to each need, typed by the need's pattern (`given(need, value)` or `open`); an entry need is answered as any other.",
                     contract.entry
                 )],
             );
@@ -2053,12 +2053,12 @@ impl<'a> Sdk<'a> {
                 &[
                     format!("Answer {answer_title}, round by round."),
                     String::new(),
-                    "Queries the partial case through `transport.callPartial`, calls `resolve` once per round with every need, writes the values it gives and queries again. Ends `Answered` with the result, or `Unanswered` with the last round's needs left open. A reply for another path, or a path still needed after it was given, throws `AnswerError`. From inside another entry's `resolve`, pass on the `options` that `context.runEntry` gives.".to_string(),
+                    "Queries the partial case through `transport.callPartial`, calls `resolve` once per round with every need, writes the values it gives and queries again. Ends `Answered` with the result, or `Unanswered` with the last round's needs left open. A reply for another path, or a path still needed after it was given, throws `AnswerError`.".to_string(),
                 ],
             );
             let _ = writeln!(
                 body,
-                "export function {values}Answer(\n  transport: EngineTransport,\n  partialCase: {partial_input},\n  resolve: {types}Resolve,\n  options: AnswerOptions = {{}},\n): Promise<Answering<{output}, partial.{types}Need, {partial_input}>> {{\n  return answerEntry<{partial_input}, {output}, partial.{types}Need, partial.{types}InputPatterns>(\n    (current) => {values}Query(transport, current),\n    partialCase,\n    resolve,\n    options,\n  );\n}}\n"
+                "export function {values}Answer(\n  transport: EngineTransport,\n  partialCase: {partial_input},\n  resolve: {types}Resolve,\n): Promise<Answering<{output}, partial.{types}Need, {partial_input}>> {{\n  return answerEntry<{partial_input}, {output}, partial.{types}Need, partial.{types}InputPatterns>(\n    (current) => {values}Query(transport, current),\n    partialCase,\n    resolve,\n  );\n}}\n"
             );
         }
         let mut out = String::new();
@@ -3044,9 +3044,8 @@ mod tests {
         for expected in [
             "export type TaxResolve = Resolve<partial.PartialPerson, partial.TaxInputPatterns, partial.TaxNeed>;",
             " * Answer `tax` (Tax), round by round.",
-            "export function taxAnswer(\n  transport: EngineTransport,\n  partialCase: partial.PartialPerson,\n  resolve: TaxResolve,\n  options: AnswerOptions = {},\n): Promise<Answering<number, partial.TaxNeed, partial.PartialPerson>> {\n  return answerEntry<partial.PartialPerson, number, partial.TaxNeed, partial.TaxInputPatterns>(\n    (current) => taxQuery(transport, current),\n    partialCase,\n    resolve,\n    options,\n  );\n}",
+            "export function taxAnswer(\n  transport: EngineTransport,\n  partialCase: partial.PartialPerson,\n  resolve: TaxResolve,\n): Promise<Answering<number, partial.TaxNeed, partial.PartialPerson>> {\n  return answerEntry<partial.PartialPerson, number, partial.TaxNeed, partial.TaxInputPatterns>(\n    (current) => taxQuery(transport, current),\n    partialCase,\n    resolve,\n  );\n}",
             "type Resolve,",
-            "type AnswerOptions",
             "type Answering",
             "answerEntry",
         ] {

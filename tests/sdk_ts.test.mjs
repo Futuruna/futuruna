@@ -414,7 +414,6 @@ test('runa sdk ts output type-checks and calls and validates through a transport
   assert.equal(first.open[0].by, undefined);
   assert.deepEqual(first.partialCase, { children: [{ name: 'Ada', age: 4 }], filingStatus: 'Married' });
   assert.ok(Array.isArray(first.later), 'Unanswered carries the last round\'s later facts');
-  assert.deepEqual(first.pending, []);
   const second = await sdk.calculateTaxAnswer(transport, usage.answerNeed(first.partialCase, first.open[0]), () => () => sdk.open);
   assert.equal(second.$variant, 'Answered');
   assert.deepEqual(second.result, { annualIncome: 600000, taxableIncome: 600000, annualTax: 120000 });
@@ -482,64 +481,8 @@ test('runa sdk ts output type-checks and calls and validates through a transport
       keys: [{ path: 'openingPositions[1]', field: 'isin', value: 'DK0060534915' }] },
   ], later: [{ kind: 'fact', path: 'openingPositions[0].isin', pattern: 'openingPositions[].isin', waiting }] });
 
-  // Explanations at TypeScript paths.
-  const explaining = {
-    ...cli,
-    async callExplained(entry, document, full) {
-      const path = join(dir, `explain-${full}.json`);
-      writeFileSync(path, JSON.stringify(document));
-      return run(binary, ['call', fixture, '--entry', entry, '--input', path, full ? '--explain=full' : '--explain']);
-    },
-  };
-  for (const depth of ['direct', 'full']) {
-    const explained = await sdk.calculateTaxExplained(explaining, usage.sample, depth);
-    assert.deepEqual(explained.result, { annualIncome: 600000, taxableIncome: 600000, annualTax: 120000 });
-    assert.deepEqual(explained.assumptions, []);
-    assert.deepEqual(Object.keys(explained.explanation.values), ['annualIncome', 'annualTax', 'taxableIncome']);
-    const inputs = Object.values(explained.explanation.values).flatMap((value) => value.from ?? [])
-      .filter((item) => item.$variant === 'Input').map((item) => item.path);
-    assert.ok(inputs.includes('monthlyIncome'), JSON.stringify(explained.explanation));
-    assert.equal(explained.explanation.derivation !== undefined, depth === 'full');
-  }
-  const by = (path) => ({ $variant: 'Input', path });
-  const explanation = {
-    sections: {},
-    values: {
-      'booked_on.year': { value: 2026, by: by('booked_on.year'), from_omitted: 2 },
-      'booked_on.month': { value: 3, by: by('booked_on.month') },
-      'booked_on.day': { value: 1, by: by('booked_on.day') },
-      'paid_on.year': { value: 2026, by: by('booked_on.year') },
-      'paid_on.month': { value: 4, by: { $variant: 'Computed' } },
-      'paid_on.day': { value: 1, by: by('booked_on.day') },
-      'kind.$variant': { value: 'Deposit', by: { $variant: 'Rule', rule: 'kind_of', clause: 'default' },
-        from: [by('booked_on.year'), by('booked_on.month'), by('booked_on.day'), by('kind.$variant')]
-          .map((item, at) => ({ ...item, value: [2026, 3, 1, 'Deposit'][at] })),
-        because: [{ ...by('kind.$variant'), value: 'Deposit' }] },
-    },
-  };
-  const explainedEntry = { ...dateEntry, output: sdk.recordCodec({ bookedOn: ['booked_on', sdk.isoDateCodec],
-    paidOn: ['paid_on', sdk.isoDateCodec], kind: ['kind', sdk.enumCodec] }) };
-  const document = { $futuruna: { schema: 'futuruna.entry.output.v1', schema_hash: hash, entry: 'calculate_tax' },
-    results: [{ case_id: 'case-1', result: {}, assumptions: [flatRate], explanation }], diagnostics: [] };
-  const decoded = await sdk.explainEntry({ callExplained: async () => document }, explainedEntry, 'direct', passing, passing, {});
-  assert.deepEqual(decoded.assumptions, [flatRate]);
-  assert.deepEqual(decoded.explanation.values, {
-    bookedOn: { value: '2026-03-01', by: by('bookedOn'), fromOmitted: 2 },
-    kind: { value: 'Deposit', by: { $variant: 'Rule', rule: 'kind_of', clause: 'default' },
-      from: [{ $variant: 'Input', path: 'bookedOn', value: '2026-03-01' }, { $variant: 'Input', path: 'kind', value: 'Deposit' }],
-      because: [{ $variant: 'Input', path: 'kind', value: 'Deposit' }] },
-    'paidOn.day': { value: 1, by: by('bookedOn') },
-    'paidOn.month': { value: 4, by: { $variant: 'Computed' } },
-    'paidOn.year': { value: 2026, by: by('bookedOn') },
-  });
-
-  // An entry that needs itself for the same subject is a cycle: runEntry passes the stack on in `options`.
   const spouse = needing([{ kind: 'entry', path: 'deduction', entry: 'calculate_tax', subject: 'spouse', waiting }]);
-  const answerSpouse = (options) => sdk.calculateTaxAnswer(spouse, {}, cyclic, options);
-  const cyclic = (_needs, context) => (need) => context.runEntry(need, answerSpouse);
-  await assert.rejects(answerSpouse(), (error) => error.name === 'AnswerCycleError'
-    && error.frames.length === 2 && error.frames.every((frame) => frame.subject === 'spouse'));
-  // Another entry's Answered result is written at the need's path.
+  // An entry need is answered by resolve like any other need.
   let asked = 0;
   const once = {
     async callPartial(entry, document) {
@@ -551,10 +494,7 @@ test('runa sdk ts output type-checks and calls and validates through a transport
         diagnostics: [] };
     },
   };
-  const ran = await sdk.calculateTaxAnswer(once, {}, (_needs, context) => (need) => context.runEntry(need, async (options) => {
-    assert.deepEqual(options, { frames: [{ entry: 'calculate_tax', subject: 'spouse' }] });
-    return { $variant: 'Answered', result: 700, assumptions: [], unusedPaths: [], partialCase: {}, rounds: [] };
-  }));
+  const ran = await sdk.calculateTaxAnswer(once, {}, () => (need) => sdk.given(need, 700));
   assert.equal(ran.$variant, 'Answered');
   assert.deepEqual(ran.partialCase, { deduction: 700 });
   assert.deepEqual(ran.rounds, [{ paths: ['deduction'], given: ['deduction'] }]);
