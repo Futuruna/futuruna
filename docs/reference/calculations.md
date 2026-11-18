@@ -868,6 +868,41 @@ The full format and evolution contract is in
 cases and their needs are specified in
 [Calculation needs](../rfcs/calculation-needs.md).
 
+### Open collections
+
+Experimental (0.7). The law may ask for an entry whose key it computes: the
+account's balance on the day after a delisting. A list of a keyed record
+declared `@ field(open = True)` is never given whole; the case gives the
+entries the law asks for:
+
+```runa
+# Balance(@ field(key = True, label = "Day") day: String, @ field(label = "Value") value: Int)
+# Account(delisted: String, @ field(label = "Balance", open = True) balances: List(Balance))
+
+@ entry
+> deemed(a: Account) -> Int {
+    lookup(a.balances, a.delisted).value
+}
+```
+
+- `lookup(record.field, key)` on an open field is the entry whose key field is
+  `key`, typed `Balance`. On any other keyed list `lookup` is
+  `Some(entry)` or `None`.
+- An entry the case does not give is, in a partial case, a need whose path
+  names it by its key, `balances[day="2027-02-20"]` (the key as JSON), whose
+  `keys` carry that key and whose metadata is the field's. It is answered
+  with the whole entry. A complete call fails with an error naming the field
+  and the key.
+- `runa check` refuses every other read of an open field (`filter`, `map`,
+  `length`, a loop, a binding, passing it to a function): the case never holds
+  all of it, so no such read has a true result.
+- An open field may be left out of a case: no entries are given yet.
+- `lookup` runs in the interpreter; `runa build` and `runa run` refuse it.
+
+An entry whose key is unknown before the match keeps the result unknown with
+that key's path. A missing entry is fallible: the case does not complete past
+it. See [Open keyed inputs](../rfcs/open-keyed-inputs.md).
+
 ## Needs in the language
 
 Experimental. A program asks an entry about a case that holds
@@ -1495,6 +1530,15 @@ the need's path; the value's type is the one at the need's pattern, and a need
 not yet narrowed to one pattern takes no value. `setAt(case, path, value)` is
 the same, untyped. `fromWirePath(codec, wireCase, path)` turns an engine path
 into its TypeScript path.
+
+An entry of an [open collection](#open-collections) is needed at a path that
+names it by its key, the key field at its TypeScript name
+(`balances[day="2027-02-20"]`), with pattern `balances[]` (`[]` stands for a
+list index or an entry key) and the key in `keys`. Its answer is the whole
+entry: `given(need, { day, value })`, which `setAt` adds to the collection,
+taking the key from the path when the value leaves it out and throwing a
+`PathError` when the value gives another. The open field is optional in the
+input type, and the collection itself is no pattern.
 
 ```ts
 function answerFromLedger(c: PartialTaxCase, need: TaxReportNeed): PartialTaxCase {
