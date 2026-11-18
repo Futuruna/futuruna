@@ -907,7 +907,10 @@ entries the law asks for:
 - `runa check` refuses every other read of an open field (`filter`, `map`,
   `length`, a loop, a binding, passing it to a function): the case never holds
   all of it, so no such read has a true result.
-- An open field may be left out of a case: no entries are given yet.
+- An open field may be left out of a case or given as `[]`: no entries are
+  given yet. Its bare path is no input path (only its entries are), so it is
+  never among a result's unused paths; an empty closed list is, when the law
+  does not read it.
 - `lookup` runs in the interpreter; `runa build` and `runa run` refuse it.
 
 An entry whose key is unknown before the match keeps the result unknown with

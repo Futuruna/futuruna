@@ -1090,6 +1090,37 @@ test('an open collection: resolve gives a new entry by the key the law computed'
   assert.throws(() => sdk.setAt({}, entry, { day: '2027-02-21', value: 5 }), { name: 'PathError' });
 });
 
+/** An open and a closed collection the law may not read: both given empty. */
+const emptyModel = `# Balance(@ field(key = True) day: String, value: Int)
+# Event(@ field(key = True) id: String, amount: Int)
+# Account(delisted: String?, @ field(open = True) balances: List(Balance), events: List(Event))
+
+@ entry("Deemed distribution")
+> deemed(a: Account) -> Int {
+    match a.delisted {
+        | Some(day) -> lookup(a.balances, day).value
+        | None -> 0
+    }
+}
+`;
+
+test('an empty open collection is no input path; an empty closed one is, and the SDK accepts the engine\'s unused paths', options, async () => {
+  const dir = project('empty');
+  writeFileSync(join(dir, 'empty.entry.runa'), emptyModel);
+  run(binary, ['sdk', 'ts', 'empty.entry.runa', '--out', 'sdk'], dir);
+  compile(dir, ['sdk/index.ts']);
+  const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
+  assert.ok(!sdk.DeemedInputPatternList.includes('balances'));
+  assert.ok(sdk.DeemedInputPatternList.includes('events'));
+  // The engine's result goes through the SDK's result validator: an unused
+  // path outside its input paths is an invalid result.
+  const transport = partialCli(dir, 'empty.entry.runa');
+  const result = await sdk.deemedQuery(transport, { delisted: sdk.none, balances: [], events: [] });
+  assert.equal(result.$variant, 'Complete', JSON.stringify(result));
+  assert.equal(result.result, 0);
+  assert.deepEqual(result.unusedPaths, ['events']);
+});
+
 test('the runtime package is the compilation of the runtime source, at Futuruna\'s version', options, async () => {
   const { compileRuntime, runtimeJs, runtimeDts } = await import(pathToFileURL(join(root, 'scripts/sdk-runtime.mjs')));
   const { js, dts } = compileRuntime(deps);

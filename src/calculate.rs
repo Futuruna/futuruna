@@ -5490,13 +5490,21 @@ fn decode_named_fields(
     for field in &variant.fields {
         let field_ty = substitute_contract_type(&field.ty, substitutions);
         let field_value = match (object.get(&field.name), partial.partial) {
-            (Some(value), _) => value,
-            // An open collection is never given whole: left out, it has no
-            // entries given yet, in every case.
+            // An open collection is never given whole: left out or given as
+            // `[]`, it has no entries given yet, in every case. Its bare path
+            // is no input fact (the SDK's input paths name only its entries),
+            // so it is never a provided leaf nor an unused path.
             (None, _) if field.open => {
                 result.push((field.name.clone(), Value::List(Vec::new())));
                 continue;
             }
+            (Some(value), _)
+                if field.open && value.as_array().is_some_and(|entries| entries.is_empty()) =>
+            {
+                result.push((field.name.clone(), Value::List(Vec::new())));
+                continue;
+            }
+            (Some(value), _) => value,
             // Left out of a partial case: not asked yet.
             (None, Some(partial)) => {
                 result.push((
