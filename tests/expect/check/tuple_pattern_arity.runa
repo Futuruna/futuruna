@@ -1,0 +1,8 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: tuple pattern `(x, y, z)` has 3 elements but the value has type `Tuple(Int, Int)`
+> sum(a: Int, b: Int) -> Int {
+    match (a, b) {
+        | (x, y, z) -> x + y + z
+    }
+}

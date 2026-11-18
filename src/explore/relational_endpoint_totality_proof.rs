@@ -8954,6 +8954,12 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                         .map(|(_, child)| (child, depth.saturating_add(1))),
                 ),
                 Pat::As(child, _) => pending.push((child, depth.saturating_add(1))),
+                Pat::Tuple(children) => pending.extend(
+                    children
+                        .iter()
+                        .rev()
+                        .map(|child| (child, depth.saturating_add(1))),
+                ),
                 Pat::Wild | Pat::Var(_) | Pat::Lit(_) => {}
             }
         }
@@ -9182,6 +9188,11 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                     },
                 })
             }
+            Pat::Tuple(_) => Err(self.issue(
+                pattern_site_root,
+                RelationalEndpointTotalityIssueReason::CheckedResolutionUnavailable,
+                "tuple patterns are outside the endpoint proof syntax",
+            )),
         }
     }
 
@@ -10891,7 +10902,7 @@ fn pattern_binder_count(pattern: &Pat) -> usize {
                 binders = binders.saturating_add(1);
                 pending.push(inner);
             }
-            Pat::Con(_, children) => pending.extend(children.iter()),
+            Pat::Con(_, children) | Pat::Tuple(children) => pending.extend(children.iter()),
             Pat::NamedCon(_, fields) => {
                 pending.extend(fields.iter().map(|(_, child)| child));
             }

@@ -24,15 +24,13 @@ pub fn standard_date_field_order(
     let [variant] = variants else {
         return None;
     };
-    if name != "Date" || variant.name != "Date" || !params.is_empty() || variant.fields.len() != 3
-    {
+    if name != "Date" || variant.name != "Date" || !params.is_empty() || variant.fields.len() != 3 {
         return None;
     }
     let position = |part: &str| {
-        variant
-            .fields
-            .iter()
-            .position(|field| field.name == part && matches!(&field.ty, Ty::Name(ty) if ty == "Int"))
+        variant.fields.iter().position(|field| {
+            field.name == part && matches!(&field.ty, Ty::Name(ty) if ty == "Int")
+        })
     };
     Some([
         position(DATE_FIELDS[0])?,
@@ -85,9 +83,8 @@ fn date_comparison(operator: &str, left: &Expr, right: &Expr, span: Span) -> Exp
         _ => (right, left, false),
     };
     let node = |kind| Expr::new(kind, span);
-    let field = |value: &Expr, part: &str| {
-        node(ExprKind::Field(Box::new(value.clone()), part.to_string()))
-    };
+    let field =
+        |value: &Expr, part: &str| node(ExprKind::Field(Box::new(value.clone()), part.to_string()));
     let binary = |operator: &str, left: Expr, right: Expr| {
         node(ExprKind::BinOp(
             operator.to_string(),

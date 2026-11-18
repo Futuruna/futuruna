@@ -1141,6 +1141,11 @@ fn visit_pattern_constructors(
                 output.insert(owner.clone());
             }
         }
+        Pat::Tuple(patterns) => {
+            for pattern in patterns {
+                visit_pattern_constructors(pattern, ctor_to_type, output);
+            }
+        }
         Pat::Wild | Pat::Lit(_) => {}
     }
 }
@@ -1163,6 +1168,11 @@ fn visit_pattern_constructor_names(pattern: &Pat, output: &mut BTreeSet<String>)
         Pat::As(inner, _) => visit_pattern_constructor_names(inner, output),
         Pat::Var(name) => {
             output.insert(name.clone());
+        }
+        Pat::Tuple(patterns) => {
+            for pattern in patterns {
+                visit_pattern_constructor_names(pattern, output);
+            }
         }
         Pat::Wild | Pat::Lit(_) => {}
     }

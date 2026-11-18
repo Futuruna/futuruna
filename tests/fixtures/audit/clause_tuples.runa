@@ -1,0 +1,15 @@
+# Date(year: Int, month: Int, day: Int)
+
+-- A right lost and an account closed, matched together. A right lost after
+-- the account closed is not covered; an account never lost is taken by the
+-- third clause before the fourth.
+| levy(lost_right: Date?, closed: Date?): Int
+| levy(lost_right, closed) -> 0 under match (lost_right, closed) { | (Some(_), None) -> True | _ -> False }
+| levy(lost_right, closed) -> 1 under match (lost_right, closed) { | (Some(lost), Some(end)) -> end < lost | _ -> False }
+| levy(lost_right, closed) -> 2 under is_none(lost_right)
+| levy(lost_right, closed) -> 3 under match (lost_right, closed) { | (None, Some(_)) -> True | _ -> False }
+
+-- Every pair is covered.
+| state(lost_right: Date?, closed: Date?): Int
+| state(lost_right, closed) -> 0 under match (lost_right, closed) { | (Some(_), _) -> True | _ -> False }
+| state(lost_right, closed) -> 1 under match (lost_right, closed) { | (None, _) -> True | _ -> False }

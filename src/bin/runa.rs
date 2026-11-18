@@ -9537,6 +9537,11 @@ fn collect_generated_rust_pattern_names(pattern: &Pat, names: &mut BTreeSet<Stri
             names.insert(name.clone());
             collect_generated_rust_pattern_names(inner, names);
         }
+        Pat::Tuple(children) => {
+            for child in children {
+                collect_generated_rust_pattern_names(child, names);
+            }
+        }
         Pat::Wild | Pat::Lit(_) => {}
     }
 }
@@ -9834,6 +9839,14 @@ fn explore_native_classifier_constructor_pattern_is_resolved_v2(
                 inner,
                 multiply_owned_fielded,
             );
+        }
+        Pat::Tuple(children) => {
+            return children.iter().all(|child| {
+                explore_native_classifier_constructor_pattern_is_resolved_v2(
+                    child,
+                    multiply_owned_fielded,
+                )
+            });
         }
         Pat::Wild | Pat::Var(_) | Pat::Lit(_) => return true,
     };
@@ -14470,6 +14483,9 @@ fn validate_smt_qualified_pattern(
     match pattern {
         Pat::Wild | Pat::Var(_) | Pat::Lit(_) => Ok(()),
         Pat::As(inner, _) => validate_smt_qualified_pattern(inner, namespace_display_name),
+        Pat::Tuple(elements) => elements
+            .iter()
+            .try_for_each(|element| validate_smt_qualified_pattern(element, namespace_display_name)),
         Pat::Con(..) | Pat::NamedCon(..) => Err(format!(
             "qualified SMT namespace `{}` uses a nominal match pattern; nominal qualified types are not yet supported and fail closed",
             namespace_display_name
@@ -16791,7 +16807,7 @@ fn collect_smt_pattern_bindings(pattern: &Pat, output: &mut BTreeSet<String>) {
         Pat::Var(name) => {
             output.insert(name.clone());
         }
-        Pat::Con(_, patterns) => {
+        Pat::Con(_, patterns) | Pat::Tuple(patterns) => {
             for pattern in patterns {
                 collect_smt_pattern_bindings(pattern, output);
             }
@@ -16873,6 +16889,9 @@ fn smt_pattern_support_reason(pat: &Pat) -> Option<String> {
             Some("string and char literal patterns are not translatable to SMT".into())
         }
         Pat::As(_, _) => Some("alias patterns are not translatable to SMT".into()),
+        Pat::Tuple(_) => {
+            Some("tuple patterns translate to SMT only against a tuple of values".into())
+        }
     }
 }
 
@@ -16946,9 +16965,31 @@ fn smt_expr_support_reason(
             .or_else(|| smt_expr_support_reason(else_, fn_names, ctor_names)),
         ExprKind::Field(obj, _) => smt_expr_support_reason(obj, fn_names, ctor_names),
         ExprKind::Match(scrutinee, arms) => {
-            smt_expr_support_reason(scrutinee, fn_names, ctor_names).or_else(|| {
+            // A tuple of values is matched element by element; it is not
+            // itself a value of the encoding.
+            let tuple = match &scrutinee.kind {
+                ExprKind::Tuple(items) => Some(items),
+                _ => None,
+            };
+            let pattern_reason = |pat: &Pat| match (tuple, pat) {
+                (None, pat) => smt_pattern_support_reason(pat),
+                (Some(_), Pat::Wild) => None,
+                (Some(items), Pat::Tuple(elements)) if elements.len() == items.len() => {
+                    elements.iter().find_map(smt_pattern_support_reason)
+                }
+                (Some(_), _) => {
+                    Some("a tuple of values is matched only by tuple patterns of its arity".into())
+                }
+            };
+            match tuple {
+                Some(items) => items
+                    .iter()
+                    .find_map(|item| smt_expr_support_reason(item, fn_names, ctor_names)),
+                None => smt_expr_support_reason(scrutinee, fn_names, ctor_names),
+            }
+            .or_else(|| {
                 arms.iter().find_map(|arm| {
-                    smt_pattern_support_reason(&arm.pat)
+                    pattern_reason(&arm.pat)
                         .or_else(|| {
                             arm.guard.as_ref().and_then(|guard| {
                                 smt_expr_support_reason(guard, fn_names, ctor_names)
@@ -17679,7 +17720,7 @@ impl SmtRuleLowerer<'_, '_> {
             Pat::Var(name) => self.unique_nullary_constructor_parent(name),
             Pat::As(inner, _) => self.pattern_type(inner),
             Pat::Lit(Literal::Int(_)) => Some("Int".to_string()),
-            Pat::Wild | Pat::Lit(_) => None,
+            Pat::Wild | Pat::Lit(_) | Pat::Tuple(_) => None,
         }
     }
 
@@ -17925,10 +17966,7 @@ fn expr_to_smt(expr: &Expr) -> String {
             format!("({} {})", smt_field_function(field), expr_to_smt(obj))
         }
         // Match expression → nested ite with Z3 constructor testers
-        ExprKind::Match(scrutinee, arms) => {
-            let scrut = expr_to_smt(scrutinee);
-            smt_match_arms(&scrut, arms, 0)
-        }
+        ExprKind::Match(scrutinee, arms) => smt_match_arms(scrutinee, arms),
         ExprKind::Block(stmts) => {
             if stmts.len() == 1 {
                 if let Stmt::Expr(inner) = &stmts[0] {
@@ -17969,8 +18007,8 @@ fn expr_to_smt(expr: &Expr) -> String {
 }
 
 /// Convert match arms to nested Z3 ite expressions with constructor testers
-fn smt_match_arms(scrut: &str, arms: &[MatchArm], idx: usize) -> String {
-    runa_verification_arithmetic::match_value(scrut, &arms[idx..])
+fn smt_match_arms(scrutinee: &Expr, arms: &[MatchArm]) -> String {
+    runa_verification_arithmetic::match_value(scrutinee, arms)
         .unwrap_or_else(|reason| format!("; {reason}"))
 }
 
@@ -19894,7 +19932,9 @@ fn smt_inline_generic_calls(mut statements: Vec<Stmt>) -> Vec<Stmt> {
             };
             if depth >= SMT_INLINE_DEPTH
                 || params.len() != arguments.len()
-                || arguments.iter().any(|argument| named_arg_parts(argument).is_some())
+                || arguments
+                    .iter()
+                    .any(|argument| named_arg_parts(argument).is_some())
             {
                 return;
             }
@@ -22516,6 +22556,14 @@ fn summarize_pat_for_library(pat: &Pat) -> String {
         Pat::Lit(lit) => lit.to_string(),
         Pat::Con(name, _) | Pat::NamedCon(name, _) => name.clone(),
         Pat::As(_, alias) => alias.clone(),
+        Pat::Tuple(elements) => format!(
+            "({})",
+            elements
+                .iter()
+                .map(summarize_pat_for_library)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
     }
 }
 
@@ -29216,6 +29264,17 @@ impl<'a> LoweringCtx<'a> {
                 self.type_env.insert(name.clone(), ty.clone());
                 self.bind_pat_ty(inner, ty);
             }
+            Pat::Tuple(elements) => {
+                for (index, element) in elements.iter().enumerate() {
+                    let element_ty = match ty {
+                        FirTy::Tuple(element_tys) if element_tys.len() == elements.len() => {
+                            element_tys[index].clone()
+                        }
+                        _ => FirTy::Unknown,
+                    };
+                    self.bind_pat_ty(element, &element_ty);
+                }
+            }
             Pat::Wild | Pat::Lit(_) => {}
         }
     }
@@ -30852,6 +30911,14 @@ fn format_pat(pat: &Pat) -> String {
             format!("{} {{ {} }}", name, field_strs.join(", "))
         }
         Pat::As(pat, alias) => format!("{} @ {}", format_pat(pat), alias),
+        Pat::Tuple(elements) => format!(
+            "({})",
+            elements
+                .iter()
+                .map(format_pat)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
     }
 }
 
@@ -30988,6 +31055,25 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
             format_pat_with_expected_ty(inner, expected_ty, types),
             sanitize_name(alias)
         ),
+        Pat::Tuple(elements) => {
+            let element_tys = match expected_ty {
+                FirTy::Tuple(element_tys) if element_tys.len() == elements.len() => {
+                    Some(element_tys)
+                }
+                _ => None,
+            };
+            let elements = elements
+                .iter()
+                .enumerate()
+                .map(|(index, element)| {
+                    let element_ty = element_tys
+                        .map(|element_tys| element_tys[index].clone())
+                        .unwrap_or(FirTy::Unknown);
+                    format_pat_with_expected_ty(element, &element_ty, types)
+                })
+                .collect::<Vec<_>>();
+            format!("({})", elements.join(", "))
+        }
     }
 }
 
@@ -36875,6 +36961,17 @@ impl RustCodegen {
             Pat::As(inner, name) => {
                 type_env.insert(name.clone(), ty.clone());
                 self.bind_pat_into_type_env(inner, ty, type_env);
+            }
+            Pat::Tuple(elements) => {
+                for (index, element) in elements.iter().enumerate() {
+                    let element_ty = match ty {
+                        FirTy::Tuple(element_tys) if element_tys.len() == elements.len() => {
+                            element_tys[index].clone()
+                        }
+                        _ => FirTy::Unknown,
+                    };
+                    self.bind_pat_into_type_env(element, &element_ty, type_env);
+                }
             }
             Pat::Wild | Pat::Lit(_) => {}
         }
@@ -57391,6 +57488,12 @@ fn __futuruna_install_error_hook() {
                 .cloned()
                 .map(FirTy::Named)
                 .unwrap_or(FirTy::Unknown),
+            Pat::Tuple(elements) => FirTy::Tuple(
+                elements
+                    .iter()
+                    .map(|element| self.actor_message_pat_payload_ty(element, resolved_vars))
+                    .collect(),
+            ),
         }
     }
 
@@ -57880,6 +57983,14 @@ fn __futuruna_install_error_hook() {
                     sanitize_name(name)
                 )
             }
+            Pat::Tuple(elements) => format!(
+                "({})",
+                elements
+                    .iter()
+                    .map(|element| self.emit_pattern_binding(element))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
         }
     }
 
@@ -58086,6 +58197,26 @@ fn __futuruna_install_error_hook() {
                     self.emit_pattern_with_boxing_and_expected_ty(inner, inside_box, expected_ty),
                     sanitize_name(name)
                 )
+            }
+            Pat::Tuple(elements) => {
+                let element_tys = match expected_ty {
+                    Some(FirTy::Tuple(element_tys)) if element_tys.len() == elements.len() => {
+                        Some(element_tys)
+                    }
+                    _ => None,
+                };
+                let elements = elements
+                    .iter()
+                    .enumerate()
+                    .map(|(index, element)| {
+                        self.emit_pattern_with_boxing_and_expected_ty(
+                            element,
+                            false,
+                            element_tys.map(|element_tys| &element_tys[index]),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                format!("({})", elements.join(", "))
             }
         }
     }

@@ -1826,6 +1826,21 @@ impl ConstructorScopeWalk<'_> {
                 }
             }
             Pat::As(inner, _) => self.pattern(inner, subject),
+            Pat::Tuple(elements) => {
+                let element_types = match subject {
+                    Some(Ty::App(head, arguments))
+                        if matches!(head.as_ref(), Ty::Name(name) if name == "Tuple")
+                            && arguments.len() == elements.len() =>
+                    {
+                        Some(arguments)
+                    }
+                    _ => None,
+                };
+                for (index, element) in elements.iter_mut().enumerate() {
+                    let ty = element_types.and_then(|types| types.get(index));
+                    self.pattern(element, ty);
+                }
+            }
             Pat::Wild | Pat::Var(_) | Pat::Lit(_) => {}
         }
     }

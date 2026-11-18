@@ -366,6 +366,25 @@ match point {
 }
 ```
 
+A tuple pattern `(p1, p2, ...)` matches a tuple element by element, so two
+values are matched together by matching the tuple of both:
+```runa
+match (lost_right, closed) {
+    | (Some(lost), None) -> lost
+    | (_, Some(end)) -> end
+    | (None, None) -> start
+}
+```
+
+The arms of a tuple match are checked for exhaustiveness together, row by row,
+so the combinations count: without the `(None, None)` arm the match above is a
+`non-exhaustive match` error, though each element on its own has a `None` arm.
+A tuple pattern needs as many elements as the tuple has; a `Pair(a, b)` is the
+tuple `(a, b)` and matches the same way.
+`runa verify` and `runa audit` translate a match on a tuple written in place,
+such as `match (a, b)`, element by element; a tuple held in a binding is
+matched by the interpreter and native code but is not translated to SMT.
+
 ### for loop
 ```runa
 for item in collection {

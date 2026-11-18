@@ -980,7 +980,7 @@ impl TypeChecker {
         match pattern {
             Pat::Con(name, _) | Pat::NamedCon(name, _) => Some(bare_constructor_name(name)),
             Pat::As(inner, _) => Self::pattern_variant_name(inner),
-            Pat::Var(_) | Pat::Wild | Pat::Lit(_) => None,
+            Pat::Var(_) | Pat::Wild | Pat::Lit(_) | Pat::Tuple(_) => None,
         }
     }
 

@@ -5688,6 +5688,8 @@ pub enum Pat {
     Con(String, Vec<Pat>),
     NamedCon(String, Vec<(String, Pat)>), // Circle(radius: r) — named field destructure
     As(Box<Pat>, String),
+    /// `(p1, p2, ...)`: two or more element patterns of a tuple.
+    Tuple(Vec<Pat>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -8277,7 +8279,7 @@ pub fn collect_pattern_names(pat: &Pat, names: &mut BTreeSet<String>) {
         Pat::Var(name) => {
             names.insert(name.clone());
         }
-        Pat::Con(_, patterns) => {
+        Pat::Con(_, patterns) | Pat::Tuple(patterns) => {
             for pattern in patterns {
                 collect_pattern_names(pattern, names);
             }
@@ -14525,6 +14527,22 @@ impl Parser {
                     Ok(Pat::Lit(Literal::Int(value)))
                 }
             }
+            // `(p1, p2, ...)` matches a tuple element by element; `(p)` is `p`.
+            TokenKind::LParen => {
+                let open = self.advance();
+                let mut elements =
+                    self.parse_comma_separated(TokenKind::RParen, "tuple pattern", |parser| {
+                        parser.parse_pattern()
+                    })?;
+                match elements.len() {
+                    0 => Err(format!(
+                        "{}:{}: expected a pattern, got `()`",
+                        open.line, open.col
+                    )),
+                    1 => Ok(elements.pop().expect("one element")),
+                    _ => Ok(Pat::Tuple(elements)),
+                }
+            }
             _ => {
                 let tok = self.peek();
                 Err(format!(
@@ -16246,6 +16264,15 @@ fn runtime_pair_tuple_operands(left: &Value, right: &Value) -> Option<(Value, Va
         (Value::Tuple(_), _) => Some((left.clone(), as_tuple(right)?)),
         (_, Value::Tuple(_)) => Some((as_tuple(left)?, right.clone())),
         _ => None,
+    }
+}
+
+/// The elements a tuple pattern matches: those of a tuple, or of a `Pair`,
+/// the two-element tuple.
+pub(crate) fn tuple_pattern_items(value: &Value) -> Option<Vec<&Value>> {
+    match value {
+        Value::Tuple(items) => Some(items.iter().collect()),
+        _ => runtime_pair_fields(value).map(|(fst, snd)| vec![fst, snd]),
     }
 }
 
@@ -21831,7 +21858,7 @@ impl Interpreter {
     fn collect_pattern_binding_names(pattern: &Pat, names: &mut Vec<String>) {
         match pattern {
             Pat::Var(name) => names.push(name.clone()),
-            Pat::Con(_, patterns) => {
+            Pat::Con(_, patterns) | Pat::Tuple(patterns) => {
                 for pattern in patterns {
                     Self::collect_pattern_binding_names(pattern, names);
                 }
@@ -28389,6 +28416,12 @@ impl Interpreter {
                     false
                 }
             }
+            (Pat::Tuple(patterns), _) => tuple_pattern_items(val).is_some_and(|items| {
+                items.len() == patterns.len()
+                    && patterns.iter().zip(items).all(|(pattern, item)| {
+                        self.match_pattern_with_options(pattern, item, env, false)
+                    })
+            }),
             _ => false,
         }
     }
@@ -34625,6 +34658,15 @@ fn checked_explore_classifier_validate_constructor_pattern_v1(
                 multiply_owned_fielded,
             );
         }
+        Pat::Tuple(children) => {
+            for child in children {
+                checked_explore_classifier_validate_constructor_pattern_v1(
+                    child,
+                    multiply_owned_fielded,
+                )?;
+            }
+            return Ok(());
+        }
         Pat::Wild | Pat::Var(_) | Pat::Lit(_) => return Ok(()),
     };
 
@@ -36063,7 +36105,7 @@ impl<'a> CheckedExploreSemanticIndex<'a> {
                     name.clone().into_boxed_str(),
                 );
             }
-            Pat::Con(_, children) => {
+            Pat::Con(_, children) | Pat::Tuple(children) => {
                 for (index, child) in children.iter().enumerate() {
                     let mut child_path = path.clone();
                     child_path.push(index as u32);
@@ -39673,6 +39715,19 @@ impl<'a, 'index> CheckedExploreSemanticClosure<'a, 'index> {
                 let binder = Self::structural_binder(anchor, ast_path, binder_path);
                 self.reserve_binder(binder.clone());
                 self.hash_binder_reference(hasher, binder);
+            }
+            Pat::Tuple(children) => {
+                checked_query_hash_component(hasher, "pattern-kind", "tuple");
+                checked_query_hash_component(
+                    hasher,
+                    "pattern-child-count",
+                    &children.len().to_string(),
+                );
+                for (index, child) in children.iter().enumerate() {
+                    let mut child_path = pattern_path.clone();
+                    child_path.push(index as u32);
+                    self.hash_pattern(hasher, anchor, ast_path, child, child_path)?;
+                }
             }
         }
         Ok(())
@@ -46599,7 +46654,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
                         binder_path: binder_path.into_boxed_slice(),
                     });
             }
-            Pat::Con(_, patterns) => {
+            Pat::Con(_, patterns) | Pat::Tuple(patterns) => {
                 for (index, pattern) in patterns.iter().enumerate() {
                     let mut child = path.clone();
                     child.push(index as u32);
@@ -48259,6 +48314,15 @@ impl<'a> CheckedResolutionRecorder<'a> {
                     },
                 );
             }
+            Pat::Tuple(children) => {
+                for (index, child) in children.iter().enumerate() {
+                    let mut child_path = pattern_path.clone();
+                    child_path.push(index as u32);
+                    let child_type =
+                        TypeChecker::tuple_pattern_element_type_name(type_name.as_deref(), index);
+                    self.define_pattern(declaration, ast_path, child, child_path, kind, child_type);
+                }
+            }
             Pat::Wild | Pat::Lit(_) => {}
         }
     }
@@ -48309,6 +48373,11 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 child,
                 pattern_path,
             ),
+            Pat::Tuple(children) => children.iter().enumerate().find_map(|(index, child)| {
+                let mut child_path = pattern_path.clone();
+                child_path.push(index as u32);
+                self.first_unresolved_constructor_pattern(declaration, ast_path, child, child_path)
+            }),
             Pat::Wild | Pat::Var(_) | Pat::Lit(_) => None,
         }
     }
@@ -54224,6 +54293,12 @@ impl TypeChecker {
                 }
                 self.collect_pattern_type_bindings(inner, subject_type, bindings);
             }
+            Pat::Tuple(elements) => {
+                for (index, element) in elements.iter().enumerate() {
+                    let element_type = Self::tuple_pattern_element_type_name(subject_type, index);
+                    self.collect_pattern_type_bindings(element, element_type.as_deref(), bindings);
+                }
+            }
             Pat::Wild | Pat::Lit(_) => {}
         }
     }
@@ -56802,6 +56877,7 @@ impl TypeChecker {
             Pat::NamedCon(_, fields) => fields
                 .iter()
                 .all(|(_, pattern)| Self::canonical_pattern_is_subject_catchall(pattern)),
+            Pat::Tuple(elements) => elements.iter().all(Self::canonical_pattern_is_irrefutable),
             Pat::Lit(_) => false,
         }
     }
@@ -56810,6 +56886,10 @@ impl TypeChecker {
         match pattern {
             Pat::Wild | Pat::Var(_) => true,
             Pat::As(inner, _) => Self::canonical_pattern_is_subject_catchall(inner),
+            // A well-typed tuple pattern's subject is a tuple of its arity.
+            Pat::Tuple(elements) => elements
+                .iter()
+                .all(Self::canonical_pattern_is_subject_catchall),
             Pat::Lit(_) | Pat::Con(_, _) | Pat::NamedCon(_, _) => false,
         }
     }
@@ -56885,6 +56965,19 @@ impl TypeChecker {
                     .map(|expected| self.canonical_pattern_is_well_typed(pattern, &expected))
                     .unwrap_or_else(|| Self::canonical_pattern_is_irrefutable(pattern))
                 })
+            }
+            Pat::Tuple(elements) => {
+                let Ok(Ty::App(head, element_types)) = parse_type_annotation(subject_type) else {
+                    return false;
+                };
+                matches!(head.as_ref(), Ty::Name(name) if name == "Tuple")
+                    && element_types.len() == elements.len()
+                    && elements
+                        .iter()
+                        .zip(&element_types)
+                        .all(|(element, expected)| {
+                            self.canonical_pattern_is_well_typed(element, &expected.to_string())
+                        })
             }
         }
     }
@@ -64557,7 +64650,7 @@ impl TypeChecker {
     pub fn define_pat_vars(&mut self, pat: &Pat) {
         match pat {
             Pat::Var(name) => self.define_var(name),
-            Pat::Con(_, pats) => {
+            Pat::Con(_, pats) | Pat::Tuple(pats) => {
                 for p in pats {
                     self.define_pat_vars(p);
                 }
@@ -64594,7 +64687,7 @@ impl TypeChecker {
         match pat {
             Pat::Wild | Pat::Lit(_) => true,
             Pat::Con(_, args) => args.is_empty(),
-            Pat::Var(_) | Pat::NamedCon(_, _) | Pat::As(_, _) => false,
+            Pat::Var(_) | Pat::NamedCon(_, _) | Pat::As(_, _) | Pat::Tuple(_) => false,
         }
     }
 
@@ -64680,8 +64773,48 @@ impl TypeChecker {
                 }
             }
             Pat::As(inner, _) => self.check_pattern_constructor_arity(inner, anchor, subject_type),
+            Pat::Tuple(elements) => {
+                let subject = subject_type.and_then(|ty| parse_type_annotation(ty).ok());
+                let element_types = match &subject {
+                    Some(Ty::App(head, arguments)) if matches!(head.as_ref(), Ty::Name(name) if name == "Tuple" || name == "Pair") => {
+                        Some(arguments)
+                    }
+                    _ => None,
+                };
+                let fits = element_types.is_some_and(|types| types.len() == elements.len());
+                // A type variable or an unknown type is not a known misfit.
+                let known = subject
+                    .as_ref()
+                    .is_some_and(|ty| ty.to_string().starts_with(|c: char| c.is_ascii_uppercase()));
+                if !fits && known {
+                    self.error_at_expr(
+                        anchor,
+                        format!(
+                            "tuple pattern `{}` has {} elements but the value has type `{}`",
+                            Self::pattern_label(pat),
+                            elements.len(),
+                            subject_type.unwrap_or_default()
+                        ),
+                    );
+                }
+                for (index, element) in elements.iter().enumerate() {
+                    let element_type = Self::tuple_pattern_element_type_name(subject_type, index);
+                    self.check_pattern_constructor_arity(element, anchor, element_type.as_deref());
+                }
+            }
             Pat::Wild | Pat::Var(_) | Pat::Lit(_) => {}
         }
+    }
+
+    /// The type of element `index` of a tuple of type `subject` (a
+    /// `Pair(a, b)` is the tuple `(a, b)`).
+    pub(crate) fn tuple_pattern_element_type_name(
+        subject: Option<&str>,
+        index: usize,
+    ) -> Option<String> {
+        let subject = subject?;
+        Self::applied_type_argument(subject, "Tuple", index)
+            .or_else(|| Self::applied_type_argument(subject, "Pair", index))
     }
 
     fn pattern_label(pat: &Pat) -> String {
@@ -64691,6 +64824,14 @@ impl TypeChecker {
             Pat::Con(name, _) | Pat::NamedCon(name, _) => name.clone(),
             Pat::Lit(lit) => lit.to_string(),
             Pat::As(_, name) => name.clone(),
+            Pat::Tuple(elements) => format!(
+                "({})",
+                elements
+                    .iter()
+                    .map(Self::pattern_label)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
         }
     }
 
@@ -64726,6 +64867,40 @@ impl TypeChecker {
             return None;
         }
         *budget -= 1;
+        // A tuple has one shape: its column becomes one column per element.
+        if let Some(arity) = rows
+            .iter()
+            .find_map(|row| match Self::coverage_pattern(&row[0]) {
+                Pat::Tuple(elements) => Some(elements.len()),
+                _ => None,
+            })
+        {
+            let specialized = rows
+                .iter()
+                .filter_map(|row| {
+                    let elements = match Self::coverage_pattern(&row[0]) {
+                        Pat::Tuple(elements) if elements.len() == arity => elements.clone(),
+                        Pat::Con(name, elements) if name == "Pair" && elements.len() == arity => {
+                            elements.clone()
+                        }
+                        Pat::Wild | Pat::Var(_) => vec![Pat::Wild; arity],
+                        // Another arity is a type error reported with the pattern.
+                        _ => return None,
+                    };
+                    Some(
+                        elements
+                            .into_iter()
+                            .chain(row[1..].iter().cloned())
+                            .collect(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let element_types = (0..arity)
+                .map(|index| Self::tuple_pattern_element_type_name(types[0].as_deref(), index))
+                .chain(types[1..].iter().cloned())
+                .collect::<Vec<_>>();
+            return self.match_pattern_rows_cover(&specialized, &element_types, budget, depth + 1);
+        }
         let inferred = types[0].clone().or_else(|| {
             rows.iter()
                 .find_map(|row| match Self::coverage_pattern(&row[0]) {

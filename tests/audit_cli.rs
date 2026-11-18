@@ -868,11 +868,43 @@ fn clause_audit_analyses_option_guards() {
     );
     // `is_some` takes every closed account first.
     let levy = finding_block(&stdout, "Unreachable clause in levy_days/2: ");
-    assert!(levy.contains("clause_options.runa:11 never fires"), "{levy}");
+    assert!(
+        levy.contains("clause_options.runa:11 never fires"),
+        "{levy}"
+    );
     let overlap = finding_block(&stdout, "Overlapping guards in rate/2: ");
     assert!(overlap.contains("closed = (Some (Date "), "{overlap}");
     let gap = finding_block(&stdout, "Gap in draw_by/2: ");
     assert!(gap.contains("closed = (Some (Date "), "{gap}");
     assert!(!stdout.contains("in period_end/2"), "{stdout}");
     assert!(!stdout.contains("in status/1"), "{stdout}");
+}
+
+/// A match on a tuple of two Options is analysed element by element.
+#[test]
+fn clause_audit_analyses_tuple_matches() {
+    let fixture = topology_fixture("clause_tuples.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("2 rule families, 6 clauses: 6 analyzed, 0 not analyzed"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("1 unreachable clause, 0 overlapping guards, 1 gap"),
+        "{stdout}"
+    );
+    // `is_none(lost_right)` takes every pair `(None, Some(_))` first.
+    let levy = finding_block(&stdout, "Unreachable clause in levy/2: ");
+    assert!(levy.contains("clause_tuples.runa:10 never fires"), "{levy}");
+    // A right lost after the account closed: both are present.
+    let gap = finding_block(&stdout, "Gap in levy/2: ");
+    assert!(
+        gap.contains("lost_right = (Some (Date ") && gap.contains("closed = (Some (Date "),
+        "{gap}"
+    );
+    assert!(!stdout.contains("in state/2"), "{stdout}");
 }

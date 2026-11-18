@@ -698,6 +698,9 @@ impl<'a> Renamer<'a> {
             Pat::NamedCon(_, fields) => fields
                 .iter_mut()
                 .for_each(|(_, field)| self.declared_pattern(field)),
+            Pat::Tuple(elements) => elements
+                .iter_mut()
+                .for_each(|element| self.declared_pattern(element)),
             Pat::Wild | Pat::Lit(_) => {}
         }
     }

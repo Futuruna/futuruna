@@ -651,6 +651,11 @@ fn collect_pattern_names(pattern: &Pat, names: &mut Vec<String>) {
             collect_pattern_names(inner, names);
             names.push(name.clone());
         }
+        Pat::Tuple(elements) => {
+            for element in elements {
+                collect_pattern_names(element, names);
+            }
+        }
         Pat::Wild | Pat::Lit(_) => {}
     }
 }

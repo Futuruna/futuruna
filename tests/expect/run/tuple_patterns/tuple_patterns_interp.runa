@@ -1,0 +1,46 @@
+-- expect-command: interp
+-- expect-stdout-file: ../../golden/run/tuple_patterns.stdout
+-- Two Options matched together: a tuple pattern matches a tuple element by
+-- element, and the arms are checked for exhaustiveness together.
+# Date(year: Int, month: Int, day: Int)
+
+> status(lost_right: Date?, closed: Date?) -> String {
+    match (lost_right, closed) {
+        | (Some(lost), None) -> "lost in " + show(lost.year)
+        | (Some(lost), Some(end)) if end < lost -> "closed before the loss"
+        | (Some(_), Some(_)) -> "lost while open"
+        | (None, Some(end)) -> "closed in " + show(end.year)
+        | (None, None) -> "open"
+    }
+}
+
+> quadrant(x: Int, y: Int) -> Int {
+    match (x >= 0, y >= 0) {
+        | (True, True) -> 1
+        | (False, True) -> 2
+        | (False, False) -> 3
+        | (True, False) -> 4
+    }
+}
+
+> split(n: Int) -> (Int, Int) { (n / 10, n % 10) }
+
+> digits(n: Int) -> String {
+    match split(n) {
+        | (0, d) -> "one digit: " + show(d)
+        | (tens, 0) -> "round: " + show(tens)
+        | (tens, d) -> show(tens) + " and " + show(d)
+    }
+}
+
+= day = Date(year = 2026, month = 3, day = 1)
+= later = Date(year = 2027, month = 3, day = 1)
+@ print(status(Some(day), None))
+@ print(status(Some(later), Some(day)))
+@ print(status(Some(day), Some(later)))
+@ print(status(None, Some(later)))
+@ print(status(None, None))
+@ print(show([quadrant(1, 1), quadrant(-1, 1), quadrant(-1, -1), quadrant(1, -1)]))
+@ print(digits(7))
+@ print(digits(40))
+@ print(digits(42))

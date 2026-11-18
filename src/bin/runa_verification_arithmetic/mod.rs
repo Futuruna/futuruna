@@ -151,11 +151,33 @@ fn pattern(pat: &Pat, value: &str, bindings: &mut Vec<(String, String)>) -> Resu
     }
 }
 
-pub(super) fn match_value(scrutinee: &str, arms: &[MatchArm]) -> Result<String, String> {
+/// The test of one arm's pattern against the scrutinee. A tuple of values,
+/// `match (a, b) { | (Some(x), None) -> … }`, is matched element by element;
+/// the tuple itself has no SMT value.
+fn arm_pattern(
+    pat: &Pat,
+    scrutinee: &Expr,
+    bindings: &mut Vec<(String, String)>,
+) -> Result<String, String> {
+    let ExprKind::Tuple(items) = &scrutinee.kind else {
+        return pattern(pat, &expr_to_smt(scrutinee), bindings);
+    };
+    match pat {
+        Pat::Wild => Ok("true".into()),
+        Pat::Tuple(elements) if elements.len() == items.len() => Ok(and(elements
+            .iter()
+            .zip(items)
+            .map(|(element, item)| pattern(element, &expr_to_smt(item), bindings))
+            .collect::<Result<Vec<_>, _>>()?)),
+        _ => Err("a tuple of values is matched only by tuple patterns of its arity".into()),
+    }
+}
+
+pub(super) fn match_value(scrutinee: &Expr, arms: &[MatchArm]) -> Result<String, String> {
     let mut rest = None;
     for arm in arms.iter().rev() {
         let mut bindings = Vec::new();
-        let test = pattern(&arm.pat, scrutinee, &mut bindings)?;
+        let test = arm_pattern(&arm.pat, scrutinee, &mut bindings)?;
         let condition = and([
             test,
             let_bindings(
@@ -242,11 +264,10 @@ pub(super) fn definedness(
         ])),
         ExprKind::Field(object, _) => defined(object),
         ExprKind::Match(scrutinee, arms) => {
-            let value = expr_to_smt(scrutinee);
             let mut rest = "false".into();
             for arm in arms.iter().rev() {
                 let mut bindings = Vec::new();
-                let test = pattern(&arm.pat, &value, &mut bindings)?;
+                let test = arm_pattern(&arm.pat, scrutinee, &mut bindings)?;
                 let guard_value = let_bindings(
                     &bindings,
                     arm.guard

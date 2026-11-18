@@ -1148,7 +1148,7 @@ pub(crate) fn bind_pattern_variables(pattern: &Pat, value: &Value, env: &mut Env
             env.set(name.clone(), value.clone());
             bind_pattern_variables(inner, value, env);
         }
-        Pat::Con(_, arguments) => {
+        Pat::Con(_, arguments) | Pat::Tuple(arguments) => {
             for argument in arguments {
                 bind_pattern_variables(argument, value, env);
             }
@@ -1301,6 +1301,22 @@ impl Interpreter {
                         return PatternFit::Refuted;
                     };
                     match self.pattern_fit(field_pattern, item, env, false) {
+                        PatternFit::Refuted => return PatternFit::Refuted,
+                        PatternFit::Fits(more) => paths.extend(more),
+                    }
+                }
+                PatternFit::Fits(paths)
+            }
+            (Pat::Tuple(patterns), _) => {
+                let Some(items) = tuple_pattern_items(value) else {
+                    return PatternFit::Fits(unknown_paths(value, true).unwrap_or_default());
+                };
+                if patterns.len() != items.len() {
+                    return PatternFit::Refuted;
+                }
+                let mut paths = BTreeSet::new();
+                for (pattern, item) in patterns.iter().zip(items) {
+                    match self.pattern_fit(pattern, item, env, false) {
                         PatternFit::Refuted => return PatternFit::Refuted,
                         PatternFit::Fits(more) => paths.extend(more),
                     }
