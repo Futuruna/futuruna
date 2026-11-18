@@ -1,7 +1,7 @@
 -- A program whose imported module calls `lookup` runs in the interpreter
 -- only, as one that calls it itself: its check generates no Rust.
 -- expect-command: check
--- expect-stdout: interpreted (lookup)
+-- expect-stderr: interpreted (lookup)
 -- expect-stderr-not: rustc
 -- roundtrip-skip: imports a module that calls `lookup`, which runs only in the interpreter
 
