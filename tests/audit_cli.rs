@@ -815,3 +815,35 @@ fn clause_audit_runs_with_keys_on_shared_constructors() {
     assert_eq!(clauses["summary"]["clauses"], 2, "{clauses}");
     assert_eq!(clauses["summary"]["analyzed"], 2, "{clauses}");
 }
+
+/// Dates are ordered chronologically in the SMT encoding as at run time.
+#[test]
+fn clause_audit_orders_dates() {
+    let fixture = topology_fixture("clause_dates.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("3 rule families, 8 clauses: 8 analyzed, 0 not analyzed"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("2 unreachable clause, 1 overlapping guards, 0 gap"),
+        "{stdout}"
+    );
+    // `<=` and `>=` meet on equal dates and together cover every pair, so
+    // the default below them never fires.
+    let overlap = finding_block(&stdout, "Overlapping guards in band/2: ");
+    assert!(overlap.contains("Witness: on = "), "{overlap}");
+    let band = finding_block(&stdout, "Unreachable clause in band/2: ");
+    assert!(band.contains("clause_dates.runa:9 never fires"), "{band}");
+    let never = finding_block(&stdout, "Unreachable clause in never/1: ");
+    assert!(
+        never.contains("clause_dates.runa:15 never fires"),
+        "{never}"
+    );
+    // Before, on and after the deadline: each clause of `filed` fires.
+    assert!(!stdout.contains("in filed/2"), "{stdout}");
+}

@@ -19756,6 +19756,7 @@ const VERIFY_GUARANTEE: &str = "Guarantee: a proved invariant holds for every va
 /// whose negation carries the same overflow obligation as runtime
 /// `checked_abs` (so `abs` of the minimum Int is an overflow). A program
 /// declaration of the same name takes precedence and suppresses the helper.
+/// Comparisons of two dates are written over their fields (`smt_date_order`).
 fn smt_with_prelude_arithmetic(statements: Vec<Stmt>, use_prelude: bool) -> Vec<Stmt> {
     const HELPERS: &str = "> abs(x: Int) -> Int { if x < 0 { -x } else { x } }\n";
     let mut declared = BTreeSet::new();
@@ -19785,7 +19786,7 @@ fn smt_with_prelude_arithmetic(statements: Vec<Stmt>, use_prelude: bool) -> Vec<
         |statement| !matches!(statement, Stmt::Defn(Defn::Fn { name, .. }) if declared.contains(name)),
     );
     helpers.extend(statements);
-    helpers
+    smt_date_order(helpers)
 }
 
 /// Generate SMT-LIB2 for all invariants and verify with Z3.
@@ -42223,8 +42224,14 @@ fn __futuruna_install_error_hook() {
                     ));
                     out.push_str("    fn __futuruna_key(&self, out: &mut String) {\n");
                     out.push_str("        match self {\n");
+                    // A date orders chronologically, as in the interpreter,
+                    // whatever order its fields are declared in.
+                    let date_order = futuruna::standard_date_field_order(name, params, variants);
                     for v in variants {
-                        let (pattern, binds) = variant_pattern(v);
+                        let (pattern, mut binds) = variant_pattern(v);
+                        if let Some(order) = date_order {
+                            binds = order.iter().map(|&index| binds[index].clone()).collect();
+                        }
                         out.push_str(&format!(
                             "            {} => {{ __futuruna_key_name({:?}, out);",
                             pattern,

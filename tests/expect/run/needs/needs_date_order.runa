@@ -1,0 +1,16 @@
+-- Comparing a date the case leaves out is unknown, and `&&` and `||` decide
+-- wherever the known operand decides (Kleene logic).
+-- expect-command: call
+-- expect-input: needs_date_order.json
+-- expect-args: --partial
+-- expect-stdout-file: needs_date_order.stdout
+
+# Date(year: Int, month: Int, day: Int)
+# Filing(filed: Date, deadline: Date, extended: Bool)
+# Result(late: Bool, early: Bool)
+
+@ entry
+| filing_status(f: Filing) -> Result(
+    late = f.filed > f.deadline && not(f.extended),
+    early = f.filed < f.deadline || f.extended
+)

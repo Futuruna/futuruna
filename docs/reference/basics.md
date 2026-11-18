@@ -292,9 +292,19 @@ or, when the conversion divides, a named rounding such as
 Primitive equality requires operands of the same type: `5 == 5.0` is a type
 error; `to_float(5) == 5.0` compares two floats. Lists, tuples, and data
 constructors support structural equality. Ordering compares numbers, two
-strings, or two characters. Numeric ordering permits `Int`/`Float` mixing with
-the same conversion as arithmetic. Floating-point conversion can lose integer
-precision, so keep exact integer calculations in `Int`.
+strings, two characters, or two dates. Numeric ordering permits `Int`/`Float`
+mixing with the same conversion as arithmetic. Floating-point conversion can
+lose integer precision, so keep exact integer calculations in `Int`.
+
+A date is the standard record `# Date(year: Int, month: Int, day: Int)` (its
+fields in any order). Dates are ordered chronologically, by year, then month,
+then day, so `filed <= deadline` needs no numeric key; `sort` orders dates the
+same way. No other declared type is ordered: `<` on two records is a type
+error. `runa verify` and the clause audit in `runa audit` read a comparison of
+two dates as the same comparison over their fields, which for valid dates is
+the order of their day numbers. In a partial case, comparing a date the case
+leaves out is unknown, and `&&` and `||` decide wherever their known operand
+does.
 
 ### Logical
 | Op | Meaning |

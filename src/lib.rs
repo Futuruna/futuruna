@@ -48,6 +48,8 @@ pub use constructor_scope::{
     function_display_name, function_display_smt, function_display_text, qualified_constructor_name,
     split_qualified_constructor, with_constructor_elaboration, ConstructorElaboration,
 };
+mod dates;
+pub use dates::{smt_date_order, standard_date_field_order};
 mod danish;
 mod declaration_contracts;
 mod editor_fields;
@@ -28063,6 +28065,20 @@ impl Interpreter {
                 Value::Bool(v) => Value::Bool(!v),
                 failure => failure,
             },
+            // Dates order chronologically, as they sort.
+            (op, a, b)
+                if dates::is_ordering_operator(op)
+                    && dates::date_value_parts(a).is_some()
+                    && dates::date_value_parts(b).is_some() =>
+            {
+                let ordering = value_sort_cmp(a, b);
+                Value::Bool(match op {
+                    "<" => ordering.is_lt(),
+                    "<=" => ordering.is_le(),
+                    ">" => ordering.is_gt(),
+                    _ => ordering.is_ge(),
+                })
+            }
 
             ("+" | "-" | "*" | "/" | "%", _, _) if self.checking_calculation => self
                 .calculation_fail(format!(
@@ -31563,6 +31579,14 @@ pub(crate) fn value_sort_cmp_reading(
     }
     if let Some((a, b)) = runtime_pair_tuple_operands(a, b) {
         return value_sort_cmp_reading(&a, &b, unknown);
+    }
+    if let (Some(a), Some(b)) = (dates::date_value_parts(a), dates::date_value_parts(b)) {
+        return a
+            .iter()
+            .zip(b)
+            .map(|(a, b)| value_sort_cmp_reading(a, b, unknown))
+            .find(|ordering| *ordering != Ordering::Equal)
+            .unwrap_or(Ordering::Equal);
     }
     fn float_key(value: f64) -> f64 {
         if value == 0.0 {

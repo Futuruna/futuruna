@@ -1,0 +1,10 @@
+-- expect-status: fail
+-- expect-stderr: unsupported operands for operator `<`: `Money` and `Money`; numbers, String, Char and Date are ordered
+-- expect-stderr: unsupported operands for operator `>=`: `Date` and `Int`; numbers, String, Char and Date are ordered
+-- Of the types a program declares, only the standard `Date` is ordered, and
+-- only against another date.
+# Date(year: Int, month: Int, day: Int)
+# Money(amount: Int, currency: String)
+
+> cheaper(a: Money, b: Money) -> Bool { a < b }
+> after_year(d: Date, year: Int) -> Bool { d >= year }

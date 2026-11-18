@@ -1,0 +1,11 @@
+-- expect-command: verify
+-- expect-status: fail
+-- expect-stdout: PROVED: |later_is_not_before_either|
+-- expect-stdout: PROVED: |new_year_follows_new_year_eve|
+-- expect-stdout: COUNTEREXAMPLE found for |later_is_the_first|:
+-- Dates compare chronologically in the SMT encoding, as at run time.
+# Date(year: Int, month: Int, day: Int)
+> later(a: Date, b: Date) -> Date { if a < b { b } else { a } }
+| later_is_not_before_either: later(Date(year = y, month = 1, day = d), Date(year = 2026, month = 6, day = 30)) -> later(Date(year = y, month = 1, day = d), Date(year = 2026, month = 6, day = 30)) >= Date(year = y, month = 1, day = d) && later(Date(year = y, month = 1, day = d), Date(year = 2026, month = 6, day = 30)) >= Date(year = 2026, month = 6, day = 30)
+| new_year_follows_new_year_eve: y -> y == 9223372036854775807 || Date(year = y, month = 12, day = 31) < Date(year = y + 1, month = 1, day = 1)
+| later_is_the_first: later(Date(year = y, month = 1, day = 1), Date(year = 2026, month = 1, day = 1)) -> later(Date(year = y, month = 1, day = 1), Date(year = 2026, month = 1, day = 1)) == Date(year = y, month = 1, day = 1)

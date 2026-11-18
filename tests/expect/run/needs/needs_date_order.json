@@ -1,0 +1,34 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.entry.input.v2",
+    "schema_hash": "3e98b43cc0f91b68aaa59a95c36111687a463a604680fb89b5e40f0ffe38f5fd",
+    "entry": "filing_status"
+  },
+  "cases": [
+    {
+      "case_id": "filed-left-out-extended",
+      "input_status": "ready",
+      "input": {
+        "deadline": { "year": 2026, "month": 6, "day": 30 },
+        "extended": true
+      }
+    },
+    {
+      "case_id": "filed-left-out",
+      "input_status": "ready",
+      "input": {
+        "deadline": { "year": 2026, "month": 6, "day": 30 },
+        "extended": false
+      }
+    },
+    {
+      "case_id": "filed-late",
+      "input_status": "ready",
+      "input": {
+        "filed": { "year": 2026, "month": 7, "day": 1 },
+        "deadline": { "year": 2026, "month": 6, "day": 30 },
+        "extended": false
+      }
+    }
+  ]
+}
