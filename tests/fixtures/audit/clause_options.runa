@@ -1,0 +1,28 @@
+# Date(year: Int, month: Int, day: Int)
+
+-- An account closed during the year ends its period on the closing day.
+| period_end(income_year: Int, closed: Date?): Date -> Date(year = income_year, month = 12, day = 31)
+| exception closed period_end(income_year, closed) -> unwrap_or(closed, Date(year = income_year, month = 12, day = 31)) under is_some(closed)
+
+-- Every account closed in the income year is closed, so the second
+-- exception never fires.
+| levy_days(income_year: Int, closed: Date?): Int -> 365
+| exception ended levy_days(income_year, closed) -> 0 under is_some(closed)
+| exception ended_in_year levy_days(income_year, closed) -> 1 under match closed { | Some(d) -> d.year == income_year | None -> False }
+
+-- Both exceptions apply to an account closed in the first half of the
+-- income year.
+| rate(income_year: Int, closed: Date?): Int -> 0
+| exception closed_early rate(income_year, closed) -> 1 under match closed { | Some(d) -> d.month < 7 | None -> False }
+| exception closed_in_year rate(income_year, closed) -> 2 under match closed { | Some(d) -> d.year == income_year | None -> False }
+
+-- An open account and one closed after the income year are drawn; one
+-- closed in or before the year is not.
+| draw_by(income_year: Int, closed: Date?): Int
+| draw_by(income_year, closed) -> 1 under is_none(closed)
+| draw_by(income_year, closed) -> 2 under match closed { | Some(d) -> d.year > income_year | None -> False }
+
+-- Open or closed: every account is covered.
+| status(closed: Date?): Int
+| status(closed) -> 0 under is_none(closed)
+| status(closed) -> 1 under is_some(closed)

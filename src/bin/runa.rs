@@ -19756,7 +19756,8 @@ const VERIFY_GUARANTEE: &str = "Guarantee: a proved invariant holds for every va
 /// whose negation carries the same overflow obligation as runtime
 /// `checked_abs` (so `abs` of the minimum Int is an overflow). A program
 /// declaration of the same name takes precedence and suppresses the helper.
-/// Comparisons of two dates are written over their fields (`smt_date_order`).
+/// Calls of generic functions are inlined (`smt_inline_generic_calls`), and
+/// comparisons of two dates are written over their fields (`smt_date_order`).
 fn smt_with_prelude_arithmetic(statements: Vec<Stmt>, use_prelude: bool) -> Vec<Stmt> {
     const HELPERS: &str = "> abs(x: Int) -> Int { if x < 0 { -x } else { x } }\n";
     let mut declared = BTreeSet::new();
@@ -19786,7 +19787,176 @@ fn smt_with_prelude_arithmetic(statements: Vec<Stmt>, use_prelude: bool) -> Vec<
         |statement| !matches!(statement, Stmt::Defn(Defn::Fn { name, .. }) if declared.contains(name)),
     );
     helpers.extend(statements);
-    smt_date_order(helpers)
+    smt_date_order(smt_inline_generic_calls(helpers))
+}
+
+/// How deep an inlined generic function's body may itself be inlined.
+const SMT_INLINE_DEPTH: usize = 16;
+
+/// The program with each call of a generic function replaced by the
+/// function's body under let-bindings of its arguments. A `define-fun` has
+/// one sort per parameter, so a generic function is declared at `Int`
+/// (`Option(a)` as `(Option Int)`) and cannot take an `Option(Date)`; inlined,
+/// its body reads the argument at the argument's own sort. An `Option` is a
+/// datatype whose tester is its presence and whose field is its value, so
+/// `is_some(closed)`, `is_none(closed)` and `unwrap_or(closed, d)` read
+/// exactly that. A recursive generic function is not inlined.
+fn smt_inline_generic_calls(mut statements: Vec<Stmt>) -> Vec<Stmt> {
+    fn has_type_variable(ty: &Ty) -> bool {
+        match ty {
+            Ty::Var(_) => true,
+            Ty::App(head, arguments) => {
+                has_type_variable(head) || arguments.iter().any(has_type_variable)
+            }
+            Ty::Arrow(argument, result) => has_type_variable(argument) || has_type_variable(result),
+            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+                has_type_variable(inner)
+            }
+            Ty::Name(_) | Ty::Unit | Ty::Hole => false,
+        }
+    }
+    struct Inliner {
+        generic: BTreeMap<String, (Vec<String>, Expr)>,
+        fresh: usize,
+    }
+    impl Inliner {
+        fn statements(&mut self, statements: &mut [Stmt]) {
+            for statement in statements {
+                match statement {
+                    Stmt::Defn(Defn::Fn { body, .. }) => self.expr(body, 0),
+                    Stmt::Defn(Defn::Module { body, .. })
+                    | Stmt::TypeDecl(TypeDecl::RuleScope { body, .. }) => self.statements(body),
+                    Stmt::Rule(Rule::Clause {
+                        body: Some(body), ..
+                    }) => self.expr(body, 0),
+                    Stmt::Rule(Rule::Default {
+                        value, condition, ..
+                    })
+                    | Stmt::Rule(Rule::Exception {
+                        value, condition, ..
+                    }) => {
+                        self.expr(value, 0);
+                        if let Some(condition) = condition {
+                            self.expr(condition, 0);
+                        }
+                    }
+                    Stmt::Bind(_, _, value) | Stmt::Expr(value) => self.expr(value, 0),
+                    Stmt::Invariant {
+                        subject, predicate, ..
+                    } => {
+                        self.expr(subject, 0);
+                        self.expr(predicate, 0);
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        fn expr(&mut self, expression: &mut Expr, depth: usize) {
+            let mut children = Vec::new();
+            match &mut expression.kind {
+                ExprKind::App(function, arguments) => {
+                    children.push(&mut **function);
+                    children.extend(arguments.iter_mut());
+                }
+                ExprKind::BinOp(_, left, right) => children.extend([&mut **left, &mut **right]),
+                ExprKind::UnOp(_, inner) | ExprKind::Field(inner, _) => children.push(&mut **inner),
+                ExprKind::If(condition, then_branch, else_branch) => {
+                    children.extend([&mut **condition, &mut **then_branch, &mut **else_branch])
+                }
+                ExprKind::Match(scrutinee, arms) => {
+                    children.push(&mut **scrutinee);
+                    for arm in arms {
+                        children.extend(arm.guard.as_mut());
+                        children.push(&mut arm.body);
+                    }
+                }
+                ExprKind::Block(statements) => {
+                    for statement in statements {
+                        if let Stmt::Bind(_, _, value) | Stmt::Expr(value) = statement {
+                            children.push(value);
+                        }
+                    }
+                }
+                _ => {}
+            }
+            for child in children {
+                self.expr(child, depth);
+            }
+            let ExprKind::App(function, arguments) = &expression.kind else {
+                return;
+            };
+            let ExprKind::Var(name) = &function.kind else {
+                return;
+            };
+            let Some((params, body)) = self.generic.get(name) else {
+                return;
+            };
+            if depth >= SMT_INLINE_DEPTH
+                || params.len() != arguments.len()
+                || arguments.iter().any(|argument| named_arg_parts(argument).is_some())
+            {
+                return;
+            }
+            // Fresh names first, so no argument sees a parameter's binding.
+            let span = expression.span;
+            let mut body = body.clone();
+            let params = params.clone();
+            self.expr(&mut body, depth + 1);
+            let mut block = Vec::with_capacity(2 * params.len() + 1);
+            let mut renamed = Vec::with_capacity(params.len());
+            for argument in arguments {
+                self.fresh += 1;
+                let fresh = format!("__runa_inline_{}", self.fresh);
+                block.push(Stmt::Bind(Pat::Var(fresh.clone()), None, argument.clone()));
+                renamed.push(fresh);
+            }
+            for (param, fresh) in params.into_iter().zip(renamed) {
+                block.push(Stmt::Bind(
+                    Pat::Var(param),
+                    None,
+                    Expr::new(ExprKind::Var(fresh), span),
+                ));
+            }
+            block.push(Stmt::Expr(body));
+            *expression = Expr::new(ExprKind::Block(block), span);
+        }
+    }
+
+    let mut generic = BTreeMap::new();
+    for statement in &statements {
+        let Stmt::Defn(Defn::Fn {
+            name,
+            params,
+            ret_ty,
+            body,
+            ..
+        }) = statement
+        else {
+            continue;
+        };
+        let mut calls = BTreeSet::new();
+        collect_smt_called_functions(body, &BTreeSet::from([name.clone()]), &mut calls);
+        if calls.is_empty()
+            && params
+                .iter()
+                .filter_map(|param| param.ty.as_ref())
+                .chain(ret_ty)
+                .any(has_type_variable)
+        {
+            generic.insert(
+                name.clone(),
+                (
+                    params.iter().map(|param| param.name.clone()).collect(),
+                    body.clone(),
+                ),
+            );
+        }
+    }
+    if !generic.is_empty() {
+        Inliner { generic, fresh: 0 }.statements(&mut statements);
+    }
+    statements
 }
 
 /// Generate SMT-LIB2 for all invariants and verify with Z3.

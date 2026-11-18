@@ -1097,7 +1097,13 @@ separate `>` function. Int arithmetic inside a rule (`+`, `-`, `*`, `/`, `%`) is
 translated with its overflow and zero-divisor obligations, so a rule that can
 overflow for some input is refuted with that input rather than rejected. The
 prelude helpers `max_int`, `min_int` and `clamp`, and `abs` on Int, translate
-exactly; `abs` of the minimum Int is an overflow, as it is at runtime.
+exactly; `abs` of the minimum Int is an overflow, as it is at runtime. An
+`Option` is translated as its presence and, when present, its value, at any
+payload type: a rule may take `closed: Date?` and guard on it with `is_some`,
+`is_none`, `unwrap_or` or a `match` on `Some(d)`/`None`, with no filler value
+for the absent case. A call of a generic function such as these is translated
+as its body at the argument's type; a recursive generic function translates
+only at `Int`.
 
 ```runa
 # TaxCase(income: Int) {

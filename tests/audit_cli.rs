@@ -847,3 +847,32 @@ fn clause_audit_orders_dates() {
     // Before, on and after the deadline: each clause of `filed` fires.
     assert!(!stdout.contains("in filed/2"), "{stdout}");
 }
+
+/// An Option argument is analysed: `is_some`, `is_none`, `unwrap_or` and a
+/// match on `Some`/`None` read its presence and value at its own type.
+#[test]
+fn clause_audit_analyses_option_guards() {
+    let fixture = topology_fixture("clause_options.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("5 rule families, 12 clauses: 12 analyzed, 0 not analyzed"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("1 unreachable clause, 1 overlapping guards, 1 gap"),
+        "{stdout}"
+    );
+    // `is_some` takes every closed account first.
+    let levy = finding_block(&stdout, "Unreachable clause in levy_days/2: ");
+    assert!(levy.contains("clause_options.runa:11 never fires"), "{levy}");
+    let overlap = finding_block(&stdout, "Overlapping guards in rate/2: ");
+    assert!(overlap.contains("closed = (Some (Date "), "{overlap}");
+    let gap = finding_block(&stdout, "Gap in draw_by/2: ");
+    assert!(gap.contains("closed = (Some (Date "), "{gap}");
+    assert!(!stdout.contains("in period_end/2"), "{stdout}");
+    assert!(!stdout.contains("in status/1"), "{stdout}");
+}
