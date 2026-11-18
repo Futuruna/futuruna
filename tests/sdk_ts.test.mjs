@@ -1061,9 +1061,16 @@ test('an open collection: resolve gives a new entry by the key the law computed'
   const transport = partialCli(dir, 'open.entry.runa');
   const asked = await sdk.deemedQuery(transport, usage.started);
   assert.equal(asked.$variant, 'Needs');
+  // By default a need carries what the caller acts on, and no text.
   assert.deepEqual(asked.needs.map((need) => [need.pattern, need.path, need.label, need.keys]), [
-    ['balances[]', entry, 'Balance', [{ path: entry, field: 'day', value: '2027-02-20' }]],
+    ['balances[]', entry, undefined, [{ path: entry, field: 'day', value: '2027-02-20' }]],
   ]);
+  assert.deepEqual(Object.keys(asked.needs[0]).sort(), ['keys', 'kind', 'path', 'pattern', 'waiting']);
+  // The law's text comes when `describe` asks for it.
+  const described = await sdk.deemedQuery(transport, usage.started, { describe: { needs: ['label'] } });
+  assert.deepEqual(described.needs.map((need) => [need.pattern, need.label]), [['balances[]', 'Balance']]);
+  assert.deepEqual(transport.queried.length, 2);
+  transport.queried.length = 0;
 
   const calls = [];
   const answered = await usage.answerDeemed(transport, usage.started, {

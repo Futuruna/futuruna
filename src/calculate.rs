@@ -319,6 +319,7 @@ impl CalculationContract {
 
     pub fn template_envelope(&self) -> CalculationInputEnvelope {
         CalculationInputEnvelope {
+            describe: Vec::new(),
             futuruna: CalculationEnvelopeMetadata {
                 schema: INPUT_SCHEMA.to_string(),
                 schema_hash: self.schema_hash.clone(),
@@ -638,7 +639,134 @@ impl CalculationInputCase {
 pub struct CalculationInputEnvelope {
     #[serde(rename = "$futuruna")]
     pub futuruna: CalculationEnvelopeMetadata,
+    /// The descriptive text the output carries besides what the caller acts
+    /// on (`runa call --describe`); none when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub describe: Vec<DescribeMember>,
     pub cases: Vec<CalculationInputCase>,
+}
+
+/// Descriptive text an output carries only on request. By default a need
+/// carries its kind, path, keys, waiting rules and, for an entry need, its
+/// entry and subject; an assumption its section, rule, binding and value
+/// without `statement` and `resolve_with`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DescribeMember {
+    /// A need's label.
+    Label,
+    /// A need's question.
+    Question,
+    /// A need's help.
+    Help,
+    /// A need's unit.
+    Unit,
+    /// A need's sources.
+    Sources,
+    /// An assumption value's `statement`.
+    Statement,
+    /// An assumption value's `resolve_with`.
+    ResolveWith,
+}
+
+impl DescribeMember {
+    pub const ALL: [DescribeMember; 7] = [
+        DescribeMember::Label,
+        DescribeMember::Question,
+        DescribeMember::Help,
+        DescribeMember::Unit,
+        DescribeMember::Sources,
+        DescribeMember::Statement,
+        DescribeMember::ResolveWith,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            DescribeMember::Label => "label",
+            DescribeMember::Question => "question",
+            DescribeMember::Help => "help",
+            DescribeMember::Unit => "unit",
+            DescribeMember::Sources => "sources",
+            DescribeMember::Statement => "statement",
+            DescribeMember::ResolveWith => "resolve_with",
+        }
+    }
+
+    pub fn parse(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|member| member.name() == name)
+    }
+
+    const NEED: [DescribeMember; 5] = [
+        DescribeMember::Label,
+        DescribeMember::Question,
+        DescribeMember::Help,
+        DescribeMember::Unit,
+        DescribeMember::Sources,
+    ];
+    const ASSUMPTION: [DescribeMember; 2] =
+        [DescribeMember::Statement, DescribeMember::ResolveWith];
+}
+
+/// Remove the members of `kind` that `describe` does not ask for
+/// from a JSON object.
+fn drop_undescribed(value: &mut JsonValue, kind: &[DescribeMember], describe: &[DescribeMember]) {
+    if let JsonValue::Object(members) = value {
+        for member in kind {
+            if !describe.contains(member) {
+                members.remove(member.name());
+            }
+        }
+    }
+}
+
+impl CalculationOutputEnvelope {
+    /// Leave out the descriptive text `describe` does not ask for: of the
+    /// needs of a partial result (`partial`), and of every assumption.
+    pub fn keep_described(&mut self, describe: &[DescribeMember], partial: bool) {
+        if DescribeMember::ALL
+            .iter()
+            .all(|member| describe.contains(member))
+        {
+            return;
+        }
+        for case in &mut self.results {
+            for assumption in &mut case.assumptions {
+                drop_undescribed(&mut assumption.value, &DescribeMember::ASSUMPTION, describe);
+            }
+            if !partial {
+                continue;
+            }
+            let JsonValue::Object(result) = &mut case.result else {
+                continue;
+            };
+            for list in ["needs", "later"] {
+                if let Some(JsonValue::Array(needs)) = result.get_mut(list) {
+                    for need in needs {
+                        drop_undescribed(need, &DescribeMember::NEED, describe);
+                        // The paragraphs a waiting rule cites are text too:
+                        // they come with `sources`.
+                        if describe.contains(&DescribeMember::Sources) {
+                            continue;
+                        }
+                        if let Some(JsonValue::Array(waiting)) = need.get_mut("waiting") {
+                            for rule in waiting {
+                                if let JsonValue::Object(rule) = rule {
+                                    rule.remove("paragraphs");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if let Some(JsonValue::Array(assumptions)) = result.get_mut("assumptions") {
+                for assumption in assumptions {
+                    if let Some(value) = assumption.get_mut("value") {
+                        drop_undescribed(value, &DescribeMember::ASSUMPTION, describe);
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -7317,9 +7445,11 @@ impl PreparedEntry {
         explain_options: Option<&ExplainOptions>,
     ) -> CalculationOutputEnvelope {
         let elaboration = self.constructor_elaboration.clone();
-        with_constructor_elaboration(elaboration.as_ref(), || {
+        let mut output = with_constructor_elaboration(elaboration.as_ref(), || {
             self.run_batch_in_program(envelope, requested_jobs, partial, explain_options)
-        })
+        });
+        output.keep_described(&envelope.describe, partial.is_some());
+        output
     }
 
     fn run_batch_in_program(
@@ -8069,6 +8199,7 @@ fn check_partial_calculation_cases(
                 .contract
                 .partial_case_completions(&input.input, COMPLETION_TEST_COUNT, 0x5EED);
         let completion_envelope = CalculationInputEnvelope {
+            describe: envelope.describe.clone(),
             futuruna: envelope.futuruna.clone(),
             cases: completions
                 .into_iter()
@@ -8148,6 +8279,7 @@ fn fault_claim_complete(
             continue;
         };
         let one = CalculationInputEnvelope {
+            describe: envelope.describe.clone(),
             futuruna: envelope.futuruna.clone(),
             cases: vec![CalculationInputCase {
                 case_id: case.case_id.clone(),
@@ -8210,6 +8342,7 @@ mod calculation_execution_tests {
         input: JsonValue,
     ) -> CalculationInputEnvelope {
         CalculationInputEnvelope {
+            describe: Vec::new(),
             futuruna: CalculationEnvelopeMetadata {
                 schema: INPUT_SCHEMA.to_string(),
                 schema_hash: contract.schema_hash.clone(),
@@ -8376,6 +8509,7 @@ mod calculation_execution_tests {
             .pop()
             .expect("calculation contract");
         let envelope = CalculationInputEnvelope {
+            describe: Vec::new(),
             futuruna: CalculationEnvelopeMetadata {
                 schema: INPUT_SCHEMA.to_string(),
                 schema_hash: contract.schema_hash.clone(),
@@ -8424,6 +8558,7 @@ mod calculation_execution_tests {
             .pop()
             .expect("calculation contract");
         let envelope = CalculationInputEnvelope {
+            describe: Vec::new(),
             futuruna: CalculationEnvelopeMetadata {
                 schema: INPUT_SCHEMA.to_string(),
                 schema_hash: contract.schema_hash.clone(),
@@ -8504,6 +8639,7 @@ mod calculation_execution_tests {
         };
         let call = |prepared: &mut PreparedEntry, input: serde_json::Value| {
             let envelope = CalculationInputEnvelope {
+                describe: Vec::new(),
                 futuruna: CalculationEnvelopeMetadata {
                     schema: INPUT_SCHEMA.to_string(),
                     schema_hash: prepared.contract().schema_hash.clone(),
@@ -9176,6 +9312,7 @@ mod calculation_execution_tests {
             })
             .collect();
         let envelope = CalculationInputEnvelope {
+            describe: Vec::new(),
             futuruna: CalculationEnvelopeMetadata {
                 schema: INPUT_SCHEMA.to_string(),
                 schema_hash: contract.schema_hash.clone(),
@@ -9394,6 +9531,7 @@ mod calculation_execution_tests {
             .pop()
             .expect("Boolean calculation contract");
         let envelope = CalculationInputEnvelope {
+            describe: Vec::new(),
             futuruna: CalculationEnvelopeMetadata {
                 schema: INPUT_SCHEMA.to_string(),
                 schema_hash: contract.schema_hash.clone(),
@@ -9669,6 +9807,7 @@ mod calculation_execution_tests {
         assert_eq!(document(&second), document(&first));
         for (index, case) in envelope.cases.iter().enumerate() {
             let alone = CalculationInputEnvelope {
+                describe: envelope.describe.clone(),
                 futuruna: envelope.futuruna.clone(),
                 cases: vec![case.clone()],
             };
@@ -9758,6 +9897,7 @@ mod calculation_execution_tests {
             .pop()
             .expect("one entry");
         let envelope = CalculationInputEnvelope {
+            describe: Vec::new(),
             futuruna: CalculationEnvelopeMetadata {
                 schema: INPUT_SCHEMA.to_string(),
                 schema_hash: contract.schema_hash.clone(),

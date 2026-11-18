@@ -1627,6 +1627,8 @@ impl Interpreter {
                 schema_hash: contract.schema_hash.clone(),
                 entry: contract.entry.clone(),
             },
+            // A need in the language keeps the law's text.
+            describe: crate::calculate::DescribeMember::ALL.to_vec(),
             cases: vec![CalculationInputCase {
                 case_id: "query".to_string(),
                 input_status: Some(CalculationInputStatus::Ready),

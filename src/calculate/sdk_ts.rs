@@ -1993,12 +1993,12 @@ impl<'a> Sdk<'a> {
                 &[
                     format!("Calculate {title}"),
                     String::new(),
-                    "Validates the case, encodes it for the engine, runs it through `transport.call`, checks the envelope's schema hash, and decodes and validates the result; returns it with the assumptions it rests on.".to_string(),
+                    "Validates the case, encodes it for the engine, runs it through `transport.call`, checks the envelope's schema hash, and decodes and validates the result; returns it with the assumptions it rests on. Assumptions carry their `statement` and `resolve_with` only when `options.describe` asks for them.".to_string(),
                 ],
             );
             let _ = writeln!(
                 body,
-                "export function {values}(transport: EngineTransport, input: {input}): Promise<Calculated<{output}>> {{\n  return callEntry(transport, {values}Entry, {input_schema}, {output_schema}, input);\n}}\n"
+                "export function {values}(\n  transport: EngineTransport,\n  input: {input},\n  options: CallOptions = {{}},\n): Promise<Calculated<{output}>> {{\n  return callEntry(transport, {values}Entry, {input_schema}, {output_schema}, input, options);\n}}\n"
             );
             write_doc(
                 &mut body,
@@ -2011,7 +2011,7 @@ impl<'a> Sdk<'a> {
             );
             let _ = writeln!(
                 body,
-                "export function {values}Query(\n  transport: EngineTransport,\n  input: {partial_input},\n): Promise<partial.{types}QueryResult> {{\n  return queryEntry(transport, {values}Entry, {partial_schema}, partial.{types}QueryResultSchema, input);\n}}\n"
+                "export function {values}Query(\n  transport: EngineTransport,\n  input: {partial_input},\n  options: CallOptions = {{}},\n): Promise<partial.{types}QueryResult> {{\n  return queryEntry(transport, {values}Entry, {partial_schema}, partial.{types}QueryResultSchema, input, options);\n}}\n"
             );
             write_doc(
                 &mut body,
@@ -2036,7 +2036,7 @@ impl<'a> Sdk<'a> {
             );
             let _ = writeln!(
                 body,
-                "export function {values}Answer(\n  transport: EngineTransport,\n  partialCase: {partial_input},\n  resolve: {types}Resolve,\n): Promise<Answering<{output}, partial.{types}Need, {partial_input}>> {{\n  return answerEntry<{partial_input}, {output}, partial.{types}Need, partial.{types}InputPatterns>(\n    (current) => {values}Query(transport, current),\n    partialCase,\n    resolve,\n  );\n}}\n"
+                "export function {values}Answer(\n  transport: EngineTransport,\n  partialCase: {partial_input},\n  resolve: {types}Resolve,\n  options: CallOptions = {{}},\n): Promise<Answering<{output}, partial.{types}Need, {partial_input}>> {{\n  return answerEntry<{partial_input}, {output}, partial.{types}Need, partial.{types}InputPatterns>(\n    (current) => {values}Query(transport, current, options),\n    partialCase,\n    resolve,\n  );\n}}\n"
             );
         }
         let mut out = String::new();
@@ -2898,15 +2898,15 @@ mod tests {
         let client = &files["client.ts"];
         assert_contains(
             client,
-            "export function personTax(transport: EngineTransport, input: types.Person): Promise<Calculated<number>> {\n  return callEntry(transport, personTaxEntry, schema.PersonSchema, IntSchema, input);",
+            "export function personTax(\n  transport: EngineTransport,\n  input: types.Person,\n  options: CallOptions = {},\n): Promise<Calculated<number>> {\n  return callEntry(transport, personTaxEntry, schema.PersonSchema, IntSchema, input, options);",
         );
         assert_contains(
             client,
-            "export function coupleTaxQuery(\n  transport: EngineTransport,\n  input: partial.PartialCouple,\n): Promise<partial.CoupleTaxQueryResult> {",
+            "export function coupleTaxQuery(\n  transport: EngineTransport,\n  input: partial.PartialCouple,\n  options: CallOptions = {},\n): Promise<partial.CoupleTaxQueryResult> {",
         );
         assert_contains(client, "/**\n * Calculate `person_tax`: One person.");
         for expected in [
-            "export function personTax(transport: EngineTransport, input: types.Person)",
+            "export function personTax(\n  transport: EngineTransport,\n  input: types.Person,\n  options: CallOptions = {},\n)",
             "  patterns: partial.PersonTaxInputPatternList,\n};",
         ] {
             assert_contains(client, expected);
@@ -3017,7 +3017,7 @@ mod tests {
         for expected in [
             "export type TaxResolve = Resolve<partial.PartialPerson, partial.TaxInputPatterns, partial.TaxNeed>;",
             " * Answer `tax` (Tax), round by round.",
-            "export function taxAnswer(\n  transport: EngineTransport,\n  partialCase: partial.PartialPerson,\n  resolve: TaxResolve,\n): Promise<Answering<number, partial.TaxNeed, partial.PartialPerson>> {\n  return answerEntry<partial.PartialPerson, number, partial.TaxNeed, partial.TaxInputPatterns>(\n    (current) => taxQuery(transport, current),\n    partialCase,\n    resolve,\n  );\n}",
+            "export function taxAnswer(\n  transport: EngineTransport,\n  partialCase: partial.PartialPerson,\n  resolve: TaxResolve,\n  options: CallOptions = {},\n): Promise<Answering<number, partial.TaxNeed, partial.PartialPerson>> {\n  return answerEntry<partial.PartialPerson, number, partial.TaxNeed, partial.TaxInputPatterns>(\n    (current) => taxQuery(transport, current, options),\n    partialCase,\n    resolve,\n  );\n}",
             "type Resolve,",
             "type Answering",
             "answerEntry",
@@ -3235,7 +3235,7 @@ mod tests {
         assert_contains(partial, "      valueOre: schema.OreSchema.optional(),");
         assert_contains(
             &files["client.ts"],
-            "export function holdingValue(transport: EngineTransport, input: types.Holding): Promise<Calculated<types.Ore>> {\n  return callEntry(transport, holdingValueEntry, schema.HoldingSchema, schema.OreSchema, input);",
+            "export function holdingValue(\n  transport: EngineTransport,\n  input: types.Holding,\n  options: CallOptions = {},\n): Promise<Calculated<types.Ore>> {\n  return callEntry(transport, holdingValueEntry, schema.HoldingSchema, schema.OreSchema, input, options);",
         );
         let error = generate_typescript_sdk(
             &contracts(

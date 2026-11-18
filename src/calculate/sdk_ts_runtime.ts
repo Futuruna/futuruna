@@ -1264,16 +1264,44 @@ function caseOutput(
   return only;
 }
 
+/**
+ * The descriptive text a call returns besides what the caller acts on. By
+ * default a need carries its kind, path, pattern, keys, waiting rules and, for
+ * an entry need, its entry and subject, and an assumption its section, rule,
+ * binding and value without `statement` and `resolve_with`. Name the members
+ * to add, as `runa call --describe` does.
+ */
+export type Describe = {
+  readonly needs?: readonly ("label" | "question" | "help" | "unit" | "sources")[] | undefined;
+  readonly assumptions?: readonly ("statement" | "resolveWith")[] | undefined;
+};
+
+/** How a call, query or answer runs. */
+export type CallOptions = {
+  /** The descriptive text to return; none by default. */
+  readonly describe?: Describe | undefined;
+};
+
+/** `describe` as the input document's `describe` list. */
+function describeWire(describe: Describe | undefined): string[] {
+  return [
+    ...(describe?.needs ?? []),
+    ...(describe?.assumptions ?? []).map((member) => (member === "resolveWith" ? "resolve_with" : member)),
+  ];
+}
+
 /** Validate a case and encode it as the input document `runa call` reads. */
-function inputDocument<I>(entry: CalculationEntry, inputSchema: z.ZodType<I>, input: I) {
+function inputDocument<I>(entry: CalculationEntry, inputSchema: z.ZodType<I>, input: I, options: CallOptions = {}) {
   const checked = inputSchema.safeParse(input);
   if (!checked.success) {
     const issues = checked.error.issues;
     throw new CalculationError("input", entry.name, `invalid input: ${issueSummary(issues)}`, { issues });
   }
   const wireCase = toWire(entry.input, checked.data);
+  const describe = describeWire(options.describe);
   const document = {
     $futuruna: { schema: INPUT_SCHEMA, schema_hash: entry.schemaHash, entry: entry.name },
+    ...(describe.length > 0 ? { describe } : {}),
     cases: [{ case_id: CASE_ID, input_status: "ready", input: wireCase }],
   };
   return { wireCase, document };
@@ -1307,8 +1335,9 @@ export async function callEntry<I, O>(
   inputSchema: z.ZodType<I>,
   outputSchema: z.ZodType<O>,
   input: I,
+  options: CallOptions = {},
 ): Promise<Calculated<O>> {
-  const { wireCase, document } = inputDocument(entry, inputSchema, input);
+  const { wireCase, document } = inputDocument(entry, inputSchema, input, options);
   const output = caseOutput(entry, OUTPUT_SCHEMA, await transport.call(entry.name, document), wireCase);
   return calculated(entry, outputSchema, output);
 }
@@ -1331,8 +1360,9 @@ export async function queryEntry<I, R, N extends Need>(
   inputSchema: z.ZodType<I>,
   resultSchema: z.ZodType<QueryResult<R, N>>,
   input: I,
+  options: CallOptions = {},
 ): Promise<QueryResult<R, N>> {
-  const { wireCase, document } = inputDocument(entry, inputSchema, input);
+  const { wireCase, document } = inputDocument(entry, inputSchema, input, options);
   const output = await transport.callPartial(entry.name, document);
   const result = caseOutput(entry, PARTIAL_OUTPUT_SCHEMA, output, wireCase)["result"];
   return validated(entry, resultSchema, () => queryResultFromWire(entry, wireCase, result));

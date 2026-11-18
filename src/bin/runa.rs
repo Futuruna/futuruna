@@ -232,6 +232,9 @@ fn main_inner() {
     let mut calculation_partial_check = false;
     // `--explain` (direct contributors) or `--explain=full` (Some(true)).
     let mut calculation_explain: Option<bool> = None;
+    // `--describe` (all text) or `--describe=label,question,...`: the
+    // descriptive text `runa call` adds to needs and assumptions.
+    let mut calculation_describe: Option<Vec<calculate::DescribeMember>> = None;
     let mut check_build_deps = false; // --build-deps flag for `runa check`
     let mut add_rev: Option<String> = None; // --rev flag for `runa add`
     let mut verify_allow_unsupported = false; // --allow-unsupported for `runa verify`
@@ -543,6 +546,28 @@ fn main_inner() {
                 eprintln!(
                     "error: --partial applies only to `runa call`: partial cases run in the interpreter; native and compiled programs take complete input"
                 );
+                std::process::exit(1);
+            }
+            "--describe" if mode == "call" => {
+                calculation_describe = Some(calculate::DescribeMember::ALL.to_vec());
+                i += 1;
+            }
+            arg if mode == "call" && arg.starts_with("--describe=") => {
+                let mut members = Vec::new();
+                for name in arg["--describe=".len()..].split(',') {
+                    let Some(member) = calculate::DescribeMember::parse(name.trim()) else {
+                        eprintln!(
+                            "error: --describe={name}: not a described member; use label, question, help, unit, sources, statement or resolve_with, or --describe for all"
+                        );
+                        std::process::exit(1);
+                    };
+                    members.push(member);
+                }
+                calculation_describe = Some(members);
+                i += 1;
+            }
+            arg if arg == "--describe" || arg.starts_with("--describe=") => {
+                eprintln!("error: --describe applies only to `runa call`");
                 std::process::exit(1);
             }
             "--explain" if mode == "call" => {
@@ -1223,6 +1248,7 @@ fn main_inner() {
             calculation_all_tables,
             calculation_partial.map(|mode| (mode, calculation_partial_check)),
             calculation_explain,
+            calculation_describe,
         );
         return;
     }
@@ -2057,6 +2083,7 @@ fn run_calculation_command(
     all_tables: bool,
     partial: Option<(futuruna::partial::PartialMode, bool)>,
     explain: Option<bool>,
+    describe: Option<Vec<calculate::DescribeMember>>,
 ) {
     let source = std::fs::read_to_string(filename).unwrap_or_else(|error| {
         eprintln!("error: cannot read {}: {}", filename, error);
@@ -2255,10 +2282,13 @@ fn run_calculation_command(
                     eprintln!("error: --partial reads and writes JSON only");
                     std::process::exit(1);
                 }
-                let envelope = read_calculation_json(input_path).unwrap_or_else(|error| {
+                let mut envelope = read_calculation_json(input_path).unwrap_or_else(|error| {
                     eprintln!("error: cannot read calculation input: {}", error);
                     std::process::exit(1);
                 });
+                if let Some(describe) = &describe {
+                    envelope.describe = describe.clone();
+                }
                 let result = match (&explain_options, check) {
                     (Some(_), true) => {
                         eprintln!("error: --explain does not combine with --partial=check; explain a --partial or --partial=strict call");
@@ -2277,7 +2307,7 @@ fn run_calculation_command(
                 }
                 return;
             }
-            let (envelope, mut adapter_diagnostics) = match input_format.as_str() {
+            let (mut envelope, mut adapter_diagnostics) = match input_format.as_str() {
                 "json" => (
                     read_calculation_json(input_path).unwrap_or_else(|error| {
                         eprintln!("error: cannot read calculation input: {}", error);
@@ -2300,6 +2330,9 @@ fn run_calculation_command(
                 }
                 _ => calculation_unknown_format(&input_format),
             };
+            if let Some(describe) = &describe {
+                envelope.describe = describe.clone();
+            }
             let mut result = match &explain_options {
                 Some(options) => prepared.invoke_explained(&envelope, options),
                 None => prepared.invoke(&envelope),
@@ -4101,6 +4134,7 @@ fn read_calculation_xlsx(
     if workbook_hash != contract.schema_hash {
         return Ok((
             calculate::CalculationInputEnvelope {
+                describe: Vec::new(),
                 futuruna: calculate::CalculationEnvelopeMetadata {
                     schema: calculate::INPUT_SCHEMA.to_string(),
                     schema_hash: workbook_hash,
@@ -4736,6 +4770,7 @@ fn read_calculation_xlsx(
     cases.retain(|case| !invalid_cases.contains(&case.case_id));
     Ok((
         calculate::CalculationInputEnvelope {
+            describe: Vec::new(),
             futuruna: calculate::CalculationEnvelopeMetadata {
                 schema: calculate::INPUT_SCHEMA.to_string(),
                 schema_hash: workbook_hash,

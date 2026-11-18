@@ -19,9 +19,7 @@
               }
             ],
             "kind": "fact",
-            "label": "Balance",
             "path": "balances[day=\"2027-02-20\"]",
-            "question": "What was the account's balance at the end of the day?",
             "waiting": [
               {
                 "rule": "deemed"
@@ -45,9 +43,7 @@
               }
             ],
             "kind": "fact",
-            "label": "Value",
             "path": "balances[1].value",
-            "unit": "øre",
             "waiting": [
               {
                 "rule": "value_on"
@@ -81,9 +77,7 @@
               }
             ],
             "kind": "fact",
-            "label": "Balance",
             "path": "balances[day=\"2027-02-20\"]",
-            "question": "What was the account's balance at the end of the day?",
             "waiting": [
               {
                 "rule": "deemed"
@@ -100,7 +94,6 @@
         "needs": [
           {
             "kind": "fact",
-            "label": "Delisted on",
             "path": "delisted",
             "waiting": [
               {
@@ -118,7 +111,6 @@
         "needs": [
           {
             "kind": "fact",
-            "label": "Day",
             "path": "balances[0].day",
             "waiting": [
               {

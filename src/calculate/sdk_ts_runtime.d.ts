@@ -468,17 +468,33 @@ export declare class CalculationError extends Error {
     });
 }
 /**
+ * The descriptive text a call returns besides what the caller acts on. By
+ * default a need carries its kind, path, pattern, keys, waiting rules and, for
+ * an entry need, its entry and subject, and an assumption its section, rule,
+ * binding and value without `statement` and `resolve_with`. Name the members
+ * to add, as `runa call --describe` does.
+ */
+export type Describe = {
+    readonly needs?: readonly ("label" | "question" | "help" | "unit" | "sources")[] | undefined;
+    readonly assumptions?: readonly ("statement" | "resolveWith")[] | undefined;
+};
+/** How a call, query or answer runs. */
+export type CallOptions = {
+    /** The descriptive text to return; none by default. */
+    readonly describe?: Describe | undefined;
+};
+/**
  * Calculate `entry` on a complete case: validate it, encode it, run it through
  * `transport.call`, check the envelope, and decode and validate the result;
  * returned with the assumptions it rests on.
  */
-export declare function callEntry<I, O>(transport: EngineTransport, entry: CalculationEntry, inputSchema: z.ZodType<I>, outputSchema: z.ZodType<O>, input: I): Promise<Calculated<O>>;
+export declare function callEntry<I, O>(transport: EngineTransport, entry: CalculationEntry, inputSchema: z.ZodType<I>, outputSchema: z.ZodType<O>, input: I, options?: CallOptions): Promise<Calculated<O>>;
 /**
  * Query `entry` on a partial case through `transport.callPartial`: `Complete`
  * or `Needs`, with the result decoded, every path a TypeScript path and every
  * need tagged with its pattern.
  */
-export declare function queryEntry<I, R, N extends Need>(transport: EngineTransport, entry: CalculationEntry, inputSchema: z.ZodType<I>, resultSchema: z.ZodType<QueryResult<R, N>>, input: I): Promise<QueryResult<R, N>>;
+export declare function queryEntry<I, R, N extends Need>(transport: EngineTransport, entry: CalculationEntry, inputSchema: z.ZodType<I>, resultSchema: z.ZodType<QueryResult<R, N>>, input: I, options?: CallOptions): Promise<QueryResult<R, N>>;
 /** The reply for a need `resolve` cannot fill: it stays open. */
 export type Open = {
     readonly kind: "open";

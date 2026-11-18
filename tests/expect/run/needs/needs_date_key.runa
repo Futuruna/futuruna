@@ -3,7 +3,7 @@
 -- element carries the element's key, declared with `@ field(key = True)`.
 -- expect-command: call
 -- expect-input: needs_date_key.json
--- expect-args: --partial
+-- expect-args: --partial --describe
 -- expect-stdout-file: needs_date_key.stdout
 
 # Date(@ field(label = "year") year: Int, @ field(label = "month") month: Int, @ field(label = "day") day: Int)

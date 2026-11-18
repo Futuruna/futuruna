@@ -775,7 +775,18 @@ Each case's `result` is one of:
 ```
 
 `unused_paths` lists the provided input paths evaluation never read. A
-need's `path` is concrete, with list indices; its `label`, `question`,
+need's `path` is concrete, with list indices.
+
+**Descriptive text is opt-in.** By default a need carries only what a caller
+acts on: `kind`, `path`, `keys`, `waiting` (each rule's name and `section`)
+and, for an entry need, `entry` and `subject`; an assumption leaves out its
+value's `statement` and `resolve_with`. `--describe` adds all text, and
+`--describe=label,question` the members it names: of a need `label`,
+`question`, `help`, `unit` and `sources` (with `sources`, a waiting rule's
+`paragraphs` too), of an assumption `statement` and `resolve_with`. The input
+document may ask the same with a top-level `"describe": ["label", "question"]`,
+as the TypeScript SDK and the WebAssembly engine do; the flag replaces it. The
+example above is written with `--describe`. A need's `label`, `question`,
 `help`, `unit` and `sources` come from the field metadata of the same path
 without indices. A `Date` is one fact: when its year, month or day is
 unknown, the need is at the date's path, with the date field's own metadata,
@@ -1220,9 +1231,9 @@ its section; each once (by binding and value), in the order the model writes
 them (by file, then line), each with its `section` (the law section it is
 written in; absent outside any section), its `rule` (the rule, member or
 function it is written on; absent when it is written on its section), its
-`binding` when it is written as one, and its `value` as plain JSON. A case
-with none leaves `assumptions` out;
-a `Needs` result has none.
+`binding` when it is written as one, and its `value` as plain JSON, without
+the value's `statement` and `resolve_with` unless `--describe` asks for them
+(the example is written with it). A case with none leaves `assumptions` out; a `Needs` result has none.
 
 ```json
 { "case_id": "closed",
@@ -1455,11 +1466,20 @@ is an `InputPath` of that pattern: a branded string only the validators make,
 so a path such as `accounts[-1].closingCashOre` cannot be written by hand.
 `TaxReportInputPatterns` maps every pattern to the value an answer writes
 there; `TaxReportNeed` is the union of the needs of every pattern, so
-narrowing `need.pattern` narrows the need. Each need carries the field's
+narrowing `need.pattern` narrows the need. Each need carries `waiting`, the
+rules and functions in a law section that wait for the value, the ones citing
+paragraphs first, each with its `section`; with `describe`, the field's
 `label`, `question`, `help`, `unit` and `sources` where the contract gives
-them; `waiting`, the rules and functions in a law section that wait for the
-value, the ones citing paragraphs first, each with its `section` and cited
-`paragraphs` (paragraph, quoted source and act); and, inside a list whose
+them and each waiting rule's cited `paragraphs` (paragraph, quoted source and
+act). Every call, query and answer takes `options.describe`, which the SDK
+writes as the input document's `describe`:
+
+```ts
+await taxReportQuery(transport, partialCase, { describe: { needs: ["label", "question"], assumptions: ["statement"] } });
+```
+
+The described members are optional in the generated types, as they are when
+the law gives no text. And, inside a list whose
 element type declares a key field (`@ field(key = True)`, on a record or on
 every variant of a sum type), `keys`: the element's path, key field and value,
 typed by the contract, so a need on `openingPositions[0].marketValue` names the

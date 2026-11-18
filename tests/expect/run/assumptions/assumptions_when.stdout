@@ -21,8 +21,7 @@
           "rule": "levy_base",
           "binding": "levy_base_rule",
           "value": {
-            "id": "LEVY-BASE",
-            "statement": "The levy base is the largest excess of the year."
+            "id": "LEVY-BASE"
           }
         }
       ]

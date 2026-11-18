@@ -846,16 +846,25 @@ function caseOutput(entry, outputSchema, document, wireCase) {
     }
     return only;
 }
+/** `describe` as the input document's `describe` list. */
+function describeWire(describe) {
+    return [
+        ...(describe?.needs ?? []),
+        ...(describe?.assumptions ?? []).map((member) => (member === "resolveWith" ? "resolve_with" : member)),
+    ];
+}
 /** Validate a case and encode it as the input document `runa call` reads. */
-function inputDocument(entry, inputSchema, input) {
+function inputDocument(entry, inputSchema, input, options = {}) {
     const checked = inputSchema.safeParse(input);
     if (!checked.success) {
         const issues = checked.error.issues;
         throw new CalculationError("input", entry.name, `invalid input: ${issueSummary(issues)}`, { issues });
     }
     const wireCase = toWire(entry.input, checked.data);
+    const describe = describeWire(options.describe);
     const document = {
         $futuruna: { schema: INPUT_SCHEMA, schema_hash: entry.schemaHash, entry: entry.name },
+        ...(describe.length > 0 ? { describe } : {}),
         cases: [{ case_id: CASE_ID, input_status: "ready", input: wireCase }],
     };
     return { wireCase, document };
@@ -883,8 +892,8 @@ function validated(entry, schema, decode) {
  * `transport.call`, check the envelope, and decode and validate the result;
  * returned with the assumptions it rests on.
  */
-export async function callEntry(transport, entry, inputSchema, outputSchema, input) {
-    const { wireCase, document } = inputDocument(entry, inputSchema, input);
+export async function callEntry(transport, entry, inputSchema, outputSchema, input, options = {}) {
+    const { wireCase, document } = inputDocument(entry, inputSchema, input, options);
     const output = caseOutput(entry, OUTPUT_SCHEMA, await transport.call(entry.name, document), wireCase);
     return calculated(entry, outputSchema, output);
 }
@@ -899,8 +908,8 @@ function calculated(entry, outputSchema, output) {
  * or `Needs`, with the result decoded, every path a TypeScript path and every
  * need tagged with its pattern.
  */
-export async function queryEntry(transport, entry, inputSchema, resultSchema, input) {
-    const { wireCase, document } = inputDocument(entry, inputSchema, input);
+export async function queryEntry(transport, entry, inputSchema, resultSchema, input, options = {}) {
+    const { wireCase, document } = inputDocument(entry, inputSchema, input, options);
     const output = await transport.callPartial(entry.name, document);
     const result = caseOutput(entry, PARTIAL_OUTPUT_SCHEMA, output, wireCase)["result"];
     return validated(entry, resultSchema, () => queryResultFromWire(entry, wireCase, result));
