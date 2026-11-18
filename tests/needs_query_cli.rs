@@ -93,13 +93,17 @@ fn an_imported_lookup_runs_interpreted_under_run() {
         "\
 @ import asks_income
 
-= case = Case(delisted = \"2027-02-20\", balances = [Balance(day = \"2027-02-20\", value = 1740)])
-? deemed(case) == 1740
+= given = Case(delisted = \"2027-02-20\", balances = [Balance(day = \"2027-02-20\", value = 1740)])
+| deemed_on_the_day: given -> deemed(given) == 1740
+? deemed_on_the_day
 ",
     )
     .unwrap();
     let run = runa_test(&dir, &["--run"], None);
-    assert!(run.contains("interpreted (lookup)"), "{run}");
+    assert!(
+        run.contains("PASS  deemed.scenario.runa (interpreted (lookup)"),
+        "{run}"
+    );
     assert!(!run.contains("rustc"), "{run}");
     let _ = std::fs::remove_dir_all(dir);
 }
