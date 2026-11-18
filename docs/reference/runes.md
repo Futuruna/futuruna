@@ -629,6 +629,15 @@ Each clause can carry its own `@ cite`. Generated code, `runa verify` and
 `runa audit` read the family as total: the last clause's value is the
 otherwise of the translation, and the audit reports no gap.
 
+A pattern of a generic type's constructor takes the position's type from
+the declaring line, so an exception can read an Option's payload instead of
+a placeholder:
+
+```runa
+| period_end(year: Int, closed_on: Date?): Date -> Date(year = year, month = 12, day = 31)
+| exception closed period_end(year, Some(day)) -> day
+```
+
 ### Named invariants (verification targets)
 ```runa
 | name: subject_expr -> predicate_expr

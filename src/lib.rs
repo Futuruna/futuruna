@@ -56017,15 +56017,28 @@ impl TypeChecker {
                     return None;
                 };
                 self.constructor_signature_for_args(constructor, arguments)
-                    .map(|signature| Ty::Name(signature.parent))
+                    .map(|signature| signature.parent)
+                    .filter(|parent| !self.type_has_parameters(parent))
+                    .map(Ty::Name)
             }
             ExprKind::Var(constructor)
                 if constructor.chars().next().is_some_and(char::is_uppercase) =>
             {
-                self.nullary_constructor_parent(constructor).map(Ty::Name)
+                self.nullary_constructor_parent(constructor)
+                    .filter(|parent| !self.type_has_parameters(parent))
+                    .map(Ty::Name)
             }
             _ => None,
         }
+    }
+
+    /// Whether a declared type takes type parameters (`Option(a)`): a pattern
+    /// of one of its constructors (`Some(day)`) names only the bare owner, not
+    /// the type at the position, which the family's declaration gives.
+    fn type_has_parameters(&self, owner: &str) -> bool {
+        self.type_parameters_by_owner
+            .get(owner)
+            .is_some_and(|parameters| !parameters.is_empty())
     }
 
     fn canonical_dispatch_types_match(&self, actual: &str, expected: &Ty) -> bool {
