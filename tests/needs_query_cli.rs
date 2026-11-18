@@ -73,6 +73,37 @@ fn a_query_passes_runa_test_and_runs_interpreted_under_run() {
     let _ = std::fs::remove_dir_all(dir);
 }
 
+/// A scenario that imports a module calling `lookup` runs interpreted under
+/// `--run`, as one calling it itself: no Rust is generated for it.
+#[test]
+fn an_imported_lookup_runs_interpreted_under_run() {
+    let dir = fixture(
+        "\
+# Balance(@ field(key = True) day: String, value: Int)
+# Case(delisted: String, @ field(open = True) balances: List(Balance))
+
+@ entry
+> deemed(c: Case) -> Int {
+    lookup(c.balances, c.delisted).value
+}
+",
+    );
+    std::fs::write(
+        dir.join("deemed.scenario.runa"),
+        "\
+@ import asks_income
+
+= case = Case(delisted = \"2027-02-20\", balances = [Balance(day = \"2027-02-20\", value = 1740)])
+? deemed(case) == 1740
+",
+    )
+    .unwrap();
+    let run = runa_test(&dir, &["--run"], None);
+    assert!(run.contains("interpreted (lookup)"), "{run}");
+    assert!(!run.contains("rustc"), "{run}");
+    let _ = std::fs::remove_dir_all(dir);
+}
+
 /// The fault hook exists only in debug builds: propagation claims `Complete`
 /// for a case that still needs the income, and the completion test refutes
 /// it at the query's line, naming the completion.
