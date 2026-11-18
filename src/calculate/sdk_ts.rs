@@ -2012,32 +2012,6 @@ impl<'a> Sdk<'a> {
             write_doc(
                 &mut body,
                 "",
-                &[
-                    format!("Calculate and explain {title}"),
-                    String::new(),
-                    "As the plain call, through `transport.callExplained` (`runa call --explain`): also returns where every leaf of the result came from, at TypeScript paths.".to_string(),
-                ],
-            );
-            let _ = writeln!(
-                body,
-                "export function {values}Explained(\n  transport: ExplainingTransport,\n  input: {input},\n  depth: ExplainDepth = \"direct\",\n): Promise<Explained<{output}>> {{\n  return explainEntry(transport, {values}Entry, depth, {input_schema}, {output_schema}, input);\n}}\n"
-            );
-            write_doc(
-                &mut body,
-                "",
-                &[
-                    format!("Query and explain {title}"),
-                    String::new(),
-                    "As the query, through `transport.callPartialExplained` (`runa call --partial --explain`): a `Complete` result comes with its explanation.".to_string(),
-                ],
-            );
-            let _ = writeln!(
-                body,
-                "export function {values}QueryExplained(\n  transport: ExplainingTransport,\n  input: {partial_input},\n  depth: ExplainDepth = \"direct\",\n): Promise<ExplainedQuery<partial.{types}QueryResult>> {{\n  return explainQueryEntry(transport, {values}Entry, depth, {partial_schema}, partial.{types}QueryResultSchema, input);\n}}\n"
-            );
-            write_doc(
-                &mut body,
-                "",
                 &[format!(
                     "How the needs of `{}` are answered: called once per round with every need of the round, it returns the reply to each need, typed by the need's pattern (`given(need, value)` or `open`); an entry need is answered as any other.",
                     contract.entry
@@ -2928,13 +2902,8 @@ mod tests {
         );
         assert_contains(client, "/**\n * Calculate `person_tax`: One person.");
         for expected in [
-            "export function personTaxExplained(\n  transport: ExplainingTransport,\n  input: types.Person,\n  depth: ExplainDepth = \"direct\",\n): Promise<Explained<number>> {\n  return explainEntry(transport, personTaxEntry, depth, schema.PersonSchema, IntSchema, input);",
-            "export function coupleTaxQueryExplained(\n  transport: ExplainingTransport,\n  input: partial.PartialCouple,\n  depth: ExplainDepth = \"direct\",\n): Promise<ExplainedQuery<partial.CoupleTaxQueryResult>> {",
             "export function personTax(transport: EngineTransport, input: types.Person)",
             "  patterns: partial.PersonTaxInputPatternList,\n};",
-            "type ExplainDepth",
-            "type Explained,",
-            "type ExplainedQuery",
         ] {
             assert_contains(client, expected);
         }

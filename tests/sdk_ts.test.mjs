@@ -193,8 +193,8 @@ const ledgerModel = `# Date(year: Int, month: Int, day: Int)
 `;
 
 const ledgerUsage = `import {
-  balanceExplained, isoDate, none,
-  type BalanceNeed, type EngineTransport, type ExplainingTransport, type IsoDate, type Ledger, type PartialEvent,
+  isoDate, none,
+  type BalanceNeed, type IsoDate, type Ledger, type PartialEvent,
   type PartialLedger,
 } from "./sdk/index.js";
 
@@ -240,12 +240,6 @@ export const ledger: Ledger = { events: [], closedOn: isoDate("2026-03-01"), not
 // @ts-expect-error a bare string is not an IsoDate
 export const looseDay: Ledger = { events: [], closedOn: "yesterday", note: null };
 export const day: IsoDate | null = ledger.closedOn;
-
-export const explain = (transport: ExplainingTransport) => balanceExplained(transport, ledger);
-export function plainTransport(transport: EngineTransport) {
-  // @ts-expect-error an explained call needs a transport that explains
-  return balanceExplained(transport, ledger);
-}
 
 export function forgeNeed(need: BalanceNeed): BalanceNeed {
   // @ts-expect-error an input path comes from the engine, not from a string
@@ -716,7 +710,7 @@ test('a named scalar is a branded type in the SDK, and a value the engine refuse
   });
 });
 
-test('partial values, dates, paths and explained calls are checked by the types', options, async () => {
+test('partial values, dates and paths are checked by the types', options, async () => {
   const dir = project('ledger');
   writeFileSync(join(dir, 'ledger.entry.runa'), ledgerModel);
   run(binary, ['sdk', 'ts', 'ledger.entry.runa', '--out', 'sdk'], dir);
