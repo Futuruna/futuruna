@@ -34430,6 +34430,9 @@ pub struct TypeCheckArtifacts {
     pub diagnostics: Vec<Diagnostic>,
     /// Warnings: reported, never failing the check.
     pub warnings: Vec<Diagnostic>,
+    /// Why the program (root and imports) runs in the interpreter only:
+    /// `"query"` or `"lookup"` (`query::interpreter_only`).
+    pub interpreter_only: Option<&'static str>,
     pub calculation_contracts: Vec<calculate::CalculationContract>,
     pub compile_time_metadata_bindings: BTreeSet<String>,
     /// Every declared unit of measure and named scalar, including imported
@@ -65082,6 +65085,7 @@ impl TypeChecker {
             // reads, whether or not the program declares a calculation.
             compile_time_metadata_bindings.extend(tc.metadata_binding_candidates(stmts));
         }
+        let interpreter_only = query::interpreter_only(stmts, source, &tc);
         let checked_resolutions = CheckedResolutionRecorder::record(&tc);
         let (checked_exploration_queries, checked_exploration_query_issue) =
             if tc.diagnostics.is_empty() {
@@ -65123,6 +65127,7 @@ impl TypeChecker {
         let runtime_root_source_dir = tc.source_dir.clone().map(String::into_boxed_str);
         TypeCheckArtifacts {
             diagnostics: tc.diagnostics,
+            interpreter_only,
             warnings,
             calculation_contracts,
             compile_time_metadata_bindings,

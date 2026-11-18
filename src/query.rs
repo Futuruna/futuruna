@@ -379,6 +379,30 @@ pub(crate) fn program_files<'a>(
     files
 }
 
+/// Why the program runs in the interpreter only, reading the root file and
+/// each file it imports: `"query"` when one asks a `query` or places an
+/// `unknown`, `"lookup"` when one calls `lookup`. Native code takes complete
+/// input, so such a program has no Rust.
+pub(crate) fn interpreter_only(
+    statements: &[Stmt],
+    source: &str,
+    checker: &TypeChecker,
+) -> Option<&'static str> {
+    let files = program_files(statements, source, checker);
+    let any = |mentions: fn(&Stmt) -> bool| {
+        files
+            .iter()
+            .any(|file| file.statements.iter().any(mentions))
+    };
+    if any(stmt_mentions_query_or_unknown) {
+        Some("query")
+    } else if any(stmt_mentions_lookup) {
+        Some("lookup")
+    } else {
+        None
+    }
+}
+
 /// The 1-based line of a character offset.
 pub(crate) fn line_of_offset(source: &str, offset: usize) -> usize {
     source

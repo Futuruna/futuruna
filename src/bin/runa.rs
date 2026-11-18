@@ -11456,15 +11456,33 @@ fn source_has_embedded_rust(source: &str) -> bool {
     })
 }
 
-/// Whether a test file asks a `query`, places an `unknown` or calls `lookup`.
-fn source_asks_query(source: &str) -> bool {
-    Parser::new(Lexer::new(source).tokenize(), source)
+/// What a program that runs in the interpreter only reports, by
+/// `TypeCheckArtifacts::interpreter_only`'s reason.
+fn interpreted_label(reason: &str) -> &'static str {
+    match reason {
+        "query" => "interpreted (query)",
+        _ => "interpreted (lookup)",
+    }
+}
+
+/// Whether a test file runs in the interpreter only, and why: it, or a file
+/// it imports, asks a `query`, places an `unknown` or calls `lookup`.
+fn test_file_interpreted(
+    file_path: &Path,
+    source: &str,
+    use_prelude: bool,
+) -> Option<&'static str> {
+    let user_stmts = Parser::new(Lexer::new(source).tokenize(), source)
         .parse_program()
-        .is_ok_and(|statements| {
-            statements.iter().any(|statement| {
-                stmt_mentions_query_or_unknown(statement) || stmt_mentions_lookup(statement)
-            })
-        })
+        .ok()?;
+    let stmts = if use_prelude {
+        prepend_prelude(parse_prelude(), &user_stmts)
+    } else {
+        user_stmts
+    };
+    type_check_artifacts(&stmts, source, &file_path.to_string_lossy())
+        .interpreter_only
+        .map(interpreted_label)
 }
 
 /// Each `query`, `unknown` and `lookup` of a program compiled
@@ -11530,12 +11548,16 @@ fn run_test_case(
         };
     }
 
-    // A query runs in the interpreter: under `--run` its test runs there too.
-    let interpreted_query =
-        compile_mode && expected_errors.is_empty() && source_asks_query(&source);
+    // A query or `lookup` runs in the interpreter: under `--run` its test
+    // runs there too.
+    let interpreted = if compile_mode && expected_errors.is_empty() {
+        test_file_interpreted(file_path, &source, use_prelude)
+    } else {
+        None
+    };
     let (command, expected, expectation_label, error_kind) = if !expected_errors.is_empty() {
         ("check", &expected_errors, "expect-error", "error")
-    } else if compile_mode && !interpreted_query {
+    } else if compile_mode && interpreted.is_none() {
         (
             "run",
             &expected_runtime_errors,
@@ -11568,11 +11590,7 @@ fn run_test_case(
     );
     let outcome = if output.status.success() {
         if expected.is_empty() {
-            TestFileOutcome::Pass(if interpreted_query {
-                "interpreted (query)"
-            } else {
-                ""
-            })
+            TestFileOutcome::Pass(interpreted.unwrap_or(""))
         } else {
             TestFileOutcome::Fail(format!("expected {error_kind} but program succeeded"))
         }
@@ -20770,16 +20788,10 @@ fn check_source(
                 std::process::exit(1);
             }
 
-            // A program that asks a query or calls `lookup` runs in the
-            // interpreter only: native code takes complete input, so there is
-            // no Rust to check.
-            let interpreted = if stmts.iter().any(stmt_mentions_query_or_unknown) {
-                Some("interpreted (query)")
-            } else if stmts.iter().any(stmt_mentions_lookup) {
-                Some("interpreted (lookup)")
-            } else {
-                None
-            };
+            // A program that asks a query or calls `lookup`, in its root file
+            // or a file it imports, runs in the interpreter only: native code
+            // takes complete input, so there is no Rust to check.
+            let interpreted = type_check.interpreter_only.map(interpreted_label);
             if frontend_only || interpreted.is_some() {
                 check_output.success(
                     &CheckArtifactSummary {
