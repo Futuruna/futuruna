@@ -355,7 +355,7 @@
     {
       "id": "answer",
       "kind": "language",
-      "name": "Answering an entry (`answer`, generated AnswerGuide)",
+      "name": "Answering an entry (`answer`)",
       "stage": "experimental",
       "commands": [],
       "docs": [

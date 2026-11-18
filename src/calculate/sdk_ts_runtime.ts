@@ -375,6 +375,17 @@ function wirePath(codec: CodecRef, wireCase: unknown, path: string): LocatedPath
   let at: Position = { node: presentCodec(codec), value: wireCase };
   for (const segment of segments) {
     const { node, value } = at;
+    if ("key" in segment) {
+      // An entry of an open collection by its key: the key field at its TypeScript name.
+      const item = node !== undefined && !("$values" in node) && node.kind === "list" ? presentCodec(node.item) : undefined;
+      const named = item?.kind === "record" ? byWireName(item.fields).get(segment.key) : undefined;
+      out.push({ key: named?.[0] ?? segment.key, value: segment.value });
+      const entry = Array.isArray(value)
+        ? (value as unknown[]).find((candidate) => isObject(candidate) && candidate[segment.key] === segment.value)
+        : undefined;
+      at = { node: item, value: entry };
+      continue;
+    }
     const key = "index" in segment ? segment.index : segment.field;
     const step = (next: CodecRef | undefined, name: PathSegment = segment): Position => {
       out.push(name);
@@ -432,15 +443,28 @@ function wirePath(codec: CodecRef, wireCase: unknown, path: string): LocatedPath
 function formatPath(segments: readonly PathSegment[]): string {
   return segments
     .map((segment, at) =>
-      "index" in segment ? `[${String(segment.index)}]` : at === 0 ? segment.field : `.${segment.field}`,
+      "key" in segment
+        ? `[${segment.key}=${JSON.stringify(segment.value)}]`
+        : "index" in segment
+          ? `[${String(segment.index)}]`
+          : at === 0
+            ? segment.field
+            : `.${segment.field}`,
     )
     .join("");
 }
 
 // Paths and setAt
 
-/** One step of a concrete input path: a field (record field, map key, `$variant`, `$values`) or a list index. */
-export type PathSegment = { readonly field: string } | { readonly index: number };
+/**
+ * One step of a concrete input path: a field (record field, map key, `$variant`,
+ * `$values`), a list index, or the entry of an open collection by its key
+ * (`[day="2027-02-20"]`: the key field and its value).
+ */
+export type PathSegment =
+  | { readonly field: string }
+  | { readonly index: number }
+  | { readonly key: string; readonly value: string | number };
 
 /** A path that does not parse, or that {@link setAt} cannot write. */
 export class PathError extends Error {
@@ -456,6 +480,10 @@ export class PathError extends Error {
 const FIRST_FIELD = /^[^.[\]]+/;
 const NEXT_FIELD = /^\.([^.[\]]+)/;
 const LIST_INDEX = /^\[(\d+)\]/;
+const KEY_VALUE = String.raw`"(?:[^"\\]|\\.)*"|-?\d+`;
+const ENTRY_KEY = new RegExp(String.raw`^\[([^.[\]=]+)=(${KEY_VALUE})\]`);
+/** A list index or an entry's key selector, as `[]` in a pattern stands for either. */
+const ELEMENT = String.raw`\[(?:\d+|[^.[\]=]+=(?:${KEY_VALUE}))\]`;
 
 /** Split a concrete input path such as `accounts[2].closingCashOre` into its steps. */
 export function parsePath(path: string): PathSegment[] {
@@ -468,6 +496,12 @@ export function parsePath(path: string): PathSegment[] {
     if (index !== null) {
       segments.push({ index: Number(index[1]) });
       rest = rest.slice(index[0].length);
+      continue;
+    }
+    const entry = ENTRY_KEY.exec(rest);
+    if (entry?.[1] !== undefined && entry[2] !== undefined) {
+      segments.push({ key: entry[1], value: JSON.parse(entry[2]) as string | number });
+      rest = rest.slice(entry[0].length);
       continue;
     }
     const field = NEXT_FIELD.exec(rest);
@@ -484,7 +518,10 @@ export function parsePath(path: string): PathSegment[] {
  * passed in is not changed. A record on the way that was left out is created as
  * `{}`; a list element must already exist. Writing `$variant` keeps the object
  * when the variant is unchanged, and otherwise starts the new variant with its
- * fields unknown. The entry's `<entry>SetAt` is the same, typed by a need.
+ * fields unknown. The entry of an open collection (`balances[day="2027-02-20"]`)
+ * is the whole entry: written into the entry with that key, or added to the
+ * collection, its key set to the path's. The entry's `<entry>SetAt` is the same,
+ * typed by a need.
  */
 export function setAt<C>(partialCase: C, path: string, value: unknown): C {
   return writeAt(partialCase, parsePath(path), 0, value, path) as C;
@@ -493,6 +530,21 @@ export function setAt<C>(partialCase: C, path: string, value: unknown): C {
 function writeAt(node: unknown, segments: readonly PathSegment[], at: number, value: unknown, path: string): unknown {
   const segment = segments[at];
   if (segment === undefined) return value;
+  if ("key" in segment) {
+    const list: unknown = node ?? [];
+    if (!Array.isArray(list)) throw new PathError(path, `the entry \`${segment.key}\` = ${JSON.stringify(segment.value)} is inside a value that is not a list`);
+    const copy: unknown[] = (list as unknown[]).slice();
+    const found = copy.findIndex((entry) => isObject(entry) && entry[segment.key] === segment.value);
+    if (found >= 0) {
+      copy[found] = writeAt(copy[found], segments, at + 1, value, path);
+      return copy;
+    }
+    if (at !== segments.length - 1) {
+      throw new PathError(path, `there is no entry whose \`${segment.key}\` is ${JSON.stringify(segment.value)} to write into`);
+    }
+    copy.push(keyedValue(value, segment, path));
+    return copy;
+  }
   if ("index" in segment) {
     if (!Array.isArray(node) || segment.index >= node.length) {
       throw new PathError(path, `there is no list element [${String(segment.index)}] to write into`);
@@ -516,21 +568,38 @@ function writeAt(node: unknown, segments: readonly PathSegment[], at: number, va
   return out;
 }
 
-/** The pattern of a concrete path: list indices become `[]` (`accounts[2].kind` → `accounts[].kind`). */
+/** A new entry of an open collection, with the key its path names. */
+function keyedValue(value: unknown, segment: { readonly key: string; readonly value: string | number }, path: string): unknown {
+  if (!isObject(value)) throw new PathError(path, "an entry of an open collection is a record");
+  const given = value[segment.key];
+  if (given === undefined) return { ...value, [segment.key]: segment.value };
+  if (given !== segment.value) {
+    throw new PathError(path, `the entry's \`${segment.key}\` is ${JSON.stringify(given)}, and the need asks for ${JSON.stringify(segment.value)}`);
+  }
+  return value;
+}
+
+/**
+ * The pattern of a concrete path: list indices and entry keys become `[]`
+ * (`accounts[2].kind` → `accounts[].kind`, `balances[day="2027-02-20"]` → `balances[]`).
+ */
 export function pathPattern(path: string): string {
-  return path.replace(/\[\d+\]/g, "[]");
+  return path.replace(new RegExp(ELEMENT, "g"), "[]");
 }
 
 const patternExpressions = new Map<string, RegExp>();
 
-/** Whether a concrete path matches a pattern, where `[]` stands for any list index and `*` for any map key. */
+/**
+ * Whether a concrete path matches a pattern, where `[]` stands for any list
+ * index or entry key and `*` for any map key.
+ */
 export function matchesPathPattern(path: string, pattern: string): boolean {
   let expression = patternExpressions.get(pattern);
   if (expression === undefined) {
     const source = pattern
       .split("[]")
       .map((part) => part.split("*").map(escapeRegExp).join("[^.[\\]]+"))
-      .join("\\[\\d+\\]");
+      .join(ELEMENT);
     expression = new RegExp(`^${source}$`);
     patternExpressions.set(pattern, expression);
   }
@@ -839,33 +908,6 @@ export type EntryNeed<P extends string = string, K = ElementKey> = NeedMetadata<
  */
 export type Need<P extends string = string, K = ElementKey> = P extends string ? FactNeed<P, K> | EntryNeed<P, K> : never;
 
-/**
- * One input path pattern of an entry at which a need can arise, as the law
- * gives it: the value's Futuruna type as written (`Int`, `Spouse?`,
- * `List(Child)`, a unit's name), the field's metadata, the patterns of the key
- * fields of the list elements it lies in (outermost first), and for a value
- * another entry provides, that entry and the path of its subject.
- */
-export type GuideNeed = {
-  readonly kind: "fact" | "entry";
-  readonly type: string;
-  readonly label?: string | undefined;
-  readonly question?: string | undefined;
-  readonly help?: string | undefined;
-  readonly unit?: string | undefined;
-  readonly keys: readonly string[];
-  readonly sources: readonly SourceReference[];
-  readonly entry?: string | undefined;
-  readonly subject?: string | undefined;
-};
-
-/**
- * An entry's answer guide, generated from its law: every input path pattern
- * of `P` at which a need can arise, once. A pattern no need can name (a
- * record, the element of a list of records) is left out.
- */
-export type AnswerGuide<P extends string = string> = { readonly [K in P]?: GuideNeed };
-
 /** `P` when it is one pattern; `never` for a union of several. */
 type OnePattern<P, All = P> = P extends unknown ? ([All] extends [P] ? P : never) : never;
 
@@ -1074,14 +1116,6 @@ export interface EngineTransport {
   callPartial(entry: string, input: unknown): Promise<unknown>;
 }
 
-/** A transport that also explains, as the `...Explained` calls need. */
-export interface ExplainingTransport extends EngineTransport {
-  /** Run `entry` and explain every leaf of the result, as `runa call --explain` (`--explain=full` when `full`). */
-  callExplained(entry: string, input: unknown, full: boolean): Promise<unknown>;
-  /** As `callExplained`, on a partial case: `runa call --partial --explain`. */
-  callPartialExplained(entry: string, input: unknown, full: boolean): Promise<unknown>;
-}
-
 /**
  * One entry: its name, its contract hash, the wire codecs of its
  * input and result, and its input path patterns, which tag its needs.
@@ -1163,7 +1197,7 @@ function issueSummary(issues: readonly { path: readonly PropertyKey[]; message: 
   return `${String(issues.length)} issue${issues.length === 1 ? "" : "s"}; first at ${at}: ${first.message}`;
 }
 
-/** The one case of an output document (`result`, and `explanation` when explained), its envelope checked. */
+/** The one case of an output document, its envelope checked. */
 function caseOutput(
   entry: CalculationEntry,
   outputSchema: string,
@@ -1230,16 +1264,44 @@ function caseOutput(
   return only;
 }
 
+/**
+ * The descriptive text a call returns besides what the caller acts on. By
+ * default a need carries its kind, path, pattern, keys, waiting rules and, for
+ * an entry need, its entry and subject, and an assumption its section, rule,
+ * binding and value without `statement` and `resolve_with`. Name the members
+ * to add, as `runa call --describe` does.
+ */
+export type Describe = {
+  readonly needs?: readonly ("label" | "question" | "help" | "unit" | "sources")[] | undefined;
+  readonly assumptions?: readonly ("statement" | "resolveWith")[] | undefined;
+};
+
+/** How a call, query or answer runs. */
+export type CallOptions = {
+  /** The descriptive text to return; none by default. */
+  readonly describe?: Describe | undefined;
+};
+
+/** `describe` as the input document's `describe` list. */
+function describeWire(describe: Describe | undefined): string[] {
+  return [
+    ...(describe?.needs ?? []),
+    ...(describe?.assumptions ?? []).map((member) => (member === "resolveWith" ? "resolve_with" : member)),
+  ];
+}
+
 /** Validate a case and encode it as the input document `runa call` reads. */
-function inputDocument<I>(entry: CalculationEntry, inputSchema: z.ZodType<I>, input: I) {
+function inputDocument<I>(entry: CalculationEntry, inputSchema: z.ZodType<I>, input: I, options: CallOptions = {}) {
   const checked = inputSchema.safeParse(input);
   if (!checked.success) {
     const issues = checked.error.issues;
     throw new CalculationError("input", entry.name, `invalid input: ${issueSummary(issues)}`, { issues });
   }
   const wireCase = toWire(entry.input, checked.data);
+  const describe = describeWire(options.describe);
   const document = {
     $futuruna: { schema: INPUT_SCHEMA, schema_hash: entry.schemaHash, entry: entry.name },
+    ...(describe.length > 0 ? { describe } : {}),
     cases: [{ case_id: CASE_ID, input_status: "ready", input: wireCase }],
   };
   return { wireCase, document };
@@ -1273,8 +1335,9 @@ export async function callEntry<I, O>(
   inputSchema: z.ZodType<I>,
   outputSchema: z.ZodType<O>,
   input: I,
+  options: CallOptions = {},
 ): Promise<Calculated<O>> {
-  const { wireCase, document } = inputDocument(entry, inputSchema, input);
+  const { wireCase, document } = inputDocument(entry, inputSchema, input, options);
   const output = caseOutput(entry, OUTPUT_SCHEMA, await transport.call(entry.name, document), wireCase);
   return calculated(entry, outputSchema, output);
 }
@@ -1297,321 +1360,28 @@ export async function queryEntry<I, R, N extends Need>(
   inputSchema: z.ZodType<I>,
   resultSchema: z.ZodType<QueryResult<R, N>>,
   input: I,
+  options: CallOptions = {},
 ): Promise<QueryResult<R, N>> {
-  const { wireCase, document } = inputDocument(entry, inputSchema, input);
+  const { wireCase, document } = inputDocument(entry, inputSchema, input, options);
   const output = await transport.callPartial(entry.name, document);
   const result = caseOutput(entry, PARTIAL_OUTPUT_SCHEMA, output, wireCase)["result"];
   return validated(entry, resultSchema, () => queryResultFromWire(entry, wireCase, result));
 }
 
-// Explanations
-
-/** How much an explained call reports: `direct` contributors of each value, or also the `full` derivation. */
-export type ExplainDepth = "direct" | "full";
-
-/** A leaf of a result or a case: a number, string or boolean, an enum's variant, or a `Date` as an ISO date. */
-export type ExplainedLeaf = string | number | boolean | null;
-
-/** A paragraph a rule clause cites, with its quoted text. */
-export type CitedParagraph = ParagraphReference & { text: string };
-
-/** The rule clause that produced a value: its law section and cited paragraphs. */
-export type ExplainedRule = {
-  $variant: "Rule";
-  rule: string;
-  /** The RuleScope of a scoped rule. */
-  scope?: string | undefined;
-  clause: "default" | "exception" | "clause";
-  /** The label of the exception that applied. */
-  exception?: string | undefined;
-  /** `file:line` of the clause. */
-  location?: string | undefined;
-  /** The law section around the clause; a key of {@link Explanation.sections}. */
-  section?: string | undefined;
-  cites?: CitedParagraph[] | undefined;
-};
-
-/** A rule a value was computed from, with the value it gave. */
-export type RuleContributor = Omit<ExplainedRule, "cites"> & {
-  paragraphs?: ParagraphReference[] | undefined;
-  value: ExplainedLeaf;
-  /** The node in {@link Explanation.derivation}, with depth `full`. */
-  node?: number | undefined;
-};
-
-/** An input a value was computed from, at its TypeScript path in the case. */
-export type InputContributor = { $variant: "Input"; path: string; value: ExplainedLeaf };
-
-export type Contributor = RuleContributor | InputContributor;
-
-/**
- * What produced a value: a rule clause, the input at a TypeScript path of the
- * case, a computation outside any rule, or a constant of the model.
- */
-export type ExplainedBy =
-  | ExplainedRule
-  | { $variant: "Input"; path: string }
-  | { $variant: "Computed" }
-  | { $variant: "Constant" };
-
-/** One leaf of a result and where it came from. */
-export type ExplainedValue = {
-  value: ExplainedLeaf;
-  by: ExplainedBy;
-  from?: Contributor[] | undefined;
-  /** Direct contributors beyond the first 32, with depth `direct`. */
-  fromOmitted?: number | undefined;
-  /** The inputs and rules the guards read that chose the clause. */
-  because?: Contributor[] | undefined;
-};
-
-/** A law section: its anchor, quoted documents, attachments and quote. */
-export type ExplainedSection = {
-  location: string;
-  sources: string[];
-  /** Each document the section quotes: its binding, file and role. */
-  documents: { binding: string; file: string | null; role: string | null }[];
-  attachments: { role: string; binding?: string | undefined; value: unknown }[];
-  quote: string;
-  /** The quoted passages an instruction quoted in the same section amends. */
-  superseded?: { paragraph: string; asAmendedBy: Amendment }[] | undefined;
-};
-
-/**
- * Where every leaf of a result came from (`docs/rfcs/explanations.md`), at the
- * TypeScript paths of the result and the case: an enum is one leaf, and a
- * `Date` is one leaf, its ISO date, unless its parts came from different
- * places; then each part is explained at `<date>.year`, `.month` and `.day`.
- */
-export type Explanation = {
-  /** Every leaf of the result by its TypeScript path. */
-  values: { [path: string]: ExplainedValue };
-  sections: { [label: string]: ExplainedSection };
-  /** With depth `full`: every rule node a value was computed from. */
-  derivation?:
-    | {
-        [node: string]: {
-          value: ExplainedLeaf;
-          by: ExplainedRule;
-          from: Contributor[];
-          because?: Contributor[] | undefined;
-        };
-      }
-    | undefined;
-};
-
-/** A result with its assumptions and its explanation. */
-export type Explained<R> = Calculated<R> & { readonly explanation: Explanation };
-
-/** A partial call's result; a `Complete` result carries an explanation. */
-export type ExplainedQuery<R> = { readonly result: R; readonly explanation?: Explanation | undefined };
-
-type JsonObject = { [key: string]: unknown };
-
-/** The ISO date of a `Date`'s parts, when they are one. */
-function isoDateOf(parts: { readonly [part: string]: unknown }): string | undefined {
-  const date = dateFromWire({ year: parts["year"], month: parts["month"], day: parts["day"] });
-  return isIsoDate(date) ? date : undefined;
-}
-
-/** `items` without repeats, by their canonical JSON. */
-function distinct<T>(items: readonly T[]): T[] {
-  const seen = new Set<string>();
-  return items.filter((item) => {
-    const key = canonicalJson(item);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-/** Input contributors at TypeScript paths; the three parts of one input `Date` become the date. */
-function contributorsFromWire(input: (path: string) => LocatedPath, from: readonly unknown[]): unknown[] {
-  const out: unknown[][] = [];
-  const dates = new Map<string, { at: number; parts: Map<string, JsonObject> }>();
-  for (const item of from) {
-    if (!isObject(item) || item["$variant"] !== "Input" || typeof item["path"] !== "string") {
-      out.push([withParagraphsFromWire(item, "paragraphs")]);
-      continue;
-    }
-    const located = input(item["path"]);
-    const translated: JsonObject = { ...item, path: located.path };
-    if (located.part === undefined) {
-      out.push([translated]);
-      continue;
-    }
-    let date = dates.get(located.path);
-    if (date === undefined) {
-      date = { at: out.length, parts: new Map() };
-      dates.set(located.path, date);
-      out.push([]);
-    }
-    date.parts.set(located.part, translated);
-  }
-  for (const [path, { at, parts }] of dates) {
-    const value = parts.size === 3 ? isoDateOf(Object.fromEntries([...parts].map(([part, item]) => [part, item["value"]]))) : undefined;
-    out[at] =
-      value !== undefined
-        ? [{ $variant: "Input", path, value }]
-        : [...parts].map(([part, item]) => ({ ...item, path: `${path}.${part}` }));
-  }
-  return distinct(out.flat(1));
-}
-
-function explainedFromWire(input: (path: string) => LocatedPath, value: unknown): JsonObject {
-  const out = isObject(value) ? renamed(value, EXPLAINED_NAMES) : {};
-  const by = out["by"];
-  if (isObject(by) && by["$variant"] === "Input" && typeof by["path"] === "string") {
-    out["by"] = { ...by, path: input(by["path"]).path };
-  } else if (isObject(by)) {
-    out["by"] = withParagraphsFromWire(by, "cites");
-  }
-  for (const list of ["from", "because"]) {
-    const items = out[list];
-    if (Array.isArray(items)) out[list] = contributorsFromWire(input, items);
-  }
-  return out;
-}
-
-const EXPLAINED_NAMES: { readonly [wireName: string]: string } = { from_omitted: "fromOmitted" };
-
-/** The explained parts of one `Date` of a result as one value, when they share what produced them. */
-function explainedDate(parts: ReadonlyMap<string, JsonObject>): JsonObject | undefined {
-  const explained = [...parts.values()];
-  const first = explained[0];
-  if (parts.size !== 3 || first === undefined) return undefined;
-  if (!explained.every((part) => canonicalJson(part["by"]) === canonicalJson(first["by"]))) return undefined;
-  const value = isoDateOf(Object.fromEntries([...parts].map(([part, item]) => [part, item["value"]])));
-  if (value === undefined) return undefined;
-  const out: JsonObject = { value, by: first["by"] };
-  for (const list of ["from", "because"]) {
-    const items: unknown[] = explained.flatMap((part) => {
-      const listed = part[list];
-      return Array.isArray(listed) ? (listed as unknown[]) : [];
-    });
-    if (explained.some((part) => part[list] !== undefined)) out[list] = distinct(items);
-  }
-  const omitted = explained.map((part) => part["fromOmitted"]).filter((count): count is number => typeof count === "number");
-  if (omitted.length > 0) out["fromOmitted"] = Math.max(...omitted);
-  return out;
-}
-
-/**
- * The TypeScript form of an explanation: result and input paths are the
- * TypeScript paths of `wireResult` and `wireCase` (an enum at its own path, a
- * `Date` as a whole) and `from_omitted` is `fromOmitted`. Leaf values are
- * already TypeScript values: numbers, strings, booleans and variant names.
- */
-function explanationFromWire(entry: CalculationEntry, wireCase: unknown, wireResult: unknown, explanation: unknown): Explanation {
-  if (!isObject(explanation) || !isObject(explanation["values"]) || !isObject(explanation["sections"])) {
-    throw new CalculationError("output", entry.name, "the explanation is not an object with values and sections");
-  }
-  const input = (path: string) => wirePath(entry.input, wireCase, path);
-  const groups = new Map<string, Map<string, JsonObject>>();
-  const values: [string, unknown][] = [];
-  for (const [path, value] of Object.entries(explanation["values"])) {
-    const located = wirePath(entry.output, wireResult, path);
-    const explained = explainedFromWire(input, value);
-    if (located.part === undefined) {
-      values.push([located.path, explained]);
-      continue;
-    }
-    let parts = groups.get(located.path);
-    if (parts === undefined) {
-      parts = new Map();
-      groups.set(located.path, parts);
-    }
-    parts.set(located.part, explained);
-  }
-  for (const [path, parts] of groups) {
-    const date = explainedDate(parts);
-    if (date !== undefined) values.push([path, date]);
-    else for (const [part, explained] of parts) values.push([`${path}.${part}`, explained]);
-  }
-  const translated: JsonObject = {};
-  for (const [path, value] of values.sort(([left], [right]) => byText(left, right))) put(translated, path, value);
-  const sections: JsonObject = {};
-  for (const [label, section] of Object.entries(explanation["sections"])) {
-    sections[label] = withParagraphsFromWire(section, "superseded");
-  }
-  const out: JsonObject = { ...explanation, values: translated, sections };
-  const derivation = explanation["derivation"];
-  if (isObject(derivation)) {
-    const nodes: JsonObject = {};
-    for (const [node, value] of Object.entries(derivation)) put(nodes, node, explainedFromWire(input, value));
-    out["derivation"] = nodes;
-  }
-  // The engine's explanation document, its paths translated; `runa call --explain` defines its shape.
-  return out as Explanation;
-}
-
-/**
- * Calculate `entry` and explain it, through `transport.callExplained`
- * (`runa call --explain`): the result as {@link callEntry} returns it, and
- * where every leaf of it came from.
- */
-export async function explainEntry<I, O>(
-  transport: ExplainingTransport,
-  entry: CalculationEntry,
-  depth: ExplainDepth,
-  inputSchema: z.ZodType<I>,
-  outputSchema: z.ZodType<O>,
-  input: I,
-): Promise<Explained<O>> {
-  const { wireCase, document } = inputDocument(entry, inputSchema, input);
-  const output = caseOutput(
-    entry,
-    OUTPUT_SCHEMA,
-    await transport.callExplained(entry.name, document, depth === "full"),
-    wireCase,
-  );
-  const { result, assumptions } = calculated(entry, outputSchema, output);
-  if (output["explanation"] === undefined) {
-    throw new CalculationError("output", entry.name, "the engine returned no explanation");
-  }
-  return { result, assumptions, explanation: explanationFromWire(entry, wireCase, output["result"], output["explanation"]) };
-}
-
-/**
- * Query `entry` and explain a `Complete` result, through
- * `transport.callPartialExplained` (`runa call --partial --explain`).
- */
-export async function explainQueryEntry<I, R, N extends Need>(
-  transport: ExplainingTransport,
-  entry: CalculationEntry,
-  depth: ExplainDepth,
-  inputSchema: z.ZodType<I>,
-  resultSchema: z.ZodType<QueryResult<R, N>>,
-  input: I,
-): Promise<ExplainedQuery<QueryResult<R, N>>> {
-  const { wireCase, document } = inputDocument(entry, inputSchema, input);
-  const reply = await transport.callPartialExplained(entry.name, document, depth === "full");
-  const output = caseOutput(entry, PARTIAL_OUTPUT_SCHEMA, reply, wireCase);
-  const wire = output["result"];
-  const result = validated(entry, resultSchema, () => queryResultFromWire(entry, wireCase, wire));
-  if (output["explanation"] === undefined) return { result };
-  const wireResult = isObject(wire) ? wire["result"] : undefined;
-  return { result, explanation: explanationFromWire(entry, wireCase, wireResult, output["explanation"]) };
-}
-
 // Answering an entry
-
-/** One entry running for one subject, on the stack of entries being answered. */
-export type EntryFrame = { readonly entry: string; readonly subject: string };
 
 /** The reply for a need `resolve` cannot fill: it stays open. */
 export type Open = { readonly kind: "open" };
 
 /**
  * What `resolve` gives for a need at a path of `P`: `given(need, value)`, a
- * value to write at the need's path; `open`, when it cannot fill the need; or
- * the outcome of another entry ({@link ResolverContext.runEntry}). A reply
- * names the path it is for, so it is checked against the need it answers.
+ * value to write at the need's path, or `open`, when it cannot fill the need.
+ * A reply names the path it is for, so it is checked against the need it
+ * answers.
  */
 export type ResolverReply<V = unknown, P extends string = string> =
   | { readonly kind: "given"; readonly path: InputPath<P>; readonly value: V }
-  | Open
-  | { readonly kind: "entry"; readonly path: InputPath<P>; readonly answering: Answering<V> };
+  | Open;
 
 /** The reply for a need `resolve` cannot fill: it stays open. */
 export const open: Open = Object.freeze({ kind: "open" });
@@ -1632,20 +1402,6 @@ export function given<P extends string, V extends AnyValue>(need: { readonly pat
 export interface ResolverContext<C> {
   /** The case sent in this round: the partial case and every answer written so far. */
   readonly partialCase: C;
-  /**
-   * Answer another entry for `need`, as the entry `need.entry` running for
-   * `need.subject`: an entry need names them, a fact need is given them
-   * (`{ ...need, entry: "share_income", subject: "taxpayer.spouse" }`). `run`
-   * answers that entry, passing `options` on, as
-   * `(options) => shareIncomeAnswer(transport, partialCase, resolve, options)`.
-   * Its result is written at the need's path when it is `Answered`; when it is
-   * `Unanswered` the need waits in `pending`. An entry already being answered
-   * for the same subject is a cycle and throws {@link AnswerCycleError}.
-   */
-  runEntry<P extends string, R2>(
-    need: { readonly path: InputPath<P> } & EntryFrame,
-    run: (options: AnswerOptions) => Promise<Answering<R2>>,
-  ): Promise<ResolverReply<R2, P>>;
 }
 
 /** A partial call of one entry, such as `(c) => taxReportQuery(transport, c)`. */
@@ -1704,9 +1460,6 @@ export type Round<N extends Need = Need> = {
   readonly given: readonly InputPath<N["pattern"]>[];
 };
 
-/** An entry need waiting on what another entry left open. */
-export type PendingEntry = { readonly need: Need; readonly answering: Answering<unknown> };
-
 /**
  * Where answering an entry ended: `Answered`, or `Unanswered` when a round
  * answered nothing, with that round's needs left open. The partial case holds
@@ -1726,8 +1479,6 @@ export type Answering<R, N extends Need = Need, C = unknown> =
       readonly $variant: "Unanswered";
       /** The needs of the last round `resolve` left open. */
       readonly open: readonly N[];
-      /** Entry needs waiting on what another entry left open. */
-      readonly pending: readonly PendingEntry[];
       /**
        * Facts read only behind an unknown condition in the last round: what the
        * engine may need once the open needs are answered, in the next round.
@@ -1737,16 +1488,6 @@ export type Answering<R, N extends Need = Need, C = unknown> =
       readonly rounds: readonly Round<N>[];
     };
 
-/**
- * How an entry is answered from inside another's `resolve`: what
- * {@link ResolverContext.runEntry} passes to its `run`, to be passed on to
- * `<entry>Answer` unchanged.
- */
-export type AnswerOptions = {
-  /** The entries being answered above this one, outermost first. */
-  readonly frames?: readonly EntryFrame[];
-};
-
 /** Answering cannot continue. */
 export class AnswerError extends Error {
   constructor(message: string) {
@@ -1755,35 +1496,19 @@ export class AnswerError extends Error {
   }
 }
 
-/** Two entries need each other for the same subjects: a model error; join them into one entry. */
-export class AnswerCycleError extends AnswerError {
-  readonly frames: readonly EntryFrame[];
-
-  constructor(frames: readonly EntryFrame[]) {
-    super(
-      `entries need each other: ${frames.map((frame) => `${frame.entry}(${frame.subject})`).join(" → ")}; model them as one joint entry`,
-    );
-    this.name = "AnswerCycleError";
-    this.frames = frames;
-  }
-}
-
 /**
  * Answer an entry round by round: query it on the partial case, call `resolve`
  * once per round with every need, write the given values with {@link setAt},
  * and query again. Ends `Answered`, or `Unanswered` when a round answers
  * nothing. A reply for another need's path, or a path still needed after it
- * was given, throws {@link AnswerError}; an entry that needs itself for the
- * same subject throws {@link AnswerCycleError}. The SDK's `<entry>Answer`
- * calls it.
+ * was given, throws {@link AnswerError}. An entry need is answered like any
+ * other need. The SDK's `<entry>Answer` calls it.
  */
 export async function answerEntry<C, R, N extends Need, Patterns>(
   query: Query<C, R, N>,
   partialCase: C,
   resolve: Resolve<C, Patterns, N>,
-  options: AnswerOptions = {},
 ): Promise<Answering<R, N, C>> {
-  const frames = options.frames ?? [];
   const resolveLoose = resolve as unknown as LooseResolve<C, N>;
   const answered = new Set<string>();
   const rounds: Round<N>[] = [];
@@ -1805,16 +1530,7 @@ export async function answerEntry<C, R, N extends Need, Patterns>(
         throw new AnswerError(`the engine still needs \`${need.path}\` after it was given`);
       }
     }
-    const context: ResolverContext<C> = {
-      partialCase: current,
-      async runEntry(need, run) {
-        const stack = [...frames, { entry: need.entry, subject: need.subject }];
-        if (frames.some((active) => active.entry === need.entry && active.subject === need.subject)) {
-          throw new AnswerCycleError(stack);
-        }
-        return { kind: "entry", path: need.path, answering: await run({ frames: stack }) };
-      },
-    };
+    const context: ResolverContext<C> = { partialCase: current };
     const answerEach = await resolveLoose(result.needs, context);
     const replies = await Promise.all(
       result.needs.map(async (need) => {
@@ -1826,7 +1542,6 @@ export async function answerEntry<C, R, N extends Need, Patterns>(
       }),
     );
     const left: N[] = [];
-    const pending: PendingEntry[] = [];
     const givenPaths: InputPath<N["pattern"]>[] = [];
     let next = current;
     result.needs.forEach((need, at) => {
@@ -1835,20 +1550,13 @@ export async function answerEntry<C, R, N extends Need, Patterns>(
         left.push(need);
         return;
       }
-      if (reply.kind === "given") {
-        next = setAt(next, need.path, reply.value);
-      } else if (reply.answering.$variant === "Answered") {
-        next = setAt(next, need.path, reply.answering.result);
-      } else {
-        pending.push({ need, answering: reply.answering });
-        return;
-      }
+      next = setAt(next, need.path, reply.value);
       answered.add(need.path);
       givenPaths.push(need.path);
     });
     rounds.push({ paths: result.needs.map((need) => need.path), given: givenPaths });
     if (givenPaths.length === 0) {
-      return { $variant: "Unanswered", open: left, pending, later: result.later ?? [], partialCase: current, rounds };
+      return { $variant: "Unanswered", open: left, later: result.later ?? [], partialCase: current, rounds };
     }
     current = next;
   }

@@ -18,16 +18,14 @@
           "rule": "room",
           "binding": "open_value",
           "value": {
-            "id": "OPEN-VALUE",
-            "statement": "The value of an open account is the custodian's year-end value."
+            "id": "OPEN-VALUE"
           }
         },
         {
           "section": "report",
           "binding": "whole_kroner",
           "value": {
-            "id": "WHOLE-KRONER",
-            "statement": "Amounts are whole kroner."
+            "id": "WHOLE-KRONER"
           }
         }
       ]
@@ -45,16 +43,14 @@
           "rule": "room",
           "binding": "closing_day",
           "value": {
-            "id": "CLOSING-DAY",
-            "statement": "The value on the closing day is the custodian's."
+            "id": "CLOSING-DAY"
           }
         },
         {
           "section": "report",
           "binding": "whole_kroner",
           "value": {
-            "id": "WHOLE-KRONER",
-            "statement": "Amounts are whole kroner."
+            "id": "WHOLE-KRONER"
           }
         }
       ]
@@ -72,24 +68,21 @@
           "rule": "room",
           "binding": "closing_day",
           "value": {
-            "id": "CLOSING-DAY",
-            "statement": "The value on the closing day is the custodian's."
+            "id": "CLOSING-DAY"
           }
         },
         {
           "section": "transfer",
           "binding": "transfer_statement",
           "value": {
-            "id": "TRANSFER",
-            "statement": "The giving institute's statement is complete."
+            "id": "TRANSFER"
           }
         },
         {
           "section": "report",
           "binding": "whole_kroner",
           "value": {
-            "id": "WHOLE-KRONER",
-            "statement": "Amounts are whole kroner."
+            "id": "WHOLE-KRONER"
           }
         }
       ]

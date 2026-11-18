@@ -12,10 +12,7 @@
         "needs": [
           {
             "kind": "fact",
-            "label": "Closing balance",
             "path": "accounts[1].closing_ore",
-            "question": "What was the balance on the closing day?",
-            "unit": "øre",
             "waiting": [
               {
                 "rule": "account_tax"

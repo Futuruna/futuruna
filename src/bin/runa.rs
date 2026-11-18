@@ -232,6 +232,9 @@ fn main_inner() {
     let mut calculation_partial_check = false;
     // `--explain` (direct contributors) or `--explain=full` (Some(true)).
     let mut calculation_explain: Option<bool> = None;
+    // `--describe` (all text) or `--describe=label,question,...`: the
+    // descriptive text `runa call` adds to needs and assumptions.
+    let mut calculation_describe: Option<Vec<calculate::DescribeMember>> = None;
     let mut check_build_deps = false; // --build-deps flag for `runa check`
     let mut add_rev: Option<String> = None; // --rev flag for `runa add`
     let mut verify_allow_unsupported = false; // --allow-unsupported for `runa verify`
@@ -543,6 +546,28 @@ fn main_inner() {
                 eprintln!(
                     "error: --partial applies only to `runa call`: partial cases run in the interpreter; native and compiled programs take complete input"
                 );
+                std::process::exit(1);
+            }
+            "--describe" if mode == "call" => {
+                calculation_describe = Some(calculate::DescribeMember::ALL.to_vec());
+                i += 1;
+            }
+            arg if mode == "call" && arg.starts_with("--describe=") => {
+                let mut members = Vec::new();
+                for name in arg["--describe=".len()..].split(',') {
+                    let Some(member) = calculate::DescribeMember::parse(name.trim()) else {
+                        eprintln!(
+                            "error: --describe={name}: not a described member; use label, question, help, unit, sources, statement or resolve_with, or --describe for all"
+                        );
+                        std::process::exit(1);
+                    };
+                    members.push(member);
+                }
+                calculation_describe = Some(members);
+                i += 1;
+            }
+            arg if arg == "--describe" || arg.starts_with("--describe=") => {
+                eprintln!("error: --describe applies only to `runa call`");
                 std::process::exit(1);
             }
             "--explain" if mode == "call" => {
@@ -1223,6 +1248,7 @@ fn main_inner() {
             calculation_all_tables,
             calculation_partial.map(|mode| (mode, calculation_partial_check)),
             calculation_explain,
+            calculation_describe,
         );
         return;
     }
@@ -2057,6 +2083,7 @@ fn run_calculation_command(
     all_tables: bool,
     partial: Option<(futuruna::partial::PartialMode, bool)>,
     explain: Option<bool>,
+    describe: Option<Vec<calculate::DescribeMember>>,
 ) {
     let source = std::fs::read_to_string(filename).unwrap_or_else(|error| {
         eprintln!("error: cannot read {}: {}", filename, error);
@@ -2255,10 +2282,13 @@ fn run_calculation_command(
                     eprintln!("error: --partial reads and writes JSON only");
                     std::process::exit(1);
                 }
-                let envelope = read_calculation_json(input_path).unwrap_or_else(|error| {
+                let mut envelope = read_calculation_json(input_path).unwrap_or_else(|error| {
                     eprintln!("error: cannot read calculation input: {}", error);
                     std::process::exit(1);
                 });
+                if let Some(describe) = &describe {
+                    envelope.describe = describe.clone();
+                }
                 let result = match (&explain_options, check) {
                     (Some(_), true) => {
                         eprintln!("error: --explain does not combine with --partial=check; explain a --partial or --partial=strict call");
@@ -2277,7 +2307,7 @@ fn run_calculation_command(
                 }
                 return;
             }
-            let (envelope, mut adapter_diagnostics) = match input_format.as_str() {
+            let (mut envelope, mut adapter_diagnostics) = match input_format.as_str() {
                 "json" => (
                     read_calculation_json(input_path).unwrap_or_else(|error| {
                         eprintln!("error: cannot read calculation input: {}", error);
@@ -2300,6 +2330,9 @@ fn run_calculation_command(
                 }
                 _ => calculation_unknown_format(&input_format),
             };
+            if let Some(describe) = &describe {
+                envelope.describe = describe.clone();
+            }
             let mut result = match &explain_options {
                 Some(options) => prepared.invoke_explained(&envelope, options),
                 None => prepared.invoke(&envelope),
@@ -4101,6 +4134,7 @@ fn read_calculation_xlsx(
     if workbook_hash != contract.schema_hash {
         return Ok((
             calculate::CalculationInputEnvelope {
+                describe: Vec::new(),
                 futuruna: calculate::CalculationEnvelopeMetadata {
                     schema: calculate::INPUT_SCHEMA.to_string(),
                     schema_hash: workbook_hash,
@@ -4736,6 +4770,7 @@ fn read_calculation_xlsx(
     cases.retain(|case| !invalid_cases.contains(&case.case_id));
     Ok((
         calculate::CalculationInputEnvelope {
+            describe: Vec::new(),
             futuruna: calculate::CalculationEnvelopeMetadata {
                 schema: calculate::INPUT_SCHEMA.to_string(),
                 schema_hash: workbook_hash,
@@ -11421,15 +11456,38 @@ fn source_has_embedded_rust(source: &str) -> bool {
     })
 }
 
-/// Whether a test file asks a `query` or places an `unknown`.
-fn source_asks_query(source: &str) -> bool {
-    Parser::new(Lexer::new(source).tokenize(), source)
-        .parse_program()
-        .is_ok_and(|statements| statements.iter().any(stmt_mentions_query_or_unknown))
+/// What a program that runs in the interpreter only reports, by
+/// `TypeCheckArtifacts::interpreter_only`'s reason.
+fn interpreted_label(reason: &str) -> &'static str {
+    match reason {
+        "query" => "interpreted (query)",
+        _ => "interpreted (lookup)",
+    }
 }
 
-/// Each `query`, `unknown` and `answer_guide` of a program compiled to native
-/// code: they run in the interpreter, and native code takes complete input.
+/// Whether a test file runs in the interpreter only, and why: it, or a file
+/// it imports, asks a `query`, places an `unknown` or calls `lookup`.
+fn test_file_interpreted(
+    file_path: &Path,
+    source: &str,
+    use_prelude: bool,
+) -> Option<&'static str> {
+    let user_stmts = Parser::new(Lexer::new(source).tokenize(), source)
+        .parse_program()
+        .ok()?;
+    let stmts = if use_prelude {
+        prepend_prelude(parse_prelude(), &user_stmts)
+    } else {
+        user_stmts
+    };
+    type_check_artifacts(&stmts, source, &file_path.to_string_lossy())
+        .interpreter_only
+        .map(interpreted_label)
+}
+
+/// Each `query`, `unknown` and `lookup` of a program compiled
+/// to native code: they run in the interpreter, and native code takes
+/// complete input.
 fn native_query_refusals(stmts: &[Stmt]) -> Vec<Diagnostic> {
     let mut refusals = Vec::new();
     for statement in stmts {
@@ -11439,8 +11497,8 @@ fn native_query_refusals(stmts: &[Stmt]) -> Vec<Diagnostic> {
                     "`unknown`"
                 } else if query_parts(expr).is_some() {
                     "`query`"
-                } else if answer_guide_parts(expr).is_some() {
-                    "`answer_guide`"
+                } else if is_lookup_call(expr) {
+                    "`lookup`"
                 } else {
                     return;
                 };
@@ -11490,12 +11548,16 @@ fn run_test_case(
         };
     }
 
-    // A query runs in the interpreter: under `--run` its test runs there too.
-    let interpreted_query =
-        compile_mode && expected_errors.is_empty() && source_asks_query(&source);
+    // A query or `lookup` runs in the interpreter: under `--run` its test
+    // runs there too.
+    let interpreted = if compile_mode && expected_errors.is_empty() {
+        test_file_interpreted(file_path, &source, use_prelude)
+    } else {
+        None
+    };
     let (command, expected, expectation_label, error_kind) = if !expected_errors.is_empty() {
         ("check", &expected_errors, "expect-error", "error")
-    } else if compile_mode && !interpreted_query {
+    } else if compile_mode && interpreted.is_none() {
         (
             "run",
             &expected_runtime_errors,
@@ -11528,11 +11590,7 @@ fn run_test_case(
     );
     let outcome = if output.status.success() {
         if expected.is_empty() {
-            TestFileOutcome::Pass(if interpreted_query {
-                "interpreted (query)"
-            } else {
-                ""
-            })
+            TestFileOutcome::Pass(interpreted.unwrap_or(""))
         } else {
             TestFileOutcome::Fail(format!("expected {error_kind} but program succeeded"))
         }
@@ -20730,12 +20788,10 @@ fn check_source(
                 std::process::exit(1);
             }
 
-            // A program that asks a query runs in the interpreter only:
-            // native code takes complete input, so there is no Rust to check.
-            let interpreted = stmts
-                .iter()
-                .any(stmt_mentions_query_or_unknown)
-                .then_some("interpreted (query)");
+            // A program that asks a query or calls `lookup`, in its root file
+            // or a file it imports, runs in the interpreter only: native code
+            // takes complete input, so there is no Rust to check.
+            let interpreted = type_check.interpreter_only.map(interpreted_label);
             if frontend_only || interpreted.is_some() {
                 check_output.success(
                     &CheckArtifactSummary {

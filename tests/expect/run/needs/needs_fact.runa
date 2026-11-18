@@ -1,7 +1,7 @@
 -- A left-out fact the result depends on is a need with its field metadata.
 -- expect-command: call
 -- expect-input: needs_fact.json
--- expect-args: --entry household_tax --partial
+-- expect-args: --entry household_tax --partial --describe
 -- expect-stdout-file: needs_fact.stdout
 
 # Filing = Single | Joint(partner_income: Int)

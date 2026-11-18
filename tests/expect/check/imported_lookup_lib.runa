@@ -1,0 +1,10 @@
+-- expect-skip: dependency-only fixture for imported_lookup.scenario.runa
+-- roundtrip-skip: `lookup` runs only in the interpreter
+
+# Balance(@ field(key = True, label = "Day") day: String, @ field(label = "Value", unit = "øre") value: Int)
+# Case(@ field(label = "Delisted on") delisted: String, @ field(label = "Balance", open = True) balances: List(Balance))
+
+@ entry("Deemed distribution")
+> deemed(c: Case) -> Int {
+    lookup(c.balances, c.delisted).value
+}

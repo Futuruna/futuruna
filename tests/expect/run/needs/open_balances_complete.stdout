@@ -1,0 +1,24 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.entry.output.v1",
+    "schema_hash": "9ed87fc7f4d3c580ac6626ecce0a91f002faad4a63fa39d8bb5129a8d627157b",
+    "entry": "deemed"
+  },
+  "results": [
+    {
+      "case_id": "entry-given",
+      "result": 1740
+    },
+    {
+      "case_id": "collection-left-out-none-looked-up",
+      "result": 0
+    }
+  ],
+  "diagnostics": [
+    {
+      "case_id": "entry-not-given",
+      "path": "$",
+      "message": "calculation `deemed` failed: `lookup`: `balances` has no entry whose `day` is \"2027-02-20\". It is an open collection (`@ field(open = True)`): the case gives each entry the law looks up, so give this one"
+    }
+  ]
+}

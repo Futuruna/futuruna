@@ -1,0 +1,10 @@
+-- The entries of an open collection are looked up by their key field.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ field(open = True)` on `Case::balances`: the law looks an entry of an open collection up by its key, and `Balance` declares no key field; mark one `@ field(key = True)`
+
+# Balance(day: String, value: Int)
+# Case(@ field(open = True) balances: List(Balance))
+
+@ entry
+| total(c: Case) -> 0

@@ -1,7 +1,7 @@
 -- Exact metadata on an optional record's member overrides metadata projected by refof.
 -- expect-command: call
 -- expect-input: needs_optional_member_precedence.json
--- expect-args: --entry household_tax --partial
+-- expect-args: --entry household_tax --partial --describe
 -- expect-stdout: "label": "Exact spouse income"
 -- expect-stdout: "help": "Exact metadata overrides projected metadata."
 -- expect-stdout-not: Projected spouse income

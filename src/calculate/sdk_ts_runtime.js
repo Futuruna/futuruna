@@ -271,6 +271,17 @@ function wirePath(codec, wireCase, path) {
     let at = { node: presentCodec(codec), value: wireCase };
     for (const segment of segments) {
         const { node, value } = at;
+        if ("key" in segment) {
+            // An entry of an open collection by its key: the key field at its TypeScript name.
+            const item = node !== undefined && !("$values" in node) && node.kind === "list" ? presentCodec(node.item) : undefined;
+            const named = item?.kind === "record" ? byWireName(item.fields).get(segment.key) : undefined;
+            out.push({ key: named?.[0] ?? segment.key, value: segment.value });
+            const entry = Array.isArray(value)
+                ? value.find((candidate) => isObject(candidate) && candidate[segment.key] === segment.value)
+                : undefined;
+            at = { node: item, value: entry };
+            continue;
+        }
         const key = "index" in segment ? segment.index : segment.field;
         const step = (next, name = segment) => {
             out.push(name);
@@ -331,7 +342,13 @@ function wirePath(codec, wireCase, path) {
 }
 function formatPath(segments) {
     return segments
-        .map((segment, at) => "index" in segment ? `[${String(segment.index)}]` : at === 0 ? segment.field : `.${segment.field}`)
+        .map((segment, at) => "key" in segment
+        ? `[${segment.key}=${JSON.stringify(segment.value)}]`
+        : "index" in segment
+            ? `[${String(segment.index)}]`
+            : at === 0
+                ? segment.field
+                : `.${segment.field}`)
         .join("");
 }
 /** A path that does not parse, or that {@link setAt} cannot write. */
@@ -346,6 +363,10 @@ export class PathError extends Error {
 const FIRST_FIELD = /^[^.[\]]+/;
 const NEXT_FIELD = /^\.([^.[\]]+)/;
 const LIST_INDEX = /^\[(\d+)\]/;
+const KEY_VALUE = String.raw `"(?:[^"\\]|\\.)*"|-?\d+`;
+const ENTRY_KEY = new RegExp(String.raw `^\[([^.[\]=]+)=(${KEY_VALUE})\]`);
+/** A list index or an entry's key selector, as `[]` in a pattern stands for either. */
+const ELEMENT = String.raw `\[(?:\d+|[^.[\]=]+=(?:${KEY_VALUE}))\]`;
 /** Split a concrete input path such as `accounts[2].closingCashOre` into its steps. */
 export function parsePath(path) {
     const first = FIRST_FIELD.exec(path);
@@ -358,6 +379,12 @@ export function parsePath(path) {
         if (index !== null) {
             segments.push({ index: Number(index[1]) });
             rest = rest.slice(index[0].length);
+            continue;
+        }
+        const entry = ENTRY_KEY.exec(rest);
+        if (entry?.[1] !== undefined && entry[2] !== undefined) {
+            segments.push({ key: entry[1], value: JSON.parse(entry[2]) });
+            rest = rest.slice(entry[0].length);
             continue;
         }
         const field = NEXT_FIELD.exec(rest);
@@ -374,7 +401,10 @@ export function parsePath(path) {
  * passed in is not changed. A record on the way that was left out is created as
  * `{}`; a list element must already exist. Writing `$variant` keeps the object
  * when the variant is unchanged, and otherwise starts the new variant with its
- * fields unknown. The entry's `<entry>SetAt` is the same, typed by a need.
+ * fields unknown. The entry of an open collection (`balances[day="2027-02-20"]`)
+ * is the whole entry: written into the entry with that key, or added to the
+ * collection, its key set to the path's. The entry's `<entry>SetAt` is the same,
+ * typed by a need.
  */
 export function setAt(partialCase, path, value) {
     return writeAt(partialCase, parsePath(path), 0, value, path);
@@ -383,6 +413,22 @@ function writeAt(node, segments, at, value, path) {
     const segment = segments[at];
     if (segment === undefined)
         return value;
+    if ("key" in segment) {
+        const list = node ?? [];
+        if (!Array.isArray(list))
+            throw new PathError(path, `the entry \`${segment.key}\` = ${JSON.stringify(segment.value)} is inside a value that is not a list`);
+        const copy = list.slice();
+        const found = copy.findIndex((entry) => isObject(entry) && entry[segment.key] === segment.value);
+        if (found >= 0) {
+            copy[found] = writeAt(copy[found], segments, at + 1, value, path);
+            return copy;
+        }
+        if (at !== segments.length - 1) {
+            throw new PathError(path, `there is no entry whose \`${segment.key}\` is ${JSON.stringify(segment.value)} to write into`);
+        }
+        copy.push(keyedValue(value, segment, path));
+        return copy;
+    }
     if ("index" in segment) {
         if (!Array.isArray(node) || segment.index >= node.length) {
             throw new PathError(path, `there is no list element [${String(segment.index)}] to write into`);
@@ -405,19 +451,37 @@ function writeAt(node, segments, at, value, path) {
     put(out, segment.field, writeAt(record[segment.field], segments, at + 1, value, path));
     return out;
 }
-/** The pattern of a concrete path: list indices become `[]` (`accounts[2].kind` → `accounts[].kind`). */
+/** A new entry of an open collection, with the key its path names. */
+function keyedValue(value, segment, path) {
+    if (!isObject(value))
+        throw new PathError(path, "an entry of an open collection is a record");
+    const given = value[segment.key];
+    if (given === undefined)
+        return { ...value, [segment.key]: segment.value };
+    if (given !== segment.value) {
+        throw new PathError(path, `the entry's \`${segment.key}\` is ${JSON.stringify(given)}, and the need asks for ${JSON.stringify(segment.value)}`);
+    }
+    return value;
+}
+/**
+ * The pattern of a concrete path: list indices and entry keys become `[]`
+ * (`accounts[2].kind` → `accounts[].kind`, `balances[day="2027-02-20"]` → `balances[]`).
+ */
 export function pathPattern(path) {
-    return path.replace(/\[\d+\]/g, "[]");
+    return path.replace(new RegExp(ELEMENT, "g"), "[]");
 }
 const patternExpressions = new Map();
-/** Whether a concrete path matches a pattern, where `[]` stands for any list index and `*` for any map key. */
+/**
+ * Whether a concrete path matches a pattern, where `[]` stands for any list
+ * index or entry key and `*` for any map key.
+ */
 export function matchesPathPattern(path, pattern) {
     let expression = patternExpressions.get(pattern);
     if (expression === undefined) {
         const source = pattern
             .split("[]")
             .map((part) => part.split("*").map(escapeRegExp).join("[^.[\\]]+"))
-            .join("\\[\\d+\\]");
+            .join(ELEMENT);
         expression = new RegExp(`^${source}$`);
         patternExpressions.set(pattern, expression);
     }
@@ -728,7 +792,7 @@ function issueSummary(issues) {
     const at = first.path.length === 0 ? "$" : first.path.map(String).join(".");
     return `${String(issues.length)} issue${issues.length === 1 ? "" : "s"}; first at ${at}: ${first.message}`;
 }
-/** The one case of an output document (`result`, and `explanation` when explained), its envelope checked. */
+/** The one case of an output document, its envelope checked. */
 function caseOutput(entry, outputSchema, document, wireCase) {
     const parsed = typeof document === "string" ? JSON.parse(document) : document;
     if (!isObject(parsed) || !("$futuruna" in parsed))
@@ -782,16 +846,25 @@ function caseOutput(entry, outputSchema, document, wireCase) {
     }
     return only;
 }
+/** `describe` as the input document's `describe` list. */
+function describeWire(describe) {
+    return [
+        ...(describe?.needs ?? []),
+        ...(describe?.assumptions ?? []).map((member) => (member === "resolveWith" ? "resolve_with" : member)),
+    ];
+}
 /** Validate a case and encode it as the input document `runa call` reads. */
-function inputDocument(entry, inputSchema, input) {
+function inputDocument(entry, inputSchema, input, options = {}) {
     const checked = inputSchema.safeParse(input);
     if (!checked.success) {
         const issues = checked.error.issues;
         throw new CalculationError("input", entry.name, `invalid input: ${issueSummary(issues)}`, { issues });
     }
     const wireCase = toWire(entry.input, checked.data);
+    const describe = describeWire(options.describe);
     const document = {
         $futuruna: { schema: INPUT_SCHEMA, schema_hash: entry.schemaHash, entry: entry.name },
+        ...(describe.length > 0 ? { describe } : {}),
         cases: [{ case_id: CASE_ID, input_status: "ready", input: wireCase }],
     };
     return { wireCase, document };
@@ -819,8 +892,8 @@ function validated(entry, schema, decode) {
  * `transport.call`, check the envelope, and decode and validate the result;
  * returned with the assumptions it rests on.
  */
-export async function callEntry(transport, entry, inputSchema, outputSchema, input) {
-    const { wireCase, document } = inputDocument(entry, inputSchema, input);
+export async function callEntry(transport, entry, inputSchema, outputSchema, input, options = {}) {
+    const { wireCase, document } = inputDocument(entry, inputSchema, input, options);
     const output = caseOutput(entry, OUTPUT_SCHEMA, await transport.call(entry.name, document), wireCase);
     return calculated(entry, outputSchema, output);
 }
@@ -835,183 +908,11 @@ function calculated(entry, outputSchema, output) {
  * or `Needs`, with the result decoded, every path a TypeScript path and every
  * need tagged with its pattern.
  */
-export async function queryEntry(transport, entry, inputSchema, resultSchema, input) {
-    const { wireCase, document } = inputDocument(entry, inputSchema, input);
+export async function queryEntry(transport, entry, inputSchema, resultSchema, input, options = {}) {
+    const { wireCase, document } = inputDocument(entry, inputSchema, input, options);
     const output = await transport.callPartial(entry.name, document);
     const result = caseOutput(entry, PARTIAL_OUTPUT_SCHEMA, output, wireCase)["result"];
     return validated(entry, resultSchema, () => queryResultFromWire(entry, wireCase, result));
-}
-/** The ISO date of a `Date`'s parts, when they are one. */
-function isoDateOf(parts) {
-    const date = dateFromWire({ year: parts["year"], month: parts["month"], day: parts["day"] });
-    return isIsoDate(date) ? date : undefined;
-}
-/** `items` without repeats, by their canonical JSON. */
-function distinct(items) {
-    const seen = new Set();
-    return items.filter((item) => {
-        const key = canonicalJson(item);
-        if (seen.has(key))
-            return false;
-        seen.add(key);
-        return true;
-    });
-}
-/** Input contributors at TypeScript paths; the three parts of one input `Date` become the date. */
-function contributorsFromWire(input, from) {
-    const out = [];
-    const dates = new Map();
-    for (const item of from) {
-        if (!isObject(item) || item["$variant"] !== "Input" || typeof item["path"] !== "string") {
-            out.push([withParagraphsFromWire(item, "paragraphs")]);
-            continue;
-        }
-        const located = input(item["path"]);
-        const translated = { ...item, path: located.path };
-        if (located.part === undefined) {
-            out.push([translated]);
-            continue;
-        }
-        let date = dates.get(located.path);
-        if (date === undefined) {
-            date = { at: out.length, parts: new Map() };
-            dates.set(located.path, date);
-            out.push([]);
-        }
-        date.parts.set(located.part, translated);
-    }
-    for (const [path, { at, parts }] of dates) {
-        const value = parts.size === 3 ? isoDateOf(Object.fromEntries([...parts].map(([part, item]) => [part, item["value"]]))) : undefined;
-        out[at] =
-            value !== undefined
-                ? [{ $variant: "Input", path, value }]
-                : [...parts].map(([part, item]) => ({ ...item, path: `${path}.${part}` }));
-    }
-    return distinct(out.flat(1));
-}
-function explainedFromWire(input, value) {
-    const out = isObject(value) ? renamed(value, EXPLAINED_NAMES) : {};
-    const by = out["by"];
-    if (isObject(by) && by["$variant"] === "Input" && typeof by["path"] === "string") {
-        out["by"] = { ...by, path: input(by["path"]).path };
-    }
-    else if (isObject(by)) {
-        out["by"] = withParagraphsFromWire(by, "cites");
-    }
-    for (const list of ["from", "because"]) {
-        const items = out[list];
-        if (Array.isArray(items))
-            out[list] = contributorsFromWire(input, items);
-    }
-    return out;
-}
-const EXPLAINED_NAMES = { from_omitted: "fromOmitted" };
-/** The explained parts of one `Date` of a result as one value, when they share what produced them. */
-function explainedDate(parts) {
-    const explained = [...parts.values()];
-    const first = explained[0];
-    if (parts.size !== 3 || first === undefined)
-        return undefined;
-    if (!explained.every((part) => canonicalJson(part["by"]) === canonicalJson(first["by"])))
-        return undefined;
-    const value = isoDateOf(Object.fromEntries([...parts].map(([part, item]) => [part, item["value"]])));
-    if (value === undefined)
-        return undefined;
-    const out = { value, by: first["by"] };
-    for (const list of ["from", "because"]) {
-        const items = explained.flatMap((part) => {
-            const listed = part[list];
-            return Array.isArray(listed) ? listed : [];
-        });
-        if (explained.some((part) => part[list] !== undefined))
-            out[list] = distinct(items);
-    }
-    const omitted = explained.map((part) => part["fromOmitted"]).filter((count) => typeof count === "number");
-    if (omitted.length > 0)
-        out["fromOmitted"] = Math.max(...omitted);
-    return out;
-}
-/**
- * The TypeScript form of an explanation: result and input paths are the
- * TypeScript paths of `wireResult` and `wireCase` (an enum at its own path, a
- * `Date` as a whole) and `from_omitted` is `fromOmitted`. Leaf values are
- * already TypeScript values: numbers, strings, booleans and variant names.
- */
-function explanationFromWire(entry, wireCase, wireResult, explanation) {
-    if (!isObject(explanation) || !isObject(explanation["values"]) || !isObject(explanation["sections"])) {
-        throw new CalculationError("output", entry.name, "the explanation is not an object with values and sections");
-    }
-    const input = (path) => wirePath(entry.input, wireCase, path);
-    const groups = new Map();
-    const values = [];
-    for (const [path, value] of Object.entries(explanation["values"])) {
-        const located = wirePath(entry.output, wireResult, path);
-        const explained = explainedFromWire(input, value);
-        if (located.part === undefined) {
-            values.push([located.path, explained]);
-            continue;
-        }
-        let parts = groups.get(located.path);
-        if (parts === undefined) {
-            parts = new Map();
-            groups.set(located.path, parts);
-        }
-        parts.set(located.part, explained);
-    }
-    for (const [path, parts] of groups) {
-        const date = explainedDate(parts);
-        if (date !== undefined)
-            values.push([path, date]);
-        else
-            for (const [part, explained] of parts)
-                values.push([`${path}.${part}`, explained]);
-    }
-    const translated = {};
-    for (const [path, value] of values.sort(([left], [right]) => byText(left, right)))
-        put(translated, path, value);
-    const sections = {};
-    for (const [label, section] of Object.entries(explanation["sections"])) {
-        sections[label] = withParagraphsFromWire(section, "superseded");
-    }
-    const out = { ...explanation, values: translated, sections };
-    const derivation = explanation["derivation"];
-    if (isObject(derivation)) {
-        const nodes = {};
-        for (const [node, value] of Object.entries(derivation))
-            put(nodes, node, explainedFromWire(input, value));
-        out["derivation"] = nodes;
-    }
-    // The engine's explanation document, its paths translated; `runa call --explain` defines its shape.
-    return out;
-}
-/**
- * Calculate `entry` and explain it, through `transport.callExplained`
- * (`runa call --explain`): the result as {@link callEntry} returns it, and
- * where every leaf of it came from.
- */
-export async function explainEntry(transport, entry, depth, inputSchema, outputSchema, input) {
-    const { wireCase, document } = inputDocument(entry, inputSchema, input);
-    const output = caseOutput(entry, OUTPUT_SCHEMA, await transport.callExplained(entry.name, document, depth === "full"), wireCase);
-    const { result, assumptions } = calculated(entry, outputSchema, output);
-    if (output["explanation"] === undefined) {
-        throw new CalculationError("output", entry.name, "the engine returned no explanation");
-    }
-    return { result, assumptions, explanation: explanationFromWire(entry, wireCase, output["result"], output["explanation"]) };
-}
-/**
- * Query `entry` and explain a `Complete` result, through
- * `transport.callPartialExplained` (`runa call --partial --explain`).
- */
-export async function explainQueryEntry(transport, entry, depth, inputSchema, resultSchema, input) {
-    const { wireCase, document } = inputDocument(entry, inputSchema, input);
-    const reply = await transport.callPartialExplained(entry.name, document, depth === "full");
-    const output = caseOutput(entry, PARTIAL_OUTPUT_SCHEMA, reply, wireCase);
-    const wire = output["result"];
-    const result = validated(entry, resultSchema, () => queryResultFromWire(entry, wireCase, wire));
-    if (output["explanation"] === undefined)
-        return { result };
-    const wireResult = isObject(wire) ? wire["result"] : undefined;
-    return { result, explanation: explanationFromWire(entry, wireCase, wireResult, output["explanation"]) };
 }
 /** The reply for a need `resolve` cannot fill: it stays open. */
 export const open = Object.freeze({ kind: "open" });
@@ -1030,26 +931,15 @@ export class AnswerError extends Error {
         this.name = "AnswerError";
     }
 }
-/** Two entries need each other for the same subjects: a model error; join them into one entry. */
-export class AnswerCycleError extends AnswerError {
-    frames;
-    constructor(frames) {
-        super(`entries need each other: ${frames.map((frame) => `${frame.entry}(${frame.subject})`).join(" → ")}; model them as one joint entry`);
-        this.name = "AnswerCycleError";
-        this.frames = frames;
-    }
-}
 /**
  * Answer an entry round by round: query it on the partial case, call `resolve`
  * once per round with every need, write the given values with {@link setAt},
  * and query again. Ends `Answered`, or `Unanswered` when a round answers
  * nothing. A reply for another need's path, or a path still needed after it
- * was given, throws {@link AnswerError}; an entry that needs itself for the
- * same subject throws {@link AnswerCycleError}. The SDK's `<entry>Answer`
- * calls it.
+ * was given, throws {@link AnswerError}. An entry need is answered like any
+ * other need. The SDK's `<entry>Answer` calls it.
  */
-export async function answerEntry(query, partialCase, resolve, options = {}) {
-    const frames = options.frames ?? [];
+export async function answerEntry(query, partialCase, resolve) {
     const resolveLoose = resolve;
     const answered = new Set();
     const rounds = [];
@@ -1071,16 +961,7 @@ export async function answerEntry(query, partialCase, resolve, options = {}) {
                 throw new AnswerError(`the engine still needs \`${need.path}\` after it was given`);
             }
         }
-        const context = {
-            partialCase: current,
-            async runEntry(need, run) {
-                const stack = [...frames, { entry: need.entry, subject: need.subject }];
-                if (frames.some((active) => active.entry === need.entry && active.subject === need.subject)) {
-                    throw new AnswerCycleError(stack);
-                }
-                return { kind: "entry", path: need.path, answering: await run({ frames: stack }) };
-            },
-        };
+        const context = { partialCase: current };
         const answerEach = await resolveLoose(result.needs, context);
         const replies = await Promise.all(result.needs.map(async (need) => {
             const reply = await answerEach(need);
@@ -1090,7 +971,6 @@ export async function answerEntry(query, partialCase, resolve, options = {}) {
             return reply;
         }));
         const left = [];
-        const pending = [];
         const givenPaths = [];
         let next = current;
         result.needs.forEach((need, at) => {
@@ -1099,22 +979,13 @@ export async function answerEntry(query, partialCase, resolve, options = {}) {
                 left.push(need);
                 return;
             }
-            if (reply.kind === "given") {
-                next = setAt(next, need.path, reply.value);
-            }
-            else if (reply.answering.$variant === "Answered") {
-                next = setAt(next, need.path, reply.answering.result);
-            }
-            else {
-                pending.push({ need, answering: reply.answering });
-                return;
-            }
+            next = setAt(next, need.path, reply.value);
             answered.add(need.path);
             givenPaths.push(need.path);
         });
         rounds.push({ paths: result.needs.map((need) => need.path), given: givenPaths });
         if (givenPaths.length === 0) {
-            return { $variant: "Unanswered", open: left, pending, later: result.later ?? [], partialCase: current, rounds };
+            return { $variant: "Unanswered", open: left, later: result.later ?? [], partialCase: current, rounds };
         }
         current = next;
     }

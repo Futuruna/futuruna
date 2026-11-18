@@ -1,8 +1,0 @@
--- `answer_guide` is the AnswerGuide an entry generates; it names an entry.
--- expect-command: check
--- expect-status: fail
--- expect-stderr: `answer_guide` is generated for an entry (`@ entry`); `threshold` is not one
-
-@ import ./answer_law
-
-= g = answer_guide(threshold)

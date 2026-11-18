@@ -193,8 +193,8 @@ const ledgerModel = `# Date(year: Int, month: Int, day: Int)
 `;
 
 const ledgerUsage = `import {
-  balanceExplained, isoDate, none,
-  type BalanceNeed, type EngineTransport, type ExplainingTransport, type IsoDate, type Ledger, type PartialEvent,
+  isoDate, none,
+  type BalanceNeed, type IsoDate, type Ledger, type PartialEvent,
   type PartialLedger,
 } from "./sdk/index.js";
 
@@ -240,12 +240,6 @@ export const ledger: Ledger = { events: [], closedOn: isoDate("2026-03-01"), not
 // @ts-expect-error a bare string is not an IsoDate
 export const looseDay: Ledger = { events: [], closedOn: "yesterday", note: null };
 export const day: IsoDate | null = ledger.closedOn;
-
-export const explain = (transport: ExplainingTransport) => balanceExplained(transport, ledger);
-export function plainTransport(transport: EngineTransport) {
-  // @ts-expect-error an explained call needs a transport that explains
-  return balanceExplained(transport, ledger);
-}
 
 export function forgeNeed(need: BalanceNeed): BalanceNeed {
   // @ts-expect-error an input path comes from the engine, not from a string
@@ -392,15 +386,6 @@ test('runa sdk ts output type-checks and calls and validates through a transport
   assert.throws(() => sdk.parsePath('a..b'), (error) => error.name === 'PathError');
   assert.equal(sdk.pathPattern('accounts[12].events[0].kind'), 'accounts[].events[].kind');
 
-  // The answer guide: every pattern a need can name, with the law's type and metadata.
-  assert.deepEqual(Object.keys(sdk.calculateTaxGuide),
-    ['monthlyIncome', 'filingStatus', 'deduction', 'children', 'children[].name', 'children[].age']);
-  assert.deepEqual([sdk.calculateTaxGuide.monthlyIncome.kind, sdk.calculateTaxGuide.monthlyIncome.type,
-    sdk.calculateTaxGuide.monthlyIncome.question, sdk.calculateTaxGuide.monthlyIncome.keys],
-  ['fact', 'Int', 'What is your income before tax each month?', []]);
-  assert.equal(sdk.calculateTaxGuide.deduction.type, 'Int?');
-  assert.equal(sdk.calculateTaxGuide.filingStatus.type, 'FilingStatus');
-
   // Answering an entry against a partial engine: `resolve` is called once per round with every need.
   const engine = fixturePartialEngine(hash);
   const transport = { call: cli.call, callPartial: engine.callPartial };
@@ -423,7 +408,6 @@ test('runa sdk ts output type-checks and calls and validates through a transport
   assert.equal(first.open[0].by, undefined);
   assert.deepEqual(first.partialCase, { children: [{ name: 'Ada', age: 4 }], filingStatus: 'Married' });
   assert.ok(Array.isArray(first.later), 'Unanswered carries the last round\'s later facts');
-  assert.deepEqual(first.pending, []);
   const second = await sdk.calculateTaxAnswer(transport, usage.answerNeed(first.partialCase, first.open[0]), () => () => sdk.open);
   assert.equal(second.$variant, 'Answered');
   assert.deepEqual(second.result, { annualIncome: 600000, taxableIncome: 600000, annualTax: 120000 });
@@ -491,64 +475,8 @@ test('runa sdk ts output type-checks and calls and validates through a transport
       keys: [{ path: 'openingPositions[1]', field: 'isin', value: 'DK0060534915' }] },
   ], later: [{ kind: 'fact', path: 'openingPositions[0].isin', pattern: 'openingPositions[].isin', waiting }] });
 
-  // Explanations at TypeScript paths.
-  const explaining = {
-    ...cli,
-    async callExplained(entry, document, full) {
-      const path = join(dir, `explain-${full}.json`);
-      writeFileSync(path, JSON.stringify(document));
-      return run(binary, ['call', fixture, '--entry', entry, '--input', path, full ? '--explain=full' : '--explain']);
-    },
-  };
-  for (const depth of ['direct', 'full']) {
-    const explained = await sdk.calculateTaxExplained(explaining, usage.sample, depth);
-    assert.deepEqual(explained.result, { annualIncome: 600000, taxableIncome: 600000, annualTax: 120000 });
-    assert.deepEqual(explained.assumptions, []);
-    assert.deepEqual(Object.keys(explained.explanation.values), ['annualIncome', 'annualTax', 'taxableIncome']);
-    const inputs = Object.values(explained.explanation.values).flatMap((value) => value.from ?? [])
-      .filter((item) => item.$variant === 'Input').map((item) => item.path);
-    assert.ok(inputs.includes('monthlyIncome'), JSON.stringify(explained.explanation));
-    assert.equal(explained.explanation.derivation !== undefined, depth === 'full');
-  }
-  const by = (path) => ({ $variant: 'Input', path });
-  const explanation = {
-    sections: {},
-    values: {
-      'booked_on.year': { value: 2026, by: by('booked_on.year'), from_omitted: 2 },
-      'booked_on.month': { value: 3, by: by('booked_on.month') },
-      'booked_on.day': { value: 1, by: by('booked_on.day') },
-      'paid_on.year': { value: 2026, by: by('booked_on.year') },
-      'paid_on.month': { value: 4, by: { $variant: 'Computed' } },
-      'paid_on.day': { value: 1, by: by('booked_on.day') },
-      'kind.$variant': { value: 'Deposit', by: { $variant: 'Rule', rule: 'kind_of', clause: 'default' },
-        from: [by('booked_on.year'), by('booked_on.month'), by('booked_on.day'), by('kind.$variant')]
-          .map((item, at) => ({ ...item, value: [2026, 3, 1, 'Deposit'][at] })),
-        because: [{ ...by('kind.$variant'), value: 'Deposit' }] },
-    },
-  };
-  const explainedEntry = { ...dateEntry, output: sdk.recordCodec({ bookedOn: ['booked_on', sdk.isoDateCodec],
-    paidOn: ['paid_on', sdk.isoDateCodec], kind: ['kind', sdk.enumCodec] }) };
-  const document = { $futuruna: { schema: 'futuruna.entry.output.v1', schema_hash: hash, entry: 'calculate_tax' },
-    results: [{ case_id: 'case-1', result: {}, assumptions: [flatRate], explanation }], diagnostics: [] };
-  const decoded = await sdk.explainEntry({ callExplained: async () => document }, explainedEntry, 'direct', passing, passing, {});
-  assert.deepEqual(decoded.assumptions, [flatRate]);
-  assert.deepEqual(decoded.explanation.values, {
-    bookedOn: { value: '2026-03-01', by: by('bookedOn'), fromOmitted: 2 },
-    kind: { value: 'Deposit', by: { $variant: 'Rule', rule: 'kind_of', clause: 'default' },
-      from: [{ $variant: 'Input', path: 'bookedOn', value: '2026-03-01' }, { $variant: 'Input', path: 'kind', value: 'Deposit' }],
-      because: [{ $variant: 'Input', path: 'kind', value: 'Deposit' }] },
-    'paidOn.day': { value: 1, by: by('bookedOn') },
-    'paidOn.month': { value: 4, by: { $variant: 'Computed' } },
-    'paidOn.year': { value: 2026, by: by('bookedOn') },
-  });
-
-  // An entry that needs itself for the same subject is a cycle: runEntry passes the stack on in `options`.
   const spouse = needing([{ kind: 'entry', path: 'deduction', entry: 'calculate_tax', subject: 'spouse', waiting }]);
-  const answerSpouse = (options) => sdk.calculateTaxAnswer(spouse, {}, cyclic, options);
-  const cyclic = (_needs, context) => (need) => context.runEntry(need, answerSpouse);
-  await assert.rejects(answerSpouse(), (error) => error.name === 'AnswerCycleError'
-    && error.frames.length === 2 && error.frames.every((frame) => frame.subject === 'spouse'));
-  // Another entry's Answered result is written at the need's path.
+  // An entry need is answered by resolve like any other need.
   let asked = 0;
   const once = {
     async callPartial(entry, document) {
@@ -560,10 +488,7 @@ test('runa sdk ts output type-checks and calls and validates through a transport
         diagnostics: [] };
     },
   };
-  const ran = await sdk.calculateTaxAnswer(once, {}, (_needs, context) => (need) => context.runEntry(need, async (options) => {
-    assert.deepEqual(options, { frames: [{ entry: 'calculate_tax', subject: 'spouse' }] });
-    return { $variant: 'Answered', result: 700, assumptions: [], unusedPaths: [], partialCase: {}, rounds: [] };
-  }));
+  const ran = await sdk.calculateTaxAnswer(once, {}, () => (need) => sdk.given(need, 700));
   assert.equal(ran.$variant, 'Answered');
   assert.deepEqual(ran.partialCase, { deduction: 700 });
   assert.deepEqual(ran.rounds, [{ paths: ['deduction'], given: ['deduction'] }]);
@@ -785,7 +710,7 @@ test('a named scalar is a branded type in the SDK, and a value the engine refuse
   });
 });
 
-test('partial values, dates, paths and explained calls are checked by the types', options, async () => {
+test('partial values, dates and paths are checked by the types', options, async () => {
   const dir = project('ledger');
   writeFileSync(join(dir, 'ledger.entry.runa'), ledgerModel);
   run(binary, ['sdk', 'ts', 'ledger.entry.runa', '--out', 'sdk'], dir);
@@ -887,14 +812,6 @@ test('second-order answering: a list of skeletons, then the fields the law reads
   const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
   assert.match(readFileSync(join(dir, 'sdk/partial.ts'), 'utf8'),
     /export type BalanceElementKey =\n {2}\| ElementKey<"events\[\]", "id", string>;/);
-  // The guide's values, whichever way the module spells them.
-  assert.deepEqual(sdk.balanceGuide, {
-    events: { kind: 'fact', type: 'List(Event)', keys: [], sources: [] },
-    'events[].$variant': { kind: 'fact', type: 'Event', keys: ['events[].id'], sources: [] },
-    'events[].id': { kind: 'fact', type: 'String', label: 'Event id', keys: ['events[].id'], sources: [] },
-    'events[].amount': { kind: 'fact', type: 'Int', label: 'Amount', keys: ['events[].id'], sources: [] },
-    'events[].fee': { kind: 'fact', type: 'Int', label: 'Fee', keys: ['events[].id'], sources: [] },
-  });
 
   const transport = partialCli(dir, 'keyed.entry.runa');
   const skeletons = [{ $variant: 'Deposit', id: 'e1' }, { $variant: 'Withdrawal', id: 'e2' }, { $variant: 'Deposit', id: 'e3' }];
@@ -1043,7 +960,7 @@ export async function openPaths(transport: EngineTransport): Promise<string[]> {
 }
 `;
 
-test('answering an entry: one resolve per round with every need, the needs left open, the answer guide', options, async () => {
+test('answering an entry: one resolve per round with every need, the needs left open', options, async () => {
   const dir = project('household');
   writeFileSync(join(dir, 'household.entry.runa'), householdModel);
   run(binary, ['sdk', 'ts', 'household.entry.runa', '--out', 'sdk'], dir);
@@ -1052,13 +969,6 @@ test('answering an entry: one resolve per round with every need, the needs left 
   compile(dir, ['sdk/index.ts', 'usage.ts']);
   const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
   const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
-
-  // The answer guide, from the law: every pattern a need can name, with its type.
-  assert.deepEqual(Object.entries(sdk.householdTaxGuide).map(([pattern, need]) => [pattern, need.kind, need.type]), [
-    ['income', 'fact', 'Int'], ['married', 'fact', 'Bool'], ['spouse', 'fact', 'Spouse?'],
-    ['spouse.income', 'fact', 'Int'], ['spouse.cohabiting', 'fact', 'Bool'], ['children', 'fact', 'List(Child)'],
-    ['children[].name', 'fact', 'String'], ['children[].age', 'fact', 'Int'],
-  ]);
 
   // resolve is called once per round with every need of the round.
   const transport = partialCli(dir, 'household.entry.runa');
@@ -1088,6 +998,96 @@ test('answering an entry: one resolve per round with every need, the needs left 
   const known = await usage.answerHousehold(transport, { ...usage.started, spouse: { income: 50, cohabiting: true } }, usage.resolveAll);
   assert.equal(known.$variant, 'Answered');
   assert.deepEqual(usage.calls, [['children[0].age', 'children[1].age']]);
+});
+
+/** An open collection: the law looks a balance up by a day it computes; the case gives only the days asked. */
+const openModel = `# Balance(@ field(key = True, label = "Day") day: String, @ field(label = "Value") value: Int)
+# Account(@ field(label = "Delisted on") delisted: String, @ field(label = "Balance", open = True) balances: List(Balance))
+
+@ entry("Deemed distribution")
+> deemed(a: Account) -> Int {
+    lookup(a.balances, a.delisted).value
+}
+`;
+
+const openUsage = `import {
+  deemedAnswer, given, open,
+  type DeemedResolve, type EngineTransport, type PartialAccount,
+} from "./sdk/index.js";
+
+/** A bank that tells the balances on many days at once. */
+export interface Bank {
+  balancesOn(days: readonly string[]): Promise<ReadonlyMap<string, number>>;
+}
+
+/** One resolve: every balance the round asks for, by its day, from one call to the bank. */
+export function resolve(bank: Bank): DeemedResolve {
+  return async (needs) => {
+    const days = needs.flatMap((need) => (need.pattern === "balances[]" ? (need.keys ?? []).map((key) => key.value) : []));
+    const balances = await bank.balancesOn(days);
+    return (need) => {
+      switch (need.pattern) {
+        case "balances[]": {
+          // The entry's own key: the only key of a need on an entry of \`balances\`.
+          const day = need.keys?.[0]?.value;
+          const value = day === undefined ? undefined : balances.get(day);
+          return day === undefined || value === undefined ? open : given(need, { day, value });
+        }
+        default:
+          return open;
+      }
+    };
+  };
+}
+
+export const started: PartialAccount = { delisted: "2027-02-20", balances: [{ day: "2026-12-31", value: 100 }] };
+
+export const answerDeemed = (transport: EngineTransport, partialCase: PartialAccount, bank: Bank) =>
+  deemedAnswer(transport, partialCase, resolve(bank));
+`;
+
+test('an open collection: resolve gives a new entry by the key the law computed', options, async () => {
+  const dir = project('open');
+  writeFileSync(join(dir, 'open.entry.runa'), openModel);
+  run(binary, ['sdk', 'ts', 'open.entry.runa', '--out', 'sdk'], dir);
+  writeFileSync(join(dir, 'usage.ts'), openUsage);
+  compile(dir, ['sdk/index.ts', 'usage.ts']);
+  const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
+  const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
+  // The collection is never asked whole: its entries by key, and their fields.
+  assert.deepEqual(sdk.DeemedInputPatternList, ['balances[]', 'balances[].day', 'balances[].value', 'delisted']);
+
+  const entry = 'balances[day="2027-02-20"]';
+  const transport = partialCli(dir, 'open.entry.runa');
+  const asked = await sdk.deemedQuery(transport, usage.started);
+  assert.equal(asked.$variant, 'Needs');
+  // By default a need carries what the caller acts on, and no text.
+  assert.deepEqual(asked.needs.map((need) => [need.pattern, need.path, need.label, need.keys]), [
+    ['balances[]', entry, undefined, [{ path: entry, field: 'day', value: '2027-02-20' }]],
+  ]);
+  assert.deepEqual(Object.keys(asked.needs[0]).sort(), ['keys', 'kind', 'path', 'pattern', 'waiting']);
+  // The law's text comes when `describe` asks for it.
+  const described = await sdk.deemedQuery(transport, usage.started, { describe: { needs: ['label'] } });
+  assert.deepEqual(described.needs.map((need) => [need.pattern, need.label]), [['balances[]', 'Balance']]);
+  assert.deepEqual(transport.queried.length, 2);
+  transport.queried.length = 0;
+
+  const calls = [];
+  const answered = await usage.answerDeemed(transport, usage.started, {
+    async balancesOn(days) {
+      calls.push([...days]);
+      return new Map(days.map((day) => [day, 1740]));
+    },
+  });
+  assert.equal(answered.$variant, 'Answered', JSON.stringify(answered));
+  assert.equal(answered.result, 1740);
+  assert.deepEqual(answered.rounds, [{ paths: [entry], given: [entry] }]);
+  assert.deepEqual(calls, [['2027-02-20']]);
+  assert.deepEqual(answered.partialCase.balances, [{ day: '2026-12-31', value: 100 }, { day: '2027-02-20', value: 1740 }]);
+
+  // setAt adds the entry with the path's key, and refuses another key.
+  assert.deepEqual(sdk.setAt({ delisted: 'x' }, entry, { value: 5 }), { delisted: 'x', balances: [{ value: 5, day: '2027-02-20' }] });
+  assert.throws(() => sdk.setAt({}, entry, { day: '2027-02-21', value: 5 }), { name: 'PathError' });
 });
 
 test('the runtime package is the compilation of the runtime source, at Futuruna\'s version', options, async () => {
@@ -1128,6 +1128,10 @@ test('the generated SDK and the runtime pass typescript-eslint strictTypeChecked
   run(binary, ['sdk', 'ts', 'household.entry.runa', '--out', 'sdk/household'], dir);
   writeFileSync(join(dir, 'holding.entry.runa'), unitModel);
   run(binary, ['sdk', 'ts', 'holding.entry.runa', '--out', 'sdk/holding'], dir);
+  // The open collection's SDK, and the resolve that answers its entries.
+  writeFileSync(join(dir, 'open.entry.runa'), openModel);
+  run(binary, ['sdk', 'ts', 'open.entry.runa', '--out', 'sdk/open'], dir);
+  writeFileSync(join(dir, 'sdk/open-usage.ts'), openUsage.replace('"./sdk/index.js"', '"./open/index.js"'));
   mkdirSync(join(dir, 'runtime'));
   copyFileSync(join(root, 'src/calculate/sdk_ts_runtime.ts'), join(dir, 'runtime/index.ts'));
   writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify({

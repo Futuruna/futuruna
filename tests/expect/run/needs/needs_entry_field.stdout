@@ -13,10 +13,8 @@
           {
             "entry": "share_income",
             "kind": "entry",
-            "label": "Spouse's share income",
             "path": "spouse_share_income",
             "subject": "spouse",
-            "unit": "øre",
             "waiting": [
               {
                 "rule": "threshold"

@@ -2,7 +2,7 @@
 -- section and the paragraphs the rule cites, not the helper that read it.
 -- expect-command: call
 -- expect-input: needs_section.json
--- expect-args: --partial
+-- expect-args: --partial --describe
 -- expect-stdout-file: needs_section.stdout
 
 # SourceInfo(file: String)

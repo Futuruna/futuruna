@@ -15,16 +15,14 @@
             "rule": "room",
             "section": "closing",
             "value": {
-              "id": "CLOSING-DAY",
-              "statement": "The value on the closing day is the custodian's."
+              "id": "CLOSING-DAY"
             }
           },
           {
             "binding": "whole_kroner",
             "section": "report",
             "value": {
-              "id": "WHOLE-KRONER",
-              "statement": "Amounts are whole kroner."
+              "id": "WHOLE-KRONER"
             }
           }
         ],

@@ -11,45 +11,8 @@
         "$variant": "Needs",
         "needs": [
           {
-            "help": "Cohabiting spouses only.",
             "kind": "fact",
-            "label": "Married",
             "path": "married",
-            "question": "Were you married at the end of the year?",
-            "sources": [
-              {
-                "binding": "law",
-                "data": {
-                  "applied": true,
-                  "arguments": [
-                    {
-                      "binding": null,
-                      "field": "url",
-                      "value": {
-                        "kind": "string",
-                        "value": "https://example.invalid/law"
-                      }
-                    },
-                    {
-                      "binding": null,
-                      "field": "section",
-                      "value": {
-                        "kind": "string",
-                        "value": "§ 1"
-                      }
-                    }
-                  ],
-                  "kind": "constructor",
-                  "name": "SourceInfo",
-                  "type": "SourceInfo"
-                },
-                "label": "household_tax",
-                "role": "source",
-                "type": "SourceInfo",
-                "value": "SourceInfo(url = \"https://example.invalid/law\", section = \"§ 1\")"
-              }
-            ],
-            "unit": "yes/no",
             "waiting": [
               {
                 "rule": "rate"

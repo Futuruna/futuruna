@@ -1,0 +1,12 @@
+-- expect-skip: the law of the open_answer.runa scenario
+-- roundtrip-skip: it runs through the files that answer its entry
+# Balance(@ field(key = True, label = "Day") day: String, @ field(label = "Value", unit = "øre") value: Int)
+# Case(@ field(label = "Delisted on") delisted: String, @ field(label = "Balance", question = "What was the account's balance at the end of the day?", open = True) balances: List(Balance))
+
+-- § 6: the assets are deemed distributed at their value on the day after the delisting.
+| value_on(b: Balance) -> b.value
+
+@ entry("Deemed distribution")
+> deemed(c: Case) -> Int {
+    value_on(lookup(c.balances, c.delisted))
+}

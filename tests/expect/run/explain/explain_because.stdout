@@ -16,8 +16,7 @@
           "section": "closing",
           "binding": "closing_day",
           "value": {
-            "id": "CLOSING-DAY",
-            "statement": "The value on the closing day is the custodian's."
+            "id": "CLOSING-DAY"
           }
         }
       ],

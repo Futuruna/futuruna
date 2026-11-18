@@ -138,11 +138,18 @@ export declare function fromWire(codec: CodecRef, value: unknown): unknown;
  * of a path the codec does not describe stays as it is.
  */
 export declare function fromWirePath(codec: CodecRef, wireCase: unknown, path: string): string;
-/** One step of a concrete input path: a field (record field, map key, `$variant`, `$values`) or a list index. */
+/**
+ * One step of a concrete input path: a field (record field, map key, `$variant`,
+ * `$values`), a list index, or the entry of an open collection by its key
+ * (`[day="2027-02-20"]`: the key field and its value).
+ */
 export type PathSegment = {
     readonly field: string;
 } | {
     readonly index: number;
+} | {
+    readonly key: string;
+    readonly value: string | number;
 };
 /** A path that does not parse, or that {@link setAt} cannot write. */
 export declare class PathError extends Error {
@@ -157,12 +164,21 @@ export declare function parsePath(path: string): PathSegment[];
  * passed in is not changed. A record on the way that was left out is created as
  * `{}`; a list element must already exist. Writing `$variant` keeps the object
  * when the variant is unchanged, and otherwise starts the new variant with its
- * fields unknown. The entry's `<entry>SetAt` is the same, typed by a need.
+ * fields unknown. The entry of an open collection (`balances[day="2027-02-20"]`)
+ * is the whole entry: written into the entry with that key, or added to the
+ * collection, its key set to the path's. The entry's `<entry>SetAt` is the same,
+ * typed by a need.
  */
 export declare function setAt<C>(partialCase: C, path: string, value: unknown): C;
-/** The pattern of a concrete path: list indices become `[]` (`accounts[2].kind` → `accounts[].kind`). */
+/**
+ * The pattern of a concrete path: list indices and entry keys become `[]`
+ * (`accounts[2].kind` → `accounts[].kind`, `balances[day="2027-02-20"]` → `balances[]`).
+ */
 export declare function pathPattern(path: string): string;
-/** Whether a concrete path matches a pattern, where `[]` stands for any list index and `*` for any map key. */
+/**
+ * Whether a concrete path matches a pattern, where `[]` stands for any list
+ * index or entry key and `*` for any map key.
+ */
 export declare function matchesPathPattern(path: string, pattern: string): boolean;
 declare const inputPathOf: unique symbol;
 /**
@@ -322,33 +338,6 @@ export type EntryNeed<P extends string = string, K = ElementKey> = NeedMetadata<
  * `need.pattern` narrows the need and the type of its answer.
  */
 export type Need<P extends string = string, K = ElementKey> = P extends string ? FactNeed<P, K> | EntryNeed<P, K> : never;
-/**
- * One input path pattern of an entry at which a need can arise, as the law
- * gives it: the value's Futuruna type as written (`Int`, `Spouse?`,
- * `List(Child)`, a unit's name), the field's metadata, the patterns of the key
- * fields of the list elements it lies in (outermost first), and for a value
- * another entry provides, that entry and the path of its subject.
- */
-export type GuideNeed = {
-    readonly kind: "fact" | "entry";
-    readonly type: string;
-    readonly label?: string | undefined;
-    readonly question?: string | undefined;
-    readonly help?: string | undefined;
-    readonly unit?: string | undefined;
-    readonly keys: readonly string[];
-    readonly sources: readonly SourceReference[];
-    readonly entry?: string | undefined;
-    readonly subject?: string | undefined;
-};
-/**
- * An entry's answer guide, generated from its law: every input path pattern
- * of `P` at which a need can arise, once. A pattern no need can name (a
- * record, the element of a list of records) is left out.
- */
-export type AnswerGuide<P extends string = string> = {
-    readonly [K in P]?: GuideNeed;
-};
 /** `P` when it is one pattern; `never` for a union of several. */
 type OnePattern<P, All = P> = P extends unknown ? ([All] extends [P] ? P : never) : never;
 /**
@@ -419,13 +408,6 @@ export interface EngineTransport {
     /** Run `entry` on a partial case, as `runa call --partial`. */
     callPartial(entry: string, input: unknown): Promise<unknown>;
 }
-/** A transport that also explains, as the `...Explained` calls need. */
-export interface ExplainingTransport extends EngineTransport {
-    /** Run `entry` and explain every leaf of the result, as `runa call --explain` (`--explain=full` when `full`). */
-    callExplained(entry: string, input: unknown, full: boolean): Promise<unknown>;
-    /** As `callExplained`, on a partial case: `runa call --partial --explain`. */
-    callPartialExplained(entry: string, input: unknown, full: boolean): Promise<unknown>;
-}
 /**
  * One entry: its name, its contract hash, the wire codecs of its
  * input and result, and its input path patterns, which tag its needs.
@@ -486,166 +468,48 @@ export declare class CalculationError extends Error {
     });
 }
 /**
+ * The descriptive text a call returns besides what the caller acts on. By
+ * default a need carries its kind, path, pattern, keys, waiting rules and, for
+ * an entry need, its entry and subject, and an assumption its section, rule,
+ * binding and value without `statement` and `resolve_with`. Name the members
+ * to add, as `runa call --describe` does.
+ */
+export type Describe = {
+    readonly needs?: readonly ("label" | "question" | "help" | "unit" | "sources")[] | undefined;
+    readonly assumptions?: readonly ("statement" | "resolveWith")[] | undefined;
+};
+/** How a call, query or answer runs. */
+export type CallOptions = {
+    /** The descriptive text to return; none by default. */
+    readonly describe?: Describe | undefined;
+};
+/**
  * Calculate `entry` on a complete case: validate it, encode it, run it through
  * `transport.call`, check the envelope, and decode and validate the result;
  * returned with the assumptions it rests on.
  */
-export declare function callEntry<I, O>(transport: EngineTransport, entry: CalculationEntry, inputSchema: z.ZodType<I>, outputSchema: z.ZodType<O>, input: I): Promise<Calculated<O>>;
+export declare function callEntry<I, O>(transport: EngineTransport, entry: CalculationEntry, inputSchema: z.ZodType<I>, outputSchema: z.ZodType<O>, input: I, options?: CallOptions): Promise<Calculated<O>>;
 /**
  * Query `entry` on a partial case through `transport.callPartial`: `Complete`
  * or `Needs`, with the result decoded, every path a TypeScript path and every
  * need tagged with its pattern.
  */
-export declare function queryEntry<I, R, N extends Need>(transport: EngineTransport, entry: CalculationEntry, inputSchema: z.ZodType<I>, resultSchema: z.ZodType<QueryResult<R, N>>, input: I): Promise<QueryResult<R, N>>;
-/** How much an explained call reports: `direct` contributors of each value, or also the `full` derivation. */
-export type ExplainDepth = "direct" | "full";
-/** A leaf of a result or a case: a number, string or boolean, an enum's variant, or a `Date` as an ISO date. */
-export type ExplainedLeaf = string | number | boolean | null;
-/** A paragraph a rule clause cites, with its quoted text. */
-export type CitedParagraph = ParagraphReference & {
-    text: string;
-};
-/** The rule clause that produced a value: its law section and cited paragraphs. */
-export type ExplainedRule = {
-    $variant: "Rule";
-    rule: string;
-    /** The RuleScope of a scoped rule. */
-    scope?: string | undefined;
-    clause: "default" | "exception" | "clause";
-    /** The label of the exception that applied. */
-    exception?: string | undefined;
-    /** `file:line` of the clause. */
-    location?: string | undefined;
-    /** The law section around the clause; a key of {@link Explanation.sections}. */
-    section?: string | undefined;
-    cites?: CitedParagraph[] | undefined;
-};
-/** A rule a value was computed from, with the value it gave. */
-export type RuleContributor = Omit<ExplainedRule, "cites"> & {
-    paragraphs?: ParagraphReference[] | undefined;
-    value: ExplainedLeaf;
-    /** The node in {@link Explanation.derivation}, with depth `full`. */
-    node?: number | undefined;
-};
-/** An input a value was computed from, at its TypeScript path in the case. */
-export type InputContributor = {
-    $variant: "Input";
-    path: string;
-    value: ExplainedLeaf;
-};
-export type Contributor = RuleContributor | InputContributor;
-/**
- * What produced a value: a rule clause, the input at a TypeScript path of the
- * case, a computation outside any rule, or a constant of the model.
- */
-export type ExplainedBy = ExplainedRule | {
-    $variant: "Input";
-    path: string;
-} | {
-    $variant: "Computed";
-} | {
-    $variant: "Constant";
-};
-/** One leaf of a result and where it came from. */
-export type ExplainedValue = {
-    value: ExplainedLeaf;
-    by: ExplainedBy;
-    from?: Contributor[] | undefined;
-    /** Direct contributors beyond the first 32, with depth `direct`. */
-    fromOmitted?: number | undefined;
-    /** The inputs and rules the guards read that chose the clause. */
-    because?: Contributor[] | undefined;
-};
-/** A law section: its anchor, quoted documents, attachments and quote. */
-export type ExplainedSection = {
-    location: string;
-    sources: string[];
-    /** Each document the section quotes: its binding, file and role. */
-    documents: {
-        binding: string;
-        file: string | null;
-        role: string | null;
-    }[];
-    attachments: {
-        role: string;
-        binding?: string | undefined;
-        value: unknown;
-    }[];
-    quote: string;
-    /** The quoted passages an instruction quoted in the same section amends. */
-    superseded?: {
-        paragraph: string;
-        asAmendedBy: Amendment;
-    }[] | undefined;
-};
-/**
- * Where every leaf of a result came from (`docs/rfcs/explanations.md`), at the
- * TypeScript paths of the result and the case: an enum is one leaf, and a
- * `Date` is one leaf, its ISO date, unless its parts came from different
- * places; then each part is explained at `<date>.year`, `.month` and `.day`.
- */
-export type Explanation = {
-    /** Every leaf of the result by its TypeScript path. */
-    values: {
-        [path: string]: ExplainedValue;
-    };
-    sections: {
-        [label: string]: ExplainedSection;
-    };
-    /** With depth `full`: every rule node a value was computed from. */
-    derivation?: {
-        [node: string]: {
-            value: ExplainedLeaf;
-            by: ExplainedRule;
-            from: Contributor[];
-            because?: Contributor[] | undefined;
-        };
-    } | undefined;
-};
-/** A result with its assumptions and its explanation. */
-export type Explained<R> = Calculated<R> & {
-    readonly explanation: Explanation;
-};
-/** A partial call's result; a `Complete` result carries an explanation. */
-export type ExplainedQuery<R> = {
-    readonly result: R;
-    readonly explanation?: Explanation | undefined;
-};
-/**
- * Calculate `entry` and explain it, through `transport.callExplained`
- * (`runa call --explain`): the result as {@link callEntry} returns it, and
- * where every leaf of it came from.
- */
-export declare function explainEntry<I, O>(transport: ExplainingTransport, entry: CalculationEntry, depth: ExplainDepth, inputSchema: z.ZodType<I>, outputSchema: z.ZodType<O>, input: I): Promise<Explained<O>>;
-/**
- * Query `entry` and explain a `Complete` result, through
- * `transport.callPartialExplained` (`runa call --partial --explain`).
- */
-export declare function explainQueryEntry<I, R, N extends Need>(transport: ExplainingTransport, entry: CalculationEntry, depth: ExplainDepth, inputSchema: z.ZodType<I>, resultSchema: z.ZodType<QueryResult<R, N>>, input: I): Promise<ExplainedQuery<QueryResult<R, N>>>;
-/** One entry running for one subject, on the stack of entries being answered. */
-export type EntryFrame = {
-    readonly entry: string;
-    readonly subject: string;
-};
+export declare function queryEntry<I, R, N extends Need>(transport: EngineTransport, entry: CalculationEntry, inputSchema: z.ZodType<I>, resultSchema: z.ZodType<QueryResult<R, N>>, input: I, options?: CallOptions): Promise<QueryResult<R, N>>;
 /** The reply for a need `resolve` cannot fill: it stays open. */
 export type Open = {
     readonly kind: "open";
 };
 /**
  * What `resolve` gives for a need at a path of `P`: `given(need, value)`, a
- * value to write at the need's path; `open`, when it cannot fill the need; or
- * the outcome of another entry ({@link ResolverContext.runEntry}). A reply
- * names the path it is for, so it is checked against the need it answers.
+ * value to write at the need's path, or `open`, when it cannot fill the need.
+ * A reply names the path it is for, so it is checked against the need it
+ * answers.
  */
 export type ResolverReply<V = unknown, P extends string = string> = {
     readonly kind: "given";
     readonly path: InputPath<P>;
     readonly value: V;
-} | Open | {
-    readonly kind: "entry";
-    readonly path: InputPath<P>;
-    readonly answering: Answering<V>;
-};
+} | Open;
 /** The reply for a need `resolve` cannot fill: it stays open. */
 export declare const open: Open;
 /** Any value: a type parameter of this constraint keeps a literal such as `"Married"`, a variant's name. */
@@ -662,19 +526,6 @@ export declare function given<P extends string, V extends AnyValue>(need: {
 export interface ResolverContext<C> {
     /** The case sent in this round: the partial case and every answer written so far. */
     readonly partialCase: C;
-    /**
-     * Answer another entry for `need`, as the entry `need.entry` running for
-     * `need.subject`: an entry need names them, a fact need is given them
-     * (`{ ...need, entry: "share_income", subject: "taxpayer.spouse" }`). `run`
-     * answers that entry, passing `options` on, as
-     * `(options) => shareIncomeAnswer(transport, partialCase, resolve, options)`.
-     * Its result is written at the need's path when it is `Answered`; when it is
-     * `Unanswered` the need waits in `pending`. An entry already being answered
-     * for the same subject is a cycle and throws {@link AnswerCycleError}.
-     */
-    runEntry<P extends string, R2>(need: {
-        readonly path: InputPath<P>;
-    } & EntryFrame, run: (options: AnswerOptions) => Promise<Answering<R2>>): Promise<ResolverReply<R2, P>>;
 }
 /** A partial call of one entry, such as `(c) => taxReportQuery(transport, c)`. */
 export type Query<C, R, N extends Need = Need> = (partialCase: C) => Promise<QueryResult<R, N>>;
@@ -717,11 +568,6 @@ export type Round<N extends Need = Need> = {
     readonly paths: readonly InputPath<N["pattern"]>[];
     readonly given: readonly InputPath<N["pattern"]>[];
 };
-/** An entry need waiting on what another entry left open. */
-export type PendingEntry = {
-    readonly need: Need;
-    readonly answering: Answering<unknown>;
-};
 /**
  * Where answering an entry ended: `Answered`, or `Unanswered` when a round
  * answered nothing, with that round's needs left open. The partial case holds
@@ -739,8 +585,6 @@ export type Answering<R, N extends Need = Need, C = unknown> = {
     readonly $variant: "Unanswered";
     /** The needs of the last round `resolve` left open. */
     readonly open: readonly N[];
-    /** Entry needs waiting on what another entry left open. */
-    readonly pending: readonly PendingEntry[];
     /**
      * Facts read only behind an unknown condition in the last round: what the
      * engine may need once the open needs are answered, in the next round.
@@ -749,32 +593,17 @@ export type Answering<R, N extends Need = Need, C = unknown> = {
     readonly partialCase: C;
     readonly rounds: readonly Round<N>[];
 };
-/**
- * How an entry is answered from inside another's `resolve`: what
- * {@link ResolverContext.runEntry} passes to its `run`, to be passed on to
- * `<entry>Answer` unchanged.
- */
-export type AnswerOptions = {
-    /** The entries being answered above this one, outermost first. */
-    readonly frames?: readonly EntryFrame[];
-};
 /** Answering cannot continue. */
 export declare class AnswerError extends Error {
     constructor(message: string);
-}
-/** Two entries need each other for the same subjects: a model error; join them into one entry. */
-export declare class AnswerCycleError extends AnswerError {
-    readonly frames: readonly EntryFrame[];
-    constructor(frames: readonly EntryFrame[]);
 }
 /**
  * Answer an entry round by round: query it on the partial case, call `resolve`
  * once per round with every need, write the given values with {@link setAt},
  * and query again. Ends `Answered`, or `Unanswered` when a round answers
  * nothing. A reply for another need's path, or a path still needed after it
- * was given, throws {@link AnswerError}; an entry that needs itself for the
- * same subject throws {@link AnswerCycleError}. The SDK's `<entry>Answer`
- * calls it.
+ * was given, throws {@link AnswerError}. An entry need is answered like any
+ * other need. The SDK's `<entry>Answer` calls it.
  */
-export declare function answerEntry<C, R, N extends Need, Patterns>(query: Query<C, R, N>, partialCase: C, resolve: Resolve<C, Patterns, N>, options?: AnswerOptions): Promise<Answering<R, N, C>>;
+export declare function answerEntry<C, R, N extends Need, Patterns>(query: Query<C, R, N>, partialCase: C, resolve: Resolve<C, Patterns, N>): Promise<Answering<R, N, C>>;
 export {};

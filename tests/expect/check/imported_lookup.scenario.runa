@@ -1,0 +1,12 @@
+-- A program whose imported module calls `lookup` runs in the interpreter
+-- only, as one that calls it itself: its check generates no Rust.
+-- expect-command: check
+-- expect-stderr: interpreted (lookup)
+-- expect-stderr-not: rustc
+-- roundtrip-skip: imports a module that calls `lookup`, which runs only in the interpreter
+
+@ import imported_lookup_lib
+
+= given = Case(delisted = "2027-02-20", balances = [Balance(day = "2026-12-31", value = 100), Balance(day = "2027-02-20", value = 1740)])
+| deemed_on_the_day: given -> deemed(given) == 1740
+? deemed_on_the_day

@@ -19,7 +19,6 @@
               }
             ],
             "kind": "fact",
-            "label": "Amount",
             "path": "events[0].amount",
             "waiting": [
               {
@@ -36,7 +35,6 @@
               }
             ],
             "kind": "fact",
-            "label": "Fee",
             "path": "events[1].fee",
             "waiting": [
               {

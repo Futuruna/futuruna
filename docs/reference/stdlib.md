@@ -179,7 +179,8 @@ Out-of-range direct indexing (`xs[i]`) and `nth(xs, i)` are runtime errors.
 
 ## Collection Operations (Kotlin-inspired)
 
-Higher-order operations on lists. All work in both interpreter and compiled mode.
+Higher-order operations on lists. All work in both interpreter and compiled
+mode, except `lookup`, which runs in the interpreter.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -188,6 +189,7 @@ Higher-order operations on lists. All work in both interpreter and compiled mode
 | `any` | `(List(a), a -> Bool) -> Bool` | True if any element matches |
 | `all` | `(List(a), a -> Bool) -> Bool` | True if all elements match |
 | `find` | `(List(a), a -> Bool) -> Option(a)` | First matching element |
+| `lookup` | `(List(a), key) -> Option(a)` | The entry whose key field (`@ field(key = True)`) is `key`; on an open collection, the entry itself |
 | `flat_map` | `(List(a), a -> List(b)) -> List(b)` | Map then flatten |
 | `zip` | `(List(a), List(b)) -> List(Pair(a, b))` | Pair elements from two lists |
 | `enumerate` | `List(a) -> List(Pair(Int, a))` | Index-value pairs |
@@ -204,6 +206,13 @@ The callback of `filter`, `any`, `all` and `find` answers `Bool`. A callback
 whose result type is known to be anything else is a type error; a callback
 whose result type is only known at run time (for example a generic function)
 stops the program with a runtime error when it returns a non-`Bool` value.
+
+`lookup(list, key)` finds an entry of a list whose element type declares a
+key field by that field, and is `Some(entry)` or `None`. On an open
+collection (a field declared `@ field(open = True)`, written as the first
+argument: `lookup(account.balances, day)`) it is the entry itself, and an
+entry the case does not give is a need of a partial case or an error naming
+the key; see [Open collections](calculations.md#open-collections).
 
 Integer `sum_list` and stream `sum` reject an overflowing intermediate total.
 Integer `abs` also fails if its result is outside the signed 64-bit range.

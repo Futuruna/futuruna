@@ -73,6 +73,7 @@ pub mod migrate;
 #[doc(hidden)]
 #[allow(dead_code)]
 pub mod logic_search;
+mod open_inputs;
 mod ordinary_calls;
 mod ordinary_declarations;
 mod ordinary_expressions;
@@ -5860,27 +5861,9 @@ pub fn answer_parts(expr: &Expr) -> Option<AnswerParts<'_>> {
     })
 }
 
-/// The entry of an `answer_guide(entry)` form, which the parser writes as the
-/// prelude's `answer_guide("site")` (`answer_site`).
-pub fn answer_guide_parts(expr: &Expr) -> Option<&str> {
-    let ExprKind::App(function, arguments) = &expr.kind else {
-        return None;
-    };
-    if !matches!(&function.kind, ExprKind::Var(name) if name == "answer_guide") {
-        return None;
-    }
-    let [site] = arguments.as_slice() else {
-        return None;
-    };
-    let ExprKind::Lit(Literal::Str(site)) = &site.kind else {
-        return None;
-    };
-    site.split_once('\u{1f}').map(|(entry, _)| entry)
-}
-
-/// Whether `expr` contains a `query`, an `unknown` or an `answer_guide`.
+/// Whether `expr` contains a `query` or an `unknown`.
 pub fn expr_mentions_query_or_unknown(expr: &Expr) -> bool {
-    if is_unknown_expr(expr) || query_parts(expr).is_some() || answer_guide_parts(expr).is_some() {
+    if is_unknown_expr(expr) || query_parts(expr).is_some() {
         return true;
     }
     let mut found = false;
@@ -5903,6 +5886,22 @@ pub fn stmt_mentions_query_or_unknown(statement: &Stmt) -> bool {
                 AstChild::Expr(child) => expr_mentions_query_or_unknown(child),
                 AstChild::Stmt(statement) => stmt_mentions_query_or_unknown(statement),
             };
+    });
+    found
+}
+
+/// Whether an expression is a call of `lookup`, which runs in the
+/// interpreter only (`open_inputs`).
+pub fn is_lookup_call(expr: &Expr) -> bool {
+    matches!(&expr.kind, ExprKind::App(function, arguments)
+        if arguments.len() == 2 && matches!(&function.kind, ExprKind::Var(name) if name == "lookup"))
+}
+
+/// Whether a statement calls `lookup`.
+pub fn stmt_mentions_lookup(statement: &Stmt) -> bool {
+    let mut found = false;
+    walk_ast_stmt(statement, &mut |child| {
+        found = found || matches!(child, AstChild::Expr(expr) if is_lookup_call(expr));
     });
     found
 }
@@ -6906,8 +6905,10 @@ pub enum TypeDecl {
         /// EXCEPT clause: include all variants from this type minus the listed ones
         except_from: Option<(String, Vec<String>)>,
         /// Calculation field metadata written with `@ field(...)` on the type
-        /// or its named fields. Presentation only: not part of the type's
-        /// meaning, content hash or semantic interface.
+        /// or its named fields. Presentation, apart from the `open` marker:
+        /// not part of the type's meaning, content hash or semantic interface,
+        /// except that an open field (`@ field(open = True)`) is, since the
+        /// law reads it only through `lookup`.
         field_meta: Option<Box<TypeFieldMeta>>,
     },
     /// Conditional type evolution: # Type WHEN condition = new_variants
@@ -7015,9 +7016,15 @@ pub struct Field {
 }
 
 /// The keys an `@ field(...)` declaration accepts, in documentation order.
-pub const FIELD_META_KEYS: [&str; 8] = [
-    "label", "question", "help", "unit", "sources", "entry", "subject", "key",
+pub const FIELD_META_KEYS: [&str; 9] = [
+    "label", "question", "help", "unit", "sources", "entry", "subject", "key", "open",
 ];
+
+/// The `@ field` keys that say what a field is rather than how it is
+/// presented: `key` (the field identifies an element of its type) and `open`
+/// (the case never gives the collection whole; the law looks its entries up
+/// by key). An `@ field` of markers alone needs no label.
+pub const FIELD_META_MARKERS: [&str; 2] = ["key", "open"];
 
 /// One `@ field(key = value, ...)` declaration. Values are ordinary pure
 /// ground expressions; `runa schema` resolves them like metadata bindings.
@@ -7033,6 +7040,14 @@ impl FieldMetaDecl {
             .iter()
             .find(|(name, _)| name == key)
             .map(|(_, value)| value)
+    }
+
+    /// A marker written as a literal: `True` for `@ field(open = True)`.
+    pub fn flag(&self, key: &str) -> Option<bool> {
+        match &self.value(key)?.kind {
+            ExprKind::Lit(Literal::Bool(value)) => Some(*value),
+            _ => None,
+        }
     }
 }
 
@@ -7050,6 +7065,16 @@ pub struct MemberFieldMeta {
 pub struct TypeFieldMeta {
     pub type_default: Option<FieldMetaDecl>,
     pub members: Vec<MemberFieldMeta>,
+}
+
+impl TypeFieldMeta {
+    /// The named fields declared `@ field(<marker> = True)`.
+    pub fn marked(&self, marker: &str) -> impl Iterator<Item = &MemberFieldMeta> + '_ {
+        let marker = marker.to_string();
+        self.members
+            .iter()
+            .filter(move |member| member.meta.flag(&marker) == Some(true))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -10175,14 +10200,25 @@ pub fn content_hash_type(td: &TypeDecl) -> String {
             params,
             variants,
             methods,
+            field_meta,
             ..
         } => {
-            format!(
+            let mut canonical = format!(
                 "ADT({:?},{:?},{:?})",
                 params,
                 variants,
                 methods.iter().map(strip_spans_defn).collect::<Vec<_>>()
-            )
+            );
+            // An open field changes what the law may read of it.
+            let open: Vec<(&str, &str)> = field_meta
+                .iter()
+                .flat_map(|meta| meta.marked("open"))
+                .map(|member| (member.variant.as_str(), member.field.as_str()))
+                .collect();
+            if !open.is_empty() {
+                canonical.push_str(&format!(",OPEN({open:?})"));
+            }
+            canonical
         }
         TypeDecl::EffectDecl { ops, .. } => {
             format!("EFFECT({:?})", ops)
@@ -13740,12 +13776,15 @@ impl Parser {
             entries.push((key.to_string(), value.clone()));
         }
         let has = |key: &str| entries.iter().any(|(existing, _)| existing == key);
-        // `@ field(key = True)` alone marks the key; the field keeps the
-        // metadata of its type.
-        let key_only = !entries.is_empty() && entries.iter().all(|(key, _)| key == "key");
-        if !has("label") && !key_only {
+        // `@ field(key = True)` or `@ field(open = True)` alone marks the
+        // field; it keeps the metadata of its type.
+        let markers_only = !entries.is_empty()
+            && entries
+                .iter()
+                .all(|(key, _)| FIELD_META_MARKERS.contains(&key.as_str()));
+        if !has("label") && !markers_only {
             return Err(format!(
-                "{}:{}: `@ field` needs a `label`, or only `key` (`@ field(key = True)`)",
+                "{}:{}: `@ field` needs a `label`, or only the markers `key` and `open` (`@ field(key = True)`)",
                 name.line, name.col
             ));
         }
@@ -14815,24 +14854,6 @@ impl Parser {
         Ok(self.spanned(ExprKind::App(Box::new(function), values), &start_tok))
     }
 
-    /// `answer_guide(entry)`, after `answer_guide`: the prelude's
-    /// `answer_guide` with the form's site (`answer_guide_parts`).
-    fn parse_answer_guide_form(&mut self, start_tok: Token) -> Result<Expr, String> {
-        self.expect(TokenKind::LParen)?;
-        let entry = self.advance();
-        self.expect(TokenKind::RParen)?;
-        let start = self.token_span(&start_tok).start;
-        let site = Expr::new(
-            ExprKind::Lit(Literal::Str(answer_site(&entry.text, start))),
-            self.token_span(&entry),
-        );
-        let function = Expr::new(
-            ExprKind::Var("answer_guide".to_string()),
-            self.token_span(&start_tok),
-        );
-        Ok(self.spanned(ExprKind::App(Box::new(function), vec![site]), &start_tok))
-    }
-
     fn parse_refof_expr(&mut self, start_tok: Token) -> Result<Expr, String> {
         self.expect(TokenKind::LParen)?;
         self.skip_semis();
@@ -14995,15 +15016,6 @@ impl Parser {
                     && self.tokens.get(self.pos + 2).map(|next| next.kind) == Some(TokenKind::Comma)
                 {
                     return self.parse_answer_form(tok);
-                }
-                // `answer_guide(entry)` is the guide generated for `entry`.
-                if tok.text == "answer_guide"
-                    && self.peek_kind() == TokenKind::LParen
-                    && self.tokens.get(self.pos + 1).map(|next| next.kind) == Some(TokenKind::Ident)
-                    && self.tokens.get(self.pos + 2).map(|next| next.kind)
-                        == Some(TokenKind::RParen)
-                {
-                    return self.parse_answer_guide_form(tok);
                 }
                 let span = self.token_span(&tok);
                 Ok(Expr::new(ExprKind::Var(tok.text), span))
@@ -18178,6 +18190,9 @@ pub struct Interpreter {
     /// Set while a partial calculation case runs; see `partial`.
     partial_mode: Option<partial::PartialMode>,
     partial: RefCell<partial::PartialState>,
+    /// The open input fields and key fields of the program's types, for
+    /// `lookup` (`open_inputs`).
+    open_inputs: open_inputs::RuntimeOpenInputs,
     /// Whether a rule clause or function being evaluated in a partial case
     /// is cited in a law section: the value it returns is then that rule's,
     /// and a later read of it waits on the rule, not on the fact.
@@ -18405,6 +18420,7 @@ impl Interpreter {
             calculation_error: RefCell::new(None),
             partial_mode: None,
             partial: RefCell::new(partial::PartialState::default()),
+            open_inputs: open_inputs::RuntimeOpenInputs::default(),
             partial_cited: None,
             fired: None,
             assumptions_of: None,
@@ -21057,10 +21073,6 @@ impl Interpreter {
             "__answer_round".into(),
             Value::Builtin("__answer_round".into()),
         );
-        env.set(
-            "__answer_guide".into(),
-            Value::Builtin("__answer_guide".into()),
-        );
         env.set("filter".into(), Value::Builtin("filter".into()));
         env.set("foldl".into(), Value::Builtin("foldl".into()));
         env.set("assert".into(), Value::Builtin("assert".into()));
@@ -21079,6 +21091,7 @@ impl Interpreter {
         env.set("any".into(), Value::Builtin("any".into()));
         env.set("all".into(), Value::Builtin("all".into()));
         env.set("find".into(), Value::Builtin("find".into()));
+        env.set("lookup".into(), Value::Builtin("lookup".into()));
         env.set("flat_map".into(), Value::Builtin("flat_map".into()));
         env.set("pair".into(), Value::Builtin("pair".into()));
         env.set("triple".into(), Value::Builtin("triple".into()));
@@ -21431,8 +21444,11 @@ impl Interpreter {
                 variants,
                 methods,
                 except_from,
+                field_meta,
                 ..
             } => {
+                self.open_inputs
+                    .register(name, variants, field_meta.as_deref());
                 // Resolve variant list: expand type includes and apply EXCEPT
                 let mut resolved_variants: Vec<String> = Vec::new();
 
@@ -24039,6 +24055,13 @@ impl Interpreter {
                 return self.eval_query(expression, env);
             }
             let namespace = self.namespace_for_env(env);
+            if function_name == "lookup"
+                && arguments.len() == 2
+                && matches!(env.get("lookup"), Some(Value::Builtin(name)) if name == "lookup")
+                && self.runtime_function(&namespace, "lookup").is_none()
+            {
+                return self.eval_lookup(&arguments[0], &arguments[1], env);
+            }
             if self.exhaustive_preview_forbid_effects
                 && self.runtime_effect_operation_exists(&namespace, function_name)
             {
@@ -25292,7 +25315,6 @@ impl Interpreter {
                 ),
             },
             "__answer_round" => self.eval_answer_round(namespace, args, env),
-            "__answer_guide" => self.eval_answer_guide(namespace, args),
             "print" => {
                 let text = match args.first() {
                     Some(Value::Str(s)) => s.clone(),
@@ -25802,6 +25824,11 @@ impl Interpreter {
                     Value::Constructor("None".into(), vec![].into())
                 }
                 _ => Value::Constructor("None".into(), vec![].into()),
+            },
+            // `lookup` passed as a value: a closed collection.
+            "lookup" => match <[Value; 2]>::try_from(args) {
+                Ok([list, key]) => self.lookup_entry(list, key, None),
+                Err(_) => self.panic_or_ground_fail("`lookup` takes a list and a key"),
             },
             "flat_map" => {
                 // Polymorphic: Stream/Subject → Stream, List/Cons → List
@@ -33154,6 +33181,14 @@ pub struct TypeChecker {
     rule_scope_returning_rules: BTreeMap<String, String>,
     /// RuleScope-typed variables per lexical scope.
     rule_scope_vars: Vec<BTreeMap<String, String>>,
+    /// Type and variant name -> field declared `@ field(open = True)` -> the
+    /// field's declared type (`open_inputs`).
+    open_fields: BTreeMap<String, BTreeMap<String, Ty>>,
+    /// Type name -> its key field (`@ field(key = True)`).
+    key_fields: BTreeMap<String, String>,
+    /// The field reads written as the collection of a `lookup`: the only
+    /// place an open field may be read.
+    lookup_collections: BTreeSet<usize>,
     /// Type name -> known field names.
     type_fields: BTreeMap<String, BTreeSet<String>>,
     /// Type name -> field name -> field type name.
@@ -34395,6 +34430,9 @@ pub struct TypeCheckArtifacts {
     pub diagnostics: Vec<Diagnostic>,
     /// Warnings: reported, never failing the check.
     pub warnings: Vec<Diagnostic>,
+    /// Why the program (root and imports) runs in the interpreter only:
+    /// `"query"` or `"lookup"` (`query::interpreter_only`).
+    pub interpreter_only: Option<&'static str>,
     pub calculation_contracts: Vec<calculate::CalculationContract>,
     pub compile_time_metadata_bindings: BTreeSet<String>,
     /// Every declared unit of measure and named scalar, including imported
@@ -50013,6 +50051,9 @@ impl TypeChecker {
             rule_scope_function_definitions_by_key: BTreeMap::new(),
             rule_scope_returning_rules: BTreeMap::new(),
             rule_scope_vars: vec![BTreeMap::new()],
+            open_fields: BTreeMap::new(),
+            key_fields: BTreeMap::new(),
+            lookup_collections: BTreeSet::new(),
             type_fields: BTreeMap::new(),
             type_field_types: BTreeMap::new(),
             type_field_tys: BTreeMap::new(),
@@ -50185,6 +50226,7 @@ impl TypeChecker {
             ("any", 2),
             ("all", 2),
             ("find", 2),
+            ("lookup", 2),
             ("flat_map", 2),
             ("zip", 2),
             ("enumerate", 1),
@@ -50279,9 +50321,8 @@ impl TypeChecker {
             ("search", 2),
             // `fill` of the needs prelude (`query`)
             ("__fill", 3),
-            // the round of `answer` and the guide of `answer_guide`
+            // the round of `answer`
             ("__answer_round", 5),
-            ("__answer_guide", 1),
         ] {
             tc.builtins.entry(name.to_string()).or_insert(arity);
         }
@@ -54960,6 +55001,36 @@ impl TypeChecker {
                         let element_type =
                             Self::applied_type_argument(&collection_type, "List", 0)?;
                         return Some(format!("Option({element_type})"));
+                    }
+                    // `lookup(c.entries, key)`: the entry itself where the
+                    // collection is open, else whether the list has it.
+                    if name == "lookup"
+                        && args.len() == 2
+                        && !locals.contains_key(name)
+                        && !self.functions.contains_key(name)
+                    {
+                        let collection_type = self.infer_expr_type_name_with_locals_in_scope(
+                            &args[0],
+                            locals,
+                            active_rule_scope,
+                        )?;
+                        let element_type =
+                            Self::applied_type_argument(&collection_type, "List", 0)?;
+                        let open = match &args[0].kind {
+                            ExprKind::Field(base, field) => self
+                                .infer_expr_type_name_with_locals_in_scope(
+                                    base,
+                                    locals,
+                                    active_rule_scope,
+                                )
+                                .is_some_and(|owner| self.open_field(&owner, field).is_some()),
+                            _ => false,
+                        };
+                        return Some(if open {
+                            element_type
+                        } else {
+                            format!("Option({element_type})")
+                        });
                     }
                     // Two lists of one element type, or two strings: both
                     // arguments have the result's type.
@@ -59721,11 +59792,13 @@ impl TypeChecker {
                     params,
                     variants,
                     methods,
+                    field_meta,
                     ..
                 }) => {
                     self.check_name_against_units(name);
                     self.clear_constructor_owner(name);
                     self.types.insert(name.clone());
+                    self.register_open_and_key_fields(name, variants, field_meta.as_deref());
                     self.type_parameters_by_owner.insert(
                         name.clone(),
                         params
@@ -60331,6 +60404,7 @@ impl TypeChecker {
         // Check trait impl completeness
         self.check_trait_impls();
         self.check_field_meta_declarations(stmts);
+        self.check_open_field_declarations(stmts);
         self.report_scalar_literals();
         self.withdraw_metadata_only_list_errors(stmts);
     }
@@ -60369,13 +60443,13 @@ impl TypeChecker {
                                 ),
                             );
                         }
-                    } else if key == "key" {
+                    } else if FIELD_META_MARKERS.contains(&key.as_str()) {
                         if type_name != "Bool" {
                             self.error_at_expr(
                                 value,
                                 format!(
-                                    "`@ field` key `key` must be a `Bool`, got `{}`",
-                                    type_name
+                                    "`@ field` key `{}` must be a `Bool`, got `{}`",
+                                    key, type_name
                                 ),
                             );
                         }
@@ -63754,6 +63828,9 @@ impl TypeChecker {
                         {
                             self.check_collection_predicate(name, args);
                         }
+                        if name == "lookup" && actual_arity == 2 && !self.var_defined(name) {
+                            self.check_lookup_call(expr, args);
+                        }
                         if !self.var_defined(name) {
                             self.check_scalar_collection_call(name, args);
                         }
@@ -65008,6 +65085,7 @@ impl TypeChecker {
             // reads, whether or not the program declares a calculation.
             compile_time_metadata_bindings.extend(tc.metadata_binding_candidates(stmts));
         }
+        let interpreter_only = query::interpreter_only(stmts, source, &tc);
         let checked_resolutions = CheckedResolutionRecorder::record(&tc);
         let (checked_exploration_queries, checked_exploration_query_issue) =
             if tc.diagnostics.is_empty() {
@@ -65049,6 +65127,7 @@ impl TypeChecker {
         let runtime_root_source_dir = tc.source_dir.clone().map(String::into_boxed_str);
         TypeCheckArtifacts {
             diagnostics: tc.diagnostics,
+            interpreter_only,
             warnings,
             calculation_contracts,
             compile_time_metadata_bindings,

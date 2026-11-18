@@ -1,0 +1,13 @@
+-- Passing an open collection to a function reads it whole too: the 0.6
+-- reproducer's `value_on(c.balances, c.delisted)` is a check error.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `balances` of `Case` is an open collection
+
+# Balance(@ field(key = True) day: String, value: Int)
+# Case(delisted: String, @ field(open = True) balances: List(Balance))
+
+| value_on(balances: List(Balance), day: String): Int -> sum_list(map(filter(balances, |b| b.day == day), |b| b.value))
+
+@ entry
+| deemed(c: Case) -> value_on(c.balances, c.delisted)

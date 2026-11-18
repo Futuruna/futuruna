@@ -775,7 +775,18 @@ Each case's `result` is one of:
 ```
 
 `unused_paths` lists the provided input paths evaluation never read. A
-need's `path` is concrete, with list indices; its `label`, `question`,
+need's `path` is concrete, with list indices.
+
+**Descriptive text is opt-in.** By default a need carries only what a caller
+acts on: `kind`, `path`, `keys`, `waiting` (each rule's name and `section`)
+and, for an entry need, `entry` and `subject`; an assumption leaves out its
+value's `statement` and `resolve_with`. `--describe` adds all text, and
+`--describe=label,question` the members it names: of a need `label`,
+`question`, `help`, `unit` and `sources` (with `sources`, a waiting rule's
+`paragraphs` too), of an assumption `statement` and `resolve_with`. The input
+document may ask the same with a top-level `"describe": ["label", "question"]`,
+as the TypeScript SDK and the WebAssembly engine do; the flag replaces it. The
+example above is written with `--describe`. A need's `label`, `question`,
 `help`, `unit` and `sources` come from the field metadata of the same path
 without indices. A `Date` is one fact: when its year, month or day is
 unknown, the need is at the date's path, with the date field's own metadata,
@@ -868,6 +879,41 @@ The full format and evolution contract is in
 cases and their needs are specified in
 [Calculation needs](../rfcs/calculation-needs.md).
 
+### Open collections
+
+Experimental (0.7). The law may ask for an entry whose key it computes: the
+account's balance on the day after a delisting. A list of a keyed record
+declared `@ field(open = True)` is never given whole; the case gives the
+entries the law asks for:
+
+```runa
+# Balance(@ field(key = True, label = "Day") day: String, @ field(label = "Value") value: Int)
+# Account(delisted: String, @ field(label = "Balance", open = True) balances: List(Balance))
+
+@ entry
+> deemed(a: Account) -> Int {
+    lookup(a.balances, a.delisted).value
+}
+```
+
+- `lookup(record.field, key)` on an open field is the entry whose key field is
+  `key`, typed `Balance`. On any other keyed list `lookup` is
+  `Some(entry)` or `None`.
+- An entry the case does not give is, in a partial case, a need whose path
+  names it by its key, `balances[day="2027-02-20"]` (the key as JSON), whose
+  `keys` carry that key and whose metadata is the field's. It is answered
+  with the whole entry. A complete call fails with an error naming the field
+  and the key.
+- `runa check` refuses every other read of an open field (`filter`, `map`,
+  `length`, a loop, a binding, passing it to a function): the case never holds
+  all of it, so no such read has a true result.
+- An open field may be left out of a case: no entries are given yet.
+- `lookup` runs in the interpreter; `runa build` and `runa run` refuse it.
+
+An entry whose key is unknown before the match keeps the result unknown with
+that key's path. A missing entry is fallible: the case does not complete past
+it. See [Open keyed inputs](../rfcs/open-keyed-inputs.md).
+
 ## Needs in the language
 
 Experimental. A program asks an entry about a case that holds
@@ -955,7 +1001,7 @@ file it stands in or of a file it imports, and a name two files declare is a
 check error. These types and `fill` join the prelude of a program that asks
 a query, places an `unknown`, or calls `fill`; the types of
 [Answering an entry](#answering-an-entry) join it as well when the program
-calls `answer` or `answer_guide`.
+calls `answer`.
 
 **`Path(i)`** is a path into a value of type `i`. `pathof(T::...)` is a
 `Path(T)` where a path is expected and a `String` elsewhere; it takes list
@@ -1061,46 +1107,6 @@ separately is something `resolve` may do, for a field whose metadata names
 the entry that provides it (`@ field(entry = refof(share_income), subject =
 ...)`): it may run `answer` on that entry, read a stored figure, or ask
 someone. That second `answer`'s needs are its own, not the caller's.
-
-### The generated AnswerGuide
-
-Every `@ entry` generates its **AnswerGuide** from the law: one item for every
-input path pattern at which a need can arise, with its type and the law's
-metadata (label, question, help, unit, key fields, sources; for an entry need,
-the entry and subject). It says nothing about the integrator: no sources of
-its own, no groups. The integrator writes only the mapping of its data into a
-case and `resolve`; which need goes to the customer, another bank or the back
-office is its own code, and the guide is what it reads to write it.
-
-**`answer_guide(entry)`** returns the guide of an `@ entry`, in the
-interpreter only, like `query`:
-
-```text
-AnswerGuide = AnswerGuide(entry: String, needs: List(GuideNeed))
-GuideNeed   = GuideNeed(pattern: String, kind: NeedKind, value_type: String,
-                        label: Option(String), question: Option(String),
-                        help: Option(String), unit: Option(String),
-                        keys: List(String), sources: List(NeedSource),
-                        entry: Option(ProgramReference), subject: Option(String))
-```
-
-A pattern is spelled as a need's path, with `[]` for every list index and
-`*` for every map key (`children[].age`); a sum type's alternative is
-`path.$variant`, and an alternative's fields stand directly under the sum
-type's path. `value_type` is the type as written (`Spouse?`, `List(Child)`).
-`keys` are the patterns of the key fields of the list elements the pattern
-lies in. The patterns come in the order the input type declares them, a
-value before what lies inside it.
-
-```runa
-= guide = answer_guide(household_tax)
-@ print(show(map(guide.needs, |n| n.pattern)))
--- [income, married, spouse, spouse.income, spouse.cohabiting, children, children[].name, children[].age]
-```
-
-The guide is derived from the entry's contract; the engine, its JSON and the
-WebAssembly build are unchanged. The TypeScript SDK exports it as
-`<entry>Guide`.
 
 ## Explanations
 
@@ -1225,9 +1231,9 @@ its section; each once (by binding and value), in the order the model writes
 them (by file, then line), each with its `section` (the law section it is
 written in; absent outside any section), its `rule` (the rule, member or
 function it is written on; absent when it is written on its section), its
-`binding` when it is written as one, and its `value` as plain JSON. A case
-with none leaves `assumptions` out;
-a `Needs` result has none.
+`binding` when it is written as one, and its `value` as plain JSON, without
+the value's `statement` and `resolve_with` unless `--describe` asks for them
+(the example is written with it). A case with none leaves `assumptions` out; a `Needs` result has none.
 
 ```json
 { "case_id": "closed",
@@ -1292,7 +1298,7 @@ import [`zod`](https://zod.dev) and the runtime package `@futuruna/runtime`
 | `types.ts` | One type per contract type, as TypeScript writes it (see [Types](#types)). Every field carries its label, question, help, unit and source labels as TSDoc. |
 | `schema.ts` | A Zod validator for every type, `SCHEMA_HASH` per entry, and a wire codec (`<Type>Codec`) for every record and every sum type with payload variants. Records reject unknown fields. `Int` is `number` and validates as a safe integer: a value beyond ±(2^53 − 1) is rejected, never rounded. Each unit's constructor, with its decimal converters where its scale allows them. |
 | `partial.ts` | `Partial<Type>` for every input record and sum type, in which any field may be left out and a record may be `{}`, with the same field TSDoc as `types.ts`; each entry's input path patterns (`<Entry>InputPatterns`, with the value written at each), its `Need` tagged by pattern, the `Complete`/`Needs` result, and `<entry>SetAt`. |
-| `client.ts` | A call, a query and an answer function per entry, the first two also explained (`<entry>Explained`, `<entry>QueryExplained`), the entry's resolve type (`<Entry>Resolve`) and generated guide (`<entry>Guide`), see [Answering an entry](#answering-an-entry-1), and the entry's descriptor (`<entry>Entry`: name, schema hash, codecs, path patterns). |
+| `client.ts` | A call, a query and an answer function per entry, the entry's resolve type (`<Entry>Resolve`), see [Answering an entry](#answering-an-entry-1), and the entry's descriptor (`<entry>Entry`: name, schema hash, codecs, path patterns). |
 | `index.ts` | Re-exports the other modules and the runtime package. |
 
 Each module starts with a header naming the source file, the runtime version
@@ -1411,10 +1417,6 @@ interface EngineTransport {
   call(entry: string, input: unknown): Promise<unknown>;
   callPartial(entry: string, input: unknown): Promise<unknown>;
 }
-interface ExplainingTransport extends EngineTransport {
-  callExplained(entry: string, input: unknown, full: boolean): Promise<unknown>;
-  callPartialExplained(entry: string, input: unknown, full: boolean): Promise<unknown>;
-}
 ```
 
 For an entry `tax_report` with input `TaxCase`:
@@ -1427,22 +1429,10 @@ For an entry `tax_report` with input `TaxCase`:
   lists none, each a `CalculationAssumption` as the engine writes it);
 - `taxReportQuery(transport, input: PartialTaxCase)` does the same through
   `transport.callPartial` and returns `Complete` with `result`,
-  `assumptions` and `unusedPaths`, or `Needs` with `needs`;
-- `taxReportExplained(transport, input, depth?)` and
-  `taxReportQueryExplained(transport, input, depth?)` do the same through
-  `callExplained` and `callPartialExplained` (`--explain`, or
-  `--explain=full` for depth `"full"`) and return `{ result, assumptions,
-  explanation }` (a query: the `Complete` result and the explanation),
-  typed by `Explanation`. They take an `ExplainingTransport`: passing a
-  transport that cannot explain is a type error, not a runtime failure. The
-  explanation speaks TypeScript too: its values
-  are keyed by TypeScript paths of the result, an input it names is at its
-  TypeScript path in the case, and `from_omitted` is `fromOmitted`. Leaf values
-  are numbers, strings, booleans and an enum's variant name; a `Date` is one
-  value, its ISO date, unless its parts came from different places, when each
-  part is explained at `<date>.year`, `.month` and `.day`. The inputs and
-  rules a clause's guards read (`because`) are at TypeScript paths as `from`
-  is.
+  `assumptions` and `unusedPaths`, or `Needs` with `needs`.
+
+The TypeScript SDK does not explain; `runa call --explain` does
+([Explanations](#explanations)).
 
 A failure throws `CalculationError` with `kind` `input`, `output`, `envelope`
 or `diagnostics`, and the validation issues (at TypeScript paths) or the
@@ -1476,11 +1466,20 @@ is an `InputPath` of that pattern: a branded string only the validators make,
 so a path such as `accounts[-1].closingCashOre` cannot be written by hand.
 `TaxReportInputPatterns` maps every pattern to the value an answer writes
 there; `TaxReportNeed` is the union of the needs of every pattern, so
-narrowing `need.pattern` narrows the need. Each need carries the field's
+narrowing `need.pattern` narrows the need. Each need carries `waiting`, the
+rules and functions in a law section that wait for the value, the ones citing
+paragraphs first, each with its `section`; with `describe`, the field's
 `label`, `question`, `help`, `unit` and `sources` where the contract gives
-them; `waiting`, the rules and functions in a law section that wait for the
-value, the ones citing paragraphs first, each with its `section` and cited
-`paragraphs` (paragraph, quoted source and act); and, inside a list whose
+them and each waiting rule's cited `paragraphs` (paragraph, quoted source and
+act). Every call, query and answer takes `options.describe`, which the SDK
+writes as the input document's `describe`:
+
+```ts
+await taxReportQuery(transport, partialCase, { describe: { needs: ["label", "question"], assumptions: ["statement"] } });
+```
+
+The described members are optional in the generated types, as they are when
+the law gives no text. And, inside a list whose
 element type declares a key field (`@ field(key = True)`, on a record or on
 every variant of a sum type), `keys`: the element's path, key field and value,
 typed by the contract, so a need on `openingPositions[0].marketValue` names the
@@ -1495,6 +1494,15 @@ the need's path; the value's type is the one at the need's pattern, and a need
 not yet narrowed to one pattern takes no value. `setAt(case, path, value)` is
 the same, untyped. `fromWirePath(codec, wireCase, path)` turns an engine path
 into its TypeScript path.
+
+An entry of an [open collection](#open-collections) is needed at a path that
+names it by its key, the key field at its TypeScript name
+(`balances[day="2027-02-20"]`), with pattern `balances[]` (`[]` stands for a
+list index or an entry key) and the key in `keys`. Its answer is the whole
+entry: `given(need, { day, value })`, which `setAt` adds to the collection,
+taking the key from the path when the value leaves it out and throwing a
+`PathError` when the value gives another. The open field is optional in the
+input type, and the collection itself is no pattern.
 
 ```ts
 function answerFromLedger(c: PartialTaxCase, need: TaxReportNeed): PartialTaxCase {
@@ -1520,7 +1528,6 @@ export function householdTaxAnswer(
   transport: EngineTransport,
   partialCase: partial.PartialHousehold,
   resolve: HouseholdTaxResolve,
-  options?: AnswerOptions,
 ): Promise<Answering<Result, partial.HouseholdTaxNeed, partial.PartialHousehold>>;
 ```
 
@@ -1555,28 +1562,22 @@ else store(answering.partialCase, answering.open);
 
 The need pattern union is generated, so a `switch (need.pattern)` without a
 `default` is exhaustive and a pattern the model adds does not compile until it
-is handled. The loop calls the returned function once per need, so every need
-gets a reply made from that need. It returns `given(need, value)`, `open` for
-a need nobody can fill yet, or another entry's outcome from
-`context.runEntry(need, run)`. `runEntry` runs the entry an entry need names
-(a fact need is given one: `{ ...need, entry, subject }`) through `run`, which
-passes its `options` on to that entry's answer, as
-`(options) => shareIncomeAnswer(transport, partialCase, resolve, options)`; an
-`Answered` result is written at the need's path, and an `Unanswered` one waits
-in `pending`. A reply's value is typed by the need's pattern and names the
-need's path, so an answer cannot land at another need's path, as one from a
-list of answers in another order (the backend's rows) would: a reply for
-another path throws `AnswerError`. `context.partialCase` is the case of the
-round, with every answer so far.
+is handled; every need carries the law's label, question and help. The loop
+calls the returned function once per need, so every need gets a reply made
+from that need. It returns `given(need, value)`, or `open` for a need nobody
+can fill yet. An entry need (`@ field(entry = refof(...), subject = ...)`) is
+answered the same way: `resolve` reads `need.entry` and `need.subject` and
+gives the value, however it gets it. A reply's value is typed by the need's
+pattern and names the need's path, so an answer cannot land at another need's
+path, as one from a list of answers in another order (the backend's rows)
+would: a reply for another path throws `AnswerError`. `context.partialCase` is
+the case of the round, with every answer so far.
 
 Answering ends `Answered`, with the result, its assumptions and the rounds,
 or `Unanswered` when a round answers nothing: `open` holds that round's needs
-(`readonly N[]`), `pending` the entry needs waiting on another entry, `later`
-the round's `later` facts, `partialCase` the case as far as it got, and
-`rounds` each round as `{ paths, given }`: the paths asked and the paths
-answered. A pair of `(entry, subject)` that repeats on the stack of entries
-being answered throws `AnswerCycleError`, since entries that need each other
-belong in one joint entry. A path the engine still needs after it was given
+(`readonly N[]`), `later` the round's `later` facts, `partialCase` the case as
+far as it got, and `rounds` each round as `{ paths, given }`: the paths asked
+and the paths answered. A path the engine still needs after it was given
 throws `AnswerError`.
 
 Batches make second-order resolution cheap: a source that gives a list
@@ -1584,16 +1585,3 @@ Batches make second-order resolution cheap: a source that gives a list
 leave its details out; the next round needs only the fields the law reads,
 inside those elements, each need with the element's key in `keys`, and one
 call fetches them all.
-
-**The generated guide.** Every entry also gets `<entry>Guide`, its
-[AnswerGuide](#the-generated-answerguide) as data for documentation and UIs:
-
-```ts
-export const householdTaxGuide: AnswerGuide<HouseholdTaxNeed["pattern"]> = {
-  "children[].age": { kind: "fact", valueType: "Int", label: "Age", question: "How old is the child?", keys: ["name"], sources: [ … ] },
-  // … one item for every pattern of the Need union
-};
-```
-
-It is keyed by need pattern and complete over the entry's `Need` union, so a
-form or a routing table built from it covers every need the entry can ask.

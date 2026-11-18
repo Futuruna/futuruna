@@ -1,0 +1,22 @@
+-- On a closed keyed list `lookup` is `Some(entry)` or `None`, as `find` by
+-- the key gives; only an open collection's `lookup` is the entry itself.
+-- expect-command: interp
+-- roundtrip-skip: `lookup` runs only in the interpreter
+-- expect-stdout: |finds_the_entry| holds
+-- expect-stdout: |absent_is_none| holds
+-- expect-stdout: |open_gives_the_entry| holds
+
+# Balance(@ field(key = True) day: String, value: Int)
+# Statement(balances: List(Balance))
+# Case(@ field(open = True) balances: List(Balance))
+
+= statement = Statement(balances = [Balance(day = "2026-12-31", value = 100), Balance(day = "2027-02-20", value = 200)])
+= case = Case(balances = [Balance(day = "2026-12-31", value = 100)])
+
+| finds_the_entry: statement -> lookup(statement.balances, "2027-02-20") == Some(Balance(day = "2027-02-20", value = 200))
+| absent_is_none: statement -> lookup(statement.balances, "2027-02-21") == None
+| open_gives_the_entry: case -> lookup(case.balances, "2026-12-31").value == 100
+
+? finds_the_entry
+? absent_is_none
+? open_gives_the_entry

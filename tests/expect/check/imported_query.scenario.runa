@@ -1,0 +1,17 @@
+-- A program whose imported module asks a `query` runs in the interpreter
+-- only, as one that asks it itself: its check generates no Rust.
+-- expect-command: check
+-- expect-stderr: interpreted (query)
+-- expect-stderr-not: rustc
+-- roundtrip-skip: imports a module that asks a `query`, which runs only in the interpreter
+
+@ import imported_query_lib
+
+| asks_income: asked -> match asked {
+    | Needs -> map(asked.needs, |n| n.path) == [pathof(Case::income)]
+    | Complete -> False
+}
+? asks_income
+= modest = Case(income = 500, married = False)
+| tenth: modest -> tax_of(modest).tax == 50
+? tenth

@@ -1,0 +1,126 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.entry.partial-output.v1",
+    "schema_hash": "9ed87fc7f4d3c580ac6626ecce0a91f002faad4a63fa39d8bb5129a8d627157b",
+    "entry": "deemed"
+  },
+  "results": [
+    {
+      "case_id": "entry-not-given",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "keys": [
+              {
+                "field": "day",
+                "path": "balances[day=\"2027-02-20\"]",
+                "value": "2027-02-20"
+              }
+            ],
+            "kind": "fact",
+            "path": "balances[day=\"2027-02-20\"]",
+            "waiting": [
+              {
+                "rule": "deemed"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "entry-value-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "keys": [
+              {
+                "field": "day",
+                "path": "balances[1]",
+                "value": "2027-02-20"
+              }
+            ],
+            "kind": "fact",
+            "path": "balances[1].value",
+            "waiting": [
+              {
+                "rule": "value_on"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "entry-given",
+      "result": {
+        "$variant": "Complete",
+        "result": 1740,
+        "unused_paths": [
+          "balances[0].value"
+        ]
+      }
+    },
+    {
+      "case_id": "collection-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "keys": [
+              {
+                "field": "day",
+                "path": "balances[day=\"2027-02-20\"]",
+                "value": "2027-02-20"
+              }
+            ],
+            "kind": "fact",
+            "path": "balances[day=\"2027-02-20\"]",
+            "waiting": [
+              {
+                "rule": "deemed"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "day-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "delisted",
+            "waiting": [
+              {
+                "rule": "deemed"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "a-key-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "balances[0].day",
+            "waiting": [
+              {
+                "rule": "deemed"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

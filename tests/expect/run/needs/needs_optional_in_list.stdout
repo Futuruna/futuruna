@@ -11,12 +11,8 @@
         "$variant": "Needs",
         "needs": [
           {
-            "help": "In whole percent.",
             "kind": "fact",
-            "label": "Joint holder's share",
             "path": "accounts[1].joint.share_pct",
-            "question": "Which share of the account does the joint holder own?",
-            "unit": "%",
             "waiting": [
               {
                 "rule": "account_tax"

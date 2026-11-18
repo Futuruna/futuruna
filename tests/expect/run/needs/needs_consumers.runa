@@ -3,7 +3,7 @@
 -- header names, and not the uncited rounding helper that read it first.
 -- expect-command: call
 -- expect-input: needs_consumers.json
--- expect-args: --partial
+-- expect-args: --partial --describe
 -- expect-stdout-file: needs_consumers.stdout
 
 # SourceInfo(file: String)
