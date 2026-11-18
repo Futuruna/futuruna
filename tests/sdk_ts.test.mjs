@@ -392,15 +392,6 @@ test('runa sdk ts output type-checks and calls and validates through a transport
   assert.throws(() => sdk.parsePath('a..b'), (error) => error.name === 'PathError');
   assert.equal(sdk.pathPattern('accounts[12].events[0].kind'), 'accounts[].events[].kind');
 
-  // The answer guide: every pattern a need can name, with the law's type and metadata.
-  assert.deepEqual(Object.keys(sdk.calculateTaxGuide),
-    ['monthlyIncome', 'filingStatus', 'deduction', 'children', 'children[].name', 'children[].age']);
-  assert.deepEqual([sdk.calculateTaxGuide.monthlyIncome.kind, sdk.calculateTaxGuide.monthlyIncome.type,
-    sdk.calculateTaxGuide.monthlyIncome.question, sdk.calculateTaxGuide.monthlyIncome.keys],
-  ['fact', 'Int', 'What is your income before tax each month?', []]);
-  assert.equal(sdk.calculateTaxGuide.deduction.type, 'Int?');
-  assert.equal(sdk.calculateTaxGuide.filingStatus.type, 'FilingStatus');
-
   // Answering an entry against a partial engine: `resolve` is called once per round with every need.
   const engine = fixturePartialEngine(hash);
   const transport = { call: cli.call, callPartial: engine.callPartial };
@@ -887,14 +878,6 @@ test('second-order answering: a list of skeletons, then the fields the law reads
   const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
   assert.match(readFileSync(join(dir, 'sdk/partial.ts'), 'utf8'),
     /export type BalanceElementKey =\n {2}\| ElementKey<"events\[\]", "id", string>;/);
-  // The guide's values, whichever way the module spells them.
-  assert.deepEqual(sdk.balanceGuide, {
-    events: { kind: 'fact', type: 'List(Event)', keys: [], sources: [] },
-    'events[].$variant': { kind: 'fact', type: 'Event', keys: ['events[].id'], sources: [] },
-    'events[].id': { kind: 'fact', type: 'String', label: 'Event id', keys: ['events[].id'], sources: [] },
-    'events[].amount': { kind: 'fact', type: 'Int', label: 'Amount', keys: ['events[].id'], sources: [] },
-    'events[].fee': { kind: 'fact', type: 'Int', label: 'Fee', keys: ['events[].id'], sources: [] },
-  });
 
   const transport = partialCli(dir, 'keyed.entry.runa');
   const skeletons = [{ $variant: 'Deposit', id: 'e1' }, { $variant: 'Withdrawal', id: 'e2' }, { $variant: 'Deposit', id: 'e3' }];
@@ -1043,7 +1026,7 @@ export async function openPaths(transport: EngineTransport): Promise<string[]> {
 }
 `;
 
-test('answering an entry: one resolve per round with every need, the needs left open, the answer guide', options, async () => {
+test('answering an entry: one resolve per round with every need, the needs left open', options, async () => {
   const dir = project('household');
   writeFileSync(join(dir, 'household.entry.runa'), householdModel);
   run(binary, ['sdk', 'ts', 'household.entry.runa', '--out', 'sdk'], dir);
@@ -1052,13 +1035,6 @@ test('answering an entry: one resolve per round with every need, the needs left 
   compile(dir, ['sdk/index.ts', 'usage.ts']);
   const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
   const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
-
-  // The answer guide, from the law: every pattern a need can name, with its type.
-  assert.deepEqual(Object.entries(sdk.householdTaxGuide).map(([pattern, need]) => [pattern, need.kind, need.type]), [
-    ['income', 'fact', 'Int'], ['married', 'fact', 'Bool'], ['spouse', 'fact', 'Spouse?'],
-    ['spouse.income', 'fact', 'Int'], ['spouse.cohabiting', 'fact', 'Bool'], ['children', 'fact', 'List(Child)'],
-    ['children[].name', 'fact', 'String'], ['children[].age', 'fact', 'Int'],
-  ]);
 
   // resolve is called once per round with every need of the round.
   const transport = partialCli(dir, 'household.entry.runa');

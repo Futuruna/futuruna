@@ -18,7 +18,6 @@ mod assumptions;
 mod json;
 pub use json::parse_calculation_json;
 
-pub mod answer_guide;
 pub mod compact;
 pub mod explain;
 pub mod sdk_ts;

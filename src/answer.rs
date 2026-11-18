@@ -1,5 +1,4 @@
-//! Answering an entry's needs round by round, and the AnswerGuide every
-//! entry generates.
+//! Answering an entry's needs round by round.
 //!
 //! `answer(entry, case, resolve)` queries the entry, as `query entry(case)`
 //! does, calls `resolve` once per round with all of that round's needs and
@@ -7,10 +6,6 @@
 //! that answers nothing ends `Unanswered` with that round's needs open.
 //! Which source answers which need is the caller's business: `resolve` reads
 //! each need's path and metadata and decides.
-//!
-//! `answer_guide(entry)` is the entry's AnswerGuide, derived from its
-//! contract as `runa sdk ts` derives `<entry>Guide`: every input path
-//! pattern at which a need can arise, with its type and the law's metadata.
 
 use super::*;
 use crate::query::{
@@ -18,23 +13,14 @@ use crate::query::{
 };
 
 /// The answer prelude: the resolver's reply, the rounds and the outcome,
-/// `from_case`, the round loop of `answer`, and the AnswerGuide of
-/// `answer_guide`. It joins every program that calls `answer`, `from_case`
-/// or `answer_guide`.
+/// `from_case` and the round loop of `answer`. It joins every program that
+/// calls `answer` or `from_case`.
 const ANSWER_PRELUDE: &str = r#"-- Answering an entry's needs round by round.
 # Answers(i) = Answers(from: i, given: List(Path(i)))
 # Round(i) = Round(paths: List(Path(i)), given: List(Path(i)))
 # Outcome(o, i) = Answered(result: o) | Unanswered(open: List(Need(i)), case: i)
 # Answering(o, i) = Answering(rounds: List(Round(i)), outcome: Outcome(o, i))
 # AnswerStep(i) = AnswerStep(given: List(Path(i)), case: i)
--- The AnswerGuide an entry generates: every need that can arise for it.
-# GuideNeed = GuideNeed(pattern: String, kind: NeedKind, value_type: String, label: Option(String), question: Option(String), help: Option(String), unit: Option(String), keys: List(String), sources: List(NeedSource), entry: Option(ProgramReference), subject: Option(String))
-# AnswerGuide = AnswerGuide(entry: String, needs: List(GuideNeed))
-
--- `answer_guide(entry)`: the parser passes the form's site.
-> answer_guide(site: String) -> AnswerGuide {
-    __answer_guide(site)
-}
 
 -- A resolver that answers every need from `complete`.
 > from_case(complete: i) -> (List(Need(i)), i) -> Answers(i) {
@@ -113,7 +99,6 @@ pub fn program_uses_answer(statements: &[Stmt]) -> bool {
             }
             if let AstChild::Expr(expr) = child {
                 uses = answer_parts(expr).is_some()
-                    || answer_guide_parts(expr).is_some()
                     || matches!(&expr.kind, ExprKind::Var(name)
                         if PRELUDE_NAMES.contains(&name.as_str()) && !declared.contains(name.as_str()));
             }
@@ -209,111 +194,6 @@ impl Interpreter {
             step
         } else {
             self.constructors_in(namespace, step)
-        }
-    }
-
-    /// `__answer_guide(site)`: the AnswerGuide of the entry the site names,
-    /// derived from its contract.
-    pub(crate) fn eval_answer_guide(
-        &mut self,
-        namespace: &RuntimeNamespace,
-        args: Vec<Value>,
-    ) -> Value {
-        let [Value::Str(site)] = args.as_slice() else {
-            return self.panic_or_ground_fail("`answer_guide` is written `answer_guide(entry)`");
-        };
-        let entry = site
-            .split_once('\u{1f}')
-            .map_or(site.as_str(), |(entry, _)| entry);
-        let contract = match self.query_prepared(entry) {
-            Ok(prepared) => prepared.borrow().contract().clone(),
-            Err(error) => {
-                return self.panic_or_ground_fail(format!("`answer_guide({entry})`: {error}"))
-            }
-        };
-        let text = |value: &Option<String>| optional(value.as_deref().map(string));
-        let needs = crate::calculate::answer_guide::answer_guide(&contract)
-            .iter()
-            .map(|need| {
-                let kind = match need.kind {
-                    crate::calculate::CalculationNeedKind::Fact => "FactNeed",
-                    crate::calculate::CalculationNeedKind::Entry => "EntryNeed",
-                };
-                record(
-                    "GuideNeed",
-                    "GuideNeed",
-                    vec![
-                        ("pattern", string(&need.pattern)),
-                        (
-                            "kind",
-                            Value::Constructor(
-                                crate::constructor_scope::constructor_runtime_name(
-                                    "NeedKind", kind,
-                                )
-                                .into_owned(),
-                                Rc::new(Vec::new()),
-                            ),
-                        ),
-                        ("value_type", string(&need.ty)),
-                        ("label", text(&need.label)),
-                        ("question", text(&need.question)),
-                        ("help", text(&need.help)),
-                        ("unit", text(&need.unit)),
-                        (
-                            "keys",
-                            Value::List(need.keys.iter().map(|key| string(key)).collect()),
-                        ),
-                        (
-                            "sources",
-                            Value::List(
-                                need.sources
-                                    .iter()
-                                    .map(|source| {
-                                        record(
-                                            "NeedSource",
-                                            "NeedSource",
-                                            vec![
-                                                ("label", string(&source.label)),
-                                                ("role", string(&source.role)),
-                                                (
-                                                    "binding",
-                                                    optional((!source.binding.is_empty()).then(
-                                                        || {
-                                                            reference(
-                                                                "ProgramSymbolReference",
-                                                                &source.binding,
-                                                            )
-                                                        },
-                                                    )),
-                                                ),
-                                            ],
-                                        )
-                                    })
-                                    .collect(),
-                            ),
-                        ),
-                        (
-                            "entry",
-                            optional(
-                                need.entry
-                                    .as_deref()
-                                    .map(|entry| reference("ProgramSymbolReference", entry)),
-                            ),
-                        ),
-                        ("subject", text(&need.subject)),
-                    ],
-                )
-            })
-            .collect();
-        let guide = record(
-            "AnswerGuide",
-            "AnswerGuide",
-            vec![("entry", string(entry)), ("needs", Value::List(needs))],
-        );
-        if namespace.same_instance(&self.runtime_root) {
-            guide
-        } else {
-            self.constructors_in(namespace, guide)
         }
     }
 }

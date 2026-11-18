@@ -908,33 +908,6 @@ export type EntryNeed<P extends string = string, K = ElementKey> = NeedMetadata<
  */
 export type Need<P extends string = string, K = ElementKey> = P extends string ? FactNeed<P, K> | EntryNeed<P, K> : never;
 
-/**
- * One input path pattern of an entry at which a need can arise, as the law
- * gives it: the value's Futuruna type as written (`Int`, `Spouse?`,
- * `List(Child)`, a unit's name), the field's metadata, the patterns of the key
- * fields of the list elements it lies in (outermost first), and for a value
- * another entry provides, that entry and the path of its subject.
- */
-export type GuideNeed = {
-  readonly kind: "fact" | "entry";
-  readonly type: string;
-  readonly label?: string | undefined;
-  readonly question?: string | undefined;
-  readonly help?: string | undefined;
-  readonly unit?: string | undefined;
-  readonly keys: readonly string[];
-  readonly sources: readonly SourceReference[];
-  readonly entry?: string | undefined;
-  readonly subject?: string | undefined;
-};
-
-/**
- * An entry's answer guide, generated from its law: every input path pattern
- * of `P` at which a need can arise, once. A pattern no need can name (a
- * record, the element of a list of records) is left out.
- */
-export type AnswerGuide<P extends string = string> = { readonly [K in P]?: GuideNeed };
-
 /** `P` when it is one pattern; `never` for a union of several. */
 type OnePattern<P, All = P> = P extends unknown ? ([All] extends [P] ? P : never) : never;
 

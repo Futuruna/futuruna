@@ -616,15 +616,6 @@ impl Placement<'_, '_> {
             self.expr(parts.resolve, Place::Value);
             return;
         }
-        if let Some(entry) = answer_guide_parts(expr) {
-            if !self.entries.contains(entry) {
-                self.report(
-                    expr.span,
-                    format!("`answer_guide` is generated for an entry (`@ entry`); `{entry}` is not one"),
-                );
-            }
-            return;
-        }
         if let Some((entry, call, case)) = query_parts(expr) {
             if !self.entries.contains(entry) {
                 self.report(
@@ -766,8 +757,6 @@ fn first_mention(statement: &Stmt) -> Option<(&'static str, Span)> {
                 found = Some(("`unknown`", expr.span));
             } else if answer_parts(expr).is_some() {
                 found = Some(("`answer`", expr.span));
-            } else if answer_guide_parts(expr).is_some() {
-                found = Some(("`answer_guide`", expr.span));
             } else if query_parts(expr).is_some() {
                 found = Some(("`query`", expr.span));
             }
@@ -1365,7 +1354,11 @@ fn has_key(entry: &Value, field: &str, value: &JsonValue) -> bool {
     let Some((_, fields)) = named_fields(entry) else {
         return false;
     };
-    match fields.iter().find(|(name, _)| name == field).map(|(_, key)| key) {
+    match fields
+        .iter()
+        .find(|(name, _)| name == field)
+        .map(|(_, key)| key)
+    {
         Some(Value::Str(text)) => value.as_str() == Some(text.as_str()),
         Some(Value::Int(number)) => value.as_i64() == Some(*number),
         _ => false,

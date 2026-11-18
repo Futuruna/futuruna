@@ -11426,13 +11426,13 @@ fn source_asks_query(source: &str) -> bool {
     Parser::new(Lexer::new(source).tokenize(), source)
         .parse_program()
         .is_ok_and(|statements| {
-            statements
-                .iter()
-                .any(|statement| stmt_mentions_query_or_unknown(statement) || stmt_mentions_lookup(statement))
+            statements.iter().any(|statement| {
+                stmt_mentions_query_or_unknown(statement) || stmt_mentions_lookup(statement)
+            })
         })
 }
 
-/// Each `query`, `unknown`, `answer_guide` and `lookup` of a program compiled
+/// Each `query`, `unknown` and `lookup` of a program compiled
 /// to native code: they run in the interpreter, and native code takes
 /// complete input.
 fn native_query_refusals(stmts: &[Stmt]) -> Vec<Diagnostic> {
@@ -11444,8 +11444,6 @@ fn native_query_refusals(stmts: &[Stmt]) -> Vec<Diagnostic> {
                     "`unknown`"
                 } else if query_parts(expr).is_some() {
                     "`query`"
-                } else if answer_guide_parts(expr).is_some() {
-                    "`answer_guide`"
                 } else if is_lookup_call(expr) {
                     "`lookup`"
                 } else {

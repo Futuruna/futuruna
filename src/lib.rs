@@ -5861,27 +5861,9 @@ pub fn answer_parts(expr: &Expr) -> Option<AnswerParts<'_>> {
     })
 }
 
-/// The entry of an `answer_guide(entry)` form, which the parser writes as the
-/// prelude's `answer_guide("site")` (`answer_site`).
-pub fn answer_guide_parts(expr: &Expr) -> Option<&str> {
-    let ExprKind::App(function, arguments) = &expr.kind else {
-        return None;
-    };
-    if !matches!(&function.kind, ExprKind::Var(name) if name == "answer_guide") {
-        return None;
-    }
-    let [site] = arguments.as_slice() else {
-        return None;
-    };
-    let ExprKind::Lit(Literal::Str(site)) = &site.kind else {
-        return None;
-    };
-    site.split_once('\u{1f}').map(|(entry, _)| entry)
-}
-
-/// Whether `expr` contains a `query`, an `unknown` or an `answer_guide`.
+/// Whether `expr` contains a `query` or an `unknown`.
 pub fn expr_mentions_query_or_unknown(expr: &Expr) -> bool {
-    if is_unknown_expr(expr) || query_parts(expr).is_some() || answer_guide_parts(expr).is_some() {
+    if is_unknown_expr(expr) || query_parts(expr).is_some() {
         return true;
     }
     let mut found = false;
@@ -14872,24 +14854,6 @@ impl Parser {
         Ok(self.spanned(ExprKind::App(Box::new(function), values), &start_tok))
     }
 
-    /// `answer_guide(entry)`, after `answer_guide`: the prelude's
-    /// `answer_guide` with the form's site (`answer_guide_parts`).
-    fn parse_answer_guide_form(&mut self, start_tok: Token) -> Result<Expr, String> {
-        self.expect(TokenKind::LParen)?;
-        let entry = self.advance();
-        self.expect(TokenKind::RParen)?;
-        let start = self.token_span(&start_tok).start;
-        let site = Expr::new(
-            ExprKind::Lit(Literal::Str(answer_site(&entry.text, start))),
-            self.token_span(&entry),
-        );
-        let function = Expr::new(
-            ExprKind::Var("answer_guide".to_string()),
-            self.token_span(&start_tok),
-        );
-        Ok(self.spanned(ExprKind::App(Box::new(function), vec![site]), &start_tok))
-    }
-
     fn parse_refof_expr(&mut self, start_tok: Token) -> Result<Expr, String> {
         self.expect(TokenKind::LParen)?;
         self.skip_semis();
@@ -15052,15 +15016,6 @@ impl Parser {
                     && self.tokens.get(self.pos + 2).map(|next| next.kind) == Some(TokenKind::Comma)
                 {
                     return self.parse_answer_form(tok);
-                }
-                // `answer_guide(entry)` is the guide generated for `entry`.
-                if tok.text == "answer_guide"
-                    && self.peek_kind() == TokenKind::LParen
-                    && self.tokens.get(self.pos + 1).map(|next| next.kind) == Some(TokenKind::Ident)
-                    && self.tokens.get(self.pos + 2).map(|next| next.kind)
-                        == Some(TokenKind::RParen)
-                {
-                    return self.parse_answer_guide_form(tok);
                 }
                 let span = self.token_span(&tok);
                 Ok(Expr::new(ExprKind::Var(tok.text), span))
@@ -21118,10 +21073,6 @@ impl Interpreter {
             "__answer_round".into(),
             Value::Builtin("__answer_round".into()),
         );
-        env.set(
-            "__answer_guide".into(),
-            Value::Builtin("__answer_guide".into()),
-        );
         env.set("filter".into(), Value::Builtin("filter".into()));
         env.set("foldl".into(), Value::Builtin("foldl".into()));
         env.set("assert".into(), Value::Builtin("assert".into()));
@@ -25364,7 +25315,6 @@ impl Interpreter {
                 ),
             },
             "__answer_round" => self.eval_answer_round(namespace, args, env),
-            "__answer_guide" => self.eval_answer_guide(namespace, args),
             "print" => {
                 let text = match args.first() {
                     Some(Value::Str(s)) => s.clone(),
@@ -50368,9 +50318,8 @@ impl TypeChecker {
             ("search", 2),
             // `fill` of the needs prelude (`query`)
             ("__fill", 3),
-            // the round of `answer` and the guide of `answer_guide`
+            // the round of `answer`
             ("__answer_round", 5),
-            ("__answer_guide", 1),
         ] {
             tc.builtins.entry(name.to_string()).or_insert(arity);
         }

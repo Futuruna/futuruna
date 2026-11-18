@@ -15,7 +15,6 @@
 //! every need. The output depends only on the contracts and the source label,
 //! so regenerating an unchanged model rewrites identical files.
 
-use super::answer_guide::{answer_guide, is_date, written_type, GuideNeed};
 use super::{
     calculation_type_occurrence_paths, definition_substitutions, joined_column_path,
     product_variant, substitute_contract_type, CalculationContract, CalculationField,
@@ -803,11 +802,8 @@ impl<'a> Sdk<'a> {
                 names.push((format!("{types}{suffix}"), "partial.ts"));
             }
             names.push((format!("{values}SetAt"), "partial.ts"));
-            names.push((format!("{values}Guide"), "partial.ts"));
             names.push((values.clone(), "client.ts"));
             names.push((format!("{values}Query"), "client.ts"));
-            names.push((format!("{values}Explained"), "client.ts"));
-            names.push((format!("{values}QueryExplained"), "client.ts"));
             names.push((format!("{values}Entry"), "client.ts"));
             names.push((format!("{types}Resolve"), "client.ts"));
             names.push((format!("{values}Answer"), "client.ts"));
@@ -1946,224 +1942,6 @@ impl<'a> Sdk<'a> {
             out,
             "export function {values}SetAt<N extends {types}Need>(\n  partialCase: {input},\n  need: N,\n  value: AnswerTo<{types}InputPatterns, N>,\n): {input} {{\n  return setAt(partialCase, need.path, value);\n}}"
         );
-        self.write_guide(out, entry);
-    }
-
-    /// `<entry>Guide`: the entry's answer guide ([`answer_guide`]), keyed by
-    /// the TypeScript need pattern, each pattern a need can name once.
-    fn write_guide(&self, out: &mut String, entry: &Entry<'_>) {
-        let contract = entry.contract;
-        let types = &entry.type_name;
-        out.push('\n');
-        write_doc(
-            out,
-            "",
-            &[
-                format!("The answer guide of `{}`, from its law: every input path pattern at which a need can arise, with the type of the value there and the law's metadata.", contract.entry),
-                "Data for documentation and forms; a pattern no need can name (a record, a list of records' element) is not in it.".to_string(),
-            ],
-        );
-        let needs: Vec<(String, GuideNeed)> = answer_guide(contract)
-            .into_iter()
-            .map(|need| (camel_case_path(&need.pattern), need))
-            .filter(|(pattern, _)| entry.open_paths || entry.patterns.contains_key(pattern))
-            .collect();
-        if needs.is_empty() {
-            let _ = writeln!(
-                out,
-                "export const {}Guide: AnswerGuide<{types}Need[\"pattern\"]> = {{}};",
-                entry.value_name
-            );
-            return;
-        }
-        // Each source once, and each field's text (label, question, help,
-        // unit, sources) once: a declaration's text repeats at every pattern
-        // it lies at, thousands in a large law. A text of one pattern stays
-        // in it.
-        let mut sources: Vec<serde_json::Value> = Vec::new();
-        let mut source_index: HashMap<String, usize> = HashMap::new();
-        let mut texts: Vec<(Vec<String>, usize)> = Vec::new();
-        let mut text_index: HashMap<Vec<String>, usize> = HashMap::new();
-        let source_name = |index: usize| format!("{}GuideSource{index}", entry.value_name);
-        let said: Vec<Option<usize>> = needs
-            .iter()
-            .map(|(_, need)| {
-                let mut members: Vec<String> = [
-                    ("label", &need.label),
-                    ("question", &need.question),
-                    ("help", &need.help),
-                    ("unit", &need.unit),
-                ]
-                .into_iter()
-                .filter_map(|(member, value)| {
-                    Some(format!("{member}: {}", string_literal(value.as_ref()?)))
-                })
-                .collect();
-                if members.is_empty() && need.sources.is_empty() {
-                    return None;
-                }
-                let cited = need
-                    .sources
-                    .iter()
-                    .map(|source| {
-                        let value =
-                            serde_json::to_value(source).expect("a source reference serializes");
-                        let index = *source_index.entry(value.to_string()).or_insert_with(|| {
-                            sources.push(value);
-                            sources.len() - 1
-                        });
-                        source_name(index)
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                members.push(format!("sources: [{cited}]"));
-                let index = *text_index.entry(members).or_insert_with_key(|members| {
-                    texts.push((members.clone(), 0));
-                    texts.len() - 1
-                });
-                texts[index].1 += 1;
-                Some(index)
-            })
-            .collect();
-        // The const of each text said at several patterns.
-        let mut shared = 0;
-        let text_names: Vec<Option<String>> = texts
-            .iter()
-            .map(|(_, uses)| {
-                (*uses > 1).then(|| {
-                    shared += 1;
-                    format!("{}GuideText{}", entry.value_name, shared - 1)
-                })
-            })
-            .collect();
-        // What a source cites (its binding, the value bound, its text) once:
-        // the declarations citing one law differ only in label and role.
-        let mut bound: Vec<(String, usize)> = Vec::new();
-        let mut bound_index: HashMap<String, usize> = HashMap::new();
-        let split: Vec<Option<(String, usize)>> = sources
-            .iter()
-            .map(|source| {
-                let mut members = source.as_object()?.clone();
-                let label = members.remove("label")?;
-                let role = members.remove("role")?;
-                let rest = serde_json::Value::Object(members).to_string();
-                let index = *bound_index.entry(rest).or_insert_with_key(|rest| {
-                    bound.push((rest.clone(), 0));
-                    bound.len() - 1
-                });
-                bound[index].1 += 1;
-                Some((format!("label: {label}, role: {role}"), index))
-            })
-            .collect();
-        let mut shared_bound = 0;
-        let bound_names: Vec<Option<String>> = bound
-            .iter()
-            .map(|(_, uses)| {
-                (*uses > 1).then(|| {
-                    shared_bound += 1;
-                    format!("{}GuideCited{}", entry.value_name, shared_bound - 1)
-                })
-            })
-            .collect();
-        if shared_bound > 0 {
-            let _ = writeln!(
-                out,
-                "// What several sources the guide of `{}` cites cite, each once.",
-                contract.entry
-            );
-            for ((rest, _), name) in bound.iter().zip(&bound_names) {
-                if let Some(name) = name {
-                    let _ = writeln!(
-                        out,
-                        "const {name}: Omit<SourceReference, \"label\" | \"role\"> = {rest};"
-                    );
-                }
-            }
-            out.push('\n');
-        }
-        if !sources.is_empty() {
-            let _ = writeln!(
-                out,
-                "// The sources the guide of `{}` cites, each once.",
-                contract.entry
-            );
-            for (index, (source, split)) in sources.iter().zip(&split).enumerate() {
-                let name = source_name(index);
-                let shared = split
-                    .as_ref()
-                    .and_then(|(head, bound)| Some((head, bound_names[*bound].as_deref()?)));
-                if let Some((head, cited)) = shared {
-                    let _ = writeln!(
-                        out,
-                        "const {name}: SourceReference = {{ {head}, ...{cited} }};"
-                    );
-                } else {
-                    let _ = writeln!(out, "const {name}: SourceReference = {source};");
-                }
-            }
-            out.push('\n');
-        }
-        if shared > 0 {
-            let _ = writeln!(
-                out,
-                "// What the law says of the values at several patterns of the guide of `{}`, each once.",
-                contract.entry
-            );
-            for ((members, _), name) in texts.iter().zip(&text_names) {
-                if let Some(name) = name {
-                    let _ = writeln!(out, "const {name} = {{ {} }};", members.join(", "));
-                }
-            }
-            out.push('\n');
-        }
-        let _ = writeln!(
-            out,
-            "export const {}Guide: AnswerGuide<{types}Need[\"pattern\"]> = {{",
-            entry.value_name
-        );
-        for ((pattern, need), said) in needs.into_iter().zip(said) {
-            let _ = writeln!(out, "  {}: {{", string_literal(&pattern));
-            let kind = match need.kind {
-                CalculationNeedKind::Fact => "fact",
-                CalculationNeedKind::Entry => "entry",
-            };
-            let _ = writeln!(out, "    kind: \"{kind}\",");
-            let _ = writeln!(out, "    type: {},", string_literal(&need.ty));
-            if let Some(index) = said {
-                match &text_names[index] {
-                    Some(name) => {
-                        let _ = writeln!(out, "    ...{name},");
-                    }
-                    None => {
-                        for member in &texts[index].0 {
-                            let _ = writeln!(out, "    {member},");
-                        }
-                    }
-                }
-            }
-            if let Some(entry) = &need.entry {
-                let _ = writeln!(out, "    entry: {},", string_literal(entry));
-            }
-            if let Some(subject) = &need.subject {
-                let _ = writeln!(
-                    out,
-                    "    subject: {},",
-                    string_literal(&camel_case_path(subject))
-                );
-            }
-            let keys = need
-                .keys
-                .iter()
-                .map(|key| string_literal(&camel_case_path(key)))
-                .collect::<Vec<_>>()
-                .join(", ");
-            let _ = writeln!(out, "    keys: [{keys}],");
-            if said.is_none() {
-                out.push_str("    sources: [],\n");
-            }
-            out.push_str("  },\n");
-        }
-        out.push_str("};\n");
     }
 
     fn client_module(&self) -> String {
@@ -2719,6 +2497,47 @@ fn runtime_exports() -> impl Iterator<Item = (&'static str, bool)> {
     })
 }
 
+/// The prelude's `Date(year: Int, month: Int, day: Int)`: one fact, an ISO
+/// date in the SDK.
+fn is_date(definition: &CalculationTypeDefinition) -> bool {
+    definition.name == "Date"
+        && definition.parameters.is_empty()
+        && product_variant(definition).is_some_and(|variant| {
+            variant.fields.len() == 3
+                && ["year", "month", "day"]
+                    .iter()
+                    .zip(&variant.fields)
+                    .all(|(name, field)| {
+                        field.name == *name
+                            && matches!(&field.ty, CalculationTypeRef::Primitive { name, unit: None, scalar: None } if name == "Int")
+                    })
+        })
+}
+
+/// A contract type as Futuruna writes it, an `Int` of a unit as the unit's name.
+fn written_type(ty: &CalculationTypeRef) -> String {
+    match ty {
+        CalculationTypeRef::Primitive {
+            unit: Some(unit), ..
+        } => unit.clone(),
+        CalculationTypeRef::Optional { item } => format!("{}?", written_type(item)),
+        CalculationTypeRef::List { item } => format!("List({})", written_type(item)),
+        CalculationTypeRef::Set { item } => format!("Set({})", written_type(item)),
+        CalculationTypeRef::Map { key, value } => {
+            format!("Map({}, {})", written_type(key), written_type(value))
+        }
+        CalculationTypeRef::Named { name, arguments } if !arguments.is_empty() => format!(
+            "{name}({})",
+            arguments
+                .iter()
+                .map(written_type)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        _ => ty.display_name(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3248,112 +3067,6 @@ mod tests {
             for (name, contents) in &files {
                 assert!(!contents.contains(gone), "{name} still has `{gone}`");
             }
-        }
-    }
-
-    #[test]
-    fn every_entry_gets_its_answer_guide_from_the_law() {
-        let files = generate(PERSON_MODEL);
-        let partial = &files["partial.ts"];
-        assert_contains(
-            partial,
-            "export const taxGuide: AnswerGuide<TaxNeed[\"pattern\"]> = {\n  \"year\": {\n    kind: \"fact\",\n    type: \"Int\",\n    keys: [],\n    sources: [],\n  },",
-        );
-        assert_contains(
-            partial,
-            "  \"spouse\": {\n    kind: \"fact\",\n    type: \"Spouse?\",\n    keys: [],\n    sources: [],\n  },",
-        );
-        assert_contains(
-            partial,
-            "  \"events[].amount\": {\n    kind: \"fact\",\n    type: \"Int\",\n    label: \"Amount\",\n    sources: [],\n    keys: [],\n  },",
-        );
-        assert!(
-            !partial.contains("GuideText"),
-            "a text of one pattern stays in it"
-        );
-        assert_contains(
-            partial,
-            "  \"events[].$variant\": {\n    kind: \"fact\",\n    type: \"Event\",",
-        );
-        assert_contains(partial, "type AnswerGuide");
-        let patterns: Vec<&str> = partial
-            .lines()
-            .skip_while(|line| !line.starts_with("export const taxGuide"))
-            .filter_map(|line| line.strip_prefix("  \"")?.strip_suffix("\": {"))
-            .collect();
-        assert_eq!(
-            patterns,
-            [
-                "year",
-                "income",
-                "spouse",
-                "spouse.income",
-                "spouse.cohabiting",
-                "events",
-                "events[].$variant",
-                "events[].amount",
-                "events[].fee",
-                "events[].gross",
-            ]
-        );
-    }
-
-    #[test]
-    fn the_guide_says_a_fields_text_once_for_every_pattern_it_lies_at() {
-        let files = generate(
-            "# Spouse(@ field(label = \"Income\", question = \"What did they earn?\") income: Int)\n# Person(spouse: Spouse?, partner: Spouse?)\n@ entry\n> tax(p: Person) -> Int { 0 }\n",
-        );
-        let partial = &files["partial.ts"];
-        assert_eq!(
-            partial.matches("\"What did they earn?\"").count(),
-            1,
-            "{partial}"
-        );
-        assert_contains(
-            partial,
-            "const taxGuideText0 = { label: \"Income\", question: \"What did they earn?\", sources: [] };",
-        );
-        for pattern in ["spouse.income", "partner.income"] {
-            assert_contains(
-                partial,
-                &format!("  \"{pattern}\": {{\n    kind: \"fact\",\n    type: \"Int\",\n    ...taxGuideText0,\n    keys: [],\n  }},"),
-            );
-        }
-    }
-
-    #[test]
-    fn the_guide_says_what_a_source_cites_once_for_every_role_it_has() {
-        let partial = &generate(
-            r#"# SourceInfo(url: String, section: String)
-# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
-# CalculationMetaRole(a) = Source(value: a) | DependencySource(value: a)
-# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
-# impl MetaRole for CalculationMetaRole {}
-# impl Meta for CalculationMeta {}
-# Household(income: Int)
-
-= law = SourceInfo(url = "https://example.invalid/law", section = "§ 1")
-= income_field = CalculationField(path = "income", label = "Yearly income", question = None, help = None, unit = None)
-= household_meta = CalculationMeta(fields = [income_field], attachments = (Source(value = law), DependencySource(value = law)))
-@ meta(household_meta)
-@ entry
-> household_tax(input: Household) -> Int { input.income }
-"#,
-        )["partial.ts"];
-        assert_eq!(
-            partial.matches("https://example.invalid/law").count(),
-            2,
-            "the url once in `value`, once in `data`:\n{partial}"
-        );
-        assert_contains(
-            partial,
-            "const householdTaxGuideCited0: Omit<SourceReference, \"label\" | \"role\"> = {\"binding\":\"law\",",
-        );
-        for (index, role) in ["source", "dependency_source"].into_iter().enumerate() {
-            assert_contains(
-                partial,
-                &format!("const householdTaxGuideSource{index}: SourceReference = {{ label: \"household_tax\", role: \"{role}\", ...householdTaxGuideCited0 }};"),
-            );
         }
     }
 
