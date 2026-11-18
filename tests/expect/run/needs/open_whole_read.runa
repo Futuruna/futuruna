@@ -1,0 +1,11 @@
+-- An open collection is never given whole, so reading it whole is a check
+-- error: only `lookup` reads it.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `balances` of `Case` is an open collection (`@ field(open = True)`): the case gives only the entries the law asks for, so it is never read whole. Look an entry up by its key with `lookup(<record>.balances, key)`
+
+# Balance(@ field(key = True) day: String, value: Int)
+# Case(@ field(open = True) balances: List(Balance))
+
+@ entry
+| total(c: Case) -> sum_list(map(c.balances, |b| b.value))

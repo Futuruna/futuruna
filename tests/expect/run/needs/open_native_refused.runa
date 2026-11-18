@@ -1,0 +1,14 @@
+-- `lookup` runs in the interpreter, as `query` does; native code refuses it.
+-- expect-command: run
+-- expect-status: fail
+-- expect-stderr: `lookup` runs in the interpreter; native code takes complete input
+-- roundtrip-skip: tests that `runa run` refuses `lookup`, which runs only in the interpreter
+
+# Balance(@ field(key = True) day: String, value: Int)
+# Statement(balances: List(Balance))
+
+= statement = Statement(balances = [Balance(day = "2027-02-20", value = 200)])
+
+> main() -> Unit {
+    @ print(show(lookup(statement.balances, "2027-02-20")))
+}

@@ -1,0 +1,18 @@
+-- The strict-mode oracle and the completion test hold for open collections.
+-- expect-command: call
+-- expect-input: open_balances.json
+-- expect-args: --entry deemed --partial=check
+-- expect-stdout: "schema": "futuruna.entry.partial-output.v1"
+-- expect-stdout: "diagnostics": []
+-- roundtrip-skip: `lookup` runs only in the interpreter
+
+# Balance(@ field(key = True, label = "Day") day: String, @ field(label = "Value", unit = "øre") value: Int)
+# Case(@ field(label = "Delisted on") delisted: String, @ field(label = "Balance", question = "What was the account's balance at the end of the day?", open = True) balances: List(Balance))
+
+-- § 6: the assets are deemed distributed at their value on the day after the delisting.
+| value_on(b: Balance) -> b.value
+
+@ entry("Deemed distribution")
+> deemed(c: Case) -> Int {
+    value_on(lookup(c.balances, c.delisted))
+}

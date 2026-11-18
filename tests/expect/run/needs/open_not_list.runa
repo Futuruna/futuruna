@@ -1,0 +1,9 @@
+-- An open collection is a `List` of a type with a key field.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `@ field(open = True)` on `Case::balance`: an open collection is a `List` of a type with a key field (`@ field(key = True)`), and `Case::balance` holds `Int`
+
+# Case(@ field(open = True) balance: Int)
+
+@ entry
+| total(c: Case) -> 0

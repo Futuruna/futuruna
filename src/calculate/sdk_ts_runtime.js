@@ -271,6 +271,17 @@ function wirePath(codec, wireCase, path) {
     let at = { node: presentCodec(codec), value: wireCase };
     for (const segment of segments) {
         const { node, value } = at;
+        if ("key" in segment) {
+            // An entry of an open collection by its key: the key field at its TypeScript name.
+            const item = node !== undefined && !("$values" in node) && node.kind === "list" ? presentCodec(node.item) : undefined;
+            const named = item?.kind === "record" ? byWireName(item.fields).get(segment.key) : undefined;
+            out.push({ key: named?.[0] ?? segment.key, value: segment.value });
+            const entry = Array.isArray(value)
+                ? value.find((candidate) => isObject(candidate) && candidate[segment.key] === segment.value)
+                : undefined;
+            at = { node: item, value: entry };
+            continue;
+        }
         const key = "index" in segment ? segment.index : segment.field;
         const step = (next, name = segment) => {
             out.push(name);
@@ -331,7 +342,13 @@ function wirePath(codec, wireCase, path) {
 }
 function formatPath(segments) {
     return segments
-        .map((segment, at) => "index" in segment ? `[${String(segment.index)}]` : at === 0 ? segment.field : `.${segment.field}`)
+        .map((segment, at) => "key" in segment
+        ? `[${segment.key}=${JSON.stringify(segment.value)}]`
+        : "index" in segment
+            ? `[${String(segment.index)}]`
+            : at === 0
+                ? segment.field
+                : `.${segment.field}`)
         .join("");
 }
 /** A path that does not parse, or that {@link setAt} cannot write. */
@@ -346,6 +363,10 @@ export class PathError extends Error {
 const FIRST_FIELD = /^[^.[\]]+/;
 const NEXT_FIELD = /^\.([^.[\]]+)/;
 const LIST_INDEX = /^\[(\d+)\]/;
+const KEY_VALUE = String.raw `"(?:[^"\\]|\\.)*"|-?\d+`;
+const ENTRY_KEY = new RegExp(String.raw `^\[([^.[\]=]+)=(${KEY_VALUE})\]`);
+/** A list index or an entry's key selector, as `[]` in a pattern stands for either. */
+const ELEMENT = String.raw `\[(?:\d+|[^.[\]=]+=(?:${KEY_VALUE}))\]`;
 /** Split a concrete input path such as `accounts[2].closingCashOre` into its steps. */
 export function parsePath(path) {
     const first = FIRST_FIELD.exec(path);
@@ -358,6 +379,12 @@ export function parsePath(path) {
         if (index !== null) {
             segments.push({ index: Number(index[1]) });
             rest = rest.slice(index[0].length);
+            continue;
+        }
+        const entry = ENTRY_KEY.exec(rest);
+        if (entry?.[1] !== undefined && entry[2] !== undefined) {
+            segments.push({ key: entry[1], value: JSON.parse(entry[2]) });
+            rest = rest.slice(entry[0].length);
             continue;
         }
         const field = NEXT_FIELD.exec(rest);
@@ -374,7 +401,10 @@ export function parsePath(path) {
  * passed in is not changed. A record on the way that was left out is created as
  * `{}`; a list element must already exist. Writing `$variant` keeps the object
  * when the variant is unchanged, and otherwise starts the new variant with its
- * fields unknown. The entry's `<entry>SetAt` is the same, typed by a need.
+ * fields unknown. The entry of an open collection (`balances[day="2027-02-20"]`)
+ * is the whole entry: written into the entry with that key, or added to the
+ * collection, its key set to the path's. The entry's `<entry>SetAt` is the same,
+ * typed by a need.
  */
 export function setAt(partialCase, path, value) {
     return writeAt(partialCase, parsePath(path), 0, value, path);
@@ -383,6 +413,22 @@ function writeAt(node, segments, at, value, path) {
     const segment = segments[at];
     if (segment === undefined)
         return value;
+    if ("key" in segment) {
+        const list = node ?? [];
+        if (!Array.isArray(list))
+            throw new PathError(path, `the entry \`${segment.key}\` = ${JSON.stringify(segment.value)} is inside a value that is not a list`);
+        const copy = list.slice();
+        const found = copy.findIndex((entry) => isObject(entry) && entry[segment.key] === segment.value);
+        if (found >= 0) {
+            copy[found] = writeAt(copy[found], segments, at + 1, value, path);
+            return copy;
+        }
+        if (at !== segments.length - 1) {
+            throw new PathError(path, `there is no entry whose \`${segment.key}\` is ${JSON.stringify(segment.value)} to write into`);
+        }
+        copy.push(keyedValue(value, segment, path));
+        return copy;
+    }
     if ("index" in segment) {
         if (!Array.isArray(node) || segment.index >= node.length) {
             throw new PathError(path, `there is no list element [${String(segment.index)}] to write into`);
@@ -405,19 +451,37 @@ function writeAt(node, segments, at, value, path) {
     put(out, segment.field, writeAt(record[segment.field], segments, at + 1, value, path));
     return out;
 }
-/** The pattern of a concrete path: list indices become `[]` (`accounts[2].kind` → `accounts[].kind`). */
+/** A new entry of an open collection, with the key its path names. */
+function keyedValue(value, segment, path) {
+    if (!isObject(value))
+        throw new PathError(path, "an entry of an open collection is a record");
+    const given = value[segment.key];
+    if (given === undefined)
+        return { ...value, [segment.key]: segment.value };
+    if (given !== segment.value) {
+        throw new PathError(path, `the entry's \`${segment.key}\` is ${JSON.stringify(given)}, and the need asks for ${JSON.stringify(segment.value)}`);
+    }
+    return value;
+}
+/**
+ * The pattern of a concrete path: list indices and entry keys become `[]`
+ * (`accounts[2].kind` → `accounts[].kind`, `balances[day="2027-02-20"]` → `balances[]`).
+ */
 export function pathPattern(path) {
-    return path.replace(/\[\d+\]/g, "[]");
+    return path.replace(new RegExp(ELEMENT, "g"), "[]");
 }
 const patternExpressions = new Map();
-/** Whether a concrete path matches a pattern, where `[]` stands for any list index and `*` for any map key. */
+/**
+ * Whether a concrete path matches a pattern, where `[]` stands for any list
+ * index or entry key and `*` for any map key.
+ */
 export function matchesPathPattern(path, pattern) {
     let expression = patternExpressions.get(pattern);
     if (expression === undefined) {
         const source = pattern
             .split("[]")
             .map((part) => part.split("*").map(escapeRegExp).join("[^.[\\]]+"))
-            .join("\\[\\d+\\]");
+            .join(ELEMENT);
         expression = new RegExp(`^${source}$`);
         patternExpressions.set(pattern, expression);
     }

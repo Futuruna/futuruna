@@ -1,0 +1,10 @@
+-- `lookup` takes a key of the key field's type.
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `lookup` in a list of `Balance` takes the key `day`, a `String`; got `Int`
+
+# Balance(@ field(key = True) day: String, value: Int)
+# Case(@ field(open = True) balances: List(Balance))
+
+@ entry
+| total(c: Case) -> lookup(c.balances, 20270220).value

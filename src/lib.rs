@@ -73,6 +73,7 @@ pub mod migrate;
 #[doc(hidden)]
 #[allow(dead_code)]
 pub mod logic_search;
+mod open_inputs;
 mod ordinary_calls;
 mod ordinary_declarations;
 mod ordinary_expressions;
@@ -5907,6 +5908,22 @@ pub fn stmt_mentions_query_or_unknown(statement: &Stmt) -> bool {
     found
 }
 
+/// Whether an expression is a call of `lookup`, which runs in the
+/// interpreter only (`open_inputs`).
+pub fn is_lookup_call(expr: &Expr) -> bool {
+    matches!(&expr.kind, ExprKind::App(function, arguments)
+        if arguments.len() == 2 && matches!(&function.kind, ExprKind::Var(name) if name == "lookup"))
+}
+
+/// Whether a statement calls `lookup`.
+pub fn stmt_mentions_lookup(statement: &Stmt) -> bool {
+    let mut found = false;
+    walk_ast_stmt(statement, &mut |child| {
+        found = found || matches!(child, AstChild::Expr(expr) if is_lookup_call(expr));
+    });
+    found
+}
+
 /// The root type of a `pathof`.
 pub fn pathof_root(expr: &Expr) -> Option<&str> {
     let ExprKind::App(function, arguments) = &expr.kind else {
@@ -6906,8 +6923,10 @@ pub enum TypeDecl {
         /// EXCEPT clause: include all variants from this type minus the listed ones
         except_from: Option<(String, Vec<String>)>,
         /// Calculation field metadata written with `@ field(...)` on the type
-        /// or its named fields. Presentation only: not part of the type's
-        /// meaning, content hash or semantic interface.
+        /// or its named fields. Presentation, apart from the `open` marker:
+        /// not part of the type's meaning, content hash or semantic interface,
+        /// except that an open field (`@ field(open = True)`) is, since the
+        /// law reads it only through `lookup`.
         field_meta: Option<Box<TypeFieldMeta>>,
     },
     /// Conditional type evolution: # Type WHEN condition = new_variants
@@ -7015,9 +7034,15 @@ pub struct Field {
 }
 
 /// The keys an `@ field(...)` declaration accepts, in documentation order.
-pub const FIELD_META_KEYS: [&str; 8] = [
-    "label", "question", "help", "unit", "sources", "entry", "subject", "key",
+pub const FIELD_META_KEYS: [&str; 9] = [
+    "label", "question", "help", "unit", "sources", "entry", "subject", "key", "open",
 ];
+
+/// The `@ field` keys that say what a field is rather than how it is
+/// presented: `key` (the field identifies an element of its type) and `open`
+/// (the case never gives the collection whole; the law looks its entries up
+/// by key). An `@ field` of markers alone needs no label.
+pub const FIELD_META_MARKERS: [&str; 2] = ["key", "open"];
 
 /// One `@ field(key = value, ...)` declaration. Values are ordinary pure
 /// ground expressions; `runa schema` resolves them like metadata bindings.
@@ -7033,6 +7058,14 @@ impl FieldMetaDecl {
             .iter()
             .find(|(name, _)| name == key)
             .map(|(_, value)| value)
+    }
+
+    /// A marker written as a literal: `True` for `@ field(open = True)`.
+    pub fn flag(&self, key: &str) -> Option<bool> {
+        match &self.value(key)?.kind {
+            ExprKind::Lit(Literal::Bool(value)) => Some(*value),
+            _ => None,
+        }
     }
 }
 
@@ -7050,6 +7083,16 @@ pub struct MemberFieldMeta {
 pub struct TypeFieldMeta {
     pub type_default: Option<FieldMetaDecl>,
     pub members: Vec<MemberFieldMeta>,
+}
+
+impl TypeFieldMeta {
+    /// The named fields declared `@ field(<marker> = True)`.
+    pub fn marked(&self, marker: &str) -> impl Iterator<Item = &MemberFieldMeta> + '_ {
+        let marker = marker.to_string();
+        self.members
+            .iter()
+            .filter(move |member| member.meta.flag(&marker) == Some(true))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -10175,14 +10218,25 @@ pub fn content_hash_type(td: &TypeDecl) -> String {
             params,
             variants,
             methods,
+            field_meta,
             ..
         } => {
-            format!(
+            let mut canonical = format!(
                 "ADT({:?},{:?},{:?})",
                 params,
                 variants,
                 methods.iter().map(strip_spans_defn).collect::<Vec<_>>()
-            )
+            );
+            // An open field changes what the law may read of it.
+            let open: Vec<(&str, &str)> = field_meta
+                .iter()
+                .flat_map(|meta| meta.marked("open"))
+                .map(|member| (member.variant.as_str(), member.field.as_str()))
+                .collect();
+            if !open.is_empty() {
+                canonical.push_str(&format!(",OPEN({open:?})"));
+            }
+            canonical
         }
         TypeDecl::EffectDecl { ops, .. } => {
             format!("EFFECT({:?})", ops)
@@ -13740,12 +13794,15 @@ impl Parser {
             entries.push((key.to_string(), value.clone()));
         }
         let has = |key: &str| entries.iter().any(|(existing, _)| existing == key);
-        // `@ field(key = True)` alone marks the key; the field keeps the
-        // metadata of its type.
-        let key_only = !entries.is_empty() && entries.iter().all(|(key, _)| key == "key");
-        if !has("label") && !key_only {
+        // `@ field(key = True)` or `@ field(open = True)` alone marks the
+        // field; it keeps the metadata of its type.
+        let markers_only = !entries.is_empty()
+            && entries
+                .iter()
+                .all(|(key, _)| FIELD_META_MARKERS.contains(&key.as_str()));
+        if !has("label") && !markers_only {
             return Err(format!(
-                "{}:{}: `@ field` needs a `label`, or only `key` (`@ field(key = True)`)",
+                "{}:{}: `@ field` needs a `label`, or only the markers `key` and `open` (`@ field(key = True)`)",
                 name.line, name.col
             ));
         }
@@ -18178,6 +18235,9 @@ pub struct Interpreter {
     /// Set while a partial calculation case runs; see `partial`.
     partial_mode: Option<partial::PartialMode>,
     partial: RefCell<partial::PartialState>,
+    /// The open input fields and key fields of the program's types, for
+    /// `lookup` (`open_inputs`).
+    open_inputs: open_inputs::RuntimeOpenInputs,
     /// Whether a rule clause or function being evaluated in a partial case
     /// is cited in a law section: the value it returns is then that rule's,
     /// and a later read of it waits on the rule, not on the fact.
@@ -18405,6 +18465,7 @@ impl Interpreter {
             calculation_error: RefCell::new(None),
             partial_mode: None,
             partial: RefCell::new(partial::PartialState::default()),
+            open_inputs: open_inputs::RuntimeOpenInputs::default(),
             partial_cited: None,
             fired: None,
             assumptions_of: None,
@@ -21079,6 +21140,7 @@ impl Interpreter {
         env.set("any".into(), Value::Builtin("any".into()));
         env.set("all".into(), Value::Builtin("all".into()));
         env.set("find".into(), Value::Builtin("find".into()));
+        env.set("lookup".into(), Value::Builtin("lookup".into()));
         env.set("flat_map".into(), Value::Builtin("flat_map".into()));
         env.set("pair".into(), Value::Builtin("pair".into()));
         env.set("triple".into(), Value::Builtin("triple".into()));
@@ -21431,8 +21493,11 @@ impl Interpreter {
                 variants,
                 methods,
                 except_from,
+                field_meta,
                 ..
             } => {
+                self.open_inputs
+                    .register(name, variants, field_meta.as_deref());
                 // Resolve variant list: expand type includes and apply EXCEPT
                 let mut resolved_variants: Vec<String> = Vec::new();
 
@@ -24039,6 +24104,13 @@ impl Interpreter {
                 return self.eval_query(expression, env);
             }
             let namespace = self.namespace_for_env(env);
+            if function_name == "lookup"
+                && arguments.len() == 2
+                && matches!(env.get("lookup"), Some(Value::Builtin(name)) if name == "lookup")
+                && self.runtime_function(&namespace, "lookup").is_none()
+            {
+                return self.eval_lookup(&arguments[0], &arguments[1], env);
+            }
             if self.exhaustive_preview_forbid_effects
                 && self.runtime_effect_operation_exists(&namespace, function_name)
             {
@@ -25802,6 +25874,11 @@ impl Interpreter {
                     Value::Constructor("None".into(), vec![].into())
                 }
                 _ => Value::Constructor("None".into(), vec![].into()),
+            },
+            // `lookup` passed as a value: a closed collection.
+            "lookup" => match <[Value; 2]>::try_from(args) {
+                Ok([list, key]) => self.lookup_entry(list, key, None),
+                Err(_) => self.panic_or_ground_fail("`lookup` takes a list and a key"),
             },
             "flat_map" => {
                 // Polymorphic: Stream/Subject → Stream, List/Cons → List
@@ -33154,6 +33231,14 @@ pub struct TypeChecker {
     rule_scope_returning_rules: BTreeMap<String, String>,
     /// RuleScope-typed variables per lexical scope.
     rule_scope_vars: Vec<BTreeMap<String, String>>,
+    /// Type and variant name -> field declared `@ field(open = True)` -> the
+    /// field's declared type (`open_inputs`).
+    open_fields: BTreeMap<String, BTreeMap<String, Ty>>,
+    /// Type name -> its key field (`@ field(key = True)`).
+    key_fields: BTreeMap<String, String>,
+    /// The field reads written as the collection of a `lookup`: the only
+    /// place an open field may be read.
+    lookup_collections: BTreeSet<usize>,
     /// Type name -> known field names.
     type_fields: BTreeMap<String, BTreeSet<String>>,
     /// Type name -> field name -> field type name.
@@ -50013,6 +50098,9 @@ impl TypeChecker {
             rule_scope_function_definitions_by_key: BTreeMap::new(),
             rule_scope_returning_rules: BTreeMap::new(),
             rule_scope_vars: vec![BTreeMap::new()],
+            open_fields: BTreeMap::new(),
+            key_fields: BTreeMap::new(),
+            lookup_collections: BTreeSet::new(),
             type_fields: BTreeMap::new(),
             type_field_types: BTreeMap::new(),
             type_field_tys: BTreeMap::new(),
@@ -50185,6 +50273,7 @@ impl TypeChecker {
             ("any", 2),
             ("all", 2),
             ("find", 2),
+            ("lookup", 2),
             ("flat_map", 2),
             ("zip", 2),
             ("enumerate", 1),
@@ -54961,6 +55050,36 @@ impl TypeChecker {
                             Self::applied_type_argument(&collection_type, "List", 0)?;
                         return Some(format!("Option({element_type})"));
                     }
+                    // `lookup(c.entries, key)`: the entry itself where the
+                    // collection is open, else whether the list has it.
+                    if name == "lookup"
+                        && args.len() == 2
+                        && !locals.contains_key(name)
+                        && !self.functions.contains_key(name)
+                    {
+                        let collection_type = self.infer_expr_type_name_with_locals_in_scope(
+                            &args[0],
+                            locals,
+                            active_rule_scope,
+                        )?;
+                        let element_type =
+                            Self::applied_type_argument(&collection_type, "List", 0)?;
+                        let open = match &args[0].kind {
+                            ExprKind::Field(base, field) => self
+                                .infer_expr_type_name_with_locals_in_scope(
+                                    base,
+                                    locals,
+                                    active_rule_scope,
+                                )
+                                .is_some_and(|owner| self.open_field(&owner, field).is_some()),
+                            _ => false,
+                        };
+                        return Some(if open {
+                            element_type
+                        } else {
+                            format!("Option({element_type})")
+                        });
+                    }
                     // Two lists of one element type, or two strings: both
                     // arguments have the result's type.
                     if name == "concat" && !args.is_empty() {
@@ -59721,11 +59840,13 @@ impl TypeChecker {
                     params,
                     variants,
                     methods,
+                    field_meta,
                     ..
                 }) => {
                     self.check_name_against_units(name);
                     self.clear_constructor_owner(name);
                     self.types.insert(name.clone());
+                    self.register_open_and_key_fields(name, variants, field_meta.as_deref());
                     self.type_parameters_by_owner.insert(
                         name.clone(),
                         params
@@ -60331,6 +60452,7 @@ impl TypeChecker {
         // Check trait impl completeness
         self.check_trait_impls();
         self.check_field_meta_declarations(stmts);
+        self.check_open_field_declarations(stmts);
         self.report_scalar_literals();
         self.withdraw_metadata_only_list_errors(stmts);
     }
@@ -60369,13 +60491,13 @@ impl TypeChecker {
                                 ),
                             );
                         }
-                    } else if key == "key" {
+                    } else if FIELD_META_MARKERS.contains(&key.as_str()) {
                         if type_name != "Bool" {
                             self.error_at_expr(
                                 value,
                                 format!(
-                                    "`@ field` key `key` must be a `Bool`, got `{}`",
-                                    type_name
+                                    "`@ field` key `{}` must be a `Bool`, got `{}`",
+                                    key, type_name
                                 ),
                             );
                         }
@@ -63753,6 +63875,9 @@ impl TypeChecker {
                             && !self.var_defined(name)
                         {
                             self.check_collection_predicate(name, args);
+                        }
+                        if name == "lookup" && actual_arity == 2 && !self.var_defined(name) {
+                            self.check_lookup_call(expr, args);
                         }
                         if !self.var_defined(name) {
                             self.check_scalar_collection_call(name, args);

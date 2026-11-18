@@ -647,7 +647,10 @@ impl<'a> Sdk<'a> {
                     for field in &variant.fields {
                         let field_ty = substitute_contract_type(&field.ty, &local);
                         let field_path = joined_column_path(path, &camel_case(&field.name));
-                        self.record_path(entry, &field_path, &field_ty, false);
+                        // An open collection is never asked whole, only its entries.
+                        if !field.open {
+                            self.record_path(entry, &field_path, &field_ty, false);
+                        }
                         self.collect_paths(&field_ty, &local, &field_path, active, entry);
                     }
                 } else {
@@ -689,7 +692,9 @@ impl<'a> Sdk<'a> {
                             for field in &variant.fields {
                                 let field_ty = substitute_contract_type(&field.ty, &local);
                                 let field_path = joined_column_path(path, &camel_case(&field.name));
-                                self.record_path(entry, &field_path, &field_ty, false);
+                                if !field.open {
+                                    self.record_path(entry, &field_path, &field_ty, false);
+                                }
                                 self.collect_paths(&field_ty, &local, &field_path, active, entry);
                             }
                         }
@@ -1278,9 +1283,11 @@ impl<'a> Sdk<'a> {
         field: &CalculationField,
     ) {
         write_doc(out, indent, &self.field_doc(definition, variant, field));
+        // An open collection may be left out: no entries given yet.
+        let (optional, undefined) = if field.open { ("?", " | undefined") } else { ("", "") };
         let _ = writeln!(
             out,
-            "{indent}{}: {};",
+            "{indent}{}{optional}: {}{undefined};",
             property_name(&camel_case(&field.name)),
             self.ts_type(&field.ty, Side::Local)
         );
@@ -1551,7 +1558,7 @@ impl<'a> Sdk<'a> {
         let partial = side == Side::Partial;
         let field_schema = |field: &CalculationField| {
             let schema = self.zod(&field.ty, side);
-            if partial {
+            if partial || field.open {
                 format!("{schema}.optional()")
             } else {
                 schema

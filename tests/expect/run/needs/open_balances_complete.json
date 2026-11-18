@@ -1,0 +1,30 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.entry.input.v2",
+    "schema_hash": "9ed87fc7f4d3c580ac6626ecce0a91f002faad4a63fa39d8bb5129a8d627157b",
+    "entry": "deemed"
+  },
+  "cases": [
+    {
+      "case_id": "entry-not-given",
+      "input_status": "ready",
+      "input": {
+        "delisted": "2027-02-20",
+        "balances": [{ "day": "2026-12-31", "value": 100 }]
+      }
+    },
+    {
+      "case_id": "entry-given",
+      "input_status": "ready",
+      "input": {
+        "delisted": "2027-02-20",
+        "balances": [{ "day": "2026-12-31", "value": 100 }, { "day": "2027-02-20", "value": 1740 }]
+      }
+    },
+    {
+      "case_id": "collection-left-out-none-looked-up",
+      "input_status": "ready",
+      "input": { "delisted": "" }
+    }
+  ]
+}

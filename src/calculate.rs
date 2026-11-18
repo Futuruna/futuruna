@@ -172,6 +172,11 @@ pub struct CalculationField {
     pub name: String,
     #[serde(rename = "type")]
     pub ty: CalculationTypeRef,
+    /// `@ field(open = True)`: a list of keyed entries the case never gives
+    /// whole. It may be left out, the law reads its entries by key with
+    /// `lookup`, and a missing entry is a need at `field[key=value]`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub open: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -808,28 +813,17 @@ pub struct CalculationAct {
     pub url: Option<String>,
 }
 
-enum InputPathToken<'a> {
-    Field(&'a str),
-    Index(usize),
-}
+use crate::open_inputs::{key_selector, parse_input_path, PathStep};
 
-fn input_path_tokens(path: &str) -> Option<Vec<InputPathToken<'_>>> {
-    let mut tokens = Vec::new();
-    for segment in path.split('.') {
-        let (name, mut rest) = match segment.find('[') {
-            Some(open) => segment.split_at(open),
-            None => (segment, ""),
-        };
-        if !name.is_empty() {
-            tokens.push(InputPathToken::Field(name));
-        }
-        while let Some(stripped) = rest.strip_prefix('[') {
-            let close = stripped.find(']')?;
-            tokens.push(InputPathToken::Index(stripped[..close].parse().ok()?));
-            rest = &stripped[close + 1..];
-        }
-    }
-    Some(tokens)
+/// The entry of a JSON list whose key `field` holds `value`.
+fn keyed_json_element<'j>(
+    list: &'j JsonValue,
+    field: &str,
+    value: &JsonValue,
+) -> Option<&'j JsonValue> {
+    list.as_array()?
+        .iter()
+        .find(|element| element.get(field) == Some(value))
 }
 
 impl CalculationContract {
@@ -853,14 +847,14 @@ impl CalculationContract {
         let mut substitutions = BTreeMap::new();
         let mut json = Some(input);
         let mut canonical: Vec<String> = Vec::new();
-        for token in input_path_tokens(path)? {
+        for token in parse_input_path(path)? {
             loop {
                 ty = substitute_contract_type(&ty, &substitutions);
                 match (&ty, &token) {
                     (CalculationTypeRef::Optional { item }, _) => ty = (**item).clone(),
                     (
                         CalculationTypeRef::List { item } | CalculationTypeRef::Set { item },
-                        InputPathToken::Index(index),
+                        PathStep::Index(index),
                     ) => {
                         json = json.and_then(|json| json.get(*index));
                         ty = (**item).clone();
@@ -869,12 +863,21 @@ impl CalculationContract {
                         }
                         break;
                     }
+                    (CalculationTypeRef::List { item }, PathStep::Key { field, value }) => {
+                        json = json.and_then(|json| keyed_json_element(json, field, value));
+                        ty = (**item).clone();
+                        if concrete {
+                            canonical.push(key_selector(field, value));
+                        }
+                        break;
+                    }
                     _ => break,
                 }
             }
-            let InputPathToken::Field(name) = token else {
+            let PathStep::Field(name) = &token else {
                 continue;
             };
+            let name = name.as_str();
             match &ty {
                 CalculationTypeRef::Map { value, .. } => {
                     json = json.and_then(|json| json.get(name));
@@ -964,7 +967,7 @@ impl CalculationContract {
     /// gives, the element's path and the key's value.
     pub(crate) fn need_keys(&self, input: &JsonValue, path: &str) -> Vec<CalculationNeedKey> {
         let mut keys = Vec::new();
-        let Some(tokens) = input_path_tokens(path) else {
+        let Some(tokens) = parse_input_path(path) else {
             return keys;
         };
         let mut ty = self.input.clone();
@@ -980,7 +983,26 @@ impl CalculationContract {
                 }
             }
             match token {
-                InputPathToken::Index(index) => {
+                PathStep::Key { field, value } => {
+                    let CalculationTypeRef::List { item } = &ty else {
+                        return keys;
+                    };
+                    let mut element = substitute_contract_type(item, &substitutions);
+                    while let CalculationTypeRef::Optional { item } = element {
+                        element = *item;
+                    }
+                    // The entry of an open collection the case does not give
+                    // yet: its key is in its path.
+                    concrete = format!("{concrete}{}", key_selector(&field, &value));
+                    json = json.and_then(|json| keyed_json_element(json, &field, &value));
+                    keys.push(CalculationNeedKey {
+                        path: concrete.clone(),
+                        field,
+                        value,
+                    });
+                    ty = element;
+                }
+                PathStep::Index(index) => {
                     let (CalculationTypeRef::List { item } | CalculationTypeRef::Set { item }) =
                         &ty
                     else {
@@ -1011,7 +1033,8 @@ impl CalculationContract {
                     }
                     ty = element;
                 }
-                InputPathToken::Field(name) => {
+                PathStep::Field(name) => {
+                    let name = name.as_str();
                     concrete = partial::join_path(&concrete, name);
                     match &ty {
                         CalculationTypeRef::Map { value, .. } => {
@@ -2851,13 +2874,18 @@ fn contract_definition(name: &str, catalog: &TypeCatalog) -> Option<CalculationT
         CatalogType::Adt { parameters, .. } => (parameters.clone(), "adt".to_string()),
         CatalogType::RuleScope { .. } => (Vec::new(), "rule_scope".to_string()),
     };
+    // Fields declared `@ field(open = True)`, by variant and field.
+    let open: BTreeSet<(String, String)> = catalog
+        .field_meta(name)
+        .into_iter()
+        .flat_map(|meta| meta.marked("open"))
+        .map(|member| (member.variant.clone(), member.field.clone()))
+        .collect();
     let variants = catalog
         .resolved_variants(name)
         .ok()?
         .into_iter()
         .map(|variant| CalculationVariant {
-            name: variant.name,
-            positional: variant.positional,
             fields: variant
                 .fields
                 .into_iter()
@@ -2865,11 +2893,14 @@ fn contract_definition(name: &str, catalog: &TypeCatalog) -> Option<CalculationT
                     ty_to_contract_ref(&field.ty, true, catalog)
                         .ok()
                         .map(|ty| CalculationField {
+                            open: open.contains(&(variant.name.clone(), field.name.clone())),
                             name: field.name,
                             ty,
                         })
                 })
                 .collect(),
+            name: variant.name,
+            positional: variant.positional,
         })
         .collect();
     Some(CalculationTypeDefinition {
@@ -3706,8 +3737,9 @@ struct ResolvedFieldMeta {
     provided_by: Option<CalculationFieldProvider>,
     /// `key = True`: the field identifies an element of its type.
     key: bool,
-    /// `@ field(key = True)` and nothing else: it marks the key and takes
-    /// no part in metadata precedence, so the field keeps its type's.
+    /// Markers (`key = True`, `open = True`) and nothing else: it marks the
+    /// field and takes no part in metadata precedence, so the field keeps its
+    /// type's.
     key_only: bool,
 }
 
@@ -3877,7 +3909,9 @@ fn resolved_field_meta(
             ))),
         }
     };
-    let key_only = values.keys().all(|key| *key == "key");
+    let key_only = values
+        .keys()
+        .all(|key| crate::FIELD_META_MARKERS.contains(key));
     let label = match text("label")? {
         Some(label) => label,
         None if key_only => String::new(),
@@ -5330,6 +5364,12 @@ fn decode_named_fields(
         let field_ty = substitute_contract_type(&field.ty, substitutions);
         let field_value = match (object.get(&field.name), partial.partial) {
             (Some(value), _) => value,
+            // An open collection is never given whole: left out, it has no
+            // entries given yet, in every case.
+            (None, _) if field.open => {
+                result.push((field.name.clone(), Value::List(Vec::new())));
+                continue;
+            }
             // Left out of a partial case: not asked yet.
             (None, Some(partial)) => {
                 result.push((

@@ -15,7 +15,7 @@
 
 use super::{
     definition_substitutions, joined_column_path, product_variant, substitute_contract_type,
-    CalculationContract, CalculationFieldMetadata, CalculationMetadataReference,
+    CalculationContract, CalculationField, CalculationFieldMetadata, CalculationMetadataReference,
     CalculationNeedKind, CalculationTypeDefinition, CalculationTypeRef,
 };
 use serde::Serialize;
@@ -253,7 +253,7 @@ impl Walk<'_> {
         let local = definition_substitutions(definition, arguments);
         if let Some(variant) = product_variant(definition) {
             for field in &variant.fields {
-                self.value(&field.ty, &local, &at.field(&field.name), active, out);
+                self.field(field, &local, &at.field(&field.name), active, out);
             }
         } else {
             out.push((at.field("$variant"), ty.clone()));
@@ -264,17 +264,38 @@ impl Walk<'_> {
             {
                 let alternative = at.alternative(&variant.name);
                 for field in &variant.fields {
-                    self.value(
-                        &field.ty,
-                        &local,
-                        &alternative.field(&field.name),
-                        active,
-                        out,
-                    );
+                    self.field(field, &local, &alternative.field(&field.name), active, out);
                 }
             }
         }
         active.pop();
+    }
+
+    /// A record field: its value, or for an open collection
+    /// (`@ field(open = True)`), which is never asked whole, each entry by
+    /// its key (`balances[]`, keyed `balances[].day`) and the entries' facts.
+    fn field(
+        &self,
+        field: &CalculationField,
+        substitutions: &BTreeMap<String, CalculationTypeRef>,
+        at: &At,
+        active: &mut Vec<String>,
+        out: &mut Vec<(At, CalculationTypeRef)>,
+    ) {
+        let ty = substitute_contract_type(&field.ty, substitutions);
+        match &ty {
+            CalculationTypeRef::List { item } if field.open => {
+                let mut element = at.element();
+                if let Some(key) = self.element_key(item, substitutions) {
+                    element
+                        .keys
+                        .push(joined_column_path(&element.pattern, &key));
+                }
+                out.push((element.clone(), substitute_contract_type(item, substitutions)));
+                self.element(item, substitutions, &element, active, out);
+            }
+            _ => self.value(&ty, substitutions, at, active, out),
+        }
     }
 
     /// The key field a list element's type declares (`@ field(key = True)`).

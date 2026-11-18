@@ -495,7 +495,7 @@ impl Interpreter {
         }
     }
 
-    fn tracked_path(&self, value: &Value) -> Option<String> {
+    pub(crate) fn tracked_path(&self, value: &Value) -> Option<String> {
         let id = container_id(value)?;
         self.partial.borrow().containers.get(&id).cloned()
     }

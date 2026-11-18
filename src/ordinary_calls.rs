@@ -769,7 +769,9 @@ impl TypeChecker {
     }
 
     pub(super) fn check_ordinary_field(&mut self, expression: &Expr, base: &Expr, field: &str) {
-        let Some(type_name) = self.ordinary_expression_type(base) else {
+        let receiver_type = self.ordinary_expression_type(base);
+        self.check_open_field_read(expression, receiver_type.as_deref(), field);
+        let Some(type_name) = receiver_type else {
             // An unknown receiver is checked at runtime; field spelling alone
             // cannot identify a nominal type or constrain a generic parameter.
             return;

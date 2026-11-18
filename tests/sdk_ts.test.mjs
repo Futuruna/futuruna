@@ -1090,6 +1090,89 @@ test('answering an entry: one resolve per round with every need, the needs left 
   assert.deepEqual(usage.calls, [['children[0].age', 'children[1].age']]);
 });
 
+/** An open collection: the law looks a balance up by a day it computes; the case gives only the days asked. */
+const openModel = `# Balance(@ field(key = True, label = "Day") day: String, @ field(label = "Value") value: Int)
+# Account(@ field(label = "Delisted on") delisted: String, @ field(label = "Balance", open = True) balances: List(Balance))
+
+@ entry("Deemed distribution")
+> deemed(a: Account) -> Int {
+    lookup(a.balances, a.delisted).value
+}
+`;
+
+const openUsage = `import {
+  deemedAnswer, given, open,
+  type DeemedResolve, type EngineTransport, type PartialAccount,
+} from "./sdk/index.js";
+
+/** A bank that tells the balances on many days at once. */
+export interface Bank {
+  balancesOn(days: readonly string[]): Promise<ReadonlyMap<string, number>>;
+}
+
+/** One resolve: every balance the round asks for, by its day, from one call to the bank. */
+export function resolve(bank: Bank): DeemedResolve {
+  return async (needs) => {
+    const days = needs.flatMap((need) => (need.pattern === "balances[]" ? (need.keys ?? []).map((key) => key.value) : []));
+    const balances = await bank.balancesOn(days);
+    return (need) => {
+      switch (need.pattern) {
+        case "balances[]": {
+          // The entry's own key: the only key of a need on an entry of \`balances\`.
+          const day = need.keys?.[0]?.value;
+          const value = day === undefined ? undefined : balances.get(day);
+          return day === undefined || value === undefined ? open : given(need, { day, value });
+        }
+        default:
+          return open;
+      }
+    };
+  };
+}
+
+export const started: PartialAccount = { delisted: "2027-02-20", balances: [{ day: "2026-12-31", value: 100 }] };
+
+export const answerDeemed = (transport: EngineTransport, partialCase: PartialAccount, bank: Bank) =>
+  deemedAnswer(transport, partialCase, resolve(bank));
+`;
+
+test('an open collection: resolve gives a new entry by the key the law computed', options, async () => {
+  const dir = project('open');
+  writeFileSync(join(dir, 'open.entry.runa'), openModel);
+  run(binary, ['sdk', 'ts', 'open.entry.runa', '--out', 'sdk'], dir);
+  writeFileSync(join(dir, 'usage.ts'), openUsage);
+  compile(dir, ['sdk/index.ts', 'usage.ts']);
+  const sdk = await import(pathToFileURL(join(dir, 'build/sdk/index.js')));
+  const usage = await import(pathToFileURL(join(dir, 'build/usage.js')));
+  // The collection is never asked whole: its entries by key, and their fields.
+  assert.deepEqual(sdk.DeemedInputPatternList, ['balances[]', 'balances[].day', 'balances[].value', 'delisted']);
+
+  const entry = 'balances[day="2027-02-20"]';
+  const transport = partialCli(dir, 'open.entry.runa');
+  const asked = await sdk.deemedQuery(transport, usage.started);
+  assert.equal(asked.$variant, 'Needs');
+  assert.deepEqual(asked.needs.map((need) => [need.pattern, need.path, need.label, need.keys]), [
+    ['balances[]', entry, 'Balance', [{ path: entry, field: 'day', value: '2027-02-20' }]],
+  ]);
+
+  const calls = [];
+  const answered = await usage.answerDeemed(transport, usage.started, {
+    async balancesOn(days) {
+      calls.push([...days]);
+      return new Map(days.map((day) => [day, 1740]));
+    },
+  });
+  assert.equal(answered.$variant, 'Answered', JSON.stringify(answered));
+  assert.equal(answered.result, 1740);
+  assert.deepEqual(answered.rounds, [{ paths: [entry], given: [entry] }]);
+  assert.deepEqual(calls, [['2027-02-20']]);
+  assert.deepEqual(answered.partialCase.balances, [{ day: '2026-12-31', value: 100 }, { day: '2027-02-20', value: 1740 }]);
+
+  // setAt adds the entry with the path's key, and refuses another key.
+  assert.deepEqual(sdk.setAt({ delisted: 'x' }, entry, { value: 5 }), { delisted: 'x', balances: [{ value: 5, day: '2027-02-20' }] });
+  assert.throws(() => sdk.setAt({}, entry, { day: '2027-02-21', value: 5 }), { name: 'PathError' });
+});
+
 test('the runtime package is the compilation of the runtime source, at Futuruna\'s version', options, async () => {
   const { compileRuntime, runtimeJs, runtimeDts } = await import(pathToFileURL(join(root, 'scripts/sdk-runtime.mjs')));
   const { js, dts } = compileRuntime(deps);
@@ -1128,6 +1211,10 @@ test('the generated SDK and the runtime pass typescript-eslint strictTypeChecked
   run(binary, ['sdk', 'ts', 'household.entry.runa', '--out', 'sdk/household'], dir);
   writeFileSync(join(dir, 'holding.entry.runa'), unitModel);
   run(binary, ['sdk', 'ts', 'holding.entry.runa', '--out', 'sdk/holding'], dir);
+  // The open collection's SDK, and the resolve that answers its entries.
+  writeFileSync(join(dir, 'open.entry.runa'), openModel);
+  run(binary, ['sdk', 'ts', 'open.entry.runa', '--out', 'sdk/open'], dir);
+  writeFileSync(join(dir, 'sdk/open-usage.ts'), openUsage.replace('"./sdk/index.js"', '"./open/index.js"'));
   mkdirSync(join(dir, 'runtime'));
   copyFileSync(join(root, 'src/calculate/sdk_ts_runtime.ts'), join(dir, 'runtime/index.ts'));
   writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify({

@@ -11421,15 +11421,20 @@ fn source_has_embedded_rust(source: &str) -> bool {
     })
 }
 
-/// Whether a test file asks a `query` or places an `unknown`.
+/// Whether a test file asks a `query`, places an `unknown` or calls `lookup`.
 fn source_asks_query(source: &str) -> bool {
     Parser::new(Lexer::new(source).tokenize(), source)
         .parse_program()
-        .is_ok_and(|statements| statements.iter().any(stmt_mentions_query_or_unknown))
+        .is_ok_and(|statements| {
+            statements
+                .iter()
+                .any(|statement| stmt_mentions_query_or_unknown(statement) || stmt_mentions_lookup(statement))
+        })
 }
 
-/// Each `query`, `unknown` and `answer_guide` of a program compiled to native
-/// code: they run in the interpreter, and native code takes complete input.
+/// Each `query`, `unknown`, `answer_guide` and `lookup` of a program compiled
+/// to native code: they run in the interpreter, and native code takes
+/// complete input.
 fn native_query_refusals(stmts: &[Stmt]) -> Vec<Diagnostic> {
     let mut refusals = Vec::new();
     for statement in stmts {
@@ -11441,6 +11446,8 @@ fn native_query_refusals(stmts: &[Stmt]) -> Vec<Diagnostic> {
                     "`query`"
                 } else if answer_guide_parts(expr).is_some() {
                     "`answer_guide`"
+                } else if is_lookup_call(expr) {
+                    "`lookup`"
                 } else {
                     return;
                 };
@@ -20730,12 +20737,16 @@ fn check_source(
                 std::process::exit(1);
             }
 
-            // A program that asks a query runs in the interpreter only:
-            // native code takes complete input, so there is no Rust to check.
-            let interpreted = stmts
-                .iter()
-                .any(stmt_mentions_query_or_unknown)
-                .then_some("interpreted (query)");
+            // A program that asks a query or calls `lookup` runs in the
+            // interpreter only: native code takes complete input, so there is
+            // no Rust to check.
+            let interpreted = if stmts.iter().any(stmt_mentions_query_or_unknown) {
+                Some("interpreted (query)")
+            } else if stmts.iter().any(stmt_mentions_lookup) {
+                Some("interpreted (lookup)")
+            } else {
+                None
+            };
             if frontend_only || interpreted.is_some() {
                 check_output.success(
                     &CheckArtifactSummary {

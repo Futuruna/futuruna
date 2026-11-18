@@ -138,11 +138,18 @@ export declare function fromWire(codec: CodecRef, value: unknown): unknown;
  * of a path the codec does not describe stays as it is.
  */
 export declare function fromWirePath(codec: CodecRef, wireCase: unknown, path: string): string;
-/** One step of a concrete input path: a field (record field, map key, `$variant`, `$values`) or a list index. */
+/**
+ * One step of a concrete input path: a field (record field, map key, `$variant`,
+ * `$values`), a list index, or the entry of an open collection by its key
+ * (`[day="2027-02-20"]`: the key field and its value).
+ */
 export type PathSegment = {
     readonly field: string;
 } | {
     readonly index: number;
+} | {
+    readonly key: string;
+    readonly value: string | number;
 };
 /** A path that does not parse, or that {@link setAt} cannot write. */
 export declare class PathError extends Error {
@@ -157,12 +164,21 @@ export declare function parsePath(path: string): PathSegment[];
  * passed in is not changed. A record on the way that was left out is created as
  * `{}`; a list element must already exist. Writing `$variant` keeps the object
  * when the variant is unchanged, and otherwise starts the new variant with its
- * fields unknown. The entry's `<entry>SetAt` is the same, typed by a need.
+ * fields unknown. The entry of an open collection (`balances[day="2027-02-20"]`)
+ * is the whole entry: written into the entry with that key, or added to the
+ * collection, its key set to the path's. The entry's `<entry>SetAt` is the same,
+ * typed by a need.
  */
 export declare function setAt<C>(partialCase: C, path: string, value: unknown): C;
-/** The pattern of a concrete path: list indices become `[]` (`accounts[2].kind` → `accounts[].kind`). */
+/**
+ * The pattern of a concrete path: list indices and entry keys become `[]`
+ * (`accounts[2].kind` → `accounts[].kind`, `balances[day="2027-02-20"]` → `balances[]`).
+ */
 export declare function pathPattern(path: string): string;
-/** Whether a concrete path matches a pattern, where `[]` stands for any list index and `*` for any map key. */
+/**
+ * Whether a concrete path matches a pattern, where `[]` stands for any list
+ * index or entry key and `*` for any map key.
+ */
 export declare function matchesPathPattern(path: string, pattern: string): boolean;
 declare const inputPathOf: unique symbol;
 /**

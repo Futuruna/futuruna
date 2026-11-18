@@ -1333,34 +1333,43 @@ fn violation_message(violation: &PartialViolation, partial: &JsonValue) -> Strin
 }
 
 /// A step of a path into a value.
-enum Step<'a> {
-    Field(&'a str),
+#[derive(Debug, PartialEq)]
+enum Step {
+    Field(String),
     Index(usize),
+    /// The entry of an open collection by its key (`[day="2027-02-20"]`).
+    Key {
+        field: String,
+        value: JsonValue,
+    },
     Variant,
 }
 
-fn path_steps(path: &str) -> Option<Vec<Step<'_>>> {
-    let mut steps = Vec::new();
-    if path.is_empty() {
-        return Some(steps);
+fn path_steps(path: &str) -> Option<Vec<Step>> {
+    use crate::open_inputs::PathStep;
+    Some(
+        crate::open_inputs::parse_input_path(path)?
+            .into_iter()
+            .map(|step| match step {
+                PathStep::Field(name) if name == "$variant" => Step::Variant,
+                PathStep::Field(name) => Step::Field(name),
+                PathStep::Index(index) => Step::Index(index),
+                PathStep::Key { field, value } => Step::Key { field, value },
+            })
+            .collect(),
+    )
+}
+
+/// Whether a list entry's key `field` holds `value`.
+fn has_key(entry: &Value, field: &str, value: &JsonValue) -> bool {
+    let Some((_, fields)) = named_fields(entry) else {
+        return false;
+    };
+    match fields.iter().find(|(name, _)| name == field).map(|(_, key)| key) {
+        Some(Value::Str(text)) => value.as_str() == Some(text.as_str()),
+        Some(Value::Int(number)) => value.as_i64() == Some(*number),
+        _ => false,
     }
-    for segment in path.split('.') {
-        let (name, mut rest) = segment.split_at(segment.find('[').unwrap_or(segment.len()));
-        match name {
-            "" => {}
-            "$variant" => steps.push(Step::Variant),
-            name => steps.push(Step::Field(name)),
-        }
-        while let Some(stripped) = rest.strip_prefix('[') {
-            let close = stripped.find(']')?;
-            steps.push(Step::Index(stripped[..close].parse().ok()?));
-            rest = &stripped[close + 1..];
-        }
-        if !rest.is_empty() {
-            return None;
-        }
-    }
-    Some(steps)
 }
 
 /// The constructor name and fields of a record or a named-field variant.
@@ -1789,6 +1798,11 @@ impl Interpreter {
             let value = some_inner(&value).cloned().unwrap_or(value);
             return Ok(self.fill_fields_unknown(&value));
         }
+        // The entry of an open collection is answered whole: the need asked
+        // for the entry.
+        if let [.., Step::Key { .. }] = steps {
+            return fill_get(complete, steps);
+        }
         let value = fill_get(complete, steps)?;
         Ok(match some_inner(&value) {
             Some(inner) if self.fill_is_record(inner) => some(self.fill_fields_unknown(inner)),
@@ -1873,6 +1887,26 @@ impl Interpreter {
                 items[*index] = self.fill_set(item, complete_item, rest, answer)?;
                 Ok(Value::List(items))
             }
+            Step::Key { field, value } => {
+                let Some(items) = list_items(&partial) else {
+                    return Err(format!("no list holds the entry [{field}={value}]"));
+                };
+                let complete_item = list_items(complete)
+                    .and_then(|items| items.into_iter().find(|item| has_key(item, field, value)))
+                    .ok_or_else(|| {
+                        format!("the complete case has no entry whose `{field}` is {value}")
+                    })?;
+                let mut items = items.clone();
+                match items.iter().position(|item| has_key(item, field, value)) {
+                    Some(at) => {
+                        items[at] = self.fill_set(&items[at], &complete_item, rest, answer)?
+                    }
+                    // An entry the case does not give yet: it is added.
+                    None if rest.is_empty() => items.push(answer.clone()),
+                    None => return Err(format!("no entry whose `{field}` is {value}")),
+                }
+                Ok(Value::List(items))
+            }
             Step::Variant => unreachable!("handled above"),
         }
     }
@@ -1928,6 +1962,11 @@ fn fill_get(value: &Value, steps: &[Step]) -> Result<Value, String> {
                     .ok_or_else(|| format!("the complete case has no element [{index}]"))?,
                 None => return Err(format!("the complete case has no list with [{index}]")),
             },
+            Step::Key { field, value } => list_items(&current)
+                .and_then(|items| items.into_iter().find(|item| has_key(item, field, value)))
+                .ok_or_else(|| {
+                    format!("the complete case has no entry whose `{field}` is {value}")
+                })?,
             Step::Variant => return Ok(current),
         };
         if matches!(current, Value::Unknown(_)) {
@@ -2091,15 +2130,23 @@ mod tests {
     #[test]
     fn paths_split_into_fields_indices_and_variant_tags() {
         let steps = path_steps("accounts[1].ask_ending.$variant").unwrap();
-        assert!(matches!(
-            steps.as_slice(),
+        assert_eq!(
+            steps,
             [
-                Step::Field("accounts"),
+                Step::Field("accounts".into()),
                 Step::Index(1),
-                Step::Field("ask_ending"),
+                Step::Field("ask_ending".into()),
                 Step::Variant
             ]
-        ));
+        );
+        let keyed = path_steps("accounts[1].balances[day=\"2027-02-20\"]").unwrap();
+        assert_eq!(
+            keyed.last(),
+            Some(&Step::Key {
+                field: "day".into(),
+                value: JsonValue::from("2027-02-20")
+            })
+        );
         assert!(path_steps("a[x]").is_none());
     }
 

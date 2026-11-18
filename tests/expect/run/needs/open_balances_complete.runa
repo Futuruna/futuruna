@@ -1,0 +1,20 @@
+-- A complete call whose case lacks an entry the law looks up fails with an
+-- error naming the collection and the key, never a silent value; a case that
+-- gives the entry, or leaves the collection out and needs none, runs.
+-- expect-command: call
+-- expect-status: fail
+-- expect-input: open_balances_complete.json
+-- expect-args: --entry deemed
+-- expect-stdout-file: open_balances_complete.stdout
+-- roundtrip-skip: `lookup` runs only in the interpreter
+
+# Balance(@ field(key = True, label = "Day") day: String, @ field(label = "Value", unit = "øre") value: Int)
+# Case(@ field(label = "Delisted on") delisted: String, @ field(label = "Balance", question = "What was the account's balance at the end of the day?", open = True) balances: List(Balance))
+
+-- § 6: the assets are deemed distributed at their value on the day after the delisting.
+| value_on(b: Balance) -> b.value
+
+@ entry("Deemed distribution")
+> deemed(c: Case) -> Int {
+    if c.delisted == "" { 0 } else { value_on(lookup(c.balances, c.delisted)) }
+}

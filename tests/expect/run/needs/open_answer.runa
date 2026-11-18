@@ -1,0 +1,51 @@
+-- `answer` asks an open collection's entry by its key; `from_case` answers
+-- it with the whole entry from the complete case, and a resolver of its own
+-- answers it from any case that holds the entry.
+-- expect-command: interp
+-- roundtrip-skip: `answer`, `query` and `lookup` run only in the interpreter
+-- expect-stdout: |asks_the_entry_by_its_key| holds
+-- expect-stdout: |from_case_answers_it| holds
+-- expect-stdout: |a_bank_answers_it| holds
+-- expect-stdout: |nobody_leaves_it_open| holds
+
+@ import ./open_balances_law
+
+= complete = Case(delisted = "2027-02-20", balances = [Balance(day = "2026-12-31", value = 100), Balance(day = "2027-02-20", value = 1740)])
+= started: Case = Case(delisted = "2027-02-20", balances = [Balance(day = "2026-12-31", value = 100)])
+
+= asked = query deemed(started)
+| asks_the_entry_by_its_key: asked -> match asked {
+    | Needs -> map(asked.needs, |n| map(n.keys, |k| k.value)) == [["2027-02-20"]]
+    | Complete -> False
+}
+
+= answered = answer(deemed, started, from_case(complete))
+| from_case_answers_it: answered -> answered.outcome == Answered(result = 1740) && map(answered.rounds, |r| length(r.given)) == [1]
+
+-- The bank's own data: a case holding the balances it was asked for.
+> bank(needs: List(Need(Case)), case: Case) -> Answers(Case) {
+    = days = flat_map(needs, |n| map(n.keys, |k| k.value))
+    Answers(from = Case(delisted = case.delisted, balances = map(days, |d| Balance(day = d, value = 1740))), given = map(needs, |n| n.path))
+}
+= banked = answer(deemed, started, bank)
+| a_bank_answers_it: banked -> banked.outcome == Answered(result = 1740)
+
+> nobody(needs: List(Need(Case)), case: Case) -> Answers(Case) {
+    Answers(from = case, given = [])
+}
+
+> open_count(answering: Answering(Int, Case)) -> Int {
+    = outcome = answering.outcome
+    match outcome {
+        | Unanswered -> length(outcome.open)
+        | Answered -> 0
+    }
+}
+
+= stuck = answer(deemed, started, nobody)
+| nobody_leaves_it_open: stuck -> open_count(stuck) == 1
+
+? asks_the_entry_by_its_key
+? from_case_answers_it
+? a_bank_answers_it
+? nobody_leaves_it_open

@@ -1,0 +1,12 @@
+-- Outside a partial case an entry the law looks up and the case lacks is an
+-- error that names the collection and the key.
+-- expect-command: interp
+-- expect-status: fail
+-- roundtrip-skip: `lookup` runs only in the interpreter
+-- expect-stderr: `lookup`: `balances` has no entry whose `day` is "2027-02-21". It is an open collection (`@ field(open = True)`): the case gives each entry the law looks up, so give this one
+
+# Balance(@ field(key = True) day: String, value: Int)
+# Case(@ field(open = True) balances: List(Balance))
+
+= case = Case(balances = [Balance(day = "2027-02-20", value = 200)])
+@ print(show(lookup(case.balances, "2027-02-21").value))
