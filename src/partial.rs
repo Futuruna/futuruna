@@ -404,28 +404,20 @@ impl PartialState {
     }
 
     /// Every call stack each fact was read under, in the order the stacks
-    /// were first seen: the stacks that read the fact itself, or, when
-    /// every read was of a cited rule's result carrying it, those.
+    /// were first seen: the stacks that read the fact itself and those that
+    /// read a cited rule's result carrying it. Every reader waits for the
+    /// fact, so none is dropped because another reads it directly.
     pub(crate) fn waiting(&self) -> BTreeMap<String, Vec<WaitingRules>> {
-        let mut direct: BTreeMap<String, Vec<WaitingRules>> = BTreeMap::new();
-        let mut through: BTreeMap<String, Vec<WaitingRules>> = BTreeMap::new();
+        let mut waiting: BTreeMap<String, Vec<WaitingRules>> = BTreeMap::new();
         for (frames, paths) in &self.reads {
             for path in paths {
-                let reads = if read_through_rule(path) {
-                    &mut through
-                } else {
-                    &mut direct
-                };
-                let stacks = reads.entry(fact_of(path).to_string()).or_default();
+                let stacks = waiting.entry(fact_of(path).to_string()).or_default();
                 if !stacks.iter().any(|known| Rc::ptr_eq(known, frames)) {
                     stacks.push(frames.clone());
                 }
             }
         }
-        for (fact, stacks) in through {
-            direct.entry(fact).or_insert(stacks);
-        }
-        direct
+        waiting
     }
 
     pub(crate) fn path_read(&self, path: &str) -> bool {
