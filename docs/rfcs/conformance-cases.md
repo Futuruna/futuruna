@@ -146,10 +146,15 @@ is where an Aktiesparekonto's rule arguments come from. So a case is found in
 two levels, and the engine has the last word:
 
 1. **Witness (Z3, per family).** For clause *i*: a model of
-   `fires_i` = every earlier guard defined and false, guard *i* defined and
-   true; the model's value of each argument is the witness. Values the guard
-   does not constrain are pinned to plain ones by soft constraints (`0`,
-   `false`, `""`), as the audit's overlap witnesses are.
+   `fires_i` = every earlier translatable guard false, guard *i* defined and
+   true; the model's value of each argument is the witness. It is solved
+   relative to a call of the family in a base's run (step 2): every leaf of
+   the arguments that call passed is a soft constraint (`assert-soft`) to keep
+   its value, weighing 50 when no input leaf contributes to it (nothing could
+   move it) and 1 otherwise. So the witness moves as few values as the guard
+   needs (the deposit, not the ceiling derived from the year), and the case
+   reads as the base with that change. Arguments no run passed are pinned to
+   plain values (`0`, `false`, `""`), as the audit's overlap witnesses are.
 2. **Lift (engine, per input).** A *base* input is run with provenance on.
    Every call of the clause's family is logged with its argument values; the
    explanation graph says, for each scalar leaf of an argument, which input
@@ -204,18 +209,22 @@ search runs only for clauses no case covers yet, so the suite stays small.
 ### Boundaries
 
 A threshold is a top-level conjunct of a clause's lowered guard that compares
-two integer terms (`<`, `<=`, `>`, `>=`; a `Date` comparison lowers to an
-integer comparison of day numbers, and amounts of a unit type are integers).
-For threshold *k* of clause *i* and each offset `d` in `-1, 0, +1`, Z3 is
-asked for a model of: dispatch reaches clause *i* (every earlier guard
-defined and false), every other conjunct of guard *i* holds, and
-`lhs - rhs = d`. Below, at and above are relative to the guard's own
-comparison: for `deposits >= ceiling` they are `ceiling - 1`, `ceiling`,
-`ceiling + 1`, so `at` and `above` fire the clause and `below` does not. The
-model is lifted like a witness. Confirming a boundary case reads the call log,
-not the fired clauses: some call of the family must have the model's values in
-every argument leaf the comparison reads. A boundary the search does not
-confirm is listed in `thresholds` with `null` and the reason.
+two integer terms (`<`, `<=`, `>`, `>=`; amounts of a unit type are
+integers), or two `Date`s (which `smt_date_order` writes over their fields;
+they are compared by day number, `runa_days`, and both are kept valid
+dates). For threshold *k* of clause *i* and each offset `d` in `-1, 0, +1`,
+Z3 is asked for a model of: dispatch reaches clause *i* (every earlier
+translatable guard false, guard *i* defined), every other conjunct of guard
+*i* holds, and `lhs - rhs = d`, where `lhs` is the side that reads the rule's
+arguments and `rhs` the bound (when both sides read arguments, the guard's
+left and right). For `deposits > ceiling` below, at and above are deposits
+of `ceiling - 1`, `ceiling`, `ceiling + 1`, so only `above` fires the
+clause; for `opened > Date(2024, 7, 1)` they are 30 June, 1 July and 2 July
+2024. The model is anchored and lifted like a witness. Confirming a boundary
+case reads the call log, not the fired clauses: some call of the family must
+have the model's values in every argument leaf the comparison reads. A
+boundary the search does not confirm is listed in `thresholds` with `null` and
+the reason.
 
 ### Deduplication and determinism
 

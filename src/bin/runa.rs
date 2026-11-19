@@ -28,6 +28,7 @@ macro_rules! status_println {
 
 mod runa_packages;
 // Reports with `status_println!`, so it follows the macro definitions.
+mod runa_conformance_cases;
 mod runa_rule_reachability;
 
 use futuruna::*;
@@ -224,6 +225,9 @@ fn main_inner() {
     let mut explore_output_directory = None;
     let mut explore_max_runtime = None;
     let mut calculation_entry = None;
+    let mut cases_out = None;
+    let mut cases_seeds = Vec::new();
+    let mut cases_scenarios = Vec::new();
     let mut calculation_format = None;
     let mut calculation_input = None;
     let mut calculation_output = None;
@@ -473,7 +477,7 @@ fn main_inner() {
                 explore_max_runtime = Some(parse_explore_time_limit(&arg["--time-limit=".len()..]));
                 i += 1;
             }
-            "--entry" if matches!(mode, "schema" | "template" | "call" | "audit") => {
+            "--entry" if matches!(mode, "schema" | "template" | "call" | "audit" | "cases") => {
                 if i + 1 >= args.len() || args[i + 1].starts_with('-') {
                     eprintln!("error: --entry requires an entry name");
                     std::process::exit(1);
@@ -481,11 +485,24 @@ fn main_inner() {
                 calculation_entry = Some(args[i + 1].clone());
                 i += 2;
             }
-            arg if matches!(mode, "schema" | "template" | "call" | "audit")
+            arg if matches!(mode, "schema" | "template" | "call" | "audit" | "cases")
                 && arg.starts_with("--entry=") =>
             {
                 calculation_entry = Some(arg["--entry=".len()..].to_string());
                 i += 1;
+            }
+            "--out" | "--seed" | "--scenario" if mode == "cases" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: {} requires a path", args[i]);
+                    std::process::exit(1);
+                }
+                let value = args[i + 1].clone();
+                match args[i].as_str() {
+                    "--out" => cases_out = Some(value),
+                    "--seed" => cases_seeds.push(value),
+                    _ => cases_scenarios.push(value),
+                }
+                i += 2;
             }
             "--all-tables" if mode == "template" => {
                 calculation_all_tables = true;
@@ -766,6 +783,9 @@ fn main_inner() {
                 eprintln!("  verify        Generate SMT-LIB2 and verify with Z3");
                 eprintln!("  verify --allow-unsupported  Exit 0 when every claim the SMT layer can translate is PROVED");
                 eprintln!("  audit         Discover invariant gaps and rule asymmetries");
+                eprintln!(
+                    "  cases         Generate conformance cases and clause coverage for an @ entry"
+                );
                 eprintln!("  explore       Create or resume one durable relational exploration");
                 eprintln!("  fmt           Format source file(s)");
                 eprintln!("  fmt --check   Check formatting without modifying");
@@ -795,6 +815,7 @@ fn main_inner() {
                 eprintln!("  meta --json        Emit a structured metadata index");
                 eprintln!("  --entry NAME       Select an @ entry");
                 eprintln!("  audit --entry NAME [--json]  Report calculation reachability");
+                eprintln!("  cases --out DIR [--entry NAME] [--seed CASES.json] [--scenario FILE]  Write the cases and coverage.json");
                 eprintln!("  explore --query NAME  Select one named exploration");
                 eprintln!("  explore --run-state PATH  Required durable journal directory");
                 eprintln!("  explore --assume-verified-checkpoint N:SHA256  Explicitly trust recorded region proofs in a pinned local prefix");
@@ -1017,6 +1038,10 @@ fn main_inner() {
             }
             "audit" => {
                 mode = "audit";
+                i += 1;
+            }
+            "cases" => {
+                mode = "cases";
                 i += 1;
             }
             "explore" => {
@@ -1249,6 +1274,24 @@ fn main_inner() {
             calculation_partial.map(|mode| (mode, calculation_partial_check)),
             calculation_explain,
             calculation_describe,
+        );
+        return;
+    }
+
+    if mode == "cases" {
+        let (Some(path), Some(out)) = (filename.as_deref(), cases_out) else {
+            eprintln!("Usage: runa cases <file.runa> [--entry NAME] --out DIR [--seed CASES.json ...] [--scenario FILE.scenario.runa ...]");
+            std::process::exit(1);
+        };
+        runa_conformance_cases::run_cases(
+            path,
+            use_prelude,
+            &runa_conformance_cases::CasesOptions {
+                entry: calculation_entry,
+                out,
+                seeds: cases_seeds,
+                scenarios: cases_scenarios,
+            },
         );
         return;
     }

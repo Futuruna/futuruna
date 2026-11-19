@@ -130,6 +130,17 @@ pub(crate) struct ClauseRecord {
     pub(crate) assumptions: Rc<[PlacedAssumption]>,
 }
 
+/// A rule call that selected a clause, with its arguments as the dispatch
+/// read them (traced in an explained case), for `runa cases`.
+#[derive(Debug, Clone)]
+pub(crate) struct RuleCallRecord {
+    pub(crate) family: RuleDispatchKey,
+    /// The clause that produced the value; none when a Boolean family's
+    /// `false` clause answered.
+    pub(crate) rule: Option<Rc<Rule>>,
+    pub(crate) args: Vec<Value>,
+}
+
 /// The rule clauses that fired in one calculation case, each once; their
 /// ids are `0..` in the order they first fired.
 #[derive(Debug, Default)]
@@ -148,6 +159,11 @@ impl FiredClauses {
 
     pub(crate) fn len(&self) -> usize {
         self.clauses.len()
+    }
+
+    /// The id of `rule` when it fired.
+    pub(crate) fn id_of(&self, rule: &Rc<Rule>) -> Option<u32> {
+        self.ids.get(&(Rc::as_ptr(rule) as usize)).copied()
     }
 
     /// The assumptions of a fired clause that hold: those without a
@@ -221,6 +237,38 @@ impl ExplainState {
             }
         }
         (found, omitted)
+    }
+
+    /// The input leaf `id` is, when it is one unchanged.
+    pub(crate) fn input_path(&self, id: NodeId) -> Option<Rc<str>> {
+        match self.node(id) {
+            Node::Input { path, .. } => Some(path.clone()),
+            _ => None,
+        }
+    }
+
+    /// The input paths `id` was computed from: through computed nodes and
+    /// what rule clauses computed (not the guards that chose them), each
+    /// once, in first-reached order.
+    pub(crate) fn input_paths(&self, id: NodeId) -> Vec<Rc<str>> {
+        let mut found: Vec<Rc<str>> = Vec::new();
+        let mut seen = HashSet::new();
+        let mut stack = vec![id];
+        while let Some(next) = stack.pop() {
+            if !seen.insert(next) {
+                continue;
+            }
+            match self.node(next) {
+                Node::Input { path, .. } => {
+                    if !found.contains(path) {
+                        found.push(path.clone());
+                    }
+                }
+                Node::Computed { from } => stack.extend(from.iter().rev().copied()),
+                Node::Rule { from, .. } => stack.extend(*from),
+            }
+        }
+        found
     }
 }
 
@@ -504,6 +552,33 @@ impl Interpreter {
         self.fired
             .take()
             .map(RefCell::into_inner)
+            .unwrap_or_default()
+    }
+
+    /// Start logging every rule call that selects a clause.
+    pub(crate) fn begin_rule_call_log(&mut self) {
+        self.rule_calls = Some(RefCell::new(Vec::new()));
+    }
+
+    /// Stop logging, returning the calls in the order they selected.
+    pub(crate) fn finish_rule_call_log(&mut self) -> Vec<RuleCallRecord> {
+        self.rule_calls
+            .take()
+            .map(RefCell::into_inner)
+            .unwrap_or_default()
+    }
+
+    /// Capture the arguments of every call of the function `name` while a
+    /// program runs (`runa cases --scenario`).
+    pub fn begin_call_capture(&mut self, name: &str) {
+        self.call_capture = Some((name.to_string(), RefCell::new(Vec::new())));
+    }
+
+    /// Stop capturing, returning each call's arguments in call order.
+    pub fn finish_call_capture(&mut self) -> Vec<Vec<Value>> {
+        self.call_capture
+            .take()
+            .map(|(_, calls)| calls.into_inner())
             .unwrap_or_default()
     }
 

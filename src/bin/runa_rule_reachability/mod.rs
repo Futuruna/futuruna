@@ -12,6 +12,8 @@
 use super::*;
 use std::collections::HashMap;
 
+pub(crate) mod cases;
+
 /// Per-query solver budget. A query that exceeds it is reported as
 /// undecided, never as a finding.
 const SOLVER_TIMEOUT_MS: u32 = 10_000;
@@ -1187,6 +1189,10 @@ fn visit_pattern_constructor_names(pattern: &Pat, output: &mut BTreeSet<String>)
 struct Candidate {
     location: ClauseLocation,
     tier: RuleDispatchTier,
+    /// The candidate's position in its family's source order, and an
+    /// exception's label.
+    source_order: usize,
+    label: Option<String>,
     /// Lowered guard with its requirements, or why it is not translatable.
     guard: Result<(Expr, Requirements), String>,
     /// Lowered selected value with its requirements, or why not.
@@ -1343,30 +1349,36 @@ pub(super) fn dispatch_gap(
     }
 }
 
-/// Analyze the families `selection` names.
-fn analyze(
+/// One rule family the audit analyzes, lowered.
+struct FamilyView<'a, 'e, 'program, 'registry> {
+    family: String,
+    /// The family's scope and name as the source writes them.
+    identity: (Option<String>, String),
+    arity: usize,
+    signature: &'a FamilySignature,
+    encoder: &'a Encoder<'e, 'program, 'registry>,
+    lowered: &'a LoweredFamily,
+    /// Whether the family can miss: a partial value family without an
+    /// unguarded candidate.
+    check_coverage: bool,
+}
+
+/// Set up the SMT program of `statements` and visit every family
+/// `selection` names that has a candidate to analyze, in registry order.
+/// `Err` is why the analysis could not run.
+fn for_each_family(
     statements: &[Stmt],
     filename: &str,
     source: &str,
     selection: Selection,
-    scope: ClauseScope,
-) -> ClauseReachabilityReport {
-    let not_run = |reason: String| ClauseReachabilityReport::NotRun { reason };
-    let resolved = match resolve_smt_program(statements, filename) {
-        Ok(program) => program,
-        Err(error) => return not_run(error),
-    };
-    let symbol_index = match SmtSymbolIndex::from_program(&resolved) {
-        Ok(index) => index,
-        Err(error) => return not_run(error),
-    };
-    let (all_stmts, origins) = match lower_smt_namespaces(&resolved, &symbol_index) {
-        Ok(lowered) => lowered,
-        Err(error) => return not_run(error),
-    };
+    mut visit: impl FnMut(&FamilyView) -> Result<(), FamilyError>,
+) -> Result<(), String> {
+    let resolved = resolve_smt_program(statements, filename)?;
+    let symbol_index = SmtSymbolIndex::from_program(&resolved)?;
+    let (all_stmts, origins) = lower_smt_namespaces(&resolved, &symbol_index)?;
     let type_artifacts = TypeChecker::check_without_calculation_contracts(&all_stmts, None, "");
     if let Some(diagnostic) = type_artifacts.diagnostics.first() {
-        return not_run(format!(
+        return Err(format!(
             "the SMT encoding of this program does not type-check: {}",
             diagnostic.message
         ));
@@ -1404,14 +1416,6 @@ fn analyze(
     let mut sources: BTreeMap<String, Option<SourceLines>> = BTreeMap::new();
     sources.insert(filename.to_string(), Some(SourceLines::new(source)));
 
-    let mut analyzed_families = Vec::new();
-    let mut families = 0;
-    let mut clauses = 0;
-    let mut findings = Vec::new();
-    let mut not_analyzed = Vec::new();
-    let mut overlap_not_checked = Vec::new();
-    let mut gap_not_checked = Vec::new();
-    let mut coverage_decided = BTreeSet::new();
     for group in registry.groups.values() {
         let candidates = group.plan.candidates().collect::<Vec<_>>();
         let declared_here = || {
@@ -1421,11 +1425,11 @@ fn analyze(
                     .is_some_and(|origin| origin.as_ref() == filename)
             })
         };
+        let identity = lowerer.rule_identity(&group.key);
         let selected = match selection {
             Selection::Family(key) => &group.key == key,
             Selection::DeclaredIn => declared_here(),
             Selection::ReachedFromEntry(reached) => {
-                let identity = lowerer.rule_identity(&group.key);
                 let qualified = match &identity.scope {
                     Some(scope) => format!("{}.{}", scope, identity.name),
                     None => identity.name.clone(),
@@ -1436,7 +1440,6 @@ fn analyze(
         if !selected {
             continue;
         }
-        let family = family_name(&group.key);
         let mut locate = |candidate: &RuleDispatchCandidate| -> ClauseLocation {
             let file = rule_origins
                 .get(&(candidate.rule as *const Rule))
@@ -1466,19 +1469,6 @@ fn analyze(
         if lowered.candidates.is_empty() {
             continue;
         }
-        families += 1;
-        clauses += lowered.candidates.len();
-        analyzed_families.push(AnalyzedFamily {
-            family: family.clone(),
-            files: lowered
-                .candidates
-                .iter()
-                .map(|candidate| candidate.location.file.clone())
-                .collect::<BTreeSet<_>>()
-                .into_iter()
-                .collect(),
-            clauses: lowered.candidates.len(),
-        });
         // A family with an unguarded candidate (an irrefutable head without
         // a guard) always selects one, and a Boolean family whose miss
         // answers False at run time (`RuleDispatchRegistry::for_solver`)
@@ -1489,22 +1479,74 @@ fn analyze(
                 group.return_type.as_deref().unwrap_or_default(),
             )
         });
-        let check_coverage =
-            group.totality == RuleDispatchTotality::Partial && !has_unguarded_candidate;
-        match analyze_family(&family, &signature, &encoder, &lowered, check_coverage) {
-            Ok(outcome) => {
-                findings.extend(outcome.findings);
-                not_analyzed.extend(outcome.not_analyzed);
-                overlap_not_checked.extend(outcome.overlap_not_checked);
-                gap_not_checked.extend(outcome.gap_not_checked);
-                if outcome.coverage_decided {
-                    coverage_decided.insert(family.clone());
-                }
-            }
-            Err(FamilyError::SolverMissing(reason)) => return not_run(reason),
+        let view = FamilyView {
+            family: family_name(&group.key),
+            identity: (identity.scope.clone(), identity.name.clone()),
+            arity: group.key.arity,
+            signature: &signature,
+            encoder: &encoder,
+            lowered: &lowered,
+            check_coverage: group.totality == RuleDispatchTotality::Partial
+                && !has_unguarded_candidate,
+        };
+        if let Err(FamilyError::SolverMissing(reason)) = visit(&view) {
+            return Err(reason);
         }
     }
-    findings.sort_by(|left, right| {
+    Ok(())
+}
+
+/// Analyze the families `selection` names.
+fn analyze(
+    statements: &[Stmt],
+    filename: &str,
+    source: &str,
+    selection: Selection,
+    scope: ClauseScope,
+) -> ClauseReachabilityReport {
+    let mut analyzed_families = Vec::new();
+    let mut families = 0;
+    let mut clauses = 0;
+    let mut findings = Vec::new();
+    let mut not_analyzed = Vec::new();
+    let mut overlap_not_checked = Vec::new();
+    let mut gap_not_checked = Vec::new();
+    let mut coverage_decided = BTreeSet::new();
+    let ran = for_each_family(statements, filename, source, selection, |view| {
+        families += 1;
+        clauses += view.lowered.candidates.len();
+        analyzed_families.push(AnalyzedFamily {
+            family: view.family.clone(),
+            files: view
+                .lowered
+                .candidates
+                .iter()
+                .map(|candidate| candidate.location.file.clone())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect(),
+            clauses: view.lowered.candidates.len(),
+        });
+        let outcome = analyze_family(
+            &view.family,
+            view.signature,
+            view.encoder,
+            view.lowered,
+            view.check_coverage,
+        )?;
+        findings.extend(outcome.findings);
+        not_analyzed.extend(outcome.not_analyzed);
+        overlap_not_checked.extend(outcome.overlap_not_checked);
+        gap_not_checked.extend(outcome.gap_not_checked);
+        if outcome.coverage_decided {
+            coverage_decided.insert(view.family.clone());
+        }
+        Ok(())
+    });
+    if let Err(reason) = ran {
+        return ClauseReachabilityReport::NotRun { reason };
+    }
+    findings.sort_by(|left: &ClauseFinding, right: &ClauseFinding| {
         (&left.clause.file, left.clause.line).cmp(&(&right.clause.file, right.clause.line))
     });
     ClauseReachabilityReport::Ran {
@@ -1754,6 +1796,11 @@ fn lower_family(
         lowered.candidates.push(Candidate {
             location: locate(candidate),
             tier,
+            source_order: candidate.source_order,
+            label: match candidate.rule {
+                Rule::Exception { label, .. } => Some(label.clone()),
+                _ => None,
+            },
             guard,
             value,
         });
@@ -1776,6 +1823,96 @@ struct FamilyOutcome {
     gap_not_checked: Vec<SkippedFamily>,
     /// The solver decided whether the family has a gap.
     coverage_decided: bool,
+}
+
+/// Everything a family's queries mention, declared once per family:
+/// datatypes, functions and values of its candidates' guards and results
+/// and of `extra` (predicate heads). Arguments are declared even when no
+/// guard mentions them, so a witness names each one.
+fn family_preamble<'x>(
+    encoder: &Encoder,
+    signature: &FamilySignature,
+    candidates: &'x [Candidate],
+    extra: impl Iterator<Item = &'x (Expr, Requirements)>,
+) -> String {
+    let mut variables = BTreeSet::new();
+    let mut functions = BTreeSet::new();
+    let mut expressions = Vec::new();
+    let candidate_parts = candidates.iter().flat_map(|candidate| {
+        [candidate.guard.as_ref(), candidate.value.as_ref()]
+            .into_iter()
+            .flatten()
+    });
+    for (expression, requirements) in candidate_parts.chain(extra) {
+        variables.extend(requirements.variables.iter().cloned());
+        functions.extend(requirements.functions.iter().cloned());
+        expressions.push(expression);
+    }
+    variables.extend(signature.sorts.keys().cloned());
+    encoder.preamble(
+        &signature.sorts,
+        &variables,
+        &functions,
+        &expressions,
+        signature.result.as_slice(),
+    )
+}
+
+/// One definition per candidate, in dispatch order, so every question about
+/// a family is a constant-size formula over these names: its guard and the
+/// guard's definedness, `none_before_<i>` (every earlier translatable guard
+/// is false), and, while every earlier guard is translatable, `fires_<i>`
+/// and `runa_reach_<i+1>`. Also returns the last reach (none when a guard
+/// is not translatable) and which candidates have `fires_<i>`.
+fn dispatch_definitions(
+    encoder: &Encoder,
+    guards: &[Option<&(Expr, Requirements)>],
+) -> (String, Option<String>, Vec<bool>) {
+    let mut definitions = String::new();
+    let mut none_before = String::from("true");
+    let mut reach = Some(String::from("true"));
+    let mut fires_defined = vec![false; guards.len()];
+    for (index, lowered) in guards.iter().enumerate() {
+        definitions.push_str(&format!(
+            "(define-fun {} () Bool {})\n",
+            none_before_name(index),
+            none_before
+        ));
+        none_before = none_before_name(index);
+        let Some((expression, requirements)) = lowered else {
+            // Dispatch evaluates this guard before every later candidate;
+            // without it, whether a later candidate is selected is unknown.
+            reach = None;
+            continue;
+        };
+        let guard = guard_name(index);
+        let defined = guard_defined_name(index);
+        definitions.push_str(&format!(
+            "(define-fun {} () Bool {})\n(define-fun {} () Bool {})\n",
+            guard,
+            expr_to_smt(expression),
+            defined,
+            encoder.definedness(expression, &requirements.functions)
+        ));
+        if let Some(reached) = &reach {
+            let next = format!("runa_reach_{}", index + 1);
+            definitions.push_str(&format!(
+                "(define-fun {} () Bool (and {} {} {}))\n(define-fun {} () Bool (and {} {} (not {})))\n",
+                fires_name(index),
+                reached,
+                defined,
+                guard,
+                next,
+                reached,
+                defined,
+                guard
+            ));
+            fires_defined[index] = true;
+            reach = Some(next);
+        }
+        none_before = format!("(and {} (not {}))", none_before_name(index), guard);
+    }
+    (definitions, reach, fires_defined)
 }
 
 /// `check_coverage` asks, in addition, whether some input makes no
@@ -1864,75 +2001,15 @@ fn analyze_family(
         return Ok(outcome);
     }
 
-    // Everything the queries mention, declared once per family. Arguments are
-    // declared even when no guard mentions them, so a witness names each one.
-    let mut variables = BTreeSet::new();
-    let mut functions = BTreeSet::new();
-    let mut expressions = Vec::new();
-    let candidate_parts = candidates.iter().flat_map(|candidate| {
-        [candidate.guard.as_ref(), candidate.value.as_ref()]
-            .into_iter()
-            .flatten()
-    });
-    for (expression, requirements) in candidate_parts.chain(predicate_heads.iter().copied()) {
-        variables.extend(requirements.variables.iter().cloned());
-        functions.extend(requirements.functions.iter().cloned());
-        expressions.push(expression);
-    }
-    variables.extend(signature.sorts.keys().cloned());
-    let mut prefix = encoder.preamble(
-        &signature.sorts,
-        &variables,
-        &functions,
-        &expressions,
-        signature.result.as_slice(),
+    let mut prefix = family_preamble(
+        encoder,
+        signature,
+        candidates,
+        predicate_heads.iter().copied(),
     );
 
-    // One definition per candidate, in dispatch order, so every question
-    // below is a constant-size formula over these names.
-    let mut none_before = String::from("true");
-    let mut reach = Some(String::from("true"));
-    let mut fires_defined = vec![false; count];
-    for index in 0..count {
-        prefix.push_str(&format!(
-            "(define-fun {} () Bool {})\n",
-            none_before_name(index),
-            none_before
-        ));
-        none_before = none_before_name(index);
-        let Some((expression, requirements)) = guards[index] else {
-            // Dispatch evaluates this guard before every later candidate;
-            // without it, whether a later candidate is selected is unknown.
-            reach = None;
-            continue;
-        };
-        let guard = guard_name(index);
-        let defined = guard_defined_name(index);
-        prefix.push_str(&format!(
-            "(define-fun {} () Bool {})\n(define-fun {} () Bool {})\n",
-            guard,
-            expr_to_smt(expression),
-            defined,
-            encoder.definedness(expression, &requirements.functions)
-        ));
-        if let Some(reached) = &reach {
-            let next = format!("runa_reach_{}", index + 1);
-            prefix.push_str(&format!(
-                "(define-fun {} () Bool (and {} {} {}))\n(define-fun {} () Bool (and {} {} (not {})))\n",
-                fires_name(index),
-                reached,
-                defined,
-                guard,
-                next,
-                reached,
-                defined,
-                guard
-            ));
-            fires_defined[index] = true;
-            reach = Some(next);
-        }
-        none_before = format!("(and {} (not {}))", none_before_name(index), guard);
-    }
+    let (definitions, reach, fires_defined) = dispatch_definitions(encoder, &guards);
+    prefix.push_str(&definitions);
     // Dispatch evaluated every guard, each was defined and none held, and no
     // predicate clause's head matched: the call stops with "no value rule
     // matched".

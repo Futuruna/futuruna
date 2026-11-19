@@ -566,6 +566,11 @@
       "surface": "exploratory-audit-tooling"
     },
     {
+      "name": "cases",
+      "stage": "experimental",
+      "surface": "exploratory-audit-tooling"
+    },
+    {
       "name": "explore",
       "stage": "experimental",
       "surface": "solver-backed-exploration"

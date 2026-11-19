@@ -18311,6 +18311,12 @@ pub struct Interpreter {
     pub(crate) partial_cited: Option<partial::CitedFrames>,
     /// Set while a calculation case runs: the rule clauses that fired.
     fired: Option<RefCell<explain::FiredClauses>>,
+    /// Set by `PreparedEntry::probe`: every rule call that selected a
+    /// clause, with its arguments (`runa cases`).
+    rule_calls: Option<RefCell<Vec<explain::RuleCallRecord>>>,
+    /// Set by `runa cases --scenario`: the arguments of every call of the
+    /// named function.
+    call_capture: Option<(String, RefCell<Vec<Vec<Value>>>)>,
     /// Set by a calculation: finds the assumptions written on a rule clause.
     pub(crate) assumptions_of: Option<explain::AssumptionsOf>,
     /// How `query` runs: the prepared entries it asks and whether each query
@@ -18535,6 +18541,8 @@ impl Interpreter {
             open_inputs: open_inputs::RuntimeOpenInputs::default(),
             partial_cited: None,
             fired: None,
+            rule_calls: None,
+            call_capture: None,
             assumptions_of: None,
             query: query::QueryRuntime::default(),
             explain: None,
@@ -23417,7 +23425,9 @@ impl Interpreter {
                                         "  ✓ |{}| holds (value: {})",
                                         inv_name, subject_val
                                     );
-                                    println!("{}", msg);
+                                    if !self.suppress_output {
+                                        println!("{}", msg);
+                                    }
                                     self.output.push(msg);
                                 }
                             }
@@ -25183,6 +25193,11 @@ impl Interpreter {
                 ref body,
                 ref env,
             } => {
+                if let (Some((captured, calls)), Some(name)) = (&self.call_capture, name) {
+                    if captured == name {
+                        calls.borrow_mut().push(args.clone());
+                    }
+                }
                 let depth = self.runtime_function_call_depth.get();
                 if runtime_call_depth_exhausted(depth) {
                     return self.panic_or_ground_fail(runtime_recursion_limit_message(
@@ -29606,6 +29621,13 @@ impl Interpreter {
 
             break 'dispatch matched_false_clause.then_some(Value::Bool(false));
         };
+        if let (Some(calls), Some(_)) = (&self.rule_calls, &result) {
+            calls.borrow_mut().push(explain::RuleCallRecord {
+                family: family.clone(),
+                rule: produced_by.map(|index| dispatch.matching[index].0.clone()),
+                args: arg_vals.clone(),
+            });
+        }
         let result = match (result, produced_by) {
             (Some(value), Some(index)) if self.fired.is_some() => {
                 let rule = dispatch.matching[index].0.clone();

@@ -1,0 +1,8 @@
+-- A company's account over the 2025 ceiling, closed in the year.
+
+@ import ./levy.entry
+
+= company = small_levy(Case(year = 2025, owner = Owner(kind = Company, age = 40), account = Account(opened = Date(year = 2020, month = 3, day = 1), closed = Some(Date(year = 2025, month = 6, day = 30)), deposits = 150000)))
+| over_the_ceiling: company -> company.levy == 300 && company.closed_in_year && company.rate == 22
+
+? over_the_ceiling

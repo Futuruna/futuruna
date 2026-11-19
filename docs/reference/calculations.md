@@ -566,6 +566,64 @@ a rule on it (`map(scan(...), |cash| overdrawn(cash))`): that rule takes a
 scalar and is analyzed, cited and explained (see
 [Running state over a list](runes.md#running-state-over-a-list)).
 
+## Generate Conformance Cases
+
+```sh
+runa cases model.entry.runa --entry calculate_tax --out cases/generated
+runa cases model.entry.runa --entry calculate_tax --out cases/generated \
+    --seed cases/examples.json --scenario tests/model.scenario.runa
+```
+
+`runa cases` (Experimental) turns the model into a test oracle for another
+implementation of the same law: a directory of input/expected pairs that the
+implementation must reproduce, and a report of which rule clauses they
+exercise. The contract is [Conformance cases](../rfcs/conformance-cases.md).
+
+For every rule clause the entry reaches (the clause audit's clauses, imports
+included), it looks for an input that makes the clause fire; for every
+top-level comparison of two integers or two `Date`s in a clause's guard, it
+looks for inputs where the side that reads the rule's arguments is one below,
+equal to, and one above the other (one day for dates: `opened > Date(2024, 7, 1)`
+gives 30 June, 1 July and 2 July 2024). Inputs start from *bases*, complete inputs that already pass the
+entry's validation: the entry calls each `--scenario` file makes, the ready
+cases of each `--seed` input document (as `runa call` reads it), and a minimal
+input (`0`, `false`, `""`, `null`, `[]`, the first variant; a `Date`
+2000-01-01). Z3 solves the clause's guard over the rule's arguments, keeping
+the values a base's run passed where it can, and the input leaves those
+arguments come from (the explanation's provenance) are moved to the solution:
+set directly when an argument is an input value unchanged, searched when it is
+computed from integer inputs (an amount in øre from one in millionths of a
+krone), or filled in when an `Option` input is `null`. Clauses outside the SMT
+encoding are searched without a witness, around the inputs the rule reads.
+
+Each case is written to `DIR/<id>.case.json`:
+
+- `id`: `<rule>.<clause>.clause`, `<rule>.<clause>.t<k>.boundary-below` (or
+  `-at`, `-above`), `seed.<case_id>`, or `scenario.<file>.<n>`. `<clause>` is
+  an exception's label or `clause-<n>`, its position in the family's source
+  order. Ids never hash values, so they are the same on every run.
+- `entry`, `kind` (`clause`, `boundary-below`, `boundary-at`,
+  `boundary-above`, `scenario`), `input` (a complete input) and `expected`
+  (the `result` `runa call` gives for it).
+- `covers`: each clause the case's run fired, with `rule`, `clause`,
+  `location` (relative to the entry file's directory) and `cites` (the cited
+  paragraphs). It is read from the run, never assumed from the search.
+
+`DIR/coverage.json` lists every clause with the cases that cover it, and for
+an uncovered one a `reason`: `unreachable` (the audit proved it never fires),
+`not-analysable` (its guard is outside the SMT encoding, with the audit's
+reason), `solver-unknown`, or `no-entry-input` (no input the search tried
+reached it; with the rule-level `witness` when Z3 found one, which says what a
+scenario must set up). `thresholds` names the case of each side of each
+threshold, or `null`. The command prints the summary,
+`runa cases: N of M rule clauses covered; ...`. Earlier `*.case.json` files
+in `DIR` that this run does not write are removed.
+
+Arguments derived from lists through `foldl` or `scan`, or rejected by the
+entry's validation before the rule runs, are often not reached by moving one
+input leaf: such clauses are reported `no-entry-input`, and a scenario that
+sets them up covers them.
+
 ## Generate Input
 
 ```sh

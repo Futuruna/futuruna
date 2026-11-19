@@ -1,0 +1,88 @@
+-- A small law for `runa cases`: a deposit ceiling that rises in 2025, a
+-- rate by the kind and age of the owner, an account that may close during
+-- the year, and a late opening.
+
+# SourceInfo(file: String)
+# impl Document for SourceInfo {}
+= law = SourceInfo(file = "sources/law.txt")
+
+# Date(year: Int, month: Int, day: Int)
+
+# Kind = Person | Company
+
+# Owner(kind: Kind, age: Int)
+
+# Account(opened: Date, closed: Date?, deposits: Int)
+
+# Case(year: Int, owner: Owner, account: Account)
+
+# Outcome(levy: Int, rate: Int, closed_in_year: Bool, late: Bool)
+
+@ section levy {
+
+@ quote(law)
+----
+§ 9. Der betales ikke afgift af indskud op til loftet.
+
+Stk. 2. Af indskud over loftet betales en afgift på 1 pct.
+
+Stk. 3. Loftet er 100.000 kr., fra 2025 120.000 kr.
+----
+
+@ cite(§ 9)
+| levy(deposits: Int, ceiling: Int): Int -> 0
+@ cite(§ 9, stk. 2)
+| exception over levy(deposits, ceiling) -> (deposits - ceiling) / 100 under deposits > ceiling
+
+@ cite(§ 9, stk. 3)
+| ceiling(year: Int): Int -> 100000
+@ cite(§ 9, stk. 3)
+| exception later ceiling(year) -> 120000 under year >= 2025
+
+}
+
+@ section rate {
+
+@ quote(law)
+----
+§ 10. Satsen er 17 pct.
+
+Stk. 2. For selskaber er satsen 22 pct.
+
+Stk. 3. For personer under 18 år er satsen 10 pct.
+----
+
+@ cite(§ 10)
+| rate(kind: Kind, age: Int): Int -> 17
+@ cite(§ 10, stk. 2)
+| exception company rate(Company, age) -> 22
+@ cite(§ 10, stk. 3)
+| exception young rate(Person, age) -> 10 under age < 18
+
+}
+
+@ section closing {
+
+@ quote(law)
+----
+§ 11. En konto, der lukkes i året, beskattes som lukket.
+
+Stk. 2. En konto oprettet efter den 1. juli 2024 er sent oprettet.
+----
+
+@ cite(§ 11)
+| closed_in(year: Int, closed: Date?): Bool -> False
+@ cite(§ 11)
+| exception closed closed_in(year, Some(day)) -> True under day.year == year
+
+@ cite(§ 11, stk. 2)
+| late(opened: Date): Bool -> False
+@ cite(§ 11, stk. 2)
+| exception after late(opened) -> True under opened > Date(year = 2024, month = 7, day = 1)
+
+}
+
+@ entry("A small levy")
+> small_levy(c: Case) -> Outcome {
+    Outcome(levy = levy(c.account.deposits, ceiling(c.year)), rate = rate(c.owner.kind, c.owner.age), closed_in_year = closed_in(c.year, c.account.closed), late = late(c.account.opened))
+}
