@@ -822,7 +822,7 @@ impl CaseCatalogue {
                     };
                     let field_term = format!(
                         "({} {})",
-                        smt_field_function(&smt_field_key(variant, index)),
+                        smt_field_function(&smt_constructor_field_key(&variant.name, index)),
                         term
                     );
                     let field_ty = smt_substitute_type(&field.ty, parameters, &arguments);
