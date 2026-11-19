@@ -155,6 +155,7 @@ return the error from the enclosing function, or `match` on `Ok`/`Err`.
 | `map` | `(List(a), a -> b) -> List(b)` | Transform each element |
 | `filter` | `(List(a), a -> Bool) -> List(a)` | Keep elements matching predicate |
 | `foldl` | `(List(a), b, (b, a) -> b) -> b` | Left fold |
+| `scan` | `(List(a), b, (b, a) -> b) -> List(b)` | Accumulator after each element (same length as the list) |
 | `range` | `(Int, Int) -> List(Int)` | Range `[start, end)` |
 
 ```runa
@@ -168,6 +169,7 @@ return the error from the enclosing function, or `match` on `Ok`/`Err`.
 = doubled = map(xs, |x| x * 2)        -- [6, 2, 8, 2, 10]
 = big = filter(xs, |x| x > 2)         -- [3, 4, 5]
 = total = foldl(xs, 0, |acc, x| acc + x)  -- 14
+= running = scan(xs, 0, |acc, x| acc + x)  -- [3, 4, 8, 9, 14]
 = nums = range(1, 5)                   -- [1, 2, 3, 4]
 ```
 

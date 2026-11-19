@@ -425,6 +425,7 @@ For the complete standard library with all ~70 builtins, see [stdlib.md](stdlib.
 | `map` | `(List(a), a -> b) -> List(b)` | Map function |
 | `filter` | `(List(a), a -> Bool) -> List(a)` | Filter |
 | `foldl` | `(List(a), b, (b, a) -> b) -> b` | Left fold |
+| `scan` | `(List(a), b, (b, a) -> b) -> List(b)` | Accumulator after each element |
 | `range` | `(Int, Int) -> List(Int)` | Range `[start, end)` |
 
 ### Math

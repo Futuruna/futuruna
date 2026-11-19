@@ -1792,6 +1792,7 @@ fn builtin_is_total(name: &str) -> bool {
             | "map"
             | "filter"
             | "foldl"
+            | "scan"
             | "any"
             | "all"
             | "find"

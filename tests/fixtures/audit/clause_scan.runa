@@ -1,0 +1,10 @@
+-- A running balance is a scan over the bookings; each booking is decided by
+-- a rule on its balance, which the audit analyzes. A guard that scans a list
+-- itself is not analyzed: the SMT encoding does not represent lists.
+| overdrawn(cash: Int): Bool -> False
+| exception short overdrawn(cash) -> True under cash < 0
+
+| ever_short(bookings: List(Int), opening: Int): Bool -> False
+| exception short ever_short(bookings, opening) -> True under any(scan(bookings, opening, |cash, amount| cash + amount), |cash| cash < 0)
+
+| flags(bookings: List(Int), opening: Int) -> map(scan(bookings, opening, |cash, amount| cash + amount), |cash| overdrawn(cash))

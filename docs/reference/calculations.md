@@ -557,6 +557,15 @@ list clauses with the reason the solver encoding could not decide them;
 decided, for example because one of their guards is not translatable. Findings
 are informational and do not change the exit status of `runa audit`.
 
+The encoding does not represent lists, so a clause whose rule takes a `List`
+(a guard that folds or scans the bookings itself) is in `not_analyzed` with
+the reason ``parameter `bookings` has type `List(Booking)`, which the SMT
+encoding does not represent``. Compute the running state with
+`scan(bookings, opening, step)` in the calculation and decide each state with
+a rule on it (`map(scan(...), |cash| overdrawn(cash))`): that rule takes a
+scalar and is analyzed, cited and explained (see
+[Running state over a list](runes.md#running-state-over-a-list)).
+
 ## Generate Input
 
 ```sh

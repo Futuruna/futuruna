@@ -582,6 +582,25 @@ parameter annotation. Invalid guards still stop evaluation. This runtime
 fallback does not establish parameter types or authorize a proof: verification
 and exploration retain their separate checking requirements.
 
+### Running state over a list
+```runa
+# Booking(amount: Int, deposit: Bool)
+| signed(b: Booking) -> if b.deposit { b.amount } else { 0 - b.amount }
+| overdrawn(cash: Int): Bool -> False
+| exception short overdrawn(cash) -> True under cash < 0
+| overdrafts(bookings: List(Booking), opening: Int) -> map(scan(bookings, opening, |cash, b| cash + signed(b)), |cash| overdrawn(cash))
+```
+
+`scan(list, start, step)` is the state after each element: a list as long as
+`list`, whose last element is `foldl(list, start, step)` (`[]` for `[]`). It
+is the same `scan` as on a stream, with the same argument order; a stream
+gives a stream (see [streams.md](streams.md)). The state's type is the start's,
+and a start written as a number takes the unit its step brings in, as for
+`foldl` (see [Unit](#unit)). Write the decision on each state as a rule, as
+`overdrawn` above: the rule is cited, explained and audited like any other,
+while a guard that folds or scans a list itself is not analyzed by `runa
+verify` or `runa audit`, which do not represent lists.
+
 ### Declared result types (Experimental)
 ```runa
 | days_in_month(year: Int, month: Int): Int -> 31

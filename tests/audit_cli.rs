@@ -909,6 +909,28 @@ fn clause_audit_analyses_tuple_matches() {
     assert!(!stdout.contains("in state/2"), "{stdout}");
 }
 
+/// The rule that decides each running state of a `scan` takes a scalar and is
+/// analysed; a guard that scans a list itself is not, and says why.
+#[test]
+fn clause_audit_analyses_rules_on_scanned_states() {
+    let fixture = topology_fixture("clause_scan.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("3 rule families, 3 clauses: 2 analyzed, 1 not analyzed"),
+        "{stdout}"
+    );
+    let not_analyzed = finding_block(&stdout, "Not analyzed (reachability unknown):");
+    assert!(
+        not_analyzed.contains("clause_scan.runa:8 in ever_short/2: guard not translatable: parameter `bookings` has type `List(Int)`, which the SMT encoding does not represent"),
+        "{not_analyzed}"
+    );
+    assert!(!not_analyzed.contains("overdrawn/1"), "{not_analyzed}");
+}
+
 /// A family whose clause heads match every variant has no gap.
 #[test]
 fn clause_audit_reads_constructor_heads_as_total() {

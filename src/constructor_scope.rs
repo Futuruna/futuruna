@@ -2289,6 +2289,15 @@ impl ConstructorScopeWalk<'_> {
                         .map(Expect::Type)
                         .unwrap_or_else(Expect::none),
                 )),
+                // `scan` gives the accumulator after each element: its
+                // callback's accumulator is the expected list's element.
+                ("scan", 2, 3) => Some((
+                    vec![result_element.clone(), collection_element.clone()],
+                    result_element
+                        .clone()
+                        .map(Expect::Type)
+                        .unwrap_or_else(Expect::none),
+                )),
                 _ => None,
             }
         };
@@ -2317,6 +2326,7 @@ impl ConstructorScopeWalk<'_> {
                 "concat" | "append" => expect.ty().filter(|_| result_element.is_some()).cloned(),
                 "push" | "contains" | "prepend" if index == 1 => collection_element.clone(),
                 "foldl" | "fold" if index == 1 => expect.ty().cloned(),
+                "scan" if index == 1 => result_element.clone(),
                 _ => None,
             };
             let expect = match (special, &parameters) {

@@ -1,0 +1,15 @@
+-- expect-command: verify
+-- expect-status: fail
+-- expect-stdout: ? SMT fallback skipped: function `prefix_sums` calls unsupported function `scan`
+-- expect-stdout: ? SMT fallback skipped: function `folded` calls unsupported function `foldl`
+-- expect-stdout: PROVED: |overdrawn_below_zero|
+-- The SMT encoding does not represent lists: a claim on `scan`, as one on
+-- `foldl`, is reported unsupported, not proved. The rule that decides each
+-- running state takes a scalar and is proved.
+> prefix_sums(a: Int, b: Int) -> Bool { scan([a, b], 0, |cash, x| cash + x) == [a, a + b] }
+> folded(a: Int, b: Int) -> Int { foldl([a, b], 0, |cash, x| cash + x) }
+| overdrawn(cash: Int): Bool -> False
+| exception short overdrawn(cash) -> True under cash < 0
+| scan_gives_prefix_sums: prefix_sums(a, b) -> prefix_sums(a, b)
+| folded_is_sum: folded(a, b) -> folded(a, b) == a + b
+| overdrawn_below_zero: overdrawn(c) -> overdrawn(c) == (c < 0)

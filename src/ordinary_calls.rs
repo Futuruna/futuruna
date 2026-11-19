@@ -687,7 +687,7 @@ impl TypeChecker {
                 | "drop_while" | "partition",
                 2,
             ) => (1, 1, 0),
-            ("foldl", 3) => (2, 2, 1),
+            ("foldl" | "scan", 3) => (2, 2, 1),
             _ => return None,
         };
         let ExprKind::Lambda(parameters, _) = &arguments[callback_index].kind else {
@@ -708,7 +708,7 @@ impl TypeChecker {
             .filter(|element| Self::is_concrete_type_name(element));
         let mut types = vec![None; arity];
         types[element_index] = element;
-        if name == "foldl" {
+        if matches!(name, "foldl" | "scan") {
             types[0] = self.fold_accumulator_type(arguments);
         }
         types

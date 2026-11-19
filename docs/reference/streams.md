@@ -80,6 +80,9 @@ All stream operators take the stream as the first argument. Use directly or with
 -- emits: [1, 3, 6, 10, 15]
 ```
 
+The same `scan` over a list is a list: `scan([1, 2, 3], 0, |acc, x| acc + x)`
+is `[1, 3, 6]` (see [List operations](stdlib.md)).
+
 ### Combination
 
 | Operator | Signature | Description |

@@ -25394,7 +25394,7 @@ impl Interpreter {
                     || matches!(value, Value::Constructor(name, _) if name == "Cons" || name == "Nil")
             };
             let pure_eager_collection_overload = match name {
-                "last" | "take" => args.first().is_some_and(list_shaped),
+                "last" | "take" | "scan" => args.first().is_some_and(list_shaped),
                 "collect" => args
                     .first()
                     .is_some_and(|value| matches!(value, Value::Stream(_)) || list_shaped(value)),
@@ -27202,13 +27202,15 @@ impl Interpreter {
             // Colliding s_* handlers removed — merged into polymorphic list handlers above
             // (map, filter, any, all, flat_map, zip, enumerate, distinct)
             "scan" => {
-                // scan(stream, init, f) → Stream — running fold, emitting each accumulator
-                let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
+                // scan(collection, init, f): a running fold, the accumulator
+                // after each element. A list gives a list of the same length,
+                // a stream a stream.
+                let collection = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let init = args.get(1).cloned().unwrap_or(Value::Int(0));
                 let func = args.get(2).cloned().unwrap_or(Value::Unit);
-                let items = match stream {
-                    Value::Stream(items) => items,
-                    other => list_to_vec(&other),
+                let (items, is_stream) = match collection {
+                    Value::Stream(items) => (items, true),
+                    other => (list_to_vec(&other), false),
                 };
                 let mut acc = init;
                 let mut results = Vec::new();
@@ -27221,7 +27223,11 @@ impl Interpreter {
                     );
                     results.push(acc.clone());
                 }
-                Value::Stream(results)
+                if is_stream {
+                    Value::Stream(results)
+                } else {
+                    Value::List(results)
+                }
             }
             "merge" => {
                 // merge(stream1, stream2) → Stream — interleave two streams
@@ -39562,7 +39568,9 @@ impl<'a, 'index> CheckedExploreSemanticClosure<'a, 'index> {
                 static IMPURE_RUNTIME_NAMES: OnceLock<BTreeSet<String>> = OnceLock::new();
                 let impure = IMPURE_RUNTIME_NAMES.get_or_init(meta_impure_runtime_names);
                 let pure_eager_collection_overload = match canonical_name.as_ref() {
-                    "last" | "take" => self.checked_argument_has_container_type(site, 0, &["List"]),
+                    "last" | "take" | "scan" => {
+                        self.checked_argument_has_container_type(site, 0, &["List"])
+                    }
                     "collect" => {
                         self.checked_argument_has_container_type(site, 0, &["List", "Stream"])
                     }
@@ -55077,25 +55085,46 @@ impl TypeChecker {
                     // This is an exact higher-order builtin law, not a guess
                     // from the callback body, and lets Explore validate pure
                     // corpus helpers without expanding their finite inputs.
-                    if name == "foldl" && args.len() == 3 {
-                        if let Some(unit) =
-                            self.unit_of_literal_fold(args, locals, active_rule_scope)
-                        {
-                            return Some(unit);
+                    // `scan` returns the accumulator after each element: a
+                    // list of it for a list, a stream of it for a stream.
+                    if (name == "foldl" || name == "scan") && args.len() == 3 {
+                        let accumulator = self
+                            .unit_of_literal_fold(args, locals, active_rule_scope)
+                            .or_else(|| {
+                                self.infer_expr_type_name_with_locals_in_scope(
+                                    &args[1],
+                                    locals,
+                                    active_rule_scope,
+                                )
+                            })
+                            .or_else(|| {
+                                if !Self::is_polymorphic_empty_list_expr(&args[1]) {
+                                    return None;
+                                }
+                                let ExprKind::Lambda(params, _) = &args[2].kind else {
+                                    return None;
+                                };
+                                if params.len() != 2 {
+                                    return None;
+                                }
+                                params[0].ty.as_ref().and_then(Self::type_name_from_ty)
+                            });
+                        if name == "foldl" {
+                            return accumulator;
                         }
-                        if let Some(initial_type) = self.infer_expr_type_name_with_locals_in_scope(
-                            &args[1],
+                        let accumulator = accumulator?;
+                        let collection_type = self.infer_expr_type_name_with_locals_in_scope(
+                            &args[0],
                             locals,
                             active_rule_scope,
-                        ) {
-                            return Some(initial_type);
+                        )?;
+                        if Self::applied_type_argument(&collection_type, "List", 0).is_some() {
+                            return Some(format!("List({accumulator})"));
                         }
-                        if Self::is_polymorphic_empty_list_expr(&args[1]) {
-                            if let ExprKind::Lambda(params, _) = &args[2].kind {
-                                if params.len() == 2 {
-                                    return params[0].ty.as_ref().and_then(Self::type_name_from_ty);
-                                }
-                            }
+                        if ["Stream", "Subject"].into_iter().any(|constructor| {
+                            Self::applied_type_argument(&collection_type, constructor, 0).is_some()
+                        }) {
+                            return Some(format!("Stream({accumulator})"));
                         }
                         return None;
                     }
@@ -61078,7 +61107,7 @@ impl TypeChecker {
                 continue;
             }
             if (impure_names.contains(&call.name)
-                && !matches!(call.name.as_str(), "last" | "take" | "collect"))
+                && !matches!(call.name.as_str(), "last" | "take" | "scan" | "collect"))
                 || effect_operations.contains(&call.name)
                 || matches!(call.name.as_str(), "findall" | "search")
             {

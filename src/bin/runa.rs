@@ -25377,8 +25377,8 @@ fn lsp_builtin_doc(name: &str) -> Option<(&'static str, &'static str)> {
             "Left fold over a list",
         )),
         "scan" => Some((
-            "~ scan(stream, init, f) -> Stream",
-            "Running accumulator over stream values",
+            "> scan(list, init, f: (acc, x) -> acc) -> [acc]",
+            "Accumulator after each element (a stream gives a stream)",
         )),
         "merge" => Some(("~ merge(s1, s2) -> Stream", "Merge two streams")),
         "take" => Some(("> take(list, n: Int) -> [a]", "Take first n elements")),
@@ -29948,7 +29948,13 @@ impl<'a> LoweringCtx<'a> {
                             ty,
                         };
                     }
-                    if fn_name == "foldl" && fir_args.len() >= 2 {
+                    // `scan` over a list is a list of the accumulator after
+                    // each element; `foldl` is the last of them.
+                    let scan_over_list = fn_name == "scan"
+                        && fir_args.len() >= 2
+                        && matches!(fir_args[0].ty, FirTy::List(_))
+                        && !self.types.user_functions.contains(fn_name.as_str());
+                    if (fn_name == "foldl" || scan_over_list) && fir_args.len() >= 2 {
                         let mut accumulator_ty = fir_args[1].ty.clone();
                         if let Some(callback) = fir_args.get(2) {
                             if let FirTy::Arrow(callback_accumulator, callback_rest) = &callback.ty
@@ -29962,6 +29968,9 @@ impl<'a> LoweringCtx<'a> {
                                 accumulator_ty =
                                     FirTy::merge_information(&accumulator_ty, callback_return);
                             }
+                        }
+                        if scan_over_list {
+                            accumulator_ty = FirTy::List(Box::new(accumulator_ty));
                         }
                         return FirExpr {
                             kind: FirExprKind::App(Box::new(fir_func), fir_args.clone()),
@@ -54121,7 +54130,7 @@ fn __futuruna_install_error_hook() {
                             };
                         }
                     }
-                    if matches!(name.as_str(), "foldl" | "reduce")
+                    if matches!(name.as_str(), "foldl" | "reduce" | "scan")
                         && args.len() == 3
                         && !self.types.user_functions.contains(name.as_str())
                         && self.is_direct_function_value(&args[2], 2)
@@ -54135,13 +54144,19 @@ fn __futuruna_install_error_hook() {
                                 .unwrap();
                             let coll = self.emit_expr(&args[0]);
                             let init = self.emit_expr(&args[1]);
+                            if name == "scan" {
+                                return format!(
+                                    "__futuruna_scan({}.clone(), {}, |__acc, __x| {})",
+                                    coll, init, step
+                                );
+                            }
                             return format!(
                                 "{}.clone().into_iter().fold({}, |__acc, __x| {})",
                                 coll, init, step
                             );
                         }
                     }
-                    if name == "foldl"
+                    if matches!(name.as_str(), "foldl" | "scan")
                         && args.len() == 3
                         && !self.types.user_functions.contains(name.as_str())
                     {
@@ -54185,6 +54200,12 @@ fn __futuruna_install_error_hook() {
                                 .map(|(p, ty)| self.emit_lambda_param_decl(&p.name, ty))
                                 .collect::<Vec<_>>()
                                 .join(", ");
+                            if name == "scan" {
+                                return format!(
+                                    "__futuruna_scan({}.clone(), {}, |{}| {})",
+                                    coll, init, closure_params, body_code
+                                );
+                            }
                             return format!(
                                 "{}.clone().into_iter().fold({}, |{}| {})",
                                 coll, init, closure_params, body_code

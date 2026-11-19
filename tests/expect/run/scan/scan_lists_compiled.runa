@@ -1,0 +1,30 @@
+-- expect-command: run
+-- expect-stdout-file: ../../golden/run/scan_lists.stdout
+-- `scan(list, start, step)` is the accumulator after each element: a list of
+-- the same length, whose last element is `foldl`'s result.
+# Event(amount: Int, deposit: Bool)
+
+> signed(e: Event) -> Int {
+    if e.deposit { e.amount } else { 0 - e.amount }
+}
+
+> cash_after(events: List(Event), opening: Int) -> List(Int) {
+    scan(events, opening, |cash, e| cash + signed(e))
+}
+
+> add(total: Int, n: Int) -> Int { total + n }
+
+= events = [
+    Event(amount = 100, deposit = True),
+    Event(amount = 150, deposit = False),
+    Event(amount = 80, deposit = True),
+]
+= balances = cash_after(events, 20)
+
+@ print(show(balances))
+@ print(show(length(balances)) + " " + show(length(events)))
+@ print(show(foldl(events, 20, |cash, e| cash + signed(e))))
+@ print(show(map(balances, |cash| cash < 0)))
+@ print(show(scan([], 7, |total, n| total + n)))
+@ print(show(scan(["a", "b", "c"], "", |text, s| text + s)))
+@ print(show(scan([1, 2, 3], 0, add)))
