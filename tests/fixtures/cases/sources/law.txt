@@ -15,3 +15,17 @@ Stk. 3. For personer under 18 år er satsen 10 pct.
 § 11. En konto, der lukkes i året, beskattes som lukket.
 
 Stk. 2. En konto oprettet efter den 1. juli 2024 er sent oprettet.
+
+§ 12. Af en hævning over 5.000 kr. betales et gebyr på 1 pct.
+
+Stk. 2. En bog med over 1.000 enheder afvises.
+
+Stk. 3. En bog med over 2.000 enheder giver en bonus på 1.
+
+§ 13. Af et beløb over 100 kr. betales et gebyr på 1 kr.
+
+Stk. 2. Et negativt beløb afvises.
+
+§ 14. En betaling den 30. eller 31. i måneden giver et tillæg på 5 kr.
+
+§ 15. Af en overførsel over 9.007.199.254.740.991 øre betales et gebyr på 1 øre.

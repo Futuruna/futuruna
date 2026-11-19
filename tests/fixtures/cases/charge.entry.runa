@@ -1,13 +1,32 @@
 -- A charge whose result is the prelude's Result: Err is a rejection with no
 -- --rejected flag.
 
+# SourceInfo(file: String)
+# impl Document for SourceInfo {}
+= law = SourceInfo(file = "sources/law.txt")
+
 # Case(amount: Int)
 
+@ section charge {
+
+@ quote(law)
+----
+§ 13. Af et beløb over 100 kr. betales et gebyr på 1 kr.
+
+Stk. 2. Et negativt beløb afvises.
+----
+
+@ cite(§ 13)
 | fee(amount: Int): Int -> 0
+@ cite(§ 13)
 | exception big fee(amount) -> 1 under amount > 100
 
+@ cite(§ 13, stk. 2)
 | valid(amount: Int): Bool -> True
+@ cite(§ 13, stk. 2)
 | exception negative valid(amount) -> False under amount < 0
+
+}
 
 @ entry
 > charge(c: Case) -> Result(Int, String) {

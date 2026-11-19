@@ -1,7 +1,7 @@
 //! `runa cases` on small laws: a ceiling threshold, an age threshold, a
 //! date threshold, an `Option` head and a constructor head; rejected
-//! results, new list elements, the minimal seed, and the input domain
-//! (`docs/rfcs/conformance-cases.md`).
+//! results, technical rejections of uncited clauses, new list elements, the
+//! minimal seed, and the input domain (`docs/rfcs/conformance-cases.md`).
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -148,11 +148,27 @@ fn cases_cover_every_clause_and_both_sides_of_each_threshold() {
     }
     let (cases, coverage, stdout) = generate("levy", true);
     assert!(
-        stdout.starts_with("runa cases: 9 of 9 rule clauses covered;"),
+        stdout.starts_with("runa cases: cited rule clauses: 9 of 9 covered;"),
         "{}",
         stdout
     );
-    assert_eq!(coverage["summary"], "9 of 9 rule clauses covered");
+    assert!(
+        stdout.trim_end().ends_with(
+            "; uncited rule clauses: 0 of 0 covered; technical rejections not in the suite: 0"
+        ),
+        "{}",
+        stdout
+    );
+    assert_eq!(coverage["summary"], "cited rule clauses: 9 of 9 covered");
+    assert_eq!(
+        coverage["cited"],
+        serde_json::json!({ "covered": 9, "clauses": 9 })
+    );
+    assert_eq!(
+        coverage["uncited"],
+        serde_json::json!({ "covered": 0, "clauses": 0 })
+    );
+    assert_eq!(coverage["technical"], serde_json::json!([]));
     assert!(!cases.contains_key("old"), "a stale case file is removed");
 
     // Every case: entry, a complete input, the result, what it covers.
@@ -324,6 +340,94 @@ fn a_rejected_case_covers_only_the_clauses_its_rejection_rests_on() {
     }
 }
 
+#[test]
+fn a_rejection_resting_only_on_uncited_clauses_is_technical_and_not_a_case() {
+    if !z3_available() {
+        eprintln!("skipping: z3 is not installed");
+        return;
+    }
+    let generated = generate_ledger("technical");
+    let (cases, coverage) = (&generated.cases, &generated.coverage);
+    // The fee, the units ceiling and the bonus cite § 12; the positive
+    // amount cites nothing.
+    assert_eq!(
+        coverage["summary"], "cited rule clauses: 5 of 6 covered",
+        "{}",
+        coverage
+    );
+    assert_eq!(
+        coverage["uncited"],
+        serde_json::json!({ "covered": 1, "clauses": 2 })
+    );
+    assert!(
+        generated
+            .stdout
+            .contains("; uncited rule clauses: 1 of 2 covered; "),
+        "{}",
+        generated.stdout
+    );
+    // Every rejected case rests on a cited clause.
+    for case in cases.values().filter(|case| case["kind"] == "rejected") {
+        assert!(
+            case["covers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|cover| !cover["cites"].as_array().unwrap().is_empty()),
+            "{}",
+            case
+        );
+        assert!(!covers(case, "amount_valid", "not_positive"), "{}", case);
+    }
+    // An amount that is not positive is refused only by the uncited check:
+    // listed as technical with the clause it rests on, and no case.
+    let not_positive = clause(coverage, "amount_valid", "not_positive");
+    assert_eq!(
+        not_positive["covered_by"],
+        serde_json::json!([]),
+        "{}",
+        not_positive
+    );
+    assert_eq!(not_positive["reason"], "technical", "{}", not_positive);
+    let technical = coverage["technical"].as_array().expect("technical");
+    let rejection = technical
+        .iter()
+        .find(|rejection| rejection["id"] == "amount_valid.not_positive.clause")
+        .unwrap_or_else(|| panic!("{:#?}", technical));
+    assert_eq!(rejection["searched_as"], "clause");
+    let rests_on = rejection["rests_on"].as_array().expect("rests_on");
+    assert_eq!(rests_on.len(), 1, "{}", rejection);
+    assert_eq!(rests_on[0]["rule"], "amount_valid");
+    assert_eq!(rests_on[0]["clause"], "not_positive");
+    assert!(rests_on[0]["location"]
+        .as_str()
+        .unwrap()
+        .starts_with("ledger.entry.runa:"));
+    assert!(!cases.contains_key("amount_valid.not_positive.clause"));
+    assert!(
+        generated.stdout.contains(&format!(
+            "; technical rejections not in the suite: {}",
+            technical.len()
+        )),
+        "{}",
+        generated.stdout
+    );
+    // Only the guards of cited clauses have boundaries.
+    let thresholds = coverage["thresholds"].as_array().expect("thresholds");
+    assert!(
+        thresholds
+            .iter()
+            .all(|threshold| threshold["rule"] != "amount_valid"),
+        "{:#?}",
+        thresholds
+    );
+    assert!(
+        !cases.keys().any(|id| id.starts_with("amount_valid.")),
+        "{:#?}",
+        cases.keys()
+    );
+}
+
 /// The case of one side of a clause's first threshold, as coverage.json
 /// names it.
 fn threshold_case<'a>(generated: &'a Generated, rule: &str, key: &str, side: &str) -> &'a Value {
@@ -480,15 +584,25 @@ fn a_clause_that_needs_an_amount_beyond_2_53_is_outside_the_input_domain() {
     const SAFE: i64 = (1 << 53) - 1;
     let generated = generate_with("transfer", &["transfer.entry.runa"], false);
     let coverage = &generated.coverage;
-    assert_eq!(coverage["summary"], "1 of 2 rule clauses covered", "{}", coverage);
+    assert_eq!(
+        coverage["summary"], "cited rule clauses: 1 of 2 covered",
+        "{}",
+        coverage
+    );
     let huge = clause(coverage, "fee", "huge");
     assert_eq!(huge["covered_by"], serde_json::json!([]), "{}", huge);
     assert_eq!(huge["reason"], "outside-input-domain", "{}", huge);
-    assert!(huge["witness"]["amount"].as_i64().unwrap() > SAFE, "{}", huge);
+    assert!(
+        huge["witness"]["amount"].as_i64().unwrap() > SAFE,
+        "{}",
+        huge
+    );
     // Below and at the bound an integrator can send; above it not.
     let bound = threshold(coverage, "fee", "huge");
     let amount = |side: &str| {
-        let id = bound[side].as_str().unwrap_or_else(|| panic!("{} of {}", side, bound));
+        let id = bound[side]
+            .as_str()
+            .unwrap_or_else(|| panic!("{} of {}", side, bound));
         generated.cases[id]["input"]["amount"].as_i64().unwrap()
     };
     assert_eq!((amount("below"), amount("at")), (SAFE - 1, SAFE));
@@ -502,7 +616,11 @@ fn a_clause_that_needs_an_amount_beyond_2_53_is_outside_the_input_domain() {
         bound
     );
     for case in generated.cases.values() {
-        assert!(case["input"]["amount"].as_i64().unwrap().abs() <= SAFE, "{}", case);
+        assert!(
+            case["input"]["amount"].as_i64().unwrap().abs() <= SAFE,
+            "{}",
+            case
+        );
         assert!(case["expected"].as_i64().unwrap().abs() <= SAFE, "{}", case);
     }
 }
@@ -519,7 +637,11 @@ fn a_date_guard_near_month_ends_gives_only_days_on_the_calendar() {
         false,
     );
     let coverage = &generated.coverage;
-    assert_eq!(coverage["summary"], "2 of 2 rule clauses covered", "{}", coverage);
+    assert_eq!(
+        coverage["summary"], "cited rule clauses: 2 of 2 covered",
+        "{}",
+        coverage
+    );
     for case in generated.cases.values() {
         assert!(on_calendar(&case["input"]["paid"]), "{}", case);
     }
@@ -527,9 +649,16 @@ fn a_date_guard_near_month_ends_gives_only_days_on_the_calendar() {
     // months, or of a leap year.
     let bound = threshold(coverage, "surcharge", "month_end");
     for (side, day) in [("below", 29), ("at", 30), ("above", 31)] {
-        let id = bound[side].as_str().unwrap_or_else(|| panic!("{} of {}", side, bound));
+        let id = bound[side]
+            .as_str()
+            .unwrap_or_else(|| panic!("{} of {}", side, bound));
         let case = &generated.cases[id];
         assert_eq!(case["input"]["paid"]["day"], day, "{}", case);
-        assert_eq!(covers(case, "surcharge", "month_end"), day >= 30, "{}", case);
+        assert_eq!(
+            covers(case, "surcharge", "month_end"),
+            day >= 30,
+            "{}",
+            case
+        );
     }
 }

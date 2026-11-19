@@ -582,7 +582,8 @@ exercise. The contract is [Conformance cases](../rfcs/conformance-cases.md).
 
 For every rule clause the entry reaches (the clause audit's clauses, imports
 included), it looks for an input that makes the clause fire; for every
-top-level comparison of two integers or two `Date`s in a clause's guard, it
+top-level comparison of two integers or two `Date`s in the guard of a cited
+clause (one with `@ cite`), it
 looks for inputs where the side that reads the rule's arguments is one below,
 equal to, and one above the other (one day for dates: `opened > Date(2024, 7, 1)`
 gives 30 June, 1 July and 2 July 2024). Inputs start from *bases*, complete inputs that already pass the
@@ -618,6 +619,15 @@ guards, through the explanation's provenance) are its `covers`. A boundary
 case whose result is a rejection is kept only when the rejection rests on the
 threshold's rule.
 
+**The law is the cited clauses.** The suite tests the law, the rule clauses
+with `@ cite`; a clause without one (an overflow guard, a bound of a
+parameter table) is a technical check of the implementation. A rejected
+result is a case only when a cited clause is on the path the rejection
+rests on. A rejection that rests only on uncited clauses is not written:
+`coverage.json` lists it under `technical`, with the id its case would have
+had, the kind it was searched as (`searched_as`) and the clauses it rests on
+(`rests_on`). Only the guards of cited clauses get boundary cases.
+
 **The input domain.** Every case is an input an integrator can send through
 the SDK `runa sdk ts` generates, with a result the SDK can hold: an `Int`
 (of a unit or a named scalar type too) within ±(2^53 − 1), and a `Date` a
@@ -648,17 +658,22 @@ Each case is written to `DIR/<id>.case.json`:
 an uncovered one a `reason`: `unreachable` (the audit proved it never fires),
 `not-analysable` (its guard is outside the SMT encoding, with the audit's
 reason), `solver-unknown`, `rejected` (it fired only in inputs the entry
-rejects, and no rejection rests on it), `outside-input-domain` (only an
+rejects, and no rejection rests on it), `technical` (an uncited clause only
+technical rejections rest on), `outside-input-domain` (only an
 input outside the input domain fires it, with the `witness` Z3 found
 outside it), or `no-entry-input` (no input the search tried reached it; with
 the rule-level `witness` when Z3 found one, which says what a scenario must
-set up). `thresholds` names the case of each
-side of each threshold, or `null`; `rejections` the variants counted as
+set up). `summary` is `cited rule clauses: X of Y covered`; `cited` and
+`uncited` count the cited and the uncited clauses (`covered`, `clauses`).
+`thresholds` names the case of each side of each threshold of a cited
+clause, or `null`; `rejections` the variants counted as
 rejections; `cases` the number of cases of each kind (`clause`, `boundary`,
-`scenario`, `rejected`). The command prints the summary,
-`runa cases: N of M rule clauses covered; K cases (… clause, … boundary, …
-scenario, … rejected) in DIR`. Earlier `*.case.json` files in `DIR` that this
-run does not write are removed.
+`scenario`, `rejected`); `technical` the rejections left out. The command
+prints the summary,
+`runa cases: cited rule clauses: X of Y covered; K cases (… clause, …
+boundary, … scenario, … rejected) in DIR; uncited rule clauses: A of B
+covered; technical rejections not in the suite: T`. Earlier `*.case.json`
+files in `DIR` that this run does not write are removed.
 
 Arguments derived from lists through `foldl` or `scan`, or rejected by the
 entry's validation before the rule runs, are often not reached by moving one

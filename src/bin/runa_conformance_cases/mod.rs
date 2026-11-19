@@ -86,15 +86,49 @@ struct CaseCounts {
     rejected: usize,
 }
 
+/// Clauses of one kind (cited or uncited) and how many a case covers.
+#[derive(Serialize)]
+struct ClauseCount {
+    covered: usize,
+    clauses: usize,
+}
+
+/// A clause a technical rejection rests on.
+#[derive(Serialize, Clone)]
+struct ClauseName {
+    rule: String,
+    clause: String,
+    location: String,
+}
+
+/// A rejection the search found that rests on no cited clause (a
+/// technical bound, an overflow guard): it is not a case.
+#[derive(Serialize)]
+struct TechnicalRejection {
+    /// The id its case would have had.
+    id: String,
+    /// The kind of case the search was looking for.
+    searched_as: String,
+    /// The clauses the rejection rests on, none of them cited.
+    rests_on: Vec<ClauseName>,
+}
+
 #[derive(Serialize)]
 struct CoverageFile {
     entry: String,
+    /// `cited rule clauses: X of Y covered`.
     summary: String,
+    /// The rule clauses with `@ cite`: the law the suite tests.
+    cited: ClauseCount,
+    /// The rule clauses without `@ cite`, reported apart.
+    uncited: ClauseCount,
     /// The result variants counted as rejections.
     rejections: Vec<String>,
     cases: CaseCounts,
     clauses: Vec<ClauseCoverage>,
     thresholds: Vec<ThresholdCoverage>,
+    /// Rejections resting only on uncited clauses, which are not cases.
+    technical: Vec<TechnicalRejection>,
 }
 
 /// A segment of an input path: `events[0].kind.$variant`.
@@ -300,6 +334,11 @@ struct Search<'a> {
     reached_outside: Option<String>,
     /// Why a clause has no case: (reason, detail, witness).
     notes: BTreeMap<usize, (String, String, Option<JsonValue>)>,
+    /// Rejections found that rest on no cited clause, which are no cases.
+    technical: Vec<TechnicalRejection>,
+    technical_by_input: BTreeSet<String>,
+    /// Clauses some technical rejection rests on.
+    technical_clauses: BTreeSet<usize>,
 }
 
 fn canonical(path: &str, relative_to: &Path) -> PathBuf {
@@ -435,15 +474,63 @@ impl<'a> Search<'a> {
         run
     }
 
+    /// Whether a clause cites the law (`@ cite`).
+    fn cited(&self, clause: usize) -> bool {
+        !self.covers[clause].cites.is_empty()
+    }
+
     /// Write `input` as a case unless an equal input already is one;
-    /// returns the case's id. A rejected result is kind `rejected`.
-    fn keep(&mut self, input: &JsonValue, id: String, kind: &str) -> Option<String> {
+    /// returns the case's id. A rejected result is kind `rejected`, and is
+    /// a case only if a cited clause is on the path it rests on: a
+    /// rejection resting only on uncited clauses is technical, listed in
+    /// `technical` instead (the error says so).
+    fn keep(&mut self, input: &JsonValue, id: String, kind: &str) -> Result<String, String> {
         let key = input.to_string();
         if let Some(index) = self.case_by_input.get(&key) {
-            return Some(self.cases[*index].id.clone());
+            return Ok(self.cases[*index].id.clone());
         }
         let run = self.run(input);
-        let expected = run.result.clone().ok()?;
+        let expected = run.result.clone()?;
+        if run.rejected && !run.covered.iter().any(|clause| self.cited(*clause)) {
+            let rests_on: Vec<ClauseName> = run
+                .covered
+                .iter()
+                .map(|clause| {
+                    let cover = &self.covers[*clause];
+                    ClauseName {
+                        rule: cover.rule.clone(),
+                        clause: cover.clause.clone(),
+                        location: cover.location.clone(),
+                    }
+                })
+                .collect();
+            let names = rests_on
+                .iter()
+                .map(|name| format!("{}.{}", name.rule, name.clause))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let why = if names.is_empty() {
+                "technical: the input found is rejected, and no cited clause is on the path the rejection rests on".to_string()
+            } else {
+                format!(
+                    "technical: the input found is rejected only by clauses without `@ cite` ({})",
+                    names
+                )
+            };
+            if self.technical_by_input.insert(key) {
+                self.technical_clauses.extend(run.covered.iter().copied());
+                self.technical.push(TechnicalRejection {
+                    id,
+                    searched_as: kind.to_string(),
+                    rests_on,
+                });
+                self.bases.push(Base {
+                    input: input.clone(),
+                    run,
+                });
+            }
+            return Err(why);
+        }
         let mut id = id;
         if self.cases.iter().any(|case| case.id == id) {
             let mut suffix = 2;
@@ -476,7 +563,7 @@ impl<'a> Search<'a> {
             input: input.clone(),
             run,
         });
-        Some(id)
+        Ok(id)
     }
 
     fn add_base(&mut self, input: JsonValue, origin: &str) -> bool {
@@ -2105,6 +2192,9 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
         fired_outside_domain: BTreeMap::new(),
         reached_outside: None,
         notes: BTreeMap::new(),
+        technical: Vec::new(),
+        technical_by_input: BTreeSet::new(),
+        technical_clauses: BTreeSet::new(),
     };
 
     // Bases: scenario inputs (each also a case), seeds, the minimal input.
@@ -2120,7 +2210,7 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
         for (position, input) in inputs.iter().enumerate() {
             let origin = format!("call {} of scenario {}", position + 1, path);
             if search.run(input).ok() {
-                search.keep(
+                let _ = search.keep(
                     input,
                     format!("scenario.{}.{}", id_part(&stem), position + 1),
                     "scenario",
@@ -2146,7 +2236,7 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
             .iter()
             .any(|clause| search.covered_by[*clause].is_empty())
         {
-            search.keep(&input, format!("seed.{}", id_part(&case_id)), "clause");
+            let _ = search.keep(&input, format!("seed.{}", id_part(&case_id)), "clause");
         }
     }
 
@@ -2154,7 +2244,9 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
     for _ in 0..PASSES {
         let mut found_any = false;
         for clause in 0..clause_count {
+            // A clause only technical rejections reach is not searched again.
             if !search.covered_by[clause].is_empty()
+                || search.technical_clauses.contains(&clause)
                 || matches!(
                     search.catalogue.clauses[clause].status,
                     ClauseStatus::Unreachable(_)
@@ -2168,8 +2260,9 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
             });
             if let Some(input) = found {
                 let id = search.clause_case_id(clause);
-                search.keep(&input, id, "clause");
-                found_any = true;
+                if search.keep(&input, id, "clause").is_ok() {
+                    found_any = true;
+                }
             }
         }
         if !found_any {
@@ -2177,13 +2270,15 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
         }
     }
 
-    // Thresholds: below, at and above.
+    // Thresholds of the guards of cited clauses: below, at and above.
     let mut thresholds = Vec::new();
     for clause in 0..clause_count {
-        if matches!(
-            search.catalogue.clauses[clause].status,
-            ClauseStatus::Unreachable(_)
-        ) {
+        if !search.cited(clause)
+            || matches!(
+                search.catalogue.clauses[clause].status,
+                ClauseStatus::Unreachable(_)
+            )
+        {
             continue;
         }
         for threshold in 0..search.catalogue.clauses[clause].thresholds.len() {
@@ -2201,9 +2296,10 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
                         std::process::exit(1);
                     });
                 match found {
-                    Ok(input) => {
-                        sides[side] = search.keep(&input, id, &format!("boundary-{}", name));
-                    }
+                    Ok(input) => match search.keep(&input, id, &format!("boundary-{}", name)) {
+                        Ok(id) => sides[side] = Some(id),
+                        Err(reason) => details.push(format!("{}: {}", name, reason)),
+                    },
                     Err(reason) => details.push(format!("{}: {}", name, reason)),
                 }
             }
@@ -2225,13 +2321,35 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
 
     // Coverage.
     let mut clauses = Vec::new();
-    let mut covered = 0;
+    let mut cited = ClauseCount {
+        covered: 0,
+        clauses: 0,
+    };
+    let mut uncited = ClauseCount {
+        covered: 0,
+        clauses: 0,
+    };
     for clause in 0..clause_count {
         let cover = search.covers[clause].clone();
         let covered_by = search.covered_by[clause].clone();
+        let count = if search.cited(clause) {
+            &mut cited
+        } else {
+            &mut uncited
+        };
+        count.clauses += 1;
         let (reason, detail, witness) = if !covered_by.is_empty() {
-            covered += 1;
+            count.covered += 1;
             (None, None, None)
+        } else if search.technical_clauses.contains(&clause) {
+            (
+                Some("technical".to_string()),
+                Some(
+                    "only rejections that rest on no cited clause reach it; technical checks are not in the suite (see `technical`)"
+                        .to_string(),
+                ),
+                None,
+            )
         } else if let Some(why) = search.fired_outside_domain.get(&clause) {
             (
                 Some("outside-input-domain".to_string()),
@@ -2290,7 +2408,10 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
             witness,
         });
     }
-    let summary = format!("{} of {} rule clauses covered", covered, clause_count);
+    let summary = format!(
+        "cited rule clauses: {} of {} covered",
+        cited.covered, cited.clauses
+    );
 
     // Write the suite.
     let out = Path::new(&options.out);
@@ -2336,24 +2457,30 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
         rejected: count("rejected"),
     };
     let line = format!(
-        "runa cases: {}; {} cases ({} clause, {} boundary, {} scenario, {} rejected) in {}",
+        "runa cases: {}; {} cases ({} clause, {} boundary, {} scenario, {} rejected) in {}; uncited rule clauses: {} of {} covered; technical rejections not in the suite: {}",
         summary,
         search.cases.len(),
         counts.clause,
         counts.boundary,
         counts.scenario,
         counts.rejected,
-        options.out
+        options.out,
+        uncited.covered,
+        uncited.clauses,
+        search.technical.len(),
     );
     write(
         "coverage.json",
         &CoverageFile {
             entry: contract.entry.clone(),
             summary,
+            cited,
+            uncited,
             rejections: search.rejections.clone(),
             cases: counts,
             clauses,
             thresholds,
+            technical: search.technical,
         },
     );
     println!("{}", line);

@@ -30,13 +30,13 @@ runa cases src/aktiesparekonto.entry.runa --entry aktiesparekonto_year --out cas
 ```
 
 For each rule clause the entry reaches, `runa cases` looks for an entry input
-that makes the clause fire, and for each integer or date threshold in a
-clause's guard, inputs just below, at and just above it. It writes one file
-per case, `<out>/<id>.case.json`, and `<out>/coverage.json`, and prints one
-line:
+that makes the clause fire, and for each integer or date threshold in the
+guard of a cited clause, inputs just below, at and just above it. It writes
+one file per case, `<out>/<id>.case.json`, and `<out>/coverage.json`, and
+prints one line, headed by the cited rule clauses covered (below):
 
 ```text
-runa cases: 187 of 211 rule clauses covered; 41 cases (12 clause, 26 boundary, 3 scenario) in cases/generated
+runa cases: cited rule clauses: 152 of 160 covered; 41 cases (12 clause, 20 boundary, 3 scenario, 6 rejected) in cases/generated; uncited rule clauses: 35 of 51 covered; technical rejections not in the suite: 10
 ```
 
 Case files of an earlier run that this run does not write again are removed
@@ -158,13 +158,41 @@ nothing.
 Consequences:
 
 - Rejected cases are kept, `kind: "rejected"`, and counted apart
-  (`coverage.json` `cases.rejected`, and the printed line).
+  (`coverage.json` `cases.rejected`, and the printed line), when a cited
+  clause is on the path the rejection rests on (below).
 - A clause search is satisfied by a rejected run only when the rejection
   rests on the target clause; a boundary only when it rests on a clause of
   the threshold's rule (the boundary of a validation rule is observable, that
   of a tax rule run before the entry gave up is not).
 - A clause that fired only in rejected runs, off the rejection's path, is
   uncovered with reason `rejected`.
+
+### The law is the cited clauses
+
+A suite that mixes the law with technical checks tests both badly: of 35
+cases a clean-room run generated for the tax service's levy, 10 tested
+overflow bounds, a date range or missing parameters, and 10 the § 9 rules
+themselves. The law a suite tests is the rule clauses that cite it, those
+with `@ cite`; a clause without one (an overflow guard, a bound of the
+parameter tables, a check that a parameter exists) is the implementation's.
+
+- **Coverage.** The headline (`summary`, and the start of the printed line)
+  is `cited rule clauses: X of Y covered`; the uncited clauses are counted
+  apart (`cited` and `uncited` in `coverage.json`, each `{covered,
+  clauses}`, and the end of the printed line).
+- **Rejected cases.** A rejected run is a case only if at least one cited
+  clause is on the path its rejection rests on. A rejection that rests only
+  on uncited clauses is technical: it is not written, and `coverage.json`
+  lists it under `technical` with the id its case would have had, the kind
+  it was searched as and the clauses it rests on. A clause only such
+  rejections cover is uncovered with reason `technical`, and is not searched
+  again; a boundary side whose input is a technical rejection has no case,
+  and its `detail` says `technical`.
+- **Boundaries.** Only guards of cited clauses get boundary cases; thresholds
+  of uncited clauses are not searched and not listed.
+- A run that is not rejected is a case as before, whatever it covers: an
+  accepted run shows the law's result, and the uncited clauses it fires are
+  covered by it.
 
 ### Clause identity and stable ids
 
@@ -197,11 +225,13 @@ the id.
 ```json
 {
   "entry": "aktiesparekonto_year",
-  "summary": "187 of 211 rule clauses covered",
+  "summary": "cited rule clauses: 152 of 160 covered",
+  "cited": { "covered": 152, "clauses": 160 },
+  "uncited": { "covered": 35, "clauses": 51 },
   "rejections": ["AskYearRejected"],
-  "cases": { "clause": 12, "boundary": 26, "scenario": 3, "rejected": 9 },
+  "cases": { "clause": 12, "boundary": 20, "scenario": 3, "rejected": 6 },
   "clauses": [
-    { "rule": "...", "clause": "...", "location": "...", "cites": [],
+    { "rule": "...", "clause": "...", "location": "...", "cites": ["§ 9"],
       "covered_by": ["seed.u-1001-2026-ask-1", "..."] },
     { "rule": "...", "clause": "...", "location": "...", "cites": [],
       "covered_by": [], "reason": "not-analysable",
@@ -210,15 +240,21 @@ the id.
   "thresholds": [
     { "rule": "...", "clause": "...", "threshold": 1, "guard": "(>= deposits ceiling)",
       "below": "<case id>|null", "at": "...", "above": "...", "detail": "..." }
+  ],
+  "technical": [
+    { "id": "ask_amount_in_range.too_large.clause", "searched_as": "clause",
+      "rests_on": [{ "rule": "ask_amount_in_range", "clause": "too_large",
+                     "location": "aktiesparekonto.entry.runa:88" }] }
   ]
 }
 ```
 
-The clause set (`M`) is the clause audit's: every candidate of every rule
+The clause set is the clause audit's: every candidate of every rule
 family the entry's runtime closure reaches, through imports
 (`analyze_entry_clause_reachability`), in file and line order. Boolean
 clauses whose body is the literal `false` only mark a matched head, select
-nothing and are not counted, as in the audit. `N` counts the clauses some
+nothing and are not counted, as in the audit. It splits into cited clauses
+(`Y`, the headline) and uncited ones; `X` counts the cited clauses some
 written case covers. Each uncovered clause carries one reason:
 
 - `unreachable`: the audit proved it can never fire (its guard is
@@ -234,6 +270,8 @@ written case covers. Each uncovered clause carries one reason:
   them first. The witness tells a human what a scenario has to set up.
 - `rejected`: it fired, but only in inputs the entry rejects, and no
   rejection rested on it.
+- `technical`: an uncited clause that only technical rejections (above)
+  rest on; they are listed under `technical`.
 - `outside-input-domain`: only an input outside the input domain fires it
   (an `Int` beyond ±(2^53 − 1), a day not on the calendar): a run of such an
   input fired it, or Z3's witness exists only outside the domain (it is the
@@ -342,7 +380,8 @@ search runs only for clauses no case covers yet, so the suite stays small.
 
 ### Boundaries
 
-A threshold is a top-level conjunct of a clause's lowered guard that compares
+Only the guards of cited clauses have boundaries. A threshold is a top-level
+conjunct of a cited clause's lowered guard that compares
 two integer terms (`<`, `<=`, `>`, `>=`; amounts of a unit type are
 integers), or two `Date`s (which `smt_date_order` writes over their fields;
 they are compared by day number, `runa_days`, and both are kept valid

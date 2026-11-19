@@ -1,12 +1,27 @@
 -- A surcharge on a payment made on the 30th or 31st of a month; the seed
 -- pays in February, which has neither.
 
+# SourceInfo(file: String)
+# impl Document for SourceInfo {}
+= law = SourceInfo(file = "sources/law.txt")
+
 # Date(year: Int, month: Int, day: Int)
 
 # Payment(paid: Date)
 
+@ section surcharge {
+
+@ quote(law)
+----
+§ 14. En betaling den 30. eller 31. i måneden giver et tillæg på 5 kr.
+----
+
+@ cite(§ 14)
 | surcharge(paid: Date): Int -> 0
+@ cite(§ 14)
 | exception month_end surcharge(paid) -> 5 under paid.day >= 30
+
+}
 
 @ entry
 > payment_surcharge(p: Payment) -> Int {
