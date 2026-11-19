@@ -20,6 +20,7 @@ pub use json::parse_calculation_json;
 
 pub mod compact;
 pub mod explain;
+pub mod input_domain;
 pub mod sdk_ts;
 pub use explain::{explanation_json_schema, ExplainOptions};
 

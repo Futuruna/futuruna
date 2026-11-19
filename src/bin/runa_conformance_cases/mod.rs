@@ -7,7 +7,7 @@
 //! covers and its expected result come from running it.
 use super::*;
 use runa_rule_reachability::cases::{
-    case_catalogue, Anchor, CaseCatalogue, ClauseStatus, Goal, Witness,
+    case_catalogue, Anchor, ArgumentLeaf, CaseCatalogue, ClauseStatus, Goal, InputDomain, Witness,
 };
 use serde_json::{Map as JsonMap, Value as JsonValue};
 use std::sync::Arc;
@@ -247,6 +247,9 @@ struct Run {
     /// those it rests on.
     covered: Vec<usize>,
     calls: Vec<RunCall>,
+    /// The first value of the input or result outside the input domain: the
+    /// run is then no case (its `result` is that error) and covers nothing.
+    outside: Option<String>,
 }
 
 struct RunCall {
@@ -290,6 +293,11 @@ struct Search<'a> {
     /// Clauses that fired in some run the entry rejected, off the path the
     /// rejection rests on.
     fired_when_rejected: BTreeSet<usize>,
+    /// Clauses some run outside the input domain would have covered, with
+    /// the first value outside it.
+    fired_outside_domain: BTreeMap<usize, String>,
+    /// Set when a run outside the input domain reached the boundary searched.
+    reached_outside: Option<String>,
     /// Why a clause has no case: (reason, detail, witness).
     notes: BTreeMap<usize, (String, String, Option<JsonValue>)>,
 }
@@ -388,6 +396,30 @@ impl<'a> Search<'a> {
             })
             .collect();
         let rejected = probe.rejected_by.is_some();
+        // An input an integrator cannot send, or a result the SDK cannot
+        // hold, is no case: what it covers does not count. Its calls stay,
+        // for the search to move on from it.
+        let outside = self.contract.input_domain_error(input).or_else(|| {
+            let result = probe.result.as_ref().ok()?;
+            let why = self.contract.output_domain_error(result)?;
+            Some(format!("the result: {}", why))
+        });
+        if let Some(why) = &outside {
+            for clause in &covered {
+                self.fired_outside_domain
+                    .entry(*clause)
+                    .or_insert_with(|| why.clone());
+            }
+            let run = Rc::new(Run {
+                result: Err(format!("outside the input domain: {}", why)),
+                rejected,
+                covered,
+                calls,
+                outside,
+            });
+            self.runs.insert(key, run.clone());
+            return run;
+        }
         if rejected {
             self.fired_when_rejected
                 .extend(fired.iter().filter(|clause| !covered.contains(clause)));
@@ -397,6 +429,7 @@ impl<'a> Search<'a> {
             rejected,
             covered,
             calls,
+            outside: None,
         });
         self.runs.insert(key, run.clone());
         run
@@ -1330,10 +1363,18 @@ impl<'a> Search<'a> {
         input
     }
 
-    /// Anchors of a run's call: each argument's value, its leaves that no
-    /// input leaf gives weighing more.
-    fn anchors(call: &RunCall) -> Vec<(usize, JsonValue, BTreeSet<String>)> {
-        call.args
+    /// The anchors of a run's call of a family (each argument's value, and
+    /// the leaves no input moves), and what the input domain asks of the
+    /// argument leaves that are input leaves unchanged: an integer input a
+    /// safe integer, the parts of an input date a day on the calendar.
+    fn anchors(
+        &self,
+        input: &JsonValue,
+        call: &RunCall,
+    ) -> (Vec<(usize, JsonValue, BTreeSet<String>)>, Vec<InputDomain>) {
+        const PARTS: [&str; 3] = ["year", "month", "day"];
+        let anchors = call
+            .args
             .iter()
             .enumerate()
             .map(|(position, argument)| {
@@ -1346,7 +1387,84 @@ impl<'a> Search<'a> {
                 }
                 (position, argument.value.clone(), fixed)
             })
-            .collect()
+            .collect();
+        let mut domain = Vec::new();
+        let mut dates: BTreeMap<String, (Vec<Segment>, [Option<ArgumentLeaf>; 3])> =
+            BTreeMap::new();
+        for (position, argument) in call.args.iter().enumerate() {
+            for leaf in &argument.leaves {
+                let Some(leaf_input) = &leaf.input else {
+                    continue;
+                };
+                let path = parse_path(leaf_input);
+                // A date is one fact: its leaf is the whole input date.
+                if json_at(input, &path).is_some_and(JsonValue::is_object)
+                    && self.is_date_at(input, &path)
+                {
+                    domain.push(InputDomain::Date(PARTS.map(|part| {
+                        Ok(ArgumentLeaf {
+                            parameter: position,
+                            path: join(&leaf.path, part),
+                        })
+                    })));
+                    continue;
+                }
+                if !json_at(input, &path).is_some_and(JsonValue::is_i64) {
+                    continue;
+                }
+                let argument_leaf = ArgumentLeaf {
+                    parameter: position,
+                    path: leaf.path.clone(),
+                };
+                let date_part = match path.split_last() {
+                    Some((Segment::Field(name), parent)) => PARTS
+                        .iter()
+                        .position(|part| part == name)
+                        .filter(|_| self.is_date_at(input, parent)),
+                    _ => None,
+                };
+                match date_part {
+                    Some(part) => {
+                        let parent = path[..path.len() - 1].to_vec();
+                        dates
+                            .entry(segments_text(&parent))
+                            .or_insert_with(|| (parent, [None, None, None]))
+                            .1[part] = Some(argument_leaf);
+                    }
+                    None => domain.push(InputDomain::Int(argument_leaf)),
+                }
+            }
+        }
+        // A part no argument leaf is keeps the input's value.
+        for (parent, parts) in dates.into_values() {
+            let mut resolved = Vec::new();
+            for (part, leaf) in PARTS.iter().zip(parts) {
+                resolved.push(match leaf {
+                    Some(leaf) => Ok(leaf),
+                    None => {
+                        let mut at = parent.clone();
+                        at.push(Segment::Field(part.to_string()));
+                        match json_at(input, &at).and_then(JsonValue::as_i64) {
+                            Some(value) => Err(value),
+                            None => break,
+                        }
+                    }
+                });
+            }
+            if let Ok(parts) = <[_; 3]>::try_from(resolved) {
+                domain.push(InputDomain::Date(parts));
+            }
+        }
+        (anchors, domain)
+    }
+
+    /// Whether the input value at `path` is a `Date` of the SDK.
+    fn is_date_at(&self, input: &JsonValue, path: &[Segment]) -> bool {
+        let mut ty = self.type_at(input, path);
+        while let Some(calculate::CalculationTypeRef::Optional { item }) = ty {
+            ty = Some(*item);
+        }
+        ty.is_some_and(|ty| calculate::input_domain::is_date_type(self.contract, &ty))
     }
 
     /// Find an input that fires `clause`.
@@ -1384,7 +1502,7 @@ impl<'a> Search<'a> {
                 continue;
             };
             if analysable {
-                let anchors = Self::anchors(call);
+                let (anchors, domain) = self.anchors(&input, call);
                 let anchors: Vec<Anchor> = anchors
                     .iter()
                     .map(|(parameter, value, fixed)| Anchor {
@@ -1393,7 +1511,10 @@ impl<'a> Search<'a> {
                         fixed,
                     })
                     .collect();
-                match self.catalogue.witness(clause, Goal::Fires, &anchors)? {
+                match self
+                    .catalogue
+                    .witness(clause, Goal::Fires, &anchors, &domain)?
+                {
                     Witness::Model(model) => {
                         let witness = self.witness_json(family, &model);
                         if let Some(found) =
@@ -1411,15 +1532,28 @@ impl<'a> Search<'a> {
                             ),
                         );
                     }
-                    Witness::Unsat => {
-                        self.notes.insert(
-                            clause,
-                            (
-                                "no-entry-input".into(),
-                                "Z3 found no arguments that fire the clause".into(),
-                                None,
-                            ),
+                    Witness::OutsideDomain(model) => {
+                        let witness = self.witness_json(family, &model);
+                        let found_arguments = self.notes.get(&clause).is_some_and(
+                            |(reason, _, witness)| reason == "no-entry-input" && witness.is_some(),
                         );
+                        if !found_arguments {
+                            self.notes.insert(
+                                clause,
+                                (
+                                    "outside-input-domain".into(),
+                                    "Z3 found arguments that fire the clause only with an input outside the input domain (an Int beyond ±(2^53 − 1), or a day not on the calendar)".into(),
+                                    Some(witness),
+                                ),
+                            );
+                        }
+                    }
+                    Witness::Unsat => {
+                        self.notes.entry(clause).or_insert((
+                            "no-entry-input".into(),
+                            "Z3 found no arguments that fire the clause".into(),
+                            None,
+                        ));
                     }
                     Witness::Unknown(reason) => {
                         self.notes
@@ -1575,6 +1709,7 @@ impl<'a> Search<'a> {
     ) -> Result<Result<JsonValue, String>, String> {
         let family = self.catalogue.clauses[clause].family;
         let budget = self.probes + PROBES_PER_TARGET;
+        self.reached_outside = None;
         let reads = self.catalogue.clauses[clause].thresholds[threshold]
             .reads
             .clone();
@@ -1587,6 +1722,8 @@ impl<'a> Search<'a> {
         }
         let mut last = String::from("no input moved to Z3's arguments reached the rule with them");
         let mut models = Vec::new();
+        // Set when some base's arguments lie only outside the input domain.
+        let mut outside = None;
         for (base, nth) in calls {
             if self.probes > budget {
                 break;
@@ -1596,7 +1733,7 @@ impl<'a> Search<'a> {
             let Some(call) = Self::call(&run, family, nth) else {
                 continue;
             };
-            let anchors = Self::anchors(call);
+            let (anchors, domain) = self.anchors(&input, call);
             let anchors: Vec<Anchor> = anchors
                 .iter()
                 .map(|(parameter, value, fixed)| Anchor {
@@ -1612,8 +1749,16 @@ impl<'a> Search<'a> {
                     offset,
                 },
                 &anchors,
+                &domain,
             )? {
                 Witness::Model(model) => model,
+                Witness::OutsideDomain(model) => {
+                    outside = Some(format!(
+                        "outside the input domain: Z3's arguments at this offset are {}",
+                        self.witness_json(family, &model)
+                    ));
+                    continue;
+                }
                 Witness::Unsat => {
                     last = "Z3 found no arguments at this offset where the rule reaches the clause"
                         .into();
@@ -1630,6 +1775,11 @@ impl<'a> Search<'a> {
             }
             models.push((base, nth, model));
         }
+        if models.is_empty() {
+            if let Some(outside) = outside {
+                return Ok(Err(outside));
+            }
+        }
         // A new element of the list the arguments come from.
         let budget = self.probes + PROBES_PER_TARGET;
         for (base, nth, model) in models.into_iter().take(CALLS_PER_BASE) {
@@ -1640,7 +1790,13 @@ impl<'a> Search<'a> {
                 Err(_) => {}
             }
         }
-        Ok(Err(last))
+        Ok(Err(match self.reached_outside.take() {
+            Some(why) => format!(
+                "outside the input domain: the search reached this offset only with an input outside it ({})",
+                why
+            ),
+            None => last,
+        }))
     }
 
     /// Whether some call of `family` in a run has the model's values in
@@ -1659,8 +1815,7 @@ impl<'a> Search<'a> {
                     .covered
                     .iter()
                     .any(|clause| search.catalogue.clauses[*clause].family == family);
-            run.ok()
-                && observable
+            let reached = observable
                 && run.calls_of(family).any(|call| {
                     reads
                         .iter()
@@ -1671,7 +1826,13 @@ impl<'a> Search<'a> {
                             }
                             _ => true,
                         })
-                })
+                });
+            if reached {
+                if let Some(why) = &run.outside {
+                    search.reached_outside.get_or_insert_with(|| why.clone());
+                }
+            }
+            run.ok() && reached
         }
     }
 }
@@ -1941,6 +2102,8 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
         covered_by: vec![Vec::new(); clause_count],
         rejections,
         fired_when_rejected: BTreeSet::new(),
+        fired_outside_domain: BTreeMap::new(),
+        reached_outside: None,
         notes: BTreeMap::new(),
     };
 
@@ -2069,6 +2232,18 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
         let (reason, detail, witness) = if !covered_by.is_empty() {
             covered += 1;
             (None, None, None)
+        } else if let Some(why) = search.fired_outside_domain.get(&clause) {
+            (
+                Some("outside-input-domain".to_string()),
+                Some(format!(
+                    "it fired only in inputs outside the input domain, which no integrator can send ({})",
+                    why
+                )),
+                search
+                    .notes
+                    .get(&clause)
+                    .and_then(|(_, _, witness)| witness.clone()),
+            )
         } else if search.fired_when_rejected.contains(&clause) {
             (
                 Some("rejected".to_string()),

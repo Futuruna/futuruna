@@ -1,0 +1,12 @@
+-- A fee on a transfer of more than 2^53 − 1 øre: no integrator can send that
+-- amount, since the SDK holds an Int exactly only up to there.
+
+# Transfer(amount: Int)
+
+| fee(amount: Int): Int -> 0
+| exception huge fee(amount) -> 1 under amount > 9007199254740991
+
+@ entry
+> transfer_fee(t: Transfer) -> Int {
+    fee(t.amount)
+}

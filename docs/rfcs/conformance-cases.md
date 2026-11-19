@@ -70,9 +70,51 @@ coverage; a team that wants a coverage gate reads `coverage.json`.
   fire that clause, and says so. A rejected case covers only the clauses its
   rejection rests on.
 - `input` is a complete, ready input of the entry's contract: `runa call`
-  decodes it without a diagnostic. `expected` is the `result` `runa call`
-  gives for it, the whole result (an `AskYearRejected` with its issues is a
-  result like any other).
+  decodes it without a diagnostic, and it is in the input domain (below).
+  `expected` is the `result` `runa call` gives for it, the whole result (an
+  `AskYearRejected` with its issues is a result like any other).
+
+### The input domain: only what an integrator can send
+
+An integrator sends a case through the SDK `runa sdk ts` generates, whose
+validators accept less than `runa call` decodes: an `Int` (of a unit or a
+named scalar type too) is a JavaScript number, exact only within
+±(2^53 − 1) (`Number.isSafeInteger`), and a `Date` is an ISO `YYYY-MM-DD`
+string on the calendar, years 0000 to 9999. `runa call` takes any 64-bit
+integer and any `Date` record, because a law may check its dates itself
+(`date_valid(d)`); a case with `2026-04-31` or an amount of 10^16 exercises
+that check, but no integrator can send it. Every other check of the SDK's
+validators (a finite `Float`, one `Char`, a set without duplicates, no
+unknown fields) the decoder makes as well.
+
+`src/calculate/input_domain.rs` states the domain once on the Rust side:
+the SDK generator's `Date` shape (`is_date`), the SMT functions the
+witnesses use (`runa_int_in_domain`, `runa_valid_date`) and the check of a
+case (`CalculationContract::input_domain_error`, `output_domain_error`); a
+test holds it to the runtime's validators (`IntSchema`, `isoDateParts`).
+
+- **At the source.** Where an argument leaf of the base's call *is* an input
+  leaf unchanged (an integer, or an input date, which provenance traces as
+  one fact), the witness query asserts that input's domain: an integer input
+  a safe integer, and the year, month and day of an input date (each an
+  argument leaf, or the input's value where no argument is that part) a day
+  on the calendar. So `days_in_month(year, month)` for a leap February
+  reached from an input date gets a year on the calendar, not −404. A leaf
+  computed from inputs is not bounded: its inputs may be in the domain when
+  it is not. When the query has no model in the domain but has one without
+  it, the witness is outside the domain.
+- **Every case.** A run whose input or result is outside the domain is no
+  case: its result counts as a failure, so no search is satisfied by it and
+  nothing it fires counts as covered (its rule calls stay, for the search to
+  move on from it). This holds for scenario calls and seeds too.
+- **Reported.** A clause that some run outside the domain would have covered,
+  or whose only witness lies outside it, is uncovered with reason
+  `outside-input-domain`. A threshold side whose model lies only outside the
+  domain (an amount just above 2^53 − 1, the day after the last of a month
+  for `d.day <= days_in_month(d.year, d.month)`), or that only a run outside
+  it reached (an amount in øre whose input in millionths of a krone is beyond
+  2^53 − 1), has no case, and the threshold's `detail` says `outside the
+  input domain` with Z3's arguments or the value outside it.
 
 ### Rejections: coverage means the effect is observable
 
@@ -192,6 +234,10 @@ written case covers. Each uncovered clause carries one reason:
   them first. The witness tells a human what a scenario has to set up.
 - `rejected`: it fired, but only in inputs the entry rejects, and no
   rejection rested on it.
+- `outside-input-domain`: only an input outside the input domain fires it
+  (an `Int` beyond ±(2^53 − 1), a day not on the calendar): a run of such an
+  input fired it, or Z3's witness exists only outside the domain (it is the
+  `witness`).
 
 ## How a case is found
 
@@ -229,8 +275,9 @@ two levels, and the engine has the last word:
    The changed input is run again; the steps repeat, at most four rounds,
    while the clause has not fired and the input changed.
 3. **Confirm (engine).** The candidate is kept only if it decodes without a
-   diagnostic, the entry returns a result, and its fired clauses include the
-   target. Its `covers` and `expected` come from that run.
+   diagnostic, it and its result are in the input domain, the entry returns a
+   result, and its fired clauses include the target. Its `covers` and
+   `expected` come from that run.
 
 Without a witness (a guard outside the encoding, or `solver-unknown`), step 2
 runs without a target: the neighbourhood of each base is tried in a fixed
@@ -299,8 +346,8 @@ A threshold is a top-level conjunct of a clause's lowered guard that compares
 two integer terms (`<`, `<=`, `>`, `>=`; amounts of a unit type are
 integers), or two `Date`s (which `smt_date_order` writes over their fields;
 they are compared by day number, `runa_days`, and both are kept valid
-dates). For threshold *k* of clause *i* and each offset `d` in `-1, 0, +1`,
-Z3 is asked for a model of: dispatch reaches clause *i* (every earlier
+dates, `runa_valid_date`). For threshold *k* of clause *i* and each offset
+`d` in `-1, 0, +1`, Z3 is asked for a model of: dispatch reaches clause *i* (every earlier
 translatable guard false, guard *i* defined), every other conjunct of guard
 *i* holds, and `lhs - rhs = d`, where `lhs` is the side that reads the rule's
 arguments and `rhs` the bound (when both sides read arguments, the guard's
@@ -390,5 +437,7 @@ New:
   `explain_branch` at `if` and `match`, `ExplainState::rejection_clauses`).
 - `src/bin/runa_conformance_cases/mod.rs`: the command — bases, lift, search,
   boundaries, deduplication, case files and `coverage.json`.
+- `src/calculate/input_domain.rs`: the input domain, shared with the SDK
+  generator.
 - `runa cases` in the CLI, `docs/reference/calculations.md`
   ("Generate conformance cases") and a release note.

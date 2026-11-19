@@ -99,6 +99,8 @@ pub(crate) enum Witness {
     /// Each parameter's value (plain JSON, as `ProbeArg::value`), none for
     /// a parameter the encoding does not represent.
     Model(Vec<Option<JsonValue>>),
+    /// No model in the input domain; this one lies outside it.
+    OutsideDomain(Vec<Option<JsonValue>>),
     Unsat,
     Unknown(String),
 }
@@ -109,6 +111,71 @@ pub(crate) struct Anchor<'a> {
     pub(crate) parameter: usize,
     pub(crate) value: &'a JsonValue,
     pub(crate) fixed: &'a BTreeSet<String>,
+}
+
+/// A leaf of an anchored argument: its parameter and path in the value.
+pub(crate) struct ArgumentLeaf {
+    pub(crate) parameter: usize,
+    pub(crate) path: String,
+}
+
+/// What the input domain (`calculate::input_domain`) asks of the model where
+/// an argument leaf of the run's call is an input leaf unchanged: an integer
+/// input stays a safe integer, and an input date a day on the calendar.
+pub(crate) enum InputDomain {
+    Int(ArgumentLeaf),
+    /// The date's year, month and day: each an argument leaf, or the input's
+    /// value where no argument leaf is that part.
+    Date([Result<ArgumentLeaf, i64>; 3]),
+}
+
+/// A leaf of an anchored argument as SMT: its term, the testers of the
+/// variants above it, and the constraint that keeps its value.
+struct LeafTerm {
+    path: String,
+    term: String,
+    testers: Vec<String>,
+    keep: String,
+}
+
+/// `domain` as a hard constraint over the anchored leaves, where the
+/// variants above them are the anchor's; none when a leaf it names is not
+/// anchored.
+fn domain_constraint(
+    domain: &InputDomain,
+    anchored: &BTreeMap<usize, Vec<LeafTerm>>,
+) -> Option<String> {
+    let mut testers: Vec<&str> = Vec::new();
+    let mut term = |leaf: &ArgumentLeaf| -> Option<String> {
+        let found = anchored
+            .get(&leaf.parameter)?
+            .iter()
+            .find(|candidate| candidate.path == leaf.path)?;
+        for tester in &found.testers {
+            if !testers.contains(&tester.as_str()) {
+                testers.push(tester);
+            }
+        }
+        Some(found.term.clone())
+    };
+    let constraint = match domain {
+        InputDomain::Int(leaf) => format!("(runa_int_in_domain {})", term(leaf)?),
+        InputDomain::Date(parts) => {
+            let mut terms = Vec::new();
+            for part in parts {
+                terms.push(match part {
+                    Ok(leaf) => term(leaf)?,
+                    Err(value) => smt_int(*value),
+                });
+            }
+            format!("(runa_valid_date {})", terms.join(" "))
+        }
+    };
+    Some(if testers.is_empty() {
+        constraint
+    } else {
+        format!("(=> (and {}) {})", testers.join(" "), constraint)
+    })
 }
 
 /// The catalogue of the families `reached` names (and those with a clause
@@ -220,6 +287,7 @@ fn catalogue_family(catalogue: &mut CaseCatalogue, view: &FamilyView) -> Result<
         let mut text = family_preamble(view.encoder, signature, candidates, std::iter::empty());
         text.push_str(&dispatch_definitions(view.encoder, &guards).0);
         text.push_str(DAY_NUMBER);
+        text.push_str(&calculate::input_domain::smt_definitions());
         prefix = Some(text);
     }
 
@@ -260,15 +328,13 @@ fn catalogue_family(catalogue: &mut CaseCatalogue, view: &FamilyView) -> Result<
     Ok(())
 }
 
-/// `runa_days`: the day number of a date (days since 1970-01-01), and
-/// `runa_valid_date`, for date thresholds.
+/// `runa_days`: the day number of a date (days since 1970-01-01), for date
+/// thresholds. `runa_valid_date`, the input domain's, keeps their dates on
+/// the calendar.
 const DAY_NUMBER: &str = "(define-fun runa_days ((y Int) (m Int) (d Int)) Int \
 (let ((yy (- y (ite (<= m 2) 1 0)))) (let ((era (div yy 400))) (let ((yoe (- yy (* era 400)))) \
 (let ((doy (+ (div (+ (* 153 (mod (+ m 9) 12)) 2) 5) (- d 1)))) \
-(+ (* era 146097) (* yoe 365) (div yoe 4) (- (div yoe 100)) doy -719468))))))\n\
-(define-fun runa_valid_date ((y Int) (m Int) (d Int)) Bool \
-(and (<= 1 m 12) (<= 1 d) (<= d (ite (= m 2) (ite (or (and (= (mod y 4) 0) (not (= (mod y 100) 0))) (= (mod y 400) 0)) 29 28) \
-(ite (or (= m 4) (= m 6) (= m 9) (= m 11)) 30 31))) (<= 1 y 9999)))\n";
+(+ (* era 146097) (* yoe 365) (div yoe 4) (- (div yoe 100)) doy -719468))))))\n";
 
 fn conjuncts(expression: &Expr) -> Vec<&Expr> {
     match &expression.kind {
@@ -513,12 +579,15 @@ fn readable(expression: &Expr, parameters: &[CatalogueParameter]) -> String {
 
 impl CaseCatalogue {
     /// Ask Z3 for a model of `goal` on `clause`, keeping the anchors' values
-    /// where it can. The error is that no solver is available.
+    /// where it can and the inputs the arguments are in the input domain.
+    /// When only a model outside that domain exists, it is
+    /// [`Witness::OutsideDomain`]. The error is that no solver is available.
     pub(crate) fn witness(
         &self,
         clause: usize,
         goal: Goal,
         anchors: &[Anchor],
+        domain: &[InputDomain],
     ) -> Result<Witness, String> {
         let clause = &self.clauses[clause];
         let family = &self.families[clause.family];
@@ -551,7 +620,7 @@ impl CaseCatalogue {
         };
         let mut script = prefix.clone();
         script.push_str(&format!("(assert {})\n", assertion));
-        let mut anchored = BTreeSet::new();
+        let mut anchored: BTreeMap<usize, Vec<LeafTerm>> = BTreeMap::new();
         for anchor in anchors {
             let Some(parameter) = family.parameters.get(anchor.parameter) else {
                 continue;
@@ -559,20 +628,22 @@ impl CaseCatalogue {
             let Some(ty) = &parameter.ty else {
                 continue;
             };
-            anchored.insert(anchor.parameter);
             let mut leaves = Vec::new();
-            self.anchor_leaves(&parameter.term, ty, anchor.value, "", 0, &mut leaves);
-            for (path, constraint) in leaves {
-                let weight = if anchor.fixed.contains(&path) { 50 } else { 1 };
-                script.push_str(&format!(
-                    "(assert-soft {} :weight {})\n",
-                    constraint, weight
-                ));
+            self.anchor_leaves(&parameter.term, ty, anchor.value, "", &[], 0, &mut leaves);
+            for leaf in &leaves {
+                let weight = if anchor.fixed.contains(&leaf.path) { 50 } else { 1 };
+                let keep = if leaf.testers.is_empty() {
+                    leaf.keep.clone()
+                } else {
+                    format!("(and {} {})", leaf.testers.join(" "), leaf.keep)
+                };
+                script.push_str(&format!("(assert-soft {} :weight {})\n", keep, weight));
             }
+            anchored.insert(anchor.parameter, leaves);
         }
         // Values no run gave stay plain.
         for (position, parameter) in family.parameters.iter().enumerate() {
-            if anchored.contains(&position) {
+            if anchored.contains_key(&position) {
                 continue;
             }
             if let Some(ty) = &parameter.ty {
@@ -583,6 +654,25 @@ impl CaseCatalogue {
                 }
             }
         }
+        let domain: Vec<String> = domain
+            .iter()
+            .filter_map(|domain| domain_constraint(domain, &anchored))
+            .collect();
+        let mut bounded = script.clone();
+        for constraint in &domain {
+            bounded.push_str(&format!("(assert {})\n", constraint));
+        }
+        match self.solve(family, bounded)? {
+            Witness::Unsat if !domain.is_empty() => Ok(match self.solve(family, script)? {
+                Witness::Model(values) => Witness::OutsideDomain(values),
+                _ => Witness::Unsat,
+            }),
+            witness => Ok(witness),
+        }
+    }
+
+    /// Run a witness query of `family` and read its model.
+    fn solve(&self, family: &CatalogueFamily, mut script: String) -> Result<Witness, String> {
         script.push_str("(check-sat)\n");
         let represented: Vec<usize> = family
             .parameters
@@ -603,6 +693,15 @@ impl CaseCatalogue {
         }
         let output = match run_solver(&script) {
             Err(FamilyError::SolverMissing(reason)) => return Err(reason),
+            // After `unsat`, Z3 answers `get-value` with an error ("model is
+            // not available") and fails: the query was answered.
+            Ok(Err(error))
+                if error
+                    .split_once("): ")
+                    .is_some_and(|(_, output)| output.trim_start().starts_with("unsat\n")) =>
+            {
+                return Ok(Witness::Unsat)
+            }
             Ok(Err(error)) => {
                 return Ok(Witness::Unknown(format!(
                     "Z3 rejected the query: {}",
@@ -647,17 +746,19 @@ impl CaseCatalogue {
         Some((variants, parameters, arguments))
     }
 
-    /// One soft constraint per leaf of `value` (as `ProbeArg::value` shows
-    /// it), by the leaf's path: a variant's tester, or a scalar's value,
-    /// each under the testers of the variants above it.
+    /// Each leaf of `value` (as `ProbeArg::value` shows it), by the leaf's
+    /// path: a variant's tester, or a scalar's term and value, under the
+    /// testers of the variants above it.
+    #[allow(clippy::too_many_arguments)]
     fn anchor_leaves(
         &self,
         term: &str,
         ty: &Ty,
         value: &JsonValue,
         path: &str,
+        testers: &[String],
         depth: usize,
-        leaves: &mut Vec<(String, String)>,
+        leaves: &mut Vec<LeafTerm>,
     ) {
         if depth > 8 {
             return;
@@ -669,21 +770,26 @@ impl CaseCatalogue {
                 format!("{}.{}", path, part)
             }
         };
+        let mut leaf = |path: String, keep: String| {
+            leaves.push(LeafTerm {
+                path,
+                term: term.to_string(),
+                testers: testers.to_vec(),
+                keep,
+            })
+        };
         match (ty, value) {
             (Ty::Name(name), JsonValue::Bool(boolean)) if name == "Bool" => {
-                leaves.push((path.to_string(), format!("(= {} {})", term, boolean)));
+                leaf(path.to_string(), format!("(= {} {})", term, boolean));
             }
             (Ty::Name(name), JsonValue::String(text)) if name == "String" => {
                 if let Ok(literal) = smt_string_literal(text) {
-                    leaves.push((path.to_string(), format!("(= {} {})", term, literal)));
+                    leaf(path.to_string(), format!("(= {} {})", term, literal));
                 }
             }
             (_, JsonValue::Number(number)) => {
                 if let Some(number) = number.as_i64() {
-                    leaves.push((
-                        path.to_string(),
-                        format!("(= {} {})", term, smt_int(number)),
-                    ));
+                    leaf(path.to_string(), format!("(= {} {})", term, smt_int(number)));
                 }
             }
             (_, JsonValue::Object(object)) => {
@@ -699,9 +805,11 @@ impl CaseCatalogue {
                 else {
                     return;
                 };
-                let tester = format!("({} {})", smt_tester(&variant.name), term);
+                let mut inner_testers = testers.to_vec();
                 if variants.len() > 1 {
-                    leaves.push((join("$variant"), tester.clone()));
+                    let tester = format!("({} {})", smt_tester(&variant.name), term);
+                    leaf(join("$variant"), tester.clone());
+                    inner_testers.push(tester);
                 }
                 for (index, field) in variant.fields.iter().enumerate() {
                     let key = if variant.positional {
@@ -718,23 +826,15 @@ impl CaseCatalogue {
                         term
                     );
                     let field_ty = smt_substitute_type(&field.ty, parameters, &arguments);
-                    let mut inner = Vec::new();
                     self.anchor_leaves(
                         &field_term,
                         &field_ty,
                         field_value,
                         &join(&key),
+                        &inner_testers,
                         depth + 1,
-                        &mut inner,
+                        leaves,
                     );
-                    for (inner_path, constraint) in inner {
-                        let constraint = if variants.len() > 1 {
-                            format!("(and {} {})", tester, constraint)
-                        } else {
-                            constraint
-                        };
-                        leaves.push((inner_path, constraint));
-                    }
                 }
             }
             _ => {}

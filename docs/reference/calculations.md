@@ -618,6 +618,17 @@ guards, through the explanation's provenance) are its `covers`. A boundary
 case whose result is a rejection is kept only when the rejection rests on the
 threshold's rule.
 
+**The input domain.** Every case is an input an integrator can send through
+the SDK `runa sdk ts` generates, with a result the SDK can hold: an `Int`
+(of a unit or a named scalar type too) within ±(2^53 − 1), and a `Date` a
+day on the calendar in the years 0000 to 9999. `runa call` decodes more (any
+64-bit integer, any `Date` record, which a law may check itself), but no SDK
+sends it. Z3's solutions keep the inputs the rule's arguments are in that
+domain, and a run whose input or result is outside it is no case and covers
+nothing. A threshold side that lies only outside the domain (an amount just
+above 2^53 − 1, the 31st of April) has no case, and the threshold's `detail`
+says so.
+
 Each case is written to `DIR/<id>.case.json`:
 
 - `id`: `<rule>.<clause>.clause`, `<rule>.<clause>.t<k>.boundary-below` (or
@@ -637,9 +648,11 @@ Each case is written to `DIR/<id>.case.json`:
 an uncovered one a `reason`: `unreachable` (the audit proved it never fires),
 `not-analysable` (its guard is outside the SMT encoding, with the audit's
 reason), `solver-unknown`, `rejected` (it fired only in inputs the entry
-rejects, and no rejection rests on it), or `no-entry-input` (no input the
-search tried reached it; with the rule-level `witness` when Z3 found one,
-which says what a scenario must set up). `thresholds` names the case of each
+rejects, and no rejection rests on it), `outside-input-domain` (only an
+input outside the input domain fires it, with the `witness` Z3 found
+outside it), or `no-entry-input` (no input the search tried reached it; with
+the rule-level `witness` when Z3 found one, which says what a scenario must
+set up). `thresholds` names the case of each
 side of each threshold, or `null`; `rejections` the variants counted as
 rejections; `cases` the number of cases of each kind (`clause`, `boundary`,
 `scenario`, `rejected`). The command prints the summary,

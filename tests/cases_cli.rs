@@ -1,6 +1,6 @@
 //! `runa cases` on small laws: a ceiling threshold, an age threshold, a
 //! date threshold, an `Option` head and a constructor head; rejected
-//! results, new list elements and the minimal seed
+//! results, new list elements, the minimal seed, and the input domain
 //! (`docs/rfcs/conformance-cases.md`).
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -444,4 +444,92 @@ fn a_result_err_is_a_rejection_without_a_flag() {
     // The fee was computed before the charge was refused: not observable.
     assert!(covers(negative, "valid", "negative"));
     assert!(!covers(negative, "fee", "clause-1"), "{}", negative);
+}
+
+/// Whether a date on the wire is a day on the calendar, years 0000 to 9999:
+/// what the SDK's `IsoDateSchema` accepts.
+fn on_calendar(date: &Value) -> bool {
+    let part = |name: &str| date[name].as_i64().expect("date part");
+    let (year, month, day) = (part("year"), part("month"), part("day"));
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days = match month {
+        2 if leap => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    };
+    (0..=9999).contains(&year) && (1..=12).contains(&month) && (1..=days).contains(&day)
+}
+
+/// The threshold of a clause in the coverage report.
+fn threshold<'a>(coverage: &'a Value, rule: &str, key: &str) -> &'a Value {
+    coverage["thresholds"]
+        .as_array()
+        .expect("thresholds")
+        .iter()
+        .find(|threshold| threshold["rule"] == rule && threshold["clause"] == key)
+        .unwrap_or_else(|| panic!("threshold of {}.{}", rule, key))
+}
+
+#[test]
+fn a_clause_that_needs_an_amount_beyond_2_53_is_outside_the_input_domain() {
+    if !z3_available() {
+        eprintln!("skipping: z3 is not installed");
+        return;
+    }
+    const SAFE: i64 = (1 << 53) - 1;
+    let generated = generate_with("transfer", &["transfer.entry.runa"], false);
+    let coverage = &generated.coverage;
+    assert_eq!(coverage["summary"], "1 of 2 rule clauses covered", "{}", coverage);
+    let huge = clause(coverage, "fee", "huge");
+    assert_eq!(huge["covered_by"], serde_json::json!([]), "{}", huge);
+    assert_eq!(huge["reason"], "outside-input-domain", "{}", huge);
+    assert!(huge["witness"]["amount"].as_i64().unwrap() > SAFE, "{}", huge);
+    // Below and at the bound an integrator can send; above it not.
+    let bound = threshold(coverage, "fee", "huge");
+    let amount = |side: &str| {
+        let id = bound[side].as_str().unwrap_or_else(|| panic!("{} of {}", side, bound));
+        generated.cases[id]["input"]["amount"].as_i64().unwrap()
+    };
+    assert_eq!((amount("below"), amount("at")), (SAFE - 1, SAFE));
+    assert!(bound["above"].is_null(), "{}", bound);
+    assert!(
+        bound["detail"]
+            .as_str()
+            .unwrap()
+            .contains("above: outside the input domain"),
+        "{}",
+        bound
+    );
+    for case in generated.cases.values() {
+        assert!(case["input"]["amount"].as_i64().unwrap().abs() <= SAFE, "{}", case);
+        assert!(case["expected"].as_i64().unwrap().abs() <= SAFE, "{}", case);
+    }
+}
+
+#[test]
+fn a_date_guard_near_month_ends_gives_only_days_on_the_calendar() {
+    if !z3_available() {
+        eprintln!("skipping: z3 is not installed");
+        return;
+    }
+    let generated = generate_with(
+        "payment",
+        &["payment.entry.runa", "--seed", "payment-seed.json"],
+        false,
+    );
+    let coverage = &generated.coverage;
+    assert_eq!(coverage["summary"], "2 of 2 rule clauses covered", "{}", coverage);
+    for case in generated.cases.values() {
+        assert!(on_calendar(&case["input"]["paid"]), "{}", case);
+    }
+    // The seed pays on 14 February: the 29th, 30th and 31st are of other
+    // months, or of a leap year.
+    let bound = threshold(coverage, "surcharge", "month_end");
+    for (side, day) in [("below", 29), ("at", 30), ("above", 31)] {
+        let id = bound[side].as_str().unwrap_or_else(|| panic!("{} of {}", side, bound));
+        let case = &generated.cases[id];
+        assert_eq!(case["input"]["paid"]["day"], day, "{}", case);
+        assert_eq!(covers(case, "surcharge", "month_end"), day >= 30, "{}", case);
+    }
 }
