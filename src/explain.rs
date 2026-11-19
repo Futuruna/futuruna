@@ -190,6 +190,18 @@ pub struct ExplainState {
     /// Per active rule dispatch, innermost last: the nodes of the guard
     /// values evaluated so far (the guards that chose or refuted a clause).
     guards: Vec<Vec<NodeId>>,
+    /// Set for a decided case (`runa cases`, a rejected result run again):
+    /// a branch's value is computed from what chose the branch too.
+    decisions: Option<Decisions>,
+}
+
+/// What a decided case keeps besides the graph.
+#[derive(Debug, Default)]
+struct Decisions {
+    /// The result variants that are rejections, by display name.
+    rejections: HashSet<String>,
+    /// The values the conditions that chose a rejection were computed from.
+    rejected_by: Vec<NodeId>,
 }
 
 impl ExplainState {
@@ -269,6 +281,38 @@ impl ExplainState {
             }
         }
         found
+    }
+
+    /// The rule clauses a decided case's rejection rests on: those whose
+    /// value, or whose guards, the result's leaves (`result`) and the
+    /// conditions that chose a rejection were computed from.
+    pub(crate) fn rejection_clauses(&self, result: &[NodeId]) -> BTreeSet<u32> {
+        let mut clauses = BTreeSet::new();
+        let mut seen = HashSet::new();
+        let mut stack: Vec<NodeId> = result.to_vec();
+        if let Some(decisions) = &self.decisions {
+            stack.extend(&decisions.rejected_by);
+        }
+        while let Some(next) = stack.pop() {
+            if !seen.insert(next) {
+                continue;
+            }
+            match self.node(next) {
+                Node::Input { .. } => {}
+                Node::Computed { from } => stack.extend(from.iter().copied()),
+                Node::Rule {
+                    clause,
+                    from,
+                    because,
+                    ..
+                } => {
+                    clauses.insert(*clause);
+                    stack.extend(*from);
+                    stack.extend(because.iter().copied());
+                }
+            }
+        }
+        clauses
     }
 }
 
@@ -587,6 +631,80 @@ impl Interpreter {
         self.explain = Some(RefCell::new(ExplainState::default()));
     }
 
+    /// Start a decided case (`runa cases`): an explained case in which the
+    /// value an `if` or `match` branch gives is computed from the values
+    /// that chose the branch, and a branch that gives one of `rejections`
+    /// (result variants by display name) records them.
+    pub(crate) fn begin_decided_case(&mut self, rejections: HashSet<String>) {
+        self.explain = Some(RefCell::new(ExplainState {
+            decisions: Some(Decisions {
+                rejections,
+                rejected_by: Vec::new(),
+            }),
+            ..ExplainState::default()
+        }));
+    }
+
+    /// Whether this is a decided case.
+    #[inline]
+    pub(crate) fn explain_decides(&self) -> bool {
+        self.explain
+            .as_ref()
+            .is_some_and(|state| state.borrow().decisions.is_some())
+    }
+
+    /// In a decided case, a branch chosen by values traced at `from` gave
+    /// `result`: every leaf of it is computed from them as well, and a
+    /// rejection variant it gives records them.
+    pub(crate) fn explain_branch(&self, result: Value, from: &[NodeId]) -> Value {
+        let Some(state) = &self.explain else {
+            return result;
+        };
+        let decision = {
+            let mut state = state.borrow_mut();
+            if state.decisions.is_none() {
+                return result;
+            }
+            let decision = match from {
+                [] => return result,
+                [one] => *one,
+                many => state.intern(Node::Computed {
+                    from: many.to_vec().into_boxed_slice(),
+                }),
+            };
+            let name = match untraced(&result) {
+                Value::Constructor(name, _)
+                | Value::NamedConstructor(name, _)
+                | Value::NamespacedConstructor { name, .. }
+                | Value::NamespacedNamedConstructor { name, .. } => Some(name),
+                _ => None,
+            };
+            let decisions = state.decisions.as_mut().expect("a decided case");
+            if name.is_some_and(|name| {
+                decisions
+                    .rejections
+                    .contains(crate::constructor_display_name(name).as_ref())
+            }) {
+                decisions.rejected_by.push(decision);
+            }
+            decision
+        };
+        map_leaves(&result, &mut |leaf| {
+            let inner = untraced(leaf);
+            if Leaf::of(inner).is_none() {
+                return leaf.clone();
+            }
+            let from: Box<[NodeId]> = match node_of(leaf) {
+                Some(own) if own != decision => Box::new([own, decision]),
+                _ => Box::new([decision]),
+            };
+            match self.explain_intern(Node::Computed { from }) {
+                Some(node) => traced(inner.clone(), node),
+                None => leaf.clone(),
+            }
+        })
+    }
+
     /// End an explained case, returning its provenance graph.
     pub(crate) fn finish_explained_case(&mut self) -> Option<ExplainState> {
         self.explain.take().map(RefCell::into_inner)
@@ -899,6 +1017,22 @@ impl Interpreter {
             .last()
             .map(|guards| guards.clone().into_boxed_slice())
             .unwrap_or_default();
+        // In a decided case a clause's `None` is traced as well: a rejection
+        // may rest on a rule having nothing (`| None -> Rejected(...)`).
+        let none = matches!(
+            untraced(&value),
+            Value::Constructor(name, arguments) | Value::NamespacedConstructor { name, arguments, .. }
+                if arguments.is_empty() && name.as_str() == "None"
+        );
+        if none && state.borrow().decisions.is_some() {
+            let node = state.borrow_mut().intern(Node::Rule {
+                clause,
+                from: node_of(&value),
+                value: Leaf::Variant(Rc::from("None")),
+                because,
+            });
+            return traced(untraced(&value).clone(), node);
+        }
         // A clause that returns one value produced it. A clause that returns a
         // structure produced the leaves it computed.
         let structure = Leaf::of(untraced(&value)).is_none();

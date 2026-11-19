@@ -6835,8 +6835,14 @@ impl CalculationWorker {
     }
 
     /// Run one complete input with provenance and the rule-call log
-    /// (`PreparedEntry::probe`).
-    fn probe(&mut self, contract: &CalculationContract, input: &JsonValue) -> CaseProbe {
+    /// (`PreparedEntry::probe`); a result whose variant is one of
+    /// `rejections` is run again as a decided case.
+    fn probe(
+        &mut self,
+        contract: &CalculationContract,
+        input: &JsonValue,
+        rejections: &[String],
+    ) -> CaseProbe {
         if self.needs_reinitialization {
             let renderer = self.probe_renderer.take();
             *self = Self::new(self.program.clone());
@@ -6846,6 +6852,7 @@ impl CalculationWorker {
             result: Err(problems.join("; ")),
             fired: Vec::new(),
             calls: Vec::new(),
+            rejected_by: None,
         };
         let (decoded, scalars) = contract.decode_case_with_scalars(input, false);
         let mut problems: Vec<String> = match &decoded {
@@ -6871,33 +6878,46 @@ impl CalculationWorker {
             _ => return refused(problems),
         };
 
-        self.interpreter.begin_calculation_case();
-        self.interpreter.begin_fired_clauses();
-        self.interpreter.begin_rule_call_log();
-        self.interpreter.begin_explained_case();
-        let tagged = explain::tag_input(&self.interpreter, &input, contract);
-        let mut runtime_env = self.base_env.clone();
-        let input_binding = "__futuruna_calculation_input".to_string();
-        runtime_env.set(input_binding.clone(), tagged);
-        let call: Expr = ExprKind::App(
-            Box::new(ExprKind::Var(contract.entry.clone()).into()),
-            vec![ExprKind::Var(input_binding).into()],
-        )
-        .into();
-        let evaluated = self
-            .interpreter
-            .with_calculation_runtime(|runtime| runtime.eval(&call, &runtime_env));
-        self.needs_reinitialization = matches!(evaluated, Err(CalculationRuntimeFailure::Panicked))
-            || self.interpreter.prepared_live_cell_changed();
-        let explained = self.interpreter.finish_explained_case();
-        let calls = self.interpreter.finish_rule_call_log();
-        let fired = self.interpreter.finish_fired_clauses();
-        let result = match evaluated {
+        let (evaluated, explained, calls, fired) = self.probe_run(contract, &input, None);
+        let result = match &evaluated {
             Ok(result) => contract
-                .encode_output(&crate::explain::strip_deep(&result))
+                .encode_output(&crate::explain::strip_deep(result))
                 .map_err(|error| error.to_string()),
             Err(error) => Err(format!("calculation `{}` failed: {error}", contract.entry)),
         };
+        let rejected = result
+            .as_ref()
+            .ok()
+            .and_then(|result| result.get("$variant"))
+            .and_then(JsonValue::as_str)
+            .is_some_and(|variant| rejections.iter().any(|name| name == variant));
+        // The rejection's clauses: the decided run's, by the first run's ids.
+        // Tracing changes no value, so a decided run that gives another
+        // result is not read.
+        let rejected_by = (rejected && !self.needs_reinitialization).then(|| {
+            let names = rejections.iter().cloned().collect();
+            let (evaluated, decided, _, decided_fired) =
+                self.probe_run(contract, &input, Some(names));
+            let (Ok(decided_result), Some(decided)) = (evaluated, decided) else {
+                return Vec::new();
+            };
+            let same = contract
+                .encode_output(&crate::explain::strip_deep(&decided_result))
+                .ok();
+            if same.as_ref() != result.as_ref().ok() {
+                return Vec::new();
+            }
+            let mut roots = Vec::new();
+            crate::explain::collect_nodes(&decided_result, &mut roots);
+            let mut ids: Vec<usize> = decided
+                .rejection_clauses(&roots)
+                .into_iter()
+                .filter_map(|id| fired.id_of(&decided_fired.clause(id).rule))
+                .map(|id| id as usize)
+                .collect();
+            ids.sort_unstable();
+            ids
+        });
         self.probe_renderer();
         let mut renderer = self.probe_renderer.take().expect("renderer just made");
         let fired_clauses = (0..fired.len())
@@ -6938,7 +6958,48 @@ impl CalculationWorker {
             result,
             fired: fired_clauses,
             calls,
+            rejected_by,
         }
+    }
+
+    /// One explained run of a decoded input with the rule-call log; a
+    /// decided case when `decisions` names the rejection variants.
+    fn probe_run(
+        &mut self,
+        contract: &CalculationContract,
+        input: &Value,
+        decisions: Option<std::collections::HashSet<String>>,
+    ) -> (
+        Result<Value, CalculationRuntimeFailure>,
+        Option<crate::explain::ExplainState>,
+        Vec<crate::explain::RuleCallRecord>,
+        crate::explain::FiredClauses,
+    ) {
+        self.interpreter.begin_calculation_case();
+        self.interpreter.begin_fired_clauses();
+        self.interpreter.begin_rule_call_log();
+        match decisions {
+            Some(rejections) => self.interpreter.begin_decided_case(rejections),
+            None => self.interpreter.begin_explained_case(),
+        }
+        let tagged = explain::tag_input(&self.interpreter, input, contract);
+        let mut runtime_env = self.base_env.clone();
+        let input_binding = "__futuruna_calculation_input".to_string();
+        runtime_env.set(input_binding.clone(), tagged);
+        let call: Expr = ExprKind::App(
+            Box::new(ExprKind::Var(contract.entry.clone()).into()),
+            vec![ExprKind::Var(input_binding).into()],
+        )
+        .into();
+        let evaluated = self
+            .interpreter
+            .with_calculation_runtime(|runtime| runtime.eval(&call, &runtime_env));
+        self.needs_reinitialization = matches!(evaluated, Err(CalculationRuntimeFailure::Panicked))
+            || self.interpreter.prepared_live_cell_changed();
+        let explained = self.interpreter.finish_explained_case();
+        let calls = self.interpreter.finish_rule_call_log();
+        let fired = self.interpreter.finish_fired_clauses();
+        (evaluated, explained, calls, fired)
     }
 
     fn invoke(
@@ -7559,12 +7620,14 @@ impl PreparedEntry {
 
     /// Run one complete input with provenance and a log of the rule calls
     /// (`runa cases`): the result `runa call` gives, the rule clauses that
-    /// fired, and each call that selected a clause with its arguments.
-    pub fn probe(&mut self, input: &JsonValue) -> CaseProbe {
+    /// fired, and each call that selected a clause with its arguments. A
+    /// result whose variant is one of `rejections` also names the clauses
+    /// the rejection rests on.
+    pub fn probe(&mut self, input: &JsonValue, rejections: &[String]) -> CaseProbe {
         let elaboration = self.constructor_elaboration.clone();
         with_constructor_elaboration(elaboration.as_ref(), || {
             let (worker, contract) = self.prepared_worker();
-            worker.probe(contract, input)
+            worker.probe(contract, input, rejections)
         })
     }
 
@@ -7794,6 +7857,10 @@ pub struct CaseProbe {
     pub fired: Vec<ProbeClause>,
     /// Every rule call that selected a clause, in call order.
     pub calls: Vec<ProbeCall>,
+    /// Set when the result is a rejection: the fired clauses (indices into
+    /// `fired`) it rests on, read from a decided run, where a branch's value
+    /// is computed from the condition that chose it.
+    pub rejected_by: Option<Vec<usize>>,
 }
 
 /// A rule clause that fired in a probe.

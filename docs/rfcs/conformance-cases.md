@@ -25,7 +25,8 @@ model is the oracle and the implementation is under test.
 
 ```bash
 runa cases src/aktiesparekonto.entry.runa --entry aktiesparekonto_year --out cases/generated \
-    [--seed cases/aktiesparekonto-2026.json ...] [--scenario tests/aktiesparekonto_year.scenario.runa ...]
+    [--seed cases/aktiesparekonto-2026.json ...] [--scenario tests/aktiesparekonto_year.scenario.runa ...] \
+    [--rejected AskYearRejected ...]
 ```
 
 For each rule clause the entry reaches, `runa cases` looks for an entry input
@@ -60,16 +61,68 @@ coverage; a team that wants a coverage gate reads `coverage.json`.
 ```
 
 - `kind`: `clause` (found for a clause), `boundary-below`, `boundary-at`,
-  `boundary-above` (found for a threshold), or `scenario` (exported from a
-  scenario or seed).
+  `boundary-above` (found for a threshold), `scenario` (exported from a
+  scenario or seed), or `rejected`: any of these whose result is a rejection
+  (below).
 - `covers`: every rule clause the case's run fired, in the order of the
   catalogue (by file, then line), read from the run (below), never from what
   the case was searched for. A `boundary-below` case of a `>=` guard does not
-  fire that clause, and says so.
+  fire that clause, and says so. A rejected case covers only the clauses its
+  rejection rests on.
 - `input` is a complete, ready input of the entry's contract: `runa call`
   decodes it without a diagnostic. `expected` is the `result` `runa call`
   gives for it, the whole result (an `AskYearRejected` with its issues is a
   result like any other).
+
+### Rejections: coverage means the effect is observable
+
+An entry that refuses a case returns a result that shows little of what the
+rules computed before it gave up: an `AskYearRejected` with its issues says
+nothing of the tax rules that ran first. A case whose result is a rejection
+therefore covers a clause only when the rejection rests on it.
+
+**Which results are rejections.** Futuruna has no entry-level declaration of
+a rejection (`@ entry` takes only a title, and issues are a law's own type,
+`Issue` in the tax service). The language's own notion of failure is the
+prelude's `Result(a, e) = Ok(a) | Err(e)`: an entry whose result type is
+`Result` rejects with `Err`, with no flag. An entry with its own outcome type
+names its rejection variants with `--rejected VARIANT` (repeatable; `runa
+cases` refuses a name that is not a variant of the result type).
+`coverage.json` lists them under `rejections`.
+
+**What a rejection rests on** is read from provenance. The explanation traces
+values, not the branches that chose them: an issue built in
+`if condition { [Issue(...)] }` carries no trace of `condition`. So a
+rejected input runs a second time as a *decided case*: an explained run in
+which the value an `if` or `match` branch gives has every leaf computed from
+the condition (or the matched value) that chose the branch as well, and a
+branch that gives a rejection variant records those conditions
+(`Interpreter::begin_decided_case`, `explain_branch`). The clauses the
+rejection rests on are the rule nodes reached backwards from the result's
+leaves and those conditions, through computed values, what each clause
+computed and the guards that chose it (`ExplainState::rejection_clauses`).
+The first run's call log and argument provenance are kept for the lift: in
+the decided run an input leaf passed through a branch is no longer the
+input leaf unchanged.
+
+Two more reads are traced only in a decided case, because an explanation
+does not show them: `&&` and `||` are computed from the operands they read
+(`date_valid(d) && date_in_bounds(d)`), and a clause that returns `None` is
+traced like any other value (`match year_parameters(y) { | None ->
+AskYearRejected(...) }`). Tracing changes no value, so a decided run whose
+result differs from the first run's is not read, and the case then covers
+nothing.
+
+Consequences:
+
+- Rejected cases are kept, `kind: "rejected"`, and counted apart
+  (`coverage.json` `cases.rejected`, and the printed line).
+- A clause search is satisfied by a rejected run only when the rejection
+  rests on the target clause; a boundary only when it rests on a clause of
+  the threshold's rule (the boundary of a validation rule is observable, that
+  of a tax rule run before the entry gave up is not).
+- A clause that fired only in rejected runs, off the rejection's path, is
+  uncovered with reason `rejected`.
 
 ### Clause identity and stable ids
 
@@ -103,6 +156,8 @@ the id.
 {
   "entry": "aktiesparekonto_year",
   "summary": "187 of 211 rule clauses covered",
+  "rejections": ["AskYearRejected"],
+  "cases": { "clause": 12, "boundary": 26, "scenario": 3, "rejected": 9 },
   "clauses": [
     { "rule": "...", "clause": "...", "location": "...", "cites": [],
       "covered_by": ["seed.u-1001-2026-ask-1", "..."] },
@@ -135,6 +190,8 @@ written case covers. Each uncovered clause carries one reason:
   the arguments are derived from the input through lists, `foldl` or
   `scan`, or the entry's validation rejects every input that would produce
   them first. The witness tells a human what a scenario has to set up.
+- `rejected`: it fired, but only in inputs the entry rejects, and no
+  rejection rested on it.
 
 ## How a case is found
 
@@ -181,6 +238,29 @@ order (each `null` input path filled from another base or with the minimal
 value of its type, each non-null option set to `null`, each sum-typed input
 switched to each other variant, each Bool flipped) and a candidate is kept
 when the target fires.
+
+### New list elements
+
+A rule over an event or a position takes its arguments from one element of
+a list (`events[3].kind.amount_micro_dkk`, read from the arguments' input
+paths). Moving that element often breaks what else rests on it (the only
+deposit turned into a withdrawal). When the lift finds no case, the element
+is added anew, innermost list first, for at most two lists per call:
+
+1. A copy of the element is appended to the base, with its own key
+   (`@ field(key = True)`): for a list the case gives whole, the case's id
+   (`fee.large.clause`, a suffix `-2` if taken), so a rerun writes the same
+   element; for an open collection (`open = True`) only a key the witness
+   gives (an argument leaf read from the element's key), never an invented
+   one, and none the collection already has. A key that is not text, or an
+   open entry the witness gives no key for, gives no element.
+2. The run's call that reads the new element is lifted to the witness as in
+   step 2 above.
+3. Every leaf of the new element the witness did not set (scalars, lists,
+   dates) is put back to the plainest value of its type, one at a time, where
+   the case still holds, so the element is as minimal as stays valid.
+4. It is kept only when the run decodes, is not rejected, and fires the
+   clause (or, for a boundary, has the threshold's values).
 
 ### Bases: complete, valid inputs
 
@@ -252,9 +332,12 @@ written with sorted keys and a trailing newline.
   scenarios can cover them.
 - **`foldl`, `scan`, lists, open collections.** No formula connects an
   argument to the entry's lists. The lift moves one input leaf at a time and
-  needs that leaf's provenance; a value that only a *new* list element (a
-  second deposit, a dividend of another ISIN) could produce is not reached.
-  These clauses are reported `no-entry-input` with their witness: the place
+  needs that leaf's provenance; a new list element copies one that some
+  base's run already passed to the rule. A value that needs a new entry of an
+  open collection under a key no argument reads (a dividend of another ISIN)
+  is not reached, and a new element that unbalances what the entry checks
+  (a deposit the closing balance does not show) is rejected. These clauses
+  are reported `no-entry-input` or `rejected` with their witness: the place
   for a scenario.
 - **Validation.** A witness may be one the entry's validation rejects before
   the rule runs (an account closed before it opened). The search then fails
@@ -300,8 +383,11 @@ New:
 - `src/calculate.rs`: `PreparedEntry::probe` — one input, run with
   provenance, giving the result or the diagnostic, the fired clauses with
   their locations and citations, and the logged calls with each argument
-  leaf's provenance. `Interpreter` gains an opt-in capture of an entry
+  leaf's provenance; for a rejected result, the clauses the rejection rests
+  on, from a decided run. `Interpreter` gains an opt-in capture of an entry
   function's arguments for scenario export.
+- `src/explain.rs`/`src/lib.rs`: decided cases (`begin_decided_case`,
+  `explain_branch` at `if` and `match`, `ExplainState::rejection_clauses`).
 - `src/bin/runa_conformance_cases/mod.rs`: the command — bases, lift, search,
   boundaries, deduplication, case files and `coverage.json`.
 - `runa cases` in the CLI, `docs/reference/calculations.md`

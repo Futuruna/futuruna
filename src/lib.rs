@@ -24490,7 +24490,13 @@ impl Interpreter {
         env: &Env,
     ) -> Value {
         self.checked_mechanism_begin_dependency_scope();
-        let left_value = explain::strip(self.eval(left, env));
+        let left_value = self.eval(left, env);
+        // In a decided case the result is computed from the operands read.
+        let mut decided_by: Vec<explain::NodeId> = explain::node_of(&left_value)
+            .filter(|_| self.explain_decides())
+            .into_iter()
+            .collect();
+        let left_value = explain::strip(left_value);
         if let Value::Unknown(paths) = &left_value {
             return self.partial_short_circuit(operator, (**paths).clone(), right, env);
         }
@@ -24504,7 +24510,11 @@ impl Interpreter {
                 CheckedInterpreterShortCircuitOutcome::SkippedRight { result: true },
             ),
             ("&&" | "||", _) => {
-                let result = explain::strip(self.eval(right, env));
+                let result = self.eval(right, env);
+                if self.explain_decides() {
+                    decided_by.extend(explain::node_of(&result));
+                }
+                let result = explain::strip(result);
                 let boolean = match &result {
                     Value::Bool(value) => *value,
                     _ => {
@@ -24540,7 +24550,11 @@ impl Interpreter {
             expression,
             CheckedInterpreterMechanismEventOutcome::ShortCircuit(outcome),
         );
-        result
+        if decided_by.is_empty() {
+            result
+        } else {
+            self.explain_branch(result, &decided_by)
+        }
     }
 
     /// A malformed guard is an evaluation error, never a rejected candidate.
@@ -24577,7 +24591,9 @@ impl Interpreter {
         env: &Env,
     ) -> Value {
         self.checked_mechanism_begin_dependency_scope();
-        let condition_value = explain::strip(self.eval(condition, env));
+        let condition_value = self.eval(condition, env);
+        let decided_by = explain::node_of(&condition_value);
+        let condition_value = explain::strip(condition_value);
         if let Value::Unknown(paths) = &condition_value {
             return self.partial_if((**paths).clone(), then_expression, else_expression, env);
         }
@@ -24601,7 +24617,10 @@ impl Interpreter {
             expression,
             CheckedInterpreterMechanismEventOutcome::IfDecision(outcome),
         );
-        result
+        match decided_by {
+            Some(node) if self.explain_decides() => self.explain_branch(result, &[node]),
+            _ => result,
+        }
     }
 
     fn eval_checked_match(
@@ -28313,7 +28332,16 @@ impl Interpreter {
                 // A literal an arm gives was chosen by the matched value.
                 let decided = arm_index > 0 || !matches!(arm.pat, Pat::Wild | Pat::Var(_));
                 let result = if decided && self.explain.is_some() {
-                    self.explain_decided(result, &val)
+                    let result = self.explain_decided(result, &val);
+                    if self.explain_decides() {
+                        let mut from = Vec::new();
+                        explain::collect_nodes(&val, &mut from);
+                        from.sort_unstable();
+                        from.dedup();
+                        self.explain_branch(result, &from)
+                    } else {
+                        result
+                    }
                 } else {
                     result
                 };

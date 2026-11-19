@@ -17,6 +17,9 @@ pub(crate) struct CasesOptions {
     pub(crate) out: String,
     pub(crate) seeds: Vec<String>,
     pub(crate) scenarios: Vec<String>,
+    /// `--rejected`: result variants that are rejections, besides a
+    /// `Result`'s `Err`.
+    pub(crate) rejected: Vec<String>,
 }
 
 /// Probes allowed while searching for one clause or one boundary.
@@ -76,9 +79,20 @@ struct ThresholdCoverage {
 }
 
 #[derive(Serialize)]
+struct CaseCounts {
+    clause: usize,
+    boundary: usize,
+    scenario: usize,
+    rejected: usize,
+}
+
+#[derive(Serialize)]
 struct CoverageFile {
     entry: String,
     summary: String,
+    /// The result variants counted as rejections.
+    rejections: Vec<String>,
+    cases: CaseCounts,
     clauses: Vec<ClauseCoverage>,
     thresholds: Vec<ThresholdCoverage>,
 }
@@ -227,8 +241,11 @@ fn input_path_of(at: &str, leaf_path: &str, leaf_input: &str) -> Option<Vec<Segm
 /// One run of an input, as the search reads it.
 struct Run {
     result: Result<JsonValue, String>,
-    /// The catalogue clauses that fired, in catalogue order.
-    fired: Vec<usize>,
+    /// Whether the result is a rejection.
+    rejected: bool,
+    /// The clauses the run covers: those that fired, or of a rejection
+    /// those it rests on.
+    covered: Vec<usize>,
     calls: Vec<RunCall>,
 }
 
@@ -268,6 +285,11 @@ struct Search<'a> {
     cases: Vec<CaseFile>,
     case_by_input: BTreeMap<String, usize>,
     covered_by: Vec<Vec<String>>,
+    /// Result variants that are rejections.
+    rejections: Vec<String>,
+    /// Clauses that fired in some run the entry rejected, off the path the
+    /// rejection rests on.
+    fired_when_rejected: BTreeSet<usize>,
     /// Why a clause has no case: (reason, detail, witness).
     notes: BTreeMap<usize, (String, String, Option<JsonValue>)>,
 }
@@ -316,7 +338,7 @@ impl<'a> Search<'a> {
             return run.clone();
         }
         self.probes += 1;
-        let probe = self.prepared.probe(input);
+        let probe = self.prepared.probe(input, &self.rejections);
         let root = Path::new(self.filename)
             .parent()
             .map(Path::to_path_buf)
@@ -334,6 +356,18 @@ impl<'a> Search<'a> {
             .collect();
         fired.sort();
         fired.dedup();
+        let covered = match &probe.rejected_by {
+            Some(clauses) => {
+                let mut covered: Vec<usize> = clauses
+                    .iter()
+                    .filter_map(|clause| place_of(&probe.fired[*clause].place))
+                    .collect();
+                covered.sort();
+                covered.dedup();
+                covered
+            }
+            None => fired.clone(),
+        };
         let calls = probe
             .calls
             .into_iter()
@@ -353,9 +387,15 @@ impl<'a> Search<'a> {
                 })
             })
             .collect();
+        let rejected = probe.rejected_by.is_some();
+        if rejected {
+            self.fired_when_rejected
+                .extend(fired.iter().filter(|clause| !covered.contains(clause)));
+        }
         let run = Rc::new(Run {
             result: probe.result,
-            fired,
+            rejected,
+            covered,
             calls,
         });
         self.runs.insert(key, run.clone());
@@ -363,7 +403,7 @@ impl<'a> Search<'a> {
     }
 
     /// Write `input` as a case unless an equal input already is one;
-    /// returns the case's id.
+    /// returns the case's id. A rejected result is kind `rejected`.
     fn keep(&mut self, input: &JsonValue, id: String, kind: &str) -> Option<String> {
         let key = input.to_string();
         if let Some(index) = self.case_by_input.get(&key) {
@@ -383,16 +423,16 @@ impl<'a> Search<'a> {
             }
             id = format!("{}-{}", id, suffix);
         }
-        for clause in &run.fired {
+        for clause in &run.covered {
             self.covered_by[*clause].push(id.clone());
         }
         self.case_by_input.insert(key, self.cases.len());
         self.cases.push(CaseFile {
             id: id.clone(),
             entry: self.contract.entry.clone(),
-            kind: kind.to_string(),
+            kind: if run.rejected { "rejected" } else { kind }.to_string(),
             covers: run
-                .fired
+                .covered
                 .iter()
                 .map(|clause| self.covers[*clause].clone())
                 .collect(),
@@ -422,9 +462,11 @@ impl<'a> Search<'a> {
         self.catalogue.families[self.catalogue.clauses[clause].family].qualified()
     }
 
+    /// Whether a run of `input` covers `clause`: fires it, or, when the
+    /// entry rejects it, rests the rejection on it.
     fn fires(&mut self, input: &JsonValue, clause: usize) -> bool {
         let run = self.run(input);
-        run.ok() && run.fired.contains(&clause)
+        run.ok() && run.covered.contains(&clause)
     }
 
     /// The contract type at an input path, reading sum types' variants from
@@ -989,6 +1031,305 @@ impl<'a> Search<'a> {
         found
     }
 
+    /// The list elements a call's arguments come from: each list's input
+    /// path and the element's index, innermost list first, in the order the
+    /// arguments' leaves name them.
+    fn element_sources(&self, input: &JsonValue, call: &RunCall) -> Vec<(Vec<Segment>, usize)> {
+        let mut found: Vec<(Vec<Segment>, usize)> = Vec::new();
+        for argument in &call.args {
+            for leaf in &argument.leaves {
+                for path in leaf.input.iter().chain(&leaf.inputs) {
+                    let path = parse_path(path);
+                    for at in (0..path.len()).rev() {
+                        let Segment::Index(index) = path[at] else {
+                            continue;
+                        };
+                        let list = path[..at].to_vec();
+                        let is_list = matches!(
+                            self.type_at(input, &list),
+                            Some(calculate::CalculationTypeRef::List { .. })
+                        );
+                        if is_list && !found.iter().any(|(l, i)| *l == list && *i == index) {
+                            found.push((list, index));
+                        }
+                    }
+                }
+            }
+        }
+        found
+    }
+
+    /// The contract field at an input path that ends in a field name.
+    fn field_at(&self, input: &JsonValue, path: &[Segment]) -> Option<calculate::CalculationField> {
+        let (Segment::Field(name), parent) = path.split_last()? else {
+            return None;
+        };
+        let mut ty = self.type_at(input, parent)?;
+        while let calculate::CalculationTypeRef::Optional { item } = ty {
+            ty = *item;
+        }
+        let calculate::CalculationTypeRef::Named {
+            name: type_name, ..
+        } = ty
+        else {
+            return None;
+        };
+        let definition = self.contract.definition(&type_name)?;
+        let variant = if definition.variants.len() == 1 {
+            &definition.variants[0]
+        } else {
+            let chosen = json_at(input, parent)?.get("$variant")?.as_str()?;
+            definition
+                .variants
+                .iter()
+                .find(|variant| variant.name == chosen)?
+        };
+        variant
+            .fields
+            .iter()
+            .find(|field| &field.name == name)
+            .cloned()
+    }
+
+    /// When a call's arguments come from a list element (an event, a
+    /// position), a new element of that list carrying the witness: a copy of
+    /// the element with its own key, appended to the base, moved to the
+    /// witness as `lift` moves a base, then every leaf the witness did not
+    /// set put back to its plainest value where the case still holds. A
+    /// closed list's key is derived from `case_id`; an open list's key only
+    /// from the witness, never invented. Kept only when the run decodes, is
+    /// not rejected and `done` holds; otherwise why not.
+    #[allow(clippy::too_many_arguments)]
+    fn add_element(
+        &mut self,
+        base: usize,
+        nth: usize,
+        family: usize,
+        model: &[Option<JsonValue>],
+        case_id: &str,
+        budget: usize,
+        done: &dyn Fn(&mut Self, &JsonValue) -> bool,
+    ) -> Result<JsonValue, String> {
+        use calculate::CalculationTypeRef as T;
+        let accepted = |search: &mut Self, input: &JsonValue| {
+            let run = search.run(input);
+            run.ok() && !run.rejected && done(search, input)
+        };
+        let input = self.bases[base].input.clone();
+        let run = self.bases[base].run.clone();
+        let Some(call) = Self::call(&run, family, nth) else {
+            return Err("no case calls the rule".into());
+        };
+        let sources = self.element_sources(&input, call);
+        if sources.is_empty() {
+            return Err("its arguments come from no list element".into());
+        }
+        let mut why = String::new();
+        for (list, index) in sources.into_iter().take(2) {
+            if self.probes > budget {
+                break;
+            }
+            let list_text = segments_text(&list);
+            let Some(JsonValue::Array(items)) = json_at(&input, &list) else {
+                continue;
+            };
+            let Some(T::List { item }) = self.type_at(&input, &list) else {
+                continue;
+            };
+            let key = match item.as_ref() {
+                T::Named { name, .. } => self
+                    .contract
+                    .definition(name)
+                    .and_then(|definition| definition.key.clone()),
+                _ => None,
+            };
+            let open = self.field_at(&input, &list).is_some_and(|field| field.open);
+            let mut element = items[index].clone();
+            if let Some(key) = &key {
+                let key_path = [Segment::Index(index), Segment::Field(key.clone())];
+                let existing: Vec<&JsonValue> =
+                    items.iter().filter_map(|item| item.get(key)).collect();
+                let value = if open {
+                    // Only a key the witness gives: one an argument reads.
+                    let mut path = list.clone();
+                    path.extend(key_path.iter().cloned());
+                    let path = segments_text(&path);
+                    let given = call
+                        .args
+                        .iter()
+                        .enumerate()
+                        .find_map(|(position, argument)| {
+                            let leaf = argument
+                                .leaves
+                                .iter()
+                                .find(|leaf| leaf.input.as_deref() == Some(path.as_str()))?;
+                            argument_at(model.get(position)?.as_ref()?, &leaf.path).cloned()
+                        });
+                    let ty = {
+                        let mut at = list.clone();
+                        at.extend(key_path.iter().cloned());
+                        self.type_at(&input, &at)
+                    };
+                    match (given, ty) {
+                        (Some(value), Some(ty)) => {
+                            let value = self.to_input(&value, &ty, 0);
+                            if existing.contains(&&value) {
+                                why = format!("a new entry of the open `{}` needs a key, and the witness gives only one it already has", list_text);
+                                continue;
+                            }
+                            value
+                        }
+                        _ => {
+                            why = format!(
+                                "a new entry of the open `{}` needs a key, and the witness gives none",
+                                list_text
+                            );
+                            continue;
+                        }
+                    }
+                } else {
+                    if !matches!(element.get(key), Some(JsonValue::String(_))) {
+                        why = format!("the key of `{}` is not text", list_text);
+                        continue;
+                    }
+                    let mut id = case_id.to_string();
+                    let mut suffix = 2;
+                    while existing
+                        .iter()
+                        .any(|value| value.as_str() == Some(id.as_str()))
+                    {
+                        id = format!("{}-{}", case_id, suffix);
+                        suffix += 1;
+                    }
+                    JsonValue::from(id)
+                };
+                set_json_at(&mut element, &key_path[1..], value);
+            }
+            // The witness values whose input leaf is in the element go on the
+            // copy before it runs: a copy equal to the element would give the
+            // rule the same arguments, which its memo answers unlogged.
+            let copied = element.clone();
+            let mut element_path = list.clone();
+            element_path.push(Segment::Index(index));
+            for (position, argument) in call.args.iter().enumerate() {
+                let Some(Some(target)) = model.get(position) else {
+                    continue;
+                };
+                let mut diffs = Vec::new();
+                differences(&argument.value, target, "", &mut diffs);
+                for (at, value) in diffs {
+                    for leaf in &argument.leaves {
+                        let Some(path) = leaf
+                            .input
+                            .as_ref()
+                            .and_then(|leaf_input| input_path_of(&at, &leaf.path, leaf_input))
+                        else {
+                            continue;
+                        };
+                        let (Some(relative), Some(ty)) = (
+                            path.strip_prefix(element_path.as_slice()),
+                            self.type_at(&input, &path),
+                        ) else {
+                            continue;
+                        };
+                        if set_json_at(&mut element, relative, self.to_input(&value, &ty, 0)) {
+                            break;
+                        }
+                    }
+                }
+            }
+            let mut appended = input.clone();
+            let mut grown = items.clone();
+            grown.push(element.clone());
+            let new_index = items.len();
+            set_json_at(&mut appended, &list, JsonValue::Array(grown));
+            let mut prefix = list.clone();
+            prefix.push(Segment::Index(new_index));
+            let run = self.run(&appended);
+            if let Err(error) = &run.result {
+                why = format!("a new element of `{}` is refused: {}", list_text, error);
+                continue;
+            }
+            let reads_new = |call: &RunCall| {
+                call.args.iter().any(|argument| {
+                    argument.leaves.iter().any(|leaf| {
+                        leaf.input
+                            .iter()
+                            .chain(&leaf.inputs)
+                            .any(|path| parse_path(path).starts_with(&prefix))
+                    })
+                })
+            };
+            let Some(new_nth) = run.calls_of(family).position(reads_new) else {
+                why = format!(
+                    "the rule is not called with a new element of `{}`",
+                    list_text
+                );
+                continue;
+            };
+            let Some(found) = self.lift(appended, family, new_nth, model, budget, &accepted) else {
+                why = format!(
+                    "a new element of `{}` moved to the witness does not fire it, or the entry rejects it",
+                    list_text
+                );
+                continue;
+            };
+            return Ok(self.minimise_element(
+                found,
+                &prefix,
+                &copied,
+                key.as_deref(),
+                budget,
+                &accepted,
+            ));
+        }
+        Err(why)
+    }
+
+    /// Put each leaf of the new element at `prefix` that still has the
+    /// copied element's value (`copied`), except its key, back to its
+    /// plainest value where `done` still holds.
+    fn minimise_element(
+        &mut self,
+        mut input: JsonValue,
+        prefix: &[Segment],
+        copied: &JsonValue,
+        key: Option<&str>,
+        budget: usize,
+        done: &dyn Fn(&mut Self, &JsonValue) -> bool,
+    ) -> JsonValue {
+        let Some(element) = json_at(&input, prefix).cloned() else {
+            return input;
+        };
+        let mut leaves = Vec::new();
+        element_leaves(&element, &mut Vec::new(), &mut leaves);
+        for relative in leaves {
+            if self.probes > budget {
+                break;
+            }
+            if key.is_some_and(|key| relative == [Segment::Field(key.to_string())]) {
+                continue;
+            }
+            if json_at(&element, &relative) != json_at(copied, &relative) {
+                continue;
+            }
+            let mut path = prefix.to_vec();
+            path.extend(relative);
+            let Some(ty) = self.type_at(&input, &path) else {
+                continue;
+            };
+            let plain = self.minimal(&ty, 0);
+            if json_at(&input, &path) == Some(&plain) {
+                continue;
+            }
+            let mut moved = input.clone();
+            if set_json_at(&mut moved, &path, plain) && done(self, &moved) {
+                input = moved;
+            }
+        }
+        input
+    }
+
     /// Anchors of a run's call: each argument's value, its leaves that no
     /// input leaf gives weighing more.
     fn anchors(call: &RunCall) -> Vec<(usize, JsonValue, BTreeSet<String>)> {
@@ -1032,6 +1373,7 @@ impl<'a> Search<'a> {
             return Ok(None);
         }
         let target = move |search: &mut Self, input: &JsonValue| search.fires(input, clause);
+        let mut models = Vec::new();
         for (base, nth) in calls {
             if self.probes > budget {
                 break;
@@ -1059,6 +1401,7 @@ impl<'a> Search<'a> {
                         {
                             return Ok(Some(found));
                         }
+                        models.push((base, nth, model));
                         self.notes.insert(
                             clause,
                             (
@@ -1088,7 +1431,42 @@ impl<'a> Search<'a> {
                 return Ok(Some(found));
             }
         }
+        // A new element of the list the arguments come from.
+        let budget = self.probes + PROBES_PER_TARGET;
+        let id = self.clause_case_id(clause);
+        for (base, nth, model) in models.into_iter().take(CALLS_PER_BASE) {
+            match self.add_element(base, nth, family, &model, &id, budget, &target) {
+                Ok(found) => return Ok(Some(found)),
+                Err(why) => {
+                    if let Some(note) = self.notes.get_mut(&clause) {
+                        if !note.1.contains(&why) {
+                            note.1 = format!("{}; {}", note.1, why);
+                        }
+                    }
+                }
+            }
+        }
         Ok(None)
+    }
+
+    /// The id of the case found for `clause`.
+    fn clause_case_id(&self, clause: usize) -> String {
+        format!(
+            "{}.{}.clause",
+            id_part(&self.rule_of(clause)),
+            id_part(&self.catalogue.clauses[clause].key)
+        )
+    }
+
+    /// The id of the case found for a side of a threshold.
+    fn boundary_case_id(&self, clause: usize, threshold: usize, side: &str) -> String {
+        format!(
+            "{}.{}.t{}.boundary-{}",
+            id_part(&self.rule_of(clause)),
+            id_part(&self.catalogue.clauses[clause].key),
+            threshold + 1,
+            side
+        )
     }
 
     fn witness_json(&self, family: usize, model: &[Option<JsonValue>]) -> JsonValue {
@@ -1187,12 +1565,13 @@ impl<'a> Search<'a> {
     }
 
     /// Find an input whose call of the clause's rule has the threshold's
-    /// `lhs - rhs` at `offset`; the id of its case.
+    /// `lhs - rhs` at `offset`; `case_id` is the id its case will have.
     fn find_boundary(
         &mut self,
         clause: usize,
         threshold: usize,
         offset: i64,
+        case_id: &str,
     ) -> Result<Result<JsonValue, String>, String> {
         let family = self.catalogue.clauses[clause].family;
         let budget = self.probes + PROBES_PER_TARGET;
@@ -1207,6 +1586,7 @@ impl<'a> Search<'a> {
             )));
         }
         let mut last = String::from("no input moved to Z3's arguments reached the rule with them");
+        let mut models = Vec::new();
         for (base, nth) in calls {
             if self.probes > budget {
                 break;
@@ -1244,30 +1624,100 @@ impl<'a> Search<'a> {
                     continue;
                 }
             };
-            let reads = reads.clone();
-            let at_offset = {
-                let model = model.clone();
-                move |search: &mut Self, input: &JsonValue| -> bool {
-                    let run = search.run(input);
-                    run.ok()
-                        && run.calls_of(family).any(|call| {
-                            reads
-                                .iter()
-                                .all(|(parameter, path)| match &model.get(*parameter) {
-                                    Some(Some(value)) => {
-                                        argument_at(&call.args[*parameter].value, path)
-                                            == argument_at(value, path)
-                                    }
-                                    _ => true,
-                                })
-                        })
-                }
-            };
+            let at_offset = Self::at_offset(family, reads.clone(), model.clone());
             if let Some(found) = self.lift(input, family, nth, &model, budget, &at_offset) {
                 return Ok(Ok(found));
             }
+            models.push((base, nth, model));
+        }
+        // A new element of the list the arguments come from.
+        let budget = self.probes + PROBES_PER_TARGET;
+        for (base, nth, model) in models.into_iter().take(CALLS_PER_BASE) {
+            let at_offset = Self::at_offset(family, reads.clone(), model.clone());
+            match self.add_element(base, nth, family, &model, case_id, budget, &at_offset) {
+                Ok(found) => return Ok(Ok(found)),
+                Err(why) if !last.contains(&why) => last = format!("{}; {}", last, why),
+                Err(_) => {}
+            }
         }
         Ok(Err(last))
+    }
+
+    /// Whether some call of `family` in a run has the model's values in
+    /// every argument leaf a threshold reads, and the result shows what the
+    /// family decided: it is not rejected, or the rejection rests on one of
+    /// the family's clauses.
+    fn at_offset(
+        family: usize,
+        reads: Vec<(usize, String)>,
+        model: Vec<Option<JsonValue>>,
+    ) -> impl Fn(&mut Self, &JsonValue) -> bool {
+        move |search: &mut Self, input: &JsonValue| -> bool {
+            let run = search.run(input);
+            let observable = !run.rejected
+                || run
+                    .covered
+                    .iter()
+                    .any(|clause| search.catalogue.clauses[*clause].family == family);
+            run.ok()
+                && observable
+                && run.calls_of(family).any(|call| {
+                    reads
+                        .iter()
+                        .all(|(parameter, path)| match &model.get(*parameter) {
+                            Some(Some(value)) => {
+                                argument_at(&call.args[*parameter].value, path)
+                                    == argument_at(value, path)
+                            }
+                            _ => true,
+                        })
+                })
+        }
+    }
+}
+
+/// An input path as explanations write it: `events[2].kind`.
+fn segments_text(path: &[Segment]) -> String {
+    let mut text = String::new();
+    for segment in path {
+        match segment {
+            Segment::Field(name) => {
+                if !text.is_empty() {
+                    text.push('.');
+                }
+                text.push_str(name);
+            }
+            Segment::Index(index) => text.push_str(&format!("[{}]", index)),
+        }
+    }
+    text
+}
+
+/// The leaves of an input element a new element may set back to its
+/// plainest value: scalars, lists (whole) and dates (whole), not variant
+/// tags.
+fn element_leaves(value: &JsonValue, path: &mut Vec<Segment>, out: &mut Vec<Vec<Segment>>) {
+    match value {
+        JsonValue::Object(object) => {
+            let is_date = object.len() == 3
+                && ["year", "month", "day"]
+                    .iter()
+                    .all(|field| object.contains_key(*field));
+            if is_date {
+                out.push(path.clone());
+                return;
+            }
+            for (key, inner) in object {
+                if key == "$variant" {
+                    continue;
+                }
+                path.push(Segment::Field(key.clone()));
+                element_leaves(inner, path, out);
+                path.pop();
+            }
+        }
+        JsonValue::Null => {}
+        _ => out.push(path.clone()),
     }
 }
 
@@ -1404,6 +1854,10 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
                 std::process::exit(1);
             })
             .clone();
+    let rejections = rejection_variants(&contract, &options.rejected).unwrap_or_else(|error| {
+        eprintln!("error: {}", error);
+        std::process::exit(1);
+    });
     let interpreter =
         initialized_calculation_interpreter(&program, &artifacts, filename, &contract.entry);
     let reached = reached_rule_families(&interpreter.calculation_callable_reachability());
@@ -1485,6 +1939,8 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
         cases: Vec::new(),
         case_by_input: BTreeMap::new(),
         covered_by: vec![Vec::new(); clause_count],
+        rejections,
+        fired_when_rejected: BTreeSet::new(),
         notes: BTreeMap::new(),
     };
 
@@ -1523,7 +1979,7 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
         }
         let run = search.run(&input);
         if run
-            .fired
+            .covered
             .iter()
             .any(|clause| search.covered_by[*clause].is_empty())
         {
@@ -1548,11 +2004,7 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
                 std::process::exit(1);
             });
             if let Some(input) = found {
-                let id = format!(
-                    "{}.{}.clause",
-                    id_part(&search.rule_of(clause)),
-                    id_part(&search.catalogue.clauses[clause].key)
-                );
+                let id = search.clause_case_id(clause);
                 search.keep(&input, id, "clause");
                 found_any = true;
             }
@@ -1578,21 +2030,15 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
                 .into_iter()
                 .enumerate()
             {
+                let id = search.boundary_case_id(clause, threshold, name);
                 let found = search
-                    .find_boundary(clause, threshold, offset)
+                    .find_boundary(clause, threshold, offset, &id)
                     .unwrap_or_else(|error| {
                         eprintln!("error: {}", error);
                         std::process::exit(1);
                     });
                 match found {
                     Ok(input) => {
-                        let id = format!(
-                            "{}.{}.t{}.boundary-{}",
-                            id_part(&search.rule_of(clause)),
-                            id_part(&search.catalogue.clauses[clause].key),
-                            threshold + 1,
-                            name
-                        );
                         sides[side] = search.keep(&input, id, &format!("boundary-{}", name));
                     }
                     Err(reason) => details.push(format!("{}: {}", name, reason)),
@@ -1623,6 +2069,18 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
         let (reason, detail, witness) = if !covered_by.is_empty() {
             covered += 1;
             (None, None, None)
+        } else if search.fired_when_rejected.contains(&clause) {
+            (
+                Some("rejected".to_string()),
+                Some(
+                    "it fired only in inputs the entry rejects, and no rejection rests on it"
+                        .to_string(),
+                ),
+                search
+                    .notes
+                    .get(&clause)
+                    .and_then(|(_, _, witness)| witness.clone()),
+            )
         } else {
             match &search.catalogue.clauses[clause].status {
                 ClauseStatus::Unreachable(detail) => {
@@ -1689,15 +2147,6 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
     for case in &search.cases {
         write(&format!("{}.case.json", case.id), case);
     }
-    write(
-        "coverage.json",
-        &CoverageFile {
-            entry: contract.entry.clone(),
-            summary: summary.clone(),
-            clauses,
-            thresholds,
-        },
-    );
     let count = |kind: &str| {
         search
             .cases
@@ -1705,15 +2154,79 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
             .filter(|case| case.kind.starts_with(kind))
             .count()
     };
-    println!(
-        "runa cases: {}; {} cases ({} clause, {} boundary, {} scenario) in {}",
+    let counts = CaseCounts {
+        clause: count("clause"),
+        boundary: count("boundary"),
+        scenario: count("scenario"),
+        rejected: count("rejected"),
+    };
+    let line = format!(
+        "runa cases: {}; {} cases ({} clause, {} boundary, {} scenario, {} rejected) in {}",
         summary,
         search.cases.len(),
-        count("clause"),
-        count("boundary"),
-        count("scenario"),
+        counts.clause,
+        counts.boundary,
+        counts.scenario,
+        counts.rejected,
         options.out
     );
+    write(
+        "coverage.json",
+        &CoverageFile {
+            entry: contract.entry.clone(),
+            summary,
+            rejections: search.rejections.clone(),
+            cases: counts,
+            clauses,
+            thresholds,
+        },
+    );
+    println!("{}", line);
+}
+
+/// The result variants that are rejections: a `Result`'s `Err`, and each
+/// `--rejected` variant, which must be one of the result type's.
+fn rejection_variants(
+    contract: &calculate::CalculationContract,
+    named: &[String],
+) -> Result<Vec<String>, String> {
+    let definition = match &contract.output {
+        calculate::CalculationTypeRef::Named { name, .. } => contract.definition(name),
+        _ => None,
+    };
+    let variants: Vec<&str> = definition
+        .map(|definition| {
+            definition
+                .variants
+                .iter()
+                .map(|variant| variant.name.as_str())
+                .collect()
+        })
+        .unwrap_or_default();
+    let mut rejections = Vec::new();
+    let is_result = definition
+        .is_some_and(|definition| definition.name == "Result" && variants == ["Ok", "Err"]);
+    if is_result {
+        rejections.push("Err".to_string());
+    }
+    for name in named {
+        if !variants.contains(&name.as_str()) || variants.len() < 2 {
+            return Err(format!(
+                "--rejected `{}` is not a variant of the result of `{}`{}",
+                name,
+                contract.entry,
+                if variants.len() < 2 {
+                    String::new()
+                } else {
+                    format!(" (its variants: {})", variants.join(", "))
+                }
+            ));
+        }
+        if !rejections.contains(name) {
+            rejections.push(name.clone());
+        }
+    }
+    Ok(rejections)
 }
 
 /// Pretty JSON of any serializable value behind one `dyn`.

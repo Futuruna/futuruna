@@ -571,7 +571,8 @@ scalar and is analyzed, cited and explained (see
 ```sh
 runa cases model.entry.runa --entry calculate_tax --out cases/generated
 runa cases model.entry.runa --entry calculate_tax --out cases/generated \
-    --seed cases/examples.json --scenario tests/model.scenario.runa
+    --seed cases/examples.json --scenario tests/model.scenario.runa \
+    --rejected Refused
 ```
 
 `runa cases` (Experimental) turns the model into a test oracle for another
@@ -596,6 +597,27 @@ computed from integer inputs (an amount in øre from one in millionths of a
 krone), or filled in when an `Option` input is `null`. Clauses outside the SMT
 encoding are searched without a witness, around the inputs the rule reads.
 
+When the arguments come from an element of a list (an event, a position) and
+moving that element's values gives no case, a new element is added to the base: a copy of
+that element with its own key, moved to Z3's solution as above, then every
+leaf the solution did not set put back to its plainest value where the case
+still holds. The key of a list's elements (`@ field(key = True)`) is the
+case's id (`fee.large.clause`); an entry of an open collection (`open = True`)
+gets a key only from the solution, never an invented one. The new element is
+kept only when the run decodes, is not rejected and fires the clause.
+
+**Rejections.** A result variant is a rejection when the entry's result type
+is the prelude's `Result` (its `Err`) or when `--rejected VARIANT` names it
+(repeatable; it must be a variant of the result type). A rejected result
+shows little of what the rules computed before the entry gave up, so a case
+whose result is a rejection covers only the clauses the rejection rests on:
+the input is run again with every `if` and `match` branch's value traced to
+the condition that chose it, and the clauses the result's values and the
+conditions that chose the rejection were computed from (their values and
+guards, through the explanation's provenance) are its `covers`. A boundary
+case whose result is a rejection is kept only when the rejection rests on the
+threshold's rule.
+
 Each case is written to `DIR/<id>.case.json`:
 
 - `id`: `<rule>.<clause>.clause`, `<rule>.<clause>.t<k>.boundary-below` (or
@@ -603,26 +625,32 @@ Each case is written to `DIR/<id>.case.json`:
   an exception's label or `clause-<n>`, its position in the family's source
   order. Ids never hash values, so they are the same on every run.
 - `entry`, `kind` (`clause`, `boundary-below`, `boundary-at`,
-  `boundary-above`, `scenario`), `input` (a complete input) and `expected`
-  (the `result` `runa call` gives for it).
-- `covers`: each clause the case's run fired, with `rule`, `clause`,
-  `location` (relative to the entry file's directory) and `cites` (the cited
-  paragraphs). It is read from the run, never assumed from the search.
+  `boundary-above`, `scenario`, or `rejected` for any case whose result is a
+  rejection), `input` (a complete input) and `expected` (the `result` `runa
+  call` gives for it).
+- `covers`: each clause the case's run fired (of a rejection, those it rests
+  on), with `rule`, `clause`, `location` (relative to the entry file's
+  directory) and `cites` (the cited paragraphs). It is read from the run,
+  never assumed from the search.
 
 `DIR/coverage.json` lists every clause with the cases that cover it, and for
 an uncovered one a `reason`: `unreachable` (the audit proved it never fires),
 `not-analysable` (its guard is outside the SMT encoding, with the audit's
-reason), `solver-unknown`, or `no-entry-input` (no input the search tried
-reached it; with the rule-level `witness` when Z3 found one, which says what a
-scenario must set up). `thresholds` names the case of each side of each
-threshold, or `null`. The command prints the summary,
-`runa cases: N of M rule clauses covered; ...`. Earlier `*.case.json` files
-in `DIR` that this run does not write are removed.
+reason), `solver-unknown`, `rejected` (it fired only in inputs the entry
+rejects, and no rejection rests on it), or `no-entry-input` (no input the
+search tried reached it; with the rule-level `witness` when Z3 found one,
+which says what a scenario must set up). `thresholds` names the case of each
+side of each threshold, or `null`; `rejections` the variants counted as
+rejections; `cases` the number of cases of each kind (`clause`, `boundary`,
+`scenario`, `rejected`). The command prints the summary,
+`runa cases: N of M rule clauses covered; K cases (… clause, … boundary, …
+scenario, … rejected) in DIR`. Earlier `*.case.json` files in `DIR` that this
+run does not write are removed.
 
 Arguments derived from lists through `foldl` or `scan`, or rejected by the
 entry's validation before the rule runs, are often not reached by moving one
-input leaf: such clauses are reported `no-entry-input`, and a scenario that
-sets them up covers them.
+input leaf or adding one element: such clauses are reported `no-entry-input`
+or `rejected`, and a scenario that sets them up covers them.
 
 ## Generate Input
 

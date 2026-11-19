@@ -228,6 +228,7 @@ fn main_inner() {
     let mut cases_out = None;
     let mut cases_seeds = Vec::new();
     let mut cases_scenarios = Vec::new();
+    let mut cases_rejected = Vec::new();
     let mut calculation_format = None;
     let mut calculation_input = None;
     let mut calculation_output = None;
@@ -491,15 +492,21 @@ fn main_inner() {
                 calculation_entry = Some(arg["--entry=".len()..].to_string());
                 i += 1;
             }
-            "--out" | "--seed" | "--scenario" if mode == "cases" => {
+            "--out" | "--seed" | "--scenario" | "--rejected" if mode == "cases" => {
                 if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: {} requires a path", args[i]);
+                    let what = if args[i] == "--rejected" {
+                        "a variant of the entry's result"
+                    } else {
+                        "a path"
+                    };
+                    eprintln!("error: {} requires {}", args[i], what);
                     std::process::exit(1);
                 }
                 let value = args[i + 1].clone();
                 match args[i].as_str() {
                     "--out" => cases_out = Some(value),
                     "--seed" => cases_seeds.push(value),
+                    "--rejected" => cases_rejected.push(value),
                     _ => cases_scenarios.push(value),
                 }
                 i += 2;
@@ -1280,7 +1287,7 @@ fn main_inner() {
 
     if mode == "cases" {
         let (Some(path), Some(out)) = (filename.as_deref(), cases_out) else {
-            eprintln!("Usage: runa cases <file.runa> [--entry NAME] --out DIR [--seed CASES.json ...] [--scenario FILE.scenario.runa ...]");
+            eprintln!("Usage: runa cases <file.runa> [--entry NAME] --out DIR [--seed CASES.json ...] [--scenario FILE.scenario.runa ...] [--rejected VARIANT ...]");
             std::process::exit(1);
         };
         runa_conformance_cases::run_cases(
@@ -1291,6 +1298,7 @@ fn main_inner() {
                 out,
                 seeds: cases_seeds,
                 scenarios: cases_scenarios,
+                rejected: cases_rejected,
             },
         );
         return;
