@@ -1,6 +1,6 @@
 # Conformance cases generated from the law
 
-Status: Experimental (`runa cases`, Futuruna 0.7.0).
+Status: Experimental (`runa cases`, Futuruna 0.8.0).
 
 ## Problem
 
@@ -201,6 +201,13 @@ in this order:
 3. **The minimal input**: every field at the plainest value of its type
    (`0`, `false`, `""`, `null`, `[]`, the first variant without fields, else
    the first; a `Date` 2000-01-01), kept as `seed.minimal` likewise.
+
+The minimal input leaves every list empty, open collections included: it
+never invents a key (a day, an ISIN) the law has not asked for. A law that
+then looks an entry up fails the run ("no entry whose `day` is …"), and that
+run is not a case; deriving keys from the law's own computed days would put
+values into the input that no integrator supplied, so they would describe
+the search, not the law.
 
 A base that does not decode, or whose run fails, is reported on stderr and
 not used. A clause that a base already fires is covered by that base; the

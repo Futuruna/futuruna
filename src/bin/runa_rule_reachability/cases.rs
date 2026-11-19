@@ -444,6 +444,38 @@ fn argument_reads(expression: &Expr, reads: &mut Vec<(usize, String)>) {
     });
 }
 
+/// A namespaced SMT symbol (`|runa_smt_v1_rule_4x726f6f74_…_15x61736b…|`)
+/// as the name the source writes: its last `<length>x<hex>` part decoded,
+/// with its scope when it has one. Any other name is returned as is.
+fn source_name(name: &str) -> String {
+    let bare = name.trim_matches('|');
+    let Some(rest) = bare.strip_prefix("runa_smt_v1_") else {
+        return name.to_string();
+    };
+    let decode = |part: &str| -> Option<String> {
+        let (length, hex) = part.split_once('x')?;
+        let length: usize = length.parse().ok()?;
+        let bytes = (0..hex.len() / 2 * 2)
+            .step_by(2)
+            .map(|index| u8::from_str_radix(&hex[index..index + 2], 16).ok())
+            .collect::<Option<Vec<u8>>>()?;
+        (bytes.len() == length)
+            .then(|| String::from_utf8(bytes).ok())
+            .flatten()
+    };
+    let parts: Vec<String> = rest
+        .split('_')
+        .filter(|part| part.contains('x'))
+        .filter_map(decode)
+        .collect();
+    // namespace, kind, scope, name
+    match parts.as_slice() {
+        [.., scope, name] if !scope.is_empty() && parts.len() >= 4 => format!("{}.{}", scope, name),
+        [.., name] => name.clone(),
+        [] => name.to_string(),
+    }
+}
+
 /// A lowered expression in source spelling, parameters by name.
 fn readable(expression: &Expr, parameters: &[CatalogueParameter]) -> String {
     match &expression.kind {
@@ -452,7 +484,7 @@ fn readable(expression: &Expr, parameters: &[CatalogueParameter]) -> String {
             .and_then(|index| index.parse::<usize>().ok())
             .and_then(|index| parameters.get(index))
             .map(|parameter| parameter.name.clone())
-            .unwrap_or_else(|| name.clone()),
+            .unwrap_or_else(|| source_name(name)),
         ExprKind::Lit(Literal::Int(number)) => number.to_string(),
         ExprKind::Lit(Literal::Bool(value)) => value.to_string(),
         ExprKind::Lit(Literal::Str(text)) => format!("{:?}", text),
