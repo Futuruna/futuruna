@@ -30138,8 +30138,29 @@ impl Interpreter {
                     || (!name.chars().next().is_some_and(char::is_uppercase)
                         && env.get(name).is_none()));
             if !binds {
-                return self.partial_possible_match(paths);
+                if !self.partial_possible_match(paths) {
+                    return false;
+                }
+                // The pattern may match: what it binds is read from the
+                // unknown value, so it is unknown on the same paths. Left
+                // unbound, the clause body would read another binding or
+                // fail instead of waiting for the input.
+                let mut names = Vec::new();
+                Self::collect_rule_head_vars(param, &mut names);
+                for name in names {
+                    if env.get(&name).is_none() {
+                        env.set(name, Value::Unknown(paths.clone()));
+                    }
+                }
+                return true;
             }
+        }
+        // A pattern reads the value it matches, as `match` does; a variable
+        // only binds it, and its reads are recorded where it is used.
+        if !matches!(&param.kind, ExprKind::Var(name)
+            if name == "_" || !name.chars().next().is_some_and(char::is_uppercase))
+        {
+            self.partial_consume(val, true);
         }
 
         match &param.kind {

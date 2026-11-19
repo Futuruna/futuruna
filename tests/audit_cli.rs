@@ -931,6 +931,23 @@ fn clause_audit_analyses_rules_on_scanned_states() {
     assert!(!not_analyzed.contains("overdrawn/1"), "{not_analyzed}");
 }
 
+/// A family over two Option sorts: `None` in a head and as a result is
+/// unambiguous to the solver, so every clause is analysed.
+#[test]
+fn clause_audit_analyses_families_mixing_option_sorts() {
+    let fixture = topology_fixture("clause_mixed_options.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("1 rule family, 3 clauses: 3 analyzed, 0 not analyzed"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("ambiguous"), "{stdout}");
+}
+
 /// A family whose clause heads match every variant has no gap.
 #[test]
 fn clause_audit_reads_constructor_heads_as_total() {

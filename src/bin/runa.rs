@@ -16750,6 +16750,13 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     .insert(name.clone(), actual.clone());
                 Ok(smt_bool(true))
             }
+            // A nullary constructor is tested, not compared: `None` alone
+            // names no sort when a family holds two Option sorts.
+            ExprKind::Var(constructor)
+                if self.constructor_signature(constructor, &[]).is_some() =>
+            {
+                Ok(smt_constructor_test(constructor, actual.clone()))
+            }
             ExprKind::Var(_) => Ok(Expr::unspanned(ExprKind::BinOp(
                 "==".to_string(),
                 Box::new(actual.clone()),

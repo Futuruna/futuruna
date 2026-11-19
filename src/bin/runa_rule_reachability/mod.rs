@@ -1960,12 +1960,24 @@ fn analyze_family(
             let mut value = expr_to_smt(expression);
             if let Some(result) = &signature.result {
                 let name = format!("runa_value_{}", index);
-                prefix.push_str(&format!(
-                    "(define-fun {} () {} {})\n",
-                    name,
-                    ty_to_smt_sort(result),
-                    value
-                ));
+                let sort = ty_to_smt_sort(result);
+                // A bare nullary constructor (`None`) is qualified with the
+                // result sort: with two instances of its datatype in the
+                // query (`Option Int`, `Option Date`) the solver cannot pick.
+                let nullary = match &expression.kind {
+                    ExprKind::Var(constructor) => Some(constructor),
+                    ExprKind::App(function, arguments) if arguments.is_empty() => {
+                        match &function.kind {
+                            ExprKind::Var(constructor) => Some(constructor),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                };
+                if nullary.is_some_and(|name| name.chars().next().is_some_and(char::is_uppercase)) {
+                    value = format!("(as {} {})", value, sort);
+                }
+                prefix.push_str(&format!("(define-fun {} () {} {})\n", name, sort, value));
                 value = name;
             }
             Some((
