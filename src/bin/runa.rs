@@ -15318,6 +15318,18 @@ impl SmtProgramDeclarations {
                 }
             }
         }
+        // A function's result and a typed binding give a nullary constructor
+        // they yield (`None`) its sort.
+        for (_, _, result, body) in &mut functions {
+            if let Some(result) = result {
+                *body = rule_lowerer.sort_nullary_constructors(body.clone(), result);
+            }
+        }
+        for (name, expression) in &mut bindings {
+            if let Some(Some(ty)) = binding_types.get(name) {
+                *expression = rule_lowerer.sort_nullary_constructors(expression.clone(), ty);
+            }
+        }
 
         Self {
             adts,
@@ -15857,6 +15869,106 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         (parents.len() == 1).then(|| parents.into_iter().next().unwrap())
     }
 
+    /// The constructor a lowered expression applies with no payload, of a
+    /// generic type (`None`): alone it names no instance of its type.
+    fn lowered_nullary_constructor<'expression>(
+        &self,
+        expression: &'expression Expr,
+    ) -> Option<&'expression str> {
+        let name = match &expression.kind {
+            ExprKind::Var(name) => name,
+            ExprKind::App(function, arguments) if arguments.is_empty() => match &function.kind {
+                ExprKind::Var(name) => name,
+                _ => return None,
+            },
+            _ => return None,
+        };
+        let signature = self.constructor_signature(name, &[])?;
+        self.type_parameters_by_owner
+            .get(&signature.parent)
+            .is_some_and(|parameters| !parameters.is_empty())
+            .then_some(name.as_str())
+    }
+
+    /// `expression`, a lowered value of type `ty`, with every nullary
+    /// constructor (`None`) it yields given its sort, also inside a
+    /// constructor's payload (`Some(None)`, `Span(start = None, …)`) and in
+    /// the branches of an `if`, a `match` or a block: with two instances of
+    /// its datatype in the query (`Option Int`, `Option Date`) the solver
+    /// cannot pick.
+    fn sort_nullary_constructors(&self, expression: Expr, ty: &Ty) -> Expr {
+        if self.lowered_nullary_constructor(&expression).is_some() {
+            return if self.rule_type_is_smt_representable(ty) {
+                smt_sorted_nullary(expression, ty)
+            } else {
+                expression
+            };
+        }
+        let span = expression.span;
+        let kind = match expression.kind {
+            ExprKind::If(condition, then_expression, else_expression) => ExprKind::If(
+                condition,
+                Box::new(self.sort_nullary_constructors(*then_expression, ty)),
+                Box::new(self.sort_nullary_constructors(*else_expression, ty)),
+            ),
+            ExprKind::Match(scrutinee, arms) => ExprKind::Match(
+                scrutinee,
+                arms.into_iter()
+                    .map(|arm| MatchArm {
+                        body: self.sort_nullary_constructors(arm.body, ty),
+                        ..arm
+                    })
+                    .collect(),
+            ),
+            ExprKind::Block(mut statements) => {
+                if let Some(Stmt::Expr(last)) = statements.pop() {
+                    statements.push(Stmt::Expr(self.sort_nullary_constructors(last, ty)));
+                }
+                ExprKind::Block(statements)
+            }
+            ExprKind::App(function, arguments) => {
+                let payload_types = match (&function.kind, smt_type_instance(ty)) {
+                    (ExprKind::Var(constructor), Some((owner, type_arguments)))
+                        if !has_named_args(&arguments) =>
+                    {
+                        self.constructor_signature(constructor, &arguments)
+                            .filter(|signature| signature.parent == owner)
+                            .map(|signature| {
+                                let parameters = self
+                                    .type_parameters_by_owner
+                                    .get(owner)
+                                    .map(Vec::as_slice)
+                                    .unwrap_or_default();
+                                signature
+                                    .fields
+                                    .iter()
+                                    .map(|field| {
+                                        smt_substitute_type(&field.ty, parameters, &type_arguments)
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                    }
+                    _ => None,
+                };
+                match payload_types {
+                    Some(payload_types) => ExprKind::App(
+                        function,
+                        arguments
+                            .into_iter()
+                            .zip(&payload_types)
+                            .map(|(argument, field_ty)| {
+                                self.sort_nullary_constructors(argument, field_ty)
+                            })
+                            .collect(),
+                    ),
+                    None => ExprKind::App(function, arguments),
+                }
+            }
+            other => other,
+        };
+        Expr::new(kind, span)
+    }
+
     fn infer_constructor_result_type(
         &self,
         signature: &SmtConstructorSignature,
@@ -16294,10 +16406,26 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                             .iter()
                             .map(|argument| self.lower_expr(argument, environment, expansion_stack))
                             .collect::<Result<Vec<_>, _>>()?;
-                        ExprKind::App(
-                            Box::new(Expr::new(ExprKind::Var(name.clone()), function.span)),
-                            lowered_arguments,
-                        )
+                        let constructed = Expr::new(
+                            ExprKind::App(
+                                Box::new(Expr::new(ExprKind::Var(name.clone()), function.span)),
+                                lowered_arguments,
+                            ),
+                            span,
+                        );
+                        // A type without parameters gives every field its
+                        // sort: `Span(start = None, …)` names its `None`.
+                        let generic = self
+                            .type_parameters_by_owner
+                            .get(&signature.parent)
+                            .is_some_and(|parameters| !parameters.is_empty());
+                        if generic || arguments.is_empty() {
+                            return Ok(constructed);
+                        }
+                        return Ok(self.sort_nullary_constructors(
+                            constructed,
+                            &Ty::Name(signature.parent.clone()),
+                        ));
                     } else {
                         ExprKind::App(
                             Box::new(self.lower_expr(function, environment, expansion_stack)?),
@@ -16347,11 +16475,48 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     )
                 }
             }
-            ExprKind::BinOp(operator, left, right) => ExprKind::BinOp(
-                operator.clone(),
-                Box::new(self.lower_expr(left, environment, expansion_stack)?),
-                Box::new(self.lower_expr(right, environment, expansion_stack)?),
-            ),
+            ExprKind::BinOp(operator, left_source, right_source) => {
+                let left = self.lower_expr(left_source, environment, expansion_stack)?;
+                let right = self.lower_expr(right_source, environment, expansion_stack)?;
+                if !matches!(operator.as_str(), "==" | "!=") {
+                    ExprKind::BinOp(operator.clone(), Box::new(left), Box::new(right))
+                } else {
+                    // A comparison with a nullary constructor (`x == None`)
+                    // is a constructor test: `None` alone names no sort when
+                    // the query holds two Option sorts.
+                    let tested = match (
+                        self.lowered_nullary_constructor(&left),
+                        self.lowered_nullary_constructor(&right),
+                    ) {
+                        (_, Some(constructor)) => Some((constructor, &left)),
+                        (Some(constructor), None) => Some((constructor, &right)),
+                        (None, None) => None,
+                    };
+                    if let Some((constructor, value)) = tested {
+                        let test = smt_constructor_test(constructor, value.clone());
+                        return Ok(if operator == "==" {
+                            test
+                        } else {
+                            Expr::new(ExprKind::UnOp("!".to_string(), Box::new(test)), span)
+                        });
+                    }
+                    // Compared values share a type: one side's gives a
+                    // `None` inside the other's payload (`x == Some(None)`)
+                    // its sort.
+                    let compared = self
+                        .infer_expr_type(left_source, environment)
+                        .or_else(|| self.infer_expr_type(right_source, environment))
+                        .and_then(|type_name| parse_type_annotation(&type_name).ok());
+                    match compared {
+                        Some(compared) => ExprKind::BinOp(
+                            operator.clone(),
+                            Box::new(self.sort_nullary_constructors(left, &compared)),
+                            Box::new(self.sort_nullary_constructors(right, &compared)),
+                        ),
+                        None => ExprKind::BinOp(operator.clone(), Box::new(left), Box::new(right)),
+                    }
+                }
+            }
             ExprKind::UnOp(operator, inner) => ExprKind::UnOp(
                 operator.clone(),
                 Box::new(self.lower_expr(inner, environment, expansion_stack)?),
@@ -16866,6 +17031,39 @@ fn smt_and(left: Expr, right: Expr) -> Expr {
         Box::new(left),
         Box::new(right),
     ))
+}
+
+/// The binding `smt_sorted_nullary` gives a nullary constructor.
+const SMT_SORTED_BINDING: &str = "__runa_sorted";
+
+/// `constructor` (`None`) at the sort of `ty`: a typed binding, which
+/// `expr_to_smt` renders as `(as None (Option Int))`.
+fn smt_sorted_nullary(constructor: Expr, ty: &Ty) -> Expr {
+    let span = constructor.span;
+    Expr::new(
+        ExprKind::Block(vec![
+            Stmt::Bind(
+                Pat::Var(SMT_SORTED_BINDING.to_string()),
+                Some(ty.clone()),
+                constructor,
+            ),
+            Stmt::Expr(Expr::new(ExprKind::Var(SMT_SORTED_BINDING.to_string()), span)),
+        ]),
+        span,
+    )
+}
+
+/// Whether `expression` is a constructor applied with no payload (`None`).
+fn smt_is_nullary_constructor(expression: &Expr) -> bool {
+    let name = match &expression.kind {
+        ExprKind::Var(name) => name,
+        ExprKind::App(function, arguments) if arguments.is_empty() => match &function.kind {
+            ExprKind::Var(name) => name,
+            _ => return false,
+        },
+        _ => return false,
+    };
+    name.chars().next().is_some_and(char::is_uppercase)
 }
 
 fn smt_constructor_test(constructor: &str, value: Expr) -> Expr {
@@ -17993,8 +18191,14 @@ fn expr_to_smt(expr: &Expr) -> String {
                 let mut last_expr = None;
                 for s in stmts {
                     match s {
-                        Stmt::Bind(Pat::Var(name), _, e) => {
-                            local_lets.push((smt_value_symbol(name), expr_to_smt(e)));
+                        Stmt::Bind(Pat::Var(name), ty, e) => {
+                            let mut value = expr_to_smt(e);
+                            // A typed binding of a nullary constructor
+                            // (`let x: Int? = None`) names its sort.
+                            if let Some(ty) = ty.as_ref().filter(|_| smt_is_nullary_constructor(e)) {
+                                value = format!("(as {} {})", value, ty_to_smt_sort(ty));
+                            }
+                            local_lets.push((smt_value_symbol(name), value));
                         }
                         Stmt::Expr(e) => {
                             last_expr = Some(expr_to_smt(e));

@@ -948,6 +948,24 @@ fn clause_audit_analyses_families_mixing_option_sorts() {
     assert!(!stdout.contains("ambiguous"), "{stdout}");
 }
 
+/// `None` compared with (`x == None`, `x != None`) or inside a value (a
+/// record field) in families over two Option sorts is unambiguous to the
+/// solver, so every clause is analysed.
+#[test]
+fn clause_audit_analyses_none_in_values_and_comparisons() {
+    let fixture = topology_fixture("clause_none_in_values.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("2 rule families, 6 clauses: 6 analyzed, 0 not analyzed"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("ambiguous"), "{stdout}");
+}
+
 /// A family whose clause heads match every variant has no gap.
 #[test]
 fn clause_audit_reads_constructor_heads_as_total() {

@@ -5665,6 +5665,8 @@ impl fmt::Display for Ty {
             Ty::Ref(t) => write!(f, "&{}", t),
             Ty::MutRef(t) => write!(f, "&mut {}", t),
             Ty::Shared(t) => write!(f, "shared {}", t),
+            // `Int??` does not parse; `(Int?)?` does.
+            Ty::Optional(t) if matches!(**t, Ty::Optional(_)) => write!(f, "({})?", t),
             Ty::Optional(t) => write!(f, "{}?", t),
             Ty::Var(n) => write!(f, "{}", n),
             Ty::Unit => write!(f, "()"),

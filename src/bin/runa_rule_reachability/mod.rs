@@ -1951,7 +1951,8 @@ fn analyze_family(
         )
     });
     // Each value is defined at the family's result sort, so a constructor
-    // that names no sort of its own (`None`) takes it.
+    // that names no sort of its own (`None`, also inside `Some(None)`) takes
+    // it.
     let values: Vec<Option<(String, String)>> = candidates
         .iter()
         .enumerate()
@@ -1961,23 +1962,9 @@ fn analyze_family(
             if let Some(result) = &signature.result {
                 let name = format!("runa_value_{}", index);
                 let sort = ty_to_smt_sort(result);
-                // A bare nullary constructor (`None`) is qualified with the
-                // result sort: with two instances of its datatype in the
-                // query (`Option Int`, `Option Date`) the solver cannot pick.
-                let nullary = match &expression.kind {
-                    ExprKind::Var(constructor) => Some(constructor),
-                    ExprKind::App(function, arguments) if arguments.is_empty() => {
-                        match &function.kind {
-                            ExprKind::Var(constructor) => Some(constructor),
-                            _ => None,
-                        }
-                    }
-                    _ => None,
-                };
-                if nullary.is_some_and(|name| name.chars().next().is_some_and(char::is_uppercase)) {
-                    value = format!("(as {} {})", value, sort);
-                }
-                prefix.push_str(&format!("(define-fun {} () {} {})\n", name, sort, value));
+                let value_at_sort =
+                    expr_to_smt(&encoder.lowerer.sort_nullary_constructors(expression.clone(), result));
+                prefix.push_str(&format!("(define-fun {} () {} {})\n", name, sort, value_at_sort));
                 value = name;
             }
             Some((
