@@ -15363,14 +15363,6 @@ impl SmtConstructorSignature {
         }
         !self.positional && reorder_named_args_by_names(&self.field_names(), arguments).is_some()
     }
-
-    fn selector(&self, constructor: &str, index: usize) -> String {
-        if self.positional {
-            format!("{}_f{}", constructor, index)
-        } else {
-            self.fields[index].name.clone()
-        }
-    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -15503,8 +15495,12 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                         .entry(name.clone())
                         .or_insert_with(BTreeMap::new);
                     for variant in variants {
-                        for field in &variant.fields {
+                        for (index, field) in variant.fields.iter().enumerate() {
                             fields.insert(field.name.clone(), field.ty.to_string());
+                            fields.insert(
+                                smt_constructor_field_key(&variant.name, index),
+                                field.ty.to_string(),
+                            );
                         }
                         constructors.entry(variant.name.clone()).or_default().push(
                             SmtConstructorSignature {
@@ -15538,7 +15534,13 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                         name.clone(),
                         scope_fields
                             .iter()
-                            .map(|field| (field.name.clone(), field.ty.to_string()))
+                            .enumerate()
+                            .flat_map(|(index, field)| {
+                                [
+                                    (field.name.clone(), field.ty.to_string()),
+                                    (smt_constructor_field_key(name, index), field.ty.to_string()),
+                                ]
+                            })
                             .collect(),
                     );
                     constructors.insert(
@@ -15857,6 +15859,67 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             .get(constructor)?
             .iter()
             .find(|signature| signature.matches_arguments(arguments))
+    }
+
+    /// `pattern` with every named constructor pattern (`Withdrawal(purpose:
+    /// p)`) written by position, a wildcard for each field it leaves out, so
+    /// the SMT encoding reads each field by its constructor
+    /// (`smt_constructor_field_key`): a field name two constructors give
+    /// different sorts has no reader by name.
+    fn positional_pattern(&self, pattern: &Pat) -> Pat {
+        match pattern {
+            Pat::NamedCon(constructor, fields) => {
+                let signature = self.constructors.get(constructor).and_then(|signatures| {
+                    signatures.iter().find(|signature| {
+                        !signature.positional
+                            && fields.iter().all(|(name, _)| {
+                                signature.fields.iter().any(|field| &field.name == name)
+                            })
+                    })
+                });
+                match signature {
+                    Some(signature) => Pat::Con(
+                        constructor.clone(),
+                        signature
+                            .fields
+                            .iter()
+                            .map(|field| {
+                                fields
+                                    .iter()
+                                    .find(|(name, _)| name == &field.name)
+                                    .map_or(Pat::Wild, |(_, pattern)| {
+                                        self.positional_pattern(pattern)
+                                    })
+                            })
+                            .collect(),
+                    ),
+                    None => Pat::NamedCon(
+                        constructor.clone(),
+                        fields
+                            .iter()
+                            .map(|(name, pattern)| (name.clone(), self.positional_pattern(pattern)))
+                            .collect(),
+                    ),
+                }
+            }
+            Pat::Con(constructor, patterns) => Pat::Con(
+                constructor.clone(),
+                patterns
+                    .iter()
+                    .map(|pattern| self.positional_pattern(pattern))
+                    .collect(),
+            ),
+            Pat::Tuple(patterns) => Pat::Tuple(
+                patterns
+                    .iter()
+                    .map(|pattern| self.positional_pattern(pattern))
+                    .collect(),
+            ),
+            Pat::As(pattern, name) => {
+                Pat::As(Box::new(self.positional_pattern(pattern)), name.clone())
+            }
+            Pat::Wild | Pat::Var(_) | Pat::Lit(_) => pattern.clone(),
+        }
     }
 
     fn unique_nullary_constructor_parent(&self, constructor: &str) -> Option<String> {
@@ -16543,7 +16606,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                         }
                         Ok(MatchArm {
                             pat_span: arm.pat_span,
-                            pat: arm.pat.clone(),
+                            pat: self.positional_pattern(&arm.pat),
                             guard: arm
                                 .guard
                                 .as_ref()
@@ -16956,10 +17019,12 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     pattern_arguments.clone()
                 };
                 let mut guard = smt_constructor_test(constructor, actual.clone());
+                // The constructor's own reader: a field name two
+                // constructors give different sorts has no reader by name.
                 for (index, child_pattern) in ordered.iter().enumerate() {
                     let selected = Expr::unspanned(ExprKind::Field(
                         Box::new(actual.clone()),
-                        signature.selector(constructor, index),
+                        smt_constructor_field_key(constructor, index),
                     ));
                     guard = smt_and(
                         guard,
@@ -18275,10 +18340,11 @@ fn smt_tester(constructor: &str) -> String {
     format!("is-{}", smt_symbol(constructor))
 }
 
-/// The SMT function that reads field `key` (a field name, or `Ctor_f<i>` for
-/// a positional field) from a value of any datatype that has it. Each
-/// datatype defines its own overload over its constructors' accessors, so
-/// constructors and types that share a field name stay distinct.
+/// The SMT function that reads field `key` (a field name, or `Ctor_f<i>`,
+/// see `smt_constructor_field_key`) from a value of any datatype that has
+/// it. Each datatype defines its own overload over its constructors'
+/// accessors, so constructors and types that share a field name stay
+/// distinct.
 fn smt_field_function(key: &str) -> String {
     smt_symbol(&format!("runa_field_{key}"))
 }
@@ -18355,18 +18421,29 @@ fn smt_accessor(datatype: &str, variant: &Variant, index: usize) -> String {
     ))
 }
 
-/// The key a field is read by: its name, or `Ctor_f<i>` for a positional
-/// field.
+/// The key a field is read by in source (`x.purpose`) and its accessor is
+/// named by: its name, or `Ctor_f<i>` for a positional field.
 fn smt_field_key(variant: &Variant, index: usize) -> String {
     if variant.positional {
-        format!("{}_f{}", variant.name, index)
+        smt_constructor_field_key(&variant.name, index)
     } else {
         variant.fields[index].name.clone()
     }
 }
 
+/// The key the `index`th field of `constructor` is read by where the
+/// constructor is known (a pattern, a product's fields): every field has
+/// one, named or positional, and it is the constructor's own, so fields of
+/// two constructors that share a name but not a sort (`purpose:
+/// DepositPurpose?` and `purpose: WithdrawalPurpose?`) are each read.
+fn smt_constructor_field_key(constructor: &str, index: usize) -> String {
+    format!("{constructor}_f{index}")
+}
+
 /// One reader per field key over `sort`, the datatype `name` or one of its
-/// instances; `field_sort` gives each field's sort there.
+/// instances: per field name and per constructor field
+/// (`smt_constructor_field_key`); `field_sort` gives each field's sort
+/// there.
 fn emit_z3_field_readers(
     name: &str,
     sort: &str,
@@ -18378,14 +18455,21 @@ fn emit_z3_field_readers(
     let mut fields_by_key: BTreeMap<String, Vec<(String, String, String)>> = BTreeMap::new();
     for variant in variants {
         for (index, field) in variant.fields.iter().enumerate() {
+            let owner = (
+                variant.name.clone(),
+                smt_accessor(name, variant, index),
+                field_sort(&field.ty),
+            );
+            if !variant.positional {
+                fields_by_key
+                    .entry(field.name.clone())
+                    .or_default()
+                    .push(owner.clone());
+            }
             fields_by_key
-                .entry(smt_field_key(variant, index))
+                .entry(smt_constructor_field_key(&variant.name, index))
                 .or_default()
-                .push((
-                    variant.name.clone(),
-                    smt_accessor(name, variant, index),
-                    field_sort(&field.ty),
-                ));
+                .push(owner);
         }
     }
     let mut out = String::new();
@@ -18393,8 +18477,9 @@ fn emit_z3_field_readers(
         let Some((_, last_accessor, last_sort)) = owners.last() else {
             continue;
         };
-        // A field whose sort differs between constructors has no single
-        // reader; a claim that reads it fails on the undefined function.
+        // A field name whose sort differs between constructors has no
+        // reader by name; patterns read it by constructor, and a claim that
+        // reads it by name fails on the undefined function.
         if owners.iter().any(|(_, _, sort)| sort != last_sort) {
             continue;
         }

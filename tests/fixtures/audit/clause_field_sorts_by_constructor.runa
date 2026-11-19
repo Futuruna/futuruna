@@ -1,0 +1,10 @@
+-- Two constructors give the field `purpose` different sorts, which has no
+-- reader by name: a head pattern reads it by its constructor.
+# DepositPurpose = Ordinary | Funding
+# WithdrawalPurpose = Plain | Paid
+# Kind =
+    Deposit(amount: Int, purpose: DepositPurpose?) |
+    Withdrawal(amount: Int, purpose: WithdrawalPurpose?)
+| paid(k: Kind): Bool -> False
+| exception funded paid(Deposit(amount, purpose)) -> True under purpose == Some(Funding)
+| exception settled paid(Withdrawal(amount, purpose)) -> True under purpose == Some(Paid) && amount > 0

@@ -729,15 +729,17 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
                 .filter(|owner| self.type_parameters(owner).is_empty())
             {
                 for variant in self.adts_by_name[owner] {
-                    for field_declaration in &variant.fields {
-                        if field_declaration.name == field
+                    for (index, field_declaration) in variant.fields.iter().enumerate() {
+                        let read = field_declaration.name == field
+                            || smt_constructor_field_key(&variant.name, index) == field;
+                        if read
                             && !self
                                 .lowerer
                                 .rule_type_is_smt_representable(&field_declaration.ty)
                         {
                             return Err(format!(
                                 "field `{}` of `{}` has type `{}`, which the SMT encoding does not represent",
-                                field, owner, field_declaration.ty
+                                field_declaration.name, owner, field_declaration.ty
                             ));
                         }
                     }
@@ -953,7 +955,10 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
                                 &smt_substitute_type(&field.ty, parameters, &arguments),
                                 &format!(
                                     "({} {})",
-                                    smt_field_function(&smt_field_key(variant, index)),
+                                    smt_field_function(&smt_constructor_field_key(
+                                        &variant.name,
+                                        index
+                                    )),
                                     value
                                 ),
                                 depth + 1,
@@ -1580,11 +1585,7 @@ fn family_signature(encoder: &Encoder, group: &RuleDispatchGroup) -> FamilySigna
                     if !encoder.lowerer.rule_type_is_smt_representable(&field.ty) {
                         continue;
                     }
-                    let selector = if variant.positional {
-                        format!("{}_f{}", variant.name, index)
-                    } else {
-                        field.name.clone()
-                    };
+                    let selector = smt_constructor_field_key(&variant.name, index);
                     witness_names.push(WitnessValue::new(
                         format!("({} {})", smt_field_function(&selector), receiver_term),
                         format!("self.{}", field.name),

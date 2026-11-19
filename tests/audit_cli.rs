@@ -966,6 +966,25 @@ fn clause_audit_analyses_none_in_values_and_comparisons() {
     assert!(!stdout.contains("ambiguous"), "{stdout}");
 }
 
+/// A field two constructors give different sorts (`purpose: DepositPurpose?`
+/// and `purpose: WithdrawalPurpose?`) has no SMT reader by name; a head
+/// pattern reads it by its constructor, so every clause is analysed (before,
+/// Z3 rejected the query: unknown constant `runa_field_purpose`).
+#[test]
+fn clause_audit_reads_head_pattern_fields_by_constructor() {
+    let fixture = topology_fixture("clause_field_sorts_by_constructor.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("1 rule family, 3 clauses: 3 analyzed, 0 not analyzed"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("unknown constant"), "{stdout}");
+}
+
 /// A family whose clause heads match every variant has no gap.
 #[test]
 fn clause_audit_reads_constructor_heads_as_total() {

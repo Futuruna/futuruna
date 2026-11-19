@@ -129,7 +129,7 @@ fn pattern(pat: &Pat, value: &str, bindings: &mut Vec<(String, String)>) -> Resu
                     field,
                     &format!(
                         "({} {value})",
-                        smt_field_function(&format!("{ctor}_f{index}"))
+                        smt_field_function(&smt_constructor_field_key(ctor, index))
                     ),
                     bindings,
                 )?);
