@@ -1,5 +1,6 @@
-//! `runa cases` on a small law: a ceiling threshold, an age threshold, a
-//! date threshold, an `Option` head and a constructor head
+//! `runa cases` on small laws: a ceiling threshold, an age threshold, a
+//! date threshold, an `Option` head and a constructor head; rejected
+//! results, new list elements and the minimal seed
 //! (`docs/rfcs/conformance-cases.md`).
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -20,9 +21,33 @@ fn z3_available() -> bool {
     Command::new("z3").arg("--version").output().is_ok()
 }
 
-/// Run `runa cases` into a fresh directory; the case files by id, the
-/// coverage report and stdout.
+/// The output of one `runa cases` run: the case files by id, the coverage
+/// report, stdout and stderr.
+struct Generated {
+    cases: BTreeMap<String, Value>,
+    coverage: Value,
+    stdout: String,
+    stderr: String,
+}
+
+/// Run `runa cases` on the levy into a fresh directory.
 fn generate(name: &str, stale: bool) -> (BTreeMap<String, Value>, Value, String) {
+    let generated = generate_with(
+        name,
+        &[
+            "levy.entry.runa",
+            "--entry",
+            "small_levy",
+            "--scenario",
+            "levy.scenario.runa",
+        ],
+        stale,
+    );
+    (generated.cases, generated.coverage, generated.stdout)
+}
+
+/// Run `runa cases` with `args` into a fresh directory.
+fn generate_with(name: &str, args: &[&str], stale: bool) -> Generated {
     let out = std::env::temp_dir().join(format!("runa-cases-{}-{}", std::process::id(), name));
     let _ = std::fs::remove_dir_all(&out);
     std::fs::create_dir_all(&out).expect("create output directory");
@@ -31,24 +56,18 @@ fn generate(name: &str, stale: bool) -> (BTreeMap<String, Value>, Value, String)
     }
     let output = Command::new(runa())
         .current_dir(fixture(""))
-        .args([
-            "cases",
-            "levy.entry.runa",
-            "--entry",
-            "small_levy",
-            "--scenario",
-            "levy.scenario.runa",
-            "--out",
-            out.to_str().expect("output path"),
-        ])
+        .arg("cases")
+        .args(args)
+        .args(["--out", out.to_str().expect("output path")])
         .output()
         .expect("run runa cases");
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
     assert!(
         output.status.success(),
         "stdout:\n{}\nstderr:\n{}",
         stdout,
-        String::from_utf8_lossy(&output.stderr)
+        stderr
     );
     let mut cases = BTreeMap::new();
     let mut coverage = Value::Null;
@@ -70,7 +89,39 @@ fn generate(name: &str, stale: bool) -> (BTreeMap<String, Value>, Value, String)
         }
     }
     let _ = std::fs::remove_dir_all(&out);
-    (cases, coverage, stdout)
+    Generated {
+        cases,
+        coverage,
+        stdout,
+        stderr,
+    }
+}
+
+/// Run `runa cases` on the ledger with its seed, refusals as rejections.
+fn generate_ledger(name: &str) -> Generated {
+    generate_with(
+        name,
+        &[
+            "ledger.entry.runa",
+            "--entry",
+            "ledger",
+            "--seed",
+            "ledger-seed.json",
+            "--rejected",
+            "Refused",
+        ],
+        false,
+    )
+}
+
+/// The coverage entry of a clause.
+fn clause<'a>(coverage: &'a Value, rule: &str, key: &str) -> &'a Value {
+    coverage["clauses"]
+        .as_array()
+        .expect("clauses")
+        .iter()
+        .find(|clause| clause["rule"] == rule && clause["clause"] == key)
+        .unwrap_or_else(|| panic!("{}.{} in coverage", rule, key))
 }
 
 fn covers(case: &Value, rule: &str, clause: &str) -> bool {
@@ -204,4 +255,193 @@ fn cases_are_the_same_on_every_run() {
     let (second, second_coverage, _) = generate("second", false);
     assert_eq!(first, second);
     assert_eq!(first_coverage, second_coverage);
+}
+
+#[test]
+fn a_rejected_case_covers_only_the_clauses_its_rejection_rests_on() {
+    if !z3_available() {
+        eprintln!("skipping: z3 is not installed");
+        return;
+    }
+    let generated = generate_ledger("rejected");
+    let (cases, coverage) = (&generated.cases, &generated.coverage);
+    assert_eq!(coverage["rejections"], serde_json::json!(["Refused"]));
+    let rejected = cases
+        .values()
+        .filter(|case| case["kind"] == "rejected")
+        .count();
+    assert!(rejected > 0, "{:#?}", cases.keys());
+    assert_eq!(coverage["cases"]["rejected"], rejected);
+    assert!(
+        generated
+            .stdout
+            .contains(&format!(", {} rejected) in", rejected)),
+        "{}",
+        generated.stdout
+    );
+    // A refusal is a rejected case, and every rejected case is a refusal.
+    for case in cases.values() {
+        assert_eq!(
+            case["kind"] == "rejected",
+            case["expected"]["$variant"] == "Refused",
+            "{}",
+            case
+        );
+    }
+
+    // Too many units: the validation clause is covered by a refusal, which
+    // does not claim the value and bonus computed before it.
+    let too_many = clause(coverage, "units_valid", "too_many");
+    let by = too_many["covered_by"].as_array().expect("covered_by");
+    assert!(!by.is_empty(), "{}", too_many);
+    for id in by {
+        let case = &cases[id.as_str().unwrap()];
+        assert_eq!(case["kind"], "rejected", "{}", case);
+        assert!(!covers(case, "bonus", "clause-1"), "{}", case);
+        assert!(!covers(case, "fee", "clause-1"), "{}", case);
+    }
+    // A clause that fires only where the ledger is refused, off the
+    // refusal's path, is not covered.
+    let big = clause(coverage, "bonus", "big");
+    assert!(big["covered_by"].as_array().unwrap().is_empty(), "{}", big);
+    assert_eq!(big["reason"], "rejected", "{}", big);
+    // The boundary of the units ceiling: below and at are booked, above is
+    // refused because of it (the clause's own case).
+    let side = |name: &str| {
+        let case = threshold_case(&generated, "units_valid", "too_many", name);
+        (
+            case["input"]["units"].as_i64().unwrap(),
+            case["kind"].as_str().unwrap().to_string(),
+        )
+    };
+    assert_eq!(side("below"), (999, "boundary-below".to_string()));
+    assert_eq!(side("at"), (1000, "boundary-at".to_string()));
+    assert_eq!(side("above"), (1001, "rejected".to_string()));
+    // The fee's boundary is not observable in a refusal: no side is refused.
+    for name in ["below", "at", "above"] {
+        let case = threshold_case(&generated, "fee", "large", name);
+        assert_eq!(case["expected"]["$variant"], "Booked", "{}", case);
+    }
+}
+
+/// The case of one side of a clause's first threshold, as coverage.json
+/// names it.
+fn threshold_case<'a>(generated: &'a Generated, rule: &str, key: &str, side: &str) -> &'a Value {
+    let threshold = generated.coverage["thresholds"]
+        .as_array()
+        .expect("thresholds")
+        .iter()
+        .find(|threshold| {
+            threshold["rule"] == rule && threshold["clause"] == key && threshold["threshold"] == 1
+        })
+        .unwrap_or_else(|| panic!("threshold of {}.{}", rule, key));
+    let id = threshold[side]
+        .as_str()
+        .unwrap_or_else(|| panic!("{} side of {}", side, threshold));
+    &generated.cases[id]
+}
+
+#[test]
+fn a_rule_over_list_elements_gets_a_new_element_carrying_the_witness() {
+    if !z3_available() {
+        eprintln!("skipping: z3 is not installed");
+        return;
+    }
+    let generated = generate_ledger("elements");
+    let cases = &generated.cases;
+    // Turning the seed's only deposit into a large withdrawal is refused (no
+    // deposit); a new withdrawal next to it is booked with a fee.
+    let large = &cases["fee.large.clause"];
+    assert_eq!(large["kind"], "clause", "{}", large);
+    assert_eq!(large["expected"]["$variant"], "Booked", "{}", large);
+    assert!(covers(large, "fee", "large"));
+    let events = large["input"]["events"].as_array().expect("events");
+    assert_eq!(events.len(), 2, "{}", large);
+    assert_eq!(events[0]["id"], "e1");
+    assert_eq!(events[0]["kind"]["$variant"], "Deposit");
+    assert_eq!(
+        events[1]["id"], "fee.large.clause",
+        "the new id is the case's"
+    );
+    assert_eq!(events[1]["kind"]["$variant"], "Withdrawal");
+    assert!(events[1]["amount"].as_i64().unwrap() > 5000, "{}", large);
+    // The threshold of the fee on both sides, each with a new withdrawal.
+    for (side, amount) in [("below", 4999), ("at", 5000), ("above", 5001)] {
+        let case = threshold_case(&generated, "fee", "large", side);
+        let events = case["input"]["events"].as_array().expect("events");
+        assert_eq!(events.len(), 2, "{}", case);
+        assert_eq!(events[0]["id"], "e1");
+        let new = &events[1];
+        assert!(
+            new["id"].as_str().unwrap().starts_with("fee.large."),
+            "{}",
+            case
+        );
+        assert_eq!(new["kind"]["$variant"], "Withdrawal");
+        assert_eq!(new["amount"], amount, "{}", case);
+    }
+}
+
+#[test]
+fn the_minimal_seed_never_invents_open_keys() {
+    if !z3_available() {
+        eprintln!("skipping: z3 is not installed");
+        return;
+    }
+    let generated = generate_ledger("minimal");
+    // The minimal ledger gives no price, and the law looks one up.
+    assert!(
+        generated.stderr.contains("seed `minimal` is not used"),
+        "{}",
+        generated.stderr
+    );
+    assert!(!generated.cases.contains_key("seed.minimal"));
+    // No case gives a price under a key the seed did not.
+    for case in generated.cases.values() {
+        for price in case["input"]["prices"].as_array().expect("prices") {
+            assert_eq!(price["isin"], "DK0000000001", "{}", case);
+        }
+    }
+}
+
+#[test]
+fn a_rejection_must_be_a_variant_of_the_result() {
+    let output = Command::new(runa())
+        .current_dir(fixture(""))
+        .args([
+            "cases",
+            "ledger.entry.runa",
+            "--rejected",
+            "Nope",
+            "--out",
+            std::env::temp_dir()
+                .join(format!("runa-cases-{}-nope", std::process::id()))
+                .to_str()
+                .unwrap(),
+        ])
+        .output()
+        .expect("run runa cases");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("--rejected `Nope` is not a variant of the result of `ledger` (its variants: Booked, Refused)"),
+        "{}",
+        stderr
+    );
+}
+
+#[test]
+fn a_result_err_is_a_rejection_without_a_flag() {
+    if !z3_available() {
+        eprintln!("skipping: z3 is not installed");
+        return;
+    }
+    let generated = generate_with("result", &["charge.entry.runa"], false);
+    assert_eq!(generated.coverage["rejections"], serde_json::json!(["Err"]));
+    let negative = &generated.cases["valid.negative.clause"];
+    assert_eq!(negative["kind"], "rejected", "{}", negative);
+    assert_eq!(negative["expected"]["$variant"], "Err");
+    // The fee was computed before the charge was refused: not observable.
+    assert!(covers(negative, "valid", "negative"));
+    assert!(!covers(negative, "fee", "clause-1"), "{}", negative);
 }

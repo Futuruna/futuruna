@@ -1,0 +1,16 @@
+-- A charge whose result is the prelude's Result: Err is a rejection with no
+-- --rejected flag.
+
+# Case(amount: Int)
+
+| fee(amount: Int): Int -> 0
+| exception big fee(amount) -> 1 under amount > 100
+
+| valid(amount: Int): Bool -> True
+| exception negative valid(amount) -> False under amount < 0
+
+@ entry
+> charge(c: Case) -> Result(Int, String) {
+    = f = fee(c.amount)
+    if valid(c.amount) { Ok(f) } else { Err("negative") }
+}

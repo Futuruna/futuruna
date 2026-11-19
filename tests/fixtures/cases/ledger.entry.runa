@@ -1,0 +1,49 @@
+-- A small ledger for `runa cases`: a fee on each large withdrawal in a list
+-- of events, a price looked up by key in an open collection, and a result
+-- that rejects a ledger with too many units, an event without a positive
+-- amount, or no deposit.
+
+# Kind = Deposit | Withdrawal
+
+# Event(@ field(key = True, label = "Event id") id: String, kind: Kind, amount: Int)
+
+# Price(@ field(key = True, label = "Isin") isin: String, @ field(label = "Price") price: Int)
+
+# Ledger(isin: String, units: Int, events: List(Event), @ field(label = "Price of the day", open = True) prices: List(Price))
+
+# IssueCode = TooManyUnits | NotPositive | NoDeposit
+
+# Issue(code: IssueCode, subject: String)
+
+# Outcome = Booked(fees: Int, value: Int, bonus: Int) | Refused(issues: List(Issue))
+
+| fee(kind: Kind, amount: Int): Int -> 0
+| exception large fee(Withdrawal, amount) -> amount / 100 under amount > 5000
+
+| amount_valid(amount: Int): Bool -> True
+| exception not_positive amount_valid(amount) -> False under amount <= 0
+
+| units_valid(units: Int): Bool -> True
+| exception too_many units_valid(units) -> False under units > 1000
+
+| bonus(units: Int): Int -> 0
+| exception big bonus(units) -> 1 under units > 2000
+
+> issue_when(condition: Bool, code: IssueCode, subject: String) -> List(Issue) {
+    if condition { [Issue(code = code, subject = subject)] } else { [] }
+}
+
+> is_deposit(e: Event) -> Bool {
+    match e.kind {
+        | Deposit -> True
+        | Withdrawal -> False
+    }
+}
+
+@ entry("A small ledger")
+> ledger(l: Ledger) -> Outcome {
+    = value = l.units * lookup(l.prices, l.isin).price
+    = extra = bonus(l.units)
+    = issues = concat(concat(issue_when(not(units_valid(l.units)), TooManyUnits, l.isin), issue_when(not(any(l.events, |e| is_deposit(e))), NoDeposit, l.isin)), flat_map(l.events, |e| issue_when(not(amount_valid(e.amount)), NotPositive, e.id)))
+    if length(issues) > 0 { Refused(issues = issues) } else { Booked(fees = sum_list(map(l.events, |e| fee(e.kind, e.amount))), value = value, bonus = extra) }
+}
