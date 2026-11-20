@@ -29734,6 +29734,13 @@ impl Interpreter {
                 return None;
             }
             for (param, val) in params.iter().zip(args.iter()) {
+                // A refutable pattern (a constructor, a literal) reads the
+                // argument to choose the clause, as a guard does.
+                let pattern = Self::typed_rule_arg_parts(param).map_or(param, |(inner, _)| inner);
+                if !matches!(&pattern.kind, ExprKind::Var(name) if name == "_" || Self::is_rule_variable_name(name))
+                {
+                    self.explain_pattern_read(val);
+                }
                 if !self.match_rule_param(param, val, &mut rule_env) {
                     return None;
                 }

@@ -1,0 +1,40 @@
+-- A step that computes a fee and the amount to report, and an entry that
+-- gives only the fee: the report is evaluated, but no result rests on it.
+
+# SourceInfo(file: String)
+# impl Document for SourceInfo {}
+= law = SourceInfo(file = "sources/law.txt")
+
+# Case(amount: Int)
+
+# Step(fee: Int, report: Int)
+
+@ section step {
+
+@ quote(law)
+----
+§ 16. Af et beløb over 100 kr. betales et gebyr på 1 kr.
+
+Stk. 2. Et beløb over 1.000 kr. indberettes.
+----
+
+@ cite(§ 16)
+| fee(amount: Int): Int -> 0
+@ cite(§ 16)
+| exception big fee(amount) -> 1 under amount > 100
+
+@ cite(§ 16, stk. 2)
+| report(amount: Int): Int -> 0
+@ cite(§ 16, stk. 2)
+| exception large report(amount) -> amount under amount > 1000
+
+}
+
+> step(amount: Int) -> Step {
+    Step(fee = fee(amount), report = report(amount))
+}
+
+@ entry
+> step_fee(c: Case) -> Int {
+    step(c.amount).fee
+}

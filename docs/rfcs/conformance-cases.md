@@ -36,7 +36,7 @@ one file per case, `<out>/<id>.case.json`, and `<out>/coverage.json`, and
 prints one line, headed by the cited rule clauses covered (below):
 
 ```text
-runa cases: cited rule clauses: 152 of 160 covered; 41 cases (12 clause, 20 boundary, 3 scenario, 6 rejected) in cases/generated; uncited rule clauses: 35 of 51 covered; technical rejections not in the suite: 10
+runa cases: cited rule clauses: 152 of 163 covered, of which 3 not in the result (reported, still counted); 41 cases (12 clause, 20 boundary, 3 scenario, 6 rejected) in cases/generated; uncited rule clauses: 35 of 51 covered, of which 0 not in the result; technical rejections not in the suite: 10
 ```
 
 Case files of an earlier run that this run does not write again are removed
@@ -64,11 +64,12 @@ coverage; a team that wants a coverage gate reads `coverage.json`.
   `boundary-above` (found for a threshold), `scenario` (exported from a
   scenario or seed), or `rejected`: any of these whose result is a rejection
   (below).
-- `covers`: every rule clause the case's run fired, in the order of the
-  catalogue (by file, then line), read from the run (below), never from what
-  the case was searched for. A `boundary-below` case of a `>=` guard does not
-  fire that clause, and says so. A rejected case covers only the clauses its
-  rejection rests on.
+- `covers`: every rule clause the case's result rests on (below), in the
+  order of the catalogue (by file, then line), read from the run, never from
+  what the case was searched for. A clause the run evaluated but no part of
+  the result was computed from is not among them. A `boundary-below` case of
+  a `>=` guard does not fire that clause, and says so. A rejected case covers
+  only the clauses its rejection rests on.
 - `input` is a complete, ready input of the entry's contract: `runa call`
   decodes it without a diagnostic, and it is in the input domain (below).
   `expected` is the `result` `runa call` gives for it, the whole result (an
@@ -116,12 +117,16 @@ test holds it to the runtime's validators (`IntSchema`, `isoDateParts`).
   2^53 − 1), has no case, and the threshold's `detail` says `outside the
   input domain` with Z3's arguments or the value outside it.
 
-### Rejections: coverage means the effect is observable
+### Coverage means the effect is observable
 
-An entry that refuses a case returns a result that shows little of what the
-rules computed before it gave up: an `AskYearRejected` with its issues says
-nothing of the tax rules that ran first. A case whose result is a rejection
-therefore covers a clause only when the rejection rests on it.
+An implementation under test shows only its result. A clause it evaluated
+but gave nothing from is not tested by the case: the levy entry runs the
+shared cash run, whose § 13 amounts (`ask_deposited_øre`,
+`ask_distributed_øre`, `ask_moved_for_øre`) no field of `AskLevy` is
+computed from. And an entry that refuses a case returns a result that shows
+little of what the rules computed before it gave up: an `AskYearRejected`
+with its issues says nothing of the tax rules that ran first. A case
+therefore covers a clause only when its result rests on it.
 
 **Which results are rejections.** Futuruna has no entry-level declaration of
 a rejection (`@ entry` takes only a title, and issues are a law's own type,
@@ -132,20 +137,25 @@ names its rejection variants with `--rejected VARIANT` (repeatable; `runa
 cases` refuses a name that is not a variant of the result type).
 `coverage.json` lists them under `rejections`.
 
-**What a rejection rests on** is read from provenance. The explanation traces
+**What a result rests on** is read from provenance. The explanation traces
 values, not the branches that chose them: an issue built in
-`if condition { [Issue(...)] }` carries no trace of `condition`. So a
-rejected input runs a second time as a *decided case*: an explained run in
-which the value an `if` or `match` branch gives has every leaf computed from
-the condition (or the matched value) that chose the branch as well, and a
-branch that gives a rejection variant records those conditions
+`if condition { [Issue(...)] }` carries no trace of `condition`. So every
+input with a result runs a second time as a *decided case*: an explained run
+in which the value an `if` or `match` branch gives has every leaf computed
+from the condition (or the matched value) that chose the branch as well, and
+a branch that gives a rejection variant records those conditions
 (`Interpreter::begin_decided_case`, `explain_branch`). The clauses the
-rejection rests on are the rule nodes reached backwards from the result's
-leaves and those conditions, through computed values, what each clause
-computed and the guards that chose it (`ExplainState::rejection_clauses`).
-The first run's call log and argument provenance are kept for the lift: in
-the decided run an input leaf passed through a branch is no longer the
-input leaf unchanged.
+result rests on are the rule nodes reached backwards from the result's
+leaves (and, of a rejection, those conditions), through computed values,
+what each clause computed and the guards that chose it
+(`ExplainState::result_clauses`). A branch that gives a value without a
+leaf (`[]`, `None`, a record of such) has nothing to carry its condition:
+the issues a validation finds are `if invalid { [Issue(...)] } else { [] }`,
+and an accepted result built because the list is empty would rest on none
+of the validations. A decided run records those conditions (`if` and
+`match`), and an accepted result rests on them too. The first run's call
+log and argument provenance are kept for the lift: in the decided run an
+input leaf passed through a branch is no longer the input leaf unchanged.
 
 Two more reads are traced only in a decided case, because an explanation
 does not show them: `&&` and `||` are computed from the operands they read
@@ -160,12 +170,21 @@ Consequences:
 - Rejected cases are kept, `kind: "rejected"`, and counted apart
   (`coverage.json` `cases.rejected`, and the printed line), when a cited
   clause is on the path the rejection rests on (below).
-- A clause search is satisfied by a rejected run only when the rejection
-  rests on the target clause; a boundary only when it rests on a clause of
-  the threshold's rule (the boundary of a validation rule is observable, that
-  of a tax rule run before the entry gave up is not).
+- A clause search is satisfied only by a run whose result rests on the
+  target clause; a boundary by an accepted run, or by a rejected one only
+  when the rejection rests on a clause of the threshold's rule (the boundary
+  of a validation rule is observable, that of a tax rule run before the
+  entry gave up is not). A Boolean rule's `false` fall-through is no clause
+  and leaves no provenance, so an accepted result is taken as showing it; the
+  guards of `not-in-result` clauses get no boundaries.
 - A clause that fired only in rejected runs, off the rejection's path, is
   uncovered with reason `rejected`.
+- A clause that fired in an accepted run, but that no run's result rested
+  on, is uncovered with reason `not-in-result`. It is reported, and still
+  counted in `Y` (Limits: the provenance misses some dependence, so a known
+  gap makes coverage understate, never overstate); `cited.not_in_result` and
+  `uncited.not_in_result` say how many there are. Its guard gets no boundary
+  cases: no result shows what the guard decided.
 
 ### The law is the cited clauses
 
@@ -225,9 +244,9 @@ the id.
 ```json
 {
   "entry": "aktiesparekonto_year",
-  "summary": "cited rule clauses: 152 of 160 covered",
-  "cited": { "covered": 152, "clauses": 160 },
-  "uncited": { "covered": 35, "clauses": 51 },
+  "summary": "cited rule clauses: 152 of 163 covered, of which 3 not in the result (reported, still counted)",
+  "cited": { "covered": 152, "clauses": 163, "not_in_result": 3 },
+  "uncited": { "covered": 35, "clauses": 51, "not_in_result": 0 },
   "rejections": ["AskYearRejected"],
   "cases": { "clause": 12, "boundary": 20, "scenario": 3, "rejected": 6 },
   "clauses": [
@@ -254,8 +273,10 @@ family the entry's runtime closure reaches, through imports
 (`analyze_entry_clause_reachability`), in file and line order. Boolean
 clauses whose body is the literal `false` only mark a matched head, select
 nothing and are not counted, as in the audit. It splits into cited clauses
-(`Y`, the headline) and uncited ones; `X` counts the cited clauses some
-written case covers. Each uncovered clause carries one reason:
+(`Y`, the headline) and uncited ones, each with the clauses no result rests
+on (`not-in-result`) still counted and their number reported; `X` counts the
+cited clauses some written case covers. Each uncovered clause carries one
+reason:
 
 - `unreachable`: the audit proved it can never fire (its guard is
   unsatisfiable, or earlier clauses always apply first). No case can exist;
@@ -270,6 +291,10 @@ written case covers. Each uncovered clause carries one reason:
   them first. The witness tells a human what a scenario has to set up.
 - `rejected`: it fired, but only in inputs the entry rejects, and no
   rejection rested on it.
+- `not-in-result`: it fired in inputs the entry accepts, but no result
+  rested on it by provenance: the entry evaluates it and gives nothing
+  computed from it, or decides on it where provenance does not see (Limits).
+  Still counted; its guard has no boundary cases.
 - `technical`: an uncited clause that only technical rejections (above)
   rest on; they are listed under `technical`.
 - `outside-input-domain`: only an input outside the input domain fires it
@@ -314,7 +339,7 @@ two levels, and the engine has the last word:
    while the clause has not fired and the input changed.
 3. **Confirm (engine).** The candidate is kept only if it decodes without a
    diagnostic, it and its result are in the input domain, the entry returns a
-   result, and its fired clauses include the target. Its `covers` and
+   result, and the result rests on the target. Its `covers` and
    `expected` come from that run.
 
 Without a witness (a guard outside the encoding, or `solver-unknown`), step 2
@@ -395,7 +420,8 @@ of `ceiling - 1`, `ceiling`, `ceiling + 1`, so only `above` fires the
 clause; for `opened > Date(2024, 7, 1)` they are 30 June, 1 July and 2 July
 2024. The model is anchored and lifted like a witness. Confirming a boundary
 case reads the call log, not the fired clauses: some call of the family must
-have the model's values in every argument leaf the comparison reads. A
+have the model's values in every argument leaf the comparison reads, and the
+result must show what the rule decided (as above). A
 boundary the search does not confirm is listed in `thresholds` with `null` and
 the reason.
 
@@ -432,6 +458,19 @@ written with sorted keys and a trailing newline.
 - **Floats** are outside the encoding, like in the audit.
 - **Memoised calls**: a rule call answered from the interpreter's memo is not
   logged again; the first call with those arguments is.
+- **What a result rests on** is provenance, not a proof of dependence. The
+  condition of a branch that gives `[]` or `None` counts for an accepted
+  result even when the entry drops that value (an over-count). Builtins
+  decide without a branch: `filter` leaves an element out, `flat_map` and
+  `map` over an `Option` drop a `None`, and what they decided on carries no
+  trace into the value they give (an under-count). A clause only such a
+  builtin reads is `not-in-result` though the result depends on it (the
+  year entry's § 6 deemed-distribution clauses, the owner's tax liability
+  under § 1). That is why `not-in-result` clauses stay in the denominator:
+  coverage then understates. What closes the gap: in a decided run, such
+  builtins record the nodes of the predicate results and elements they
+  dropped as decisions of the value they give, as `explain_branch` does for
+  `[]` and `None`; then `not-in-result` can leave the denominator.
 
 ## What is reused and what is new
 
@@ -469,11 +508,11 @@ New:
 - `src/calculate.rs`: `PreparedEntry::probe` — one input, run with
   provenance, giving the result or the diagnostic, the fired clauses with
   their locations and citations, and the logged calls with each argument
-  leaf's provenance; for a rejected result, the clauses the rejection rests
-  on, from a decided run. `Interpreter` gains an opt-in capture of an entry
+  leaf's provenance; for any result, the clauses it rests on, from a decided
+  run. `Interpreter` gains an opt-in capture of an entry
   function's arguments for scenario export.
 - `src/explain.rs`/`src/lib.rs`: decided cases (`begin_decided_case`,
-  `explain_branch` at `if` and `match`, `ExplainState::rejection_clauses`).
+  `explain_branch` at `if` and `match`, `ExplainState::result_clauses`).
 - `src/bin/runa_conformance_cases/mod.rs`: the command — bases, lift, search,
   boundaries, deduplication, case files and `coverage.json`.
 - `src/calculate/input_domain.rs`: the input domain, shared with the SDK

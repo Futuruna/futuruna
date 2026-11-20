@@ -202,6 +202,11 @@ struct Decisions {
     rejections: HashSet<String>,
     /// The values the conditions that chose a rejection were computed from.
     rejected_by: Vec<NodeId>,
+    /// The values the conditions that chose a value without a leaf (`[]`,
+    /// `None`, a record of such) were computed from: the value cannot carry
+    /// them, so what it decided (an empty issue list, no deemed day) would
+    /// otherwise rest on nothing.
+    leafless: Vec<NodeId>,
 }
 
 impl ExplainState {
@@ -283,15 +288,19 @@ impl ExplainState {
         found
     }
 
-    /// The rule clauses a decided case's rejection rests on: those whose
-    /// value, or whose guards, the result's leaves (`result`) and the
-    /// conditions that chose a rejection were computed from.
-    pub(crate) fn rejection_clauses(&self, result: &[NodeId]) -> BTreeSet<u32> {
+    /// The rule clauses a decided case's result rests on: those whose
+    /// value, or whose guards, the result's leaves (`result`) were computed
+    /// from, and of a rejection (`rejected`) the conditions that chose it.
+    pub(crate) fn result_clauses(&self, result: &[NodeId], rejected: bool) -> BTreeSet<u32> {
         let mut clauses = BTreeSet::new();
         let mut seen = HashSet::new();
         let mut stack: Vec<NodeId> = result.to_vec();
         if let Some(decisions) = &self.decisions {
-            stack.extend(&decisions.rejected_by);
+            if rejected {
+                stack.extend(&decisions.rejected_by);
+            } else {
+                stack.extend(&decisions.leafless);
+            }
         }
         while let Some(next) = stack.pop() {
             if !seen.insert(next) {
@@ -383,6 +392,30 @@ pub(crate) fn has_traced(value: &Value) -> bool {
         Value::Map(entries) | Value::Set(entries) => entries.values().any(has_traced),
         Value::RuleScopeInstance { bindings, .. }
         | Value::NamespacedRuleScopeInstance { bindings, .. } => bindings.values().any(has_traced),
+        _ => false,
+    }
+}
+
+/// Whether `value` has a leaf (a scalar, a field-less variant, or a trace)
+/// anywhere: `[]`, `None` and records of them have none.
+fn has_leaf(value: &Value) -> bool {
+    if matches!(value, Value::Traced(_)) || Leaf::of(value).is_some() {
+        return true;
+    }
+    match value {
+        Value::List(items) | Value::Tuple(items) | Value::Stream(items) => {
+            items.iter().any(has_leaf)
+        }
+        Value::Constructor(_, items)
+        | Value::NamespacedConstructor {
+            arguments: items, ..
+        } => items.iter().any(has_leaf),
+        Value::NamedConstructor(_, fields) | Value::NamespacedNamedConstructor { fields, .. } => {
+            fields.iter().any(|(_, item)| has_leaf(item))
+        }
+        Value::Map(entries) | Value::Set(entries) => entries.values().any(has_leaf),
+        Value::RuleScopeInstance { bindings, .. }
+        | Value::NamespacedRuleScopeInstance { bindings, .. } => bindings.values().any(has_leaf),
         _ => false,
     }
 }
@@ -640,6 +673,7 @@ impl Interpreter {
             decisions: Some(Decisions {
                 rejections,
                 rejected_by: Vec::new(),
+                leafless: Vec::new(),
             }),
             ..ExplainState::default()
         }));
@@ -689,11 +723,13 @@ impl Interpreter {
             }
             decision
         };
-        map_leaves(&result, &mut |leaf| {
+        let mut leafless = true;
+        let result = map_leaves(&result, &mut |leaf| {
             let inner = untraced(leaf);
             if Leaf::of(inner).is_none() {
                 return leaf.clone();
             }
+            leafless = false;
             let from: Box<[NodeId]> = match node_of(leaf) {
                 Some(own) if own != decision => Box::new([own, decision]),
                 _ => Box::new([decision]),
@@ -702,7 +738,13 @@ impl Interpreter {
                 Some(node) => traced(inner.clone(), node),
                 None => leaf.clone(),
             }
-        })
+        });
+        if leafless {
+            if let Some(decisions) = state.borrow_mut().decisions.as_mut() {
+                decisions.leafless.push(decision);
+            }
+        }
+        result
     }
 
     /// End an explained case, returning its provenance graph.
@@ -733,7 +775,19 @@ impl Interpreter {
     /// A `match` arm chose `result`: a scalar the arm gives without a trace
     /// of its own (a literal) is computed from the matched value.
     pub(crate) fn explain_decided(&self, result: Value, matched: &Value) -> Value {
-        if node_of(&result).is_some() || Leaf::of(&result).is_none() {
+        if node_of(&result).is_some() {
+            return result;
+        }
+        if Leaf::of(&result).is_none() {
+            if self.explain_decides() && !has_leaf(&result) {
+                let mut from = Vec::new();
+                collect_nodes(matched, &mut from);
+                if let Some(state) = &self.explain {
+                    if let Some(decisions) = state.borrow_mut().decisions.as_mut() {
+                        decisions.leafless.extend(from);
+                    }
+                }
+            }
             return result;
         }
         let mut from = Vec::new();
@@ -914,6 +968,28 @@ impl Interpreter {
         }
     }
 
+    /// In a decided case, a refutable head pattern read `value` to choose or
+    /// refute a clause: the dispatch records what it was computed from, as
+    /// it does a guard's.
+    pub(crate) fn explain_pattern_read(&self, value: &Value) {
+        let Some(state) = &self.explain else {
+            return;
+        };
+        let mut state = state.borrow_mut();
+        if state.decisions.is_none() {
+            return;
+        }
+        let mut nodes = Vec::new();
+        collect_nodes(value, &mut nodes);
+        if let Some(guards) = state.guards.last_mut() {
+            for node in nodes {
+                if !guards.contains(&node) {
+                    guards.push(node);
+                }
+            }
+        }
+    }
+
     /// A clause that fired with an assumption under a condition not yet seen
     /// to hold: its id, for [`Self::record_assumption_conditions`].
     pub(crate) fn conditional_clause(&self, rule: &Rc<Rule>) -> Option<u32> {
@@ -1036,12 +1112,16 @@ impl Interpreter {
         // A clause that returns one value produced it. A clause that returns a
         // structure produced the leaves it computed.
         let structure = Leaf::of(untraced(&value)).is_none();
+        let decides = state.borrow().decisions.is_some();
         let mut tag = |leaf: &Value| -> Value {
             let from = node_of(leaf);
             // A member a structure passes on unchanged from the input or
             // another rule keeps that provenance; a single value the clause
-            // returns is the clause's, with the input or rule in `from`.
+            // returns is the clause's, with the input or rule in `from`. In a
+            // decided case every leaf is the clause's: what reads it rests on
+            // the clause that passed it on.
             let kept = structure
+                && !decides
                 && from.is_some_and(|node| {
                     !matches!(state.borrow().node(node), Node::Computed { .. })
                 });

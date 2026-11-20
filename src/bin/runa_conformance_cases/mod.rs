@@ -86,11 +86,14 @@ struct CaseCounts {
     rejected: usize,
 }
 
-/// Clauses of one kind (cited or uncited) and how many a case covers.
+/// Clauses of one kind (cited or uncited): how many a case covers, of how
+/// many reached, and how many of those no result rests on (reported, still
+/// counted: the provenance misses some dependence, so coverage understates).
 #[derive(Serialize)]
 struct ClauseCount {
     covered: usize,
     clauses: usize,
+    not_in_result: usize,
 }
 
 /// A clause a technical rejection rests on.
@@ -277,8 +280,8 @@ struct Run {
     result: Result<JsonValue, String>,
     /// Whether the result is a rejection.
     rejected: bool,
-    /// The clauses the run covers: those that fired, or of a rejection
-    /// those it rests on.
+    /// The clauses the run covers: those its result rests on (of a
+    /// rejection, with the conditions that chose it).
     covered: Vec<usize>,
     calls: Vec<RunCall>,
     /// The first value of the input or result outside the input domain: the
@@ -327,6 +330,11 @@ struct Search<'a> {
     /// Clauses that fired in some run the entry rejected, off the path the
     /// rejection rests on.
     fired_when_rejected: BTreeSet<usize>,
+    /// Clauses that fired in some run the entry accepted, off the path its
+    /// result rests on.
+    fired_when_accepted: BTreeSet<usize>,
+    /// Clauses some run's result (in the input domain) rests on.
+    in_some_result: BTreeSet<usize>,
     /// Clauses some run outside the input domain would have covered, with
     /// the first value outside it.
     fired_outside_domain: BTreeMap<usize, String>,
@@ -403,18 +411,15 @@ impl<'a> Search<'a> {
             .collect();
         fired.sort();
         fired.dedup();
-        let covered = match &probe.rejected_by {
-            Some(clauses) => {
-                let mut covered: Vec<usize> = clauses
-                    .iter()
-                    .filter_map(|clause| place_of(&probe.fired[*clause].place))
-                    .collect();
-                covered.sort();
-                covered.dedup();
-                covered
-            }
-            None => fired.clone(),
-        };
+        // A run covers the clauses its result rests on, not every clause it
+        // evaluated.
+        let mut covered: Vec<usize> = probe
+            .rests_on
+            .iter()
+            .filter_map(|clause| place_of(&probe.fired[*clause].place))
+            .collect();
+        covered.sort();
+        covered.dedup();
         let calls = probe
             .calls
             .into_iter()
@@ -434,7 +439,7 @@ impl<'a> Search<'a> {
                 })
             })
             .collect();
-        let rejected = probe.rejected_by.is_some();
+        let rejected = probe.rejected;
         // An input an integrator cannot send, or a result the SDK cannot
         // hold, is no case: what it covers does not count. Its calls stay,
         // for the search to move on from it.
@@ -459,9 +464,14 @@ impl<'a> Search<'a> {
             self.runs.insert(key, run.clone());
             return run;
         }
-        if rejected {
-            self.fired_when_rejected
-                .extend(fired.iter().filter(|clause| !covered.contains(clause)));
+        if probe.result.is_ok() {
+            let off_path = fired.iter().filter(|clause| !covered.contains(clause));
+            if rejected {
+                self.fired_when_rejected.extend(off_path);
+            } else {
+                self.fired_when_accepted.extend(off_path);
+            }
+            self.in_some_result.extend(covered.iter().copied());
         }
         let run = Rc::new(Run {
             result: probe.result,
@@ -477,6 +487,16 @@ impl<'a> Search<'a> {
     /// Whether a clause cites the law (`@ cite`).
     fn cited(&self, clause: usize) -> bool {
         !self.covers[clause].cites.is_empty()
+    }
+
+    /// Whether a clause is reachable but no result rests on it: it fired
+    /// in a run the entry accepted, and no case covers it, and no run's
+    /// result (in the input domain or outside it) rested on it.
+    fn not_in_result(&self, clause: usize) -> bool {
+        self.covered_by[clause].is_empty()
+            && self.fired_when_accepted.contains(&clause)
+            && !self.in_some_result.contains(&clause)
+            && !self.fired_outside_domain.contains_key(&clause)
     }
 
     /// Write `input` as a case unless an equal input already is one;
@@ -582,8 +602,7 @@ impl<'a> Search<'a> {
         self.catalogue.families[self.catalogue.clauses[clause].family].qualified()
     }
 
-    /// Whether a run of `input` covers `clause`: fires it, or, when the
-    /// entry rejects it, rests the rejection on it.
+    /// Whether a run of `input` covers `clause`: its result rests on it.
     fn fires(&mut self, input: &JsonValue, clause: usize) -> bool {
         let run = self.run(input);
         run.ok() && run.covered.contains(&clause)
@@ -1889,7 +1908,9 @@ impl<'a> Search<'a> {
     /// Whether some call of `family` in a run has the model's values in
     /// every argument leaf a threshold reads, and the result shows what the
     /// family decided: it is not rejected, or the rejection rests on one of
-    /// the family's clauses.
+    /// the family's clauses. (A Boolean family's `false` fall-through is no
+    /// clause and leaves no provenance, so an accepted result is taken as
+    /// showing it; the guards of `not-in-result` clauses get no boundaries.)
     fn at_offset(
         family: usize,
         reads: Vec<(usize, String)>,
@@ -2189,6 +2210,8 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
         covered_by: vec![Vec::new(); clause_count],
         rejections,
         fired_when_rejected: BTreeSet::new(),
+        fired_when_accepted: BTreeSet::new(),
+        in_some_result: BTreeSet::new(),
         fired_outside_domain: BTreeMap::new(),
         reached_outside: None,
         notes: BTreeMap::new(),
@@ -2274,6 +2297,7 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
     let mut thresholds = Vec::new();
     for clause in 0..clause_count {
         if !search.cited(clause)
+            || search.not_in_result(clause)
             || matches!(
                 search.catalogue.clauses[clause].status,
                 ClauseStatus::Unreachable(_)
@@ -2324,10 +2348,12 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
     let mut cited = ClauseCount {
         covered: 0,
         clauses: 0,
+        not_in_result: 0,
     };
     let mut uncited = ClauseCount {
         covered: 0,
         clauses: 0,
+        not_in_result: 0,
     };
     for clause in 0..clause_count {
         let cover = search.covers[clause].clone();
@@ -2337,7 +2363,11 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
         } else {
             &mut uncited
         };
+        let not_in_result = search.not_in_result(clause);
         count.clauses += 1;
+        if not_in_result {
+            count.not_in_result += 1;
+        }
         let (reason, detail, witness) = if !covered_by.is_empty() {
             count.covered += 1;
             (None, None, None)
@@ -2361,6 +2391,15 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
                     .notes
                     .get(&clause)
                     .and_then(|(_, _, witness)| witness.clone()),
+            )
+        } else if not_in_result {
+            (
+                Some("not-in-result".to_string()),
+                Some(
+                    "it fired, but no run's result rests on it by provenance: the entry evaluates it and gives nothing computed from it, or decides on it in a builtin provenance does not see (still counted)"
+                        .to_string(),
+                ),
+                None,
             )
         } else if search.fired_when_rejected.contains(&clause) {
             (
@@ -2409,8 +2448,8 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
         });
     }
     let summary = format!(
-        "cited rule clauses: {} of {} covered",
-        cited.covered, cited.clauses
+        "cited rule clauses: {} of {} covered, of which {} not in the result (reported, still counted)",
+        cited.covered, cited.clauses, cited.not_in_result
     );
 
     // Write the suite.
@@ -2457,7 +2496,7 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
         rejected: count("rejected"),
     };
     let line = format!(
-        "runa cases: {}; {} cases ({} clause, {} boundary, {} scenario, {} rejected) in {}; uncited rule clauses: {} of {} covered; technical rejections not in the suite: {}",
+        "runa cases: {}; {} cases ({} clause, {} boundary, {} scenario, {} rejected) in {}; uncited rule clauses: {} of {} covered, of which {} not in the result; technical rejections not in the suite: {}",
         summary,
         search.cases.len(),
         counts.clause,
@@ -2467,6 +2506,7 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
         options.out,
         uncited.covered,
         uncited.clauses,
+        uncited.not_in_result,
         search.technical.len(),
     );
     write(

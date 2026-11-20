@@ -29,3 +29,7 @@ Stk. 2. Et negativt beløb afvises.
 § 14. En betaling den 30. eller 31. i måneden giver et tillæg på 5 kr.
 
 § 15. Af en overførsel over 9.007.199.254.740.991 øre betales et gebyr på 1 øre.
+
+§ 16. Af et beløb over 100 kr. betales et gebyr på 1 kr.
+
+Stk. 2. Et beløb over 1.000 kr. indberettes.

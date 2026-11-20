@@ -607,17 +607,23 @@ case's id (`fee.large.clause`); an entry of an open collection (`open = True`)
 gets a key only from the solution, never an invented one. The new element is
 kept only when the run decodes, is not rejected and fires the clause.
 
+**Coverage is what the result rests on.** An implementation shows only its
+result, so a case covers only the clauses its result rests on, not every
+clause the run evaluated: the input is run again with every `if` and `match`
+branch's value traced to the condition that chose it, and the clauses the
+result's values were computed from (their values and guards, through the
+explanation's provenance) are its `covers`. A clause the entry evaluates but
+gives nothing from (a field of a shared step the entry drops) covers
+nothing. A boundary case whose result is a rejection is kept only when the
+rejection rests on the threshold's rule, and the guards of `not-in-result`
+clauses get no boundary cases.
+
 **Rejections.** A result variant is a rejection when the entry's result type
 is the prelude's `Result` (its `Err`) or when `--rejected VARIANT` names it
 (repeatable; it must be a variant of the result type). A rejected result
-shows little of what the rules computed before the entry gave up, so a case
-whose result is a rejection covers only the clauses the rejection rests on:
-the input is run again with every `if` and `match` branch's value traced to
-the condition that chose it, and the clauses the result's values and the
-conditions that chose the rejection were computed from (their values and
-guards, through the explanation's provenance) are its `covers`. A boundary
-case whose result is a rejection is kept only when the rejection rests on the
-threshold's rule.
+shows little of what the rules computed before the entry gave up; it rests
+on the clauses its values and the conditions that chose the rejection were
+computed from.
 
 **The law is the cited clauses.** The suite tests the law, the rule clauses
 with `@ cite`; a clause without one (an overflow guard, a bound of a
@@ -649,31 +655,36 @@ Each case is written to `DIR/<id>.case.json`:
   `boundary-above`, `scenario`, or `rejected` for any case whose result is a
   rejection), `input` (a complete input) and `expected` (the `result` `runa
   call` gives for it).
-- `covers`: each clause the case's run fired (of a rejection, those it rests
-  on), with `rule`, `clause`, `location` (relative to the entry file's
-  directory) and `cites` (the cited paragraphs). It is read from the run,
-  never assumed from the search.
+- `covers`: each clause the case's result rests on (of a rejection, with the
+  conditions that chose it), with `rule`, `clause`, `location` (relative to
+  the entry file's directory) and `cites` (the cited paragraphs). It is read
+  from the run, never assumed from the search.
 
 `DIR/coverage.json` lists every clause with the cases that cover it, and for
 an uncovered one a `reason`: `unreachable` (the audit proved it never fires),
 `not-analysable` (its guard is outside the SMT encoding, with the audit's
 reason), `solver-unknown`, `rejected` (it fired only in inputs the entry
-rejects, and no rejection rests on it), `technical` (an uncited clause only
-technical rejections rest on), `outside-input-domain` (only an
-input outside the input domain fires it, with the `witness` Z3 found
-outside it), or `no-entry-input` (no input the search tried reached it; with
-the rule-level `witness` when Z3 found one, which says what a scenario must
-set up). `summary` is `cited rule clauses: X of Y covered`; `cited` and
-`uncited` count the cited and the uncited clauses (`covered`, `clauses`).
-`thresholds` names the case of each side of each threshold of a cited
-clause, or `null`; `rejections` the variants counted as
-rejections; `cases` the number of cases of each kind (`clause`, `boundary`,
-`scenario`, `rejected`); `technical` the rejections left out. The command
-prints the summary,
-`runa cases: cited rule clauses: X of Y covered; K cases (… clause, …
-boundary, … scenario, … rejected) in DIR; uncited rule clauses: A of B
-covered; technical rejections not in the suite: T`. Earlier `*.case.json`
-files in `DIR` that this run does not write are removed.
+rejects, and no rejection rests on it), `not-in-result` (it fired in inputs
+the entry accepts, but no result rests on it by provenance; reported and
+still counted, since builtins such as `filter` decide without a trace and
+coverage must understate; its guard gets no boundary cases), `technical` (an
+uncited clause only technical rejections rest on), `outside-input-domain`
+(only an input outside the input domain fires it, with the `witness` Z3
+found outside it), or `no-entry-input` (no input the search tried reached
+it; with the rule-level `witness` when Z3 found one, which says what a
+scenario must set up). `summary` is `cited rule clauses: X of Y covered, of
+which N not in the result (reported, still counted)`; `cited` and `uncited`
+count the cited and the uncited clauses (`covered`, `clauses`,
+`not_in_result`). `thresholds` names the case of each side of each
+threshold of a cited clause that is not `not-in-result`, or `null`;
+`rejections` the variants counted as rejections; `cases` the number of
+cases of each kind (`clause`, `boundary`, `scenario`, `rejected`);
+`technical` the rejections left out. The command prints the summary,
+`runa cases: cited rule clauses: X of Y covered, of which N not in the
+result (reported, still counted); K cases (… clause, … boundary, …
+scenario, … rejected) in DIR; uncited rule clauses: A of B covered, of which
+M not in the result; technical rejections not in the suite: T`. Earlier
+`*.case.json` files in `DIR` that this run does not write are removed.
 
 Arguments derived from lists through `foldl` or `scan`, or rejected by the
 entry's validation before the rule runs, are often not reached by moving one

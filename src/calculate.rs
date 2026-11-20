@@ -6853,7 +6853,8 @@ impl CalculationWorker {
             result: Err(problems.join("; ")),
             fired: Vec::new(),
             calls: Vec::new(),
-            rejected_by: None,
+            rejected: false,
+            rests_on: Vec::new(),
         };
         let (decoded, scalars) = contract.decode_case_with_scalars(input, false);
         let mut problems: Vec<String> = match &decoded {
@@ -6892,33 +6893,37 @@ impl CalculationWorker {
             .and_then(|result| result.get("$variant"))
             .and_then(JsonValue::as_str)
             .is_some_and(|variant| rejections.iter().any(|name| name == variant));
-        // The rejection's clauses: the decided run's, by the first run's ids.
-        // Tracing changes no value, so a decided run that gives another
-        // result is not read.
-        let rejected_by = (rejected && !self.needs_reinitialization).then(|| {
+        // The clauses the result rests on: the decided run's, by the first
+        // run's ids. Tracing changes no value, so a decided run that gives
+        // another result is not read.
+        let rests_on = if result.is_ok() && !self.needs_reinitialization {
             let names = rejections.iter().cloned().collect();
             let (evaluated, decided, _, decided_fired) =
                 self.probe_run(contract, &input, Some(names));
-            let (Ok(decided_result), Some(decided)) = (evaluated, decided) else {
-                return Vec::new();
-            };
-            let same = contract
-                .encode_output(&crate::explain::strip_deep(&decided_result))
-                .ok();
-            if same.as_ref() != result.as_ref().ok() {
-                return Vec::new();
+            match (evaluated, decided) {
+                (Ok(decided_result), Some(decided))
+                    if contract
+                        .encode_output(&crate::explain::strip_deep(&decided_result))
+                        .ok()
+                        .as_ref()
+                        == result.as_ref().ok() =>
+                {
+                    let mut roots = Vec::new();
+                    crate::explain::collect_nodes(&decided_result, &mut roots);
+                    let mut ids: Vec<usize> = decided
+                        .result_clauses(&roots, rejected)
+                        .into_iter()
+                        .filter_map(|id| fired.id_of(&decided_fired.clause(id).rule))
+                        .map(|id| id as usize)
+                        .collect();
+                    ids.sort_unstable();
+                    ids
+                }
+                _ => Vec::new(),
             }
-            let mut roots = Vec::new();
-            crate::explain::collect_nodes(&decided_result, &mut roots);
-            let mut ids: Vec<usize> = decided
-                .rejection_clauses(&roots)
-                .into_iter()
-                .filter_map(|id| fired.id_of(&decided_fired.clause(id).rule))
-                .map(|id| id as usize)
-                .collect();
-            ids.sort_unstable();
-            ids
-        });
+        } else {
+            Vec::new()
+        };
         self.probe_renderer();
         let mut renderer = self.probe_renderer.take().expect("renderer just made");
         let fired_clauses = (0..fired.len())
@@ -6959,7 +6964,8 @@ impl CalculationWorker {
             result,
             fired: fired_clauses,
             calls,
-            rejected_by,
+            rejected,
+            rests_on,
         }
     }
 
@@ -7858,10 +7864,14 @@ pub struct CaseProbe {
     pub fired: Vec<ProbeClause>,
     /// Every rule call that selected a clause, in call order.
     pub calls: Vec<ProbeCall>,
-    /// Set when the result is a rejection: the fired clauses (indices into
-    /// `fired`) it rests on, read from a decided run, where a branch's value
-    /// is computed from the condition that chose it.
-    pub rejected_by: Option<Vec<usize>>,
+    /// Whether the result is a rejection.
+    pub rejected: bool,
+    /// The fired clauses (indices into `fired`) the result rests on: read
+    /// from a decided run, where a branch's value is computed from the
+    /// condition that chose it, from the result's leaves and, of a
+    /// rejection, the conditions that chose it. Empty when there is no
+    /// result or the decided run gave another.
+    pub rests_on: Vec<usize>,
 }
 
 /// A rule clause that fired in a probe.

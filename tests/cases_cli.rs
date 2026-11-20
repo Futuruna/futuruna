@@ -148,25 +148,28 @@ fn cases_cover_every_clause_and_both_sides_of_each_threshold() {
     }
     let (cases, coverage, stdout) = generate("levy", true);
     assert!(
-        stdout.starts_with("runa cases: cited rule clauses: 9 of 9 covered;"),
+        stdout.starts_with("runa cases: cited rule clauses: 9 of 9 covered, of which 0 not in the result (reported, still counted);"),
         "{}",
         stdout
     );
     assert!(
         stdout.trim_end().ends_with(
-            "; uncited rule clauses: 0 of 0 covered; technical rejections not in the suite: 0"
+            "; uncited rule clauses: 0 of 0 covered, of which 0 not in the result; technical rejections not in the suite: 0"
         ),
         "{}",
         stdout
     );
-    assert_eq!(coverage["summary"], "cited rule clauses: 9 of 9 covered");
+    assert_eq!(
+        coverage["summary"],
+        "cited rule clauses: 9 of 9 covered, of which 0 not in the result (reported, still counted)"
+    );
     assert_eq!(
         coverage["cited"],
-        serde_json::json!({ "covered": 9, "clauses": 9 })
+        serde_json::json!({ "covered": 9, "clauses": 9, "not_in_result": 0 })
     );
     assert_eq!(
         coverage["uncited"],
-        serde_json::json!({ "covered": 0, "clauses": 0 })
+        serde_json::json!({ "covered": 0, "clauses": 0, "not_in_result": 0 })
     );
     assert_eq!(coverage["technical"], serde_json::json!([]));
     assert!(!cases.contains_key("old"), "a stale case file is removed");
@@ -351,18 +354,19 @@ fn a_rejection_resting_only_on_uncited_clauses_is_technical_and_not_a_case() {
     // The fee, the units ceiling and the bonus cite § 12; the positive
     // amount cites nothing.
     assert_eq!(
-        coverage["summary"], "cited rule clauses: 5 of 6 covered",
+        coverage["summary"],
+        "cited rule clauses: 5 of 6 covered, of which 0 not in the result (reported, still counted)",
         "{}",
         coverage
     );
     assert_eq!(
         coverage["uncited"],
-        serde_json::json!({ "covered": 1, "clauses": 2 })
+        serde_json::json!({ "covered": 1, "clauses": 2, "not_in_result": 0 })
     );
     assert!(
         generated
             .stdout
-            .contains("; uncited rule clauses: 1 of 2 covered; "),
+            .contains("; uncited rule clauses: 1 of 2 covered, of which 0 not in the result; "),
         "{}",
         generated.stdout
     );
@@ -585,7 +589,8 @@ fn a_clause_that_needs_an_amount_beyond_2_53_is_outside_the_input_domain() {
     let generated = generate_with("transfer", &["transfer.entry.runa"], false);
     let coverage = &generated.coverage;
     assert_eq!(
-        coverage["summary"], "cited rule clauses: 1 of 2 covered",
+        coverage["summary"],
+        "cited rule clauses: 1 of 2 covered, of which 0 not in the result (reported, still counted)",
         "{}",
         coverage
     );
@@ -638,7 +643,8 @@ fn a_date_guard_near_month_ends_gives_only_days_on_the_calendar() {
     );
     let coverage = &generated.coverage;
     assert_eq!(
-        coverage["summary"], "cited rule clauses: 2 of 2 covered",
+        coverage["summary"],
+        "cited rule clauses: 2 of 2 covered, of which 0 not in the result (reported, still counted)",
         "{}",
         coverage
     );
@@ -660,5 +666,59 @@ fn a_date_guard_near_month_ends_gives_only_days_on_the_calendar() {
             "{}",
             case
         );
+    }
+}
+
+#[test]
+fn a_clause_no_result_rests_on_is_reported_not_in_result_and_still_counted() {
+    if !z3_available() {
+        eprintln!("skipping: z3 is not installed");
+        return;
+    }
+    let generated = generate_with("step", &["step.entry.runa"], false);
+    let coverage = &generated.coverage;
+    // The step computes the fee and the report; the entry gives only the
+    // fee. The report's clauses fire in every run, but no result rests on
+    // them: they are not covered, reported `not-in-result`, and still
+    // counted, so coverage understates rather than overstates.
+    assert_eq!(
+        coverage["summary"],
+        "cited rule clauses: 2 of 4 covered, of which 2 not in the result (reported, still counted)",
+        "{}",
+        coverage
+    );
+    assert_eq!(
+        coverage["cited"],
+        serde_json::json!({ "covered": 2, "clauses": 4, "not_in_result": 2 })
+    );
+    assert!(
+        generated.stdout.starts_with(
+            "runa cases: cited rule clauses: 2 of 4 covered, of which 2 not in the result (reported, still counted);"
+        ),
+        "{}",
+        generated.stdout
+    );
+    for key in ["clause-1", "large"] {
+        let report = clause(coverage, "report", key);
+        assert_eq!(report["covered_by"], serde_json::json!([]), "{}", report);
+        assert_eq!(report["reason"], "not-in-result", "{}", report);
+    }
+    // No case claims the report, and its guard has no boundary cases.
+    for case in generated.cases.values() {
+        assert!(!covers(case, "report", "clause-1"), "{}", case);
+        assert!(!covers(case, "report", "large"), "{}", case);
+    }
+    let thresholds = coverage["thresholds"].as_array().expect("thresholds");
+    assert!(
+        thresholds
+            .iter()
+            .all(|threshold| threshold["rule"] != "report"),
+        "{:#?}",
+        thresholds
+    );
+    // The fee is in the result: covered, with both sides of its threshold.
+    let big = threshold(coverage, "fee", "big");
+    for side in ["below", "at", "above"] {
+        assert!(big[side].is_string(), "{}", big);
     }
 }
