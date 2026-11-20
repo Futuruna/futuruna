@@ -33,3 +33,11 @@ Stk. 2. Et negativt beløb afvises.
 § 16. Af et beløb over 100 kr. betales et gebyr på 1 kr.
 
 Stk. 2. Et beløb over 1.000 kr. indberettes.
+
+§ 17. En post over 100 kr. medregnes.
+
+Stk. 2. En post under 50 kr. giver et fradrag på posten.
+
+Stk. 3. En ejer, der ikke er hjemmehørende, betaler 1.000 kr.
+
+Stk. 4. Et grundbeløb over 1.000 kr. giver en bonus på 5 kr.

@@ -185,8 +185,8 @@ impl FiredClauses {
 pub struct ExplainState {
     nodes: Vec<Node>,
     interned: HashMap<Node, NodeId>,
-    /// Per active builtin: whether it reads its callbacks' results whole.
-    callback_whole: Vec<bool>,
+    /// Per active builtin, innermost last: how it reads its callbacks.
+    callbacks: Vec<CallbackFrame>,
     /// Per active rule dispatch, innermost last: the nodes of the guard
     /// values evaluated so far (the guards that chose or refuted a clause).
     guards: Vec<Vec<NodeId>>,
@@ -207,6 +207,18 @@ struct Decisions {
     /// them, so what it decided (an empty issue list, no deemed day) would
     /// otherwise rest on nothing.
     leafless: Vec<NodeId>,
+}
+
+/// How an active builtin reads its callbacks' results.
+#[derive(Debug)]
+struct CallbackFrame {
+    /// Whether it reads them whole (a predicate's Bool, a sort key) rather
+    /// than carrying them (`map`'s elements).
+    whole: bool,
+    /// In a decided case, for a builtin that keeps or drops values by a
+    /// predicate or by `Some`/`None`: the values its decisions were
+    /// computed from (each predicate result, each `None` it dropped).
+    decided_by: Option<Vec<NodeId>>,
 }
 
 impl ExplainState {
@@ -618,6 +630,42 @@ fn builtin_reads_callback_results(name: &str) -> bool {
     !matches!(name, "map" | "foldl" | "scan" | "reduce" | "flat_map")
 }
 
+/// Whether a builtin keeps or drops values by what its callbacks give: a
+/// predicate's Bool (`filter`, `find`, `any`, `all`, `take_while`,
+/// `drop_while`, `partition`) or a `None` it drops (`flat_map`).
+fn builtin_decides_by_callbacks(name: &str) -> bool {
+    matches!(
+        name,
+        "filter" | "find" | "any" | "all" | "take_while" | "drop_while" | "partition" | "flat_map"
+    )
+}
+
+/// Whether a builtin keeps or drops a value by whether its first argument
+/// is `Some` or `None`: `is_some`, `is_none`, `unwrap_or`, and `map`,
+/// `flat_map` and `filter` over an `Option`.
+fn builtin_decides_by_option(name: &str, args: &[Value]) -> bool {
+    match name {
+        "is_some" | "is_none" | "unwrap_or" => true,
+        "map" | "flat_map" | "filter" => args.first().is_some_and(|arg| {
+            matches!(
+                untraced(arg),
+                Value::Constructor(name, _) | Value::NamespacedConstructor { name, .. }
+                    if matches!(name.as_str(), "Some" | "None")
+            )
+        }),
+        _ => false,
+    }
+}
+
+/// Whether `value` is `None`.
+fn is_none_value(value: &Value) -> bool {
+    matches!(
+        untraced(value),
+        Value::Constructor(name, arguments) | Value::NamespacedConstructor { name, arguments, .. }
+            if arguments.is_empty() && name.as_str() == "None"
+    )
+}
+
 impl Interpreter {
     /// Start recording the rule clauses that fire in a calculation case.
     pub(crate) fn begin_fired_clauses(&mut self) {
@@ -723,6 +771,16 @@ impl Interpreter {
             }
             decision
         };
+        self.rest_on(result, decision)
+    }
+
+    /// In a decided case, `result` was decided by `decision`: every leaf of
+    /// it is computed from it as well; a value without a leaf (`[]`, a
+    /// record of such) cannot carry it, so it is recorded as `leafless`.
+    fn rest_on(&self, result: Value, decision: NodeId) -> Value {
+        let Some(state) = &self.explain else {
+            return result;
+        };
         let mut leafless = true;
         let result = map_leaves(&result, &mut |leaf| {
             let inner = untraced(leaf);
@@ -745,6 +803,60 @@ impl Interpreter {
             }
         }
         result
+    }
+
+    /// In a decided case, a builtin kept or dropped values by what `from`
+    /// traces (its predicate's results, a `None` it dropped, the `Option`
+    /// it read): the value it gives rests on them, as a branch's value rests
+    /// on its condition. A `None` it gives carries them as its own trace, as
+    /// a rule's `None` does, so what reads it rests on them.
+    fn explain_kept_by(&self, result: Value, from: Vec<NodeId>) -> Value {
+        let mut unique: Vec<NodeId> = Vec::with_capacity(from.len());
+        for node in from {
+            if !unique.contains(&node) {
+                unique.push(node);
+            }
+        }
+        let decision = match unique.as_slice() {
+            [] => return result,
+            [one] => *one,
+            many => match self.explain_intern(Node::Computed {
+                from: many.to_vec().into_boxed_slice(),
+            }) {
+                Some(node) => node,
+                None => return result,
+            },
+        };
+        if is_none_value(&result) {
+            let node = match node_of(&result) {
+                Some(own) if own != decision => self.explain_intern(Node::Computed {
+                    from: Box::new([own, decision]),
+                }),
+                _ => Some(decision),
+            };
+            return match node {
+                Some(node) => traced(untraced(&result).clone(), node),
+                None => result,
+            };
+        }
+        self.rest_on(result, decision)
+    }
+
+    /// In a decided case, a Boolean family answered `false` because no
+    /// clause applied: the `false` rests on the guards and clause bodies its
+    /// dispatch read, as a clause's value rests on the guards that chose it.
+    pub(crate) fn explain_unmatched(&self, value: Value) -> Value {
+        let Some(state) = &self.explain else {
+            return value;
+        };
+        let from = {
+            let state = state.borrow();
+            if state.decisions.is_none() {
+                return value;
+            }
+            state.guards.last().cloned().unwrap_or_default()
+        };
+        self.explain_kept_by(value, from)
     }
 
     /// End an explained case, returning its provenance graph.
@@ -877,18 +989,34 @@ impl Interpreter {
                 interpreter.eval_named_builtin(namespace, name, args, env)
             }
         };
-        let push = |interpreter: &Self, whole: bool| {
+        let push = |interpreter: &Self, frame: CallbackFrame| {
             if let Some(state) = &interpreter.explain {
-                state.borrow_mut().callback_whole.push(whole);
+                state.borrow_mut().callbacks.push(frame);
             }
         };
         let pop = |interpreter: &Self| {
-            if let Some(state) = &interpreter.explain {
-                state.borrow_mut().callback_whole.pop();
-            }
+            interpreter
+                .explain
+                .as_ref()
+                .and_then(|state| state.borrow_mut().callbacks.pop())
         };
         match builtin_tracing(name) {
             BuiltinTracing::Carries(kept) => {
+                let decides = self.explain_decides();
+                // What the `Option` argument decides on: whether it is
+                // `Some` (its payload's traces, as a `match` on it reads)
+                // for `is_some` and `is_none`; the trace of a `None` that
+                // `unwrap_or`, `map`, `flat_map` and `filter` drop.
+                let mut decided_by = Vec::new();
+                if decides && builtin_decides_by_option(name, &args) {
+                    if let Some(option) = args.first() {
+                        if matches!(name, "is_some" | "is_none") {
+                            collect_nodes(option, &mut decided_by);
+                        } else if is_none_value(option) {
+                            decided_by.extend(node_of(option));
+                        }
+                    }
+                }
                 let args = args
                     .into_iter()
                     .enumerate()
@@ -900,10 +1028,23 @@ impl Interpreter {
                         }
                     })
                     .collect();
-                push(self, builtin_reads_callback_results(name));
+                push(
+                    self,
+                    CallbackFrame {
+                        whole: builtin_reads_callback_results(name),
+                        decided_by: (decides && builtin_decides_by_callbacks(name))
+                            .then(Vec::new),
+                    },
+                );
                 let result = call(self, args);
-                pop(self);
-                result
+                if let Some(by_callbacks) = pop(self).and_then(|frame| frame.decided_by) {
+                    decided_by.extend(by_callbacks);
+                }
+                if decided_by.is_empty() || self.calculation_failed() {
+                    result
+                } else {
+                    self.explain_kept_by(result, decided_by)
+                }
             }
             BuiltinTracing::Reads => {
                 let mut from = Vec::new();
@@ -915,7 +1056,13 @@ impl Interpreter {
                 } else {
                     args.iter().map(strip_deep).collect()
                 };
-                push(self, true);
+                push(
+                    self,
+                    CallbackFrame {
+                        whole: true,
+                        decided_by: None,
+                    },
+                );
                 let result = call(self, args);
                 pop(self);
                 self.explain_computed(result, from)
@@ -924,12 +1071,24 @@ impl Interpreter {
     }
 
     /// A builtin's callback returned `result`: the value the builtin reads.
+    /// In a decided case, a builtin that keeps or drops values by what its
+    /// callbacks give records what each result was computed from.
     pub(crate) fn explain_callback_result(&self, result: Value) -> Value {
-        let whole = self
-            .explain
-            .as_ref()
-            .and_then(|state| state.borrow().callback_whole.last().copied())
-            .unwrap_or(false);
+        let Some(state) = &self.explain else {
+            return result;
+        };
+        let whole = {
+            let mut state = state.borrow_mut();
+            let Some(frame) = state.callbacks.last_mut() else {
+                return result;
+            };
+            if let (Some(decided_by), Some(node)) = (frame.decided_by.as_mut(), node_of(&result)) {
+                if !decided_by.contains(&node) {
+                    decided_by.push(node);
+                }
+            }
+            frame.whole
+        };
         if whole {
             strip(result)
         } else {
@@ -969,7 +1128,8 @@ impl Interpreter {
     }
 
     /// In a decided case, a refutable head pattern read `value` to choose or
-    /// refute a clause: the dispatch records what it was computed from, as
+    /// refute a clause, or a Boolean clause's body gave a `false` `value`
+    /// that refuted it: the dispatch records what it was computed from, as
     /// it does a guard's.
     pub(crate) fn explain_pattern_read(&self, value: &Value) {
         let Some(state) = &self.explain else {
@@ -1095,12 +1255,9 @@ impl Interpreter {
             .unwrap_or_default();
         // In a decided case a clause's `None` is traced as well: a rejection
         // may rest on a rule having nothing (`| None -> Rejected(...)`).
-        let none = matches!(
-            untraced(&value),
-            Value::Constructor(name, arguments) | Value::NamespacedConstructor { name, arguments, .. }
-                if arguments.is_empty() && name.as_str() == "None"
-        );
-        if none && state.borrow().decisions.is_some() {
+        let none = is_none_value(&value);
+        let decides = state.borrow().decisions.is_some();
+        if none && decides {
             let node = state.borrow_mut().intern(Node::Rule {
                 clause,
                 from: node_of(&value),
@@ -1109,10 +1266,27 @@ impl Interpreter {
             });
             return traced(untraced(&value).clone(), node);
         }
+        // A clause that gives a value without a leaf (`[]`, a record of
+        // such) cannot carry its trace. In a decided case what the entry
+        // decides with it (an empty list `flat_map` drops, no deemed
+        // distribution) rests on the clause, as on a branch that gave such a
+        // value: it is recorded as `leafless`.
+        if decides && !has_leaf(&value) {
+            let mut state = state.borrow_mut();
+            let node = state.intern(Node::Rule {
+                clause,
+                from: None,
+                value: Leaf::Variant(Rc::from("[]")),
+                because,
+            });
+            if let Some(decisions) = state.decisions.as_mut() {
+                decisions.leafless.push(node);
+            }
+            return value;
+        }
         // A clause that returns one value produced it. A clause that returns a
         // structure produced the leaves it computed.
         let structure = Leaf::of(untraced(&value)).is_none();
-        let decides = state.borrow().decisions.is_some();
         let mut tag = |leaf: &Value| -> Value {
             let from = node_of(leaf);
             // A member a structure passes on unchanged from the input or

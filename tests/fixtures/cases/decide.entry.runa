@@ -1,0 +1,53 @@
+-- An entry whose result rests on decisions no branch makes: `filter` keeps
+-- the items a rule's predicate holds for, `flat_map` drops the `[]` a rule
+-- gives, `unwrap_or` replaces a rule's `None`, and a Boolean rule answers
+-- `false` when no clause applies.
+
+# SourceInfo(file: String)
+# impl Document for SourceInfo {}
+= law = SourceInfo(file = "sources/law.txt")
+
+# Item(amount: Int)
+
+# Case(items: List(Item), base: Int, resident: Bool)
+
+@ section decide {
+
+@ quote(law)
+----
+§ 17. En post over 100 kr. medregnes.
+
+Stk. 2. En post under 50 kr. giver et fradrag på posten.
+
+Stk. 3. En ejer, der ikke er hjemmehørende, betaler 1.000 kr.
+
+Stk. 4. Et grundbeløb over 1.000 kr. giver en bonus på 5 kr.
+----
+
+@ cite(§ 17)
+| counted(amount: Int): Bool -> amount > 100
+
+@ cite(§ 17, stk. 2)
+| relief(amount: Int): List(Int) -> []
+@ cite(§ 17, stk. 2)
+| exception small relief(amount) -> [amount] under amount < 50
+
+@ cite(§ 17, stk. 3)
+| liable(resident: Bool): Bool -> resident
+@ cite(§ 17, stk. 3)
+| refused(resident: Bool): Bool -> not(liable(resident))
+
+@ cite(§ 17, stk. 4)
+| bonus(base: Int): Int? -> None
+@ cite(§ 17, stk. 4)
+| exception paid bonus(base) -> Some(5) under base > 1000
+
+}
+
+@ entry
+> decide(c: Case) -> Int {
+    = counted_total = sum_list(map(filter(c.items, |i| counted(i.amount)), |i| i.amount))
+    = reliefs = sum_list(flat_map(c.items, |i| relief(i.amount)))
+    = penalty = if refused(c.resident) { 1000 } else { 0 }
+    counted_total - reliefs + penalty + unwrap_or(bonus(c.base), 0)
+}

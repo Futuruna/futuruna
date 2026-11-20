@@ -612,11 +612,17 @@ result, so a case covers only the clauses its result rests on, not every
 clause the run evaluated: the input is run again with every `if` and `match`
 branch's value traced to the condition that chose it, and the clauses the
 result's values were computed from (their values and guards, through the
-explanation's provenance) are its `covers`. A clause the entry evaluates but
-gives nothing from (a field of a shared step the entry drops) covers
-nothing. A boundary case whose result is a rejection is kept only when the
-rejection rests on the threshold's rule, and the guards of `not-in-result`
-clauses get no boundary cases.
+explanation's provenance) are its `covers`. Decisions no branch makes count
+the same way: a builtin that keeps or drops values by a predicate (`filter`,
+`find`, `any`, `all`, `take_while`, `drop_while`, `partition`) or by
+`Some`/`None` (`flat_map`, `unwrap_or`, `is_some`, `is_none`) gives a value
+computed from what decided it, a clause's `[]` is recorded as a branch's
+is, and a Boolean rule's `false` when no clause applies is computed from the
+guards and bodies that did not hold. A clause the entry evaluates but gives
+nothing from (a field of a shared step the entry drops) covers nothing. A
+boundary case whose result is a rejection is kept only when the rejection
+rests on the threshold's rule, and the guards of `not-in-result` clauses get
+no boundary cases.
 
 **Rejections.** A result variant is a rejection when the entry's result type
 is the prelude's `Result` (its `Err`) or when `--rejected VARIANT` names it
@@ -666,9 +672,10 @@ an uncovered one a `reason`: `unreachable` (the audit proved it never fires),
 reason), `solver-unknown` (Z3 answered unknown, or the query ran out of its
 resource limit), `rejected` (it fired only in inputs the entry
 rejects, and no rejection rests on it), `not-in-result` (it fired in inputs
-the entry accepts, but no result rests on it by provenance; reported and
-still counted, since builtins such as `filter` decide without a trace and
-coverage must understate; its guard gets no boundary cases), `technical` (an
+the entry accepts, but no result rests on it by provenance, not even through
+a decision; reported and still counted, since provenance does not yet see
+every decision, a comparison of two `Date`s among them, and coverage must
+understate; its guard gets no boundary cases), `technical` (an
 uncited clause only technical rejections rest on), `outside-input-domain`
 (only an input outside the input domain fires it, with the `witness` Z3
 found outside it), or `no-entry-input` (no input the search tried reached

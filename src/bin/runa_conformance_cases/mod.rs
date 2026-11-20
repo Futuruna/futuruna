@@ -2396,7 +2396,7 @@ pub(crate) fn run_cases(filename: &str, use_prelude: bool, options: &CasesOption
             (
                 Some("not-in-result".to_string()),
                 Some(
-                    "it fired, but no run's result rests on it by provenance: the entry evaluates it and gives nothing computed from it, or decides on it in a builtin provenance does not see (still counted)"
+                    "it fired, but no run's result rests on it by provenance: the entry evaluates it and gives nothing computed from it, nor decides anything by it as far as provenance sees (still counted)"
                         .to_string(),
                 ),
                 None,

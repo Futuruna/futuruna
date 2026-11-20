@@ -165,6 +165,32 @@ AskYearRejected(...) }`). Tracing changes no value, so a decided run whose
 result differs from the first run's is not read, and the case then covers
 nothing.
 
+Values are also decided without a branch, and a decided case records those
+decisions the same way:
+
+- **Builtins that keep or drop by a predicate** (`filter`, `find`, `any`,
+  `all`, `take_while`, `drop_while`, `partition`): the value they give is
+  computed from every predicate result they read, for the elements they
+  kept and those they dropped (`explain_kept_by`). `filter(events, |e|
+  deemed(e))` rests on `deemed`'s clauses even when it keeps nothing.
+- **Builtins that keep or drop by `Some`/`None`**: `flat_map` rests on each
+  `None` its callback gave and dropped; `unwrap_or`, and `map`, `flat_map`
+  and `filter` over an `Option`, on the `None` they read; `is_some` and
+  `is_none` on the Option they test (its `None`, or its payload's traces,
+  as a `match` on it reads).
+- **A clause that gives `[]`** (a record of such) cannot carry its trace,
+  like a branch that gives it: `ask_dividend_from_abroad`'s `[]` for a
+  Danish issuer, which `flat_map` then drops. It is recorded as a decision
+  of the accepted result, as such a branch's condition is.
+- **A Boolean family's `false`** when no clause applies is computed from the
+  guards and the clause bodies that did not hold (`explain_unmatched`):
+  `ask_owner_refused` answers `false` because `ask_taxed_on_whole_return`
+  holds, and the issues it does not raise rest on that.
+
+A `None` such a builtin gives carries the decision as its trace, as a
+clause's `None` does; a value without a leaf (`[]`) records it like a
+branch's.
+
 Consequences:
 
 - Rejected cases are kept, `kind: "rejected"`, and counted apart
@@ -174,17 +200,17 @@ Consequences:
   target clause; a boundary by an accepted run, or by a rejected one only
   when the rejection rests on a clause of the threshold's rule (the boundary
   of a validation rule is observable, that of a tax rule run before the
-  entry gave up is not). A Boolean rule's `false` fall-through is no clause
-  and leaves no provenance, so an accepted result is taken as showing it; the
-  guards of `not-in-result` clauses get no boundaries.
+  entry gave up is not). A Boolean rule's `false` fall-through is no clause:
+  an accepted result is taken as showing it. The guards of `not-in-result`
+  clauses get no boundaries.
 - A clause that fired only in rejected runs, off the rejection's path, is
   uncovered with reason `rejected`.
 - A clause that fired in an accepted run, but that no run's result rested
   on, is uncovered with reason `not-in-result`. It is reported, and still
-  counted in `Y` (Limits: the provenance misses some dependence, so a known
-  gap makes coverage understate, never overstate); `cited.not_in_result` and
-  `uncited.not_in_result` say how many there are. Its guard gets no boundary
-  cases: no result shows what the guard decided.
+  counted in `Y` (Limits: the provenance still misses some dependence, so a
+  known gap makes coverage understate, never overstate); `cited.not_in_result`
+  and `uncited.not_in_result` say how many there are. Its guard gets no
+  boundary cases: no result shows what the guard decided.
 
 ### The law is the cited clauses
 
@@ -293,9 +319,9 @@ reason:
 - `rejected`: it fired, but only in inputs the entry rejects, and no
   rejection rested on it.
 - `not-in-result`: it fired in inputs the entry accepts, but no result
-  rested on it by provenance: the entry evaluates it and gives nothing
-  computed from it, or decides on it where provenance does not see (Limits).
-  Still counted; its guard has no boundary cases.
+  rested on it by provenance, not even through a decision (above): the
+  entry evaluates it and gives nothing computed from it, nor decides
+  anything by it. Still counted (Limits); its guard has no boundary cases.
 - `technical`: an uncited clause that only technical rejections (above)
   rest on; they are listed under `technical`.
 - `outside-input-domain`: only an input outside the input domain fires it
@@ -466,19 +492,17 @@ is written with sorted keys and a trailing newline.
 - **Floats** are outside the encoding, like in the audit.
 - **Memoised calls**: a rule call answered from the interpreter's memo is not
   logged again; the first call with those arguments is.
-- **What a result rests on** is provenance, not a proof of dependence. The
-  condition of a branch that gives `[]` or `None` counts for an accepted
-  result even when the entry drops that value (an over-count). Builtins
-  decide without a branch: `filter` leaves an element out, `flat_map` and
-  `map` over an `Option` drop a `None`, and what they decided on carries no
-  trace into the value they give (an under-count). A clause only such a
-  builtin reads is `not-in-result` though the result depends on it (the
-  year entry's § 6 deemed-distribution clauses, the owner's tax liability
-  under § 1). That is why `not-in-result` clauses stay in the denominator:
-  coverage then understates. What closes the gap: in a decided run, such
-  builtins record the nodes of the predicate results and elements they
-  dropped as decisions of the value they give, as `explain_branch` does for
-  `[]` and `None`; then `not-in-result` can leave the denominator.
+- **What a result rests on** is provenance, not a proof of dependence. A
+  decision that gives a value without a leaf (a branch's or a builtin's
+  `[]`, a clause's `[]`) counts for an accepted result even when the entry
+  drops that value (an over-count). Decisions provenance does not yet see
+  are missed (an under-count): a comparison of two `Date`s, or of other
+  records, reads them whole and untraced, so a clause whose `Date` is only
+  compared (the year's `ask_year_period_start`, `earliest_transfer_date`)
+  is `not-in-result` though the result depends on it. That is why
+  `not-in-result` clauses stay in the denominator: coverage then
+  understates. Once comparisons of records are traced in a decided run as
+  builtins' decisions are, `not-in-result` can leave the denominator.
 
 ## What is reused and what is new
 

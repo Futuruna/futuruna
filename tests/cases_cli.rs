@@ -1,7 +1,8 @@
 //! `runa cases` on small laws: a ceiling threshold, an age threshold, a
 //! date threshold, an `Option` head and a constructor head; rejected
 //! results, technical rejections of uncited clauses, new list elements, the
-//! minimal seed, and the input domain (`docs/rfcs/conformance-cases.md`).
+//! minimal seed, the input domain, results that rest on decisions builtins
+//! make, and the solver's resource limit (`docs/rfcs/conformance-cases.md`).
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -780,5 +781,44 @@ fn a_clause_no_result_rests_on_is_reported_not_in_result_and_still_counted() {
     let big = threshold(coverage, "fee", "big");
     for side in ["below", "at", "above"] {
         assert!(big[side].is_string(), "{}", big);
+    }
+}
+
+#[test]
+fn a_result_rests_on_what_filter_flat_map_unwrap_or_and_a_boolean_false_decided() {
+    if !z3_available() {
+        eprintln!("skipping: z3 is not installed");
+        return;
+    }
+    let generated = generate_with(
+        "decide",
+        &["decide.entry.runa", "--seed", "decide-seed.json"],
+        false,
+    );
+    let coverage = &generated.coverage;
+    // `filter` keeps the items `counted` holds for, `flat_map` drops the
+    // `[]` `relief` gives for an item of 50 or more, `unwrap_or` replaces
+    // the `None` `bonus` gives, and `refused` answers `false` because
+    // `liable` holds: each result rests on those decisions, so every clause
+    // is in some result and covered by a case that rests on it (before,
+    // `counted`, `relief`'s `[]` and `liable` were `not-in-result`).
+    assert_eq!(
+        coverage["summary"],
+        "cited rule clauses: 7 of 7 covered, of which 0 not in the result (reported, still counted)",
+        "{}",
+        coverage
+    );
+    // The seed's result rests on all of them but `refused`, which fires
+    // only for an owner who is not resident.
+    let seed = &generated.cases["seed.three_items"];
+    assert_eq!(seed["expected"], 170, "{}", seed);
+    for (rule, key) in [
+        ("counted", "clause-1"),
+        ("relief", "clause-1"),
+        ("relief", "small"),
+        ("liable", "clause-1"),
+        ("bonus", "clause-1"),
+    ] {
+        assert!(covers(seed, rule, key), "{} {} {}", rule, key, seed);
     }
 }

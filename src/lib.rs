@@ -29575,8 +29575,13 @@ impl Interpreter {
                                     .then_some(Value::Bool(true))
                             } else {
                                 let value = self.eval(body_expression, &rule_env);
-                                (!matches!(explain::untraced(&value), Value::Bool(false)))
-                                    .then_some(value)
+                                let holds = !matches!(explain::untraced(&value), Value::Bool(false));
+                                if !holds {
+                                    // A body that does not hold refutes the
+                                    // clause, as a guard does.
+                                    self.explain_pattern_read(&value);
+                                }
+                                holds.then_some(value)
                             }
                         }
                     };
@@ -29679,6 +29684,9 @@ impl Interpreter {
                 }
                 Some(value)
             }
+            // A Boolean family's `false` when no clause applied rests, in a
+            // decided case, on the guards and bodies that did not hold.
+            (Some(value), None) => Some(self.explain_unmatched(value)),
             (result, _) => result,
         };
         self.explain_end_dispatch();
