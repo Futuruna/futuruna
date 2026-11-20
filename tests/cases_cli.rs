@@ -276,6 +276,66 @@ fn cases_are_the_same_on_every_run() {
     assert_eq!(first_coverage, second_coverage);
 }
 
+/// Every Z3 query `runa cases` makes (and the clause audit it starts from)
+/// is bounded by Z3's resource limit, never by time, so a query is decided
+/// the same way however loaded the machine: a `z3` first on the PATH logs
+/// each script before running the real one.
+#[cfg(unix)]
+#[test]
+fn every_solver_query_has_a_resource_limit_and_no_time_limit() {
+    use std::os::unix::fs::PermissionsExt;
+    if !z3_available() {
+        eprintln!("skipping: z3 is not installed");
+        return;
+    }
+    let dir = std::env::temp_dir().join(format!("runa-cases-{}-z3-log", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let log = dir.join("log");
+    std::fs::create_dir_all(&log).expect("create log directory");
+    let wrapper = dir.join("z3");
+    std::fs::write(
+        &wrapper,
+        "#!/bin/sh\nf=$(mktemp \"$RUNA_Z3_LOG/q.XXXXXX\")\ncat > \"$f\"\nPATH=\"$RUNA_Z3_PATH\" exec z3 \"$@\" < \"$f\"\n",
+    )
+    .expect("write z3 wrapper");
+    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755))
+        .expect("make the wrapper executable");
+    let path = std::env::var("PATH").unwrap_or_default();
+    let out = dir.join("out");
+    let output = Command::new(runa())
+        .current_dir(fixture(""))
+        .args([
+            "cases",
+            "levy.entry.runa",
+            "--entry",
+            "small_levy",
+            "--scenario",
+            "levy.scenario.runa",
+            "--out",
+            out.to_str().expect("output path"),
+        ])
+        .env("PATH", format!("{}:{}", dir.display(), path))
+        .env("RUNA_Z3_LOG", &log)
+        .env("RUNA_Z3_PATH", &path)
+        .output()
+        .expect("run runa cases");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let scripts: Vec<String> = std::fs::read_dir(&log)
+        .expect("read log")
+        .map(|entry| std::fs::read_to_string(entry.expect("entry").path()).expect("read script"))
+        .collect();
+    assert!(!scripts.is_empty(), "runa cases asked Z3 nothing");
+    for script in &scripts {
+        assert!(script.contains("(set-option :rlimit 20000000)\n"), "{}", script);
+        assert!(!script.contains(":timeout"), "{}", script);
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn a_rejected_case_covers_only_the_clauses_its_rejection_rests_on() {
     if !z3_available() {

@@ -691,22 +691,24 @@ impl CaseCatalogue {
                     .join(" ")
             ));
         }
+        let undecided = || Witness::Unknown("Z3 could not decide (unknown or resource limit reached)".into());
         let output = match run_solver(&script) {
             Err(FamilyError::SolverMissing(reason)) => return Err(reason),
             // After `unsat`, Z3 answers `get-value` with an error ("model is
-            // not available") and fails: the query was answered.
-            Ok(Err(error))
-                if error
-                    .split_once("): ")
-                    .is_some_and(|(_, output)| output.trim_start().starts_with("unsat\n")) =>
-            {
-                return Ok(Witness::Unsat)
-            }
+            // not available") and fails: the query was answered. So it may
+            // after `unknown`, when its resource limit stopped it early.
             Ok(Err(error)) => {
-                return Ok(Witness::Unknown(format!(
-                    "Z3 rejected the query: {}",
-                    solver_error_summary(&error)
-                )))
+                let answer = error
+                    .split_once("): ")
+                    .map(|(_, output)| output.trim_start());
+                return Ok(match answer {
+                    Some(output) if output.starts_with("unsat\n") => Witness::Unsat,
+                    Some(output) if output.starts_with("unknown\n") => undecided(),
+                    _ => Witness::Unknown(format!(
+                        "Z3 rejected the query: {}",
+                        solver_error_summary(&error)
+                    )),
+                });
             }
             Ok(Ok(output)) => output,
         };
@@ -714,11 +716,7 @@ impl CaseCatalogue {
         match responses.first().map(String::as_str) {
             Some("sat") => {}
             Some("unsat") => return Ok(Witness::Unsat),
-            _ => {
-                return Ok(Witness::Unknown(
-                    "Z3 could not decide (unknown or timeout)".into(),
-                ))
-            }
+            _ => return Ok(undecided()),
         }
         let mut values = vec![None; family.parameters.len()];
         if let Some(model) = responses.get(1) {

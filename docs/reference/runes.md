@@ -1260,7 +1260,10 @@ outside the translatable subset (the same limits as `runa verify`, plus Float
 and other values the encoding does not represent) are listed as not analyzed and
 counted in the summary, never guessed; a family with such a guard is listed
 under gaps not checked, since that guard may cover the input. When Z3 is missing
-the report says the check did not run.
+the report says the check did not run. Each Z3 query has a resource limit
+(Z3's `rlimit`, about ten seconds of solving), not a time limit: a query over
+it is reported undecided on any machine, so the report does not depend on how
+loaded the machine is.
 
 The findings are a review report and do not change the exit status of
 `runa audit`. The gate for CI is `runa verify`, which exits 1 for a claim that

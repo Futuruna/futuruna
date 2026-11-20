@@ -663,7 +663,8 @@ Each case is written to `DIR/<id>.case.json`:
 `DIR/coverage.json` lists every clause with the cases that cover it, and for
 an uncovered one a `reason`: `unreachable` (the audit proved it never fires),
 `not-analysable` (its guard is outside the SMT encoding, with the audit's
-reason), `solver-unknown`, `rejected` (it fired only in inputs the entry
+reason), `solver-unknown` (Z3 answered unknown, or the query ran out of its
+resource limit), `rejected` (it fired only in inputs the entry
 rejects, and no rejection rests on it), `not-in-result` (it fired in inputs
 the entry accepts, but no result rests on it by provenance; reported and
 still counted, since builtins such as `filter` decide without a trace and
@@ -684,7 +685,10 @@ cases of each kind (`clause`, `boundary`, `scenario`, `rejected`);
 result (reported, still counted); K cases (… clause, … boundary, …
 scenario, … rejected) in DIR; uncited rule clauses: A of B covered, of which
 M not in the result; technical rejections not in the suite: T`. Earlier
-`*.case.json` files in `DIR` that this run does not write are removed.
+`*.case.json` files in `DIR` that this run does not write are removed. Every
+Z3 query has a resource limit (Z3's `rlimit`), not a time limit, so the same
+law, seeds and scenarios give the same files, byte for byte, with the same
+`runa` and Z3, however loaded the machine.
 
 Arguments derived from lists through `foldl` or `scan`, or rejected by the
 entry's validation before the rule runs, are often not reached by moving one

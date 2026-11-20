@@ -283,7 +283,8 @@ reason:
   the finding is the audit's.
 - `not-analysable`: its guard is outside the SMT encoding (the audit's
   reason is the `detail`), and the search without a witness found no input.
-- `solver-unknown`: Z3 timed out or answered unknown on its witness.
+- `solver-unknown`: Z3 answered unknown on its witness, or ran out of its
+  resource limit (see [Deduplication and determinism](#deduplication-and-determinism)).
 - `no-entry-input`: Z3 found arguments that make the clause fire (the
   `witness`, by parameter), but no entry input reached the rule with them:
   the arguments are derived from the input through lists, `foldl` or
@@ -431,11 +432,18 @@ Cases are compared by their input. A candidate equal to a written case is not
 written again; the earlier case keeps its id and kind. Order of work: scenario
 bases, seeds, then clause targets in catalogue order, then thresholds in
 catalogue order; within one, bases in the order above. Nothing is random.
-Z3 runs with the same scripts and the same soft constraints, so the same law,
-seeds and scenarios give the same cases with the same Z3; across Z3 versions
-a witness may differ where the law leaves values free, and then only the
-values the guard does not decide differ, while ids and coverage stay. JSON is
-written with sorted keys and a trailing newline.
+Z3 runs with the same scripts and the same soft constraints, and every query
+(a witness, a boundary, a query a provenance-driven search makes, and the
+clause audit the catalogue starts from) has a resource limit, not a time
+limit: Z3's `rlimit`, 20 000 000 units (`SOLVER_RLIMIT`, about ten seconds of
+Z3 on a current laptop), counts the solver's work, not the clock. A query
+over it is `solver-unknown` on any machine, and one under it is decided on
+any machine, however loaded. So the same law, seeds and scenarios give the
+same cases, byte for byte, with the same binary and Z3. Across Z3 versions a
+witness may differ where the law leaves values free, and then only the
+values the guard does not decide differ, while ids and coverage stay; a
+query near the limit may be decided by one version and not by another. JSON
+is written with sorted keys and a trailing newline.
 
 ## Limits
 
