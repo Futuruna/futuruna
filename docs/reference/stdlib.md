@@ -209,6 +209,21 @@ whose result type is known to be anything else is a type error; a callback
 whose result type is only known at run time (for example a generic function)
 stops the program with a runtime error when it returns a non-`Bool` value.
 
+The callback of `flat_map` answers a `List`, and `flat_map` joins those lists
+in order. An `Option` is not a list: a callback whose result type is known to
+be an `Option`, or anything else that is not a list, is a type error, and a
+callback whose result type is only known at run time stops the program when it
+returns one. Likewise the first argument of `map`, `filter`, `flat_map` and the
+other operations here with a callback is a list, never an `Option`: `match` on
+an `Option`, or use `unwrap_or`. To keep the `Some` payloads of a callback,
+return a list of zero or one element:
+
+```runa
+> small(x: Int) -> Option(Int) { if x < 100 { Some(x) } else { None } }
+= kept = flat_map([30, 140, 70], |x| match small(x) { | Some(v) -> [v] | None -> [] })
+@ print(show(kept))    -- [30, 70]
+```
+
 `lookup(list, key)` finds an entry of a list whose element type declares a
 key field by that field, and is `Some(entry)` or `None`. On an open
 collection (a field declared `@ field(open = True)`, written as the first

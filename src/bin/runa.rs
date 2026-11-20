@@ -26622,7 +26622,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 2,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.clone().into_iter().flat_map({1}).collect::<Vec<_>>()",
+                rust_tpl: "{0}.clone().into_iter().flat_map(|x| __futuruna_flat_items(({1})(x))).collect::<Vec<_>>()",
             },
         ),
         (
@@ -37869,6 +37869,15 @@ fn __futuruna_predicate<T: 'static>(builtin: &str, value: T) -> bool {
         }
     }
 }
+// `flat_map` joins the lists its callback returns. A callback whose result
+// type the compiler could not fix is checked here: an `Option` or a `Result`
+// is a runtime error, as in the interpreter, never a list of at most one
+// element (Rust's `flat_map` would keep a `Some` and drop a `None`).
+trait __FuturunaFlatItems { type Item; fn __futuruna_flat_items(self) -> Vec<Self::Item>; }
+impl<T> __FuturunaFlatItems for Vec<T> { type Item = T; fn __futuruna_flat_items(self) -> Vec<T> { self } }
+impl<T> __FuturunaFlatItems for Option<T> { type Item = T; fn __futuruna_flat_items(self) -> Vec<T> { panic!("flat_map callback must return List, got Option") } }
+impl<T, E> __FuturunaFlatItems for Result<T, E> { type Item = T; fn __futuruna_flat_items(self) -> Vec<T> { panic!("flat_map callback must return List, got Result") } }
+fn __futuruna_flat_items<R: __FuturunaFlatItems>(value: R) -> Vec<R::Item> { value.__futuruna_flat_items() }
 // A runtime error reports `error: <message>` on stderr and exits with status 1,
 // like the interpreter. A panic inside an `http_serve` handler fails only that
 // request: the hook reports it with the request and the server answers 500.
@@ -52536,7 +52545,7 @@ fn __futuruna_install_error_hook() {
                 }
                 "flat_map" if extra_args.len() == 1 => {
                     let f = self.emit_expr(&extra_args[0]);
-                    out = format!("{}.flat_map({})", out, f);
+                    out = format!("{}.flat_map(|x| __futuruna_flat_items(({})(x)))", out, f);
                 }
                 "take_while" if extra_args.len() == 1 => {
                     let f = self.emit_expr(&extra_args[0]);
@@ -54051,7 +54060,7 @@ fn __futuruna_install_error_hook() {
                                     coll, param, clone_prefix, borrowed_param_prefix, body_code
                                 ),
                                 "flat_map" => format!(
-                                    "{}.clone().into_iter().flat_map(|{}| {{ {} {} }}).collect::<Vec<_>>()",
+                                    "{}.clone().into_iter().flat_map(|{}| __futuruna_flat_items({{ {} {} }})).collect::<Vec<_>>()",
                                     coll, param, clone_prefix, body_code
                                 ),
                                 "take_while" => format!(
@@ -54294,7 +54303,7 @@ fn __futuruna_install_error_hook() {
                                         .emit_function_value_call(&args[1], &[("__x", "&__x")])
                                         .unwrap();
                                     return format!(
-                                        "{}.clone().into_iter().flat_map(|__x| {}).collect::<Vec<_>>()",
+                                        "{}.clone().into_iter().flat_map(|__x| __futuruna_flat_items({})).collect::<Vec<_>>()",
                                         coll, mapped
                                     );
                                 }

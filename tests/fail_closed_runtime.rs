@@ -329,6 +329,65 @@ fn a_generic_callback_with_a_non_bool_result_fails_at_run_time_in_both_modes() {
     }
 }
 
+/// `flat_map` joins lists, and the callback builtins walk lists. An `Option`
+/// callback result or collection was read as an empty list by the interpreter
+/// (every `Some` lost) and as a list of at most one element by compiled code;
+/// a known one is now a type error in both modes, and a list callback keeps
+/// what it returns.
+#[test]
+fn flat_map_callbacks_and_collections_known_to_be_options_are_type_errors() {
+    for (name, source, message) in [
+        (
+            "flat_map_option_lambda",
+            "@ print(show(flat_map([30, 70, 140], |x| if x < 100 { Some(x) } else { None })))\n",
+            "`flat_map` callback must return a `List`, but it returns `Option(Int)`; return `[x]` for `Some(x)` and `[]` for `None`",
+        ),
+        (
+            "flat_map_option_function",
+            "> small(x: Int) -> Option(Int) { if x < 100 { Some(x) } else { None } }\n@ print(show(flat_map([30, 70], small)))\n",
+            "`flat_map` callback must return a `List`, but it returns `Option(Int)`",
+        ),
+        (
+            "flat_map_int_lambda",
+            "@ print(show(flat_map([1, 2], |x| x + 1)))\n",
+            "`flat_map` callback must return a `List`, but it returns `Int`",
+        ),
+        (
+            "map_over_option",
+            "@ print(show(map(Some(1), |x| x + 1)))\n",
+            "`map` takes a `List`, but its first argument is `Option(Int)`; an `Option` is not a list: `match` on it, or use `unwrap_or`",
+        ),
+        (
+            "filter_over_option",
+            "> found(x: Int) -> Option(Int) { if x > 0 { Some(x) } else { None } }\n@ print(show(filter(found(3), |x| x > 1)))\n",
+            "`filter` takes a `List`, but its first argument is `Option(Int)`",
+        ),
+    ] {
+        for compiled in [false, true] {
+            let output = run(name, source, compiled);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert_eq!(
+                output.status.code(),
+                Some(1),
+                "{name} compiled={compiled}: {output:?}"
+            );
+            assert!(
+                stderr.contains(message),
+                "{name} compiled={compiled}: {stderr}"
+            );
+            assert!(
+                stdout(&output).is_empty(),
+                "{name} compiled={compiled}: {output:?}"
+            );
+        }
+    }
+    assert_both_modes_print(
+        "flat_map_list_callback",
+        "> small(x: Int) -> Option(Int) { if x < 100 { Some(x) } else { None } }\n@ print(show(sum_list(flat_map([30, 140, 70, 100, 70], |x| match small(x) { | Some(v) -> [v] | None -> [] }))))\n",
+        "170",
+    );
+}
+
 #[test]
 fn trait_default_methods_apply_to_impls_without_their_own_body() {
     assert_both_modes_print(

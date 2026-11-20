@@ -546,18 +546,19 @@ impl TypeChecker {
         locals
     }
 
-    /// `filter`, `any`, `all` and `find` test each element with a callback
-    /// that answers `Bool`. A callback whose result type is known to be
-    /// anything else is a type error.
-    pub(super) fn check_collection_predicate(&mut self, name: &str, arguments: &[Expr]) {
-        let [collection, callback] = arguments else {
-            return;
-        };
+    /// The result type of a collection builtin's one-element callback, when
+    /// the checker knows it: a lambda's body is judged with its parameter
+    /// typed as the list's element.
+    fn collection_callback_result_type(
+        &mut self,
+        collection: &Expr,
+        callback: &Expr,
+    ) -> Option<String> {
         let locals = self.ordinary_locals();
-        let result = match &callback.kind {
+        match &callback.kind {
             ExprKind::Lambda(params, body) => {
                 let [param] = params.as_slice() else {
-                    return;
+                    return None;
                 };
                 let element = match param.ty.as_ref() {
                     Some(ty) if !matches!(ty, Ty::Hole) => {
@@ -580,22 +581,111 @@ impl TypeChecker {
                 &locals,
                 self.active_rule_scope_inference.as_deref(),
             ),
-        };
-        let Some(result) = result else {
+        }
+    }
+
+    /// A known callback result type, parsed; `None` while it is unknown or
+    /// generic.
+    fn known_callback_result_type(result: &str) -> Option<Ty> {
+        let result_ty = parse_type_annotation(result).ok()?;
+        (!matches!(result_ty, Ty::Hole) && !Self::canonical_type_contains_variable(&result_ty))
+            .then_some(result_ty)
+    }
+
+    /// Where a callback's error points: the callback, or the call when the
+    /// callback (a lambda) has no position of its own.
+    fn callback_error_site<'a>(call: &'a Expr, callback: &'a Expr) -> &'a Expr {
+        if callback.span.is_dummy() {
+            call
+        } else {
+            callback
+        }
+    }
+
+    /// `filter`, `any`, `all` and `find` test each element with a callback
+    /// that answers `Bool`. A callback whose result type is known to be
+    /// anything else is a type error.
+    pub(super) fn check_collection_predicate(
+        &mut self,
+        call: &Expr,
+        name: &str,
+        arguments: &[Expr],
+    ) {
+        let [collection, callback] = arguments else {
             return;
         };
-        let Ok(result_ty) = parse_type_annotation(&result) else {
+        let Some(result) = self.collection_callback_result_type(collection, callback) else {
             return;
         };
-        if matches!(&result_ty, Ty::Name(bool) if bool == "Bool")
-            || matches!(result_ty, Ty::Hole)
-            || Self::canonical_type_contains_variable(&result_ty)
-        {
+        let Some(result_ty) = Self::known_callback_result_type(&result) else {
+            return;
+        };
+        if matches!(&result_ty, Ty::Name(bool) if bool == "Bool") {
             return;
         }
         self.error_at_expr(
-            callback,
+            Self::callback_error_site(call, callback),
             format!("`{name}` callback must return `Bool`, but it returns `{result}`"),
+        );
+    }
+
+    /// `flat_map` joins the lists its callback returns (over a stream, the
+    /// streams). A callback whose result type is known to be anything else is
+    /// a type error: an `Option` in particular is not a list of at most one
+    /// element, so a `Some` would otherwise be lost or kept depending on the
+    /// back end.
+    pub(super) fn check_flat_map_callback(&mut self, call: &Expr, arguments: &[Expr]) {
+        let [collection, callback] = arguments else {
+            return;
+        };
+        let Some(result) = self.collection_callback_result_type(collection, callback) else {
+            return;
+        };
+        let Some(result_ty) = Self::known_callback_result_type(&result) else {
+            return;
+        };
+        if matches!(&result_ty, Ty::App(head, _)
+            if matches!(head.as_ref(), Ty::Name(name) if matches!(name.as_str(), "List" | "Stream" | "Subject")))
+        {
+            return;
+        }
+        let hint = if Self::applied_type_argument(&result, "Option", 0).is_some() {
+            "; return `[x]` for `Some(x)` and `[]` for `None`"
+        } else {
+            ""
+        };
+        self.error_at_expr(
+            Self::callback_error_site(call, callback),
+            format!("`flat_map` callback must return a `List`, but it returns `{result}`{hint}"),
+        );
+    }
+
+    /// The collection builtins with a callback (`map`, `filter`, `flat_map`,
+    /// `any`, `foldl`, …) walk a list (or a stream or a set). An `Option` is
+    /// not a list of at most one element, so a first argument known to be
+    /// one is a type error.
+    pub(super) fn check_callback_collection(
+        &mut self,
+        call: &Expr,
+        name: &str,
+        arguments: &[Expr],
+    ) {
+        let Some(collection) = arguments.first() else {
+            return;
+        };
+        let locals = self.ordinary_locals();
+        let Some(collection_type) = self.infer_expr_type_name_with_locals(collection, &locals)
+        else {
+            return;
+        };
+        if Self::applied_type_argument(&collection_type, "Option", 0).is_none() {
+            return;
+        }
+        self.error_at_expr(
+            Self::callback_error_site(call, collection),
+            format!(
+                "`{name}` takes a `List`, but its first argument is `{collection_type}`; an `Option` is not a list: `match` on it, or use `unwrap_or`"
+            ),
         );
     }
 

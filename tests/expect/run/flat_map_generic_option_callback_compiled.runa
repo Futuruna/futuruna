@@ -1,0 +1,15 @@
+-- expect-command: run
+-- expect-status: fail
+-- expect-stdout: before
+-- expect-stdout-not: after
+-- expect-stderr: flat_map callback must return List, got Option
+
+-- `flat_map` joins the lists its callback returns. A generic callback whose
+-- result is only known at run time and is an `Option` stops the program; the
+-- interpreter once read it as an empty list (dropping every `Some`) and
+-- compiled code as a list of at most one element.
+> pick(x: a) -> a { x }
+
+@ print("before")
+@ print(show(flat_map([Some(30), None, Some(140)], pick)))
+@ print("after")

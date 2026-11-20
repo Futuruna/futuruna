@@ -1,0 +1,16 @@
+-- `flat_map` keeps each `Some` payload its callback turns into `[x]` and
+-- drops each `None` it turns into `[]`, and an `Option` is read with `match`,
+-- in both modes. An `Option` returned by the callback or given as the list
+-- was read as an empty list by the interpreter (every `Some` lost) and as a
+-- list of at most one element by compiled code; it is now a type error.
+> small(x: Int) -> Option(Int) { if x < 100 { Some(x) } else { None } }
+
+= amounts = [30, 140, 70, 100, 70]
+= kept = flat_map(amounts, |x| match small(x) { | Some(v) -> [v] | None -> [] })
+= doubled = flat_map(amounts, |x| if x < 100 { [x, x] } else { [] })
+= first = match small(30) { | Some(v) -> [v + 1] | None -> [] }
+
+@ print(show(kept))
+@ print(show(sum_list(kept)))
+@ print(show(sum_list(doubled)))
+@ print(show(first))

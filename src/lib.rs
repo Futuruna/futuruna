@@ -19282,6 +19282,20 @@ impl Interpreter {
             .unwrap_or_else(|| runtime_value_kind(value).to_string())
     }
 
+    /// `map`, `filter` and `flat_map` walk a list (or a stream or a set). An
+    /// `Option` is not a list of at most one element: it stops the program,
+    /// never read as an empty list.
+    fn option_collection_fail(&self, builtin: &str, input: &Value) -> Option<Value> {
+        match explain::untraced(input) {
+            Value::Constructor(name, _) | Value::NamespacedConstructor { name, .. }
+                if name == "Some" || name == "None" =>
+            {
+                Some(self.panic_or_ground_fail(format!("{builtin} takes a List, got Option")))
+            }
+            _ => None,
+        }
+    }
+
     /// A collection predicate must answer with a Bool.
     fn builtin_predicate_holds(&self, builtin: &str, result: Value) -> bool {
         match explain::strip(result) {
@@ -25729,6 +25743,9 @@ impl Interpreter {
                 if !self.ground_collection_value_allowed(&input, "map") {
                     return Value::Unit;
                 }
+                if let Some(failed) = self.option_collection_fail("map", &input) {
+                    return failed;
+                }
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
                     Value::Stream(v) => (v.clone(), true),
@@ -25753,6 +25770,9 @@ impl Interpreter {
                 let input = args.get(0).cloned().unwrap_or(Value::Unit);
                 if !self.ground_collection_value_allowed(&input, "filter") {
                     return Value::Unit;
+                }
+                if let Some(failed) = self.option_collection_fail("filter", &input) {
+                    return failed;
                 }
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
@@ -25948,6 +25968,9 @@ impl Interpreter {
                 if !self.ground_collection_value_allowed(&input, "flat_map") {
                     return Value::Unit;
                 }
+                if let Some(failed) = self.option_collection_fail("flat_map", &input) {
+                    return failed;
+                }
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
                     Value::Stream(v) => (v.clone(), true),
@@ -25973,6 +25996,20 @@ impl Interpreter {
                             result.extend(v);
                         }
                         other => {
+                            // The callback returns a list to join. Anything
+                            // else (an `Option` in particular) is an error,
+                            // never read as an empty list.
+                            let returned = explain::untraced(&other);
+                            let joins = matches!(
+                                returned,
+                                Value::List(_) | Value::LiveStream(_) | Value::Unknown(_)
+                            ) || matches!(returned, Value::Constructor(name, _) if name == "Cons" || name == "Nil");
+                            if !joins {
+                                return self.panic_or_ground_fail(format!(
+                                    "flat_map callback must return List, got {}",
+                                    self.runtime_value_type_label(returned)
+                                ));
+                            }
                             if self.ground_collection_limit.is_some() {
                                 let additional = Self::runtime_collection_member_count(&other)
                                     .unwrap_or_default();
@@ -25987,7 +26024,7 @@ impl Interpreter {
                                     return Value::Unit;
                                 }
                             }
-                            result.extend(list_to_vec(&other));
+                            result.extend(list_to_vec(returned));
                         }
                     }
                 }
@@ -64101,11 +64138,35 @@ impl TypeChecker {
                                 ),
                             );
                         }
+                        if matches!(
+                            name.as_str(),
+                            "map"
+                                | "filter"
+                                | "flat_map"
+                                | "any"
+                                | "all"
+                                | "find"
+                                | "sort_by"
+                                | "take_while"
+                                | "drop_while"
+                                | "count_by"
+                                | "partition"
+                                | "foldl"
+                                | "scan"
+                                | "reduce"
+                        ) && actual_arity == expected
+                            && !self.var_defined(name)
+                        {
+                            self.check_callback_collection(expr, name, args);
+                        }
                         if matches!(name.as_str(), "filter" | "any" | "all" | "find")
                             && actual_arity == 2
                             && !self.var_defined(name)
                         {
-                            self.check_collection_predicate(name, args);
+                            self.check_collection_predicate(expr, name, args);
+                        }
+                        if name == "flat_map" && actual_arity == 2 && !self.var_defined(name) {
+                            self.check_flat_map_callback(expr, args);
                         }
                         if name == "lookup" && actual_arity == 2 && !self.var_defined(name) {
                             self.check_lookup_call(expr, args);
