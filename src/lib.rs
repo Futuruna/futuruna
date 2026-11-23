@@ -53936,7 +53936,27 @@ impl TypeChecker {
                         let field_type = field_index
                             .and_then(|index| signature.field_types.get(index))
                             .and_then(Option::as_deref);
-                        self.collect_rule_head_local_types(value, field_type, locals);
+                        // `field_types` names a field's simple type (`Purpose`
+                        // for `Purpose?`), which leads a nested pattern to its
+                        // constructor. A variable binds the whole field, so it
+                        // takes the full declared type, or a guard comparing it
+                        // with `Some(...)` or `None` reads a false mismatch. A
+                        // generic owner's field (`Some`'s `a`) has no type of
+                        // its own and keeps the simple name.
+                        let owner_is_generic = self
+                            .type_parameters_by_owner
+                            .get(&signature.parent)
+                            .is_some_and(|parameters| !parameters.is_empty());
+                        let declared_field_type = (!owner_is_generic)
+                            .then(|| field_index.and_then(|index| signature.field_tys.get(index)))
+                            .flatten()
+                            .and_then(Option::as_deref)
+                            .filter(|_| matches!(&value.kind, ExprKind::Var(_)));
+                        self.collect_rule_head_local_types(
+                            value,
+                            declared_field_type.or(field_type),
+                            locals,
+                        );
                     }
                 } else {
                     for arg in args {
@@ -53969,7 +53989,12 @@ impl TypeChecker {
                 if name != "_" && !name.chars().next().is_some_and(char::is_uppercase) =>
             {
                 if let Some(expected_type) = expected_type {
-                    locals.insert(name.clone(), expected_type.to_string());
+                    // A field type is written as declared (`Purpose?`); guards
+                    // compare it with expression types, which are canonical.
+                    locals.insert(
+                        name.clone(),
+                        Self::canonical_explore_type_name(expected_type),
+                    );
                 }
             }
             _ => {}

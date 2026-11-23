@@ -1,5 +1,6 @@
 -- expect-command: interp
 -- expect-stdout-file: needs_head_patterns.stdout
+-- roundtrip-skip: `query` and `unknown` run only in the interpreter
 -- A rule-head pattern on an unknown input: whether the clause applies is
 -- unknown, so the query needs the input; it never guesses a clause or fails.
 -- A complete case reads the inputs the head patterns match (none unused).

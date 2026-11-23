@@ -27471,6 +27471,23 @@ fn rust_variant_name(name: &str) -> std::borrow::Cow<'_, str> {
     constructor_display_name(name)
 }
 
+/// The fields of a named constructor pattern as Rust writes them. Futuruna
+/// lets `Deposit(purpose: p)` name only some of the constructor's fields;
+/// Rust requires such a pattern to end in `..`.
+fn named_pattern_fields(types: &TypeRegistry, constructor: &str, fields: &[String]) -> String {
+    let declared = types
+        .variant_fields
+        .get(constructor)
+        .map_or(usize::MAX, Vec::len);
+    if fields.len() >= declared {
+        fields.join(", ")
+    } else if fields.is_empty() {
+        "..".to_string()
+    } else {
+        format!("{}, ..", fields.join(", "))
+    }
+}
+
 #[derive(Debug, Clone)]
 struct TypeRegistry {
     /// Type declarations: name -> list of type params + list of variants
@@ -31402,19 +31419,20 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
                     )
                 })
                 .collect::<Vec<_>>();
+            let field_strs = named_pattern_fields(types, name, &field_strs);
             match parent {
                 Some(parent) if types.struct_types.contains(&parent) => {
-                    format!("{} {{ {} }}", parent, field_strs.join(", "))
+                    format!("{} {{ {} }}", parent, field_strs)
                 }
                 Some(parent) => {
                     format!(
                         "{}::{} {{ {} }}",
                         parent,
                         rust_variant_name(name),
-                        field_strs.join(", ")
+                        field_strs
                     )
                 }
-                None => format!("{} {{ {} }}", name, field_strs.join(", ")),
+                None => format!("{} {{ {} }}", name, field_strs),
             }
         }
         Pat::As(inner, alias) => format!(
@@ -58360,7 +58378,7 @@ fn __futuruna_install_error_hook() {
                     "{}::{} {{ {} }}",
                     parent,
                     rust_variant_name(name),
-                    ps.join(", ")
+                    named_pattern_fields(&self.types, name, &ps)
                 )
             }
             Pat::Lit(lit) => self.emit_literal(lit),
@@ -58567,15 +58585,11 @@ fn __futuruna_install_error_hook() {
                         }
                     })
                     .collect();
+                let ps = named_pattern_fields(&self.types, name, &ps);
                 if is_struct_type {
-                    format!("{} {{ {} }}", parent, ps.join(", "))
+                    format!("{} {{ {} }}", parent, ps)
                 } else {
-                    format!(
-                        "{}::{} {{ {} }}",
-                        parent,
-                        rust_variant_name(name),
-                        ps.join(", ")
-                    )
+                    format!("{}::{} {{ {} }}", parent, rust_variant_name(name), ps)
                 }
             }
             Pat::Lit(lit) => self.emit_literal(lit),

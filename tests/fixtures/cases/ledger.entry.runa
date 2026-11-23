@@ -1,3 +1,4 @@
+-- roundtrip-skip: `lookup` runs only in the interpreter
 -- A small ledger for `runa cases`: a fee on each large withdrawal in a list
 -- of events, a price looked up by key in an open collection, and a result
 -- that rejects a ledger with too many units, an event without a positive
