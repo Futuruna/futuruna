@@ -1640,9 +1640,10 @@ impl<'a> Search<'a> {
                     }
                     Witness::OutsideDomain(model) => {
                         let witness = self.witness_json(family, &model);
-                        let found_arguments = self.notes.get(&clause).is_some_and(
-                            |(reason, _, witness)| reason == "no-entry-input" && witness.is_some(),
-                        );
+                        let found_arguments =
+                            self.notes.get(&clause).is_some_and(|(reason, _, witness)| {
+                                reason == "no-entry-input" && witness.is_some()
+                            });
                         if !found_arguments {
                             self.notes.insert(
                                 clause,

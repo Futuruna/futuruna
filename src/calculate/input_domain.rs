@@ -119,9 +119,8 @@ fn outside(
     match &ty {
         CalculationTypeRef::Primitive { name, .. } if name == "Int" => {
             let number = value.as_i64()?;
-            (!int_in_domain(number)).then(|| {
-                format!("{path}: {number} is not a safe integer (Int within ±(2^53 − 1))")
-            })
+            (!int_in_domain(number))
+                .then(|| format!("{path}: {number} is not a safe integer (Int within ±(2^53 − 1))"))
         }
         CalculationTypeRef::Primitive { .. }
         | CalculationTypeRef::Unit
@@ -138,11 +137,23 @@ fn outside(
             .iter()
             .enumerate()
             .find_map(|(index, element)| {
-                outside(element, item, contract, substitutions, &format!("{path}[{index}]"))
+                outside(
+                    element,
+                    item,
+                    contract,
+                    substitutions,
+                    &format!("{path}[{index}]"),
+                )
             }),
         CalculationTypeRef::Map { value: item, .. } => {
             value.as_object()?.iter().find_map(|(key, element)| {
-                outside(element, item, contract, substitutions, &format!("{path}.{key}"))
+                outside(
+                    element,
+                    item,
+                    contract,
+                    substitutions,
+                    &format!("{path}.{key}"),
+                )
             })
         }
         CalculationTypeRef::Named { name, arguments } => {
@@ -168,11 +179,8 @@ fn outside(
             };
             if variant.positional {
                 let values = object.get("$values")?.as_array()?;
-                values
-                    .iter()
-                    .zip(&variant.fields)
-                    .enumerate()
-                    .find_map(|(index, (element, field))| {
+                values.iter().zip(&variant.fields).enumerate().find_map(
+                    |(index, (element, field))| {
                         outside(
                             element,
                             &field.ty,
@@ -180,7 +188,8 @@ fn outside(
                             &local,
                             &format!("{path}.$values[{index}]"),
                         )
-                    })
+                    },
+                )
             } else {
                 variant.fields.iter().find_map(|field| {
                     outside(

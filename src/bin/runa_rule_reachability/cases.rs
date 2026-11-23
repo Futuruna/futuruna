@@ -631,7 +631,11 @@ impl CaseCatalogue {
             let mut leaves = Vec::new();
             self.anchor_leaves(&parameter.term, ty, anchor.value, "", &[], 0, &mut leaves);
             for leaf in &leaves {
-                let weight = if anchor.fixed.contains(&leaf.path) { 50 } else { 1 };
+                let weight = if anchor.fixed.contains(&leaf.path) {
+                    50
+                } else {
+                    1
+                };
                 let keep = if leaf.testers.is_empty() {
                     leaf.keep.clone()
                 } else {
@@ -691,7 +695,8 @@ impl CaseCatalogue {
                     .join(" ")
             ));
         }
-        let undecided = || Witness::Unknown("Z3 could not decide (unknown or resource limit reached)".into());
+        let undecided =
+            || Witness::Unknown("Z3 could not decide (unknown or resource limit reached)".into());
         let output = match run_solver(&script) {
             Err(FamilyError::SolverMissing(reason)) => return Err(reason),
             // After `unsat`, Z3 answers `get-value` with an error ("model is
@@ -787,7 +792,10 @@ impl CaseCatalogue {
             }
             (_, JsonValue::Number(number)) => {
                 if let Some(number) = number.as_i64() {
-                    leaf(path.to_string(), format!("(= {} {})", term, smt_int(number)));
+                    leaf(
+                        path.to_string(),
+                        format!("(= {} {})", term, smt_int(number)),
+                    );
                 }
             }
             (_, JsonValue::Object(object)) => {

@@ -29575,7 +29575,8 @@ impl Interpreter {
                                     .then_some(Value::Bool(true))
                             } else {
                                 let value = self.eval(body_expression, &rule_env);
-                                let holds = !matches!(explain::untraced(&value), Value::Bool(false));
+                                let holds =
+                                    !matches!(explain::untraced(&value), Value::Bool(false));
                                 if !holds {
                                     // A body that does not hold refutes the
                                     // clause, as a guard does.

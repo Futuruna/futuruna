@@ -1032,8 +1032,7 @@ impl Interpreter {
                     self,
                     CallbackFrame {
                         whole: builtin_reads_callback_results(name),
-                        decided_by: (decides && builtin_decides_by_callbacks(name))
-                            .then(Vec::new),
+                        decided_by: (decides && builtin_decides_by_callbacks(name)).then(Vec::new),
                     },
                 );
                 let result = call(self, args);

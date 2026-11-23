@@ -2043,9 +2043,15 @@ fn analyze_family(
             if let Some(result) = &signature.result {
                 let name = format!("runa_value_{}", index);
                 let sort = ty_to_smt_sort(result);
-                let value_at_sort =
-                    expr_to_smt(&encoder.lowerer.sort_nullary_constructors(expression.clone(), result));
-                prefix.push_str(&format!("(define-fun {} () {} {})\n", name, sort, value_at_sort));
+                let value_at_sort = expr_to_smt(
+                    &encoder
+                        .lowerer
+                        .sort_nullary_constructors(expression.clone(), result),
+                );
+                prefix.push_str(&format!(
+                    "(define-fun {} () {} {})\n",
+                    name, sort, value_at_sort
+                ));
                 value = name;
             }
             Some((

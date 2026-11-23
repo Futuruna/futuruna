@@ -17163,7 +17163,10 @@ fn smt_sorted_nullary(constructor: Expr, ty: &Ty) -> Expr {
                 Some(ty.clone()),
                 constructor,
             ),
-            Stmt::Expr(Expr::new(ExprKind::Var(SMT_SORTED_BINDING.to_string()), span)),
+            Stmt::Expr(Expr::new(
+                ExprKind::Var(SMT_SORTED_BINDING.to_string()),
+                span,
+            )),
         ]),
         span,
     )
@@ -18311,7 +18314,8 @@ fn expr_to_smt(expr: &Expr) -> String {
                             let mut value = expr_to_smt(e);
                             // A typed binding of a nullary constructor
                             // (`let x: Int? = None`) names its sort.
-                            if let Some(ty) = ty.as_ref().filter(|_| smt_is_nullary_constructor(e)) {
+                            if let Some(ty) = ty.as_ref().filter(|_| smt_is_nullary_constructor(e))
+                            {
                                 value = format!("(as {} {})", value, ty_to_smt_sort(ty));
                             }
                             local_lets.push((smt_value_symbol(name), value));

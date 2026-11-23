@@ -331,7 +331,11 @@ fn every_solver_query_has_a_resource_limit_and_no_time_limit() {
         .collect();
     assert!(!scripts.is_empty(), "runa cases asked Z3 nothing");
     for script in &scripts {
-        assert!(script.contains("(set-option :rlimit 20000000)\n"), "{}", script);
+        assert!(
+            script.contains("(set-option :rlimit 20000000)\n"),
+            "{}",
+            script
+        );
         assert!(!script.contains(":timeout"), "{}", script);
     }
     let _ = std::fs::remove_dir_all(&dir);
