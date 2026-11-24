@@ -50724,39 +50724,9 @@ fn __futuruna_install_error_hook() {
         let param_bound: BTreeSet<String> = lambda_param_names.iter().cloned().collect();
         let mut free_in_body = BTreeSet::new();
         collect_true_free_vars(body, &mut free_in_body, &param_bound);
-        // Check LSP_BUILTINS arity table for special functions (show, print, etc.)
-        let lsp_builtin_names: BTreeSet<&str> = LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
-        // Collect all effect operation names (methods on handlers, not variables)
-        let all_effect_ops: BTreeSet<&str> = self
-            .types
-            .effect_ops
-            .values()
-            .flat_map(|ops| ops.iter().map(|s| s.as_str()))
-            .collect();
         let captured: Vec<String> = free_in_body
             .into_iter()
-            .filter(|v| {
-                self.lambda_free_var_is_runtime_capture(v.as_str())
-                    && !self.current_rule_scope_methods.contains_key(v.as_str())
-                    && !lsp_builtin_names.contains(v.as_str())
-                    && !all_effect_ops.contains(v.as_str())
-                    && !matches!(
-                        v.as_str(),
-                        "true"
-                            | "false"
-                            | "True"
-                            | "False"
-                            | "None"
-                            | "Some"
-                            | "Ok"
-                            | "Err"
-                            | "Nil"
-                            | "Cons"
-                            | "not"
-                            | "findall"
-                            | "search"
-                    )
-            })
+            .filter(|v| self.free_var_is_closure_capture(v))
             .collect();
         let borrows_global_env = owns_global_env && body_str.contains("__fut_globals");
         if captured.is_empty() && !borrows_global_env {
@@ -50849,14 +50819,30 @@ fn __futuruna_install_error_hook() {
         }
     }
 
+    /// A parameter, lambda binder, or local binding of this name is in scope.
+    /// It shadows a top-level binding, function, rule, or builtin of the same
+    /// name, so a read of the name is a read of the local value.
+    fn binds_local_value(&self, name: &str) -> bool {
+        self.current_borrow_params.contains(name)
+            || self.closure_params.contains(name)
+            || self.var_types.contains_key(name)
+            || self.local_bindings.contains(name)
+    }
+
+    /// A read of `name` resolves to a function, rule, or builtin rather than
+    /// a value: no local binding of that name is in scope.
+    fn names_static_callable(&self, name: &str) -> bool {
+        !self.binds_local_value(name)
+            && (self.types.user_functions.contains(name)
+                || self.types.prolog_rule_fns.contains_key(name)
+                || self.builtin_registry.contains_key(name))
+    }
+
     /// A top-level binding read from a function body resolves through the
     /// program globals or its getter, not through a Rust local, unless a
     /// parameter or local binding shadows it.
     fn reads_top_level_binding(&self, name: &str) -> bool {
-        let shadowed = self.current_borrow_params.contains(name)
-            || self.var_types.contains_key(name)
-            || self.local_bindings.contains(name);
-        !shadowed
+        !self.binds_local_value(name)
             && self.lib_static_names.contains(name)
             && (self.allow_global_getter_refs
                 || (self.binary_global_value_refs_in_scope
@@ -50865,22 +50851,50 @@ fn __futuruna_install_error_hook() {
 
     fn lambda_free_var_is_runtime_capture(&self, name: &str) -> bool {
         let is_param = self.current_borrow_params.contains(name);
-        let locally_bound = is_param || self.local_bindings.contains(name);
-        // Copy-typed comptime values are Rust `const`s; builtins lowered by
-        // codegen (such as `push`) are not values at all.
+        let locally_bound = self.binds_local_value(name);
+        // Copy-typed comptime values are Rust `const`s; functions and
+        // builtins (including those lowered by codegen, such as `push`) are
+        // not values unless a local binding of the same name shadows them.
         let comptime_const = self.types.comptime_values.contains_key(name)
             && matches!(
                 self.types.comptime_types.get(name).map(String::as_str),
                 Some("i64" | "f64" | "bool" | "char" | "u64" | "()")
             );
-        let lowered_builtin = matches!(name, "push");
-        !self.types.user_functions.contains(name)
-            && !self.builtin_registry.contains_key(name)
-            && !self.types.variant_parent.contains_key(name)
+        let static_callable = self.types.user_functions.contains(name)
+            || self.builtin_registry.contains_key(name)
+            || matches!(name, "push");
+        !self.types.variant_parent.contains_key(name)
             && self.visible_bare_module_path(name).is_none()
             && !self.reads_top_level_binding(name)
             && (is_param || !comptime_const)
-            && (locally_bound || !lowered_builtin)
+            && (locally_bound || !static_callable)
+    }
+
+    /// A free variable of a closure body that the closure captures as a
+    /// value. A local binding is captured even when it shares its name with a
+    /// builtin, effect operation, or rule-scope method.
+    fn free_var_is_closure_capture(&self, name: &str) -> bool {
+        self.lambda_free_var_is_runtime_capture(name)
+            && (self.binds_local_value(name)
+                || (!self.current_rule_scope_methods.contains_key(name)
+                    && !LSP_BUILTINS.iter().any(|(builtin, _)| *builtin == name)
+                    && !self.types.effect_ops.values().any(|ops| ops.contains(name))
+                    && !matches!(
+                        name,
+                        "true"
+                            | "false"
+                            | "True"
+                            | "False"
+                            | "None"
+                            | "Some"
+                            | "Ok"
+                            | "Err"
+                            | "Nil"
+                            | "Cons"
+                            | "not"
+                            | "findall"
+                            | "search"
+                    )))
     }
 
     /// Untyped parameters that receive `<-` take the type of the subject or
@@ -51046,13 +51060,6 @@ fn __futuruna_install_error_hook() {
     }
 
     fn stream_sub_runtime_captures(&self, arms: &[MatchArm]) -> Vec<String> {
-        let lsp_builtin_names: BTreeSet<&str> = LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
-        let all_effect_ops: BTreeSet<&str> = self
-            .types
-            .effect_ops
-            .values()
-            .flat_map(|ops| ops.iter().map(|s| s.as_str()))
-            .collect();
         let mut captures = BTreeSet::new();
         for arm in arms {
             let mut bound = BTreeSet::new();
@@ -51062,27 +51069,11 @@ fn __futuruna_install_error_hook() {
                 collect_true_free_vars(guard, &mut free_in_arm, &bound);
             }
             collect_true_free_vars(&arm.body, &mut free_in_arm, &bound);
-            captures.extend(free_in_arm.into_iter().filter(|v| {
-                self.lambda_free_var_is_runtime_capture(v.as_str())
-                    && !lsp_builtin_names.contains(v.as_str())
-                    && !all_effect_ops.contains(v.as_str())
-                    && !matches!(
-                        v.as_str(),
-                        "true"
-                            | "false"
-                            | "True"
-                            | "False"
-                            | "None"
-                            | "Some"
-                            | "Ok"
-                            | "Err"
-                            | "Nil"
-                            | "Cons"
-                            | "not"
-                            | "findall"
-                            | "search"
-                    )
-            }));
+            captures.extend(
+                free_in_arm
+                    .into_iter()
+                    .filter(|v| self.free_var_is_closure_capture(v)),
+            );
         }
         captures.into_iter().collect()
     }
@@ -53524,9 +53515,7 @@ fn __futuruna_install_error_hook() {
                     && !self.closure_params.contains(name.as_str())
                     && !self.copy_vars.contains(name.as_str())
                     && self.visible_bare_module_path(name).is_none()
-                    && !self.types.user_functions.contains(name.as_str())
-                    && !self.types.prolog_rule_fns.contains_key(name.as_str())
-                    && !self.builtin_registry.contains_key(name.as_str())
+                    && !self.names_static_callable(name)
                 {
                     return format!("{}.clone()", sname);
                 }
@@ -53542,9 +53531,7 @@ fn __futuruna_install_error_hook() {
                 // Skip for functions/rules (fn items don't need cloning)
                 if !self.copy_vars.contains(name.as_str())
                     && self.visible_bare_module_path(name).is_none()
-                    && !self.types.user_functions.contains(name.as_str())
-                    && !self.types.prolog_rule_fns.contains_key(name.as_str())
-                    && !self.builtin_registry.contains_key(name.as_str())
+                    && !self.names_static_callable(name)
                     && self.var_consuming_counts.get(name).copied().unwrap_or(0) > 1
                 {
                     return format!("{}.clone()", sname);
@@ -53847,9 +53834,7 @@ fn __futuruna_install_error_hook() {
                                 s // Borrow builtin (show) — borrows via &self, no clone
                             } else if self.in_iter_closure
                                 && !self.closure_params.contains(n.as_str())
-                                && !self.types.user_functions.contains(n.as_str())
-                                && !self.types.prolog_rule_fns.contains_key(n.as_str())
-                                && !self.builtin_registry.contains_key(n.as_str())
+                                && !self.names_static_callable(n)
                             {
                                 // Captured by FnMut iter closure: clone per call so the
                                 // capture survives subsequent iterations.
@@ -54075,31 +54060,11 @@ fn __futuruna_install_error_hook() {
                             }
                             let mut free_in_body = BTreeSet::new();
                             collect_true_free_vars(body, &mut free_in_body, &param_bound);
-                            let lsp_names: BTreeSet<&str> =
-                                LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
                             let captured: Vec<String> = free_in_body
                                 .into_iter()
                                 .filter(|v| {
-                                    self.lambda_free_var_is_runtime_capture(v.as_str())
-                                        && !self.current_rule_scope_methods.contains_key(v.as_str())
+                                    self.free_var_is_closure_capture(v)
                                         && !self.copy_vars.contains(v.as_str())
-                                        && !lsp_names.contains(v.as_str())
-                                        && !matches!(
-                                            v.as_str(),
-                                            "true"
-                                                | "false"
-                                                | "True"
-                                                | "False"
-                                                | "None"
-                                                | "Some"
-                                                | "Ok"
-                                                | "Err"
-                                                | "Nil"
-                                                | "Cons"
-                                                | "not"
-                                                | "findall"
-                                                | "search"
-                                        )
                                 })
                                 .collect();
                             let clone_prefix = if captured.is_empty() {
@@ -54199,31 +54164,11 @@ fn __futuruna_install_error_hook() {
                             }
                             let mut free_in_body = BTreeSet::new();
                             collect_true_free_vars(body, &mut free_in_body, &param_bound);
-                            let lsp_names: BTreeSet<&str> =
-                                LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
                             let captured: Vec<String> = free_in_body
                                 .into_iter()
                                 .filter(|v| {
-                                    self.lambda_free_var_is_runtime_capture(v.as_str())
-                                        && !self.current_rule_scope_methods.contains_key(v.as_str())
+                                    self.free_var_is_closure_capture(v)
                                         && !self.copy_vars.contains(v.as_str())
-                                        && !lsp_names.contains(v.as_str())
-                                        && !matches!(
-                                            v.as_str(),
-                                            "true"
-                                                | "false"
-                                                | "True"
-                                                | "False"
-                                                | "None"
-                                                | "Some"
-                                                | "Ok"
-                                                | "Err"
-                                                | "Nil"
-                                                | "Cons"
-                                                | "not"
-                                                | "findall"
-                                                | "search"
-                                        )
                                 })
                                 .collect();
                             let clone_prefix = if captured.is_empty() {
@@ -57054,10 +56999,8 @@ fn __futuruna_install_error_hook() {
     fn if_branch_var_needs_clone(&self, name: &str) -> bool {
         !self.copy_vars.contains(name)
             && self.visible_bare_module_path(name).is_none()
-            && !self.types.user_functions.contains(name)
-            && !self.types.prolog_rule_fns.contains_key(name)
+            && !self.names_static_callable(name)
             && !self.types.variant_parent.contains_key(name)
-            && !self.builtin_registry.contains_key(name)
             && self.var_use_counts.get(name).copied().unwrap_or(0) > 1
     }
 
