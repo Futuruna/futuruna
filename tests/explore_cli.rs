@@ -514,6 +514,71 @@ fn relational_explore_cli_closes_an_empty_case_transition_graph_exactly() {
 }
 
 #[test]
+fn relational_explore_cli_closes_a_successor_built_by_a_polymorphic_helper_exactly() {
+    let _host = EXPLORE_HOST
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let temp = TestDirectory::new();
+    let fixture = temp.path().join("polymorphic-helper-successor.runa");
+    // `others` is polymorphic. Its call site in `neighbours` is typed by
+    // instantiating `a` from the checked arguments, and the successor builds
+    // each neighbour with a constructor call inside a lambda.
+    std::fs::write(
+        &fixture,
+        r#"# Kind = Alpha | Beta | Gamma
+# Row(kind: Kind, n: Int)
+
+> others(all: List(a), current: a) -> List(a) {
+    filter(all, |x| x != current)
+}
+
+> neighbours(row: Row) -> List(Row) {
+    map(others([Alpha, Beta, Gamma], row.kind), |kind| Row(kind = kind, n = row.n))
+}
+
+? explore polymorphic_helper_successor {
+    from {
+        vary kind in [Alpha, Beta, Gamma]
+        let before = Row(kind = kind, n = 0)
+        given context = ()
+    }
+
+    transition after in neighbours(before)
+    find all_cases = all
+    find changed = matches of before.kind != after.kind
+
+    results changed_summary from find changed {
+        group all
+        aggregate [cases = count_distinct(case_id)]
+        select [cases]
+    }
+}
+"#,
+    )
+    .expect("write polymorphic-helper Explore fixture");
+    let run_state = temp.path().join("polymorphic-helper-state");
+    let output_directory = temp.path().join("polymorphic-helper-output");
+
+    let output = run_explore_query(
+        &fixture,
+        "polymorphic_helper_successor",
+        &run_state,
+        &output_directory,
+    );
+    assert_success(&output);
+    let report = parse_stdout(&output);
+    assert_complete(&report);
+    // Each of the three Before rows has exactly the two other kinds as
+    // neighbours, so every one of the six transitions changes the kind.
+    for find in ["all_cases", "changed"] {
+        assert_exact_count(&named_find(&report["counts"], find)["selected"], "6");
+        assert_eq!(named_find(&report["answer"], find)["frontier_closed"], true);
+        assert_exact_count(&named_find(&report["answer"], find)["selected_cases"], "6");
+    }
+    assert_eq!(report["publication"]["caught_up"], true);
+}
+
+#[test]
 fn relational_explore_cli_publishes_an_absent_closed_mechanism_as_exact_empty() {
     let _host = EXPLORE_HOST
         .lock()

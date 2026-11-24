@@ -258,17 +258,20 @@ fn catalogue_family(catalogue: &mut CaseCatalogue, view: &FamilyView) -> Result<
             ClauseFindingKind::UnsatisfiableGuard => {
                 ClauseStatus::Unreachable("its guard can never hold".to_string())
             }
-            ClauseFindingKind::Shadowed { by } => ClauseStatus::Unreachable(if by.is_empty() {
-                "earlier clauses always apply first".to_string()
-            } else {
-                format!(
-                    "earlier clauses always apply first: {}",
-                    by.iter()
-                        .map(ClauseLocation::display)
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                )
-            }),
+            ClauseFindingKind::Shadowed { by }
+            | ClauseFindingKind::ShadowedWithDifferentResult { by, .. } => {
+                ClauseStatus::Unreachable(if by.is_empty() {
+                    "earlier clauses always apply first".to_string()
+                } else {
+                    format!(
+                        "earlier clauses always apply first: {}",
+                        by.iter()
+                            .map(ClauseLocation::display)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                })
+            }
             _ => continue,
         };
         statuses.insert(place(&finding.clause), status);

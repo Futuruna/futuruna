@@ -1,0 +1,23 @@
+-- Authored regression canary: a rule-space enumeration whose nested `flat_map`
+-- binders reuse builtin names (`ln`, `exp`, `abs`, `sqrt`, `show`, `length`).
+-- Each binder is a value captured by the inner closures, and the compiled
+-- program builds the same records as the interpreter.
+
+# YesNo = Yes | No
+# Facts(ln: YesNo, exp: YesNo, abs: String, sqrt: YesNo, show: String, length: Int)
+
+= yes_no = [Yes, No]
+
+> flipped(x: YesNo) -> YesNo { if x == Yes { No } else { Yes } }
+
+> lying_down(f: Facts) -> Bool { f.ln == Yes }
+
+= all_facts = flat_map(yes_no, |ln| flat_map(yes_no, |exp| flat_map(["hit", "kick"], |abs| flat_map(yes_no, |sqrt| flat_map(["face", "body"], |show| map([1, 2], |length| Facts(ln = ln, exp = exp, abs = abs, sqrt = sqrt, show = show, length = length)))))))
+
+= neighbours = flat_map(all_facts, |f| map(yes_no, |ln| Facts(ln = ln, exp = flipped(f.exp), abs = f.abs, sqrt = f.sqrt, show = f.show, length = f.length)))
+
+@ print(show(length(all_facts)))
+@ print(show(length(filter(all_facts, lying_down))))
+@ print(show(length(filter(neighbours, |f| f.exp == Yes))))
+@ print(show(map(filter(all_facts, |f| f.ln == Yes && f.exp == No && f.sqrt == Yes && f.length == 2), |f| concat(f.abs, concat("/", f.show)))))
+@ print("canary builtin named lambda binders passed")

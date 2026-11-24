@@ -1,0 +1,16 @@
+# JaNej = Ja | Nej
+# Fund(x: JaNej, y: JaNej, n: Int)
+# Sag(fund: Fund, alvorlig: Bool)
+# Navngivet(navn: String, x: JaNej)
+
+| f(a: Fund): Bool -> a.x == Ja && a.y == Ja
+| g(a: Fund): Bool -> a.x == Ja
+| skærpet(s: Sag): Bool -> s.alvorlig && f(s.fund)
+| navngivet(p: Navngivet): Bool -> p.x == Ja
+
+| f_implies_g: f(a) -> !f(a) || g(a)
+| nested_record_is_quantified: skærpet(s) -> !skærpet(s) || g(s.fund)
+| rebuilt_record_is_equal: g(a) -> Fund(a.x, a.y, a.n) == a
+| g_implies_f: g(a) -> !g(a) || f(a)
+| record_int_field_overflows: g(a) -> a.n + 1 > a.n
+| string_field_is_unsupported: navngivet(p) -> !navngivet(p) || p.x == Ja

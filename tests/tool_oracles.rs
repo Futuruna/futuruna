@@ -315,6 +315,70 @@ fn payload_free_enums(statements: &[Stmt]) -> BTreeMap<String, Vec<String>> {
         .collect()
 }
 
+/// Non-generic types with one constructor that has fields, with the
+/// constructor name and each field's type.
+fn records(statements: &[Stmt]) -> BTreeMap<String, (String, Vec<String>)> {
+    statements
+        .iter()
+        .filter_map(|statement| match statement {
+            Stmt::TypeDecl(TypeDecl::ADT {
+                name,
+                params,
+                variants,
+                ..
+            }) if params.is_empty() && variants.len() == 1 && !variants[0].fields.is_empty() => {
+                Some((
+                    name.clone(),
+                    (
+                        variants[0].name.clone(),
+                        variants[0]
+                            .fields
+                            .iter()
+                            .map(|field| field.ty.to_string())
+                            .collect(),
+                    ),
+                ))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// The values an oracle evaluates a variable of `sort` at: the 64-bit Int
+/// boundaries, both Bools, every constructor of a payload-free enum, and
+/// every combination of those for a record's fields.
+fn oracle_domain(
+    sort: &str,
+    enums: &BTreeMap<String, Vec<String>>,
+    records: &BTreeMap<String, (String, Vec<String>)>,
+) -> Option<Vec<String>> {
+    if let Some(constructors) = enums.get(sort) {
+        return Some(constructors.clone());
+    }
+    if let Some((constructor, fields)) = records.get(sort) {
+        let domains = fields
+            .iter()
+            .map(|field| oracle_domain(field, enums, records))
+            .collect::<Option<Vec<_>>>()?;
+        return Some(
+            assignments(&domains)
+                .into_iter()
+                .map(|values| format!("{constructor}({})", values.join(", ")))
+                .collect(),
+        );
+    }
+    match sort {
+        "Int" => Some(
+            BOUNDARY_INPUTS
+                .iter()
+                .map(|value| value.to_string())
+                .collect(),
+        ),
+        "Bool" => Some(vec!["True".to_string(), "False".to_string()]),
+        _ => None,
+    }
+}
+
 /// The SMT sort `verify` declared for each free variable of one invariant,
 /// read from the `(declare-const runa_v_<hex name> Sort)` lines of its report
 /// section.
@@ -357,7 +421,7 @@ fn assignments(domains: &[Vec<String>]) -> Vec<Vec<String>> {
 }
 
 #[test]
-fn invariants_proved_by_verify_hold_at_int_boundaries_and_enum_constructors() {
+fn invariants_proved_by_verify_hold_at_int_boundaries_enum_constructors_and_records() {
     if !std::process::Command::new("z3")
         .arg("--version")
         .output()
@@ -393,6 +457,7 @@ fn invariants_proved_by_verify_hold_at_int_boundaries_and_enum_constructors() {
         let statements = parses(&source).expect("verified file parses");
         let declared = top_level_names(&statements);
         let enums = payload_free_enums(&statements);
+        let records = records(&statements);
         // Keep declarations and program flow; `?` statements (with their
         // handler blocks) would halt on the program's own terms, which is not
         // what this oracle measures.
@@ -419,23 +484,16 @@ fn invariants_proved_by_verify_hold_at_int_boundaries_and_enum_constructors() {
             let free = free_variables(&predicate, &declared);
             let sorts = declared_sorts(&report, name);
             // An Int variable is sampled at the 64-bit boundaries; an enum
-            // variable is evaluated at every constructor verify quantified.
+            // variable is evaluated at every constructor verify quantified,
+            // and a record variable at every combination of its fields'.
             let mut domains = Vec::with_capacity(free.len());
             let mut parameters = Vec::with_capacity(free.len());
             for variable in &free {
                 let sort = sorts.get(variable).map_or("Int", String::as_str);
-                match enums.get(sort) {
-                    Some(constructors) => domains.push(constructors.clone()),
-                    None => {
-                        assert_eq!(sort, "Int", "{relative}: {name} quantifies `{variable}`");
-                        domains.push(
-                            BOUNDARY_INPUTS
-                                .iter()
-                                .map(|value| value.to_string())
-                                .collect(),
-                        );
-                    }
-                }
+                let domain = oracle_domain(sort, &enums, &records).unwrap_or_else(|| {
+                    panic!("{relative}: {name} quantifies `{variable}` over `{sort}`")
+                });
+                domains.push(domain);
                 parameters.push(format!("{variable}: {sort}"));
             }
             let parameters = parameters.join(", ");

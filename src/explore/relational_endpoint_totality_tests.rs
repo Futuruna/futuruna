@@ -1202,6 +1202,101 @@ fn string_record_helper_dependencies_are_sealed_for_admission() {
 }
 
 #[test]
+fn polymorphic_helper_calls_seal_from_their_checked_arguments() {
+    let source = |helpers: &str| {
+        r#"
+# Kind = Alpha | Beta
+# Row(kind: Kind, n: Int)
+HELPERS
+? explore polymorphic_helper_relation {
+    from {
+        vary kind in [Alpha, Beta]
+        let before = Row(kind = kind, n = 0)
+        given context = ()
+    }
+    transition after in neighbours(before)
+    find cases = all
+}
+"#
+        .replace("HELPERS", helpers)
+    };
+    let instantiated = |checked: &TypeCheckArtifacts, helper: &str| {
+        checked
+            .checked_resolutions
+            .expressions
+            .iter()
+            .filter(|(_, resolution)| {
+                matches!(&resolution.call_target, Some(crate::CheckedCallTarget::Function { callable, .. })
+                    if callable.declaration.declaration.name.as_ref() == helper)
+            })
+            .map(|(_, resolution)| match &resolution.resolved_type {
+                crate::CheckedExpressionType::Resolved(ty) => {
+                    Some(TypeChecker::canonical_explore_ty_name(ty))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    };
+
+    // Each argument fixes `a`, so each call site has the exact instantiated
+    // type `List(Kind)`, in positional and in named argument order.
+    for call in [
+        "others([Alpha, Beta], row.kind)",
+        "others(current = row.kind, all = [Alpha, Beta])",
+    ] {
+        let source = source(&format!(
+            r#"> others(all: List(a), current: a) -> List(a) {{
+    filter(all, |x| x != current)
+}}
+> neighbours(row: Row) -> List(Row) {{
+    map({call}, |kind| Row(kind = kind, n = row.n))
+}}"#
+        ));
+        let checked = artifacts(&source);
+        assert!(checked.diagnostics.is_empty(), "{:?}", checked.diagnostics);
+        assert!(
+            checked.checked_exploration_query(0).is_ok(),
+            "sealed relation for {call}: {:?}; unsupported sites: {:?}",
+            checked.checked_exploration_query(0).err(),
+            checked.checked_resolutions.unsupported_sites
+        );
+        assert_eq!(
+            instantiated(&checked, "others"),
+            vec![Some("List(Kind)".to_string())]
+        );
+        // The scheme instantiates the call site only. The polymorphic callable
+        // still publishes no closed type contract for endpoint proof.
+        assert!(!checked
+            .checked_resolutions
+            .callable_type_contracts
+            .keys()
+            .any(|callable| callable.declaration.declaration.name.as_ref() == "others"));
+    }
+
+    // No argument binds the result variable, so the call has no exact type
+    // and the relation closure stays unsealed.
+    let unbound = artifacts(&source(
+        r#"> nothing(n: Int) -> List(a) {
+    []
+}
+> neighbours(row: Row) -> List(Row) {
+    concat(nothing(row.n), [row])
+}"#,
+    ));
+    assert!(unbound.diagnostics.is_empty(), "{:?}", unbound.diagnostics);
+    assert!(
+        matches!(
+            unbound.checked_exploration_query(0),
+            Err(CheckedExploreQueryAccessError::Producer(
+                CheckedExploreQueryArtifactIssue::SemanticDependencyClosureUnsealed { .. }
+            ))
+        ),
+        "an unbound result variable must not acquire an exact type"
+    );
+    assert_eq!(instantiated(&unbound, "nothing"), vec![None]);
+}
+
+#[test]
 fn trim_endpoint_preserves_exact_strings_and_unknown_branch_safety() {
     let source = |body: &str, result: &str| {
         r#"

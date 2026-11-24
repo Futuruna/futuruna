@@ -616,6 +616,93 @@ fn enum_free_variable_domains_fail_closed_outside_payload_free_enums() {
 }
 
 #[test]
+fn record_free_variables_range_over_their_field_values() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/verify/record_free_variable_domains.runa");
+    let verified = run_runa(&["verify", fixture.to_str().expect("UTF-8 fixture path")]);
+    let stdout = String::from_utf8_lossy(&verified.stdout);
+    // Two claims are refuted and one is unsupported.
+    assert_eq!(
+        verified.status.code(),
+        Some(1),
+        "stdout:\n{stdout}\nstderr:\n{}",
+        String::from_utf8_lossy(&verified.stderr)
+    );
+
+    // `a` (0x61) ranges over Fund and `s` (0x73) over Sag; each Int field,
+    // nested ones included, is a 64-bit value.
+    for invariant in [
+        "f_implies_g",
+        "rebuilt_record_is_equal",
+        "g_implies_f",
+        "record_int_field_overflows",
+    ] {
+        let section = invariant_section(&stdout, invariant);
+        assert!(
+            section.contains("(declare-const runa_v_61 Fund)")
+                && section.contains(
+                    "(assert (and (<= (- 9223372036854775808) (runa_acc_Fund_Fund_n runa_v_61)) (<= (runa_acc_Fund_Fund_n runa_v_61) 9223372036854775807)))"
+                ),
+            "{invariant}:\n{section}"
+        );
+    }
+    let nested = invariant_section(&stdout, "nested_record_is_quantified");
+    assert!(
+        nested.contains("(declare-const runa_v_73 Sag)")
+            && nested.contains(
+                "(<= (runa_acc_Fund_Fund_n (runa_acc_Sag_Sag_fund runa_v_73)) 9223372036854775807)"
+            ),
+        "{nested}"
+    );
+
+    let unsupported = invariant_section(&stdout, "string_field_is_unsupported");
+    assert!(
+        unsupported.contains(
+            "SMT fallback skipped: free variable `p` would range over `Navngivet`, which is a record whose field `navn` has type `String`"
+        ),
+        "{unsupported}"
+    );
+    assert!(!unsupported.contains("declare-const"), "{unsupported}");
+
+    if z3_available() {
+        for invariant in [
+            "f_implies_g",
+            "nested_record_is_quantified",
+            "rebuilt_record_is_equal",
+        ] {
+            assert!(
+                stdout.contains(&format!("PROVED: |{invariant}| holds for every input")),
+                "missing proof for {invariant}:\n{stdout}"
+            );
+        }
+        // The witness names every field of the record in source syntax.
+        let refuted = invariant_section(&stdout, "g_implies_f");
+        assert!(
+            refuted.contains("COUNTEREXAMPLE found for |g_implies_f|")
+                && refuted
+                    .lines()
+                    .any(|line| line.trim().starts_with("a = Fund(x: Ja, y: Nej, n: ")),
+            "{refuted}"
+        );
+        let overflow = invariant_section(&stdout, "record_int_field_overflows");
+        assert!(
+            overflow.contains("COUNTEREXAMPLE found for |record_int_field_overflows|")
+                && overflow.lines().any(|line| {
+                    let line = line.trim();
+                    line.starts_with("a = Fund(x: ") && line.ends_with("n: 9223372036854775807)")
+                }),
+            "{overflow}"
+        );
+        assert!(
+            stdout.contains("Verification: 3 of 6 invariant(s) proved, 1 unsupported."),
+            "{stdout}"
+        );
+    } else {
+        assert!(stdout.contains("Z3 not found"), "{stdout}");
+    }
+}
+
+#[test]
 fn allow_unsupported_accepts_untranslatable_claims_but_not_refuted_ones() {
     let mixed = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/verify/mixed_unsupported_claims.runa");

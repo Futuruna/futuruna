@@ -73,6 +73,17 @@ pub(super) enum ClauseFindingKind {
     /// `by` lists those candidates (an unsat core); it is empty when the
     /// solver could not name them.
     Shadowed { by: Vec<ClauseLocation> },
+    /// Shadowed as above, and on some input the earlier candidate of the
+    /// same tier that is `selected` gives a different result than this one
+    /// would: two clauses decide the same input differently and source
+    /// order settles it. `results` holds the selected clause's result and
+    /// this clause's, at `witness`.
+    ShadowedWithDifferentResult {
+        by: Vec<ClauseLocation>,
+        selected: ClauseLocation,
+        witness: Option<Vec<(String, String)>>,
+        results: Option<(String, String)>,
+    },
     /// The guard can never hold.
     UnsatisfiableGuard,
     /// Both candidates of one tier apply to some input and select different
@@ -166,6 +177,10 @@ impl ClauseReachabilityReport {
         })
     }
 
+    pub(super) fn shadowed_with_different_result_count(&self) -> usize {
+        self.count(|kind| matches!(kind, ClauseFindingKind::ShadowedWithDifferentResult { .. }))
+    }
+
     pub(super) fn overlap_count(&self) -> usize {
         self.count(|kind| matches!(kind, ClauseFindingKind::Overlap { .. }))
     }
@@ -200,7 +215,7 @@ impl ClauseReachabilityReport {
             Self::NotRun { reason } => {
                 println!("  Not run: {}", reason);
                 println!(
-                    "  No clause was analyzed; unreachable clauses, overlapping guards and gaps are unknown."
+                    "  No clause was analyzed; unreachable clauses, clauses shadowed with a different result, overlapping guards and gaps are unknown."
                 );
                 println!();
                 return;
@@ -255,8 +270,9 @@ impl ClauseReachabilityReport {
             println!("  No rule family is in scope, so nothing was checked.");
         }
         println!(
-            "  Findings: {} unreachable clause, {} overlapping guards, {} gap",
+            "  Findings: {} unreachable clause, {} shadowed with a different result, {} overlapping guards, {} gap",
             self.unreachable_count(),
+            self.shadowed_with_different_result_count(),
             self.overlap_count(),
             self.gap_count()
         );
@@ -271,18 +287,35 @@ impl ClauseReachabilityReport {
                         clause.display()
                     );
                     println!("     {}  {}", clause.display(), clause.text);
-                    if by.is_empty() {
-                        println!("     Every input satisfying its guard is taken by an earlier-priority clause.");
-                    } else {
-                        println!("     Every input satisfying its guard is taken first by:");
-                        for shadow in by {
-                            println!(
-                                "       {} ({})  {}",
-                                shadow.display(),
-                                tier_label(shadow.tier),
-                                shadow.text
-                            );
-                        }
+                    print_shadowed_by(by);
+                }
+                ClauseFindingKind::ShadowedWithDifferentResult {
+                    by,
+                    selected,
+                    witness,
+                    results,
+                } => {
+                    status_println!(
+                        "  \x1b[31m!! Shadowed with a different result in {}: {} never fires\x1b[0m",
+                        finding.family,
+                        clause.display()
+                    );
+                    println!("     {}  {}", clause.display(), clause.text);
+                    print_shadowed_by(by);
+                    println!(
+                        "     Both {}s apply to some input with different results; source order selects {}.",
+                        tier_label(clause.tier),
+                        selected.display()
+                    );
+                    println!("     Witness: {}", witness_text(witness.as_deref()));
+                    if let Some((selected_result, shadowed_result)) = results {
+                        println!(
+                            "     Results: {} gives {}; {} would give {}",
+                            selected.display(),
+                            selected_result,
+                            clause.display(),
+                            shadowed_result
+                        );
                     }
                 }
                 ClauseFindingKind::UnsatisfiableGuard => {
@@ -364,7 +397,7 @@ impl ClauseReachabilityReport {
         }
         if findings.is_empty() {
             println!(
-                "  No unreachable clauses, overlapping guards or gaps among the analyzed clauses."
+                "  No unreachable clauses, clauses shadowed with a different result, overlapping guards or gaps among the analyzed clauses."
             );
             println!();
         }
@@ -428,6 +461,7 @@ impl ClauseReachabilityReport {
                     "overlap_not_checked": overlap_not_checked.len(),
                     "gap_not_checked": gap_not_checked.len(),
                     "unreachable_clauses": self.unreachable_count(),
+                    "shadowed_with_different_result": self.shadowed_with_different_result_count(),
                     "overlapping_guards": self.overlap_count(),
                     "gaps": self.gap_count(),
                 },
@@ -444,6 +478,18 @@ impl ClauseReachabilityReport {
                         "family": finding.family,
                         "clause": finding.clause.json(),
                         "shadowed_by": by.iter().map(ClauseLocation::json).collect::<Vec<_>>(),
+                    }),
+                    ClauseFindingKind::ShadowedWithDifferentResult { by, selected, witness, results } => serde_json::json!({
+                        "kind": "shadowed_with_different_result",
+                        "family": finding.family,
+                        "clause": finding.clause.json(),
+                        "shadowed_by": by.iter().map(ClauseLocation::json).collect::<Vec<_>>(),
+                        "selected": selected.json(),
+                        "witness": witness_json(witness),
+                        "results": results.as_ref().map(|(selected_result, shadowed_result)| serde_json::json!({
+                            "selected": selected_result,
+                            "clause": shadowed_result,
+                        })),
                     }),
                     ClauseFindingKind::UnsatisfiableGuard => serde_json::json!({
                         "kind": "unreachable_clause",
@@ -476,6 +522,23 @@ impl ClauseReachabilityReport {
                     "reason": skipped.reason,
                 })).collect::<Vec<_>>(),
             }),
+        }
+    }
+}
+
+/// The earlier-priority candidates that take a shadowed clause's inputs.
+fn print_shadowed_by(by: &[ClauseLocation]) {
+    if by.is_empty() {
+        println!("     Every input satisfying its guard is taken by an earlier-priority clause.");
+    } else {
+        println!("     Every input satisfying its guard is taken first by:");
+        for shadow in by {
+            println!(
+                "       {} ({})  {}",
+                shadow.display(),
+                tier_label(shadow.tier),
+                shadow.text
+            );
         }
     }
 }
@@ -2208,12 +2271,17 @@ fn analyze_family(
     // Phase 2: for each candidate that overlaps some earlier one, find which
     // ones, and drop pairs where the earlier candidate is a special case of
     // the later (specific before general is ordinary first-match refinement).
+    // A shadowed candidate overlaps an earlier one of its tier exactly when
+    // some input that earlier candidate takes from it gets a different
+    // result; find the first such candidate. Pairs are `(earlier, later,
+    // later is shadowed)`.
     let mut pairs = Vec::new();
     for &later in &analyzed {
         let Some(position) = overlaps_at[later] else {
             continue;
         };
-        if unreachable[later] {
+        let later_shadowed = shadowed.contains(&later);
+        if unreachable[later] && !later_shadowed {
             continue;
         }
         match answers[position] {
@@ -2221,9 +2289,14 @@ fn analyze_family(
                 comparable[later]
                     .iter()
                     .filter(|earlier| !unreachable[**earlier])
-                    .map(|earlier| (*earlier, later)),
+                    .map(|earlier| (*earlier, later, later_shadowed)),
             ),
             Answer::Unsat => {}
+            Answer::Unknown if later_shadowed => outcome.overlap_not_checked.push(skip(
+                later,
+                "Z3 could not decide whether its result differs from that of the earlier clauses that take its inputs (unknown or resource limit reached)"
+                    .into(),
+            )),
             Answer::Unknown => outcome.overlap_not_checked.push(skip(
                 later,
                 "Z3 could not decide whether it overlaps an earlier clause (unknown or resource limit reached)"
@@ -2232,9 +2305,12 @@ fn analyze_family(
         }
     }
     let mut overlaps = Vec::new();
+    // The earlier candidate that takes some input from a shadowed one and
+    // gives it a different result, by shadowed candidate.
+    let mut different_results: BTreeMap<usize, usize> = BTreeMap::new();
     if !pairs.is_empty() {
         let mut pair_assertions = Vec::with_capacity(pairs.len() * 2);
-        for &(earlier, later) in &pairs {
+        for &(earlier, later, _) in &pairs {
             pair_assertions.push(overlap_assertion(earlier, later));
             pair_assertions.push(format!(
                 "(and {} {} (not {}))",
@@ -2245,25 +2321,39 @@ fn analyze_family(
         }
         match decide(&prefix, &pair_assertions)? {
             Ok(answers) => {
-                for (pair, verdict) in pairs.iter().zip(answers.chunks(2)) {
-                    let (earlier, later) = *pair;
+                for (&(earlier, later, later_shadowed), verdict) in
+                    pairs.iter().zip(answers.chunks(2))
+                {
+                    let unknown = || {
+                        skip(
+                            later,
+                            format!(
+                                "Z3 could not decide its overlap with {} (unknown or resource limit reached)",
+                                candidates[earlier].location.display()
+                            ),
+                        )
+                    };
+                    if later_shadowed {
+                        match verdict[0] {
+                            Answer::Sat => {
+                                different_results.entry(later).or_insert(earlier);
+                            }
+                            Answer::Unsat => {}
+                            Answer::Unknown => outcome.overlap_not_checked.push(unknown()),
+                        }
+                        continue;
+                    }
                     match (verdict[0], verdict[1]) {
-                        (Answer::Sat, Answer::Sat) => overlaps.push(*pair),
+                        (Answer::Sat, Answer::Sat) => overlaps.push((earlier, later)),
                         (Answer::Unsat, _) | (Answer::Sat, Answer::Unsat) => {}
                         (Answer::Unknown, _) | (_, Answer::Unknown) => {
-                            outcome.overlap_not_checked.push(skip(
-                                later,
-                                format!(
-                                    "Z3 could not decide its overlap with {} (unknown or resource limit reached)",
-                                    candidates[earlier].location.display()
-                                ),
-                            ))
+                            outcome.overlap_not_checked.push(unknown())
                         }
                     }
                 }
             }
             Err(error) => {
-                for &(_, later) in &pairs {
+                for &(_, later, _) in &pairs {
                     outcome.overlap_not_checked.push(skip(
                         later,
                         format!(
@@ -2277,9 +2367,10 @@ fn analyze_family(
     }
 
     // Explanations: which candidates shadow each unreachable one, and a
-    // witness input for each overlap and for a gap. Every query here is known
-    // satisfiable or unsatisfiable, so the solver can answer each follow-up
-    // request.
+    // witness input for each overlap, each shadowed candidate with a
+    // different result (with both results), and for a gap. Every query here
+    // is known satisfiable or unsatisfiable, so the solver can answer each
+    // follow-up request.
     let mut explanation = prefix;
     for &index in &shadowed {
         explanation.push_str(&format!(
@@ -2297,12 +2388,20 @@ fn analyze_family(
         }
         explanation.push_str("(check-sat)\n(get-unsat-core)\n(pop 1)\n");
     }
+    // Each witness query with the extra terms whose values it reports.
+    let value_term = |index: usize| values[index].as_ref().expect("checked value").0.clone();
     let witnessed = overlaps
         .iter()
-        .map(|&(earlier, later)| overlap_assertion(earlier, later))
-        .chain(gap.iter().cloned())
+        .map(|&(earlier, later)| (overlap_assertion(earlier, later), Vec::new()))
+        .chain(different_results.iter().map(|(&later, &earlier)| {
+            (
+                overlap_assertion(earlier, later),
+                vec![value_term(earlier), value_term(later)],
+            )
+        }))
+        .chain(gap.iter().map(|gap| (gap.clone(), Vec::new())))
         .collect::<Vec<_>>();
-    for assertion in &witnessed {
+    for (assertion, extra) in &witnessed {
         explanation.push_str(&format!("(push 1)\n(assert {})\n", assertion));
         // Soft preferences keep values the finding does not depend on plain.
         for preference in signature
@@ -2313,19 +2412,28 @@ fn analyze_family(
             explanation.push_str(&format!("(assert-soft {})\n", preference));
         }
         explanation.push_str("(check-sat)\n");
-        for value in &signature.witness_names {
-            explanation.push_str(&format!("(get-value ({}))\n", value.term));
+        for term in signature
+            .witness_names
+            .iter()
+            .map(|value| &value.term)
+            .chain(extra)
+        {
+            explanation.push_str(&format!("(get-value ({}))\n", term));
         }
         explanation.push_str("(pop 1)\n");
     }
+    let extra_counts = witnessed
+        .iter()
+        .map(|(_, extra)| extra.len())
+        .collect::<Vec<_>>();
     let explained = if shadowed.is_empty() && witnessed.is_empty() {
         None
     } else {
         run_solver(&explanation)?.ok().and_then(|output| {
-            parse_explanations(&output, shadowed.len(), witnessed.len(), signature)
+            parse_explanations(&output, shadowed.len(), &extra_counts, signature)
         })
     };
-    type Witness = Option<Vec<(String, String)>>;
+    type Witness = Option<(Vec<(String, String)>, Vec<String>)>;
     let (cores, mut witnesses): (Vec<Option<Vec<usize>>>, Vec<Witness>) = match explained {
         Some((cores, witnesses)) => (
             cores.into_iter().map(Some).collect(),
@@ -2333,27 +2441,49 @@ fn analyze_family(
         ),
         None => (vec![None; shadowed.len()], vec![None; witnessed.len()]),
     };
+    let gap_witness = gap
+        .is_some()
+        .then(|| witnesses.pop().flatten().map(|(witness, _)| witness));
+    let mut different_result_witnesses = witnesses.split_off(overlaps.len()).into_iter();
     for (&index, core) in shadowed.iter().zip(cores) {
+        let by = core
+            .unwrap_or_default()
+            .into_iter()
+            .map(|earlier| candidates[earlier].location.clone())
+            .collect();
+        let kind = match different_results.get(&index) {
+            Some(&earlier) => {
+                let (witness, results) = match different_result_witnesses.next().flatten() {
+                    Some((witness, results)) => (
+                        Some(witness),
+                        <[String; 2]>::try_from(results)
+                            .ok()
+                            .map(|[selected, shadowed]| (selected, shadowed)),
+                    ),
+                    None => (None, None),
+                };
+                ClauseFindingKind::ShadowedWithDifferentResult {
+                    by,
+                    selected: candidates[earlier].location.clone(),
+                    witness,
+                    results,
+                }
+            }
+            None => ClauseFindingKind::Shadowed { by },
+        };
         outcome.findings.push(ClauseFinding {
             family: family.to_string(),
             clause: candidates[index].location.clone(),
-            kind: ClauseFindingKind::Shadowed {
-                by: core
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|earlier| candidates[earlier].location.clone())
-                    .collect(),
-            },
+            kind,
         });
     }
-    let gap_witness = gap.is_some().then(|| witnesses.pop().flatten());
     for (&(earlier, later), witness) in overlaps.iter().zip(witnesses) {
         outcome.findings.push(ClauseFinding {
             family: family.to_string(),
             clause: candidates[later].location.clone(),
             kind: ClauseFindingKind::Overlap {
                 with: candidates[earlier].location.clone(),
-                witness,
+                witness: witness.map(|(witness, _)| witness),
             },
         });
     }
@@ -2462,12 +2592,15 @@ fn smt_responses(output: &str) -> Vec<String> {
     responses
 }
 
-type Explanations = (Vec<Vec<usize>>, Vec<Vec<(String, String)>>);
+/// Unsat cores, then each witness with the values of its extra terms.
+type Explanations = (Vec<Vec<usize>>, Vec<(Vec<(String, String)>, Vec<String>)>);
 
+/// `extra` holds, per witness query, how many terms it asks for after the
+/// witness values.
 fn parse_explanations(
     output: &str,
     shadowed: usize,
-    witnessed: usize,
+    extra: &[usize],
     signature: &FamilySignature,
 ) -> Option<Explanations> {
     let mut responses = smt_responses(output).into_iter();
@@ -2487,25 +2620,29 @@ fn parse_explanations(
         members.sort_unstable();
         cores.push(members);
     }
+    // `((term value))`: the value is the last element of the pair.
+    let value = |response: String| -> Option<String> {
+        let pair = response
+            .strip_prefix('(')?
+            .strip_suffix(')')?
+            .trim()
+            .strip_prefix('(')?
+            .strip_suffix(')')?;
+        Some(readable_smt_value(&smt_responses(pair).pop()?))
+    };
     let mut witnesses = Vec::new();
-    for _ in 0..witnessed {
+    for &extra in extra {
         if responses.next()? != "sat" {
             return None;
         }
         let mut witness = Vec::new();
         for WitnessValue { display, .. } in &signature.witness_names {
-            // `((term value))`: the value is the last element of the pair.
-            let response = responses.next()?;
-            let pair = response
-                .strip_prefix('(')?
-                .strip_suffix(')')?
-                .trim()
-                .strip_prefix('(')?
-                .strip_suffix(')')?;
-            let value = smt_responses(pair).pop()?;
-            witness.push((display.clone(), readable_smt_value(&value)));
+            witness.push((display.clone(), value(responses.next()?)?));
         }
-        witnesses.push(witness);
+        let extra_values = (0..extra)
+            .map(|_| value(responses.next()?))
+            .collect::<Option<Vec<_>>>()?;
+        witnesses.push((witness, extra_values));
     }
     Some((cores, witnesses))
 }

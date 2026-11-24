@@ -17745,10 +17745,11 @@ fn smt_free_variable_type_is_nominal(type_name: &str) -> bool {
 impl SmtRuleLowerer<'_, '_> {
     /// Decide what each unbound invariant variable ranges over. A variable
     /// without a nominal use ranges over the 64-bit Int values. A variable
-    /// passed to a parameter or constructor field of a payload-free enum,
+    /// passed to a parameter or constructor field of a payload-free enum or
+    /// of a record whose fields are quantified (see `record_field_domain`),
     /// compared with a value of one, or matched against its constructors
-    /// ranges over exactly that enum's constructors. Any other nominal use,
-    /// or uses at two different types, is rejected.
+    /// ranges over exactly that type's values. Any other nominal use, or uses
+    /// at two different types, is rejected.
     fn invariant_free_variable_types(
         &self,
         expressions: &[&Expr],
@@ -17792,30 +17793,132 @@ impl SmtRuleLowerer<'_, '_> {
         if self.nullary_enums.contains_key(type_name) {
             return Ok(type_name.to_string());
         }
-        let reason =
-            match parse_type_annotation(type_name) {
-                Ok(Ty::Name(owner))
-                    if self
-                        .type_parameters_by_owner
-                        .get(&owner)
-                        .is_some_and(|parameters| !parameters.is_empty()) =>
-                {
-                    "is a generic type"
+        let reason = match parse_type_annotation(type_name) {
+            Ok(Ty::Name(owner)) if self.record_constructor(&owner).is_some() => {
+                match self.record_field_domain(&owner, &mut Vec::new()) {
+                    Ok(()) => return Ok(type_name.to_string()),
+                    Err((path, field_type)) => {
+                        format!("is a record whose field `{path}` has type `{field_type}`")
+                    }
                 }
-                Ok(Ty::App(_, _) | Ty::Optional(_)) => "is an instance of a generic type",
-                Ok(Ty::Name(owner))
-                    if self.constructors.values().flatten().any(|signature| {
-                        signature.parent == owner && !signature.fields.is_empty()
-                    }) =>
-                {
-                    "has constructors that carry payloads"
-                }
-                _ => "is not a non-generic enum",
-            };
+            }
+            Ok(Ty::Name(owner))
+                if self
+                    .type_parameters_by_owner
+                    .get(&owner)
+                    .is_some_and(|parameters| !parameters.is_empty()) =>
+            {
+                "is a generic type".to_string()
+            }
+            Ok(Ty::App(_, _) | Ty::Optional(_)) => "is an instance of a generic type".to_string(),
+            Ok(Ty::Name(owner))
+                if self
+                    .constructors
+                    .values()
+                    .flatten()
+                    .any(|signature| signature.parent == owner && !signature.fields.is_empty()) =>
+            {
+                "has constructors that carry payloads".to_string()
+            }
+            _ => "is not a non-generic enum or record".to_string(),
+        };
         Err(format!(
-            "free variable `{}` would range over `{}`, which {}; verify quantifies free variables only over Int and over enums whose constructors carry no payload",
+            "free variable `{}` would range over `{}`, which {}; verify quantifies free variables only over Int, over enums whose constructors carry no payload, and over records whose fields are Int, Bool, such enums, or such records",
             name, type_name, reason
         ))
+    }
+
+    /// The constructor of a non-generic record: a type with exactly one
+    /// constructor, which has fields.
+    fn record_constructor(&self, type_name: &str) -> Option<(&str, &SmtConstructorSignature)> {
+        if self
+            .type_parameters_by_owner
+            .get(type_name)
+            .is_some_and(|parameters| !parameters.is_empty())
+        {
+            return None;
+        }
+        let mut constructors = self
+            .constructors
+            .iter()
+            .flat_map(|(constructor, signatures)| {
+                signatures
+                    .iter()
+                    .filter(|signature| signature.parent == type_name)
+                    .map(move |signature| (constructor.as_str(), signature))
+            });
+        let record = constructors.next()?;
+        (constructors.next().is_none() && !record.1.fields.is_empty()).then_some(record)
+    }
+
+    /// Whether every value of record `type_name` can be quantified: each
+    /// field is Int, Bool, a payload-free enum, or such a record. Otherwise
+    /// the path and type of the first field that cannot. `visiting` holds
+    /// the records being checked, so a recursive record is refused.
+    fn record_field_domain(
+        &self,
+        type_name: &str,
+        visiting: &mut Vec<String>,
+    ) -> Result<(), (String, String)> {
+        let Some((_, signature)) = self.record_constructor(type_name) else {
+            return Err((String::new(), type_name.to_string()));
+        };
+        visiting.push(type_name.to_string());
+        for field in &signature.fields {
+            let supported = match &field.ty {
+                Ty::Name(field_type) => match field_type.as_str() {
+                    "Int" | "Bool" => Ok(()),
+                    field_type if self.nullary_enums.contains_key(field_type) => Ok(()),
+                    field_type
+                        if !visiting.iter().any(|record| record == field_type)
+                            && self.record_constructor(field_type).is_some() =>
+                    {
+                        self.record_field_domain(field_type, visiting)
+                    }
+                    _ => Err((String::new(), field.ty.to_string())),
+                },
+                _ => Err((String::new(), field.ty.to_string())),
+            };
+            if let Err((path, field_type)) = supported {
+                let path = if path.is_empty() {
+                    field.name.clone()
+                } else {
+                    format!("{}.{}", field.name, path)
+                };
+                return Err((path, field_type));
+            }
+        }
+        visiting.pop();
+        Ok(())
+    }
+
+    /// The domain assertions of free variable `term` ranging over
+    /// `type_name`: every Int it holds, directly or in a record field, is a
+    /// 64-bit value.
+    fn free_variable_domain_constraints(&self, type_name: &str, term: &str) -> Vec<String> {
+        if type_name == "Int" {
+            return vec![runa_verification_arithmetic::int_domain(term)];
+        }
+        let Some((constructor, signature)) = self.record_constructor(type_name) else {
+            return Vec::new();
+        };
+        signature
+            .fields
+            .iter()
+            .enumerate()
+            .flat_map(|(index, field)| {
+                let key = if signature.positional {
+                    smt_constructor_field_key(constructor, index)
+                } else {
+                    field.name.clone()
+                };
+                let accessor = smt_accessor_symbol(&signature.parent, constructor, &key);
+                self.free_variable_domain_constraints(
+                    &field.ty.to_string(),
+                    &format!("({accessor} {term})"),
+                )
+            })
+            .collect()
     }
 
     fn collect_free_variable_type_uses(
@@ -18071,13 +18174,40 @@ impl SmtRuleLowerer<'_, '_> {
                 }
                 _ => None,
             },
+            ("Bool", SmtTerm::Atom(literal)) => match literal.as_str() {
+                "true" => Some("True".to_string()),
+                "false" => Some("False".to_string()),
+                _ => None,
+            },
             (_, SmtTerm::Atom(symbol)) => self
                 .nullary_enums
                 .get(type_name)?
                 .iter()
                 .find(|constructor| smt_symbol(constructor) == *symbol)
                 .cloned(),
-            _ => None,
+            (_, SmtTerm::List(items)) => {
+                let (constructor, signature) = self.record_constructor(type_name)?;
+                let [SmtTerm::Atom(head), values @ ..] = items.as_slice() else {
+                    return None;
+                };
+                if *head != smt_symbol(constructor) || values.len() != signature.fields.len() {
+                    return None;
+                }
+                let fields = signature
+                    .fields
+                    .iter()
+                    .zip(values)
+                    .map(|(field, value)| {
+                        let value = self.smt_witness_value(&field.ty.to_string(), value)?;
+                        Some(if signature.positional {
+                            value
+                        } else {
+                            format!("{}: {}", field.name, value)
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>()?;
+                Some(format!("{}({})", constructor, fields.join(", ")))
+            }
         }
     }
 }
@@ -18468,12 +18598,13 @@ fn emit_z3_instance_readers(
 }
 
 fn smt_accessor(datatype: &str, variant: &Variant, index: usize) -> String {
-    smt_symbol(&format!(
-        "runa_acc_{}_{}_{}",
-        datatype,
-        variant.name,
-        smt_field_key(variant, index)
-    ))
+    smt_accessor_symbol(datatype, &variant.name, &smt_field_key(variant, index))
+}
+
+/// The accessor of field `key` (see `smt_field_key`) of `constructor` in
+/// `datatype`.
+fn smt_accessor_symbol(datatype: &str, constructor: &str, key: &str) -> String {
+    smt_symbol(&format!("runa_acc_{datatype}_{constructor}_{key}"))
 }
 
 /// The key a field is read by in source (`x.purpose`) and its accessor is
@@ -19704,15 +19835,17 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool, json: bool) -> 
         invariant_count, covered_bool_count, header_pct
     );
     let unreachable_count = clause_report.unreachable_count();
+    let shadowed_different_count = clause_report.shadowed_with_different_result_count();
     let overlap_count = clause_report.overlap_count();
     let clause_gap_count = clause_report.gap_count();
     println!(
-        "  Findings: {} contradiction, {} tension, {} asymmetry, {} gap, {} unreachable clause, {} overlapping guards, {} clause gap",
+        "  Findings: {} contradiction, {} tension, {} asymmetry, {} gap, {} unreachable clause, {} shadowed with a different result, {} overlapping guards, {} clause gap",
         contradiction_count,
         tension_count,
         asymmetry_count,
         gap_count,
         unreachable_count,
+        shadowed_different_count,
         overlap_count,
         clause_gap_count
     );
@@ -19793,6 +19926,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool, json: bool) -> 
         + gap_count
         + tension_count
         + unreachable_count
+        + shadowed_different_count
         + overlap_count
         + clause_gap_count;
     if interesting > 0 {
@@ -20145,7 +20279,7 @@ fn run_z3_script(script: &str) -> Result<String, String> {
 
 /// What a PROVED result from `runa verify` guarantees. Printed with every run
 /// and repeated in the reference documentation.
-const VERIFY_GUARANTEE: &str = "Guarantee: a proved invariant holds for every value of its free variables (Int ranges over the 64-bit values; a variable used as an enum whose constructors carry no payload ranges over exactly those constructors): the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.";
+const VERIFY_GUARANTEE: &str = "Guarantee: a proved invariant holds for every value of its free variables (Int ranges over the 64-bit values; a variable used as an enum whose constructors carry no payload ranges over exactly those constructors; a variable used as a record ranges over every combination of its field values): the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.";
 
 /// The Int helpers the SMT layer translates as ordinary functions: the
 /// prelude's `max_int`, `min_int` and `clamp`, and the builtin `abs` on Int,
@@ -20933,11 +21067,17 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             // Bound values are constrained by their source expressions below.
             // Restricting an overflowing bound value here would erase the
             // witness and turn undefined arithmetic into a vacuous proof.
-            if !bindings.contains_key(var) && sort == "Int" {
-                smt.push_str(&format!(
-                    "(assert {})\n",
-                    runa_verification_arithmetic::int_domain(&smt_value_symbol(var))
-                ));
+            // A free variable's Ints, its own or its record fields', are
+            // 64-bit values.
+            if !bindings.contains_key(var) {
+                let type_name = free_variable_types
+                    .and_then(|types| types.get(var))
+                    .map_or("Int", String::as_str);
+                for constraint in
+                    rule_lowerer.free_variable_domain_constraints(type_name, &smt_value_symbol(var))
+                {
+                    smt.push_str(&format!("(assert {})\n", constraint));
+                }
             }
         }
 
@@ -38259,6 +38399,7 @@ fn __futuruna_install_error_hook() {
         // Emit rules with the canonical dispatch order shared with the interpreter.
         {
             self.register_prolog_parameter_types(&rule_groups);
+            self.register_prolog_value_function_types(&rule_groups);
 
             // Register value-returning rule signatures before emitting bodies.
             // This lets `| a(x) -> b(x)` and `| rate() -> params().rate`
@@ -46083,6 +46224,56 @@ fn __futuruna_install_error_hook() {
         }
     }
 
+    /// Record every value-returning root Prolog rule before any body is
+    /// emitted. Rule groups are emitted by name, so a caller can precede its
+    /// callee; without this, that caller would consume the callee's
+    /// `Option<T>` as `T`.
+    fn register_prolog_value_function_types(&mut self, groups: &BTreeMap<String, Vec<&Rule>>) {
+        for (name, rules) in groups {
+            for (arity, arity_rules) in Self::split_rule_group_by_arity(rules) {
+                if arity == 0 || !Self::rules_have_prolog_features(&arity_rules) {
+                    continue;
+                }
+                let key = RuleDispatchKey {
+                    scope: None,
+                    name: name.clone(),
+                    arity,
+                };
+                let Some(return_type) = self.canonical_rule_return_types.get(&key).cloned() else {
+                    continue;
+                };
+                if let Ok(Some(value_type)) = self.canonical_prolog_value_type(name, &return_type) {
+                    self.types.prolog_value_fns.insert(name.clone(), value_type);
+                }
+            }
+        }
+    }
+
+    /// The Rust value type of a Prolog rule whose canonical return type is
+    /// `return_type`; `None` for a Bool rule.
+    fn canonical_prolog_value_type(
+        &mut self,
+        fn_name: &str,
+        return_type: &str,
+    ) -> Result<Option<String>, String> {
+        let Ok(return_type) = parse_type_annotation(return_type) else {
+            return Err(format!(
+                "invalid canonical Prolog return ABI for `{}`",
+                fn_name
+            ));
+        };
+        let mut type_variables = Vec::new();
+        self.collect_type_vars(&return_type, &mut type_variables);
+        if !type_variables.is_empty() {
+            return Err(format!(
+                "generic canonical Prolog return ABI is unsupported for `{}`",
+                fn_name
+            ));
+        }
+        Ok((!matches!(&return_type, Ty::Name(name) if name == "Bool"))
+            .then(|| self.emit_type(&return_type)))
+    }
+
     fn prolog_rule_param_rust_types(&self, rules: &[&Rule], arity: usize) -> Vec<String> {
         let mut param_types = vec!["String".to_string(); arity];
         for rule in rules {
@@ -46194,34 +46385,14 @@ fn __futuruna_install_error_hook() {
             .insert(fn_name.to_string(), param_type_strs);
 
         // Value-returning Prolog rules: emit Option<T> instead of bool
-        let canonical_value_type = if let Some(return_type) = canonical_return {
-            let Ok(return_type) = parse_type_annotation(return_type) else {
-                return format!(
-                    "compile_error!({:?});\n",
-                    format!("invalid canonical Prolog return ABI for `{}`", fn_name)
-                );
-            };
-            let mut type_variables = Vec::new();
-            self.collect_type_vars(&return_type, &mut type_variables);
-            if !type_variables.is_empty() {
-                return format!(
-                    "compile_error!({:?});\n",
-                    format!(
-                        "generic canonical Prolog return ABI is unsupported for `{}`",
-                        fn_name
-                    )
-                );
-            }
-            (!matches!(return_type, Ty::Name(ref name) if name == "Bool"))
-                .then(|| self.emit_type(&return_type))
-        } else {
-            None
-        };
-        let value_type = if canonical_return.is_some() {
-            canonical_value_type
-        } else {
-            self.infer_prolog_rules_value_type(rules, &param_fir_tys)
-                .or_else(|| Self::prolog_rules_value_type(rules))
+        let value_type = match canonical_return {
+            Some(return_type) => match self.canonical_prolog_value_type(fn_name, return_type) {
+                Ok(value_type) => value_type,
+                Err(message) => return format!("compile_error!({:?});\n", message),
+            },
+            None => self
+                .infer_prolog_rules_value_type(rules, &param_fir_tys)
+                .or_else(|| Self::prolog_rules_value_type(rules)),
         };
         if let Some(value_type_str) = value_type {
             self.types
@@ -50724,39 +50895,9 @@ fn __futuruna_install_error_hook() {
         let param_bound: BTreeSet<String> = lambda_param_names.iter().cloned().collect();
         let mut free_in_body = BTreeSet::new();
         collect_true_free_vars(body, &mut free_in_body, &param_bound);
-        // Check LSP_BUILTINS arity table for special functions (show, print, etc.)
-        let lsp_builtin_names: BTreeSet<&str> = LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
-        // Collect all effect operation names (methods on handlers, not variables)
-        let all_effect_ops: BTreeSet<&str> = self
-            .types
-            .effect_ops
-            .values()
-            .flat_map(|ops| ops.iter().map(|s| s.as_str()))
-            .collect();
         let captured: Vec<String> = free_in_body
             .into_iter()
-            .filter(|v| {
-                self.lambda_free_var_is_runtime_capture(v.as_str())
-                    && !self.current_rule_scope_methods.contains_key(v.as_str())
-                    && !lsp_builtin_names.contains(v.as_str())
-                    && !all_effect_ops.contains(v.as_str())
-                    && !matches!(
-                        v.as_str(),
-                        "true"
-                            | "false"
-                            | "True"
-                            | "False"
-                            | "None"
-                            | "Some"
-                            | "Ok"
-                            | "Err"
-                            | "Nil"
-                            | "Cons"
-                            | "not"
-                            | "findall"
-                            | "search"
-                    )
-            })
+            .filter(|v| self.free_var_is_closure_capture(v))
             .collect();
         let borrows_global_env = owns_global_env && body_str.contains("__fut_globals");
         if captured.is_empty() && !borrows_global_env {
@@ -50849,14 +50990,30 @@ fn __futuruna_install_error_hook() {
         }
     }
 
+    /// A parameter, lambda binder, or local binding of this name is in scope.
+    /// It shadows a top-level binding, function, rule, or builtin of the same
+    /// name, so a read of the name is a read of the local value.
+    fn binds_local_value(&self, name: &str) -> bool {
+        self.current_borrow_params.contains(name)
+            || self.closure_params.contains(name)
+            || self.var_types.contains_key(name)
+            || self.local_bindings.contains(name)
+    }
+
+    /// A read of `name` resolves to a function, rule, or builtin rather than
+    /// a value: no local binding of that name is in scope.
+    fn names_static_callable(&self, name: &str) -> bool {
+        !self.binds_local_value(name)
+            && (self.types.user_functions.contains(name)
+                || self.types.prolog_rule_fns.contains_key(name)
+                || self.builtin_registry.contains_key(name))
+    }
+
     /// A top-level binding read from a function body resolves through the
     /// program globals or its getter, not through a Rust local, unless a
     /// parameter or local binding shadows it.
     fn reads_top_level_binding(&self, name: &str) -> bool {
-        let shadowed = self.current_borrow_params.contains(name)
-            || self.var_types.contains_key(name)
-            || self.local_bindings.contains(name);
-        !shadowed
+        !self.binds_local_value(name)
             && self.lib_static_names.contains(name)
             && (self.allow_global_getter_refs
                 || (self.binary_global_value_refs_in_scope
@@ -50865,22 +51022,50 @@ fn __futuruna_install_error_hook() {
 
     fn lambda_free_var_is_runtime_capture(&self, name: &str) -> bool {
         let is_param = self.current_borrow_params.contains(name);
-        let locally_bound = is_param || self.local_bindings.contains(name);
-        // Copy-typed comptime values are Rust `const`s; builtins lowered by
-        // codegen (such as `push`) are not values at all.
+        let locally_bound = self.binds_local_value(name);
+        // Copy-typed comptime values are Rust `const`s; functions and
+        // builtins (including those lowered by codegen, such as `push`) are
+        // not values unless a local binding of the same name shadows them.
         let comptime_const = self.types.comptime_values.contains_key(name)
             && matches!(
                 self.types.comptime_types.get(name).map(String::as_str),
                 Some("i64" | "f64" | "bool" | "char" | "u64" | "()")
             );
-        let lowered_builtin = matches!(name, "push");
-        !self.types.user_functions.contains(name)
-            && !self.builtin_registry.contains_key(name)
-            && !self.types.variant_parent.contains_key(name)
+        let static_callable = self.types.user_functions.contains(name)
+            || self.builtin_registry.contains_key(name)
+            || matches!(name, "push");
+        !self.types.variant_parent.contains_key(name)
             && self.visible_bare_module_path(name).is_none()
             && !self.reads_top_level_binding(name)
             && (is_param || !comptime_const)
-            && (locally_bound || !lowered_builtin)
+            && (locally_bound || !static_callable)
+    }
+
+    /// A free variable of a closure body that the closure captures as a
+    /// value. A local binding is captured even when it shares its name with a
+    /// builtin, effect operation, or rule-scope method.
+    fn free_var_is_closure_capture(&self, name: &str) -> bool {
+        self.lambda_free_var_is_runtime_capture(name)
+            && (self.binds_local_value(name)
+                || (!self.current_rule_scope_methods.contains_key(name)
+                    && !LSP_BUILTINS.iter().any(|(builtin, _)| *builtin == name)
+                    && !self.types.effect_ops.values().any(|ops| ops.contains(name))
+                    && !matches!(
+                        name,
+                        "true"
+                            | "false"
+                            | "True"
+                            | "False"
+                            | "None"
+                            | "Some"
+                            | "Ok"
+                            | "Err"
+                            | "Nil"
+                            | "Cons"
+                            | "not"
+                            | "findall"
+                            | "search"
+                    )))
     }
 
     /// Untyped parameters that receive `<-` take the type of the subject or
@@ -51046,13 +51231,6 @@ fn __futuruna_install_error_hook() {
     }
 
     fn stream_sub_runtime_captures(&self, arms: &[MatchArm]) -> Vec<String> {
-        let lsp_builtin_names: BTreeSet<&str> = LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
-        let all_effect_ops: BTreeSet<&str> = self
-            .types
-            .effect_ops
-            .values()
-            .flat_map(|ops| ops.iter().map(|s| s.as_str()))
-            .collect();
         let mut captures = BTreeSet::new();
         for arm in arms {
             let mut bound = BTreeSet::new();
@@ -51062,27 +51240,11 @@ fn __futuruna_install_error_hook() {
                 collect_true_free_vars(guard, &mut free_in_arm, &bound);
             }
             collect_true_free_vars(&arm.body, &mut free_in_arm, &bound);
-            captures.extend(free_in_arm.into_iter().filter(|v| {
-                self.lambda_free_var_is_runtime_capture(v.as_str())
-                    && !lsp_builtin_names.contains(v.as_str())
-                    && !all_effect_ops.contains(v.as_str())
-                    && !matches!(
-                        v.as_str(),
-                        "true"
-                            | "false"
-                            | "True"
-                            | "False"
-                            | "None"
-                            | "Some"
-                            | "Ok"
-                            | "Err"
-                            | "Nil"
-                            | "Cons"
-                            | "not"
-                            | "findall"
-                            | "search"
-                    )
-            }));
+            captures.extend(
+                free_in_arm
+                    .into_iter()
+                    .filter(|v| self.free_var_is_closure_capture(v)),
+            );
         }
         captures.into_iter().collect()
     }
@@ -53524,9 +53686,7 @@ fn __futuruna_install_error_hook() {
                     && !self.closure_params.contains(name.as_str())
                     && !self.copy_vars.contains(name.as_str())
                     && self.visible_bare_module_path(name).is_none()
-                    && !self.types.user_functions.contains(name.as_str())
-                    && !self.types.prolog_rule_fns.contains_key(name.as_str())
-                    && !self.builtin_registry.contains_key(name.as_str())
+                    && !self.names_static_callable(name)
                 {
                     return format!("{}.clone()", sname);
                 }
@@ -53542,9 +53702,7 @@ fn __futuruna_install_error_hook() {
                 // Skip for functions/rules (fn items don't need cloning)
                 if !self.copy_vars.contains(name.as_str())
                     && self.visible_bare_module_path(name).is_none()
-                    && !self.types.user_functions.contains(name.as_str())
-                    && !self.types.prolog_rule_fns.contains_key(name.as_str())
-                    && !self.builtin_registry.contains_key(name.as_str())
+                    && !self.names_static_callable(name)
                     && self.var_consuming_counts.get(name).copied().unwrap_or(0) > 1
                 {
                     return format!("{}.clone()", sname);
@@ -53847,9 +54005,7 @@ fn __futuruna_install_error_hook() {
                                 s // Borrow builtin (show) — borrows via &self, no clone
                             } else if self.in_iter_closure
                                 && !self.closure_params.contains(n.as_str())
-                                && !self.types.user_functions.contains(n.as_str())
-                                && !self.types.prolog_rule_fns.contains_key(n.as_str())
-                                && !self.builtin_registry.contains_key(n.as_str())
+                                && !self.names_static_callable(n)
                             {
                                 // Captured by FnMut iter closure: clone per call so the
                                 // capture survives subsequent iterations.
@@ -54075,31 +54231,11 @@ fn __futuruna_install_error_hook() {
                             }
                             let mut free_in_body = BTreeSet::new();
                             collect_true_free_vars(body, &mut free_in_body, &param_bound);
-                            let lsp_names: BTreeSet<&str> =
-                                LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
                             let captured: Vec<String> = free_in_body
                                 .into_iter()
                                 .filter(|v| {
-                                    self.lambda_free_var_is_runtime_capture(v.as_str())
-                                        && !self.current_rule_scope_methods.contains_key(v.as_str())
+                                    self.free_var_is_closure_capture(v)
                                         && !self.copy_vars.contains(v.as_str())
-                                        && !lsp_names.contains(v.as_str())
-                                        && !matches!(
-                                            v.as_str(),
-                                            "true"
-                                                | "false"
-                                                | "True"
-                                                | "False"
-                                                | "None"
-                                                | "Some"
-                                                | "Ok"
-                                                | "Err"
-                                                | "Nil"
-                                                | "Cons"
-                                                | "not"
-                                                | "findall"
-                                                | "search"
-                                        )
                                 })
                                 .collect();
                             let clone_prefix = if captured.is_empty() {
@@ -54199,31 +54335,11 @@ fn __futuruna_install_error_hook() {
                             }
                             let mut free_in_body = BTreeSet::new();
                             collect_true_free_vars(body, &mut free_in_body, &param_bound);
-                            let lsp_names: BTreeSet<&str> =
-                                LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
                             let captured: Vec<String> = free_in_body
                                 .into_iter()
                                 .filter(|v| {
-                                    self.lambda_free_var_is_runtime_capture(v.as_str())
-                                        && !self.current_rule_scope_methods.contains_key(v.as_str())
+                                    self.free_var_is_closure_capture(v)
                                         && !self.copy_vars.contains(v.as_str())
-                                        && !lsp_names.contains(v.as_str())
-                                        && !matches!(
-                                            v.as_str(),
-                                            "true"
-                                                | "false"
-                                                | "True"
-                                                | "False"
-                                                | "None"
-                                                | "Some"
-                                                | "Ok"
-                                                | "Err"
-                                                | "Nil"
-                                                | "Cons"
-                                                | "not"
-                                                | "findall"
-                                                | "search"
-                                        )
                                 })
                                 .collect();
                             let clone_prefix = if captured.is_empty() {
@@ -57054,10 +57170,8 @@ fn __futuruna_install_error_hook() {
     fn if_branch_var_needs_clone(&self, name: &str) -> bool {
         !self.copy_vars.contains(name)
             && self.visible_bare_module_path(name).is_none()
-            && !self.types.user_functions.contains(name)
-            && !self.types.prolog_rule_fns.contains_key(name)
+            && !self.names_static_callable(name)
             && !self.types.variant_parent.contains_key(name)
-            && !self.builtin_registry.contains_key(name)
             && self.var_use_counts.get(name).copied().unwrap_or(0) > 1
     }
 
