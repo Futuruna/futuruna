@@ -1099,18 +1099,24 @@ for floating-point evaluation.
 
 `runa verify` is Preview. PROVED means that for every value of the invariant's
 free variables (Int ranges over the 64-bit values; a variable used as an enum
-whose constructors carry no payload ranges over exactly those constructors) the
-predicate is true and no Int operation it evaluates overflows or divides by
+whose constructors carry no payload ranges over exactly those constructors; a
+variable used as a record ranges over every combination of its field values)
+the predicate is true and no Int operation it evaluates overflows or divides by
 zero. Claims involving Float are reported as unsupported, never proved.
 
-A free variable ranges over an enum when the invariant passes it to a rule,
-function, or constructor parameter declared with that enum, compares it with a
-constructor or another value of that enum, or matches it against the enum's
-constructors. Every other free variable ranges over Int. A free variable used
-as an enum whose constructors carry payloads, as a generic type, or as two
+A free variable ranges over an enum or record when the invariant passes it to a
+rule, function, or constructor parameter declared with that type, compares it
+with a value of that type, or matches it against the type's constructors. Every
+other free variable ranges over Int. A record is a non-generic type with a
+single constructor; it is quantified when each of its fields is Int, Bool, a
+payload-free enum, or such a record, so a rule over
+`# Fund(x: JaNej, n: Int)` is verified for every `x` and every 64-bit `n`, and
+the rule may read the fields (`a.x`), build records, and compare them. A free
+variable used as an enum whose constructors carry payloads, as a record with
+another field type (such as String or a list), as a generic type, or as two
 different types makes the claim unsupported with a diagnostic. A
 counterexample names each free variable's witness in source syntax, such as
-`s = Shipped`.
+`s = Shipped` or `a = Fund(x: Ja, n: 0)`.
 
 ### Verifying rule dispatch
 

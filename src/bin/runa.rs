@@ -17745,10 +17745,11 @@ fn smt_free_variable_type_is_nominal(type_name: &str) -> bool {
 impl SmtRuleLowerer<'_, '_> {
     /// Decide what each unbound invariant variable ranges over. A variable
     /// without a nominal use ranges over the 64-bit Int values. A variable
-    /// passed to a parameter or constructor field of a payload-free enum,
+    /// passed to a parameter or constructor field of a payload-free enum or
+    /// of a record whose fields are quantified (see `record_field_domain`),
     /// compared with a value of one, or matched against its constructors
-    /// ranges over exactly that enum's constructors. Any other nominal use,
-    /// or uses at two different types, is rejected.
+    /// ranges over exactly that type's values. Any other nominal use, or uses
+    /// at two different types, is rejected.
     fn invariant_free_variable_types(
         &self,
         expressions: &[&Expr],
@@ -17792,30 +17793,132 @@ impl SmtRuleLowerer<'_, '_> {
         if self.nullary_enums.contains_key(type_name) {
             return Ok(type_name.to_string());
         }
-        let reason =
-            match parse_type_annotation(type_name) {
-                Ok(Ty::Name(owner))
-                    if self
-                        .type_parameters_by_owner
-                        .get(&owner)
-                        .is_some_and(|parameters| !parameters.is_empty()) =>
-                {
-                    "is a generic type"
+        let reason = match parse_type_annotation(type_name) {
+            Ok(Ty::Name(owner)) if self.record_constructor(&owner).is_some() => {
+                match self.record_field_domain(&owner, &mut Vec::new()) {
+                    Ok(()) => return Ok(type_name.to_string()),
+                    Err((path, field_type)) => {
+                        format!("is a record whose field `{path}` has type `{field_type}`")
+                    }
                 }
-                Ok(Ty::App(_, _) | Ty::Optional(_)) => "is an instance of a generic type",
-                Ok(Ty::Name(owner))
-                    if self.constructors.values().flatten().any(|signature| {
-                        signature.parent == owner && !signature.fields.is_empty()
-                    }) =>
-                {
-                    "has constructors that carry payloads"
-                }
-                _ => "is not a non-generic enum",
-            };
+            }
+            Ok(Ty::Name(owner))
+                if self
+                    .type_parameters_by_owner
+                    .get(&owner)
+                    .is_some_and(|parameters| !parameters.is_empty()) =>
+            {
+                "is a generic type".to_string()
+            }
+            Ok(Ty::App(_, _) | Ty::Optional(_)) => "is an instance of a generic type".to_string(),
+            Ok(Ty::Name(owner))
+                if self
+                    .constructors
+                    .values()
+                    .flatten()
+                    .any(|signature| signature.parent == owner && !signature.fields.is_empty()) =>
+            {
+                "has constructors that carry payloads".to_string()
+            }
+            _ => "is not a non-generic enum or record".to_string(),
+        };
         Err(format!(
-            "free variable `{}` would range over `{}`, which {}; verify quantifies free variables only over Int and over enums whose constructors carry no payload",
+            "free variable `{}` would range over `{}`, which {}; verify quantifies free variables only over Int, over enums whose constructors carry no payload, and over records whose fields are Int, Bool, such enums, or such records",
             name, type_name, reason
         ))
+    }
+
+    /// The constructor of a non-generic record: a type with exactly one
+    /// constructor, which has fields.
+    fn record_constructor(&self, type_name: &str) -> Option<(&str, &SmtConstructorSignature)> {
+        if self
+            .type_parameters_by_owner
+            .get(type_name)
+            .is_some_and(|parameters| !parameters.is_empty())
+        {
+            return None;
+        }
+        let mut constructors = self
+            .constructors
+            .iter()
+            .flat_map(|(constructor, signatures)| {
+                signatures
+                    .iter()
+                    .filter(|signature| signature.parent == type_name)
+                    .map(move |signature| (constructor.as_str(), signature))
+            });
+        let record = constructors.next()?;
+        (constructors.next().is_none() && !record.1.fields.is_empty()).then_some(record)
+    }
+
+    /// Whether every value of record `type_name` can be quantified: each
+    /// field is Int, Bool, a payload-free enum, or such a record. Otherwise
+    /// the path and type of the first field that cannot. `visiting` holds
+    /// the records being checked, so a recursive record is refused.
+    fn record_field_domain(
+        &self,
+        type_name: &str,
+        visiting: &mut Vec<String>,
+    ) -> Result<(), (String, String)> {
+        let Some((_, signature)) = self.record_constructor(type_name) else {
+            return Err((String::new(), type_name.to_string()));
+        };
+        visiting.push(type_name.to_string());
+        for field in &signature.fields {
+            let supported = match &field.ty {
+                Ty::Name(field_type) => match field_type.as_str() {
+                    "Int" | "Bool" => Ok(()),
+                    field_type if self.nullary_enums.contains_key(field_type) => Ok(()),
+                    field_type
+                        if !visiting.iter().any(|record| record == field_type)
+                            && self.record_constructor(field_type).is_some() =>
+                    {
+                        self.record_field_domain(field_type, visiting)
+                    }
+                    _ => Err((String::new(), field.ty.to_string())),
+                },
+                _ => Err((String::new(), field.ty.to_string())),
+            };
+            if let Err((path, field_type)) = supported {
+                let path = if path.is_empty() {
+                    field.name.clone()
+                } else {
+                    format!("{}.{}", field.name, path)
+                };
+                return Err((path, field_type));
+            }
+        }
+        visiting.pop();
+        Ok(())
+    }
+
+    /// The domain assertions of free variable `term` ranging over
+    /// `type_name`: every Int it holds, directly or in a record field, is a
+    /// 64-bit value.
+    fn free_variable_domain_constraints(&self, type_name: &str, term: &str) -> Vec<String> {
+        if type_name == "Int" {
+            return vec![runa_verification_arithmetic::int_domain(term)];
+        }
+        let Some((constructor, signature)) = self.record_constructor(type_name) else {
+            return Vec::new();
+        };
+        signature
+            .fields
+            .iter()
+            .enumerate()
+            .flat_map(|(index, field)| {
+                let key = if signature.positional {
+                    smt_constructor_field_key(constructor, index)
+                } else {
+                    field.name.clone()
+                };
+                let accessor = smt_accessor_symbol(&signature.parent, constructor, &key);
+                self.free_variable_domain_constraints(
+                    &field.ty.to_string(),
+                    &format!("({accessor} {term})"),
+                )
+            })
+            .collect()
     }
 
     fn collect_free_variable_type_uses(
@@ -18071,13 +18174,40 @@ impl SmtRuleLowerer<'_, '_> {
                 }
                 _ => None,
             },
+            ("Bool", SmtTerm::Atom(literal)) => match literal.as_str() {
+                "true" => Some("True".to_string()),
+                "false" => Some("False".to_string()),
+                _ => None,
+            },
             (_, SmtTerm::Atom(symbol)) => self
                 .nullary_enums
                 .get(type_name)?
                 .iter()
                 .find(|constructor| smt_symbol(constructor) == *symbol)
                 .cloned(),
-            _ => None,
+            (_, SmtTerm::List(items)) => {
+                let (constructor, signature) = self.record_constructor(type_name)?;
+                let [SmtTerm::Atom(head), values @ ..] = items.as_slice() else {
+                    return None;
+                };
+                if *head != smt_symbol(constructor) || values.len() != signature.fields.len() {
+                    return None;
+                }
+                let fields = signature
+                    .fields
+                    .iter()
+                    .zip(values)
+                    .map(|(field, value)| {
+                        let value = self.smt_witness_value(&field.ty.to_string(), value)?;
+                        Some(if signature.positional {
+                            value
+                        } else {
+                            format!("{}: {}", field.name, value)
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>()?;
+                Some(format!("{}({})", constructor, fields.join(", ")))
+            }
         }
     }
 }
@@ -18468,12 +18598,13 @@ fn emit_z3_instance_readers(
 }
 
 fn smt_accessor(datatype: &str, variant: &Variant, index: usize) -> String {
-    smt_symbol(&format!(
-        "runa_acc_{}_{}_{}",
-        datatype,
-        variant.name,
-        smt_field_key(variant, index)
-    ))
+    smt_accessor_symbol(datatype, &variant.name, &smt_field_key(variant, index))
+}
+
+/// The accessor of field `key` (see `smt_field_key`) of `constructor` in
+/// `datatype`.
+fn smt_accessor_symbol(datatype: &str, constructor: &str, key: &str) -> String {
+    smt_symbol(&format!("runa_acc_{datatype}_{constructor}_{key}"))
 }
 
 /// The key a field is read by in source (`x.purpose`) and its accessor is
@@ -20145,7 +20276,7 @@ fn run_z3_script(script: &str) -> Result<String, String> {
 
 /// What a PROVED result from `runa verify` guarantees. Printed with every run
 /// and repeated in the reference documentation.
-const VERIFY_GUARANTEE: &str = "Guarantee: a proved invariant holds for every value of its free variables (Int ranges over the 64-bit values; a variable used as an enum whose constructors carry no payload ranges over exactly those constructors): the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.";
+const VERIFY_GUARANTEE: &str = "Guarantee: a proved invariant holds for every value of its free variables (Int ranges over the 64-bit values; a variable used as an enum whose constructors carry no payload ranges over exactly those constructors; a variable used as a record ranges over every combination of its field values): the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.";
 
 /// The Int helpers the SMT layer translates as ordinary functions: the
 /// prelude's `max_int`, `min_int` and `clamp`, and the builtin `abs` on Int,
@@ -20933,11 +21064,17 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             // Bound values are constrained by their source expressions below.
             // Restricting an overflowing bound value here would erase the
             // witness and turn undefined arithmetic into a vacuous proof.
-            if !bindings.contains_key(var) && sort == "Int" {
-                smt.push_str(&format!(
-                    "(assert {})\n",
-                    runa_verification_arithmetic::int_domain(&smt_value_symbol(var))
-                ));
+            // A free variable's Ints, its own or its record fields', are
+            // 64-bit values.
+            if !bindings.contains_key(var) {
+                let type_name = free_variable_types
+                    .and_then(|types| types.get(var))
+                    .map_or("Int", String::as_str);
+                for constraint in
+                    rule_lowerer.free_variable_domain_constraints(type_name, &smt_value_symbol(var))
+                {
+                    smt.push_str(&format!("(assert {})\n", constraint));
+                }
             }
         }
 
