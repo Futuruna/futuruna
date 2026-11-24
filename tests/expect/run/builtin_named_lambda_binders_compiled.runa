@@ -1,0 +1,11 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: count=8
+-- expect-stdout: lns=[l1n1, l1n2, l2n1, l2n2, l1n1, l1n2, l2n1, l2n2]
+
+# Facts(a: String, ln: String, exp: String, abs: String, sqrt: String, show: String, length: String)
+
+= facts = flat_map(["a1", "a2"], |a| flat_map(["l1", "l2"], |ln| flat_map(["e1"], |exp| flat_map(["b1"], |abs| flat_map(["s1"], |sqrt| flat_map(["w1"], |show| map(["n1", "n2"], |length| Facts(a = a, ln = ln, exp = exp, abs = abs, sqrt = sqrt, show = show, length = length))))))))
+
+@ print(concat("count=", show(length(facts))))
+@ print(concat("lns=", show(map(facts, |f| concat(f.ln, f.length)))))
