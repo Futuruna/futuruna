@@ -272,7 +272,9 @@ fn clause_audit_reports_shadowed_and_unsatisfiable_clauses() {
         return;
     }
     assert!(
-        stdout.contains("0 gap, 5 unreachable clause, 1 overlapping guards"),
+        stdout.contains(
+            "0 gap, 2 unreachable clause, 3 shadowed with a different result, 1 overlapping guards"
+        ),
         "{stdout}"
     );
     assert!(
@@ -280,20 +282,25 @@ fn clause_audit_reports_shadowed_and_unsatisfiable_clauses() {
         "{stdout}"
     );
 
-    // Shadowed by an identical guard of the same tier.
-    let status = finding_block(&stdout, "Unreachable clause in status/1: ");
+    // Shadowed by an identical guard of the same tier with another result.
+    let status = finding_block(&stdout, "Shadowed with a different result in status/1: ");
     assert!(
         status.contains("clause_reachability.runa:5 never fires"),
         "{status}"
     );
     assert!(status.contains("-> \"god\" under x > 0"), "{status}");
     assert!(
+        status.contains("clause_reachability.runa:4 gives \"immortal\"; ")
+            && status.contains("clause_reachability.runa:5 would give \"god\""),
+        "{status}"
+    );
+    assert!(
         status.contains("clause_reachability.runa:4 (guarded default)"),
         "{status}"
     );
 
-    // Shadowed by a broader earlier guard.
-    let band = finding_block(&stdout, "Unreachable clause in band/1: ");
+    // Shadowed by a broader earlier guard with another result.
+    let band = finding_block(&stdout, "Shadowed with a different result in band/1: ");
     assert!(
         band.contains("clause_reachability.runa:9 never fires"),
         "{band}"
@@ -311,7 +318,8 @@ fn clause_audit_reports_shadowed_and_unsatisfiable_clauses() {
     );
     assert!(never.contains("Its guard is unsatisfiable"), "{never}");
 
-    // The ordinary clause below two guards that together cover every Int.
+    // The ordinary clause below two guards that together cover every Int:
+    // a higher tier takes its inputs, so it is only unreachable.
     let rate = finding_block(&stdout, "Unreachable clause in rate/1: ");
     assert!(
         rate.contains("clause_reachability.runa:11 never fires"),
@@ -327,7 +335,10 @@ fn clause_audit_reports_shadowed_and_unsatisfiable_clauses() {
     );
 
     // RuleScope fields and a call to another pure rule in the guard.
-    let payout = finding_block(&stdout, "Unreachable clause in Claim.payout/0: ");
+    let payout = finding_block(
+        &stdout,
+        "Shadowed with a different result in Claim.payout/0: ",
+    );
     assert!(
         payout.contains("clause_reachability.runa:25 never fires"),
         "{payout}"
@@ -336,6 +347,7 @@ fn clause_audit_reports_shadowed_and_unsatisfiable_clauses() {
         payout.contains("clause_reachability.runa:24 (guarded default)"),
         "{payout}"
     );
+    assert!(payout.contains("Witness: self.amount = "), "{payout}");
 }
 
 #[test]
@@ -363,12 +375,105 @@ fn clause_audit_reports_overlapping_guards_with_a_witness() {
         .unwrap_or_else(|| panic!("missing witness:\n{overlap}"));
     let witness: i64 = witness.parse().expect("integer witness");
     assert!((11..=19).contains(&witness), "{overlap}");
-    // The shadowed `status` clauses also overlap with a different result,
-    // but an unreachable clause is reported only as unreachable.
+    // The shadowed `status` clause also overlaps with a different result,
+    // but an unreachable clause is reported as shadowed, not as an overlap.
     assert!(
         !stdout.contains("Overlapping guards in status/1"),
         "{stdout}"
     );
+}
+
+#[test]
+fn clause_audit_separates_shadowing_with_a_different_result_from_redundancy() {
+    let fixture = topology_fixture("clause_shadowed_results.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains(
+            "Findings: 1 unreachable clause, 1 shadowed with a different result, 0 overlapping guards, 0 gap"
+        ),
+        "{stdout}"
+    );
+
+    // Line 6 is taken by line 5, which decides those inputs differently.
+    let band = finding_block(&stdout, "Shadowed with a different result in band/1: ");
+    assert!(
+        band.contains("clause_shadowed_results.runa:6 never fires"),
+        "{band}"
+    );
+    assert!(
+        band.contains("clause_shadowed_results.runa:5 (guarded default)"),
+        "{band}"
+    );
+    assert!(
+        band.contains("source order selects ") && band.contains("clause_shadowed_results.runa:5."),
+        "{band}"
+    );
+    let witness: i64 = band
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("Witness: x = "))
+        .unwrap_or_else(|| panic!("missing witness:\n{band}"))
+        .parse()
+        .expect("integer witness");
+    assert!(witness > 8, "{band}");
+    assert!(
+        band.contains("clause_shadowed_results.runa:5 gives 70; ")
+            && band.contains("clause_shadowed_results.runa:6 would give 80"),
+        "{band}"
+    );
+    assert!(!stdout.contains("Unreachable clause in band/1"), "{stdout}");
+
+    // Line 10 is taken by line 9 with the same result: only redundant.
+    let tier = finding_block(&stdout, "Unreachable clause in tier/1: ");
+    assert!(
+        tier.contains("clause_shadowed_results.runa:10 never fires"),
+        "{tier}"
+    );
+    assert!(
+        tier.contains("clause_shadowed_results.runa:9 (guarded default)"),
+        "{tier}"
+    );
+    assert!(!tier.contains("Witness"), "{tier}");
+    assert!(
+        !stdout.contains("Shadowed with a different result in tier/1"),
+        "{stdout}"
+    );
+
+    let output = run(&["audit", fixture.to_str().expect("fixture path"), "--json"]);
+    assert!(output.status.success());
+    let clauses = &parse_stdout(&output)["clause_reachability"];
+    assert_eq!(clauses["summary"]["unreachable_clauses"], 1, "{clauses}");
+    assert_eq!(
+        clauses["summary"]["shadowed_with_different_result"], 1,
+        "{clauses}"
+    );
+    let findings = clauses["findings"].as_array().expect("findings");
+    let band = findings
+        .iter()
+        .find(|finding| finding["family"] == "band/1")
+        .expect("band finding");
+    assert_eq!(band["kind"], "shadowed_with_different_result", "{band}");
+    assert_eq!(band["clause"]["line"], 6, "{band}");
+    assert_eq!(band["selected"]["line"], 5, "{band}");
+    assert_eq!(band["shadowed_by"][0]["line"], 5, "{band}");
+    assert_eq!(band["results"]["selected"], "70", "{band}");
+    assert_eq!(band["results"]["clause"], "80", "{band}");
+    let witness: i64 = band["witness"]["x"]
+        .as_str()
+        .expect("witness value")
+        .parse()
+        .expect("integer witness");
+    assert!(witness > 8, "{band}");
+    let tier = findings
+        .iter()
+        .find(|finding| finding["family"] == "tier/1")
+        .expect("tier finding");
+    assert_eq!(tier["kind"], "unreachable_clause", "{tier}");
+    assert_eq!(tier["cause"], "shadowed", "{tier}");
+    assert_eq!(tier["clause"]["line"], 10, "{tier}");
 }
 
 #[test]
@@ -380,7 +485,9 @@ fn clause_audit_accepts_disjoint_guards_and_specific_before_general_clauses() {
         return;
     }
     assert!(
-        stdout.contains("0 gap, 0 unreachable clause, 0 overlapping guards"),
+        stdout.contains(
+            "0 gap, 0 unreachable clause, 0 shadowed with a different result, 0 overlapping guards"
+        ),
         "{stdout}"
     );
     assert!(
@@ -415,8 +522,9 @@ fn clause_audit_reports_untranslatable_guards_as_not_analyzed() {
         !stdout.contains("Unreachable clause in advisory/1"),
         "{stdout}"
     );
-    // The rest of the source is still analyzed.
-    let level = finding_block(&stdout, "Unreachable clause in level/1: ");
+    // The rest of the source is still analyzed: line 8 is taken by line 7,
+    // which gives another result.
+    let level = finding_block(&stdout, "Shadowed with a different result in level/1: ");
     assert!(
         level.contains("clause_reachability_untranslatable.runa:8 never fires"),
         "{level}"
@@ -440,7 +548,11 @@ fn clause_audit_json_carries_findings_across_imports() {
         return;
     }
     assert_eq!(clauses["status"], "ran", "{clauses}");
-    assert_eq!(clauses["summary"]["unreachable_clauses"], 2, "{clauses}");
+    assert_eq!(clauses["summary"]["unreachable_clauses"], 1, "{clauses}");
+    assert_eq!(
+        clauses["summary"]["shadowed_with_different_result"], 1,
+        "{clauses}"
+    );
     assert_eq!(clauses["summary"]["overlapping_guards"], 1, "{clauses}");
     assert_eq!(clauses["summary"]["not_analyzed"], 0, "{clauses}");
     let findings = clauses["findings"].as_array().expect("findings");
@@ -455,8 +567,14 @@ fn clause_audit_json_carries_findings_across_imports() {
         .iter()
         .find(|finding| finding["family"] == "surcharge/1")
         .expect("surcharge finding");
-    assert_eq!(surcharge["kind"], "unreachable_clause");
-    assert_eq!(surcharge["cause"], "shadowed");
+    // The imported clause selects 5 where the local one would give 7.
+    assert_eq!(surcharge["kind"], "shadowed_with_different_result");
+    assert!(
+        located(&surcharge["selected"], "clause-reachability-base.runa", 4),
+        "{surcharge}"
+    );
+    assert_eq!(surcharge["results"]["selected"], "5", "{surcharge}");
+    assert_eq!(surcharge["results"]["clause"], "7", "{surcharge}");
     assert_eq!(surcharge["clause"]["tier"], "guarded_default");
     assert!(
         located(&surcharge["clause"], "clause_reachability.entry.runa", 4),
@@ -508,7 +626,9 @@ fn clause_audit_says_it_did_not_run_without_z3() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
     assert!(
-        stdout.contains("0 gap, 0 unreachable clause, 0 overlapping guards"),
+        stdout.contains(
+            "0 gap, 0 unreachable clause, 0 shadowed with a different result, 0 overlapping guards"
+        ),
         "{stdout}"
     );
     assert!(!stdout.contains("Unreachable clause in"), "{stdout}");
@@ -527,7 +647,9 @@ fn clause_audit_reports_gaps_with_a_witness() {
         "{stdout}"
     );
     assert!(
-        stdout.contains("Findings: 0 unreachable clause, 0 overlapping guards, 3 gap"),
+        stdout.contains(
+            "Findings: 0 unreachable clause, 0 shadowed with a different result, 0 overlapping guards, 3 gap"
+        ),
         "{stdout}"
     );
 
@@ -575,7 +697,9 @@ fn clause_audit_reports_no_gap_for_covered_families() {
         "{stdout}"
     );
     assert!(
-        stdout.contains("Findings: 0 unreachable clause, 0 overlapping guards, 0 gap"),
+        stdout.contains(
+            "Findings: 0 unreachable clause, 0 shadowed with a different result, 0 overlapping guards, 0 gap"
+        ),
         "{stdout}"
     );
     assert!(!stdout.contains("Gap in "), "{stdout}");
@@ -751,11 +875,13 @@ fn clause_audit_translates_not_string_length_option_results_and_arithmetic() {
         "{stdout}"
     );
     assert!(
-        stdout.contains("3 unreachable clause, 1 overlapping guards, 0 gap"),
+        stdout.contains(
+            "1 unreachable clause, 2 shadowed with a different result, 1 overlapping guards, 0 gap"
+        ),
         "{stdout}"
     );
     // `not` in a guard.
-    let held = finding_block(&stdout, "Unreachable clause in held/2: ");
+    let held = finding_block(&stdout, "Shadowed with a different result in held/2: ");
     assert!(
         held.contains("clause_reachability_widened.runa:4 never fires"),
         "{held}"
@@ -769,7 +895,7 @@ fn clause_audit_translates_not_string_length_option_results_and_arithmetic() {
     let overlap = finding_block(&stdout, "Overlapping guards in parameters/1: ");
     assert!(overlap.contains("Witness: year = 2025"), "{overlap}");
     // Arithmetic in a called RuleScope rule.
-    let rate = finding_block(&stdout, "Unreachable clause in Case.rate/0: ");
+    let rate = finding_block(&stdout, "Shadowed with a different result in Case.rate/0: ");
     assert!(
         rate.contains("clause_reachability_widened.runa:26 never fires"),
         "{rate}"
@@ -830,7 +956,9 @@ fn clause_audit_orders_dates() {
         "{stdout}"
     );
     assert!(
-        stdout.contains("2 unreachable clause, 1 overlapping guards, 0 gap"),
+        stdout.contains(
+            "2 unreachable clause, 0 shadowed with a different result, 1 overlapping guards, 0 gap"
+        ),
         "{stdout}"
     );
     // `<=` and `>=` meet on equal dates and together cover every pair, so
@@ -863,11 +991,13 @@ fn clause_audit_analyses_option_guards() {
         "{stdout}"
     );
     assert!(
-        stdout.contains("1 unreachable clause, 1 overlapping guards, 1 gap"),
+        stdout.contains(
+            "0 unreachable clause, 1 shadowed with a different result, 1 overlapping guards, 1 gap"
+        ),
         "{stdout}"
     );
     // `is_some` takes every closed account first.
-    let levy = finding_block(&stdout, "Unreachable clause in levy_days/2: ");
+    let levy = finding_block(&stdout, "Shadowed with a different result in levy_days/2: ");
     assert!(
         levy.contains("clause_options.runa:11 never fires"),
         "{levy}"
@@ -894,11 +1024,13 @@ fn clause_audit_analyses_tuple_matches() {
         "{stdout}"
     );
     assert!(
-        stdout.contains("1 unreachable clause, 0 overlapping guards, 1 gap"),
+        stdout.contains(
+            "0 unreachable clause, 1 shadowed with a different result, 0 overlapping guards, 1 gap"
+        ),
         "{stdout}"
     );
     // `is_none(lost_right)` takes every pair `(None, Some(_))` first.
-    let levy = finding_block(&stdout, "Unreachable clause in levy/2: ");
+    let levy = finding_block(&stdout, "Shadowed with a different result in levy/2: ");
     assert!(levy.contains("clause_tuples.runa:10 never fires"), "{levy}");
     // A right lost after the account closed: both are present.
     let gap = finding_block(&stdout, "Gap in levy/2: ");

@@ -540,14 +540,19 @@ the JSON report it is the `clause_reachability` object: `status` is `ran` or
 `{"kind": "declared_in_file", "file": …}`; `families` lists every checked
 family with its `files` and number of `clauses`; `summary` counts `families`,
 `clauses`, `files`, `analyzed`, `not_analyzed`, `overlap_not_checked`,
-`gap_not_checked`, `unreachable_clauses`, `overlapping_guards`, and `gaps`, so
+`gap_not_checked`, `unreachable_clauses`, `shadowed_with_different_result`,
+`overlapping_guards`, and `gaps`, so
 a CI check can require that something was checked; each entry of `findings`
 has a `file` (that of the reported clause) and a `kind` of
 `unreachable_clause` (with `cause`
 `shadowed` or `unsatisfiable_guard` and the clauses that take its inputs in
-`shadowed_by`), `overlapping_guards` (with the earlier, selected clause in
-`overlaps`), or `gap` (with every clause of the family, in dispatch order, in
-`clauses`). An overlap or gap carries a `witness` mapping each argument, and
+`shadowed_by`), `shadowed_with_different_result` (with `shadowed_by`, the
+earlier same-tier clause source order selects in `selected`, and `results`
+mapping `selected` and `clause` to each one's result at the witness, `null`
+when the solver named none), `overlapping_guards` (with the earlier, selected
+clause in `overlaps`), or `gap` (with every clause of the family, in dispatch
+order, in `clauses`). A shadowed clause with a different result, an overlap or
+a gap carries a `witness` mapping each argument, and
 each RuleScope field as `self.<field>`, to a solver value in source spelling
 (`null` when the solver named none). Every clause location carries `file`,
 `line`, `tier` (`exception`, `guarded_default`, `clause`, or

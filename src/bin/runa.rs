@@ -19704,15 +19704,17 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool, json: bool) -> 
         invariant_count, covered_bool_count, header_pct
     );
     let unreachable_count = clause_report.unreachable_count();
+    let shadowed_different_count = clause_report.shadowed_with_different_result_count();
     let overlap_count = clause_report.overlap_count();
     let clause_gap_count = clause_report.gap_count();
     println!(
-        "  Findings: {} contradiction, {} tension, {} asymmetry, {} gap, {} unreachable clause, {} overlapping guards, {} clause gap",
+        "  Findings: {} contradiction, {} tension, {} asymmetry, {} gap, {} unreachable clause, {} shadowed with a different result, {} overlapping guards, {} clause gap",
         contradiction_count,
         tension_count,
         asymmetry_count,
         gap_count,
         unreachable_count,
+        shadowed_different_count,
         overlap_count,
         clause_gap_count
     );
@@ -19793,6 +19795,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool, json: bool) -> 
         + gap_count
         + tension_count
         + unreachable_count
+        + shadowed_different_count
         + overlap_count
         + clause_gap_count;
     if interesting > 0 {

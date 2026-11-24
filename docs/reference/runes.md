@@ -1222,13 +1222,27 @@ empty one in disguise:
   higher-priority candidate applies first, or the guard cannot hold at all. The
   report names the clause, file and line, and the earlier clauses that take its
   inputs. A clause after an unguarded clause of the same tier, a guard repeated
-  further down, and a guard such as `x > 5 && x < 3` are all unreachable.
-- **Overlapping guards.** Two candidates of one tier can both apply to the same
-  input and select different results, so source order silently picks the first.
-  The report names both clauses and a witness input. An earlier guard that is a
-  special case of a later one (a specific head pattern before a general one,
-  `x > 1000` before `x > 0`) is ordinary first-match refinement and is not
-  reported, and an unreachable clause is reported only as unreachable.
+  further down, and a guard such as `x > 5 && x < 3` are all unreachable. When
+  the clauses that take its inputs give the same result it would, the clause is
+  only redundant.
+- **Shadowed with a different result.** An unreachable clause whose inputs an
+  earlier candidate of the same tier takes and, for some input, decides
+  differently: two clauses rule on the same facts with different results and
+  source order silently settles it. The report names the clause, the clauses
+  that take its inputs, the earlier clause source order selects, a witness
+  input, and both results at that input. A clause taken by a higher tier (an
+  exception over a guarded default, say) is that tier's deliberate override and
+  stays a plain unreachable clause. When the results cannot be compared (a
+  result outside the encoding, or the solver gives up), the clause is reported
+  as unreachable and listed with the reason under "Overlap with earlier
+  same-tier clauses not checked".
+- **Overlapping guards.** Two reachable candidates of one tier can both apply
+  to the same input and select different results, so source order silently
+  picks the first. The report names both clauses and a witness input. An
+  earlier guard that is a special case of a later one (a specific head pattern
+  before a general one, `x > 1000` before `x > 0`) is ordinary first-match
+  refinement and is not reported; an unreachable clause is reported as
+  unreachable or shadowed with a different result instead.
 - **Gap.** Some input makes no candidate of a value rule apply, so a call with
   it stops with `no value rule matched`. The report lists the family's clauses
   in dispatch order and a witness input: each argument and, for a RuleScope
@@ -1241,7 +1255,10 @@ empty one in disguise:
 ```runa
 | band(x: Int) -> 0
 | band(x) -> 70 under x > 7
-| band(x) -> 80 under x > 8        -- unreachable: x > 7 takes every input
+| band(x) -> 80 under x > 8        -- shadowed with a different result: x = 9 gives 70, not 80
+| tier(x: Int) -> 0
+| tier(x) -> 70 under x > 7
+| tier(x) -> 70 under x > 8        -- unreachable, and redundant: same result
 | rate(x: Int) -> 1                     -- unreachable: the two guards cover every Int
 | rate(x) -> 2 under x > 10
 | rate(x) -> 3 under x < 20        -- overlaps the guard above, witness x = 11

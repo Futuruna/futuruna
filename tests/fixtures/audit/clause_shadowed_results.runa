@@ -1,0 +1,10 @@
+-- Shadowed clauses: a different result is a conflict, the same result is
+-- redundancy.
+
+| band(x: Int): Int -> 0
+| band(x) -> 70 under x > 7
+| band(x) -> 80 under x > 8
+
+| tier(x: Int): Int -> 0
+| tier(x) -> 70 under x > 7
+| tier(x) -> 70 under x > 8

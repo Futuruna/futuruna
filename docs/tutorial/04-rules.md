@@ -104,8 +104,9 @@ that its answer set is empty or complete.
 
 `runa audit` checks these priorities for you with Z3. It reports a clause that
 can never fire because earlier-priority guards always take its inputs (or its
-guard can never hold), and two guards of one tier that can both apply with
-different results, with a witness input:
+guard can never hold), says so separately when the clause that takes its inputs
+gives a different result, and reports two guards of one tier that can both
+apply with different results, with a witness input:
 
 ```runa
 | band(x: Int) -> 0
@@ -117,9 +118,13 @@ different results, with a witness input:
 runa audit band.runa
 ```
 
-The audit names `band.runa:3` as unreachable and `band.runa:2` as the clause
-that takes its inputs. Guards the solver encoding cannot translate are listed
-as not analyzed. See [Auditing clause reachability](../reference/runes.md#auditing-clause-reachability).
+The audit reports `band.runa:3` as shadowed with a different result:
+`band.runa:2` takes every input it would apply to, and at a witness such as
+`x = 9` gives 70 where `band.runa:3` would give 80. Two clauses that decide the
+same input differently are a conflict source order settles silently; had line 3
+also returned 70, it would only be reported as an unreachable, redundant
+clause. Guards the solver encoding cannot translate are listed as not
+analyzed. See [Auditing clause reachability](../reference/runes.md#auditing-clause-reachability).
 
 ## Invariants and verification
 
