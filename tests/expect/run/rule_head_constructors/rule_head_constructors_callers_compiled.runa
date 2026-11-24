@@ -1,0 +1,25 @@
+-- expect-command: run
+-- expect-stdout-file: ../../golden/run/rule_head_constructors_callers.stdout
+-- Rules that call a family whose clause heads match every variant read its
+-- value, also when a caller's name sorts before the family's.
+# Court = Supreme | High | District
+# Ruling = First | Second | Third
+# Standing = Final | Reversed
+
+| level(ruling: Ruling): Court
+| level(First) -> Supreme
+| level(Second) -> High
+| level(Third) -> District
+
+| standing(ruling: Ruling): Standing
+| standing(First) -> Final
+| standing(Second) -> Reversed
+| standing(Third) -> Final
+
+| counts(ruling: Ruling, court: Court): Bool -> level(ruling) == court and standing(ruling) != Reversed
+| court_of(ruling: Ruling): Court -> level(ruling)
+
+@ print(show(counts(First, Supreme)))
+@ print(show(counts(Second, High)))
+@ print(show(counts(Third, Supreme)))
+@ print(show(court_of(Third)))
