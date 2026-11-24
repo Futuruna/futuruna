@@ -46195,6 +46195,11 @@ struct CheckedResolutionRecorder<'a> {
     scopes: Vec<BTreeMap<String, CheckedLocalBinding>>,
     top_level_bindings: BTreeMap<String, Vec<CheckedTopLevelBindingId>>,
     callables: BTreeMap<(Option<String>, String, usize), Vec<CheckedCallableId>>,
+    /// Explicit signatures of callables whose types mention type variables.
+    /// These are schemes, not contracts: they never enter
+    /// `callable_type_contracts`, and a call site uses one only after its own
+    /// sealed argument types bind every result variable.
+    polymorphic_callable_signatures: BTreeMap<CheckedCallableId, CheckedCallableTypeContract>,
     callable_arities: BTreeMap<CheckedCallableId, usize>,
     bare_runtime_callables_by_name: BTreeMap<String, Vec<CheckedCallableId>>,
     rule_families_by_scope_and_name: BTreeMap<(Option<String>, String), Vec<RuleDispatchKey>>,
@@ -46297,6 +46302,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
             scopes: vec![BTreeMap::new()],
             top_level_bindings: BTreeMap::new(),
             callables: BTreeMap::new(),
+            polymorphic_callable_signatures: BTreeMap::new(),
             callable_arities: BTreeMap::new(),
             bare_runtime_callables_by_name: BTreeMap::new(),
             rule_families_by_scope_and_name: BTreeMap::new(),
@@ -46554,29 +46560,39 @@ impl<'a> CheckedResolutionRecorder<'a> {
         parameters: &[Param],
         result_type: Option<&Ty>,
     ) {
-        let closed_type = |ty: &Ty| {
-            !TypeChecker::canonical_type_contains_variable(ty)
-                && self.checker.checked_type_contract_is_closed_monomorphic(ty)
-        };
-        // Checked type schemes do not yet carry binder identities. Until they
-        // do, endpoint proof publishes only closed monomorphic callables.
-        let Some(result_type) = result_type.filter(|ty| closed_type(ty)) else {
+        let declared = |ty: Option<&Ty>| ty.filter(|ty| !matches!(ty, Ty::Hole)).cloned();
+        let Some(result_type) = declared(result_type) else {
             return;
         };
         let Some(parameter_types) = parameters
             .iter()
-            .map(|parameter| parameter.ty.as_ref().filter(|ty| closed_type(ty)).cloned())
+            .map(|parameter| declared(parameter.ty.as_ref()))
             .collect::<Option<Vec<_>>>()
         else {
             return;
         };
-        self.artifacts.callable_type_contracts.insert(
-            callable.clone(),
-            CheckedCallableTypeContract {
-                parameter_types: parameter_types.into_boxed_slice(),
-                result_type: result_type.clone(),
-            },
-        );
+        let closed_type = |ty: &Ty| {
+            !TypeChecker::canonical_type_contains_variable(ty)
+                && self.checker.checked_type_contract_is_closed_monomorphic(ty)
+        };
+        let signature = CheckedCallableTypeContract {
+            parameter_types: parameter_types.into_boxed_slice(),
+            result_type,
+        };
+        // Checked type schemes do not yet carry binder identities. Until they
+        // do, endpoint proof publishes only closed monomorphic callables.
+        if closed_type(&signature.result_type) && signature.parameter_types.iter().all(closed_type)
+        {
+            self.artifacts
+                .callable_type_contracts
+                .insert(callable.clone(), signature);
+        } else if std::iter::once(&signature.result_type)
+            .chain(signature.parameter_types.iter())
+            .any(TypeChecker::canonical_type_contains_variable)
+        {
+            self.polymorphic_callable_signatures
+                .insert(callable.clone(), signature);
+        }
     }
 
     fn index_program(&mut self) {
@@ -49613,6 +49629,87 @@ impl<'a> CheckedResolutionRecorder<'a> {
         self.artifacts.unsupported_sites.remove(&site);
     }
 
+    /// A call of a polymorphic callable has no closed callable contract, so
+    /// its exact type is the declared scheme instantiated at this site. Every
+    /// type variable is bound from the already sealed argument types, in
+    /// canonical parameter order, and the binding is accepted only when it is
+    /// consistent and the instantiated result is closed and monomorphic. An
+    /// unsealed argument, a conflicting binding, or a result variable that no
+    /// argument binds keeps the call site fail-closed.
+    fn contextualize_polymorphic_call(&mut self, declaration: &SourcedStmt, path: &[u32]) {
+        let site = self.expression_site(declaration, path);
+        let only_type_gap = self
+            .artifacts
+            .unsupported_sites
+            .get(&site)
+            .is_some_and(|issues| {
+                issues.len() == 1 && issues.contains(&CheckedResolutionIssue::TypeNotResolved)
+            });
+        if !only_type_gap {
+            return;
+        }
+        let Some(resolution) = self.artifacts.expressions.get(&site) else {
+            return;
+        };
+        let (
+            Some(CheckedCallTarget::Function { callable, arity }),
+            CheckedExpressionType::Unsupported,
+        ) = (&resolution.call_target, &resolution.resolved_type)
+        else {
+            return;
+        };
+        let Some(signature) = self.polymorphic_callable_signatures.get(callable) else {
+            return;
+        };
+        if signature.parameter_types.len() != *arity {
+            return;
+        }
+        let argument_paths = match &resolution.named_arguments {
+            Some(order) => order
+                .canonical_source_indices
+                .iter()
+                .map(|source_index| Self::path_child(&Self::path_child(path, source_index + 1), 2))
+                .collect::<Vec<_>>(),
+            None => (0..*arity)
+                .map(|index| Self::path_child(path, index + 1))
+                .collect(),
+        };
+        let mut substitutions = BTreeMap::new();
+        let mut parameters = Vec::with_capacity(argument_paths.len());
+        for (expected, argument_path) in signature.parameter_types.iter().zip(&argument_paths) {
+            let argument_site = self.expression_site(declaration, argument_path);
+            let Some(actual) = self.sealed_resolved_type(&argument_site) else {
+                return;
+            };
+            if !TypeChecker::bind_schema_type_variables(expected, &actual, &mut substitutions) {
+                return;
+            }
+            parameters.push((expected, actual));
+        }
+        // The schema binder skips parts whose shape differs. The binding is
+        // exact only when every instantiated parameter is its sealed argument
+        // type and the instantiated result is closed.
+        let instantiate =
+            |ty: &Ty| TypeChecker::canonical_substitute_type_parameters(ty, &substitutions);
+        if !parameters.iter().all(|(expected, actual)| {
+            TypeChecker::explore_tys_equivalent(&instantiate(expected), actual)
+        }) {
+            return;
+        }
+        let instantiated = instantiate(&signature.result_type);
+        if TypeChecker::canonical_type_contains_variable(&instantiated)
+            || !self
+                .checker
+                .checked_type_contract_is_closed_monomorphic(&instantiated)
+        {
+            return;
+        }
+        if let Some(resolution) = self.artifacts.expressions.get_mut(&site) {
+            resolution.resolved_type = CheckedExpressionType::Resolved(instantiated);
+            self.artifacts.unsupported_sites.remove(&site);
+        }
+    }
+
     /// Resolve a bare nullary constructor from an independently checked
     /// expected type. Constructor spellings may intentionally be shared by
     /// several ADTs; the checked owner occurrence, not the spelling or the
@@ -50100,6 +50197,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
                         ),
                     }
                 }
+                self.contextualize_polymorphic_call(declaration, path);
             }
             ExprKind::Lambda(parameters, body) => {
                 self.push_scope();
