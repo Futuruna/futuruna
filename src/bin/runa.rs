@@ -38259,6 +38259,7 @@ fn __futuruna_install_error_hook() {
         // Emit rules with the canonical dispatch order shared with the interpreter.
         {
             self.register_prolog_parameter_types(&rule_groups);
+            self.register_prolog_value_function_types(&rule_groups);
 
             // Register value-returning rule signatures before emitting bodies.
             // This lets `| a(x) -> b(x)` and `| rate() -> params().rate`
@@ -46083,6 +46084,56 @@ fn __futuruna_install_error_hook() {
         }
     }
 
+    /// Record every value-returning root Prolog rule before any body is
+    /// emitted. Rule groups are emitted by name, so a caller can precede its
+    /// callee; without this, that caller would consume the callee's
+    /// `Option<T>` as `T`.
+    fn register_prolog_value_function_types(&mut self, groups: &BTreeMap<String, Vec<&Rule>>) {
+        for (name, rules) in groups {
+            for (arity, arity_rules) in Self::split_rule_group_by_arity(rules) {
+                if arity == 0 || !Self::rules_have_prolog_features(&arity_rules) {
+                    continue;
+                }
+                let key = RuleDispatchKey {
+                    scope: None,
+                    name: name.clone(),
+                    arity,
+                };
+                let Some(return_type) = self.canonical_rule_return_types.get(&key).cloned() else {
+                    continue;
+                };
+                if let Ok(Some(value_type)) = self.canonical_prolog_value_type(name, &return_type) {
+                    self.types.prolog_value_fns.insert(name.clone(), value_type);
+                }
+            }
+        }
+    }
+
+    /// The Rust value type of a Prolog rule whose canonical return type is
+    /// `return_type`; `None` for a Bool rule.
+    fn canonical_prolog_value_type(
+        &mut self,
+        fn_name: &str,
+        return_type: &str,
+    ) -> Result<Option<String>, String> {
+        let Ok(return_type) = parse_type_annotation(return_type) else {
+            return Err(format!(
+                "invalid canonical Prolog return ABI for `{}`",
+                fn_name
+            ));
+        };
+        let mut type_variables = Vec::new();
+        self.collect_type_vars(&return_type, &mut type_variables);
+        if !type_variables.is_empty() {
+            return Err(format!(
+                "generic canonical Prolog return ABI is unsupported for `{}`",
+                fn_name
+            ));
+        }
+        Ok((!matches!(&return_type, Ty::Name(name) if name == "Bool"))
+            .then(|| self.emit_type(&return_type)))
+    }
+
     fn prolog_rule_param_rust_types(&self, rules: &[&Rule], arity: usize) -> Vec<String> {
         let mut param_types = vec!["String".to_string(); arity];
         for rule in rules {
@@ -46194,34 +46245,14 @@ fn __futuruna_install_error_hook() {
             .insert(fn_name.to_string(), param_type_strs);
 
         // Value-returning Prolog rules: emit Option<T> instead of bool
-        let canonical_value_type = if let Some(return_type) = canonical_return {
-            let Ok(return_type) = parse_type_annotation(return_type) else {
-                return format!(
-                    "compile_error!({:?});\n",
-                    format!("invalid canonical Prolog return ABI for `{}`", fn_name)
-                );
-            };
-            let mut type_variables = Vec::new();
-            self.collect_type_vars(&return_type, &mut type_variables);
-            if !type_variables.is_empty() {
-                return format!(
-                    "compile_error!({:?});\n",
-                    format!(
-                        "generic canonical Prolog return ABI is unsupported for `{}`",
-                        fn_name
-                    )
-                );
-            }
-            (!matches!(return_type, Ty::Name(ref name) if name == "Bool"))
-                .then(|| self.emit_type(&return_type))
-        } else {
-            None
-        };
-        let value_type = if canonical_return.is_some() {
-            canonical_value_type
-        } else {
-            self.infer_prolog_rules_value_type(rules, &param_fir_tys)
-                .or_else(|| Self::prolog_rules_value_type(rules))
+        let value_type = match canonical_return {
+            Some(return_type) => match self.canonical_prolog_value_type(fn_name, return_type) {
+                Ok(value_type) => value_type,
+                Err(message) => return format!("compile_error!({:?});\n", message),
+            },
+            None => self
+                .infer_prolog_rules_value_type(rules, &param_fir_tys)
+                .or_else(|| Self::prolog_rules_value_type(rules)),
         };
         if let Some(value_type_str) = value_type {
             self.types
