@@ -412,6 +412,49 @@ fn invariant_section<'a>(stdout: &'a str, invariant: &str) -> &'a str {
     &rest[..end]
 }
 
+/// `None` in a value (a record field, `Some(None)`, a function's result) and
+/// compared with, in a query over two Option sorts, names its sort: Z3
+/// accepts the claims and proves them.
+#[test]
+fn none_in_values_over_two_option_sorts_is_proved() {
+    let fixture =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/verify/none_in_values.runa");
+    let output = run_runa(&["verify", fixture.to_str().expect("UTF-8 fixture path")]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if !z3_available() {
+        assert!(stdout.contains("Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(output.status.success(), "{stdout}");
+    assert!(!stdout.contains("ambiguous"), "{stdout}");
+    assert!(
+        stdout.contains("Verification: 3 of 3 invariant(s) proved"),
+        "{stdout}"
+    );
+}
+
+/// A field two constructors give different sorts has no SMT reader by name;
+/// a positional and a named match pattern read it by its constructor, so Z3
+/// accepts the claims and proves them (before: unknown constants
+/// `runa_field_Deposit_f0` and `runa_field_purpose`).
+#[test]
+fn match_patterns_read_fields_by_constructor() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/verify/field_sorts_by_constructor.runa");
+    let output = run_runa(&["verify", fixture.to_str().expect("UTF-8 fixture path")]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if !z3_available() {
+        assert!(stdout.contains("Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(output.status.success(), "{stdout}");
+    assert!(!stdout.contains("unknown constant"), "{stdout}");
+    assert!(
+        stdout.contains("Verification: 2 of 2 invariant(s) proved"),
+        "{stdout}"
+    );
+}
+
 #[test]
 fn nullary_enum_free_variables_range_over_their_constructors() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))

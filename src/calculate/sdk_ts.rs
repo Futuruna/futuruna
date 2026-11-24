@@ -15,6 +15,7 @@
 //! every need. The output depends only on the contracts and the source label,
 //! so regenerating an unchanged model rewrites identical files.
 
+use super::input_domain::is_date;
 use super::{
     calculation_type_occurrence_paths, definition_substitutions, joined_column_path,
     product_variant, substitute_contract_type, CalculationContract, CalculationField,
@@ -2473,23 +2474,6 @@ fn runtime_exports() -> impl Iterator<Item = (&'static str, bool)> {
             .unwrap_or(rest.len());
         Some((&rest[..end], is_type))
     })
-}
-
-/// The prelude's `Date(year: Int, month: Int, day: Int)`: one fact, an ISO
-/// date in the SDK.
-fn is_date(definition: &CalculationTypeDefinition) -> bool {
-    definition.name == "Date"
-        && definition.parameters.is_empty()
-        && product_variant(definition).is_some_and(|variant| {
-            variant.fields.len() == 3
-                && ["year", "month", "day"]
-                    .iter()
-                    .zip(&variant.fields)
-                    .all(|(name, field)| {
-                        field.name == *name
-                            && matches!(&field.ty, CalculationTypeRef::Primitive { name, unit: None, scalar: None } if name == "Int")
-                    })
-        })
 }
 
 /// A contract type as Futuruna writes it, an `Int` of a unit as the unit's name.

@@ -1,0 +1,23 @@
+-- Two constructors give the field `purpose` different sorts, which has no
+-- reader by name: a positional and a named match pattern read it by its
+-- constructor, so Z3 accepts the claims and proves them.
+# DepositPurpose = Ordinary | Funding
+# WithdrawalPurpose = Plain | Paid
+# Kind =
+    Deposit(amount: Int, purpose: DepositPurpose?) |
+    Withdrawal(amount: Int, purpose: WithdrawalPurpose?)
+> settled(k: Kind) -> Bool {
+    match k {
+        | Deposit(amount, purpose) -> purpose == Some(Funding)
+        | Withdrawal(amount, purpose) -> purpose == Some(Paid) && amount > 0
+    }
+}
+> funded(k: Kind) -> Bool {
+    match k {
+        | Deposit(purpose: p) -> p == Some(Funding)
+        | Withdrawal(purpose: p, amount: a) -> p == Some(Paid) && a > 0
+    }
+}
+
+| positional_match_reads_purpose: x -> settled(Withdrawal(amount = x, purpose = Some(Paid))) == (x > 0)
+| named_match_reads_purpose: x -> funded(Deposit(amount = x, purpose = Some(Funding)))

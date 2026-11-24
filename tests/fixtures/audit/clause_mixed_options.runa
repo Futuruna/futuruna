@@ -1,0 +1,9 @@
+-- Two Option sorts in one family (Date? and Int?): a None head pattern is a
+-- tester and a None result is qualified with the result sort, so the solver
+-- can tell the Option instances apart.
+# Date(year: Int, month: Int, day: Int)
+> f(year: Int) -> Date { Date(year = year, month = 1, day = 1) }
+> g(d: Date) -> Date { d }
+| ask_year_deemed_on(admitted: Date?, first_year_off: Int?): Date? -> None
+| exception status_changed ask_year_deemed_on(None, Some(year)) -> Some(f(year))
+| exception delisted ask_year_deemed_on(Some(until), first_year_off) -> Some(g(until))

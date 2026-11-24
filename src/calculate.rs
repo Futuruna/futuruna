@@ -20,6 +20,7 @@ pub use json::parse_calculation_json;
 
 pub mod compact;
 pub mod explain;
+pub mod input_domain;
 pub mod sdk_ts;
 pub use explain::{explanation_json_schema, ExplainOptions};
 
@@ -5490,13 +5491,21 @@ fn decode_named_fields(
     for field in &variant.fields {
         let field_ty = substitute_contract_type(&field.ty, substitutions);
         let field_value = match (object.get(&field.name), partial.partial) {
-            (Some(value), _) => value,
-            // An open collection is never given whole: left out, it has no
-            // entries given yet, in every case.
+            // An open collection is never given whole: left out or given as
+            // `[]`, it has no entries given yet, in every case. Its bare path
+            // is no input fact (the SDK's input paths name only its entries),
+            // so it is never a provided leaf nor an unused path.
             (None, _) if field.open => {
                 result.push((field.name.clone(), Value::List(Vec::new())));
                 continue;
             }
+            (Some(value), _)
+                if field.open && value.as_array().is_some_and(|entries| entries.is_empty()) =>
+            {
+                result.push((field.name.clone(), Value::List(Vec::new())));
+                continue;
+            }
+            (Some(value), _) => value,
             // Left out of a partial case: not asked yet.
             (None, Some(partial)) => {
                 result.push((
@@ -6755,6 +6764,8 @@ struct CalculationWorker {
     /// The assumptions written in the model, read when the program was
     /// initialized.
     assumption_index: Rc<assumptions::AssumptionIndex>,
+    /// Reads clause places and citations for `runa cases`.
+    probe_renderer: Option<explain::ExplainRenderer>,
 }
 
 impl CalculationWorker {
@@ -6808,7 +6819,194 @@ impl CalculationWorker {
             explain: None,
             sections: None,
             assumption_index,
+            probe_renderer: None,
         }
+    }
+
+    /// The renderer `runa cases` reads clause places and citations with.
+    fn probe_renderer(&mut self) -> &mut explain::ExplainRenderer {
+        let root_file = self.program.root_file.clone();
+        self.probe_renderer.get_or_insert_with(|| {
+            explain::ExplainRenderer::new(ExplainOptions {
+                full: false,
+                root_file,
+                display_root: None,
+            })
+        })
+    }
+
+    /// Run one complete input with provenance and the rule-call log
+    /// (`PreparedEntry::probe`); a result whose variant is one of
+    /// `rejections` is run again as a decided case.
+    fn probe(
+        &mut self,
+        contract: &CalculationContract,
+        input: &JsonValue,
+        rejections: &[String],
+    ) -> CaseProbe {
+        if self.needs_reinitialization {
+            let renderer = self.probe_renderer.take();
+            *self = Self::new(self.program.clone());
+            self.probe_renderer = renderer;
+        }
+        let refused = |problems: Vec<String>| CaseProbe {
+            result: Err(problems.join("; ")),
+            fired: Vec::new(),
+            calls: Vec::new(),
+            rejected: false,
+            rests_on: Vec::new(),
+        };
+        let (decoded, scalars) = contract.decode_case_with_scalars(input, false);
+        let mut problems: Vec<String> = match &decoded {
+            Ok(_) => Vec::new(),
+            Err(errors) => errors
+                .iter()
+                .map(|error| format!("{}: {}", error.path, error.message))
+                .collect(),
+        };
+        match &self.initialization_error {
+            Some(message) => problems.push(message.clone()),
+            None => problems.extend(
+                self.scalar_diagnostics(contract, "probe", scalars)
+                    .into_iter()
+                    .map(|diagnostic| format!("{}: {}", diagnostic.path, diagnostic.message)),
+            ),
+        }
+        let input = match decoded {
+            Ok((input, None)) if problems.is_empty() => input,
+            Ok((_, Some(_))) if problems.is_empty() => {
+                return refused(vec!["$: the input is not complete".to_string()])
+            }
+            _ => return refused(problems),
+        };
+
+        let (evaluated, explained, calls, fired) = self.probe_run(contract, &input, None);
+        let result = match &evaluated {
+            Ok(result) => contract
+                .encode_output(&crate::explain::strip_deep(result))
+                .map_err(|error| error.to_string()),
+            Err(error) => Err(format!("calculation `{}` failed: {error}", contract.entry)),
+        };
+        let rejected = result
+            .as_ref()
+            .ok()
+            .and_then(|result| result.get("$variant"))
+            .and_then(JsonValue::as_str)
+            .is_some_and(|variant| rejections.iter().any(|name| name == variant));
+        // The clauses the result rests on: the decided run's, by the first
+        // run's ids. Tracing changes no value, so a decided run that gives
+        // another result is not read.
+        let rests_on = if result.is_ok() && !self.needs_reinitialization {
+            let names = rejections.iter().cloned().collect();
+            let (evaluated, decided, _, decided_fired) =
+                self.probe_run(contract, &input, Some(names));
+            match (evaluated, decided) {
+                (Ok(decided_result), Some(decided))
+                    if contract
+                        .encode_output(&crate::explain::strip_deep(&decided_result))
+                        .ok()
+                        .as_ref()
+                        == result.as_ref().ok() =>
+                {
+                    let mut roots = Vec::new();
+                    crate::explain::collect_nodes(&decided_result, &mut roots);
+                    let mut ids: Vec<usize> = decided
+                        .result_clauses(&roots, rejected)
+                        .into_iter()
+                        .filter_map(|id| fired.id_of(&decided_fired.clause(id).rule))
+                        .map(|id| id as usize)
+                        .collect();
+                    ids.sort_unstable();
+                    ids
+                }
+                _ => Vec::new(),
+            }
+        } else {
+            Vec::new()
+        };
+        self.probe_renderer();
+        let mut renderer = self.probe_renderer.take().expect("renderer just made");
+        let fired_clauses = (0..fired.len())
+            .map(|id| {
+                let record = fired.clause(id as u32);
+                ProbeClause {
+                    scope: record.scope.clone(),
+                    name: record.name.clone(),
+                    place: renderer.clause_place(&self.interpreter, &record.rule),
+                }
+            })
+            .collect();
+        self.probe_renderer = Some(renderer);
+        let state = explained.as_ref();
+        let calls = calls
+            .iter()
+            .map(|call| ProbeCall {
+                scope: call.family.scope.clone(),
+                name: call.family.name.clone(),
+                arity: call.family.arity,
+                clause: call
+                    .rule
+                    .as_ref()
+                    .and_then(|rule| fired.id_of(rule))
+                    .map(|id| id as usize),
+                args: call
+                    .args
+                    .iter()
+                    .map(|argument| {
+                        let mut leaves = Vec::new();
+                        let value = probe_json(argument, "", state, &mut leaves);
+                        ProbeArg { value, leaves }
+                    })
+                    .collect(),
+            })
+            .collect();
+        CaseProbe {
+            result,
+            fired: fired_clauses,
+            calls,
+            rejected,
+            rests_on,
+        }
+    }
+
+    /// One explained run of a decoded input with the rule-call log; a
+    /// decided case when `decisions` names the rejection variants.
+    fn probe_run(
+        &mut self,
+        contract: &CalculationContract,
+        input: &Value,
+        decisions: Option<std::collections::HashSet<String>>,
+    ) -> (
+        Result<Value, CalculationRuntimeFailure>,
+        Option<crate::explain::ExplainState>,
+        Vec<crate::explain::RuleCallRecord>,
+        crate::explain::FiredClauses,
+    ) {
+        self.interpreter.begin_calculation_case();
+        self.interpreter.begin_fired_clauses();
+        self.interpreter.begin_rule_call_log();
+        match decisions {
+            Some(rejections) => self.interpreter.begin_decided_case(rejections),
+            None => self.interpreter.begin_explained_case(),
+        }
+        let tagged = explain::tag_input(&self.interpreter, input, contract);
+        let mut runtime_env = self.base_env.clone();
+        let input_binding = "__futuruna_calculation_input".to_string();
+        runtime_env.set(input_binding.clone(), tagged);
+        let call: Expr = ExprKind::App(
+            Box::new(ExprKind::Var(contract.entry.clone()).into()),
+            vec![ExprKind::Var(input_binding).into()],
+        )
+        .into();
+        let evaluated = self
+            .interpreter
+            .with_calculation_runtime(|runtime| runtime.eval(&call, &runtime_env));
+        self.needs_reinitialization = matches!(evaluated, Err(CalculationRuntimeFailure::Panicked))
+            || self.interpreter.prepared_live_cell_changed();
+        let explained = self.interpreter.finish_explained_case();
+        let calls = self.interpreter.finish_rule_call_log();
+        let fired = self.interpreter.finish_fired_clauses();
+        (evaluated, explained, calls, fired)
     }
 
     fn invoke(
@@ -7427,6 +7625,56 @@ impl PreparedEntry {
         )
     }
 
+    /// Run one complete input with provenance and a log of the rule calls
+    /// (`runa cases`): the result `runa call` gives, the rule clauses that
+    /// fired, and each call that selected a clause with its arguments. A
+    /// result whose variant is one of `rejections` also names the clauses
+    /// the rejection rests on.
+    pub fn probe(&mut self, input: &JsonValue, rejections: &[String]) -> CaseProbe {
+        let elaboration = self.constructor_elaboration.clone();
+        with_constructor_elaboration(elaboration.as_ref(), || {
+            let (worker, contract) = self.prepared_worker();
+            worker.probe(contract, input, rejections)
+        })
+    }
+
+    /// The labels of the paragraphs the clause at `line` of `file` cites, as
+    /// a fired clause's explanation names them (`runa cases`).
+    pub fn clause_cites(
+        &mut self,
+        file: &str,
+        line: usize,
+        scope: Option<&str>,
+        name: &str,
+    ) -> Vec<String> {
+        let (worker, _) = self.prepared_worker();
+        worker
+            .probe_renderer()
+            .clause_cites(file, line, scope, name)
+    }
+
+    /// The worker, initialized on first use, and the contract.
+    fn prepared_worker(&mut self) -> (&mut CalculationWorker, &CalculationContract) {
+        let Self {
+            contract,
+            stmts,
+            source_dir,
+            constructor_elaboration,
+            root_file,
+            worker,
+        } = self;
+        let worker = worker.get_or_insert_with(|| {
+            CalculationWorker::new(CalculationProgram::new(
+                &contract.entry,
+                stmts.clone(),
+                source_dir.clone(),
+                constructor_elaboration.clone(),
+                root_file.clone(),
+            ))
+        });
+        (worker, contract)
+    }
+
     fn invoke_batch(
         &mut self,
         envelope: &CalculationInputEnvelope,
@@ -7604,6 +7852,145 @@ impl PreparedEntry {
             );
         }
         output
+    }
+}
+
+/// One complete input run by `runa cases` (`PreparedEntry::probe`).
+pub struct CaseProbe {
+    /// The result as `runa call` encodes it, or why there is none (a
+    /// decoding or scalar diagnostic, or the failure of the run).
+    pub result: Result<JsonValue, String>,
+    /// The rule clauses that fired, in the order they first fired.
+    pub fired: Vec<ProbeClause>,
+    /// Every rule call that selected a clause, in call order.
+    pub calls: Vec<ProbeCall>,
+    /// Whether the result is a rejection.
+    pub rejected: bool,
+    /// The fired clauses (indices into `fired`) the result rests on: read
+    /// from a decided run, where a branch's value is computed from the
+    /// condition that chose it, from the result's leaves and, of a
+    /// rejection, the conditions that chose it. Empty when there is no
+    /// result or the decided run gave another.
+    pub rests_on: Vec<usize>,
+}
+
+/// A rule clause that fired in a probe.
+pub struct ProbeClause {
+    pub scope: Option<String>,
+    pub name: String,
+    /// The file (as the model reads it) and line of the clause's head.
+    pub place: Option<(String, usize)>,
+}
+
+/// A rule call that selected a clause in a probe.
+pub struct ProbeCall {
+    pub scope: Option<String>,
+    pub name: String,
+    pub arity: usize,
+    /// The selected clause: its index in [`CaseProbe::fired`].
+    pub clause: Option<usize>,
+    pub args: Vec<ProbeArg>,
+}
+
+/// An argument of a logged rule call: its value as plain JSON, every
+/// constructor as `{"$variant": name, field or position: value}` and a list
+/// as an array, and where each traced leaf of it came from.
+pub struct ProbeArg {
+    pub value: JsonValue,
+    pub leaves: Vec<ProbeLeaf>,
+}
+
+/// A traced leaf of an argument (a scalar, or a variant without fields at
+/// `<path>.$variant`), by its path in [`ProbeArg::value`] (`""` for the
+/// argument itself, `day.year`, `0.$variant`).
+pub struct ProbeLeaf {
+    pub path: String,
+    /// The input path the leaf is, unchanged.
+    pub input: Option<String>,
+    /// The input paths it was computed from.
+    pub inputs: Vec<String>,
+}
+
+/// A runtime value as [`ProbeArg::value`] shows it, collecting its traced
+/// leaves.
+fn probe_json(
+    value: &Value,
+    path: &str,
+    state: Option<&crate::explain::ExplainState>,
+    leaves: &mut Vec<ProbeLeaf>,
+) -> JsonValue {
+    let field = |name: &str| partial::join_path(path, name);
+    if let Value::Traced(traced) = value {
+        if let Some(state) = state {
+            let nullary = crate::explain::Leaf::of(&traced.value)
+                .is_some_and(|leaf| matches!(leaf, crate::explain::Leaf::Variant(_)));
+            leaves.push(ProbeLeaf {
+                path: if nullary {
+                    field("$variant")
+                } else {
+                    path.to_string()
+                },
+                input: state.input_path(traced.node).map(|path| path.to_string()),
+                inputs: state
+                    .input_paths(traced.node)
+                    .iter()
+                    .map(|path| path.to_string())
+                    .collect(),
+            });
+        }
+        return probe_json(&traced.value, path, None, leaves);
+    }
+    let constructor = |name: &str, fields: Vec<(String, &Value)>, leaves: &mut Vec<ProbeLeaf>| {
+        let mut object = JsonMap::new();
+        object.insert(
+            "$variant".to_string(),
+            JsonValue::from(crate::constructor_display_name(name).as_ref()),
+        );
+        for (key, item) in fields {
+            let item = probe_json(item, &field(&key), state, leaves);
+            object.insert(key, item);
+        }
+        JsonValue::Object(object)
+    };
+    match value {
+        Value::Int(number) => JsonValue::from(*number),
+        Value::Float(number) => serde_json::Number::from_f64(*number)
+            .map(JsonValue::Number)
+            .unwrap_or(JsonValue::Null),
+        Value::Str(text) => JsonValue::from(text.as_str()),
+        Value::Char(character) => JsonValue::from(character.to_string()),
+        Value::Bool(boolean) => JsonValue::Bool(*boolean),
+        Value::List(items) => JsonValue::Array(
+            items
+                .iter()
+                .enumerate()
+                .map(|(index, item)| probe_json(item, &format!("{path}[{index}]"), state, leaves))
+                .collect(),
+        ),
+        Value::Constructor(name, items)
+        | Value::NamespacedConstructor {
+            name,
+            arguments: items,
+            ..
+        } => constructor(
+            name,
+            items
+                .iter()
+                .enumerate()
+                .map(|(index, item)| (index.to_string(), item))
+                .collect(),
+            leaves,
+        ),
+        Value::NamedConstructor(name, fields)
+        | Value::NamespacedNamedConstructor { name, fields, .. } => constructor(
+            name,
+            fields
+                .iter()
+                .map(|(key, item)| (key.clone(), item))
+                .collect(),
+            leaves,
+        ),
+        _ => JsonValue::Null,
     }
 }
 

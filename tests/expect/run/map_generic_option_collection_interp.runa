@@ -1,0 +1,15 @@
+-- expect-command: interp
+-- expect-status: fail
+-- expect-stdout: before
+-- expect-stdout-not: after
+-- expect-stderr: map takes a List, got Option
+-- roundtrip-skip: a collection of a generic type does not compile natively
+
+-- `map`, `filter` and `flat_map` walk a list. A collection known only at run
+-- time to be an `Option` stops the program; the interpreter once read it as
+-- an empty list.
+> bumped(xs: a) -> List(Int) { map(xs, |x: Int| x + 1) }
+
+@ print("before")
+@ print(show(bumped(Some(1))))
+@ print("after")

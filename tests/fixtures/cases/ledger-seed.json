@@ -1,0 +1,17 @@
+{
+  "cases": [
+    {
+      "case_id": "one-deposit",
+      "input": {
+        "isin": "DK0000000001",
+        "units": 10,
+        "events": [
+          { "id": "e1", "kind": { "$variant": "Deposit" }, "amount": 1000 }
+        ],
+        "prices": [
+          { "isin": "DK0000000001", "price": 50 }
+        ]
+      }
+    }
+  ]
+}

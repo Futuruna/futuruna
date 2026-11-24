@@ -606,6 +606,59 @@ impl ExplainRenderer {
         info
     }
 
+    /// The file (as read) and line of a fired clause's head, for `runa
+    /// cases`.
+    pub(super) fn clause_place(
+        &mut self,
+        interpreter: &Interpreter,
+        rule: &Rc<Rule>,
+    ) -> Option<(String, usize)> {
+        let file = interpreter
+            .rule_source_file(rule)
+            .map(|file| file.to_string())
+            .or_else(|| {
+                self.options
+                    .root_file
+                    .as_ref()
+                    .map(|file| file.to_string_lossy().into_owned())
+            })?;
+        let index = self.file(&file)?;
+        let head = rule.head()?;
+        let (line, _) = char_offset_to_line_col(&index.source, head.span.start);
+        Some((index.path.clone(), line))
+    }
+
+    /// The labels of the paragraphs the clause at `line` of `file` cites:
+    /// its own citation, else its family's first clause's, as an
+    /// explanation shows them.
+    pub(super) fn clause_cites(
+        &mut self,
+        file: &str,
+        line: usize,
+        scope: Option<&str>,
+        name: &str,
+    ) -> Vec<String> {
+        let Some(index) = self.file(file) else {
+            return Vec::new();
+        };
+        let own = index.citations.by_clause_line.get(&line);
+        let inherited = || {
+            index
+                .families
+                .get(&(scope.map(str::to_string), name.to_string()))
+                .and_then(|first| index.citations.by_clause_line.get(first))
+        };
+        own.or_else(inherited)
+            .map(|citation| {
+                citation
+                    .paragraphs
+                    .iter()
+                    .map(|paragraph| paragraph.paragraph.clone())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     /// The act of the document a cited paragraph was quoted from.
     fn paragraph_act(&mut self, file: &str, paragraph: &CitedParagraph) -> Option<CalculationAct> {
         let source = paragraph.source.as_ref()?;

@@ -1,0 +1,15 @@
+-- expect-command: verify
+-- expect-status: fail
+-- expect-stdout: PROVED: |institute_keeps_the_year|
+-- expect-stdout: COUNTEREXAMPLE found for |skat_adds_three_years|:
+-- The clause heads cover both variants, so the last clause's value is the
+-- otherwise of the translation and no input misses, also when a clause's
+-- value is not proved total: `d + 3` is translated and its overflow found.
+# TaxChange = ChangedBySkat(decided: Int) | CorrectedByInstitute(reported: Int)
+
+| due(year: Int, change: TaxChange): Int
+| due(year, ChangedBySkat(d)) -> d + 3
+| due(year, CorrectedByInstitute(r)) -> r
+
+| skat_adds_three_years: due(y, ChangedBySkat(d)) -> due(y, ChangedBySkat(d)) == d + 3
+| institute_keeps_the_year: due(y, CorrectedByInstitute(r)) -> due(y, CorrectedByInstitute(r)) == r

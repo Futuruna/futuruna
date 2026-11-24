@@ -1578,6 +1578,12 @@ impl<'program, 'query> CheckedClassificationProducer<'program, 'query> {
                     allow_bare_fielded_tag,
                 )
             }
+            // Tuples are not lowered to the checked classification graph.
+            Pat::Tuple(_) => Err(self.residual_error(
+                match_site,
+                ClassificationResidualReason::MatchNormalizationRequired,
+                [],
+            )),
         }
     }
 
@@ -1747,13 +1753,14 @@ impl<'program, 'query> CheckedClassificationProducer<'program, 'query> {
                     projection.dependency,
                 )],
             )),
-            Pat::Con(_, _) | Pat::NamedCon(_, _) | Pat::As(_, _) => Err(self.residual_error(
-                match_site,
-                ClassificationResidualReason::MatchNormalizationRequired,
-                [ClassificationResidualDependency::Field(
-                    projection.dependency,
-                )],
-            )),
+            Pat::Con(_, _) | Pat::NamedCon(_, _) | Pat::As(_, _) | Pat::Tuple(_) => Err(self
+                .residual_error(
+                    match_site,
+                    ClassificationResidualReason::MatchNormalizationRequired,
+                    [ClassificationResidualDependency::Field(
+                        projection.dependency,
+                    )],
+                )),
         }
     }
 
@@ -2799,6 +2806,7 @@ fn pattern_is_irrefutable(pattern: &Pat) -> bool {
         Pat::Wild | Pat::Var(_) => true,
         Pat::As(inner, _) => pattern_is_irrefutable(inner),
         Pat::Lit(_) | Pat::Con(_, _) | Pat::NamedCon(_, _) => false,
+        Pat::Tuple(elements) => elements.iter().all(pattern_is_irrefutable),
     }
 }
 
@@ -2806,7 +2814,7 @@ fn pattern_is_tag_only(pattern: &Pat) -> bool {
     match pattern {
         Pat::Wild | Pat::Lit(_) => true,
         Pat::Con(_, children) => children.is_empty(),
-        Pat::Var(_) | Pat::NamedCon(_, _) | Pat::As(_, _) => false,
+        Pat::Var(_) | Pat::NamedCon(_, _) | Pat::As(_, _) | Pat::Tuple(_) => false,
     }
 }
 

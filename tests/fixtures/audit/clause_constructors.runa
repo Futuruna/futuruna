@@ -1,0 +1,7 @@
+# Date(year: Int, month: Int, day: Int)
+# TaxChange = ChangedBySkat(day: Date) | CorrectedByInstitute(year: Int)
+
+-- One clause per variant: no gap, nothing unreachable.
+| due(year: Int, change: TaxChange): Int
+| due(year, ChangedBySkat(d)) -> d.year + 3
+| due(year, CorrectedByInstitute(r)) -> r

@@ -1,0 +1,49 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.entry.partial-output.v1",
+    "schema_hash": "3e98b43cc0f91b68aaa59a95c36111687a463a604680fb89b5e40f0ffe38f5fd",
+    "entry": "filing_status"
+  },
+  "results": [
+    {
+      "case_id": "filed-left-out-extended",
+      "result": {
+        "$variant": "Complete",
+        "result": {
+          "early": true,
+          "late": false
+        },
+        "unused_paths": []
+      }
+    },
+    {
+      "case_id": "filed-left-out",
+      "result": {
+        "$variant": "Needs",
+        "needs": [
+          {
+            "kind": "fact",
+            "path": "filed",
+            "waiting": [
+              {
+                "rule": "filing_status"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "filed-late",
+      "result": {
+        "$variant": "Complete",
+        "result": {
+          "early": false,
+          "late": true
+        },
+        "unused_paths": []
+      }
+    }
+  ],
+  "diagnostics": []
+}

@@ -1826,6 +1826,21 @@ impl ConstructorScopeWalk<'_> {
                 }
             }
             Pat::As(inner, _) => self.pattern(inner, subject),
+            Pat::Tuple(elements) => {
+                let element_types = match subject {
+                    Some(Ty::App(head, arguments))
+                        if matches!(head.as_ref(), Ty::Name(name) if name == "Tuple")
+                            && arguments.len() == elements.len() =>
+                    {
+                        Some(arguments)
+                    }
+                    _ => None,
+                };
+                for (index, element) in elements.iter_mut().enumerate() {
+                    let ty = element_types.and_then(|types| types.get(index));
+                    self.pattern(element, ty);
+                }
+            }
             Pat::Wild | Pat::Var(_) | Pat::Lit(_) => {}
         }
     }
@@ -2274,6 +2289,15 @@ impl ConstructorScopeWalk<'_> {
                         .map(Expect::Type)
                         .unwrap_or_else(Expect::none),
                 )),
+                // `scan` gives the accumulator after each element: its
+                // callback's accumulator is the expected list's element.
+                ("scan", 2, 3) => Some((
+                    vec![result_element.clone(), collection_element.clone()],
+                    result_element
+                        .clone()
+                        .map(Expect::Type)
+                        .unwrap_or_else(Expect::none),
+                )),
                 _ => None,
             }
         };
@@ -2302,6 +2326,7 @@ impl ConstructorScopeWalk<'_> {
                 "concat" | "append" => expect.ty().filter(|_| result_element.is_some()).cloned(),
                 "push" | "contains" | "prepend" if index == 1 => collection_element.clone(),
                 "foldl" | "fold" if index == 1 => expect.ty().cloned(),
+                "scan" if index == 1 => result_element.clone(),
                 _ => None,
             };
             let expect = match (special, &parameters) {

@@ -1,0 +1,41 @@
+-- expect-command: interp
+-- expect-stdout-file: needs_waiting_through.stdout
+-- roundtrip-skip: `query` and `unknown` run only in the interpreter
+-- A need names every rule that waits for it: `received` and `room` read the
+-- value itself, and `doubled` reads it through the cited rule `received`'s
+-- result; before, a direct reader hid `doubled`.
+# SourceInfo(file: String)
+# impl Document for SourceInfo {}
+# Account(value: Int)
+# Result(room: Int, doubled: Int)
+
+= law = SourceInfo(file = "sources/law.txt")
+
+@ section transfer {
+
+@ quote(law)
+----
+§ 1. Der kan indskydes op til 1000.
+
+§ 2. Lukkes kontoen, kan der ikke indskydes.
+
+§ 3. Ved overførsel modtages kontoens værdi.
+----
+
+@ cite(§ 3)
+| received(value: Int) -> value
+
+@ cite(§ 1)
+| room(value: Int): Int -> 1000 - value
+
+@ cite(§ 2)
+| doubled(received: Int): Int -> received * 2
+
+}
+
+@ entry("t")
+> needs_waiting_through(a: Account) -> Result {
+    Result(room = room(a.value), doubled = doubled(received(a.value)))
+}
+
+@ print(show(query needs_waiting_through(Account(value = unknown))))

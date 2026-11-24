@@ -126,6 +126,36 @@ impl TypeChecker {
             .then_some(ty)
     }
 
+    /// Of the types a program declares, only the standard `Date` is ordered,
+    /// and only against another date.
+    fn unordered_declared_operands(&self, left: Option<&Ty>, right: Option<&Ty>) -> bool {
+        let declared = |ty: Option<&Ty>| {
+            let mut ty = ty?;
+            while let Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) = ty {
+                ty = inner;
+            }
+            let name = match ty {
+                Ty::Name(name) => name,
+                Ty::App(head, _) => match head.as_ref() {
+                    Ty::Name(name) => name,
+                    _ => return None,
+                },
+                _ => return None,
+            };
+            (Self::ordinary_operand_kind(ty).is_none() && self.types.contains(name))
+                .then(|| ty.to_string())
+        };
+        match (declared(left), declared(right)) {
+            (None, None) => false,
+            (Some(left), Some(right)) => {
+                !(self.is_standard_date(&left) && self.is_standard_date(&right))
+            }
+            // A date against a value of unknown type is left to the value.
+            (Some(declared), None) => !self.is_standard_date(&declared) || right.is_some(),
+            (None, Some(declared)) => !self.is_standard_date(&declared) || left.is_some(),
+        }
+    }
+
     /// `+` with a String operand is text concatenation. The other operand
     /// must be a scalar with one obvious text form; structured values
     /// (collections, Option/Result, records, streams, functions) need an
@@ -265,9 +295,11 @@ impl TypeChecker {
                     || (operator == "%" && mixed_numbers)
             }
             "==" | "!=" => left_kind.zip(right_kind).is_some_and(|(l, r)| l != r),
-            "<" | ">" | "<=" | ">=" => left_kind.zip(right_kind).is_some_and(|(l, r)| {
-                !(numeric(l) && numeric(r) || l == r && matches!(l, "String" | "Char"))
-            }),
+            "<" | ">" | "<=" | ">=" => {
+                left_kind.zip(right_kind).is_some_and(|(l, r)| {
+                    !(numeric(l) && numeric(r) || l == r && matches!(l, "String" | "Char"))
+                }) || self.unordered_declared_operands(left_ty.as_ref(), right_ty.as_ref())
+            }
             "&&" | "||" => {
                 self.known_non_bool_operand(left, left_type).is_some()
                     || self.known_non_bool_operand(right, right_type).is_some()
@@ -281,6 +313,8 @@ impl TypeChecker {
             };
             let hint = if mixed_numbers {
                 "; use to_float to give both operands type Float"
+            } else if dates::is_ordering_operator(operator) {
+                "; numbers, String, Char and Date are ordered"
             } else {
                 ""
             };

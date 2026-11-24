@@ -1,0 +1,19 @@
+-- A running balance is a `scan` over the bookings, and a rule decides each
+-- balance: the second booking overdraws, so its flag is the exception
+-- `short`, because of the opening balance and the two bookings before it.
+-- expect-command: call
+-- expect-input: explain_scan.json
+-- expect-args: --explain
+-- expect-stdout-file: explain_scan.stdout
+
+# Booking(amount: Int, deposit: Bool)
+# Ledger(bookings: List(Booking), opening: Int)
+# Result(balances: List(Int), overdrawn: List(Bool))
+
+| signed(b: Booking) -> if b.deposit { b.amount } else { 0 - b.amount }
+
+| overdrawn(cash: Int): Bool -> False
+| exception short overdrawn(cash) -> True under cash < 0
+
+@ entry
+| explain_scan(l: Ledger) -> Result(balances = scan(l.bookings, l.opening, |cash, b| cash + signed(b)), overdrawn = map(scan(l.bookings, l.opening, |cash, b| cash + signed(b)), |cash| overdrawn(cash)))

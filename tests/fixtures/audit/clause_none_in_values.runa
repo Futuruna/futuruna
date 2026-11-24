@@ -1,0 +1,11 @@
+-- Two Option sorts (Date? and Int?) in one family: `None` compared with
+-- (`== None`, `!= None`) is a constructor test, and `None` inside a value
+-- (a record field) is qualified with its field's sort.
+# Date(year: Int, month: Int, day: Int)
+# Span(start: Date?, years: Int?)
+| span(admitted: Date?, first_year_off: Int?): Span -> Span(start = admitted, years = first_year_off)
+| exception status_changed span(None, Some(year)) -> Span(start = None, years = Some(year))
+| exception delisted span(Some(until), first_year_off) -> Span(start = Some(until), years = None)
+| pick(admitted: Date?, first_year_off: Int?): Int -> 0
+| exception unknown_year pick(admitted, first_year_off) -> 1 under first_year_off == None
+| exception admitted pick(admitted, first_year_off) -> 2 under admitted != None

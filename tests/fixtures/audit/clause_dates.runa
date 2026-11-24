@@ -1,0 +1,15 @@
+# Date(year: Int, month: Int, day: Int)
+
+-- Before, on and after the deadline are disjoint.
+| filed(on: Date, deadline: Date): Int -> 0
+| exception late filed(on, deadline) -> 2 under on > deadline
+| exception early filed(on, deadline) -> 1 under on < deadline
+
+-- `<=` and `>=` both hold on the deadline itself.
+| band(on: Date, deadline: Date): Int -> 0
+| exception not_after band(on, deadline) -> 1 under on <= deadline
+| exception not_before band(on, deadline) -> 2 under on >= deadline
+
+-- No date comes before itself.
+| never(on: Date): Int -> 0
+| exception impossible never(on) -> 1 under on < on

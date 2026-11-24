@@ -1,0 +1,169 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.entry.output.v1",
+    "schema_hash": "c522c66ab5874dd21cf92846ab709ecc4929facbc29441d361645ce27b29e7c1",
+    "entry": "explain_scan"
+  },
+  "results": [
+    {
+      "case_id": "ledger",
+      "result": {
+        "balances": [
+          120,
+          -30,
+          50
+        ],
+        "overdrawn": [
+          false,
+          true,
+          false
+        ]
+      },
+      "explanation": {
+        "sections": {},
+        "values": {
+          "balances[0]": {
+            "by": {
+              "$variant": "Rule",
+              "clause": "default",
+              "location": "tests/expect/run/explain/explain_scan.runa:19",
+              "rule": "explain_scan"
+            },
+            "from": [
+              {
+                "$variant": "Input",
+                "path": "opening",
+                "value": 20
+              },
+              {
+                "$variant": "Rule",
+                "clause": "default",
+                "location": "tests/expect/run/explain/explain_scan.runa:13",
+                "rule": "signed",
+                "value": 100
+              }
+            ],
+            "value": 120
+          },
+          "balances[1]": {
+            "by": {
+              "$variant": "Rule",
+              "clause": "default",
+              "location": "tests/expect/run/explain/explain_scan.runa:19",
+              "rule": "explain_scan"
+            },
+            "from": [
+              {
+                "$variant": "Input",
+                "path": "opening",
+                "value": 20
+              },
+              {
+                "$variant": "Rule",
+                "clause": "default",
+                "location": "tests/expect/run/explain/explain_scan.runa:13",
+                "rule": "signed",
+                "value": 100
+              },
+              {
+                "$variant": "Rule",
+                "clause": "default",
+                "location": "tests/expect/run/explain/explain_scan.runa:13",
+                "rule": "signed",
+                "value": -150
+              }
+            ],
+            "value": -30
+          },
+          "balances[2]": {
+            "by": {
+              "$variant": "Rule",
+              "clause": "default",
+              "location": "tests/expect/run/explain/explain_scan.runa:19",
+              "rule": "explain_scan"
+            },
+            "from": [
+              {
+                "$variant": "Input",
+                "path": "opening",
+                "value": 20
+              },
+              {
+                "$variant": "Rule",
+                "clause": "default",
+                "location": "tests/expect/run/explain/explain_scan.runa:13",
+                "rule": "signed",
+                "value": 100
+              },
+              {
+                "$variant": "Rule",
+                "clause": "default",
+                "location": "tests/expect/run/explain/explain_scan.runa:13",
+                "rule": "signed",
+                "value": -150
+              },
+              {
+                "$variant": "Rule",
+                "clause": "default",
+                "location": "tests/expect/run/explain/explain_scan.runa:13",
+                "rule": "signed",
+                "value": 80
+              }
+            ],
+            "value": 50
+          },
+          "overdrawn[0]": {
+            "by": {
+              "$variant": "Rule",
+              "clause": "default",
+              "location": "tests/expect/run/explain/explain_scan.runa:19",
+              "rule": "explain_scan"
+            },
+            "value": false
+          },
+          "overdrawn[1]": {
+            "because": [
+              {
+                "$variant": "Input",
+                "path": "opening",
+                "value": 20
+              },
+              {
+                "$variant": "Rule",
+                "clause": "default",
+                "location": "tests/expect/run/explain/explain_scan.runa:13",
+                "rule": "signed",
+                "value": 100
+              },
+              {
+                "$variant": "Rule",
+                "clause": "default",
+                "location": "tests/expect/run/explain/explain_scan.runa:13",
+                "rule": "signed",
+                "value": -150
+              }
+            ],
+            "by": {
+              "$variant": "Rule",
+              "clause": "exception",
+              "exception": "short",
+              "location": "tests/expect/run/explain/explain_scan.runa:16",
+              "rule": "overdrawn"
+            },
+            "value": true
+          },
+          "overdrawn[2]": {
+            "by": {
+              "$variant": "Rule",
+              "clause": "default",
+              "location": "tests/expect/run/explain/explain_scan.runa:19",
+              "rule": "explain_scan"
+            },
+            "value": false
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": []
+}

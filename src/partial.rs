@@ -404,28 +404,20 @@ impl PartialState {
     }
 
     /// Every call stack each fact was read under, in the order the stacks
-    /// were first seen: the stacks that read the fact itself, or, when
-    /// every read was of a cited rule's result carrying it, those.
+    /// were first seen: the stacks that read the fact itself and those that
+    /// read a cited rule's result carrying it. Every reader waits for the
+    /// fact, so none is dropped because another reads it directly.
     pub(crate) fn waiting(&self) -> BTreeMap<String, Vec<WaitingRules>> {
-        let mut direct: BTreeMap<String, Vec<WaitingRules>> = BTreeMap::new();
-        let mut through: BTreeMap<String, Vec<WaitingRules>> = BTreeMap::new();
+        let mut waiting: BTreeMap<String, Vec<WaitingRules>> = BTreeMap::new();
         for (frames, paths) in &self.reads {
             for path in paths {
-                let reads = if read_through_rule(path) {
-                    &mut through
-                } else {
-                    &mut direct
-                };
-                let stacks = reads.entry(fact_of(path).to_string()).or_default();
+                let stacks = waiting.entry(fact_of(path).to_string()).or_default();
                 if !stacks.iter().any(|known| Rc::ptr_eq(known, frames)) {
                     stacks.push(frames.clone());
                 }
             }
         }
-        for (fact, stacks) in through {
-            direct.entry(fact).or_insert(stacks);
-        }
-        direct
+        waiting
     }
 
     pub(crate) fn path_read(&self, path: &str) -> bool {
@@ -1148,7 +1140,7 @@ pub(crate) fn bind_pattern_variables(pattern: &Pat, value: &Value, env: &mut Env
             env.set(name.clone(), value.clone());
             bind_pattern_variables(inner, value, env);
         }
-        Pat::Con(_, arguments) => {
+        Pat::Con(_, arguments) | Pat::Tuple(arguments) => {
             for argument in arguments {
                 bind_pattern_variables(argument, value, env);
             }
@@ -1301,6 +1293,22 @@ impl Interpreter {
                         return PatternFit::Refuted;
                     };
                     match self.pattern_fit(field_pattern, item, env, false) {
+                        PatternFit::Refuted => return PatternFit::Refuted,
+                        PatternFit::Fits(more) => paths.extend(more),
+                    }
+                }
+                PatternFit::Fits(paths)
+            }
+            (Pat::Tuple(patterns), _) => {
+                let Some(items) = tuple_pattern_items(value) else {
+                    return PatternFit::Fits(unknown_paths(value, true).unwrap_or_default());
+                };
+                if patterns.len() != items.len() {
+                    return PatternFit::Refuted;
+                }
+                let mut paths = BTreeSet::new();
+                for (pattern, item) in patterns.iter().zip(items) {
+                    match self.pattern_fit(pattern, item, env, false) {
                         PatternFit::Refuted => return PatternFit::Refuted,
                         PatternFit::Fits(more) => paths.extend(more),
                     }
@@ -1776,6 +1784,7 @@ fn builtin_is_total(name: &str) -> bool {
             | "map"
             | "filter"
             | "foldl"
+            | "scan"
             | "any"
             | "all"
             | "find"

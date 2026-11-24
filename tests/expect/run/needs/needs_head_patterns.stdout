@@ -1,0 +1,4 @@
+Needs(needs: [Need(kind: FactNeed, path: closed, keys: [], entry: None, subject: None, label: None, question: None, help: None, unit: None, sources: [], waiting: [NeedWaiting(rule: ProgramSymbolReference(name: plus_one), section: None, paragraphs: []), NeedWaiting(rule: ProgramSymbolReference(name: after), section: None, paragraphs: [])])])
+Needs(needs: [Need(kind: FactNeed, path: k.$variant, keys: [], entry: None, subject: None, label: None, question: None, help: None, unit: None, sources: [], waiting: [NeedWaiting(rule: ProgramSymbolReference(name: val), section: None, paragraphs: [])])])
+Complete(result: Out(plus: 2031, after: 2030, val: 5), unused: [], assumptions: [])
+Out(plus: 2021, after: 0, val: 0)

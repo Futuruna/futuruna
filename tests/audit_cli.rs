@@ -815,3 +815,186 @@ fn clause_audit_runs_with_keys_on_shared_constructors() {
     assert_eq!(clauses["summary"]["clauses"], 2, "{clauses}");
     assert_eq!(clauses["summary"]["analyzed"], 2, "{clauses}");
 }
+
+/// Dates are ordered chronologically in the SMT encoding as at run time.
+#[test]
+fn clause_audit_orders_dates() {
+    let fixture = topology_fixture("clause_dates.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("3 rule families, 8 clauses: 8 analyzed, 0 not analyzed"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("2 unreachable clause, 1 overlapping guards, 0 gap"),
+        "{stdout}"
+    );
+    // `<=` and `>=` meet on equal dates and together cover every pair, so
+    // the default below them never fires.
+    let overlap = finding_block(&stdout, "Overlapping guards in band/2: ");
+    assert!(overlap.contains("Witness: on = "), "{overlap}");
+    let band = finding_block(&stdout, "Unreachable clause in band/2: ");
+    assert!(band.contains("clause_dates.runa:9 never fires"), "{band}");
+    let never = finding_block(&stdout, "Unreachable clause in never/1: ");
+    assert!(
+        never.contains("clause_dates.runa:15 never fires"),
+        "{never}"
+    );
+    // Before, on and after the deadline: each clause of `filed` fires.
+    assert!(!stdout.contains("in filed/2"), "{stdout}");
+}
+
+/// An Option argument is analysed: `is_some`, `is_none`, `unwrap_or` and a
+/// match on `Some`/`None` read its presence and value at its own type.
+#[test]
+fn clause_audit_analyses_option_guards() {
+    let fixture = topology_fixture("clause_options.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("5 rule families, 12 clauses: 12 analyzed, 0 not analyzed"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("1 unreachable clause, 1 overlapping guards, 1 gap"),
+        "{stdout}"
+    );
+    // `is_some` takes every closed account first.
+    let levy = finding_block(&stdout, "Unreachable clause in levy_days/2: ");
+    assert!(
+        levy.contains("clause_options.runa:11 never fires"),
+        "{levy}"
+    );
+    let overlap = finding_block(&stdout, "Overlapping guards in rate/2: ");
+    assert!(overlap.contains("closed = (Some (Date "), "{overlap}");
+    let gap = finding_block(&stdout, "Gap in draw_by/2: ");
+    assert!(gap.contains("closed = (Some (Date "), "{gap}");
+    assert!(!stdout.contains("in period_end/2"), "{stdout}");
+    assert!(!stdout.contains("in status/1"), "{stdout}");
+}
+
+/// A match on a tuple of two Options is analysed element by element.
+#[test]
+fn clause_audit_analyses_tuple_matches() {
+    let fixture = topology_fixture("clause_tuples.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("2 rule families, 6 clauses: 6 analyzed, 0 not analyzed"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("1 unreachable clause, 0 overlapping guards, 1 gap"),
+        "{stdout}"
+    );
+    // `is_none(lost_right)` takes every pair `(None, Some(_))` first.
+    let levy = finding_block(&stdout, "Unreachable clause in levy/2: ");
+    assert!(levy.contains("clause_tuples.runa:10 never fires"), "{levy}");
+    // A right lost after the account closed: both are present.
+    let gap = finding_block(&stdout, "Gap in levy/2: ");
+    assert!(
+        gap.contains("lost_right = (Some (Date ") && gap.contains("closed = (Some (Date "),
+        "{gap}"
+    );
+    assert!(!stdout.contains("in state/2"), "{stdout}");
+}
+
+/// The rule that decides each running state of a `scan` takes a scalar and is
+/// analysed; a guard that scans a list itself is not, and says why.
+#[test]
+fn clause_audit_analyses_rules_on_scanned_states() {
+    let fixture = topology_fixture("clause_scan.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("3 rule families, 3 clauses: 2 analyzed, 1 not analyzed"),
+        "{stdout}"
+    );
+    let not_analyzed = finding_block(&stdout, "Not analyzed (reachability unknown):");
+    assert!(
+        not_analyzed.contains("clause_scan.runa:8 in ever_short/2: guard not translatable: parameter `bookings` has type `List(Int)`, which the SMT encoding does not represent"),
+        "{not_analyzed}"
+    );
+    assert!(!not_analyzed.contains("overdrawn/1"), "{not_analyzed}");
+}
+
+/// A family over two Option sorts: `None` in a head and as a result is
+/// unambiguous to the solver, so every clause is analysed.
+#[test]
+fn clause_audit_analyses_families_mixing_option_sorts() {
+    let fixture = topology_fixture("clause_mixed_options.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("1 rule family, 3 clauses: 3 analyzed, 0 not analyzed"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("ambiguous"), "{stdout}");
+}
+
+/// `None` compared with (`x == None`, `x != None`) or inside a value (a
+/// record field) in families over two Option sorts is unambiguous to the
+/// solver, so every clause is analysed.
+#[test]
+fn clause_audit_analyses_none_in_values_and_comparisons() {
+    let fixture = topology_fixture("clause_none_in_values.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("2 rule families, 6 clauses: 6 analyzed, 0 not analyzed"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("ambiguous"), "{stdout}");
+}
+
+/// A field two constructors give different sorts (`purpose: DepositPurpose?`
+/// and `purpose: WithdrawalPurpose?`) has no SMT reader by name; a head
+/// pattern reads it by its constructor, so every clause is analysed (before,
+/// Z3 rejected the query: unknown constant `runa_field_purpose`). The family
+/// is a Boolean one, so its `-> False` default only marks the head and is
+/// not a clause the audit counts.
+#[test]
+fn clause_audit_reads_head_pattern_fields_by_constructor() {
+    let fixture = topology_fixture("clause_field_sorts_by_constructor.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("1 rule family, 2 clauses: 2 analyzed, 0 not analyzed"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("unknown constant"), "{stdout}");
+}
+
+/// A family whose clause heads match every variant has no gap.
+#[test]
+fn clause_audit_reads_constructor_heads_as_total() {
+    let fixture = topology_fixture("clause_constructors.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(!stdout.contains("in due/2"), "{stdout}");
+}

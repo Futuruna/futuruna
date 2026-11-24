@@ -1,0 +1,12 @@
+{
+  "cases": [
+    {
+      "case_id": "three_items",
+      "input": {
+        "items": [{ "amount": 200 }, { "amount": 30 }, { "amount": 70 }],
+        "base": 500,
+        "resident": true
+      }
+    }
+  ]
+}

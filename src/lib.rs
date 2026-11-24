@@ -48,6 +48,8 @@ pub use constructor_scope::{
     function_display_name, function_display_smt, function_display_text, qualified_constructor_name,
     split_qualified_constructor, with_constructor_elaboration, ConstructorElaboration,
 };
+mod dates;
+pub use dates::{smt_date_order, standard_date_field_order};
 mod danish;
 mod declaration_contracts;
 mod editor_fields;
@@ -5663,6 +5665,8 @@ impl fmt::Display for Ty {
             Ty::Ref(t) => write!(f, "&{}", t),
             Ty::MutRef(t) => write!(f, "&mut {}", t),
             Ty::Shared(t) => write!(f, "shared {}", t),
+            // `Int??` does not parse; `(Int?)?` does.
+            Ty::Optional(t) if matches!(**t, Ty::Optional(_)) => write!(f, "({})?", t),
             Ty::Optional(t) => write!(f, "{}?", t),
             Ty::Var(n) => write!(f, "{}", n),
             Ty::Unit => write!(f, "()"),
@@ -5686,6 +5690,8 @@ pub enum Pat {
     Con(String, Vec<Pat>),
     NamedCon(String, Vec<(String, Pat)>), // Circle(radius: r) — named field destructure
     As(Box<Pat>, String),
+    /// `(p1, p2, ...)`: two or more element patterns of a tuple.
+    Tuple(Vec<Pat>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -7313,19 +7319,100 @@ fn rule_head_is_irrefutable(rule: &Rule) -> bool {
 /// Whether a candidate selects a value for every argument once dispatch
 /// reaches it: an irrefutable head with no guard.
 pub fn rule_dispatch_candidate_is_total(rule: &Rule, return_type: &str) -> bool {
-    rule_head_is_irrefutable(rule)
-        && match rule {
-            Rule::Exception {
-                condition: None, ..
-            }
-            | Rule::Default {
-                condition: None, ..
-            } => true,
-            Rule::Clause { body, .. } => {
-                body.is_some() && TypeChecker::canonical_explore_type_name(return_type) != "Bool"
-            }
-            _ => false,
+    rule_head_is_irrefutable(rule) && rule_dispatch_candidate_is_unguarded(rule, return_type)
+}
+
+/// Whether a candidate whose head matches selects a value: it has no guard.
+fn rule_dispatch_candidate_is_unguarded(rule: &Rule, return_type: &str) -> bool {
+    match rule {
+        Rule::Exception {
+            condition: None, ..
         }
+        | Rule::Default {
+            condition: None, ..
+        } => true,
+        Rule::Clause { body, .. } => {
+            body.is_some() && TypeChecker::canonical_explore_type_name(return_type) != "Bool"
+        }
+        _ => false,
+    }
+}
+
+/// A rule head's arguments as match patterns, one per parameter, as
+/// `match_rule_param` matches them; `None` for a head with a form that is not
+/// an ordinary pattern there (a list, a signed number, a variable repeated, a
+/// bare tag of a fielded constructor).
+fn rule_head_patterns(head: &Expr, checker: &TypeChecker) -> Option<Vec<Pat>> {
+    fn pattern(
+        argument: &Expr,
+        checker: &TypeChecker,
+        bound: &mut BTreeSet<String>,
+    ) -> Option<Pat> {
+        let argument = typed_rule_head_argument(argument).map_or(argument, |(inner, _)| inner);
+        match &argument.kind {
+            ExprKind::Var(name) if name == "_" => Some(Pat::Wild),
+            ExprKind::Var(name) if name.starts_with(|c: char| c.is_uppercase()) => {
+                // A nullary constructor; `True` and `False` are literals here.
+                let signatures = checker.constructor_signatures.get(name)?;
+                (!matches!(name.as_str(), "True" | "False")
+                    && signatures.iter().all(|signature| signature.arity() == 0))
+                .then(|| Pat::Con(name.clone(), Vec::new()))
+            }
+            // A name bound twice compares the two values.
+            ExprKind::Var(name) => bound.insert(name.clone()).then(|| Pat::Var(name.clone())),
+            ExprKind::Lit(Literal::Float(_)) => None,
+            ExprKind::Lit(literal) => Some(Pat::Lit(literal.clone())),
+            ExprKind::Tuple(items) => Some(Pat::Tuple(
+                items
+                    .iter()
+                    .map(|item| pattern(item, checker, bound))
+                    .collect::<Option<_>>()?,
+            )),
+            ExprKind::App(function, arguments) => {
+                let ExprKind::Var(name) = &function.kind else {
+                    return None;
+                };
+                checker.constructor_signatures.get(name)?;
+                if arguments
+                    .iter()
+                    .all(|argument| named_arg_parts(argument).is_some())
+                {
+                    Some(Pat::NamedCon(
+                        name.clone(),
+                        arguments
+                            .iter()
+                            .map(|argument| {
+                                let (field, value) = named_arg_parts(argument)?;
+                                Some((field.to_string(), pattern(value, checker, bound)?))
+                            })
+                            .collect::<Option<_>>()?,
+                    ))
+                } else {
+                    Some(Pat::Con(
+                        name.clone(),
+                        arguments
+                            .iter()
+                            .map(|argument| {
+                                if named_arg_parts(argument).is_some() {
+                                    return None;
+                                }
+                                pattern(argument, checker, bound)
+                            })
+                            .collect::<Option<_>>()?,
+                    ))
+                }
+            }
+            _ => None,
+        }
+    }
+    let ExprKind::App(_, arguments) = &head.kind else {
+        return None;
+    };
+    let mut bound = BTreeSet::new();
+    arguments
+        .iter()
+        .map(|argument| pattern(argument, checker, &mut bound))
+        .collect()
 }
 
 impl<'a> RuleDispatchRegistry<'a> {
@@ -8275,7 +8362,7 @@ pub fn collect_pattern_names(pat: &Pat, names: &mut BTreeSet<String>) {
         Pat::Var(name) => {
             names.insert(name.clone());
         }
-        Pat::Con(_, patterns) => {
+        Pat::Con(_, patterns) | Pat::Tuple(patterns) => {
             for pattern in patterns {
                 collect_pattern_names(pattern, names);
             }
@@ -14523,6 +14610,22 @@ impl Parser {
                     Ok(Pat::Lit(Literal::Int(value)))
                 }
             }
+            // `(p1, p2, ...)` matches a tuple element by element; `(p)` is `p`.
+            TokenKind::LParen => {
+                let open = self.advance();
+                let mut elements =
+                    self.parse_comma_separated(TokenKind::RParen, "tuple pattern", |parser| {
+                        parser.parse_pattern()
+                    })?;
+                match elements.len() {
+                    0 => Err(format!(
+                        "{}:{}: expected a pattern, got `()`",
+                        open.line, open.col
+                    )),
+                    1 => Ok(elements.pop().expect("one element")),
+                    _ => Ok(Pat::Tuple(elements)),
+                }
+            }
             _ => {
                 let tok = self.peek();
                 Err(format!(
@@ -16244,6 +16347,15 @@ fn runtime_pair_tuple_operands(left: &Value, right: &Value) -> Option<(Value, Va
         (Value::Tuple(_), _) => Some((left.clone(), as_tuple(right)?)),
         (_, Value::Tuple(_)) => Some((as_tuple(left)?, right.clone())),
         _ => None,
+    }
+}
+
+/// The elements a tuple pattern matches: those of a tuple, or of a `Pair`,
+/// the two-element tuple.
+pub(crate) fn tuple_pattern_items(value: &Value) -> Option<Vec<&Value>> {
+    match value {
+        Value::Tuple(items) => Some(items.iter().collect()),
+        _ => runtime_pair_fields(value).map(|(fst, snd)| vec![fst, snd]),
     }
 }
 
@@ -18199,6 +18311,12 @@ pub struct Interpreter {
     pub(crate) partial_cited: Option<partial::CitedFrames>,
     /// Set while a calculation case runs: the rule clauses that fired.
     fired: Option<RefCell<explain::FiredClauses>>,
+    /// Set by `PreparedEntry::probe`: every rule call that selected a
+    /// clause, with its arguments (`runa cases`).
+    rule_calls: Option<RefCell<Vec<explain::RuleCallRecord>>>,
+    /// Set by `runa cases --scenario`: the arguments of every call of the
+    /// named function.
+    call_capture: Option<(String, RefCell<Vec<Vec<Value>>>)>,
     /// Set by a calculation: finds the assumptions written on a rule clause.
     pub(crate) assumptions_of: Option<explain::AssumptionsOf>,
     /// How `query` runs: the prepared entries it asks and whether each query
@@ -18423,6 +18541,8 @@ impl Interpreter {
             open_inputs: open_inputs::RuntimeOpenInputs::default(),
             partial_cited: None,
             fired: None,
+            rule_calls: None,
+            call_capture: None,
             assumptions_of: None,
             query: query::QueryRuntime::default(),
             explain: None,
@@ -19168,6 +19288,20 @@ impl Interpreter {
     fn runtime_value_type_label(&self, value: &Value) -> String {
         self.runtime_type_name(value)
             .unwrap_or_else(|| runtime_value_kind(value).to_string())
+    }
+
+    /// `map`, `filter` and `flat_map` walk a list (or a stream or a set). An
+    /// `Option` is not a list of at most one element: it stops the program,
+    /// never read as an empty list.
+    fn option_collection_fail(&self, builtin: &str, input: &Value) -> Option<Value> {
+        match explain::untraced(input) {
+            Value::Constructor(name, _) | Value::NamespacedConstructor { name, .. }
+                if name == "Some" || name == "None" =>
+            {
+                Some(self.panic_or_ground_fail(format!("{builtin} takes a List, got Option")))
+            }
+            _ => None,
+        }
     }
 
     /// A collection predicate must answer with a Bool.
@@ -21829,7 +21963,7 @@ impl Interpreter {
     fn collect_pattern_binding_names(pattern: &Pat, names: &mut Vec<String>) {
         match pattern {
             Pat::Var(name) => names.push(name.clone()),
-            Pat::Con(_, patterns) => {
+            Pat::Con(_, patterns) | Pat::Tuple(patterns) => {
                 for pattern in patterns {
                     Self::collect_pattern_binding_names(pattern, names);
                 }
@@ -23291,7 +23425,9 @@ impl Interpreter {
                                         "  ✓ |{}| holds (value: {})",
                                         inv_name, subject_val
                                     );
-                                    println!("{}", msg);
+                                    if !self.suppress_output {
+                                        println!("{}", msg);
+                                    }
                                     self.output.push(msg);
                                 }
                             }
@@ -24354,7 +24490,13 @@ impl Interpreter {
         env: &Env,
     ) -> Value {
         self.checked_mechanism_begin_dependency_scope();
-        let left_value = explain::strip(self.eval(left, env));
+        let left_value = self.eval(left, env);
+        // In a decided case the result is computed from the operands read.
+        let mut decided_by: Vec<explain::NodeId> = explain::node_of(&left_value)
+            .filter(|_| self.explain_decides())
+            .into_iter()
+            .collect();
+        let left_value = explain::strip(left_value);
         if let Value::Unknown(paths) = &left_value {
             return self.partial_short_circuit(operator, (**paths).clone(), right, env);
         }
@@ -24368,7 +24510,11 @@ impl Interpreter {
                 CheckedInterpreterShortCircuitOutcome::SkippedRight { result: true },
             ),
             ("&&" | "||", _) => {
-                let result = explain::strip(self.eval(right, env));
+                let result = self.eval(right, env);
+                if self.explain_decides() {
+                    decided_by.extend(explain::node_of(&result));
+                }
+                let result = explain::strip(result);
                 let boolean = match &result {
                     Value::Bool(value) => *value,
                     _ => {
@@ -24404,7 +24550,11 @@ impl Interpreter {
             expression,
             CheckedInterpreterMechanismEventOutcome::ShortCircuit(outcome),
         );
-        result
+        if decided_by.is_empty() {
+            result
+        } else {
+            self.explain_branch(result, &decided_by)
+        }
     }
 
     /// A malformed guard is an evaluation error, never a rejected candidate.
@@ -24441,7 +24591,9 @@ impl Interpreter {
         env: &Env,
     ) -> Value {
         self.checked_mechanism_begin_dependency_scope();
-        let condition_value = explain::strip(self.eval(condition, env));
+        let condition_value = self.eval(condition, env);
+        let decided_by = explain::node_of(&condition_value);
+        let condition_value = explain::strip(condition_value);
         if let Value::Unknown(paths) = &condition_value {
             return self.partial_if((**paths).clone(), then_expression, else_expression, env);
         }
@@ -24465,7 +24617,10 @@ impl Interpreter {
             expression,
             CheckedInterpreterMechanismEventOutcome::IfDecision(outcome),
         );
-        result
+        match decided_by {
+            Some(node) if self.explain_decides() => self.explain_branch(result, &[node]),
+            _ => result,
+        }
     }
 
     fn eval_checked_match(
@@ -25057,6 +25212,11 @@ impl Interpreter {
                 ref body,
                 ref env,
             } => {
+                if let (Some((captured, calls)), Some(name)) = (&self.call_capture, name) {
+                    if captured == name {
+                        calls.borrow_mut().push(args.clone());
+                    }
+                }
                 let depth = self.runtime_function_call_depth.get();
                 if runtime_call_depth_exhausted(depth) {
                     return self.panic_or_ground_fail(runtime_recursion_limit_message(
@@ -25284,7 +25444,7 @@ impl Interpreter {
                     || matches!(value, Value::Constructor(name, _) if name == "Cons" || name == "Nil")
             };
             let pure_eager_collection_overload = match name {
-                "last" | "take" => args.first().is_some_and(list_shaped),
+                "last" | "take" | "scan" => args.first().is_some_and(list_shaped),
                 "collect" => args
                     .first()
                     .is_some_and(|value| matches!(value, Value::Stream(_)) || list_shaped(value)),
@@ -25617,6 +25777,9 @@ impl Interpreter {
                 if !self.ground_collection_value_allowed(&input, "map") {
                     return Value::Unit;
                 }
+                if let Some(failed) = self.option_collection_fail("map", &input) {
+                    return failed;
+                }
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
                     Value::Stream(v) => (v.clone(), true),
@@ -25641,6 +25804,9 @@ impl Interpreter {
                 let input = args.get(0).cloned().unwrap_or(Value::Unit);
                 if !self.ground_collection_value_allowed(&input, "filter") {
                     return Value::Unit;
+                }
+                if let Some(failed) = self.option_collection_fail("filter", &input) {
+                    return failed;
                 }
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
@@ -25836,6 +26002,9 @@ impl Interpreter {
                 if !self.ground_collection_value_allowed(&input, "flat_map") {
                     return Value::Unit;
                 }
+                if let Some(failed) = self.option_collection_fail("flat_map", &input) {
+                    return failed;
+                }
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
                     Value::Stream(v) => (v.clone(), true),
@@ -25861,6 +26030,20 @@ impl Interpreter {
                             result.extend(v);
                         }
                         other => {
+                            // The callback returns a list to join. Anything
+                            // else (an `Option` in particular) is an error,
+                            // never read as an empty list.
+                            let returned = explain::untraced(&other);
+                            let joins = matches!(
+                                returned,
+                                Value::List(_) | Value::LiveStream(_) | Value::Unknown(_)
+                            ) || matches!(returned, Value::Constructor(name, _) if name == "Cons" || name == "Nil");
+                            if !joins {
+                                return self.panic_or_ground_fail(format!(
+                                    "flat_map callback must return List, got {}",
+                                    self.runtime_value_type_label(returned)
+                                ));
+                            }
                             if self.ground_collection_limit.is_some() {
                                 let additional = Self::runtime_collection_member_count(&other)
                                     .unwrap_or_default();
@@ -25875,7 +26058,7 @@ impl Interpreter {
                                     return Value::Unit;
                                 }
                             }
-                            result.extend(list_to_vec(&other));
+                            result.extend(list_to_vec(returned));
                         }
                     }
                 }
@@ -27092,13 +27275,15 @@ impl Interpreter {
             // Colliding s_* handlers removed — merged into polymorphic list handlers above
             // (map, filter, any, all, flat_map, zip, enumerate, distinct)
             "scan" => {
-                // scan(stream, init, f) → Stream — running fold, emitting each accumulator
-                let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
+                // scan(collection, init, f): a running fold, the accumulator
+                // after each element. A list gives a list of the same length,
+                // a stream a stream.
+                let collection = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let init = args.get(1).cloned().unwrap_or(Value::Int(0));
                 let func = args.get(2).cloned().unwrap_or(Value::Unit);
-                let items = match stream {
-                    Value::Stream(items) => items,
-                    other => list_to_vec(&other),
+                let (items, is_stream) = match collection {
+                    Value::Stream(items) => (items, true),
+                    other => (list_to_vec(&other), false),
                 };
                 let mut acc = init;
                 let mut results = Vec::new();
@@ -27111,7 +27296,11 @@ impl Interpreter {
                     );
                     results.push(acc.clone());
                 }
-                Value::Stream(results)
+                if is_stream {
+                    Value::Stream(results)
+                } else {
+                    Value::List(results)
+                }
             }
             "merge" => {
                 // merge(stream1, stream2) → Stream — interleave two streams
@@ -28063,6 +28252,20 @@ impl Interpreter {
                 Value::Bool(v) => Value::Bool(!v),
                 failure => failure,
             },
+            // Dates order chronologically, as they sort.
+            (op, a, b)
+                if dates::is_ordering_operator(op)
+                    && dates::date_value_parts(a).is_some()
+                    && dates::date_value_parts(b).is_some() =>
+            {
+                let ordering = value_sort_cmp(a, b);
+                Value::Bool(match op {
+                    "<" => ordering.is_lt(),
+                    "<=" => ordering.is_le(),
+                    ">" => ordering.is_gt(),
+                    _ => ordering.is_ge(),
+                })
+            }
 
             ("+" | "-" | "*" | "/" | "%", _, _) if self.checking_calculation => self
                 .calculation_fail(format!(
@@ -28129,7 +28332,16 @@ impl Interpreter {
                 // A literal an arm gives was chosen by the matched value.
                 let decided = arm_index > 0 || !matches!(arm.pat, Pat::Wild | Pat::Var(_));
                 let result = if decided && self.explain.is_some() {
-                    self.explain_decided(result, &val)
+                    let result = self.explain_decided(result, &val);
+                    if self.explain_decides() {
+                        let mut from = Vec::new();
+                        explain::collect_nodes(&val, &mut from);
+                        from.sort_unstable();
+                        from.dedup();
+                        self.explain_branch(result, &from)
+                    } else {
+                        result
+                    }
                 } else {
                     result
                 };
@@ -28373,6 +28585,12 @@ impl Interpreter {
                     false
                 }
             }
+            (Pat::Tuple(patterns), _) => tuple_pattern_items(val).is_some_and(|items| {
+                items.len() == patterns.len()
+                    && patterns.iter().zip(items).all(|(pattern, item)| {
+                        self.match_pattern_with_options(pattern, item, env, false)
+                    })
+            }),
             _ => false,
         }
     }
@@ -29357,8 +29575,14 @@ impl Interpreter {
                                     .then_some(Value::Bool(true))
                             } else {
                                 let value = self.eval(body_expression, &rule_env);
-                                (!matches!(explain::untraced(&value), Value::Bool(false)))
-                                    .then_some(value)
+                                let holds =
+                                    !matches!(explain::untraced(&value), Value::Bool(false));
+                                if !holds {
+                                    // A body that does not hold refutes the
+                                    // clause, as a guard does.
+                                    self.explain_pattern_read(&value);
+                                }
+                                holds.then_some(value)
                             }
                         }
                     };
@@ -29431,6 +29655,13 @@ impl Interpreter {
 
             break 'dispatch matched_false_clause.then_some(Value::Bool(false));
         };
+        if let (Some(calls), Some(_)) = (&self.rule_calls, &result) {
+            calls.borrow_mut().push(explain::RuleCallRecord {
+                family: family.clone(),
+                rule: produced_by.map(|index| dispatch.matching[index].0.clone()),
+                args: arg_vals.clone(),
+            });
+        }
         let result = match (result, produced_by) {
             (Some(value), Some(index)) if self.fired.is_some() => {
                 let rule = dispatch.matching[index].0.clone();
@@ -29454,6 +29685,9 @@ impl Interpreter {
                 }
                 Some(value)
             }
+            // A Boolean family's `false` when no clause applied rests, in a
+            // decided case, on the guards and bodies that did not hold.
+            (Some(value), None) => Some(self.explain_unmatched(value)),
             (result, _) => result,
         };
         self.explain_end_dispatch();
@@ -29509,6 +29743,13 @@ impl Interpreter {
                 return None;
             }
             for (param, val) in params.iter().zip(args.iter()) {
+                // A refutable pattern (a constructor, a literal) reads the
+                // argument to choose the clause, as a guard does.
+                let pattern = Self::typed_rule_arg_parts(param).map_or(param, |(inner, _)| inner);
+                if !matches!(&pattern.kind, ExprKind::Var(name) if name == "_" || Self::is_rule_variable_name(name))
+                {
+                    self.explain_pattern_read(val);
+                }
                 if !self.match_rule_param(param, val, &mut rule_env) {
                     return None;
                 }
@@ -30002,8 +30243,29 @@ impl Interpreter {
                     || (!name.chars().next().is_some_and(char::is_uppercase)
                         && env.get(name).is_none()));
             if !binds {
-                return self.partial_possible_match(paths);
+                if !self.partial_possible_match(paths) {
+                    return false;
+                }
+                // The pattern may match: what it binds is read from the
+                // unknown value, so it is unknown on the same paths. Left
+                // unbound, the clause body would read another binding or
+                // fail instead of waiting for the input.
+                let mut names = Vec::new();
+                Self::collect_rule_head_vars(param, &mut names);
+                for name in names {
+                    if env.get(&name).is_none() {
+                        env.set(name, Value::Unknown(paths.clone()));
+                    }
+                }
+                return true;
             }
+        }
+        // A pattern reads the value it matches, as `match` does; a variable
+        // only binds it, and its reads are recorded where it is used.
+        if !matches!(&param.kind, ExprKind::Var(name)
+            if name == "_" || !name.chars().next().is_some_and(char::is_uppercase))
+        {
+            self.partial_consume(val, true);
         }
 
         match &param.kind {
@@ -31563,6 +31825,14 @@ pub(crate) fn value_sort_cmp_reading(
     }
     if let Some((a, b)) = runtime_pair_tuple_operands(a, b) {
         return value_sort_cmp_reading(&a, &b, unknown);
+    }
+    if let (Some(a), Some(b)) = (dates::date_value_parts(a), dates::date_value_parts(b)) {
+        return a
+            .iter()
+            .zip(b)
+            .map(|(a, b)| value_sort_cmp_reading(a, b, unknown))
+            .find(|ordering| *ordering != Ordering::Equal)
+            .unwrap_or(Ordering::Equal);
     }
     fn float_key(value: f64) -> f64 {
         if value == 0.0 {
@@ -33232,6 +33502,10 @@ pub struct TypeChecker {
     /// checked-False miss value.
     rule_dispatch_irrefutable_keys: BTreeSet<RuleDispatchKey>,
     rule_dispatch_runtime_irrefutable_keys: BTreeSet<RuleDispatchKey>,
+    /// Families whose unguarded clause heads cover the parameter types. The
+    /// solver encodings read the last candidate's value as the otherwise of
+    /// such a family even when its values are not proved total.
+    rule_dispatch_head_pattern_total_keys: BTreeSet<RuleDispatchKey>,
     runtime_guarded_rule_calls: RuntimeGuardedRuleCalls,
     /// Every canonical rule identity declared in the flattened program.
     rule_dispatch_keys: BTreeSet<RuleDispatchKey>,
@@ -34600,6 +34874,15 @@ fn checked_explore_classifier_validate_constructor_pattern_v1(
                 inner,
                 multiply_owned_fielded,
             );
+        }
+        Pat::Tuple(children) => {
+            for child in children {
+                checked_explore_classifier_validate_constructor_pattern_v1(
+                    child,
+                    multiply_owned_fielded,
+                )?;
+            }
+            return Ok(());
         }
         Pat::Wild | Pat::Var(_) | Pat::Lit(_) => return Ok(()),
     };
@@ -36039,7 +36322,7 @@ impl<'a> CheckedExploreSemanticIndex<'a> {
                     name.clone().into_boxed_str(),
                 );
             }
-            Pat::Con(_, children) => {
+            Pat::Con(_, children) | Pat::Tuple(children) => {
                 for (index, child) in children.iter().enumerate() {
                     let mut child_path = path.clone();
                     child_path.push(index as u32);
@@ -39411,7 +39694,9 @@ impl<'a, 'index> CheckedExploreSemanticClosure<'a, 'index> {
                 static IMPURE_RUNTIME_NAMES: OnceLock<BTreeSet<String>> = OnceLock::new();
                 let impure = IMPURE_RUNTIME_NAMES.get_or_init(meta_impure_runtime_names);
                 let pure_eager_collection_overload = match canonical_name.as_ref() {
-                    "last" | "take" => self.checked_argument_has_container_type(site, 0, &["List"]),
+                    "last" | "take" | "scan" => {
+                        self.checked_argument_has_container_type(site, 0, &["List"])
+                    }
                     "collect" => {
                         self.checked_argument_has_container_type(site, 0, &["List", "Stream"])
                     }
@@ -39649,6 +39934,19 @@ impl<'a, 'index> CheckedExploreSemanticClosure<'a, 'index> {
                 let binder = Self::structural_binder(anchor, ast_path, binder_path);
                 self.reserve_binder(binder.clone());
                 self.hash_binder_reference(hasher, binder);
+            }
+            Pat::Tuple(children) => {
+                checked_query_hash_component(hasher, "pattern-kind", "tuple");
+                checked_query_hash_component(
+                    hasher,
+                    "pattern-child-count",
+                    &children.len().to_string(),
+                );
+                for (index, child) in children.iter().enumerate() {
+                    let mut child_path = pattern_path.clone();
+                    child_path.push(index as u32);
+                    self.hash_pattern(hasher, anchor, ast_path, child, child_path)?;
+                }
             }
         }
         Ok(())
@@ -46575,7 +46873,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
                         binder_path: binder_path.into_boxed_slice(),
                     });
             }
-            Pat::Con(_, patterns) => {
+            Pat::Con(_, patterns) | Pat::Tuple(patterns) => {
                 for (index, pattern) in patterns.iter().enumerate() {
                     let mut child = path.clone();
                     child.push(index as u32);
@@ -48235,6 +48533,15 @@ impl<'a> CheckedResolutionRecorder<'a> {
                     },
                 );
             }
+            Pat::Tuple(children) => {
+                for (index, child) in children.iter().enumerate() {
+                    let mut child_path = pattern_path.clone();
+                    child_path.push(index as u32);
+                    let child_type =
+                        TypeChecker::tuple_pattern_element_type_name(type_name.as_deref(), index);
+                    self.define_pattern(declaration, ast_path, child, child_path, kind, child_type);
+                }
+            }
             Pat::Wild | Pat::Lit(_) => {}
         }
     }
@@ -48285,6 +48592,11 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 child,
                 pattern_path,
             ),
+            Pat::Tuple(children) => children.iter().enumerate().find_map(|(index, child)| {
+                let mut child_path = pattern_path.clone();
+                child_path.push(index as u32);
+                self.first_unresolved_constructor_pattern(declaration, ast_path, child, child_path)
+            }),
             Pat::Wild | Pat::Var(_) | Pat::Lit(_) => None,
         }
     }
@@ -50073,6 +50385,7 @@ impl TypeChecker {
             runtime_guarded_rule_calls: RuntimeGuardedRuleCalls::default(),
             rule_dispatch_irrefutable_keys: BTreeSet::new(),
             rule_dispatch_runtime_irrefutable_keys: BTreeSet::new(),
+            rule_dispatch_head_pattern_total_keys: BTreeSet::new(),
             rule_dispatch_keys: BTreeSet::new(),
             rule_dispatch_has_opaque_runtime_graph: false,
             plain_import_rule_dispatch_statements: Arc::from([]),
@@ -53623,7 +53936,27 @@ impl TypeChecker {
                         let field_type = field_index
                             .and_then(|index| signature.field_types.get(index))
                             .and_then(Option::as_deref);
-                        self.collect_rule_head_local_types(value, field_type, locals);
+                        // `field_types` names a field's simple type (`Purpose`
+                        // for `Purpose?`), which leads a nested pattern to its
+                        // constructor. A variable binds the whole field, so it
+                        // takes the full declared type, or a guard comparing it
+                        // with `Some(...)` or `None` reads a false mismatch. A
+                        // generic owner's field (`Some`'s `a`) has no type of
+                        // its own and keeps the simple name.
+                        let owner_is_generic = self
+                            .type_parameters_by_owner
+                            .get(&signature.parent)
+                            .is_some_and(|parameters| !parameters.is_empty());
+                        let declared_field_type = (!owner_is_generic)
+                            .then(|| field_index.and_then(|index| signature.field_tys.get(index)))
+                            .flatten()
+                            .and_then(Option::as_deref)
+                            .filter(|_| matches!(&value.kind, ExprKind::Var(_)));
+                        self.collect_rule_head_local_types(
+                            value,
+                            declared_field_type.or(field_type),
+                            locals,
+                        );
                     }
                 } else {
                     for arg in args {
@@ -53656,7 +53989,12 @@ impl TypeChecker {
                 if name != "_" && !name.chars().next().is_some_and(char::is_uppercase) =>
             {
                 if let Some(expected_type) = expected_type {
-                    locals.insert(name.clone(), expected_type.to_string());
+                    // A field type is written as declared (`Purpose?`); guards
+                    // compare it with expression types, which are canonical.
+                    locals.insert(
+                        name.clone(),
+                        Self::canonical_explore_type_name(expected_type),
+                    );
                 }
             }
             _ => {}
@@ -54199,6 +54537,12 @@ impl TypeChecker {
                     bindings.insert(name.clone(), type_name.to_string());
                 }
                 self.collect_pattern_type_bindings(inner, subject_type, bindings);
+            }
+            Pat::Tuple(elements) => {
+                for (index, element) in elements.iter().enumerate() {
+                    let element_type = Self::tuple_pattern_element_type_name(subject_type, index);
+                    self.collect_pattern_type_bindings(element, element_type.as_deref(), bindings);
+                }
             }
             Pat::Wild | Pat::Lit(_) => {}
         }
@@ -54892,25 +55236,46 @@ impl TypeChecker {
                     // This is an exact higher-order builtin law, not a guess
                     // from the callback body, and lets Explore validate pure
                     // corpus helpers without expanding their finite inputs.
-                    if name == "foldl" && args.len() == 3 {
-                        if let Some(unit) =
-                            self.unit_of_literal_fold(args, locals, active_rule_scope)
-                        {
-                            return Some(unit);
+                    // `scan` returns the accumulator after each element: a
+                    // list of it for a list, a stream of it for a stream.
+                    if (name == "foldl" || name == "scan") && args.len() == 3 {
+                        let accumulator = self
+                            .unit_of_literal_fold(args, locals, active_rule_scope)
+                            .or_else(|| {
+                                self.infer_expr_type_name_with_locals_in_scope(
+                                    &args[1],
+                                    locals,
+                                    active_rule_scope,
+                                )
+                            })
+                            .or_else(|| {
+                                if !Self::is_polymorphic_empty_list_expr(&args[1]) {
+                                    return None;
+                                }
+                                let ExprKind::Lambda(params, _) = &args[2].kind else {
+                                    return None;
+                                };
+                                if params.len() != 2 {
+                                    return None;
+                                }
+                                params[0].ty.as_ref().and_then(Self::type_name_from_ty)
+                            });
+                        if name == "foldl" {
+                            return accumulator;
                         }
-                        if let Some(initial_type) = self.infer_expr_type_name_with_locals_in_scope(
-                            &args[1],
+                        let accumulator = accumulator?;
+                        let collection_type = self.infer_expr_type_name_with_locals_in_scope(
+                            &args[0],
                             locals,
                             active_rule_scope,
-                        ) {
-                            return Some(initial_type);
+                        )?;
+                        if Self::applied_type_argument(&collection_type, "List", 0).is_some() {
+                            return Some(format!("List({accumulator})"));
                         }
-                        if Self::is_polymorphic_empty_list_expr(&args[1]) {
-                            if let ExprKind::Lambda(params, _) = &args[2].kind {
-                                if params.len() == 2 {
-                                    return params[0].ty.as_ref().and_then(Self::type_name_from_ty);
-                                }
-                            }
+                        if ["Stream", "Subject"].into_iter().any(|constructor| {
+                            Self::applied_type_argument(&collection_type, constructor, 0).is_some()
+                        }) {
+                            return Some(format!("Stream({accumulator})"));
                         }
                         return None;
                     }
@@ -55832,15 +56197,28 @@ impl TypeChecker {
                     return None;
                 };
                 self.constructor_signature_for_args(constructor, arguments)
-                    .map(|signature| Ty::Name(signature.parent))
+                    .map(|signature| signature.parent)
+                    .filter(|parent| !self.type_has_parameters(parent))
+                    .map(Ty::Name)
             }
             ExprKind::Var(constructor)
                 if constructor.chars().next().is_some_and(char::is_uppercase) =>
             {
-                self.nullary_constructor_parent(constructor).map(Ty::Name)
+                self.nullary_constructor_parent(constructor)
+                    .filter(|parent| !self.type_has_parameters(parent))
+                    .map(Ty::Name)
             }
             _ => None,
         }
+    }
+
+    /// Whether a declared type takes type parameters (`Option(a)`): a pattern
+    /// of one of its constructors (`Some(day)`) names only the bare owner, not
+    /// the type at the position, which the family's declaration gives.
+    fn type_has_parameters(&self, owner: &str) -> bool {
+        self.type_parameters_by_owner
+            .get(owner)
+            .is_some_and(|parameters| !parameters.is_empty())
     }
 
     fn canonical_dispatch_types_match(&self, actual: &str, expected: &Ty) -> bool {
@@ -56778,6 +57156,7 @@ impl TypeChecker {
             Pat::NamedCon(_, fields) => fields
                 .iter()
                 .all(|(_, pattern)| Self::canonical_pattern_is_subject_catchall(pattern)),
+            Pat::Tuple(elements) => elements.iter().all(Self::canonical_pattern_is_irrefutable),
             Pat::Lit(_) => false,
         }
     }
@@ -56786,6 +57165,10 @@ impl TypeChecker {
         match pattern {
             Pat::Wild | Pat::Var(_) => true,
             Pat::As(inner, _) => Self::canonical_pattern_is_subject_catchall(inner),
+            // A well-typed tuple pattern's subject is a tuple of its arity.
+            Pat::Tuple(elements) => elements
+                .iter()
+                .all(Self::canonical_pattern_is_subject_catchall),
             Pat::Lit(_) | Pat::Con(_, _) | Pat::NamedCon(_, _) => false,
         }
     }
@@ -56861,6 +57244,19 @@ impl TypeChecker {
                     .map(|expected| self.canonical_pattern_is_well_typed(pattern, &expected))
                     .unwrap_or_else(|| Self::canonical_pattern_is_irrefutable(pattern))
                 })
+            }
+            Pat::Tuple(elements) => {
+                let Ok(Ty::App(head, element_types)) = parse_type_annotation(subject_type) else {
+                    return false;
+                };
+                matches!(head.as_ref(), Ty::Name(name) if name == "Tuple")
+                    && element_types.len() == elements.len()
+                    && elements
+                        .iter()
+                        .zip(&element_types)
+                        .all(|(element, expected)| {
+                            self.canonical_pattern_is_well_typed(element, &expected.to_string())
+                        })
             }
         }
     }
@@ -57343,7 +57739,10 @@ impl TypeChecker {
                 match operator.as_str() {
                     "&&" | "||" if left_type == "Bool" && right_type == "Bool" => inferred(),
                     "&&" | "||" => self.canonical_dispatch_type_error(),
-                    "<" | ">" | "<=" | ">=" if left_type == "Int" && right_type == "Int" => {
+                    "<" | ">" | "<=" | ">="
+                        if (left_type == "Int" && right_type == "Int")
+                            || (left_type == "Date" && right_type == "Date") =>
+                    {
                         inferred()
                     }
                     "<" | ">" | "<=" | ">=" if numeric(&left_type) && numeric(&right_type) => None,
@@ -57659,6 +58058,7 @@ impl TypeChecker {
         self.rule_dispatch_parameter_issues.clear();
         self.rule_dispatch_irrefutable_keys.clear();
         self.rule_dispatch_runtime_irrefutable_keys.clear();
+        self.rule_dispatch_head_pattern_total_keys.clear();
         self.runtime_guarded_rule_calls = RuntimeGuardedRuleCalls::default();
         self.rule_dispatch_keys = groups.keys().cloned().collect();
         let declared = self.note_declared_dispatch_results(&dispatch_statements);
@@ -57932,15 +58332,22 @@ impl TypeChecker {
         // consumes this map and proves definedness over its finite domain.
         self.rule_dispatch_type_return_types = self.rule_dispatch_return_types.clone();
         self.rule_dispatch_type_return_issues = self.rule_dispatch_return_issues.clone();
+        // A family selects a candidate for every argument tuple when one
+        // candidate is irrefutable and unguarded, or when the head patterns of
+        // its unguarded candidates cover the parameter types together.
         for (key, (_, rules)) in &groups {
-            if self
-                .rule_dispatch_return_types
-                .get(key)
-                .is_some_and(|return_type| {
-                    rules
-                        .iter()
-                        .any(|rule| rule_dispatch_candidate_is_total(rule, return_type))
-                })
+            let Some(return_type) = self.rule_dispatch_return_types.get(key) else {
+                continue;
+            };
+            let covered_by_heads = self.rule_head_patterns_cover(key, rules, return_type);
+            if covered_by_heads {
+                self.rule_dispatch_head_pattern_total_keys
+                    .insert(key.clone());
+            }
+            if covered_by_heads
+                || rules
+                    .iter()
+                    .any(|rule| rule_dispatch_candidate_is_total(rule, return_type))
             {
                 self.rule_dispatch_irrefutable_keys.insert(key.clone());
             }
@@ -60851,7 +61258,7 @@ impl TypeChecker {
                 continue;
             }
             if (impure_names.contains(&call.name)
-                && !matches!(call.name.as_str(), "last" | "take" | "collect"))
+                && !matches!(call.name.as_str(), "last" | "take" | "scan" | "collect"))
                 || effect_operations.contains(&call.name)
                 || matches!(call.name.as_str(), "findall" | "search")
             {
@@ -63822,11 +64229,35 @@ impl TypeChecker {
                                 ),
                             );
                         }
+                        if matches!(
+                            name.as_str(),
+                            "map"
+                                | "filter"
+                                | "flat_map"
+                                | "any"
+                                | "all"
+                                | "find"
+                                | "sort_by"
+                                | "take_while"
+                                | "drop_while"
+                                | "count_by"
+                                | "partition"
+                                | "foldl"
+                                | "scan"
+                                | "reduce"
+                        ) && actual_arity == expected
+                            && !self.var_defined(name)
+                        {
+                            self.check_callback_collection(expr, name, args);
+                        }
                         if matches!(name.as_str(), "filter" | "any" | "all" | "find")
                             && actual_arity == 2
                             && !self.var_defined(name)
                         {
-                            self.check_collection_predicate(name, args);
+                            self.check_collection_predicate(expr, name, args);
+                        }
+                        if name == "flat_map" && actual_arity == 2 && !self.var_defined(name) {
+                            self.check_flat_map_callback(expr, args);
                         }
                         if name == "lookup" && actual_arity == 2 && !self.var_defined(name) {
                             self.check_lookup_call(expr, args);
@@ -64533,7 +64964,7 @@ impl TypeChecker {
     pub fn define_pat_vars(&mut self, pat: &Pat) {
         match pat {
             Pat::Var(name) => self.define_var(name),
-            Pat::Con(_, pats) => {
+            Pat::Con(_, pats) | Pat::Tuple(pats) => {
                 for p in pats {
                     self.define_pat_vars(p);
                 }
@@ -64570,7 +65001,7 @@ impl TypeChecker {
         match pat {
             Pat::Wild | Pat::Lit(_) => true,
             Pat::Con(_, args) => args.is_empty(),
-            Pat::Var(_) | Pat::NamedCon(_, _) | Pat::As(_, _) => false,
+            Pat::Var(_) | Pat::NamedCon(_, _) | Pat::As(_, _) | Pat::Tuple(_) => false,
         }
     }
 
@@ -64656,8 +65087,48 @@ impl TypeChecker {
                 }
             }
             Pat::As(inner, _) => self.check_pattern_constructor_arity(inner, anchor, subject_type),
+            Pat::Tuple(elements) => {
+                let subject = subject_type.and_then(|ty| parse_type_annotation(ty).ok());
+                let element_types = match &subject {
+                    Some(Ty::App(head, arguments)) if matches!(head.as_ref(), Ty::Name(name) if name == "Tuple" || name == "Pair") => {
+                        Some(arguments)
+                    }
+                    _ => None,
+                };
+                let fits = element_types.is_some_and(|types| types.len() == elements.len());
+                // A type variable or an unknown type is not a known misfit.
+                let known = subject
+                    .as_ref()
+                    .is_some_and(|ty| ty.to_string().starts_with(|c: char| c.is_ascii_uppercase()));
+                if !fits && known {
+                    self.error_at_expr(
+                        anchor,
+                        format!(
+                            "tuple pattern `{}` has {} elements but the value has type `{}`",
+                            Self::pattern_label(pat),
+                            elements.len(),
+                            subject_type.unwrap_or_default()
+                        ),
+                    );
+                }
+                for (index, element) in elements.iter().enumerate() {
+                    let element_type = Self::tuple_pattern_element_type_name(subject_type, index);
+                    self.check_pattern_constructor_arity(element, anchor, element_type.as_deref());
+                }
+            }
             Pat::Wild | Pat::Var(_) | Pat::Lit(_) => {}
         }
+    }
+
+    /// The type of element `index` of a tuple of type `subject` (a
+    /// `Pair(a, b)` is the tuple `(a, b)`).
+    pub(crate) fn tuple_pattern_element_type_name(
+        subject: Option<&str>,
+        index: usize,
+    ) -> Option<String> {
+        let subject = subject?;
+        Self::applied_type_argument(subject, "Tuple", index)
+            .or_else(|| Self::applied_type_argument(subject, "Pair", index))
     }
 
     fn pattern_label(pat: &Pat) -> String {
@@ -64667,6 +65138,14 @@ impl TypeChecker {
             Pat::Con(name, _) | Pat::NamedCon(name, _) => name.clone(),
             Pat::Lit(lit) => lit.to_string(),
             Pat::As(_, name) => name.clone(),
+            Pat::Tuple(elements) => format!(
+                "({})",
+                elements
+                    .iter()
+                    .map(Self::pattern_label)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
         }
     }
 
@@ -64702,6 +65181,40 @@ impl TypeChecker {
             return None;
         }
         *budget -= 1;
+        // A tuple has one shape: its column becomes one column per element.
+        if let Some(arity) = rows
+            .iter()
+            .find_map(|row| match Self::coverage_pattern(&row[0]) {
+                Pat::Tuple(elements) => Some(elements.len()),
+                _ => None,
+            })
+        {
+            let specialized = rows
+                .iter()
+                .filter_map(|row| {
+                    let elements = match Self::coverage_pattern(&row[0]) {
+                        Pat::Tuple(elements) if elements.len() == arity => elements.clone(),
+                        Pat::Con(name, elements) if name == "Pair" && elements.len() == arity => {
+                            elements.clone()
+                        }
+                        Pat::Wild | Pat::Var(_) => vec![Pat::Wild; arity],
+                        // Another arity is a type error reported with the pattern.
+                        _ => return None,
+                    };
+                    Some(
+                        elements
+                            .into_iter()
+                            .chain(row[1..].iter().cloned())
+                            .collect(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let element_types = (0..arity)
+                .map(|index| Self::tuple_pattern_element_type_name(types[0].as_deref(), index))
+                .chain(types[1..].iter().cloned())
+                .collect::<Vec<_>>();
+            return self.match_pattern_rows_cover(&specialized, &element_types, budget, depth + 1);
+        }
         let inferred = types[0].clone().or_else(|| {
             rows.iter()
                 .find_map(|row| match Self::coverage_pattern(&row[0]) {
@@ -64844,6 +65357,36 @@ impl TypeChecker {
                     .to_string(),
             ),
         }
+    }
+
+    /// Whether the unguarded candidates' head patterns cover every argument
+    /// tuple of the family's parameter types, as the rows of a `match` do:
+    /// `| due(y, ChangedBySkat(d)) -> … | due(y, CorrectedByInstitute(r)) -> …`
+    /// over both variants cannot miss. Guarded candidates are left out.
+    fn rule_head_patterns_cover(
+        &self,
+        key: &RuleDispatchKey,
+        rules: &[&Rule],
+        return_type: &str,
+    ) -> bool {
+        let Some(types) = self.rule_dispatch_parameter_types.get(key) else {
+            return false;
+        };
+        if key.arity == 0 || types.iter().any(Option::is_none) {
+            return false;
+        }
+        let rows = rules
+            .iter()
+            .filter(|rule| rule_dispatch_candidate_is_unguarded(rule, return_type))
+            .filter_map(|rule| rule_head_patterns(rule.head()?, self))
+            .filter(|row| row.len() == key.arity)
+            .collect::<Vec<_>>();
+        let types = types
+            .iter()
+            .map(|ty| ty.as_ref().map(Self::canonical_explore_ty_name))
+            .collect::<Vec<_>>();
+        let mut budget = 10_000;
+        self.match_pattern_rows_cover(&rows, &types, &mut budget, 0) == Some(true)
     }
 
     pub fn is_rule_function(&self, name: &str) -> bool {
@@ -65173,7 +65716,11 @@ impl TypeChecker {
             rule_dispatch_parameter_issues: tc.rule_dispatch_parameter_issues,
             rule_dispatch_boolean_miss_safe_keys: tc.rule_dispatch_boolean_miss_safe_keys,
             rule_dispatch_runtime_boolean_miss_keys: tc.rule_dispatch_runtime_boolean_miss_keys,
-            rule_dispatch_total_value_keys: tc.rule_dispatch_irrefutable_keys,
+            rule_dispatch_total_value_keys: tc
+                .rule_dispatch_irrefutable_keys
+                .into_iter()
+                .chain(tc.rule_dispatch_head_pattern_total_keys)
+                .collect(),
             rule_dispatch_runtime_irrefutable_keys: tc.rule_dispatch_runtime_irrefutable_keys,
             runtime_guarded_rule_calls: tc.runtime_guarded_rule_calls,
             exploration_queries,

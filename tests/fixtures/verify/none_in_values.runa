@@ -1,0 +1,13 @@
+-- Two Option sorts (Date? and Int?) in one query: `None` in a value (a
+-- record field, `Some(None)`, a function's result) and compared with
+-- (`== None`) names its sort, so Z3 accepts the claims and proves them.
+# Date(year: Int, month: Int, day: Int)
+# Span(start: Date?, years: Int?)
+| span(admitted: Date?, first_year_off: Int?): Span -> Span(start = admitted, years = first_year_off)
+| exception status_changed span(None, Some(year)) -> Span(start = None, years = Some(year))
+| exception delisted span(Some(until), first_year_off) -> Span(start = Some(until), years = None)
+> nested(x: Int) -> (Int?)? { if x > 0 { Some(None) } else { None } }
+
+| delisted_span_has_no_years: x -> span(Some(Date(year = 2026, month = 1, day = x)), Some(x)) == Span(start = Some(Date(year = 2026, month = 1, day = x)), years = None)
+| delisted_years_are_none: x -> span(Some(Date(year = 2026, month = 1, day = x)), Some(x)).years == None
+| positive_nests_none: x -> if x > 0 { nested(x) == Some(None) } else { nested(x) == None }

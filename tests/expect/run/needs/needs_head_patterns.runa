@@ -1,0 +1,38 @@
+-- expect-command: interp
+-- expect-stdout-file: needs_head_patterns.stdout
+-- roundtrip-skip: `query` and `unknown` run only in the interpreter
+-- A rule-head pattern on an unknown input: whether the clause applies is
+-- unknown, so the query needs the input; it never guesses a clause or fails.
+-- A complete case reads the inputs the head patterns match (none unused).
+# K = A(n: Int) | B
+# Case(year: Int, closed: Int?, k: K)
+# Out(plus: Int, after: Int, val: Int)
+
+> f(d: Int) -> Int { d + 1 }
+> g(year: Int, d: Int) -> Bool { d > year }
+
+| plus_one(year: Int, ended_on: Int?): Int? -> None
+| exception ended plus_one(year, Some(day)) -> Some(f(day))
+
+| after(year: Int, ended_on: Int?): Int? -> None
+| exception ended after(year, Some(day)) -> if g(year, day) { Some(day) } else { None }
+
+| val(k: K): Int -> 0
+| exception a val(A(n)) -> f(n)
+
+> or_zero(x: Int?) -> Int {
+    match x {
+        | Some(d) -> d
+        | None -> 0
+    }
+}
+
+@ entry("t")
+> run(c: Case) -> Out {
+    Out(plus = or_zero(plus_one(c.year, c.closed)), after = or_zero(after(c.year, c.closed)), val = val(c.k))
+}
+
+@ print(show(query run(Case(year = 2026, closed = unknown, k = B))))
+@ print(show(query run(Case(year = 2026, closed = None, k = unknown))))
+@ print(show(query run(Case(year = 2026, closed = Some(2030), k = A(n = 4)))))
+@ print(show(run(Case(year = 2026, closed = Some(2020), k = B))))

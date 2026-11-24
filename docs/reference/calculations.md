@@ -557,6 +557,151 @@ list clauses with the reason the solver encoding could not decide them;
 decided, for example because one of their guards is not translatable. Findings
 are informational and do not change the exit status of `runa audit`.
 
+The encoding does not represent lists, so a clause whose rule takes a `List`
+(a guard that folds or scans the bookings itself) is in `not_analyzed` with
+the reason ``parameter `bookings` has type `List(Booking)`, which the SMT
+encoding does not represent``. Compute the running state with
+`scan(bookings, opening, step)` in the calculation and decide each state with
+a rule on it (`map(scan(...), |cash| overdrawn(cash))`): that rule takes a
+scalar and is analyzed, cited and explained (see
+[Running state over a list](runes.md#running-state-over-a-list)).
+
+## Generate Conformance Cases
+
+```sh
+runa cases model.entry.runa --entry calculate_tax --out cases/generated
+runa cases model.entry.runa --entry calculate_tax --out cases/generated \
+    --seed cases/examples.json --scenario tests/model.scenario.runa \
+    --rejected Refused
+```
+
+`runa cases` (Experimental) turns the model into a test oracle for another
+implementation of the same law: a directory of input/expected pairs that the
+implementation must reproduce, and a report of which rule clauses they
+exercise. The contract is [Conformance cases](../rfcs/conformance-cases.md).
+
+For every rule clause the entry reaches (the clause audit's clauses, imports
+included), it looks for an input that makes the clause fire; for every
+top-level comparison of two integers or two `Date`s in the guard of a cited
+clause (one with `@ cite`), it
+looks for inputs where the side that reads the rule's arguments is one below,
+equal to, and one above the other (one day for dates: `opened > Date(2024, 7, 1)`
+gives 30 June, 1 July and 2 July 2024). Inputs start from *bases*, complete inputs that already pass the
+entry's validation: the entry calls each `--scenario` file makes, the ready
+cases of each `--seed` input document (as `runa call` reads it), and a minimal
+input (`0`, `false`, `""`, `null`, `[]`, the first variant; a `Date`
+2000-01-01). Z3 solves the clause's guard over the rule's arguments, keeping
+the values a base's run passed where it can, and the input leaves those
+arguments come from (the explanation's provenance) are moved to the solution:
+set directly when an argument is an input value unchanged, searched when it is
+computed from integer inputs (an amount in øre from one in millionths of a
+krone), or filled in when an `Option` input is `null`. Clauses outside the SMT
+encoding are searched without a witness, around the inputs the rule reads.
+
+When the arguments come from an element of a list (an event, a position) and
+moving that element's values gives no case, a new element is added to the base: a copy of
+that element with its own key, moved to Z3's solution as above, then every
+leaf the solution did not set put back to its plainest value where the case
+still holds. The key of a list's elements (`@ field(key = True)`) is the
+case's id (`fee.large.clause`); an entry of an open collection (`open = True`)
+gets a key only from the solution, never an invented one. The new element is
+kept only when the run decodes, is not rejected and fires the clause.
+
+**Coverage is what the result rests on.** An implementation shows only its
+result, so a case covers only the clauses its result rests on, not every
+clause the run evaluated: the input is run again with every `if` and `match`
+branch's value traced to the condition that chose it, and the clauses the
+result's values were computed from (their values and guards, through the
+explanation's provenance) are its `covers`. Decisions no branch makes count
+the same way: a builtin that keeps or drops values by a predicate (`filter`,
+`find`, `any`, `all`, `take_while`, `drop_while`, `partition`) or by
+`Some`/`None` (`flat_map`, `unwrap_or`, `is_some`, `is_none`) gives a value
+computed from what decided it, a clause's `[]` is recorded as a branch's
+is, and a Boolean rule's `false` when no clause applies is computed from the
+guards and bodies that did not hold. A clause the entry evaluates but gives
+nothing from (a field of a shared step the entry drops) covers nothing. A
+boundary case whose result is a rejection is kept only when the rejection
+rests on the threshold's rule, and the guards of `not-in-result` clauses get
+no boundary cases.
+
+**Rejections.** A result variant is a rejection when the entry's result type
+is the prelude's `Result` (its `Err`) or when `--rejected VARIANT` names it
+(repeatable; it must be a variant of the result type). A rejected result
+shows little of what the rules computed before the entry gave up; it rests
+on the clauses its values and the conditions that chose the rejection were
+computed from.
+
+**The law is the cited clauses.** The suite tests the law, the rule clauses
+with `@ cite`; a clause without one (an overflow guard, a bound of a
+parameter table) is a technical check of the implementation. A rejected
+result is a case only when a cited clause is on the path the rejection
+rests on. A rejection that rests only on uncited clauses is not written:
+`coverage.json` lists it under `technical`, with the id its case would have
+had, the kind it was searched as (`searched_as`) and the clauses it rests on
+(`rests_on`). Only the guards of cited clauses get boundary cases.
+
+**The input domain.** Every case is an input an integrator can send through
+the SDK `runa sdk ts` generates, with a result the SDK can hold: an `Int`
+(of a unit or a named scalar type too) within ±(2^53 − 1), and a `Date` a
+day on the calendar in the years 0000 to 9999. `runa call` decodes more (any
+64-bit integer, any `Date` record, which a law may check itself), but no SDK
+sends it. Z3's solutions keep the inputs the rule's arguments are in that
+domain, and a run whose input or result is outside it is no case and covers
+nothing. A threshold side that lies only outside the domain (an amount just
+above 2^53 − 1, the 31st of April) has no case, and the threshold's `detail`
+says so.
+
+Each case is written to `DIR/<id>.case.json`:
+
+- `id`: `<rule>.<clause>.clause`, `<rule>.<clause>.t<k>.boundary-below` (or
+  `-at`, `-above`), `seed.<case_id>`, or `scenario.<file>.<n>`. `<clause>` is
+  an exception's label or `clause-<n>`, its position in the family's source
+  order. Ids never hash values, so they are the same on every run.
+- `entry`, `kind` (`clause`, `boundary-below`, `boundary-at`,
+  `boundary-above`, `scenario`, or `rejected` for any case whose result is a
+  rejection), `input` (a complete input) and `expected` (the `result` `runa
+  call` gives for it).
+- `covers`: each clause the case's result rests on (of a rejection, with the
+  conditions that chose it), with `rule`, `clause`, `location` (relative to
+  the entry file's directory) and `cites` (the cited paragraphs). It is read
+  from the run, never assumed from the search.
+
+`DIR/coverage.json` lists every clause with the cases that cover it, and for
+an uncovered one a `reason`: `unreachable` (the audit proved it never fires),
+`not-analysable` (its guard is outside the SMT encoding, with the audit's
+reason), `solver-unknown` (Z3 answered unknown, or the query ran out of its
+resource limit), `rejected` (it fired only in inputs the entry
+rejects, and no rejection rests on it), `not-in-result` (it fired in inputs
+the entry accepts, but no result rests on it by provenance, not even through
+a decision; reported and still counted, since provenance does not yet see
+every decision, a comparison of two `Date`s among them, and coverage must
+understate; its guard gets no boundary cases), `technical` (an
+uncited clause only technical rejections rest on), `outside-input-domain`
+(only an input outside the input domain fires it, with the `witness` Z3
+found outside it), or `no-entry-input` (no input the search tried reached
+it; with the rule-level `witness` when Z3 found one, which says what a
+scenario must set up). `summary` is `cited rule clauses: X of Y covered, of
+which N not in the result (reported, still counted)`; `cited` and `uncited`
+count the cited and the uncited clauses (`covered`, `clauses`,
+`not_in_result`). `thresholds` names the case of each side of each
+threshold of a cited clause that is not `not-in-result`, or `null`;
+`rejections` the variants counted as rejections; `cases` the number of
+cases of each kind (`clause`, `boundary`, `scenario`, `rejected`);
+`technical` the rejections left out. The command prints the summary,
+`runa cases: cited rule clauses: X of Y covered, of which N not in the
+result (reported, still counted); K cases (… clause, … boundary, …
+scenario, … rejected) in DIR; uncited rule clauses: A of B covered, of which
+M not in the result; technical rejections not in the suite: T`. Earlier
+`*.case.json` files in `DIR` that this run does not write are removed. Every
+Z3 query has a resource limit (Z3's `rlimit`), not a time limit, so the same
+law, seeds and scenarios give the same files, byte for byte, with the same
+`runa` and Z3, however loaded the machine.
+
+Arguments derived from lists through `foldl` or `scan`, or rejected by the
+entry's validation before the rule runs, are often not reached by moving one
+input leaf or adding one element: such clauses are reported `no-entry-input`
+or `rejected`, and a scenario that sets them up covers them.
+
 ## Generate Input
 
 ```sh
@@ -907,7 +1052,10 @@ entries the law asks for:
 - `runa check` refuses every other read of an open field (`filter`, `map`,
   `length`, a loop, a binding, passing it to a function): the case never holds
   all of it, so no such read has a true result.
-- An open field may be left out of a case: no entries are given yet.
+- An open field may be left out of a case or given as `[]`: no entries are
+  given yet. Its bare path is no input path (only its entries are), so it is
+  never among a result's unused paths; an empty closed list is, when the law
+  does not read it.
 - `lookup` runs in the interpreter; `runa build` and `runa run` refuse it.
 
 An entry whose key is unknown before the match keeps the result unknown with

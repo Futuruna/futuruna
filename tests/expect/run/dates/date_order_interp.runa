@@ -1,0 +1,17 @@
+-- expect-command: interp
+-- expect-stdout-file: ../../golden/run/date_order.stdout
+-- Dates are ordered chronologically, by year, then month, then day, whatever
+-- order the record declares its fields in; `sort` orders them the same way.
+# Date(day: Int, month: Int, year: Int)
+
+> before(a: Date, b: Date) -> Bool { a < b }
+
+= new_year_eve = Date(day = 31, month = 12, year = 2025)
+= new_year = Date(day = 1, month = 1, year = 2026)
+= leap_day = Date(day = 29, month = 2, year = 2028)
+@ print(show(before(new_year_eve, new_year)))
+@ print(show(new_year <= new_year_eve))
+@ print(show(leap_day > new_year))
+@ print(show(new_year >= new_year))
+@ print(show(new_year == Date(day = 1, month = 1, year = 2026)))
+@ print(show(sort([leap_day, new_year, new_year_eve]) == [new_year_eve, new_year, leap_day]))

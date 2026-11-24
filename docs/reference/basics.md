@@ -292,9 +292,19 @@ or, when the conversion divides, a named rounding such as
 Primitive equality requires operands of the same type: `5 == 5.0` is a type
 error; `to_float(5) == 5.0` compares two floats. Lists, tuples, and data
 constructors support structural equality. Ordering compares numbers, two
-strings, or two characters. Numeric ordering permits `Int`/`Float` mixing with
-the same conversion as arithmetic. Floating-point conversion can lose integer
-precision, so keep exact integer calculations in `Int`.
+strings, two characters, or two dates. Numeric ordering permits `Int`/`Float`
+mixing with the same conversion as arithmetic. Floating-point conversion can
+lose integer precision, so keep exact integer calculations in `Int`.
+
+A date is the standard record `# Date(year: Int, month: Int, day: Int)` (its
+fields in any order). Dates are ordered chronologically, by year, then month,
+then day, so `filed <= deadline` needs no numeric key; `sort` orders dates the
+same way. No other declared type is ordered: `<` on two records is a type
+error. `runa verify` and the clause audit in `runa audit` read a comparison of
+two dates as the same comparison over their fields, which for valid dates is
+the order of their day numbers. In a partial case, comparing a date the case
+leaves out is unknown, and `&&` and `||` decide wherever their known operand
+does.
 
 ### Logical
 | Op | Meaning |
@@ -356,6 +366,25 @@ match point {
 }
 ```
 
+A tuple pattern `(p1, p2, ...)` matches a tuple element by element, so two
+values are matched together by matching the tuple of both:
+```runa
+match (lost_right, closed) {
+    | (Some(lost), None) -> lost
+    | (_, Some(end)) -> end
+    | (None, None) -> start
+}
+```
+
+The arms of a tuple match are checked for exhaustiveness together, row by row,
+so the combinations count: without the `(None, None)` arm the match above is a
+`non-exhaustive match` error, though each element on its own has a `None` arm.
+A tuple pattern needs as many elements as the tuple has; a `Pair(a, b)` is the
+tuple `(a, b)` and matches the same way.
+`runa verify` and `runa audit` translate a match on a tuple written in place,
+such as `match (a, b)`, element by element; a tuple held in a binding is
+matched by the interpreter and native code but is not translated to SMT.
+
 ### for loop
 ```runa
 for item in collection {
@@ -396,6 +425,7 @@ For the complete standard library with all ~70 builtins, see [stdlib.md](stdlib.
 | `map` | `(List(a), a -> b) -> List(b)` | Map function |
 | `filter` | `(List(a), a -> Bool) -> List(a)` | Filter |
 | `foldl` | `(List(a), b, (b, a) -> b) -> b` | Left fold |
+| `scan` | `(List(a), b, (b, a) -> b) -> List(b)` | Accumulator after each element |
 | `range` | `(Int, Int) -> List(Int)` | Range `[start, end)` |
 
 ### Math

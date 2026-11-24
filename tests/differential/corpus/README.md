@@ -60,6 +60,7 @@ Seed cases:
 | `collection_value_order.runa` | one value order for maps, sets, `sort` and `sort_by` |
 | `float_display.runa` | large and small Float display without exponent notation |
 | `chunked_nonpositive_size.runa` | `chunked` with size 0 is a runtime error in both modes |
+| `flat_map_option_payloads.runa` | `flat_map` keeps each `Some` its callback turns into `[x]` in both modes; an `Option` callback result or list is a type error, not a dropped (interpreter) or kept (compiled) payload |
 | `float_division_by_zero.runa`, `float_division_by_zero_constant.runa` | Float division by zero is a runtime error; folded constants stay valid Rust |
 | `float_collection_keys.runa` | Float Map keys are a check error in both modes |
 | `codegen_valid_programs.runa` | `[]` + `push` inference, `Pair` fields, `count_by`, string concat keys, parenthesized `if`, folded captures, borrowed keys, closures calling `push`, `show(None)`/`show(Ok(1))`, `join([])` |

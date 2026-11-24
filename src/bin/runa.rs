@@ -28,6 +28,7 @@ macro_rules! status_println {
 
 mod runa_packages;
 // Reports with `status_println!`, so it follows the macro definitions.
+mod runa_conformance_cases;
 mod runa_rule_reachability;
 
 use futuruna::*;
@@ -224,6 +225,10 @@ fn main_inner() {
     let mut explore_output_directory = None;
     let mut explore_max_runtime = None;
     let mut calculation_entry = None;
+    let mut cases_out = None;
+    let mut cases_seeds = Vec::new();
+    let mut cases_scenarios = Vec::new();
+    let mut cases_rejected = Vec::new();
     let mut calculation_format = None;
     let mut calculation_input = None;
     let mut calculation_output = None;
@@ -473,7 +478,7 @@ fn main_inner() {
                 explore_max_runtime = Some(parse_explore_time_limit(&arg["--time-limit=".len()..]));
                 i += 1;
             }
-            "--entry" if matches!(mode, "schema" | "template" | "call" | "audit") => {
+            "--entry" if matches!(mode, "schema" | "template" | "call" | "audit" | "cases") => {
                 if i + 1 >= args.len() || args[i + 1].starts_with('-') {
                     eprintln!("error: --entry requires an entry name");
                     std::process::exit(1);
@@ -481,11 +486,30 @@ fn main_inner() {
                 calculation_entry = Some(args[i + 1].clone());
                 i += 2;
             }
-            arg if matches!(mode, "schema" | "template" | "call" | "audit")
+            arg if matches!(mode, "schema" | "template" | "call" | "audit" | "cases")
                 && arg.starts_with("--entry=") =>
             {
                 calculation_entry = Some(arg["--entry=".len()..].to_string());
                 i += 1;
+            }
+            "--out" | "--seed" | "--scenario" | "--rejected" if mode == "cases" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    let what = if args[i] == "--rejected" {
+                        "a variant of the entry's result"
+                    } else {
+                        "a path"
+                    };
+                    eprintln!("error: {} requires {}", args[i], what);
+                    std::process::exit(1);
+                }
+                let value = args[i + 1].clone();
+                match args[i].as_str() {
+                    "--out" => cases_out = Some(value),
+                    "--seed" => cases_seeds.push(value),
+                    "--rejected" => cases_rejected.push(value),
+                    _ => cases_scenarios.push(value),
+                }
+                i += 2;
             }
             "--all-tables" if mode == "template" => {
                 calculation_all_tables = true;
@@ -766,6 +790,9 @@ fn main_inner() {
                 eprintln!("  verify        Generate SMT-LIB2 and verify with Z3");
                 eprintln!("  verify --allow-unsupported  Exit 0 when every claim the SMT layer can translate is PROVED");
                 eprintln!("  audit         Discover invariant gaps and rule asymmetries");
+                eprintln!(
+                    "  cases         Generate conformance cases and clause coverage for an @ entry"
+                );
                 eprintln!("  explore       Create or resume one durable relational exploration");
                 eprintln!("  fmt           Format source file(s)");
                 eprintln!("  fmt --check   Check formatting without modifying");
@@ -795,6 +822,7 @@ fn main_inner() {
                 eprintln!("  meta --json        Emit a structured metadata index");
                 eprintln!("  --entry NAME       Select an @ entry");
                 eprintln!("  audit --entry NAME [--json]  Report calculation reachability");
+                eprintln!("  cases --out DIR [--entry NAME] [--seed CASES.json] [--scenario FILE]  Write the cases and coverage.json");
                 eprintln!("  explore --query NAME  Select one named exploration");
                 eprintln!("  explore --run-state PATH  Required durable journal directory");
                 eprintln!("  explore --assume-verified-checkpoint N:SHA256  Explicitly trust recorded region proofs in a pinned local prefix");
@@ -1017,6 +1045,10 @@ fn main_inner() {
             }
             "audit" => {
                 mode = "audit";
+                i += 1;
+            }
+            "cases" => {
+                mode = "cases";
                 i += 1;
             }
             "explore" => {
@@ -1249,6 +1281,25 @@ fn main_inner() {
             calculation_partial.map(|mode| (mode, calculation_partial_check)),
             calculation_explain,
             calculation_describe,
+        );
+        return;
+    }
+
+    if mode == "cases" {
+        let (Some(path), Some(out)) = (filename.as_deref(), cases_out) else {
+            eprintln!("Usage: runa cases <file.runa> [--entry NAME] --out DIR [--seed CASES.json ...] [--scenario FILE.scenario.runa ...] [--rejected VARIANT ...]");
+            std::process::exit(1);
+        };
+        runa_conformance_cases::run_cases(
+            path,
+            use_prelude,
+            &runa_conformance_cases::CasesOptions {
+                entry: calculation_entry,
+                out,
+                seeds: cases_seeds,
+                scenarios: cases_scenarios,
+                rejected: cases_rejected,
+            },
         );
         return;
     }
@@ -9537,6 +9588,11 @@ fn collect_generated_rust_pattern_names(pattern: &Pat, names: &mut BTreeSet<Stri
             names.insert(name.clone());
             collect_generated_rust_pattern_names(inner, names);
         }
+        Pat::Tuple(children) => {
+            for child in children {
+                collect_generated_rust_pattern_names(child, names);
+            }
+        }
         Pat::Wild | Pat::Lit(_) => {}
     }
 }
@@ -9834,6 +9890,14 @@ fn explore_native_classifier_constructor_pattern_is_resolved_v2(
                 inner,
                 multiply_owned_fielded,
             );
+        }
+        Pat::Tuple(children) => {
+            return children.iter().all(|child| {
+                explore_native_classifier_constructor_pattern_is_resolved_v2(
+                    child,
+                    multiply_owned_fielded,
+                )
+            });
         }
         Pat::Wild | Pat::Var(_) | Pat::Lit(_) => return true,
     };
@@ -14470,6 +14534,9 @@ fn validate_smt_qualified_pattern(
     match pattern {
         Pat::Wild | Pat::Var(_) | Pat::Lit(_) => Ok(()),
         Pat::As(inner, _) => validate_smt_qualified_pattern(inner, namespace_display_name),
+        Pat::Tuple(elements) => elements
+            .iter()
+            .try_for_each(|element| validate_smt_qualified_pattern(element, namespace_display_name)),
         Pat::Con(..) | Pat::NamedCon(..) => Err(format!(
             "qualified SMT namespace `{}` uses a nominal match pattern; nominal qualified types are not yet supported and fail closed",
             namespace_display_name
@@ -15302,6 +15369,18 @@ impl SmtProgramDeclarations {
                 }
             }
         }
+        // A function's result and a typed binding give a nullary constructor
+        // they yield (`None`) its sort.
+        for (_, _, result, body) in &mut functions {
+            if let Some(result) = result {
+                *body = rule_lowerer.sort_nullary_constructors(body.clone(), result);
+            }
+        }
+        for (name, expression) in &mut bindings {
+            if let Some(Some(ty)) = binding_types.get(name) {
+                *expression = rule_lowerer.sort_nullary_constructors(expression.clone(), ty);
+            }
+        }
 
         Self {
             adts,
@@ -15334,14 +15413,6 @@ impl SmtConstructorSignature {
             return arguments.len() == self.fields.len();
         }
         !self.positional && reorder_named_args_by_names(&self.field_names(), arguments).is_some()
-    }
-
-    fn selector(&self, constructor: &str, index: usize) -> String {
-        if self.positional {
-            format!("{}_f{}", constructor, index)
-        } else {
-            self.fields[index].name.clone()
-        }
     }
 }
 
@@ -15475,8 +15546,12 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                         .entry(name.clone())
                         .or_insert_with(BTreeMap::new);
                     for variant in variants {
-                        for field in &variant.fields {
+                        for (index, field) in variant.fields.iter().enumerate() {
                             fields.insert(field.name.clone(), field.ty.to_string());
+                            fields.insert(
+                                smt_constructor_field_key(&variant.name, index),
+                                field.ty.to_string(),
+                            );
                         }
                         constructors.entry(variant.name.clone()).or_default().push(
                             SmtConstructorSignature {
@@ -15510,7 +15585,13 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                         name.clone(),
                         scope_fields
                             .iter()
-                            .map(|field| (field.name.clone(), field.ty.to_string()))
+                            .enumerate()
+                            .flat_map(|(index, field)| {
+                                [
+                                    (field.name.clone(), field.ty.to_string()),
+                                    (smt_constructor_field_key(name, index), field.ty.to_string()),
+                                ]
+                            })
                             .collect(),
                     );
                     constructors.insert(
@@ -15831,6 +15912,67 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             .find(|signature| signature.matches_arguments(arguments))
     }
 
+    /// `pattern` with every named constructor pattern (`Withdrawal(purpose:
+    /// p)`) written by position, a wildcard for each field it leaves out, so
+    /// the SMT encoding reads each field by its constructor
+    /// (`smt_constructor_field_key`): a field name two constructors give
+    /// different sorts has no reader by name.
+    fn positional_pattern(&self, pattern: &Pat) -> Pat {
+        match pattern {
+            Pat::NamedCon(constructor, fields) => {
+                let signature = self.constructors.get(constructor).and_then(|signatures| {
+                    signatures.iter().find(|signature| {
+                        !signature.positional
+                            && fields.iter().all(|(name, _)| {
+                                signature.fields.iter().any(|field| &field.name == name)
+                            })
+                    })
+                });
+                match signature {
+                    Some(signature) => Pat::Con(
+                        constructor.clone(),
+                        signature
+                            .fields
+                            .iter()
+                            .map(|field| {
+                                fields
+                                    .iter()
+                                    .find(|(name, _)| name == &field.name)
+                                    .map_or(Pat::Wild, |(_, pattern)| {
+                                        self.positional_pattern(pattern)
+                                    })
+                            })
+                            .collect(),
+                    ),
+                    None => Pat::NamedCon(
+                        constructor.clone(),
+                        fields
+                            .iter()
+                            .map(|(name, pattern)| (name.clone(), self.positional_pattern(pattern)))
+                            .collect(),
+                    ),
+                }
+            }
+            Pat::Con(constructor, patterns) => Pat::Con(
+                constructor.clone(),
+                patterns
+                    .iter()
+                    .map(|pattern| self.positional_pattern(pattern))
+                    .collect(),
+            ),
+            Pat::Tuple(patterns) => Pat::Tuple(
+                patterns
+                    .iter()
+                    .map(|pattern| self.positional_pattern(pattern))
+                    .collect(),
+            ),
+            Pat::As(pattern, name) => {
+                Pat::As(Box::new(self.positional_pattern(pattern)), name.clone())
+            }
+            Pat::Wild | Pat::Var(_) | Pat::Lit(_) => pattern.clone(),
+        }
+    }
+
     fn unique_nullary_constructor_parent(&self, constructor: &str) -> Option<String> {
         let signatures = self.constructors.get(constructor)?;
         let parents: BTreeSet<String> = signatures
@@ -15839,6 +15981,106 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             .map(|signature| signature.parent.clone())
             .collect();
         (parents.len() == 1).then(|| parents.into_iter().next().unwrap())
+    }
+
+    /// The constructor a lowered expression applies with no payload, of a
+    /// generic type (`None`): alone it names no instance of its type.
+    fn lowered_nullary_constructor<'expression>(
+        &self,
+        expression: &'expression Expr,
+    ) -> Option<&'expression str> {
+        let name = match &expression.kind {
+            ExprKind::Var(name) => name,
+            ExprKind::App(function, arguments) if arguments.is_empty() => match &function.kind {
+                ExprKind::Var(name) => name,
+                _ => return None,
+            },
+            _ => return None,
+        };
+        let signature = self.constructor_signature(name, &[])?;
+        self.type_parameters_by_owner
+            .get(&signature.parent)
+            .is_some_and(|parameters| !parameters.is_empty())
+            .then_some(name.as_str())
+    }
+
+    /// `expression`, a lowered value of type `ty`, with every nullary
+    /// constructor (`None`) it yields given its sort, also inside a
+    /// constructor's payload (`Some(None)`, `Span(start = None, …)`) and in
+    /// the branches of an `if`, a `match` or a block: with two instances of
+    /// its datatype in the query (`Option Int`, `Option Date`) the solver
+    /// cannot pick.
+    fn sort_nullary_constructors(&self, expression: Expr, ty: &Ty) -> Expr {
+        if self.lowered_nullary_constructor(&expression).is_some() {
+            return if self.rule_type_is_smt_representable(ty) {
+                smt_sorted_nullary(expression, ty)
+            } else {
+                expression
+            };
+        }
+        let span = expression.span;
+        let kind = match expression.kind {
+            ExprKind::If(condition, then_expression, else_expression) => ExprKind::If(
+                condition,
+                Box::new(self.sort_nullary_constructors(*then_expression, ty)),
+                Box::new(self.sort_nullary_constructors(*else_expression, ty)),
+            ),
+            ExprKind::Match(scrutinee, arms) => ExprKind::Match(
+                scrutinee,
+                arms.into_iter()
+                    .map(|arm| MatchArm {
+                        body: self.sort_nullary_constructors(arm.body, ty),
+                        ..arm
+                    })
+                    .collect(),
+            ),
+            ExprKind::Block(mut statements) => {
+                if let Some(Stmt::Expr(last)) = statements.pop() {
+                    statements.push(Stmt::Expr(self.sort_nullary_constructors(last, ty)));
+                }
+                ExprKind::Block(statements)
+            }
+            ExprKind::App(function, arguments) => {
+                let payload_types = match (&function.kind, smt_type_instance(ty)) {
+                    (ExprKind::Var(constructor), Some((owner, type_arguments)))
+                        if !has_named_args(&arguments) =>
+                    {
+                        self.constructor_signature(constructor, &arguments)
+                            .filter(|signature| signature.parent == owner)
+                            .map(|signature| {
+                                let parameters = self
+                                    .type_parameters_by_owner
+                                    .get(owner)
+                                    .map(Vec::as_slice)
+                                    .unwrap_or_default();
+                                signature
+                                    .fields
+                                    .iter()
+                                    .map(|field| {
+                                        smt_substitute_type(&field.ty, parameters, &type_arguments)
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                    }
+                    _ => None,
+                };
+                match payload_types {
+                    Some(payload_types) => ExprKind::App(
+                        function,
+                        arguments
+                            .into_iter()
+                            .zip(&payload_types)
+                            .map(|(argument, field_ty)| {
+                                self.sort_nullary_constructors(argument, field_ty)
+                            })
+                            .collect(),
+                    ),
+                    None => ExprKind::App(function, arguments),
+                }
+            }
+            other => other,
+        };
+        Expr::new(kind, span)
     }
 
     fn infer_constructor_result_type(
@@ -16278,10 +16520,26 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                             .iter()
                             .map(|argument| self.lower_expr(argument, environment, expansion_stack))
                             .collect::<Result<Vec<_>, _>>()?;
-                        ExprKind::App(
-                            Box::new(Expr::new(ExprKind::Var(name.clone()), function.span)),
-                            lowered_arguments,
-                        )
+                        let constructed = Expr::new(
+                            ExprKind::App(
+                                Box::new(Expr::new(ExprKind::Var(name.clone()), function.span)),
+                                lowered_arguments,
+                            ),
+                            span,
+                        );
+                        // A type without parameters gives every field its
+                        // sort: `Span(start = None, …)` names its `None`.
+                        let generic = self
+                            .type_parameters_by_owner
+                            .get(&signature.parent)
+                            .is_some_and(|parameters| !parameters.is_empty());
+                        if generic || arguments.is_empty() {
+                            return Ok(constructed);
+                        }
+                        return Ok(self.sort_nullary_constructors(
+                            constructed,
+                            &Ty::Name(signature.parent.clone()),
+                        ));
                     } else {
                         ExprKind::App(
                             Box::new(self.lower_expr(function, environment, expansion_stack)?),
@@ -16331,11 +16589,48 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     )
                 }
             }
-            ExprKind::BinOp(operator, left, right) => ExprKind::BinOp(
-                operator.clone(),
-                Box::new(self.lower_expr(left, environment, expansion_stack)?),
-                Box::new(self.lower_expr(right, environment, expansion_stack)?),
-            ),
+            ExprKind::BinOp(operator, left_source, right_source) => {
+                let left = self.lower_expr(left_source, environment, expansion_stack)?;
+                let right = self.lower_expr(right_source, environment, expansion_stack)?;
+                if !matches!(operator.as_str(), "==" | "!=") {
+                    ExprKind::BinOp(operator.clone(), Box::new(left), Box::new(right))
+                } else {
+                    // A comparison with a nullary constructor (`x == None`)
+                    // is a constructor test: `None` alone names no sort when
+                    // the query holds two Option sorts.
+                    let tested = match (
+                        self.lowered_nullary_constructor(&left),
+                        self.lowered_nullary_constructor(&right),
+                    ) {
+                        (_, Some(constructor)) => Some((constructor, &left)),
+                        (Some(constructor), None) => Some((constructor, &right)),
+                        (None, None) => None,
+                    };
+                    if let Some((constructor, value)) = tested {
+                        let test = smt_constructor_test(constructor, value.clone());
+                        return Ok(if operator == "==" {
+                            test
+                        } else {
+                            Expr::new(ExprKind::UnOp("!".to_string(), Box::new(test)), span)
+                        });
+                    }
+                    // Compared values share a type: one side's gives a
+                    // `None` inside the other's payload (`x == Some(None)`)
+                    // its sort.
+                    let compared = self
+                        .infer_expr_type(left_source, environment)
+                        .or_else(|| self.infer_expr_type(right_source, environment))
+                        .and_then(|type_name| parse_type_annotation(&type_name).ok());
+                    match compared {
+                        Some(compared) => ExprKind::BinOp(
+                            operator.clone(),
+                            Box::new(self.sort_nullary_constructors(left, &compared)),
+                            Box::new(self.sort_nullary_constructors(right, &compared)),
+                        ),
+                        None => ExprKind::BinOp(operator.clone(), Box::new(left), Box::new(right)),
+                    }
+                }
+            }
             ExprKind::UnOp(operator, inner) => ExprKind::UnOp(
                 operator.clone(),
                 Box::new(self.lower_expr(inner, environment, expansion_stack)?),
@@ -16362,7 +16657,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                         }
                         Ok(MatchArm {
                             pat_span: arm.pat_span,
-                            pat: arm.pat.clone(),
+                            pat: self.positional_pattern(&arm.pat),
                             guard: arm
                                 .guard
                                 .as_ref()
@@ -16655,6 +16950,13 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             for (applicability, selected_value, _) in candidates.into_iter().rev() {
                 fallback = Some(if smt_is_true(&applicability) {
                     selected_value
+                } else if fallback.is_none()
+                    && group.totality == RuleDispatchTotality::IrrefutableCandidate
+                {
+                    // Some candidate applies to every input (its head
+                    // patterns cover the parameter types), so no input
+                    // reaches past the last one: its value is the otherwise.
+                    selected_value
                 } else if let Some(next) = fallback {
                     Expr::unspanned(ExprKind::If(
                         Box::new(applicability),
@@ -16727,6 +17029,13 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     .insert(name.clone(), actual.clone());
                 Ok(smt_bool(true))
             }
+            // A nullary constructor is tested, not compared: `None` alone
+            // names no sort when a family holds two Option sorts.
+            ExprKind::Var(constructor)
+                if self.constructor_signature(constructor, &[]).is_some() =>
+            {
+                Ok(smt_constructor_test(constructor, actual.clone()))
+            }
             ExprKind::Var(_) => Ok(Expr::unspanned(ExprKind::BinOp(
                 "==".to_string(),
                 Box::new(actual.clone()),
@@ -16761,10 +17070,12 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     pattern_arguments.clone()
                 };
                 let mut guard = smt_constructor_test(constructor, actual.clone());
+                // The constructor's own reader: a field name two
+                // constructors give different sorts has no reader by name.
                 for (index, child_pattern) in ordered.iter().enumerate() {
                     let selected = Expr::unspanned(ExprKind::Field(
                         Box::new(actual.clone()),
-                        signature.selector(constructor, index),
+                        smt_constructor_field_key(constructor, index),
                     ));
                     guard = smt_and(
                         guard,
@@ -16791,7 +17102,7 @@ fn collect_smt_pattern_bindings(pattern: &Pat, output: &mut BTreeSet<String>) {
         Pat::Var(name) => {
             output.insert(name.clone());
         }
-        Pat::Con(_, patterns) => {
+        Pat::Con(_, patterns) | Pat::Tuple(patterns) => {
             for pattern in patterns {
                 collect_smt_pattern_bindings(pattern, output);
             }
@@ -16838,6 +17149,42 @@ fn smt_and(left: Expr, right: Expr) -> Expr {
     ))
 }
 
+/// The binding `smt_sorted_nullary` gives a nullary constructor.
+const SMT_SORTED_BINDING: &str = "__runa_sorted";
+
+/// `constructor` (`None`) at the sort of `ty`: a typed binding, which
+/// `expr_to_smt` renders as `(as None (Option Int))`.
+fn smt_sorted_nullary(constructor: Expr, ty: &Ty) -> Expr {
+    let span = constructor.span;
+    Expr::new(
+        ExprKind::Block(vec![
+            Stmt::Bind(
+                Pat::Var(SMT_SORTED_BINDING.to_string()),
+                Some(ty.clone()),
+                constructor,
+            ),
+            Stmt::Expr(Expr::new(
+                ExprKind::Var(SMT_SORTED_BINDING.to_string()),
+                span,
+            )),
+        ]),
+        span,
+    )
+}
+
+/// Whether `expression` is a constructor applied with no payload (`None`).
+fn smt_is_nullary_constructor(expression: &Expr) -> bool {
+    let name = match &expression.kind {
+        ExprKind::Var(name) => name,
+        ExprKind::App(function, arguments) if arguments.is_empty() => match &function.kind {
+            ExprKind::Var(name) => name,
+            _ => return false,
+        },
+        _ => return false,
+    };
+    name.chars().next().is_some_and(char::is_uppercase)
+}
+
 fn smt_constructor_test(constructor: &str, value: Expr) -> Expr {
     Expr::unspanned(ExprKind::Match(
         Box::new(value),
@@ -16873,6 +17220,9 @@ fn smt_pattern_support_reason(pat: &Pat) -> Option<String> {
             Some("string and char literal patterns are not translatable to SMT".into())
         }
         Pat::As(_, _) => Some("alias patterns are not translatable to SMT".into()),
+        Pat::Tuple(_) => {
+            Some("tuple patterns translate to SMT only against a tuple of values".into())
+        }
     }
 }
 
@@ -16946,9 +17296,31 @@ fn smt_expr_support_reason(
             .or_else(|| smt_expr_support_reason(else_, fn_names, ctor_names)),
         ExprKind::Field(obj, _) => smt_expr_support_reason(obj, fn_names, ctor_names),
         ExprKind::Match(scrutinee, arms) => {
-            smt_expr_support_reason(scrutinee, fn_names, ctor_names).or_else(|| {
+            // A tuple of values is matched element by element; it is not
+            // itself a value of the encoding.
+            let tuple = match &scrutinee.kind {
+                ExprKind::Tuple(items) => Some(items),
+                _ => None,
+            };
+            let pattern_reason = |pat: &Pat| match (tuple, pat) {
+                (None, pat) => smt_pattern_support_reason(pat),
+                (Some(_), Pat::Wild) => None,
+                (Some(items), Pat::Tuple(elements)) if elements.len() == items.len() => {
+                    elements.iter().find_map(smt_pattern_support_reason)
+                }
+                (Some(_), _) => {
+                    Some("a tuple of values is matched only by tuple patterns of its arity".into())
+                }
+            };
+            match tuple {
+                Some(items) => items
+                    .iter()
+                    .find_map(|item| smt_expr_support_reason(item, fn_names, ctor_names)),
+                None => smt_expr_support_reason(scrutinee, fn_names, ctor_names),
+            }
+            .or_else(|| {
                 arms.iter().find_map(|arm| {
-                    smt_pattern_support_reason(&arm.pat)
+                    pattern_reason(&arm.pat)
                         .or_else(|| {
                             arm.guard.as_ref().and_then(|guard| {
                                 smt_expr_support_reason(guard, fn_names, ctor_names)
@@ -17679,7 +18051,7 @@ impl SmtRuleLowerer<'_, '_> {
             Pat::Var(name) => self.unique_nullary_constructor_parent(name),
             Pat::As(inner, _) => self.pattern_type(inner),
             Pat::Lit(Literal::Int(_)) => Some("Int".to_string()),
-            Pat::Wild | Pat::Lit(_) => None,
+            Pat::Wild | Pat::Lit(_) | Pat::Tuple(_) => None,
         }
     }
 
@@ -17925,10 +18297,7 @@ fn expr_to_smt(expr: &Expr) -> String {
             format!("({} {})", smt_field_function(field), expr_to_smt(obj))
         }
         // Match expression → nested ite with Z3 constructor testers
-        ExprKind::Match(scrutinee, arms) => {
-            let scrut = expr_to_smt(scrutinee);
-            smt_match_arms(&scrut, arms, 0)
-        }
+        ExprKind::Match(scrutinee, arms) => smt_match_arms(scrutinee, arms),
         ExprKind::Block(stmts) => {
             if stmts.len() == 1 {
                 if let Stmt::Expr(inner) = &stmts[0] {
@@ -17941,8 +18310,15 @@ fn expr_to_smt(expr: &Expr) -> String {
                 let mut last_expr = None;
                 for s in stmts {
                     match s {
-                        Stmt::Bind(Pat::Var(name), _, e) => {
-                            local_lets.push((smt_value_symbol(name), expr_to_smt(e)));
+                        Stmt::Bind(Pat::Var(name), ty, e) => {
+                            let mut value = expr_to_smt(e);
+                            // A typed binding of a nullary constructor
+                            // (`let x: Int? = None`) names its sort.
+                            if let Some(ty) = ty.as_ref().filter(|_| smt_is_nullary_constructor(e))
+                            {
+                                value = format!("(as {} {})", value, ty_to_smt_sort(ty));
+                            }
+                            local_lets.push((smt_value_symbol(name), value));
                         }
                         Stmt::Expr(e) => {
                             last_expr = Some(expr_to_smt(e));
@@ -17969,8 +18345,8 @@ fn expr_to_smt(expr: &Expr) -> String {
 }
 
 /// Convert match arms to nested Z3 ite expressions with constructor testers
-fn smt_match_arms(scrut: &str, arms: &[MatchArm], idx: usize) -> String {
-    runa_verification_arithmetic::match_value(scrut, &arms[idx..])
+fn smt_match_arms(scrutinee: &Expr, arms: &[MatchArm]) -> String {
+    runa_verification_arithmetic::match_value(scrutinee, arms)
         .unwrap_or_else(|reason| format!("; {reason}"))
 }
 
@@ -18019,10 +18395,11 @@ fn smt_tester(constructor: &str) -> String {
     format!("is-{}", smt_symbol(constructor))
 }
 
-/// The SMT function that reads field `key` (a field name, or `Ctor_f<i>` for
-/// a positional field) from a value of any datatype that has it. Each
-/// datatype defines its own overload over its constructors' accessors, so
-/// constructors and types that share a field name stay distinct.
+/// The SMT function that reads field `key` (a field name, or `Ctor_f<i>`,
+/// see `smt_constructor_field_key`) from a value of any datatype that has
+/// it. Each datatype defines its own overload over its constructors'
+/// accessors, so constructors and types that share a field name stay
+/// distinct.
 fn smt_field_function(key: &str) -> String {
     smt_symbol(&format!("runa_field_{key}"))
 }
@@ -18099,18 +18476,29 @@ fn smt_accessor(datatype: &str, variant: &Variant, index: usize) -> String {
     ))
 }
 
-/// The key a field is read by: its name, or `Ctor_f<i>` for a positional
-/// field.
+/// The key a field is read by in source (`x.purpose`) and its accessor is
+/// named by: its name, or `Ctor_f<i>` for a positional field.
 fn smt_field_key(variant: &Variant, index: usize) -> String {
     if variant.positional {
-        format!("{}_f{}", variant.name, index)
+        smt_constructor_field_key(&variant.name, index)
     } else {
         variant.fields[index].name.clone()
     }
 }
 
+/// The key the `index`th field of `constructor` is read by where the
+/// constructor is known (a pattern, a product's fields): every field has
+/// one, named or positional, and it is the constructor's own, so fields of
+/// two constructors that share a name but not a sort (`purpose:
+/// DepositPurpose?` and `purpose: WithdrawalPurpose?`) are each read.
+fn smt_constructor_field_key(constructor: &str, index: usize) -> String {
+    format!("{constructor}_f{index}")
+}
+
 /// One reader per field key over `sort`, the datatype `name` or one of its
-/// instances; `field_sort` gives each field's sort there.
+/// instances: per field name and per constructor field
+/// (`smt_constructor_field_key`); `field_sort` gives each field's sort
+/// there.
 fn emit_z3_field_readers(
     name: &str,
     sort: &str,
@@ -18122,14 +18510,21 @@ fn emit_z3_field_readers(
     let mut fields_by_key: BTreeMap<String, Vec<(String, String, String)>> = BTreeMap::new();
     for variant in variants {
         for (index, field) in variant.fields.iter().enumerate() {
+            let owner = (
+                variant.name.clone(),
+                smt_accessor(name, variant, index),
+                field_sort(&field.ty),
+            );
+            if !variant.positional {
+                fields_by_key
+                    .entry(field.name.clone())
+                    .or_default()
+                    .push(owner.clone());
+            }
             fields_by_key
-                .entry(smt_field_key(variant, index))
+                .entry(smt_constructor_field_key(&variant.name, index))
                 .or_default()
-                .push((
-                    variant.name.clone(),
-                    smt_accessor(name, variant, index),
-                    field_sort(&field.ty),
-                ));
+                .push(owner);
         }
     }
     let mut out = String::new();
@@ -18137,8 +18532,9 @@ fn emit_z3_field_readers(
         let Some((_, last_accessor, last_sort)) = owners.last() else {
             continue;
         };
-        // A field whose sort differs between constructors has no single
-        // reader; a claim that reads it fails on the undefined function.
+        // A field name whose sort differs between constructors has no
+        // reader by name; patterns read it by constructor, and a claim that
+        // reads it by name fails on the undefined function.
         if owners.iter().any(|(_, _, sort)| sort != last_sort) {
             continue;
         }
@@ -19756,6 +20152,8 @@ const VERIFY_GUARANTEE: &str = "Guarantee: a proved invariant holds for every va
 /// whose negation carries the same overflow obligation as runtime
 /// `checked_abs` (so `abs` of the minimum Int is an overflow). A program
 /// declaration of the same name takes precedence and suppresses the helper.
+/// Calls of generic functions are inlined (`smt_inline_generic_calls`), and
+/// comparisons of two dates are written over their fields (`smt_date_order`).
 fn smt_with_prelude_arithmetic(statements: Vec<Stmt>, use_prelude: bool) -> Vec<Stmt> {
     const HELPERS: &str = "> abs(x: Int) -> Int { if x < 0 { -x } else { x } }\n";
     let mut declared = BTreeSet::new();
@@ -19785,7 +20183,178 @@ fn smt_with_prelude_arithmetic(statements: Vec<Stmt>, use_prelude: bool) -> Vec<
         |statement| !matches!(statement, Stmt::Defn(Defn::Fn { name, .. }) if declared.contains(name)),
     );
     helpers.extend(statements);
-    helpers
+    smt_date_order(smt_inline_generic_calls(helpers))
+}
+
+/// How deep an inlined generic function's body may itself be inlined.
+const SMT_INLINE_DEPTH: usize = 16;
+
+/// The program with each call of a generic function replaced by the
+/// function's body under let-bindings of its arguments. A `define-fun` has
+/// one sort per parameter, so a generic function is declared at `Int`
+/// (`Option(a)` as `(Option Int)`) and cannot take an `Option(Date)`; inlined,
+/// its body reads the argument at the argument's own sort. An `Option` is a
+/// datatype whose tester is its presence and whose field is its value, so
+/// `is_some(closed)`, `is_none(closed)` and `unwrap_or(closed, d)` read
+/// exactly that. A recursive generic function is not inlined.
+fn smt_inline_generic_calls(mut statements: Vec<Stmt>) -> Vec<Stmt> {
+    fn has_type_variable(ty: &Ty) -> bool {
+        match ty {
+            Ty::Var(_) => true,
+            Ty::App(head, arguments) => {
+                has_type_variable(head) || arguments.iter().any(has_type_variable)
+            }
+            Ty::Arrow(argument, result) => has_type_variable(argument) || has_type_variable(result),
+            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+                has_type_variable(inner)
+            }
+            Ty::Name(_) | Ty::Unit | Ty::Hole => false,
+        }
+    }
+    struct Inliner {
+        generic: BTreeMap<String, (Vec<String>, Expr)>,
+        fresh: usize,
+    }
+    impl Inliner {
+        fn statements(&mut self, statements: &mut [Stmt]) {
+            for statement in statements {
+                match statement {
+                    Stmt::Defn(Defn::Fn { body, .. }) => self.expr(body, 0),
+                    Stmt::Defn(Defn::Module { body, .. })
+                    | Stmt::TypeDecl(TypeDecl::RuleScope { body, .. }) => self.statements(body),
+                    Stmt::Rule(Rule::Clause {
+                        body: Some(body), ..
+                    }) => self.expr(body, 0),
+                    Stmt::Rule(Rule::Default {
+                        value, condition, ..
+                    })
+                    | Stmt::Rule(Rule::Exception {
+                        value, condition, ..
+                    }) => {
+                        self.expr(value, 0);
+                        if let Some(condition) = condition {
+                            self.expr(condition, 0);
+                        }
+                    }
+                    Stmt::Bind(_, _, value) | Stmt::Expr(value) => self.expr(value, 0),
+                    Stmt::Invariant {
+                        subject, predicate, ..
+                    } => {
+                        self.expr(subject, 0);
+                        self.expr(predicate, 0);
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        fn expr(&mut self, expression: &mut Expr, depth: usize) {
+            let mut children = Vec::new();
+            match &mut expression.kind {
+                ExprKind::App(function, arguments) => {
+                    children.push(&mut **function);
+                    children.extend(arguments.iter_mut());
+                }
+                ExprKind::BinOp(_, left, right) => children.extend([&mut **left, &mut **right]),
+                ExprKind::UnOp(_, inner) | ExprKind::Field(inner, _) => children.push(&mut **inner),
+                ExprKind::If(condition, then_branch, else_branch) => {
+                    children.extend([&mut **condition, &mut **then_branch, &mut **else_branch])
+                }
+                ExprKind::Match(scrutinee, arms) => {
+                    children.push(&mut **scrutinee);
+                    for arm in arms {
+                        children.extend(arm.guard.as_mut());
+                        children.push(&mut arm.body);
+                    }
+                }
+                ExprKind::Block(statements) => {
+                    for statement in statements {
+                        if let Stmt::Bind(_, _, value) | Stmt::Expr(value) = statement {
+                            children.push(value);
+                        }
+                    }
+                }
+                _ => {}
+            }
+            for child in children {
+                self.expr(child, depth);
+            }
+            let ExprKind::App(function, arguments) = &expression.kind else {
+                return;
+            };
+            let ExprKind::Var(name) = &function.kind else {
+                return;
+            };
+            let Some((params, body)) = self.generic.get(name) else {
+                return;
+            };
+            if depth >= SMT_INLINE_DEPTH
+                || params.len() != arguments.len()
+                || arguments
+                    .iter()
+                    .any(|argument| named_arg_parts(argument).is_some())
+            {
+                return;
+            }
+            // Fresh names first, so no argument sees a parameter's binding.
+            let span = expression.span;
+            let mut body = body.clone();
+            let params = params.clone();
+            self.expr(&mut body, depth + 1);
+            let mut block = Vec::with_capacity(2 * params.len() + 1);
+            let mut renamed = Vec::with_capacity(params.len());
+            for argument in arguments {
+                self.fresh += 1;
+                let fresh = format!("__runa_inline_{}", self.fresh);
+                block.push(Stmt::Bind(Pat::Var(fresh.clone()), None, argument.clone()));
+                renamed.push(fresh);
+            }
+            for (param, fresh) in params.into_iter().zip(renamed) {
+                block.push(Stmt::Bind(
+                    Pat::Var(param),
+                    None,
+                    Expr::new(ExprKind::Var(fresh), span),
+                ));
+            }
+            block.push(Stmt::Expr(body));
+            *expression = Expr::new(ExprKind::Block(block), span);
+        }
+    }
+
+    let mut generic = BTreeMap::new();
+    for statement in &statements {
+        let Stmt::Defn(Defn::Fn {
+            name,
+            params,
+            ret_ty,
+            body,
+            ..
+        }) = statement
+        else {
+            continue;
+        };
+        let mut calls = BTreeSet::new();
+        collect_smt_called_functions(body, &BTreeSet::from([name.clone()]), &mut calls);
+        if calls.is_empty()
+            && params
+                .iter()
+                .filter_map(|param| param.ty.as_ref())
+                .chain(ret_ty)
+                .any(has_type_variable)
+        {
+            generic.insert(
+                name.clone(),
+                (
+                    params.iter().map(|param| param.name.clone()).collect(),
+                    body.clone(),
+                ),
+            );
+        }
+    }
+    if !generic.is_empty() {
+        Inliner { generic, fresh: 0 }.statements(&mut statements);
+    }
+    statements
 }
 
 /// Generate SMT-LIB2 for all invariants and verify with Z3.
@@ -22345,6 +22914,14 @@ fn summarize_pat_for_library(pat: &Pat) -> String {
         Pat::Lit(lit) => lit.to_string(),
         Pat::Con(name, _) | Pat::NamedCon(name, _) => name.clone(),
         Pat::As(_, alias) => alias.clone(),
+        Pat::Tuple(elements) => format!(
+            "({})",
+            elements
+                .iter()
+                .map(summarize_pat_for_library)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
     }
 }
 
@@ -25151,8 +25728,8 @@ fn lsp_builtin_doc(name: &str) -> Option<(&'static str, &'static str)> {
             "Left fold over a list",
         )),
         "scan" => Some((
-            "~ scan(stream, init, f) -> Stream",
-            "Running accumulator over stream values",
+            "> scan(list, init, f: (acc, x) -> acc) -> [acc]",
+            "Accumulator after each element (a stream gives a stream)",
         )),
         "merge" => Some(("~ merge(s1, s2) -> Stream", "Merge two streams")),
         "take" => Some(("> take(list, n: Int) -> [a]", "Take first n elements")),
@@ -26100,7 +26677,7 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 arity: 2,
                 impure: false,
                 deps: D,
-                rust_tpl: "{0}.clone().into_iter().flat_map({1}).collect::<Vec<_>>()",
+                rust_tpl: "{0}.clone().into_iter().flat_map(|x| __futuruna_flat_items(({1})(x))).collect::<Vec<_>>()",
             },
         ),
         (
@@ -26892,6 +27469,23 @@ enum StaticRuleParamRelation {
 /// variant path, pattern and constructor reads `AskYearEvent::Trade`.
 fn rust_variant_name(name: &str) -> std::borrow::Cow<'_, str> {
     constructor_display_name(name)
+}
+
+/// The fields of a named constructor pattern as Rust writes them. Futuruna
+/// lets `Deposit(purpose: p)` name only some of the constructor's fields;
+/// Rust requires such a pattern to end in `..`.
+fn named_pattern_fields(types: &TypeRegistry, constructor: &str, fields: &[String]) -> String {
+    let declared = types
+        .variant_fields
+        .get(constructor)
+        .map_or(usize::MAX, Vec::len);
+    if fields.len() >= declared {
+        fields.join(", ")
+    } else if fields.is_empty() {
+        "..".to_string()
+    } else {
+        format!("{}, ..", fields.join(", "))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -29045,6 +29639,17 @@ impl<'a> LoweringCtx<'a> {
                 self.type_env.insert(name.clone(), ty.clone());
                 self.bind_pat_ty(inner, ty);
             }
+            Pat::Tuple(elements) => {
+                for (index, element) in elements.iter().enumerate() {
+                    let element_ty = match ty {
+                        FirTy::Tuple(element_tys) if element_tys.len() == elements.len() => {
+                            element_tys[index].clone()
+                        }
+                        _ => FirTy::Unknown,
+                    };
+                    self.bind_pat_ty(element, &element_ty);
+                }
+            }
             Pat::Wild | Pat::Lit(_) => {}
         }
     }
@@ -29711,7 +30316,13 @@ impl<'a> LoweringCtx<'a> {
                             ty,
                         };
                     }
-                    if fn_name == "foldl" && fir_args.len() >= 2 {
+                    // `scan` over a list is a list of the accumulator after
+                    // each element; `foldl` is the last of them.
+                    let scan_over_list = fn_name == "scan"
+                        && fir_args.len() >= 2
+                        && matches!(fir_args[0].ty, FirTy::List(_))
+                        && !self.types.user_functions.contains(fn_name.as_str());
+                    if (fn_name == "foldl" || scan_over_list) && fir_args.len() >= 2 {
                         let mut accumulator_ty = fir_args[1].ty.clone();
                         if let Some(callback) = fir_args.get(2) {
                             if let FirTy::Arrow(callback_accumulator, callback_rest) = &callback.ty
@@ -29725,6 +30336,9 @@ impl<'a> LoweringCtx<'a> {
                                 accumulator_ty =
                                     FirTy::merge_information(&accumulator_ty, callback_return);
                             }
+                        }
+                        if scan_over_list {
+                            accumulator_ty = FirTy::List(Box::new(accumulator_ty));
                         }
                         return FirExpr {
                             kind: FirExprKind::App(Box::new(fir_func), fir_args.clone()),
@@ -30681,6 +31295,14 @@ fn format_pat(pat: &Pat) -> String {
             format!("{} {{ {} }}", name, field_strs.join(", "))
         }
         Pat::As(pat, alias) => format!("{} @ {}", format_pat(pat), alias),
+        Pat::Tuple(elements) => format!(
+            "({})",
+            elements
+                .iter()
+                .map(format_pat)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
     }
 }
 
@@ -30797,19 +31419,20 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
                     )
                 })
                 .collect::<Vec<_>>();
+            let field_strs = named_pattern_fields(types, name, &field_strs);
             match parent {
                 Some(parent) if types.struct_types.contains(&parent) => {
-                    format!("{} {{ {} }}", parent, field_strs.join(", "))
+                    format!("{} {{ {} }}", parent, field_strs)
                 }
                 Some(parent) => {
                     format!(
                         "{}::{} {{ {} }}",
                         parent,
                         rust_variant_name(name),
-                        field_strs.join(", ")
+                        field_strs
                     )
                 }
-                None => format!("{} {{ {} }}", name, field_strs.join(", ")),
+                None => format!("{} {{ {} }}", name, field_strs),
             }
         }
         Pat::As(inner, alias) => format!(
@@ -30817,6 +31440,25 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
             format_pat_with_expected_ty(inner, expected_ty, types),
             sanitize_name(alias)
         ),
+        Pat::Tuple(elements) => {
+            let element_tys = match expected_ty {
+                FirTy::Tuple(element_tys) if element_tys.len() == elements.len() => {
+                    Some(element_tys)
+                }
+                _ => None,
+            };
+            let elements = elements
+                .iter()
+                .enumerate()
+                .map(|(index, element)| {
+                    let element_ty = element_tys
+                        .map(|element_tys| element_tys[index].clone())
+                        .unwrap_or(FirTy::Unknown);
+                    format_pat_with_expected_ty(element, &element_ty, types)
+                })
+                .collect::<Vec<_>>();
+            format!("({})", elements.join(", "))
+        }
     }
 }
 
@@ -36705,6 +37347,17 @@ impl RustCodegen {
                 type_env.insert(name.clone(), ty.clone());
                 self.bind_pat_into_type_env(inner, ty, type_env);
             }
+            Pat::Tuple(elements) => {
+                for (index, element) in elements.iter().enumerate() {
+                    let element_ty = match ty {
+                        FirTy::Tuple(element_tys) if element_tys.len() == elements.len() => {
+                            element_tys[index].clone()
+                        }
+                        _ => FirTy::Unknown,
+                    };
+                    self.bind_pat_into_type_env(element, &element_ty, type_env);
+                }
+            }
             Pat::Wild | Pat::Lit(_) => {}
         }
     }
@@ -37289,6 +37942,15 @@ fn __futuruna_predicate<T: 'static>(builtin: &str, value: T) -> bool {
         }
     }
 }
+// `flat_map` joins the lists its callback returns. A callback whose result
+// type the compiler could not fix is checked here: an `Option` or a `Result`
+// is a runtime error, as in the interpreter, never a list of at most one
+// element (Rust's `flat_map` would keep a `Some` and drop a `None`).
+trait __FuturunaFlatItems { type Item; fn __futuruna_flat_items(self) -> Vec<Self::Item>; }
+impl<T> __FuturunaFlatItems for Vec<T> { type Item = T; fn __futuruna_flat_items(self) -> Vec<T> { self } }
+impl<T> __FuturunaFlatItems for Option<T> { type Item = T; fn __futuruna_flat_items(self) -> Vec<T> { panic!("flat_map callback must return List, got Option") } }
+impl<T, E> __FuturunaFlatItems for Result<T, E> { type Item = T; fn __futuruna_flat_items(self) -> Vec<T> { panic!("flat_map callback must return List, got Result") } }
+fn __futuruna_flat_items<R: __FuturunaFlatItems>(value: R) -> Vec<R::Item> { value.__futuruna_flat_items() }
 // A runtime error reports `error: <message>` on stderr and exits with status 1,
 // like the interpreter. A panic inside an `http_serve` handler fails only that
 // request: the hook reports it with the request and the server answers 500.
@@ -42223,8 +42885,14 @@ fn __futuruna_install_error_hook() {
                     ));
                     out.push_str("    fn __futuruna_key(&self, out: &mut String) {\n");
                     out.push_str("        match self {\n");
+                    // A date orders chronologically, as in the interpreter,
+                    // whatever order its fields are declared in.
+                    let date_order = futuruna::standard_date_field_order(name, params, variants);
                     for v in variants {
-                        let (pattern, binds) = variant_pattern(v);
+                        let (pattern, mut binds) = variant_pattern(v);
+                        if let Some(order) = date_order {
+                            binds = order.iter().map(|&index| binds[index].clone()).collect();
+                        }
                         out.push_str(&format!(
                             "            {} => {{ __futuruna_key_name({:?}, out);",
                             pattern,
@@ -51950,7 +52618,7 @@ fn __futuruna_install_error_hook() {
                 }
                 "flat_map" if extra_args.len() == 1 => {
                     let f = self.emit_expr(&extra_args[0]);
-                    out = format!("{}.flat_map({})", out, f);
+                    out = format!("{}.flat_map(|x| __futuruna_flat_items(({})(x)))", out, f);
                 }
                 "take_while" if extra_args.len() == 1 => {
                     let f = self.emit_expr(&extra_args[0]);
@@ -53465,7 +54133,7 @@ fn __futuruna_install_error_hook() {
                                     coll, param, clone_prefix, borrowed_param_prefix, body_code
                                 ),
                                 "flat_map" => format!(
-                                    "{}.clone().into_iter().flat_map(|{}| {{ {} {} }}).collect::<Vec<_>>()",
+                                    "{}.clone().into_iter().flat_map(|{}| __futuruna_flat_items({{ {} {} }})).collect::<Vec<_>>()",
                                     coll, param, clone_prefix, body_code
                                 ),
                                 "take_while" => format!(
@@ -53708,7 +54376,7 @@ fn __futuruna_install_error_hook() {
                                         .emit_function_value_call(&args[1], &[("__x", "&__x")])
                                         .unwrap();
                                     return format!(
-                                        "{}.clone().into_iter().flat_map(|__x| {}).collect::<Vec<_>>()",
+                                        "{}.clone().into_iter().flat_map(|__x| __futuruna_flat_items({})).collect::<Vec<_>>()",
                                         coll, mapped
                                     );
                                 }
@@ -53840,7 +54508,7 @@ fn __futuruna_install_error_hook() {
                             };
                         }
                     }
-                    if matches!(name.as_str(), "foldl" | "reduce")
+                    if matches!(name.as_str(), "foldl" | "reduce" | "scan")
                         && args.len() == 3
                         && !self.types.user_functions.contains(name.as_str())
                         && self.is_direct_function_value(&args[2], 2)
@@ -53854,13 +54522,19 @@ fn __futuruna_install_error_hook() {
                                 .unwrap();
                             let coll = self.emit_expr(&args[0]);
                             let init = self.emit_expr(&args[1]);
+                            if name == "scan" {
+                                return format!(
+                                    "__futuruna_scan({}.clone(), {}, |__acc, __x| {})",
+                                    coll, init, step
+                                );
+                            }
                             return format!(
                                 "{}.clone().into_iter().fold({}, |__acc, __x| {})",
                                 coll, init, step
                             );
                         }
                     }
-                    if name == "foldl"
+                    if matches!(name.as_str(), "foldl" | "scan")
                         && args.len() == 3
                         && !self.types.user_functions.contains(name.as_str())
                     {
@@ -53904,6 +54578,12 @@ fn __futuruna_install_error_hook() {
                                 .map(|(p, ty)| self.emit_lambda_param_decl(&p.name, ty))
                                 .collect::<Vec<_>>()
                                 .join(", ");
+                            if name == "scan" {
+                                return format!(
+                                    "__futuruna_scan({}.clone(), {}, |{}| {})",
+                                    coll, init, closure_params, body_code
+                                );
+                            }
                             return format!(
                                 "{}.clone().into_iter().fold({}, |{}| {})",
                                 coll, init, closure_params, body_code
@@ -57214,6 +57894,12 @@ fn __futuruna_install_error_hook() {
                 .cloned()
                 .map(FirTy::Named)
                 .unwrap_or(FirTy::Unknown),
+            Pat::Tuple(elements) => FirTy::Tuple(
+                elements
+                    .iter()
+                    .map(|element| self.actor_message_pat_payload_ty(element, resolved_vars))
+                    .collect(),
+            ),
         }
     }
 
@@ -57692,7 +58378,7 @@ fn __futuruna_install_error_hook() {
                     "{}::{} {{ {} }}",
                     parent,
                     rust_variant_name(name),
-                    ps.join(", ")
+                    named_pattern_fields(&self.types, name, &ps)
                 )
             }
             Pat::Lit(lit) => self.emit_literal(lit),
@@ -57703,6 +58389,14 @@ fn __futuruna_install_error_hook() {
                     sanitize_name(name)
                 )
             }
+            Pat::Tuple(elements) => format!(
+                "({})",
+                elements
+                    .iter()
+                    .map(|element| self.emit_pattern_binding(element))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
         }
     }
 
@@ -57891,15 +58585,11 @@ fn __futuruna_install_error_hook() {
                         }
                     })
                     .collect();
+                let ps = named_pattern_fields(&self.types, name, &ps);
                 if is_struct_type {
-                    format!("{} {{ {} }}", parent, ps.join(", "))
+                    format!("{} {{ {} }}", parent, ps)
                 } else {
-                    format!(
-                        "{}::{} {{ {} }}",
-                        parent,
-                        rust_variant_name(name),
-                        ps.join(", ")
-                    )
+                    format!("{}::{} {{ {} }}", parent, rust_variant_name(name), ps)
                 }
             }
             Pat::Lit(lit) => self.emit_literal(lit),
@@ -57909,6 +58599,26 @@ fn __futuruna_install_error_hook() {
                     self.emit_pattern_with_boxing_and_expected_ty(inner, inside_box, expected_ty),
                     sanitize_name(name)
                 )
+            }
+            Pat::Tuple(elements) => {
+                let element_tys = match expected_ty {
+                    Some(FirTy::Tuple(element_tys)) if element_tys.len() == elements.len() => {
+                        Some(element_tys)
+                    }
+                    _ => None,
+                };
+                let elements = elements
+                    .iter()
+                    .enumerate()
+                    .map(|(index, element)| {
+                        self.emit_pattern_with_boxing_and_expected_ty(
+                            element,
+                            false,
+                            element_tys.map(|element_tys| &element_tys[index]),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                format!("({})", elements.join(", "))
             }
         }
     }

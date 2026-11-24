@@ -1,0 +1,21 @@
+-- expect-command: run
+-- expect-stdout-file: ../../golden/run/rule_head_constructors.stdout
+-- A family whose clause heads match every variant of a parameter's type is a
+-- rule family over the variants: it never misses, so it needs no fallback.
+# Date(year: Int, month: Int, day: Int)
+# TaxChange = ChangedBySkat(day: Date) | CorrectedByInstitute(year: Int)
+
+| due(year: Int, change: TaxChange): Int
+| due(year, ChangedBySkat(d)) -> d.year + 3
+| due(year, CorrectedByInstitute(r)) -> r
+
+@ print(show(due(2025, ChangedBySkat(Date(2026, 5, 1)))))
+@ print(show(due(2025, CorrectedByInstitute(2020))))
+
+-- An exception whose head matches `Some(day)` reads the day; the declaration
+-- gives the position its type `Date?`.
+| period_end(year: Int, closed_on: Date?): Date -> Date(year = year, month = 12, day = 31)
+| exception closed period_end(year, Some(day)) -> day
+
+@ print(show(period_end(2026, None).month))
+@ print(show(period_end(2026, Some(Date(year = 2026, month = 5, day = 1))).month))

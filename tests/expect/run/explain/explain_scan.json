@@ -1,0 +1,30 @@
+{
+  "$futuruna": {
+    "schema": "futuruna.entry.input.v2",
+    "schema_hash": "c522c66ab5874dd21cf92846ab709ecc4929facbc29441d361645ce27b29e7c1",
+    "entry": "explain_scan"
+  },
+  "cases": [
+    {
+      "case_id": "ledger",
+      "input_status": "ready",
+      "input": {
+        "bookings": [
+          {
+            "amount": 100,
+            "deposit": true
+          },
+          {
+            "amount": 150,
+            "deposit": false
+          },
+          {
+            "amount": 80,
+            "deposit": true
+          }
+        ],
+        "opening": 20
+      }
+    }
+  ]
+}

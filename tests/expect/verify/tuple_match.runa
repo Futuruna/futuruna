@@ -1,0 +1,16 @@
+-- expect-command: verify
+-- expect-status: fail
+-- expect-stdout: PROVED: |pick_prefers_the_first|
+-- expect-stdout: PROVED: |pick_falls_back_to_the_second|
+-- expect-stdout: COUNTEREXAMPLE found for |pick_is_never_zero|:
+-- A match on a tuple of two Options is translated element by element.
+> pick(a: Int?, b: Int?) -> Int {
+    match (a, b) {
+        | (Some(x), _) -> x
+        | (None, Some(y)) -> y
+        | (None, None) -> 0
+    }
+}
+| pick_prefers_the_first: pick(Some(x), Some(y)) -> pick(Some(x), Some(y)) == x
+| pick_falls_back_to_the_second: pick(None, Some(y)) -> pick(None, Some(y)) == y
+| pick_is_never_zero: pick(Some(x), None) -> pick(Some(x), None) != 0

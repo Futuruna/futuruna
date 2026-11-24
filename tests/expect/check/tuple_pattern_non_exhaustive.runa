@@ -1,0 +1,12 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: non-exhaustive match on `Tuple(Option(Int), Option(Int))`
+-- The rows of a tuple match are checked together: no arm takes
+-- `(Some(_), Some(_))`.
+> pick(a: Int?, b: Int?) -> Int {
+    match (a, b) {
+        | (Some(x), None) -> x
+        | (None, Some(y)) -> y
+        | (None, None) -> 0
+    }
+}

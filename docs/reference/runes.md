@@ -582,6 +582,25 @@ parameter annotation. Invalid guards still stop evaluation. This runtime
 fallback does not establish parameter types or authorize a proof: verification
 and exploration retain their separate checking requirements.
 
+### Running state over a list
+```runa
+# Booking(amount: Int, deposit: Bool)
+| signed(b: Booking) -> if b.deposit { b.amount } else { 0 - b.amount }
+| overdrawn(cash: Int): Bool -> False
+| exception short overdrawn(cash) -> True under cash < 0
+| overdrafts(bookings: List(Booking), opening: Int) -> map(scan(bookings, opening, |cash, b| cash + signed(b)), |cash| overdrawn(cash))
+```
+
+`scan(list, start, step)` is the state after each element: a list as long as
+`list`, whose last element is `foldl(list, start, step)` (`[]` for `[]`). It
+is the same `scan` as on a stream, with the same argument order; a stream
+gives a stream (see [streams.md](streams.md)). The state's type is the start's,
+and a start written as a number takes the unit its step brings in, as for
+`foldl` (see [Unit](#unit)). Write the decision on each state as a rule, as
+`overdrawn` above: the rule is cited, explained and audited like any other,
+while a guard that folds or scans a list itself is not analyzed by `runa
+verify` or `runa audit`, which do not represent lists.
+
 ### Declared result types (Experimental)
 ```runa
 | days_in_month(year: Int, month: Int): Int -> 31
@@ -612,6 +631,31 @@ applies; a family of any other declared type stops with
 `no value rule matched`. A family without `: R` is inferred as before.
 `runa fmt --migrate` writes existing families' types once and declares their
 result types where that changes nothing.
+
+A family whose unguarded clause heads together match every value of the
+parameter types, as the arms of a `match` would, never misses and needs no
+fallback clause:
+
+```runa
+# TaxChange = ChangedBySkat(day: Date) | CorrectedByInstitute(year: Int)
+
+| changed_tax_due(year: Int, change: TaxChange): Int
+| changed_tax_due(y, ChangedBySkat(d)) -> d.year + 3
+| changed_tax_due(y, CorrectedByInstitute(r)) -> r
+```
+
+Each clause can carry its own `@ cite`. Generated code, `runa verify` and
+`runa audit` read the family as total: the last clause's value is the
+otherwise of the translation, and the audit reports no gap.
+
+A pattern of a generic type's constructor takes the position's type from
+the declaring line, so an exception can read an Option's payload instead of
+a placeholder:
+
+```runa
+| period_end(year: Int, closed_on: Date?): Date -> Date(year = year, month = 12, day = 31)
+| exception closed period_end(year, Some(day)) -> day
+```
 
 ### Named invariants (verification targets)
 ```runa
@@ -1097,7 +1141,13 @@ separate `>` function. Int arithmetic inside a rule (`+`, `-`, `*`, `/`, `%`) is
 translated with its overflow and zero-divisor obligations, so a rule that can
 overflow for some input is refuted with that input rather than rejected. The
 prelude helpers `max_int`, `min_int` and `clamp`, and `abs` on Int, translate
-exactly; `abs` of the minimum Int is an overflow, as it is at runtime.
+exactly; `abs` of the minimum Int is an overflow, as it is at runtime. An
+`Option` is translated as its presence and, when present, its value, at any
+payload type: a rule may take `closed: Date?` and guard on it with `is_some`,
+`is_none`, `unwrap_or` or a `match` on `Some(d)`/`None`, with no filler value
+for the absent case. A call of a generic function such as these is translated
+as its body at the argument's type; a recursive generic function translates
+only at `Int`.
 
 ```runa
 # TaxCase(income: Int) {
@@ -1210,7 +1260,10 @@ outside the translatable subset (the same limits as `runa verify`, plus Float
 and other values the encoding does not represent) are listed as not analyzed and
 counted in the summary, never guessed; a family with such a guard is listed
 under gaps not checked, since that guard may cover the input. When Z3 is missing
-the report says the check did not run.
+the report says the check did not run. Each Z3 query has a resource limit
+(Z3's `rlimit`, about ten seconds of solving), not a time limit: a query over
+it is reported undecided on any machine, so the report does not depend on how
+loaded the machine is.
 
 The findings are a review report and do not change the exit status of
 `runa audit`. The gate for CI is `runa verify`, which exits 1 for a claim that

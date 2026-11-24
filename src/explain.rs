@@ -130,6 +130,17 @@ pub(crate) struct ClauseRecord {
     pub(crate) assumptions: Rc<[PlacedAssumption]>,
 }
 
+/// A rule call that selected a clause, with its arguments as the dispatch
+/// read them (traced in an explained case), for `runa cases`.
+#[derive(Debug, Clone)]
+pub(crate) struct RuleCallRecord {
+    pub(crate) family: RuleDispatchKey,
+    /// The clause that produced the value; none when a Boolean family's
+    /// `false` clause answered.
+    pub(crate) rule: Option<Rc<Rule>>,
+    pub(crate) args: Vec<Value>,
+}
+
 /// The rule clauses that fired in one calculation case, each once; their
 /// ids are `0..` in the order they first fired.
 #[derive(Debug, Default)]
@@ -148,6 +159,11 @@ impl FiredClauses {
 
     pub(crate) fn len(&self) -> usize {
         self.clauses.len()
+    }
+
+    /// The id of `rule` when it fired.
+    pub(crate) fn id_of(&self, rule: &Rc<Rule>) -> Option<u32> {
+        self.ids.get(&(Rc::as_ptr(rule) as usize)).copied()
     }
 
     /// The assumptions of a fired clause that hold: those without a
@@ -169,11 +185,40 @@ impl FiredClauses {
 pub struct ExplainState {
     nodes: Vec<Node>,
     interned: HashMap<Node, NodeId>,
-    /// Per active builtin: whether it reads its callbacks' results whole.
-    callback_whole: Vec<bool>,
+    /// Per active builtin, innermost last: how it reads its callbacks.
+    callbacks: Vec<CallbackFrame>,
     /// Per active rule dispatch, innermost last: the nodes of the guard
     /// values evaluated so far (the guards that chose or refuted a clause).
     guards: Vec<Vec<NodeId>>,
+    /// Set for a decided case (`runa cases`, a rejected result run again):
+    /// a branch's value is computed from what chose the branch too.
+    decisions: Option<Decisions>,
+}
+
+/// What a decided case keeps besides the graph.
+#[derive(Debug, Default)]
+struct Decisions {
+    /// The result variants that are rejections, by display name.
+    rejections: HashSet<String>,
+    /// The values the conditions that chose a rejection were computed from.
+    rejected_by: Vec<NodeId>,
+    /// The values the conditions that chose a value without a leaf (`[]`,
+    /// `None`, a record of such) were computed from: the value cannot carry
+    /// them, so what it decided (an empty issue list, no deemed day) would
+    /// otherwise rest on nothing.
+    leafless: Vec<NodeId>,
+}
+
+/// How an active builtin reads its callbacks' results.
+#[derive(Debug)]
+struct CallbackFrame {
+    /// Whether it reads them whole (a predicate's Bool, a sort key) rather
+    /// than carrying them (`map`'s elements).
+    whole: bool,
+    /// In a decided case, for a builtin that keeps or drops values by a
+    /// predicate or by `Some`/`None`: the values its decisions were
+    /// computed from (each predicate result, each `None` it dropped).
+    decided_by: Option<Vec<NodeId>>,
 }
 
 impl ExplainState {
@@ -221,6 +266,74 @@ impl ExplainState {
             }
         }
         (found, omitted)
+    }
+
+    /// The input leaf `id` is, when it is one unchanged.
+    pub(crate) fn input_path(&self, id: NodeId) -> Option<Rc<str>> {
+        match self.node(id) {
+            Node::Input { path, .. } => Some(path.clone()),
+            _ => None,
+        }
+    }
+
+    /// The input paths `id` was computed from: through computed nodes and
+    /// what rule clauses computed (not the guards that chose them), each
+    /// once, in first-reached order.
+    pub(crate) fn input_paths(&self, id: NodeId) -> Vec<Rc<str>> {
+        let mut found: Vec<Rc<str>> = Vec::new();
+        let mut seen = HashSet::new();
+        let mut stack = vec![id];
+        while let Some(next) = stack.pop() {
+            if !seen.insert(next) {
+                continue;
+            }
+            match self.node(next) {
+                Node::Input { path, .. } => {
+                    if !found.contains(path) {
+                        found.push(path.clone());
+                    }
+                }
+                Node::Computed { from } => stack.extend(from.iter().rev().copied()),
+                Node::Rule { from, .. } => stack.extend(*from),
+            }
+        }
+        found
+    }
+
+    /// The rule clauses a decided case's result rests on: those whose
+    /// value, or whose guards, the result's leaves (`result`) were computed
+    /// from, and of a rejection (`rejected`) the conditions that chose it.
+    pub(crate) fn result_clauses(&self, result: &[NodeId], rejected: bool) -> BTreeSet<u32> {
+        let mut clauses = BTreeSet::new();
+        let mut seen = HashSet::new();
+        let mut stack: Vec<NodeId> = result.to_vec();
+        if let Some(decisions) = &self.decisions {
+            if rejected {
+                stack.extend(&decisions.rejected_by);
+            } else {
+                stack.extend(&decisions.leafless);
+            }
+        }
+        while let Some(next) = stack.pop() {
+            if !seen.insert(next) {
+                continue;
+            }
+            match self.node(next) {
+                Node::Input { .. } => {}
+                Node::Computed { from } => stack.extend(from.iter().copied()),
+                Node::Rule {
+                    clause,
+                    from,
+                    because,
+                    ..
+                } => {
+                    clauses.insert(*clause);
+                    stack.extend(*from);
+                    stack.extend(because.iter().copied());
+                }
+            }
+        }
+        clauses
     }
 }
 
@@ -291,6 +404,30 @@ pub(crate) fn has_traced(value: &Value) -> bool {
         Value::Map(entries) | Value::Set(entries) => entries.values().any(has_traced),
         Value::RuleScopeInstance { bindings, .. }
         | Value::NamespacedRuleScopeInstance { bindings, .. } => bindings.values().any(has_traced),
+        _ => false,
+    }
+}
+
+/// Whether `value` has a leaf (a scalar, a field-less variant, or a trace)
+/// anywhere: `[]`, `None` and records of them have none.
+fn has_leaf(value: &Value) -> bool {
+    if matches!(value, Value::Traced(_)) || Leaf::of(value).is_some() {
+        return true;
+    }
+    match value {
+        Value::List(items) | Value::Tuple(items) | Value::Stream(items) => {
+            items.iter().any(has_leaf)
+        }
+        Value::Constructor(_, items)
+        | Value::NamespacedConstructor {
+            arguments: items, ..
+        } => items.iter().any(has_leaf),
+        Value::NamedConstructor(_, fields) | Value::NamespacedNamedConstructor { fields, .. } => {
+            fields.iter().any(|(_, item)| has_leaf(item))
+        }
+        Value::Map(entries) | Value::Set(entries) => entries.values().any(has_leaf),
+        Value::RuleScopeInstance { bindings, .. }
+        | Value::NamespacedRuleScopeInstance { bindings, .. } => bindings.values().any(has_leaf),
         _ => false,
     }
 }
@@ -493,6 +630,42 @@ fn builtin_reads_callback_results(name: &str) -> bool {
     !matches!(name, "map" | "foldl" | "scan" | "reduce" | "flat_map")
 }
 
+/// Whether a builtin keeps or drops values by what its callbacks give: a
+/// predicate's Bool (`filter`, `find`, `any`, `all`, `take_while`,
+/// `drop_while`, `partition`) or a `None` it drops (`flat_map`).
+fn builtin_decides_by_callbacks(name: &str) -> bool {
+    matches!(
+        name,
+        "filter" | "find" | "any" | "all" | "take_while" | "drop_while" | "partition" | "flat_map"
+    )
+}
+
+/// Whether a builtin keeps or drops a value by whether its first argument
+/// is `Some` or `None`: `is_some`, `is_none`, `unwrap_or`, and `map`,
+/// `flat_map` and `filter` over an `Option`.
+fn builtin_decides_by_option(name: &str, args: &[Value]) -> bool {
+    match name {
+        "is_some" | "is_none" | "unwrap_or" => true,
+        "map" | "flat_map" | "filter" => args.first().is_some_and(|arg| {
+            matches!(
+                untraced(arg),
+                Value::Constructor(name, _) | Value::NamespacedConstructor { name, .. }
+                    if matches!(name.as_str(), "Some" | "None")
+            )
+        }),
+        _ => false,
+    }
+}
+
+/// Whether `value` is `None`.
+fn is_none_value(value: &Value) -> bool {
+    matches!(
+        untraced(value),
+        Value::Constructor(name, arguments) | Value::NamespacedConstructor { name, arguments, .. }
+            if arguments.is_empty() && name.as_str() == "None"
+    )
+}
+
 impl Interpreter {
     /// Start recording the rule clauses that fire in a calculation case.
     pub(crate) fn begin_fired_clauses(&mut self) {
@@ -507,9 +680,183 @@ impl Interpreter {
             .unwrap_or_default()
     }
 
+    /// Start logging every rule call that selects a clause.
+    pub(crate) fn begin_rule_call_log(&mut self) {
+        self.rule_calls = Some(RefCell::new(Vec::new()));
+    }
+
+    /// Stop logging, returning the calls in the order they selected.
+    pub(crate) fn finish_rule_call_log(&mut self) -> Vec<RuleCallRecord> {
+        self.rule_calls
+            .take()
+            .map(RefCell::into_inner)
+            .unwrap_or_default()
+    }
+
+    /// Capture the arguments of every call of the function `name` while a
+    /// program runs (`runa cases --scenario`).
+    pub fn begin_call_capture(&mut self, name: &str) {
+        self.call_capture = Some((name.to_string(), RefCell::new(Vec::new())));
+    }
+
+    /// Stop capturing, returning each call's arguments in call order.
+    pub fn finish_call_capture(&mut self) -> Vec<Vec<Value>> {
+        self.call_capture
+            .take()
+            .map(|(_, calls)| calls.into_inner())
+            .unwrap_or_default()
+    }
+
     /// Start an explained case: a fresh provenance graph.
     pub(crate) fn begin_explained_case(&mut self) {
         self.explain = Some(RefCell::new(ExplainState::default()));
+    }
+
+    /// Start a decided case (`runa cases`): an explained case in which the
+    /// value an `if` or `match` branch gives is computed from the values
+    /// that chose the branch, and a branch that gives one of `rejections`
+    /// (result variants by display name) records them.
+    pub(crate) fn begin_decided_case(&mut self, rejections: HashSet<String>) {
+        self.explain = Some(RefCell::new(ExplainState {
+            decisions: Some(Decisions {
+                rejections,
+                rejected_by: Vec::new(),
+                leafless: Vec::new(),
+            }),
+            ..ExplainState::default()
+        }));
+    }
+
+    /// Whether this is a decided case.
+    #[inline]
+    pub(crate) fn explain_decides(&self) -> bool {
+        self.explain
+            .as_ref()
+            .is_some_and(|state| state.borrow().decisions.is_some())
+    }
+
+    /// In a decided case, a branch chosen by values traced at `from` gave
+    /// `result`: every leaf of it is computed from them as well, and a
+    /// rejection variant it gives records them.
+    pub(crate) fn explain_branch(&self, result: Value, from: &[NodeId]) -> Value {
+        let Some(state) = &self.explain else {
+            return result;
+        };
+        let decision = {
+            let mut state = state.borrow_mut();
+            if state.decisions.is_none() {
+                return result;
+            }
+            let decision = match from {
+                [] => return result,
+                [one] => *one,
+                many => state.intern(Node::Computed {
+                    from: many.to_vec().into_boxed_slice(),
+                }),
+            };
+            let name = match untraced(&result) {
+                Value::Constructor(name, _)
+                | Value::NamedConstructor(name, _)
+                | Value::NamespacedConstructor { name, .. }
+                | Value::NamespacedNamedConstructor { name, .. } => Some(name),
+                _ => None,
+            };
+            let decisions = state.decisions.as_mut().expect("a decided case");
+            if name.is_some_and(|name| {
+                decisions
+                    .rejections
+                    .contains(crate::constructor_display_name(name).as_ref())
+            }) {
+                decisions.rejected_by.push(decision);
+            }
+            decision
+        };
+        self.rest_on(result, decision)
+    }
+
+    /// In a decided case, `result` was decided by `decision`: every leaf of
+    /// it is computed from it as well; a value without a leaf (`[]`, a
+    /// record of such) cannot carry it, so it is recorded as `leafless`.
+    fn rest_on(&self, result: Value, decision: NodeId) -> Value {
+        let Some(state) = &self.explain else {
+            return result;
+        };
+        let mut leafless = true;
+        let result = map_leaves(&result, &mut |leaf| {
+            let inner = untraced(leaf);
+            if Leaf::of(inner).is_none() {
+                return leaf.clone();
+            }
+            leafless = false;
+            let from: Box<[NodeId]> = match node_of(leaf) {
+                Some(own) if own != decision => Box::new([own, decision]),
+                _ => Box::new([decision]),
+            };
+            match self.explain_intern(Node::Computed { from }) {
+                Some(node) => traced(inner.clone(), node),
+                None => leaf.clone(),
+            }
+        });
+        if leafless {
+            if let Some(decisions) = state.borrow_mut().decisions.as_mut() {
+                decisions.leafless.push(decision);
+            }
+        }
+        result
+    }
+
+    /// In a decided case, a builtin kept or dropped values by what `from`
+    /// traces (its predicate's results, a `None` it dropped, the `Option`
+    /// it read): the value it gives rests on them, as a branch's value rests
+    /// on its condition. A `None` it gives carries them as its own trace, as
+    /// a rule's `None` does, so what reads it rests on them.
+    fn explain_kept_by(&self, result: Value, from: Vec<NodeId>) -> Value {
+        let mut unique: Vec<NodeId> = Vec::with_capacity(from.len());
+        for node in from {
+            if !unique.contains(&node) {
+                unique.push(node);
+            }
+        }
+        let decision = match unique.as_slice() {
+            [] => return result,
+            [one] => *one,
+            many => match self.explain_intern(Node::Computed {
+                from: many.to_vec().into_boxed_slice(),
+            }) {
+                Some(node) => node,
+                None => return result,
+            },
+        };
+        if is_none_value(&result) {
+            let node = match node_of(&result) {
+                Some(own) if own != decision => self.explain_intern(Node::Computed {
+                    from: Box::new([own, decision]),
+                }),
+                _ => Some(decision),
+            };
+            return match node {
+                Some(node) => traced(untraced(&result).clone(), node),
+                None => result,
+            };
+        }
+        self.rest_on(result, decision)
+    }
+
+    /// In a decided case, a Boolean family answered `false` because no
+    /// clause applied: the `false` rests on the guards and clause bodies its
+    /// dispatch read, as a clause's value rests on the guards that chose it.
+    pub(crate) fn explain_unmatched(&self, value: Value) -> Value {
+        let Some(state) = &self.explain else {
+            return value;
+        };
+        let from = {
+            let state = state.borrow();
+            if state.decisions.is_none() {
+                return value;
+            }
+            state.guards.last().cloned().unwrap_or_default()
+        };
+        self.explain_kept_by(value, from)
     }
 
     /// End an explained case, returning its provenance graph.
@@ -540,7 +887,19 @@ impl Interpreter {
     /// A `match` arm chose `result`: a scalar the arm gives without a trace
     /// of its own (a literal) is computed from the matched value.
     pub(crate) fn explain_decided(&self, result: Value, matched: &Value) -> Value {
-        if node_of(&result).is_some() || Leaf::of(&result).is_none() {
+        if node_of(&result).is_some() {
+            return result;
+        }
+        if Leaf::of(&result).is_none() {
+            if self.explain_decides() && !has_leaf(&result) {
+                let mut from = Vec::new();
+                collect_nodes(matched, &mut from);
+                if let Some(state) = &self.explain {
+                    if let Some(decisions) = state.borrow_mut().decisions.as_mut() {
+                        decisions.leafless.extend(from);
+                    }
+                }
+            }
             return result;
         }
         let mut from = Vec::new();
@@ -630,18 +989,34 @@ impl Interpreter {
                 interpreter.eval_named_builtin(namespace, name, args, env)
             }
         };
-        let push = |interpreter: &Self, whole: bool| {
+        let push = |interpreter: &Self, frame: CallbackFrame| {
             if let Some(state) = &interpreter.explain {
-                state.borrow_mut().callback_whole.push(whole);
+                state.borrow_mut().callbacks.push(frame);
             }
         };
         let pop = |interpreter: &Self| {
-            if let Some(state) = &interpreter.explain {
-                state.borrow_mut().callback_whole.pop();
-            }
+            interpreter
+                .explain
+                .as_ref()
+                .and_then(|state| state.borrow_mut().callbacks.pop())
         };
         match builtin_tracing(name) {
             BuiltinTracing::Carries(kept) => {
+                let decides = self.explain_decides();
+                // What the `Option` argument decides on: whether it is
+                // `Some` (its payload's traces, as a `match` on it reads)
+                // for `is_some` and `is_none`; the trace of a `None` that
+                // `unwrap_or`, `map`, `flat_map` and `filter` drop.
+                let mut decided_by = Vec::new();
+                if decides && builtin_decides_by_option(name, &args) {
+                    if let Some(option) = args.first() {
+                        if matches!(name, "is_some" | "is_none") {
+                            collect_nodes(option, &mut decided_by);
+                        } else if is_none_value(option) {
+                            decided_by.extend(node_of(option));
+                        }
+                    }
+                }
                 let args = args
                     .into_iter()
                     .enumerate()
@@ -653,10 +1028,22 @@ impl Interpreter {
                         }
                     })
                     .collect();
-                push(self, builtin_reads_callback_results(name));
+                push(
+                    self,
+                    CallbackFrame {
+                        whole: builtin_reads_callback_results(name),
+                        decided_by: (decides && builtin_decides_by_callbacks(name)).then(Vec::new),
+                    },
+                );
                 let result = call(self, args);
-                pop(self);
-                result
+                if let Some(by_callbacks) = pop(self).and_then(|frame| frame.decided_by) {
+                    decided_by.extend(by_callbacks);
+                }
+                if decided_by.is_empty() || self.calculation_failed() {
+                    result
+                } else {
+                    self.explain_kept_by(result, decided_by)
+                }
             }
             BuiltinTracing::Reads => {
                 let mut from = Vec::new();
@@ -668,7 +1055,13 @@ impl Interpreter {
                 } else {
                     args.iter().map(strip_deep).collect()
                 };
-                push(self, true);
+                push(
+                    self,
+                    CallbackFrame {
+                        whole: true,
+                        decided_by: None,
+                    },
+                );
                 let result = call(self, args);
                 pop(self);
                 self.explain_computed(result, from)
@@ -677,12 +1070,24 @@ impl Interpreter {
     }
 
     /// A builtin's callback returned `result`: the value the builtin reads.
+    /// In a decided case, a builtin that keeps or drops values by what its
+    /// callbacks give records what each result was computed from.
     pub(crate) fn explain_callback_result(&self, result: Value) -> Value {
-        let whole = self
-            .explain
-            .as_ref()
-            .and_then(|state| state.borrow().callback_whole.last().copied())
-            .unwrap_or(false);
+        let Some(state) = &self.explain else {
+            return result;
+        };
+        let whole = {
+            let mut state = state.borrow_mut();
+            let Some(frame) = state.callbacks.last_mut() else {
+                return result;
+            };
+            if let (Some(decided_by), Some(node)) = (frame.decided_by.as_mut(), node_of(&result)) {
+                if !decided_by.contains(&node) {
+                    decided_by.push(node);
+                }
+            }
+            frame.whole
+        };
         if whole {
             strip(result)
         } else {
@@ -717,6 +1122,29 @@ impl Interpreter {
         if let Some(guards) = state.guards.last_mut() {
             if !guards.contains(&node) {
                 guards.push(node);
+            }
+        }
+    }
+
+    /// In a decided case, a refutable head pattern read `value` to choose or
+    /// refute a clause, or a Boolean clause's body gave a `false` `value`
+    /// that refuted it: the dispatch records what it was computed from, as
+    /// it does a guard's.
+    pub(crate) fn explain_pattern_read(&self, value: &Value) {
+        let Some(state) = &self.explain else {
+            return;
+        };
+        let mut state = state.borrow_mut();
+        if state.decisions.is_none() {
+            return;
+        }
+        let mut nodes = Vec::new();
+        collect_nodes(value, &mut nodes);
+        if let Some(guards) = state.guards.last_mut() {
+            for node in nodes {
+                if !guards.contains(&node) {
+                    guards.push(node);
+                }
             }
         }
     }
@@ -824,6 +1252,37 @@ impl Interpreter {
             .last()
             .map(|guards| guards.clone().into_boxed_slice())
             .unwrap_or_default();
+        // In a decided case a clause's `None` is traced as well: a rejection
+        // may rest on a rule having nothing (`| None -> Rejected(...)`).
+        let none = is_none_value(&value);
+        let decides = state.borrow().decisions.is_some();
+        if none && decides {
+            let node = state.borrow_mut().intern(Node::Rule {
+                clause,
+                from: node_of(&value),
+                value: Leaf::Variant(Rc::from("None")),
+                because,
+            });
+            return traced(untraced(&value).clone(), node);
+        }
+        // A clause that gives a value without a leaf (`[]`, a record of
+        // such) cannot carry its trace. In a decided case what the entry
+        // decides with it (an empty list `flat_map` drops, no deemed
+        // distribution) rests on the clause, as on a branch that gave such a
+        // value: it is recorded as `leafless`.
+        if decides && !has_leaf(&value) {
+            let mut state = state.borrow_mut();
+            let node = state.intern(Node::Rule {
+                clause,
+                from: None,
+                value: Leaf::Variant(Rc::from("[]")),
+                because,
+            });
+            if let Some(decisions) = state.decisions.as_mut() {
+                decisions.leafless.push(node);
+            }
+            return value;
+        }
         // A clause that returns one value produced it. A clause that returns a
         // structure produced the leaves it computed.
         let structure = Leaf::of(untraced(&value)).is_none();
@@ -831,8 +1290,11 @@ impl Interpreter {
             let from = node_of(leaf);
             // A member a structure passes on unchanged from the input or
             // another rule keeps that provenance; a single value the clause
-            // returns is the clause's, with the input or rule in `from`.
+            // returns is the clause's, with the input or rule in `from`. In a
+            // decided case every leaf is the clause's: what reads it rests on
+            // the clause that passed it on.
             let kept = structure
+                && !decides
                 && from.is_some_and(|node| {
                     !matches!(state.borrow().node(node), Node::Computed { .. })
                 });
