@@ -703,6 +703,135 @@ fn record_free_variables_range_over_their_field_values() {
 }
 
 #[test]
+fn enum_set_free_variables_range_over_every_subset() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/verify/enum_set_free_variable_domains.runa");
+    let verified = run_runa(&["verify", fixture.to_str().expect("UTF-8 fixture path")]);
+    let stdout = String::from_utf8_lossy(&verified.stdout);
+    // One claim is refuted and one is unsupported.
+    assert_eq!(
+        verified.status.code(),
+        Some(1),
+        "stdout:\n{stdout}\nstderr:\n{}",
+        String::from_utf8_lossy(&verified.stderr)
+    );
+    assert!(
+        stdout.contains(
+            "a variable used as a set of such an enum ranges over every subset of its constructors"
+        ),
+        "{stdout}"
+    );
+
+    // A set of the four factors is a 4-bit vector, bit i for the i-th
+    // constructor; `x` (0x78) and `y` (0x79) range over every one of them,
+    // and so do the set fields of `p` (0x70).
+    let monotone = invariant_section(&stdout, "binding_is_monotone");
+    for expected in [
+        "(declare-datatype Precedent ((Precedent (runa_acc_Precedent_Precedent_facts (_ BitVec 4)) (runa_acc_Precedent_Precedent_reason (_ BitVec 4)))))",
+        "(declare-const runa_v_70 Precedent)",
+        "(declare-const runa_v_78 (_ BitVec 4)) ; Set(Factor)",
+        "(declare-const runa_v_79 (_ BitVec 4)) ; Set(Factor)",
+        "(define-fun runa_set_bit_of_Factor ((runa_x Factor)) (_ BitVec 4) (ite (is-P1 runa_x) #b0001 (ite (is-P2 runa_x) #b0010 (ite (is-D1 runa_x) #b0100 #b1000))))",
+        "(define-fun runa_set_subset_of_Factor ((runa_a (_ BitVec 4)) (runa_b (_ BitVec 4))) Bool (= (bvand runa_a (bvnot runa_b)) runa_set_new_of_Factor))",
+        // A written-out set is built by insertion.
+        "(runa_set_insert_of_Factor (runa_set_insert_of_Factor runa_set_new_of_Factor P1) P2)",
+    ] {
+        assert!(monotone.contains(expected), "{expected}:\n{monotone}");
+    }
+    let counted = invariant_section(&stdout, "inclusion_exclusion");
+    assert!(
+        counted.contains("(define-fun runa_set_len_of_Factor ((runa_s (_ BitVec 4))) Int (+ (ite (= ((_ extract 0 0) runa_s) #b1) 1 0)"),
+        "{counted}"
+    );
+
+    let unsupported = invariant_section(&stdout, "int_sets_are_unsupported");
+    assert!(
+        unsupported.contains(
+            "SMT fallback skipped: free variable `s` would range over `Set(Int)`, a set of `Int`; verify represents only sets of an enum whose constructors carry no payload"
+        ),
+        "{unsupported}"
+    );
+    assert!(!unsupported.contains("declare-const"), "{unsupported}");
+
+    if z3_available() {
+        for invariant in [
+            "binding_is_monotone",
+            "union_commutes",
+            "inclusion_exclusion",
+            "insert_then_remove",
+            "empty_sets",
+            "written_out",
+        ] {
+            assert!(
+                stdout.contains(&format!("PROVED: |{invariant}| holds for every input")),
+                "missing proof for {invariant}:\n{stdout}"
+            );
+        }
+        // A bound case with a defendant factor: the witness names the sets
+        // as `show` prints them.
+        let refuted = invariant_section(&stdout, "bound_cases_lack_defendant_factors");
+        let witness = |name: &str| {
+            refuted
+                .lines()
+                .find_map(|line| line.trim().strip_prefix(&format!("{name} = ")))
+                .unwrap_or_else(|| panic!("no witness for {name}:\n{refuted}"))
+        };
+        let x = witness("x");
+        assert!(
+            refuted.contains("COUNTEREXAMPLE found for |bound_cases_lack_defendant_factors|")
+                && x.starts_with('{')
+                && x.ends_with('}')
+                && (x.contains("D1") || x.contains("D2")),
+            "{refuted}"
+        );
+        assert!(witness("p").starts_with("Precedent(facts: {"), "{refuted}");
+        assert!(
+            stdout.contains("Verification: 6 of 8 invariant(s) proved, 1 unsupported."),
+            "{stdout}"
+        );
+    } else {
+        assert!(stdout.contains("Z3 not found"), "{stdout}");
+    }
+}
+
+#[test]
+fn enum_set_claims_outside_the_encoding_are_unsupported_with_a_reason() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/verify/enum_set_unsupported_claims.runa");
+    let verified = run_runa(&["verify", fixture.to_str().expect("UTF-8 fixture path")]);
+    let stdout = String::from_utf8_lossy(&verified.stdout);
+    assert_eq!(verified.status.code(), Some(1), "{stdout}");
+    for (invariant, reason) in [
+        (
+            "listed",
+            "`set_to_list` is not translatable to SMT: verify reasons about which members a set has, not about a list of them",
+        ),
+        (
+            "int_literal",
+            "`set_contains` on `Set(Int)` is not translatable to SMT: verify represents only sets of an enum whose constructors carry no payload",
+        ),
+        (
+            "mixed_elements",
+            "`set_union` takes a `Set(Color)` where `Set(Factor)` is expected, which is not translatable to SMT",
+        ),
+        (
+            "unsorted_empty",
+            "SMT cannot tell the element type of the sets `set_is_empty` takes",
+        ),
+    ] {
+        let section = invariant_section(&stdout, invariant);
+        assert!(
+            section.contains("SMT fallback skipped: predicate ") && section.contains(reason),
+            "{invariant}:\n{section}"
+        );
+    }
+    assert!(
+        stdout.contains("Verification: 0 of 4 invariant(s) proved, 4 unsupported."),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn allow_unsupported_accepts_untranslatable_claims_but_not_refuted_ones() {
     let mixed = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/verify/mixed_unsupported_claims.runa");

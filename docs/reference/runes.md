@@ -1100,23 +1100,62 @@ for floating-point evaluation.
 `runa verify` is Preview. PROVED means that for every value of the invariant's
 free variables (Int ranges over the 64-bit values; a variable used as an enum
 whose constructors carry no payload ranges over exactly those constructors; a
-variable used as a record ranges over every combination of its field values)
-the predicate is true and no Int operation it evaluates overflows or divides by
-zero. Claims involving Float are reported as unsupported, never proved.
+variable used as a set of such an enum ranges over every subset of its
+constructors; a variable used as a record ranges over every combination of its
+field values) the predicate is true and no Int operation it evaluates overflows
+or divides by zero. Claims involving Float are reported as unsupported, never
+proved.
 
-A free variable ranges over an enum or record when the invariant passes it to a
-rule, function, or constructor parameter declared with that type, compares it
-with a value of that type, or matches it against the type's constructors. Every
-other free variable ranges over Int. A record is a non-generic type with a
-single constructor; it is quantified when each of its fields is Int, Bool, a
-payload-free enum, or such a record, so a rule over
+A free variable ranges over an enum, a set, or a record when the invariant
+passes it to a rule, function, or constructor parameter declared with that
+type, compares it with a value of that type, matches it against the type's
+constructors, or gives it to a set builtin beside a set or member whose type is
+known. Every other free variable ranges over Int. A record is a non-generic
+type with a single constructor; it is quantified when each of its fields is
+Int, Bool, a payload-free enum, a set of one, or such a record, so a rule over
 `# Fund(x: JaNej, n: Int)` is verified for every `x` and every 64-bit `n`, and
 the rule may read the fields (`a.x`), build records, and compare them. A free
 variable used as an enum whose constructors carry payloads, as a record with
 another field type (such as String or a list), as a generic type, or as two
 different types makes the claim unsupported with a diagnostic. A
 counterexample names each free variable's witness in source syntax, such as
-`s = Shipped` or `a = Fund(x: Ja, n: 0)`.
+`s = Shipped` or `a = Fund(x: Ja, n: 0)`; a set prints as `show` prints it,
+such as `x = {D1, P1}`.
+
+A set of a payload-free enum with n constructors is exact for the solver: its
+values are the 2^n subsets. Claims and the rules and functions they call may
+build such sets with `set_new()`, `set_from_list` of a written-out list,
+`set_insert` and `set_remove`, combine them with `set_union`,
+`set_intersect` and `set_diff`, and test them with `set_contains`,
+`set_subset`, `set_is_empty`, `set_len` and `==`. An empty set takes its
+element type from where it is used (an operand of a set builtin, a comparison,
+a typed binding, a function result, or a record field). Sets of other element
+types (Int, String, records), `set_to_list` and iteration over a set, a set
+builtin given sets of two element types, and an empty set whose element type
+nothing fixes make the claim unsupported with the reason. Precedential
+constraint after Horty's reason model is such a claim:
+
+```runa
+# Factor = P1 | P2 | D1 | D2
+= plaintiff_factors = set_from_list([P1, P2])
+= defendant_factors = set_from_list([D1, D2])
+# Precedent(facts: Set(Factor), reason: Set(Factor))
+
+> pro_side(facts: Set(Factor)) -> Set(Factor) {
+    set_intersect(facts, plaintiff_factors)
+}
+
+> con_side(facts: Set(Factor)) -> Set(Factor) {
+    set_intersect(facts, defendant_factors)
+}
+
+| binds(p: Precedent, facts: Set(Factor)): Bool -> set_subset(p.reason, pro_side(facts)) && set_subset(con_side(facts), con_side(p.facts))
+| at_least_as_strong(facts: Set(Factor), stronger: Set(Factor)): Bool -> set_subset(pro_side(facts), pro_side(stronger)) && set_subset(con_side(stronger), con_side(facts))
+| bound_and_weaker(p: Precedent, facts: Set(Factor), stronger: Set(Factor)): Bool -> binds(p, facts) && at_least_as_strong(facts, stronger)
+
+-- PROVED for every precedent and every two cases.
+| binding_is_monotone: bound_and_weaker(p, x, y) -> !bound_and_weaker(p, x, y) || binds(p, y)
+```
 
 ### Verifying rule dispatch
 

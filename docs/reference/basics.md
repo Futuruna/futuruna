@@ -662,6 +662,8 @@ source line spells them (`fold`, not `foldl`; `returner`, not `return`).
 | `sæt_fælles` | `set_intersect` |
 | `sæt_forskel` | `set_diff` |
 | `sæt_fra_liste` | `set_from_list` |
+| `sæt_delmængde` | `set_subset` |
+| `sæt_er_tom` | `set_is_empty` |
 | `fra_liste` | `from_list` |
 | `tag` | `take` |
 | `spring` | `skip` |

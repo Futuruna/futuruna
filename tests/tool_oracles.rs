@@ -249,8 +249,10 @@ fn top_level_names(statements: &[Stmt]) -> BTreeSet<String> {
             Stmt::Defn(Defn::Fn { name, .. }) => {
                 names.insert(name.clone());
             }
-            Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
+            Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
                 names.insert(name.clone());
+                // A constructor in a predicate is a value, not a variable.
+                names.extend(variants.iter().map(|variant| variant.name.clone()));
             }
             Stmt::Rule(rule) => {
                 if let Some((name, _)) = rule.callable_name_arity() {
@@ -345,8 +347,9 @@ fn records(statements: &[Stmt]) -> BTreeMap<String, (String, Vec<String>)> {
 }
 
 /// The values an oracle evaluates a variable of `sort` at: the 64-bit Int
-/// boundaries, both Bools, every constructor of a payload-free enum, and
-/// every combination of those for a record's fields.
+/// boundaries, both Bools, every constructor of a payload-free enum, every
+/// subset of one for a set of it, and every combination of those for a
+/// record's fields.
 fn oracle_domain(
     sort: &str,
     enums: &BTreeMap<String, Vec<String>>,
@@ -354,6 +357,25 @@ fn oracle_domain(
 ) -> Option<Vec<String>> {
     if let Some(constructors) = enums.get(sort) {
         return Some(constructors.clone());
+    }
+    if let Some(element) = sort
+        .strip_prefix("Set(")
+        .and_then(|rest| rest.strip_suffix(')'))
+    {
+        let constructors = enums.get(element)?;
+        return Some(
+            (0..1u32 << constructors.len())
+                .map(|members| {
+                    let members = constructors
+                        .iter()
+                        .enumerate()
+                        .filter(|(bit, _)| members >> bit & 1 == 1)
+                        .map(|(_, constructor)| constructor.as_str())
+                        .collect::<Vec<_>>();
+                    format!("set_from_list([{}])", members.join(", "))
+                })
+                .collect(),
+        );
     }
     if let Some((constructor, fields)) = records.get(sort) {
         let domains = fields
@@ -381,7 +403,8 @@ fn oracle_domain(
 
 /// The SMT sort `verify` declared for each free variable of one invariant,
 /// read from the `(declare-const runa_v_<hex name> Sort)` lines of its report
-/// section.
+/// section. A set's bit-vector sort is followed by its type as a comment
+/// (`; Set(Factor)`), which is the sort reported.
 fn declared_sorts(report: &str, invariant: &str) -> BTreeMap<String, String> {
     let header = format!("--- | {invariant} ---");
     let Some(start) = report.find(&header) else {
@@ -393,7 +416,12 @@ fn declared_sorts(report: &str, invariant: &str) -> BTreeMap<String, String> {
         .lines()
         .filter_map(|line| {
             let declaration = line.trim().strip_prefix("(declare-const runa_v_")?;
+            let (declaration, set_type) = match declaration.split_once(") ; ") {
+                Some((declaration, set_type)) => (format!("{declaration})"), Some(set_type)),
+                None => (declaration.to_string(), None),
+            };
             let (encoded, sort) = declaration.strip_suffix(')')?.split_once(' ')?;
+            let sort = set_type.unwrap_or(sort);
             let bytes = (0..encoded.len())
                 .step_by(2)
                 .map(|index| u8::from_str_radix(encoded.get(index..index + 2)?, 16).ok())
@@ -485,7 +513,8 @@ fn invariants_proved_by_verify_hold_at_int_boundaries_enum_constructors_and_reco
             let sorts = declared_sorts(&report, name);
             // An Int variable is sampled at the 64-bit boundaries; an enum
             // variable is evaluated at every constructor verify quantified,
-            // and a record variable at every combination of its fields'.
+            // a set variable at every subset of its enum's constructors, and
+            // a record variable at every combination of its fields'.
             let mut domains = Vec::with_capacity(free.len());
             let mut parameters = Vec::with_capacity(free.len());
             for variable in &free {

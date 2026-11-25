@@ -15451,6 +15451,9 @@ struct SmtRuleLowerer<'program, 'registry> {
     type_parameters_by_owner: BTreeMap<String, Vec<String>>,
     fields_by_type: BTreeMap<String, BTreeMap<String, String>>,
     function_returns: BTreeMap<String, String>,
+    /// Every authored function: a call of one named like a builtin
+    /// (`set_union`) is a call of the function.
+    function_names: BTreeSet<String>,
     binding_types: BTreeMap<String, String>,
     /// Authored non-generic enums whose constructors all carry no payload,
     /// with their constructors in declaration order. Invariant free variables
@@ -15523,6 +15526,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         );
         let mut fields_by_type = BTreeMap::new();
         let mut function_returns = BTreeMap::new();
+        let mut function_names = BTreeSet::new();
         let mut binding_types = BTreeMap::new();
         let mut nullary_enums = BTreeMap::new();
 
@@ -15603,12 +15607,11 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                         }],
                     );
                 }
-                Stmt::Defn(Defn::Fn {
-                    name,
-                    ret_ty: Some(return_type),
-                    ..
-                }) => {
-                    function_returns.insert(name.clone(), return_type.to_string());
+                Stmt::Defn(Defn::Fn { name, ret_ty, .. }) => {
+                    function_names.insert(name.clone());
+                    if let Some(return_type) = ret_ty {
+                        function_returns.insert(name.clone(), return_type.to_string());
+                    }
                 }
                 Stmt::Bind(Pat::Var(name), Some(ty), _) => {
                     binding_types.insert(name.clone(), ty.to_string());
@@ -15617,6 +15620,12 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             }
         }
 
+        SMT_SET_ELEMENT_WIDTHS.with(|widths| {
+            *widths.borrow_mut() = nullary_enums
+                .iter()
+                .map(|(name, constructors)| (name.clone(), constructors.len()))
+                .collect();
+        });
         let mut lowerer = Self {
             registry,
             rule_identities,
@@ -15624,6 +15633,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             type_parameters_by_owner,
             fields_by_type,
             function_returns,
+            function_names,
             binding_types,
             nullary_enums,
             partial_dispatches: Default::default(),
@@ -15707,6 +15717,11 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         ) -> bool {
             match ty {
                 Ty::Name(name) if matches!(name.as_str(), "Int" | "Bool" | "String") => true,
+                // A set of a payload-free enum is a bit-vector (`SmtSetOp`).
+                Ty::App(_, _) if smt_set_element(ty).is_some() => {
+                    matches!(smt_set_element(ty), Some(Ty::Name(element))
+                        if lowerer.nullary_enums.contains_key(element))
+                }
                 Ty::Name(_) | Ty::App(_, _) | Ty::Optional(_) => {
                     let Some((owner, arguments)) = smt_type_instance(ty) else {
                         return false;
@@ -16009,13 +16024,22 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
     /// constructor's payload (`Some(None)`, `Span(start = None, …)`) and in
     /// the branches of an `if`, a `match` or a block: with two instances of
     /// its datatype in the query (`Option Int`, `Option Date`) the solver
-    /// cannot pick.
+    /// cannot pick. An empty set it yields (`set_new()`) becomes the empty
+    /// set of the enum `ty` is a set of.
     fn sort_nullary_constructors(&self, expression: Expr, ty: &Ty) -> Expr {
         if self.lowered_nullary_constructor(&expression).is_some() {
             return if self.rule_type_is_smt_representable(ty) {
                 smt_sorted_nullary(expression, ty)
             } else {
                 expression
+            };
+        }
+        if smt_is_unsorted_empty_set(&expression) {
+            return match smt_set_element(ty) {
+                Some(Ty::Name(element)) if self.nullary_enums.contains_key(element) => {
+                    smt_set_call(SmtSetOp::New, element, Vec::new())
+                }
+                _ => expression,
             };
         }
         let span = expression.span;
@@ -16203,6 +16227,13 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     if let Some(group) = self.registry.get(None, name, arguments.len()) {
                         if let Some(return_type) = &group.return_type {
                             return Some(return_type.clone());
+                        }
+                    }
+                    if !self.function_names.contains(name) {
+                        if let Some(type_name) =
+                            self.infer_set_call_type(name, arguments, environment)
+                        {
+                            return Some(type_name);
                         }
                     }
                     return self.function_returns.get(name).cloned().or_else(|| {
@@ -16540,6 +16571,13 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                             constructed,
                             &Ty::Name(signature.parent.clone()),
                         ));
+                    } else if let Some(lowered) = (!self.function_names.contains(name))
+                        .then(|| {
+                            self.lower_set_builtin(name, arguments, environment, expansion_stack)
+                        })
+                        .flatten()
+                    {
+                        return lowered.map(|lowered| Expr::new(lowered.kind, span));
                     } else {
                         ExprKind::App(
                             Box::new(self.lower_expr(function, environment, expansion_stack)?),
@@ -16691,6 +16729,13 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                                     block_environment.types.insert(name, ty.clone());
                                 }
                             }
+                            // A typed binding gives an empty set its sort.
+                            let lowered_value = match ty {
+                                Some(ty) if smt_set_element(ty).is_some() => {
+                                    self.sort_nullary_constructors(lowered_value, ty)
+                                }
+                                _ => lowered_value,
+                            };
                             lowered.push(Stmt::Bind(pattern.clone(), ty.clone(), lowered_value));
                         }
                         Stmt::Expr(inner) => lowered.push(Stmt::Expr(self.lower_expr(
@@ -17278,6 +17323,21 @@ fn smt_expr_support_reason(
             if name == "assert_with_message" && args.len() == 2 && !fn_names.contains(name) {
                 return smt_expr_support_reason(&args[0], fn_names, ctor_names);
             }
+            if !fn_names.contains(name) {
+                if name == SMT_UNSORTED_EMPTY_SET {
+                    return Some(
+                        "an empty set (`set_new()`, `set_from_list([])`) whose element type the claim does not fix is not translatable to SMT"
+                            .into(),
+                    );
+                }
+                if SmtSetOp::parse_helper(name)
+                    .is_some_and(|(op, _)| op.operands().len() == args.len())
+                {
+                    return args
+                        .iter()
+                        .find_map(|arg| smt_expr_support_reason(arg, fn_names, ctor_names));
+                }
+            }
             let builtin = smt_builtin_result_type(name, args.len()).is_some();
             if builtin && fn_names.contains(name) {
                 return Some(format!(
@@ -17743,27 +17803,256 @@ fn smt_free_variable_type_is_nominal(type_name: &str) -> bool {
 }
 
 impl SmtRuleLowerer<'_, '_> {
+    /// The payload-free enum whose SMT symbol is `symbol`.
+    fn set_element_of_symbol(&self, symbol: &str) -> Option<&str> {
+        self.nullary_enums
+            .keys()
+            .find(|element| smt_symbol(element) == symbol)
+            .map(String::as_str)
+    }
+
+    /// The element type of the sets a call of set builtin `name` takes or
+    /// builds, from the types of its arguments.
+    fn set_call_element(
+        &self,
+        name: &str,
+        arguments: &[Expr],
+        environment: &SmtLoweringEnv,
+    ) -> Option<String> {
+        let element_of_set = |argument: &Expr| {
+            self.infer_expr_type(argument, environment)
+                .and_then(|type_name| smt_set_element_name(&type_name))
+        };
+        match (name, arguments) {
+            ("set_from_list", [list]) => match &list.kind {
+                ExprKind::List(items) => items
+                    .iter()
+                    .find_map(|item| self.infer_expr_type(item, environment)),
+                _ => match parse_type_annotation(&self.infer_expr_type(list, environment)?).ok()? {
+                    Ty::App(constructor, items)
+                        if matches!(constructor.as_ref(), Ty::Name(name) if name == "List")
+                            && items.len() == 1 =>
+                    {
+                        Some(items[0].to_string())
+                    }
+                    _ => None,
+                },
+            },
+            ("set_to_list", [set]) => element_of_set(set),
+            _ => {
+                let op = SmtSetOp::from_builtin(name, arguments.len())?;
+                let operands = op.operands().iter().zip(arguments);
+                operands
+                    .clone()
+                    .filter(|(operand, _)| **operand == SmtSetOperand::Set)
+                    .find_map(|(_, argument)| element_of_set(argument))
+                    .or_else(|| {
+                        operands
+                            .filter(|(operand, _)| **operand == SmtSetOperand::Element)
+                            .find_map(|(_, argument)| self.infer_expr_type(argument, environment))
+                    })
+            }
+        }
+    }
+
+    /// The result type of a call of set builtin `name`, or of a set
+    /// operation the encoding lowered one to.
+    fn infer_set_call_type(
+        &self,
+        name: &str,
+        arguments: &[Expr],
+        environment: &SmtLoweringEnv,
+    ) -> Option<String> {
+        if let Some((op, symbol)) = SmtSetOp::parse_helper(name) {
+            return Some(op.result_type(self.set_element_of_symbol(symbol)?));
+        }
+        let element = || self.set_call_element(name, arguments, environment);
+        match (name, arguments.len()) {
+            ("set_from_list", 1) => Some(format!("Set({})", element()?)),
+            ("set_to_list", 1) => Some(format!("List({})", element()?)),
+            _ => {
+                let op = SmtSetOp::from_builtin(name, arguments.len())?;
+                if op.yields_set() {
+                    element().map(|element| op.result_type(&element))
+                } else {
+                    Some(op.result_type(""))
+                }
+            }
+        }
+    }
+
+    /// A call of set builtin `name` lowered to the set operations of its
+    /// element enum (see `SmtSetOp`); `None` when `name` is no set builtin.
+    /// `set_new()` whose element type is not known here lowers to the
+    /// unsorted empty set, which an expected set type sorts later.
+    fn lower_set_builtin(
+        &self,
+        name: &str,
+        arguments: &[Expr],
+        environment: &SmtLoweringEnv,
+        expansion_stack: &mut Vec<RuleDispatchKey>,
+    ) -> Option<Result<Expr, String>> {
+        let op = SmtSetOp::from_builtin(name, arguments.len());
+        match (name, arguments) {
+            ("set_to_list", [_]) => {
+                return Some(Err(
+                    "`set_to_list` is not translatable to SMT: verify reasons about which members a set has, not about a list of them"
+                        .to_string(),
+                ));
+            }
+            ("set_from_list", [_]) => {}
+            _ if op.is_some() => {}
+            _ => return None,
+        }
+        Some(self.lower_set_call(name, op, arguments, environment, expansion_stack))
+    }
+
+    fn lower_set_call(
+        &self,
+        name: &str,
+        op: Option<SmtSetOp>,
+        arguments: &[Expr],
+        environment: &SmtLoweringEnv,
+        expansion_stack: &mut Vec<RuleDispatchKey>,
+    ) -> Result<Expr, String> {
+        let empty = match op {
+            Some(op) => op == SmtSetOp::New,
+            None => matches!(&arguments[0].kind, ExprKind::List(items) if items.is_empty()),
+        };
+        let Some(element) = self.set_call_element(name, arguments, environment) else {
+            if empty {
+                return Ok(Expr::unspanned(ExprKind::App(
+                    Box::new(Expr::unspanned(ExprKind::Var(
+                        SMT_UNSORTED_EMPTY_SET.to_string(),
+                    ))),
+                    Vec::new(),
+                )));
+            }
+            return Err(format!(
+                "SMT cannot tell the element type of the sets `{name}` takes"
+            ));
+        };
+        if !self.nullary_enums.contains_key(&element) {
+            return Err(format!(
+                "`{name}` on `Set({element})` is not translatable to SMT: verify represents only sets of an enum whose constructors carry no payload"
+            ));
+        }
+        let set_type = format!("Set({element})");
+        let set_ty = Ty::App(
+            Box::new(Ty::Name("Set".to_string())),
+            vec![Ty::Name(element.clone())],
+        );
+        // The checker accepts a set builtin on values of other types; the
+        // encoding takes only operands of the one set type.
+        let expect = |argument: &Expr, expected: &str| {
+            match self
+            .infer_expr_type(argument, environment)
+        {
+            Some(actual) if actual != expected => Err(format!(
+                "`{name}` takes a `{actual}` where `{expected}` is expected, which is not translatable to SMT"
+            )),
+            _ => Ok(()),
+        }
+        };
+        let Some(op) = op else {
+            let ExprKind::List(items) = &arguments[0].kind else {
+                return Err(
+                    "`set_from_list` of a list that is not written out is not translatable to SMT"
+                        .to_string(),
+                );
+            };
+            let mut set = smt_set_call(SmtSetOp::New, &element, Vec::new());
+            for item in items {
+                expect(item, &element)?;
+                let item = self.lower_expr(item, environment, expansion_stack)?;
+                set = smt_set_call(SmtSetOp::Insert, &element, vec![set, item]);
+            }
+            return Ok(set);
+        };
+        let mut lowered = Vec::with_capacity(arguments.len());
+        for (operand, argument) in op.operands().iter().zip(arguments) {
+            let value = self.lower_expr(argument, environment, expansion_stack)?;
+            lowered.push(match operand {
+                SmtSetOperand::Set => {
+                    expect(argument, &set_type)?;
+                    self.sort_nullary_constructors(value, &set_ty)
+                }
+                SmtSetOperand::Element => {
+                    expect(argument, &element)?;
+                    value
+                }
+            });
+        }
+        Ok(smt_set_call(op, &element, lowered))
+    }
+
+    /// The SMT definitions of the set operations (`SmtSetOp`) that
+    /// `expressions` call, for each element enum they call them on.
+    fn set_helper_definitions<'e>(
+        &self,
+        expressions: impl IntoIterator<Item = &'e Expr>,
+    ) -> String {
+        let mut symbols = BTreeSet::new();
+        for expression in expressions {
+            collect_smt_set_helper_elements(expression, &mut symbols);
+        }
+        symbols
+            .iter()
+            .filter_map(|symbol| {
+                let element = self.set_element_of_symbol(symbol)?;
+                Some(smt_set_helper_definitions(
+                    element,
+                    &self.nullary_enums[element],
+                ))
+            })
+            .collect()
+    }
+
     /// Decide what each unbound invariant variable ranges over. A variable
     /// without a nominal use ranges over the 64-bit Int values. A variable
-    /// passed to a parameter or constructor field of a payload-free enum or
-    /// of a record whose fields are quantified (see `record_field_domain`),
-    /// compared with a value of one, or matched against its constructors
-    /// ranges over exactly that type's values. Any other nominal use, or uses
-    /// at two different types, is rejected.
+    /// passed to a parameter or constructor field of a payload-free enum, of
+    /// a set of one, or of a record whose fields are quantified (see
+    /// `record_field_domain`), compared with a value of one, matched against
+    /// its constructors, or given to a set builtin beside a value of known
+    /// type ranges over exactly that type's values. Any other nominal use, or
+    /// uses at two different types, is rejected.
     fn invariant_free_variable_types(
         &self,
         expressions: &[&Expr],
         candidates: &BTreeSet<String>,
         function_parameters: &BTreeMap<String, Vec<Param>>,
     ) -> Result<BTreeMap<String, String>, String> {
+        // A use beside another free variable (`set_subset(r, x)`, `a == b`)
+        // types it once that variable's type is known.
+        let mut known = SmtLoweringEnv::default();
         let mut uses = BTreeMap::<String, BTreeSet<String>>::new();
-        for expression in expressions {
-            self.collect_free_variable_type_uses(
-                expression,
-                candidates,
-                function_parameters,
-                &mut uses,
-            );
+        for _ in 0..=candidates.len() {
+            uses.clear();
+            for expression in expressions {
+                self.collect_free_variable_type_uses(
+                    expression,
+                    candidates,
+                    function_parameters,
+                    &known,
+                    &mut uses,
+                );
+            }
+            let types = uses
+                .iter()
+                .filter_map(|(name, used_as)| {
+                    let mut nominal = used_as
+                        .iter()
+                        .filter(|type_name| smt_free_variable_type_is_nominal(type_name));
+                    match (nominal.next(), nominal.next()) {
+                        (Some(type_name), None) => Some((name.clone(), type_name.clone())),
+                        _ => None,
+                    }
+                })
+                .collect::<BTreeMap<_, _>>();
+            if types == known.types {
+                break;
+            }
+            known.types = types;
         }
         candidates
             .iter()
@@ -17793,7 +18082,16 @@ impl SmtRuleLowerer<'_, '_> {
         if self.nullary_enums.contains_key(type_name) {
             return Ok(type_name.to_string());
         }
-        let reason = match parse_type_annotation(type_name) {
+        let parsed = parse_type_annotation(type_name);
+        if let Some(element) = parsed.as_ref().ok().and_then(smt_set_element) {
+            if matches!(element, Ty::Name(element) if self.nullary_enums.contains_key(element)) {
+                return Ok(type_name.to_string());
+            }
+            return Err(format!(
+                "free variable `{name}` would range over `{type_name}`, a set of `{element}`; verify represents only sets of an enum whose constructors carry no payload"
+            ));
+        }
+        let reason = match parsed {
             Ok(Ty::Name(owner)) if self.record_constructor(&owner).is_some() => {
                 match self.record_field_domain(&owner, &mut Vec::new()) {
                     Ok(()) => return Ok(type_name.to_string()),
@@ -17823,7 +18121,7 @@ impl SmtRuleLowerer<'_, '_> {
             _ => "is not a non-generic enum or record".to_string(),
         };
         Err(format!(
-            "free variable `{}` would range over `{}`, which {}; verify quantifies free variables only over Int, over enums whose constructors carry no payload, and over records whose fields are Int, Bool, such enums, or such records",
+            "free variable `{}` would range over `{}`, which {}; verify quantifies free variables only over Int, over enums whose constructors carry no payload, over sets of such enums, and over records whose fields are Int, Bool, such enums, sets of them, or such records",
             name, type_name, reason
         ))
     }
@@ -17852,9 +18150,10 @@ impl SmtRuleLowerer<'_, '_> {
     }
 
     /// Whether every value of record `type_name` can be quantified: each
-    /// field is Int, Bool, a payload-free enum, or such a record. Otherwise
-    /// the path and type of the first field that cannot. `visiting` holds
-    /// the records being checked, so a recursive record is refused.
+    /// field is Int, Bool, a payload-free enum, a set of one, or such a
+    /// record. Otherwise the path and type of the first field that cannot.
+    /// `visiting` holds the records being checked, so a recursive record is
+    /// refused.
     fn record_field_domain(
         &self,
         type_name: &str,
@@ -17875,6 +18174,10 @@ impl SmtRuleLowerer<'_, '_> {
                     {
                         self.record_field_domain(field_type, visiting)
                     }
+                    _ => Err((String::new(), field.ty.to_string())),
+                },
+                Ty::App(_, _) => match smt_set_element(&field.ty) {
+                    Some(Ty::Name(element)) if self.nullary_enums.contains_key(element) => Ok(()),
                     _ => Err((String::new(), field.ty.to_string())),
                 },
                 _ => Err((String::new(), field.ty.to_string())),
@@ -17921,11 +18224,14 @@ impl SmtRuleLowerer<'_, '_> {
             .collect()
     }
 
+    /// Record what each candidate free variable in `expression` is used as.
+    /// `environment` holds the free variables' types known so far.
     fn collect_free_variable_type_uses(
         &self,
         expression: &Expr,
         candidates: &BTreeSet<String>,
         function_parameters: &BTreeMap<String, Vec<Param>>,
+        environment: &SmtLoweringEnv,
         uses: &mut BTreeMap<String, BTreeSet<String>>,
     ) {
         let candidate = |expression: &Expr| match &expression.kind {
@@ -17935,7 +18241,13 @@ impl SmtRuleLowerer<'_, '_> {
         let visit = |child: &Expr,
                      candidates: &BTreeSet<String>,
                      uses: &mut BTreeMap<String, BTreeSet<String>>| {
-            self.collect_free_variable_type_uses(child, candidates, function_parameters, uses)
+            self.collect_free_variable_type_uses(
+                child,
+                candidates,
+                function_parameters,
+                environment,
+                uses,
+            )
         };
         match &expression.kind {
             ExprKind::App(function, arguments) => {
@@ -17952,6 +18264,23 @@ impl SmtRuleLowerer<'_, '_> {
                         uses.entry(name).or_default().insert(type_name);
                     }
                 }
+                // A set builtin's operands share one element type.
+                if let ExprKind::Var(name) = &function.kind {
+                    let set_operation = SmtSetOp::from_builtin(name, arguments.len())
+                        .filter(|_| !self.function_names.contains(name));
+                    let element = set_operation
+                        .and_then(|_| self.set_call_element(name, arguments, environment));
+                    if let (Some(operation), Some(element)) = (set_operation, element) {
+                        for (operand, argument) in operation.operands().iter().zip(arguments) {
+                            if let Some(name) = candidate(argument) {
+                                uses.entry(name).or_default().insert(match operand {
+                                    SmtSetOperand::Set => format!("Set({element})"),
+                                    SmtSetOperand::Element => element.clone(),
+                                });
+                            }
+                        }
+                    }
+                }
                 visit(function, candidates, uses);
                 for argument in arguments {
                     visit(argument, candidates, uses);
@@ -17964,9 +18293,7 @@ impl SmtRuleLowerer<'_, '_> {
                             let Some(name) = candidate(operand) else {
                                 continue;
                             };
-                            if let Some(type_name) =
-                                self.infer_expr_type(other, &SmtLoweringEnv::default())
-                            {
+                            if let Some(type_name) = self.infer_expr_type(other, environment) {
                                 uses.entry(name).or_default().insert(type_name);
                             }
                         }
@@ -18158,8 +18485,12 @@ impl SmtRuleLowerer<'_, '_> {
         }
     }
 
-    /// Render a solver model value of a free variable in source syntax.
+    /// Render a solver model value of a free variable in source syntax. A
+    /// set prints as `show` prints it (see `smt_set_value_text`).
     fn smt_witness_value(&self, type_name: &str, value: &SmtTerm) -> Option<String> {
+        if let Some(element) = smt_set_element_name(type_name) {
+            return smt_set_value_text(self.nullary_enums.get(&element)?, value);
+        }
         match (type_name, value) {
             ("Int", SmtTerm::Atom(numeral))
                 if numeral.bytes().all(|byte| byte.is_ascii_digit()) =>
@@ -18208,6 +18539,14 @@ impl SmtRuleLowerer<'_, '_> {
                     .collect::<Option<Vec<_>>>()?;
                 Some(format!("{}({})", constructor, fields.join(", ")))
             }
+        }
+    }
+
+    /// The constructors of the payload-free enum `ty` is a set of.
+    fn set_constructors(&self, ty: &Ty) -> Option<&[String]> {
+        match smt_set_element(ty)? {
+            Ty::Name(element) => self.nullary_enums.get(element).map(Vec::as_slice),
+            _ => None,
         }
     }
 }
@@ -18510,6 +18849,13 @@ fn infer_smt_sort_adts(expr: &Expr, ctor_to_type: &BTreeMap<String, String>) -> 
                 if let Some(result) = smt_builtin_result_type(name, arguments.len()) {
                     return result.into();
                 }
+                if let Some((op, element)) = SmtSetOp::parse_helper(name) {
+                    return match op.result_type(element).as_str() {
+                        "Bool" | "Int" => op.result_type(element),
+                        _ => smt_set_width_of_symbol(element)
+                            .map_or_else(|| "Int".into(), smt_set_sort),
+                    };
+                }
             }
             "Int".into()
         }
@@ -18808,6 +19154,9 @@ fn close_smt_type_instances<'v>(
 
 /// Map a Futuruna type annotation to a Z3 sort name
 fn ty_to_smt_sort(ty: &Ty) -> String {
+    if let Some((_, width)) = smt_set_enum(ty) {
+        return smt_set_sort(width);
+    }
     match ty {
         Ty::Name(n) => match n.as_str() {
             "Int" => "Int".into(),
@@ -18838,6 +19187,360 @@ fn smt_type_name_to_sort(type_name: &str) -> String {
         Ok(ty) => ty_to_smt_sort(&ty),
         Err(_) => smt_symbol(type_name),
     }
+}
+
+thread_local! {
+    /// The payload-free enums of the program being encoded, with how many
+    /// constructors each has: `ty_to_smt_sort` gives `Set(E)` of such an
+    /// enum the bit-vector sort of that width (see `SmtSetOp`). Installed by
+    /// `SmtRuleLowerer::new`, which every SMT encoding of a program builds
+    /// before it names a sort.
+    static SMT_SET_ELEMENT_WIDTHS: std::cell::RefCell<BTreeMap<String, usize>> =
+        const { std::cell::RefCell::new(BTreeMap::new()) };
+}
+
+/// The element type of a set type: `X` for `Set(X)`.
+fn smt_set_element(ty: &Ty) -> Option<&Ty> {
+    match ty {
+        Ty::App(constructor, arguments) if matches!(constructor.as_ref(), Ty::Name(name) if name == "Set") => {
+            match arguments.as_slice() {
+                [element] => Some(element),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+/// The element type a type name is a set of: `X` for `Set(X)`.
+fn smt_set_element_name(type_name: &str) -> Option<String> {
+    smt_set_element(&parse_type_annotation(type_name).ok()?).map(ToString::to_string)
+}
+
+/// The payload-free enum a set type ranges over, with its constructor
+/// count, when the SMT encoding represents the set.
+fn smt_set_enum(ty: &Ty) -> Option<(&str, usize)> {
+    let Ty::Name(element) = smt_set_element(ty)? else {
+        return None;
+    };
+    let width = SMT_SET_ELEMENT_WIDTHS.with(|widths| widths.borrow().get(element).copied())?;
+    Some((element, width))
+}
+
+/// The constructor count of the payload-free enum whose SMT symbol is
+/// `symbol` (see `SmtSetOp::helper`).
+fn smt_set_width_of_symbol(symbol: &str) -> Option<usize> {
+    SMT_SET_ELEMENT_WIDTHS.with(|widths| {
+        widths
+            .borrow()
+            .iter()
+            .find(|(element, _)| smt_symbol(element) == symbol)
+            .map(|(_, width)| *width)
+    })
+}
+
+fn smt_set_sort(width: usize) -> String {
+    format!("(_ BitVec {width})")
+}
+
+/// The unsorted empty set: `set_new()`, or `set_from_list([])`, lowered
+/// where its element type is not yet known. `sort_nullary_constructors`
+/// replaces it with `SmtSetOp::New` once a set type is expected there; one
+/// left over is not translatable.
+const SMT_UNSORTED_EMPTY_SET: &str = "runa_set_empty";
+
+/// A set operation the SMT encoding translates, on `Set(E)` for a
+/// payload-free enum `E` with n constructors. Such a set is an n-bit
+/// bit-vector whose bit i holds whether E's i-th constructor (in declaration
+/// order) is a member: each of the 2^n subsets is exactly one value of the
+/// sort, so equal sets are equal bit-vectors. Each operation is an SMT
+/// function per element enum (`runa_set_union_of_E`), defined by
+/// `smt_set_helper_definitions`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SmtSetOp {
+    New,
+    Contains,
+    Insert,
+    Remove,
+    Union,
+    Intersect,
+    Diff,
+    Subset,
+    IsEmpty,
+    Len,
+}
+
+/// What an operand of a `SmtSetOp` is: a set, or one element.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SmtSetOperand {
+    Set,
+    Element,
+}
+
+impl SmtSetOp {
+    const ALL: [Self; 10] = [
+        Self::New,
+        Self::Contains,
+        Self::Insert,
+        Self::Remove,
+        Self::Union,
+        Self::Intersect,
+        Self::Diff,
+        Self::Subset,
+        Self::IsEmpty,
+        Self::Len,
+    ];
+
+    /// The name of the operation: its builtin is `set_<key>`.
+    fn key(self) -> &'static str {
+        match self {
+            Self::New => "new",
+            Self::Contains => "contains",
+            Self::Insert => "insert",
+            Self::Remove => "remove",
+            Self::Union => "union",
+            Self::Intersect => "intersect",
+            Self::Diff => "diff",
+            Self::Subset => "subset",
+            Self::IsEmpty => "is_empty",
+            Self::Len => "len",
+        }
+    }
+
+    fn operands(self) -> &'static [SmtSetOperand] {
+        use SmtSetOperand::{Element, Set};
+        match self {
+            Self::New => &[],
+            Self::Contains | Self::Insert | Self::Remove => &[Set, Element],
+            Self::Union | Self::Intersect | Self::Diff | Self::Subset => &[Set, Set],
+            Self::IsEmpty | Self::Len => &[Set],
+        }
+    }
+
+    /// The operation builtin `name` applied to `arity` arguments performs.
+    fn from_builtin(name: &str, arity: usize) -> Option<Self> {
+        let key = name.strip_prefix("set_")?;
+        Self::ALL
+            .into_iter()
+            .find(|op| op.key() == key && op.operands().len() == arity)
+    }
+
+    /// The SMT function performing the operation on sets of `element`.
+    fn helper(self, element: &str) -> String {
+        format!("runa_set_{}_of_{}", self.key(), smt_symbol(element))
+    }
+
+    /// The operation an SMT function name performs, and the SMT symbol of
+    /// its element enum.
+    fn parse_helper(name: &str) -> Option<(Self, &str)> {
+        let rest = name.strip_prefix("runa_set_")?;
+        Self::ALL.into_iter().find_map(|op| {
+            let element = rest.strip_prefix(op.key())?.strip_prefix("_of_")?;
+            (!element.is_empty()).then_some((op, element))
+        })
+    }
+
+    /// Whether the operation's result is a set of the same enum.
+    fn yields_set(self) -> bool {
+        !matches!(
+            self,
+            Self::Contains | Self::Subset | Self::IsEmpty | Self::Len
+        )
+    }
+
+    /// The type of the operation's result on sets of `element`.
+    fn result_type(self, element: &str) -> String {
+        match self {
+            _ if self.yields_set() => format!("Set({element})"),
+            Self::Len => "Int".to_string(),
+            _ => "Bool".to_string(),
+        }
+    }
+}
+
+/// A call of set operation `op` on sets of `element`.
+fn smt_set_call(op: SmtSetOp, element: &str, arguments: Vec<Expr>) -> Expr {
+    Expr::unspanned(ExprKind::App(
+        Box::new(Expr::unspanned(ExprKind::Var(op.helper(element)))),
+        arguments,
+    ))
+}
+
+fn smt_is_unsorted_empty_set(expression: &Expr) -> bool {
+    matches!(&expression.kind, ExprKind::App(function, arguments)
+        if arguments.is_empty()
+            && matches!(&function.kind, ExprKind::Var(name) if name == SMT_UNSORTED_EMPTY_SET))
+}
+
+/// Whether `name` applied to `arity` arguments is a set builtin, a set
+/// operation the encoding lowered it to, or the unsorted empty set: a call,
+/// never a free value.
+fn smt_is_set_function(name: &str, arity: usize) -> bool {
+    SmtSetOp::from_builtin(name, arity).is_some()
+        || matches!(
+            (name, arity),
+            ("set_from_list" | "set_to_list", 1) | (SMT_UNSORTED_EMPTY_SET, 0)
+        )
+        || SmtSetOp::parse_helper(name).is_some_and(|(op, _)| op.operands().len() == arity)
+}
+
+/// The SMT symbols of the element enums whose set operations `expression`
+/// calls.
+fn collect_smt_set_helper_elements(expression: &Expr, elements: &mut BTreeSet<String>) {
+    walk_ast_expr(expression, &mut |node| {
+        if let AstChild::Expr(Expr {
+            kind: ExprKind::App(function, _),
+            ..
+        }) = node
+        {
+            if let ExprKind::Var(name) = &function.kind {
+                if let Some((_, element)) = SmtSetOp::parse_helper(name) {
+                    elements.insert(element.to_string());
+                }
+            }
+        }
+    });
+}
+
+/// The SMT definition of every `SmtSetOp` on sets of `element`, whose
+/// payload-free `constructors` are listed in declaration order: bit i of a
+/// set is constructor i.
+fn smt_set_helper_definitions(element: &str, constructors: &[String]) -> String {
+    let width = constructors.len();
+    let sort = smt_set_sort(width);
+    let element_sort = smt_symbol(element);
+    let bit = format!("runa_set_bit_of_{}", smt_symbol(element));
+    let empty = SmtSetOp::New.helper(element);
+    let singleton = |index: usize| {
+        let bits = (0..width)
+            .rev()
+            .map(|bit| if bit == index { '1' } else { '0' })
+            .collect::<String>();
+        format!("#b{bits}")
+    };
+    let mut bit_body = singleton(width - 1);
+    for (index, constructor) in constructors.iter().enumerate().rev().skip(1) {
+        bit_body = format!(
+            "(ite ({} runa_x) {} {})",
+            smt_tester(constructor),
+            singleton(index),
+            bit_body
+        );
+    }
+    let members = (0..width)
+        .map(|bit| format!("(ite (= ((_ extract {bit} {bit}) runa_s) #b1) 1 0)"))
+        .collect::<Vec<_>>();
+    let count = match members.as_slice() {
+        [member] => member.clone(),
+        members => format!("(+ {})", members.join(" ")),
+    };
+    let member = format!("((runa_s {sort}) (runa_x {element_sort}))");
+    let pair = format!("((runa_a {sort}) (runa_b {sort}))");
+    let helper = |op: SmtSetOp| op.helper(element);
+    let definitions = [
+        format!("(define-fun {empty} () {sort} (_ bv0 {width}))"),
+        format!("(define-fun {bit} ((runa_x {element_sort})) {sort} {bit_body})"),
+        format!(
+            "(define-fun {} {member} Bool (not (= (bvand runa_s ({bit} runa_x)) {empty})))",
+            helper(SmtSetOp::Contains)
+        ),
+        format!(
+            "(define-fun {} {member} {sort} (bvor runa_s ({bit} runa_x)))",
+            helper(SmtSetOp::Insert)
+        ),
+        format!(
+            "(define-fun {} {member} {sort} (bvand runa_s (bvnot ({bit} runa_x))))",
+            helper(SmtSetOp::Remove)
+        ),
+        format!(
+            "(define-fun {} {pair} {sort} (bvor runa_a runa_b))",
+            helper(SmtSetOp::Union)
+        ),
+        format!(
+            "(define-fun {} {pair} {sort} (bvand runa_a runa_b))",
+            helper(SmtSetOp::Intersect)
+        ),
+        format!(
+            "(define-fun {} {pair} {sort} (bvand runa_a (bvnot runa_b)))",
+            helper(SmtSetOp::Diff)
+        ),
+        format!(
+            "(define-fun {} {pair} Bool (= (bvand runa_a (bvnot runa_b)) {empty}))",
+            helper(SmtSetOp::Subset)
+        ),
+        format!(
+            "(define-fun {} ((runa_s {sort})) Bool (= runa_s {empty}))",
+            helper(SmtSetOp::IsEmpty)
+        ),
+        format!(
+            "(define-fun {} ((runa_s {sort})) Int {count})",
+            helper(SmtSetOp::Len)
+        ),
+    ];
+    let mut out = definitions.join("\n");
+    out.push('\n');
+    out
+}
+
+/// A set value of a solver model as `show` prints the set: `{A, C}`, its
+/// members in value order. `constructors` are the element enum's, in
+/// declaration order.
+fn smt_set_value_text(constructors: &[String], value: &SmtTerm) -> Option<String> {
+    let bits = smt_set_model_bits(value, constructors.len())?;
+    let mut members = constructors
+        .iter()
+        .zip(bits)
+        .filter_map(|(constructor, member)| member.then_some(constructor.as_str()))
+        .collect::<Vec<_>>();
+    members.sort_unstable();
+    Some(format!("{{{}}}", members.join(", ")))
+}
+
+/// The members of a bit-vector set value in a solver model (`#b0101`,
+/// `#x5`, or `(_ bv5 4)`): bit i, counted from the least significant, of
+/// `width` bits.
+fn smt_set_model_bits(value: &SmtTerm, width: usize) -> Option<Vec<bool>> {
+    let digits_to_bits = |digits: &str, radix: u32, bits_per_digit: usize| {
+        let mut bits = Vec::with_capacity(digits.len() * bits_per_digit);
+        for digit in digits.chars().rev() {
+            let digit = digit.to_digit(radix)?;
+            for bit in 0..bits_per_digit {
+                bits.push(digit >> bit & 1 == 1);
+            }
+        }
+        Some(bits)
+    };
+    let mut bits = match value {
+        SmtTerm::Atom(atom) => {
+            if let Some(binary) = atom.strip_prefix("#b") {
+                digits_to_bits(binary, 2, 1)?
+            } else if let Some(hex) = atom.strip_prefix("#x") {
+                digits_to_bits(hex, 16, 4)?
+            } else {
+                return None;
+            }
+        }
+        SmtTerm::List(items) => match items.as_slice() {
+            [SmtTerm::Atom(underscore), SmtTerm::Atom(literal), SmtTerm::Atom(size)]
+                if underscore == "_" && size.parse::<usize>().ok() == Some(width) =>
+            {
+                let decimal = literal.strip_prefix("bv")?;
+                let mut bits = Vec::with_capacity(width);
+                let mut value = decimal.parse::<u128>().ok()?;
+                for _ in 0..width {
+                    bits.push(value & 1 == 1);
+                    value >>= 1;
+                }
+                (value == 0).then_some(bits)?
+            }
+            _ => return None,
+        },
+    };
+    if bits.len() < width || bits[width..].iter().any(|bit| *bit) {
+        return None;
+    }
+    bits.truncate(width);
+    Some(bits)
 }
 
 fn collect_free_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
@@ -18874,7 +19577,8 @@ fn collect_free_vars_outside(expr: &Expr, bound: &BTreeSet<String>, vars: &mut B
                 return;
             }
             if !matches!(&func.kind, ExprKind::Var(name)
-                if smt_builtin_result_type(name, args.len()).is_some())
+                if smt_builtin_result_type(name, args.len()).is_some()
+                    || smt_is_set_function(name, args.len()))
             {
                 collect_free_vars_outside(func, bound, vars);
             }
@@ -20279,7 +20983,7 @@ fn run_z3_script(script: &str) -> Result<String, String> {
 
 /// What a PROVED result from `runa verify` guarantees. Printed with every run
 /// and repeated in the reference documentation.
-const VERIFY_GUARANTEE: &str = "Guarantee: a proved invariant holds for every value of its free variables (Int ranges over the 64-bit values; a variable used as an enum whose constructors carry no payload ranges over exactly those constructors; a variable used as a record ranges over every combination of its field values): the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.";
+const VERIFY_GUARANTEE: &str = "Guarantee: a proved invariant holds for every value of its free variables (Int ranges over the 64-bit values; a variable used as an enum whose constructors carry no payload ranges over exactly those constructors; a variable used as a set of such an enum ranges over every subset of its constructors; a variable used as a record ranges over every combination of its field values): the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.";
 
 /// The Int helpers the SMT layer translates as ordinary functions: the
 /// prelude's `max_int`, `min_int` and `clamp`, and the builtin `abs` on Int,
@@ -21040,6 +21744,22 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
             }
         };
 
+        // The set operations the claim performs, per element enum, after the
+        // datatypes they read and before the functions that call them.
+        smt.push_str(
+            &rule_lowerer.set_helper_definitions(
+                [pred_expr, subject_expr]
+                    .into_iter()
+                    .chain(ordered_vars.iter().filter_map(|name| bindings.get(name)))
+                    .chain(
+                        function_order
+                            .iter()
+                            .filter_map(|name| function_map.get(name).map(|(_, _, body)| body)),
+                    )
+                    .chain(&scalar_assumptions),
+            ),
+        );
+
         // Declare values before functions. A generated rule may close over a
         // top-level binding, while that binding's value may itself call a rule.
         // Declarations followed by equality constraints represent both sides
@@ -21059,10 +21779,19 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
                     .map(|type_name| smt_type_name_to_sort(type_name))
                     .unwrap_or_else(|| "Int".to_string())
             };
+            // A set's bit-vector sort does not name its element enum; the
+            // comment does.
+            let set_type = free_variable_types
+                .filter(|_| !bindings.contains_key(var))
+                .and_then(|types| types.get(var))
+                .filter(|type_name| smt_set_element_name(type_name).is_some())
+                .map(|type_name| format!(" ; {type_name}"))
+                .unwrap_or_default();
             smt.push_str(&format!(
-                "(declare-const {} {})\n",
+                "(declare-const {} {}){}\n",
                 smt_value_symbol(var),
-                sort
+                sort,
+                set_type
             ));
             // Bound values are constrained by their source expressions below.
             // Restricting an overflowing bound value here would erase the
@@ -27134,6 +27863,24 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
                 rust_tpl: "{ let mut __s = __FutSet::new(); for __v in {0}.clone().into_iter() { let __k = __futuruna_set_key(&__v); __s.entry(__k).or_insert(__v); } __s }",
             },
         ),
+        (
+            "set_subset",
+            BuiltinDef {
+                arity: 2,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __a = &{0}; let __b = &{1}; __a.keys().all(|__k| __b.contains_key(__k.as_str())) }",
+            },
+        ),
+        (
+            "set_is_empty",
+            BuiltinDef {
+                arity: 1,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.is_empty()",
+            },
+        ),
         // ---- Stream builtins (M12, sync Vec-based — clean names, no s_ prefix) ----
         (
             "from_list",
@@ -31782,7 +32529,7 @@ fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
     match &expr.kind {
         ExprKind::App(func, args) => {
             count_consuming_uses(func, counts);
-            let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(n.as_str(), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains" | "set_contains" | "set_len" | "set_to_list"));
+            let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(n.as_str(), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains" | "set_contains" | "set_len" | "set_to_list" | "set_subset" | "set_is_empty"));
             for a in args {
                 if !is_borrow_builtin {
                     // Non-borrow function call: Var args are consuming
@@ -31898,9 +32645,11 @@ fn builtin_arg_is_borrow_only(name: &str, arg_index: usize) -> bool {
         "show" | "rust_debug" | "length" | "head" | "tail" | "string_length" | "trim"
         | "to_upper" | "to_lower" | "string_chars" | "parse_int" | "parse_float"
         | "parse_danish_int" | "parse_danish_float" | "map_len" | "map_keys" | "map_values"
-        | "map_entries" | "set_len" | "set_to_list" | "is_some" | "is_none" | "sort"
-        | "reverse" | "enumerate" | "distinct" | "sum_list" | "from_list" | "collect" | "count"
-        | "sum" | "last" | "first" | "pairwise" | "list_min" | "list_max" => arg_index == 0,
+        | "map_entries" | "set_len" | "set_to_list" | "set_is_empty" | "is_some" | "is_none"
+        | "sort" | "reverse" | "enumerate" | "distinct" | "sum_list" | "from_list" | "collect"
+        | "count" | "sum" | "last" | "first" | "pairwise" | "list_min" | "list_max" => {
+            arg_index == 0
+        }
 
         "nth" | "contains" | "starts_with" | "ends_with" | "char_at" | "index_of" | "split"
         | "join" | "format_float" | "map_get" | "map_contains" | "map_remove" | "set_contains"
@@ -31914,7 +32663,7 @@ fn builtin_arg_is_borrow_only(name: &str, arg_index: usize) -> bool {
         | "take_while" | "drop_while" | "count_by" | "partition" | "chunked" | "scan"
         | "reduce" | "tap" | "switch_map" => arg_index == 0,
 
-        "map_merge" | "set_union" | "set_intersect" | "set_diff" => arg_index <= 1,
+        "map_merge" | "set_union" | "set_intersect" | "set_diff" | "set_subset" => arg_index <= 1,
         "set_insert" | "set_from_list" => arg_index == 0,
 
         _ => false,
@@ -33599,8 +34348,8 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
             Box::new(FirTy::String),
         )),
         "contains" | "starts_with" | "ends_with" | "any" | "all" | "map_contains"
-        | "set_contains" | "file_exists" | "json_bool" | "json_has" | "regex_match" | "is_some"
-        | "is_none" | "not" => Some(FirTy::Bool),
+        | "set_contains" | "set_subset" | "set_is_empty" | "file_exists" | "json_bool"
+        | "json_has" | "regex_match" | "is_some" | "is_none" | "not" => Some(FirTy::Bool),
         "substring"
         | "char_at"
         | "trim"
@@ -64771,6 +65520,8 @@ assert_with_message(true, message())
             ("map_len", FirTy::Int),
             ("set_contains", FirTy::Bool),
             ("set_len", FirTy::Int),
+            ("set_subset", FirTy::Bool),
+            ("set_is_empty", FirTy::Bool),
             ("is_some", FirTy::Bool),
             ("is_none", FirTy::Bool),
             ("not", FirTy::Bool),

@@ -1,0 +1,38 @@
+-- Precedential constraint after Horty's reason model, over four factors:
+-- P1 and P2 favour the plaintiff, D1 and D2 the defendant.
+# Factor = P1 | P2 | D1 | D2
+
+= plaintiff_factors = set_from_list([P1, P2])
+= defendant_factors = set_from_list([D1, D2])
+
+-- A precedent decided for the plaintiff: the factors of its case and the
+-- reason the court gave.
+# Precedent(facts: Set(Factor), reason: Set(Factor))
+
+> pro_side(facts: Set(Factor)) -> Set(Factor) {
+    set_intersect(facts, plaintiff_factors)
+}
+
+> con_side(facts: Set(Factor)) -> Set(Factor) {
+    set_intersect(facts, defendant_factors)
+}
+
+-- The precedent binds a new case to its outcome: the case has at least
+-- the precedent's reason and at most the precedent's opposing factors.
+| binds(p: Precedent, facts: Set(Factor)): Bool -> set_subset(p.reason, pro_side(facts)) && set_subset(con_side(facts), con_side(p.facts))
+| at_least_as_strong(facts: Set(Factor), stronger: Set(Factor)): Bool -> set_subset(pro_side(facts), pro_side(stronger)) && set_subset(con_side(stronger), con_side(facts))
+| bound_and_weaker(p: Precedent, facts: Set(Factor), stronger: Set(Factor)): Bool -> binds(p, facts) && at_least_as_strong(facts, stronger)
+| pair(a: Set(Factor), b: Set(Factor)): Bool -> True
+| member(a: Set(Factor), f: Factor): Bool -> True
+| numbers(s: Set(Int)): Bool -> True
+
+-- A fortiori: a case at least as strong for the plaintiff as a bound case
+-- is bound too.
+| binding_is_monotone: bound_and_weaker(p, x, y) -> !bound_and_weaker(p, x, y) || binds(p, y)
+| union_commutes: pair(a, b) -> set_union(a, b) == set_union(b, a)
+| inclusion_exclusion: pair(a, b) -> set_len(set_union(a, b)) + set_len(set_intersect(a, b)) == set_len(a) + set_len(b)
+| insert_then_remove: member(a, f) -> set_remove(set_insert(a, f), f) == set_remove(a, f) && set_contains(set_insert(a, f), f)
+| empty_sets: member(a, f) -> !set_contains(set_new(), f) && set_is_empty(set_diff(a, a)) && set_diff(a, a) == set_new()
+| written_out: member(a, f) -> set_len(set_from_list([P1, D1, P1])) == 2 && set_subset(set_from_list([P1]), set_insert(a, P1))
+| bound_cases_lack_defendant_factors: binds(p, x) -> !binds(p, x) || set_is_empty(con_side(x))
+| int_sets_are_unsupported: numbers(s) -> set_contains(s, 1) || !set_contains(s, 1)

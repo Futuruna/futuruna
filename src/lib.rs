@@ -498,6 +498,8 @@ pub const DANISH_BUILTIN_NAMES: &[(&str, &str)] = &[
     ("sæt_fælles", "set_intersect"),
     ("sæt_forskel", "set_diff"),
     ("sæt_fra_liste", "set_from_list"),
+    ("sæt_delmængde", "set_subset"),
+    ("sæt_er_tom", "set_is_empty"),
     // ---- dansk: streams & reactive ----
     ("fra_liste", "from_list"),
     ("tag", "take"),
@@ -21272,6 +21274,8 @@ impl Interpreter {
             "set_from_list".into(),
             Value::Builtin("set_from_list".into()),
         );
+        env.set("set_subset".into(), Value::Builtin("set_subset".into()));
+        env.set("set_is_empty".into(), Value::Builtin("set_is_empty".into()));
         env.set("show_int".into(), Value::Builtin("show_int".into()));
         env.set("show_float".into(), Value::Builtin("show_float".into()));
         env.set(
@@ -26522,6 +26526,18 @@ impl Interpreter {
                 }
                 _ => Value::Bool(false),
             },
+            // Every member of the first set is a member of the second.
+            "set_subset" => match (args.get(0), args.get(1)) {
+                (Some(Value::Set(a)), Some(Value::Set(b))) => Value::Bool(
+                    a.values()
+                        .all(|value| runtime_set_find_storage_key(b, value).is_some()),
+                ),
+                _ => Value::Bool(false),
+            },
+            "set_is_empty" => match args.first() {
+                Some(Value::Set(items)) => Value::Bool(items.is_empty()),
+                _ => Value::Bool(false),
+            },
             "set_remove" => match (args.get(0), args.get(1)) {
                 (Some(Value::Set(items)), Some(val)) => {
                     if !self.ground_collection_allowed(items.len(), "set_remove") {
@@ -28248,6 +28264,8 @@ impl Interpreter {
             ("==", a, b) if values_are_list_like(a) && values_are_list_like(b) => {
                 Value::Bool(values_equal(a, b))
             }
+            // Sets are equal when they have the same members.
+            ("==", a @ Value::Set(_), b @ Value::Set(_)) => Value::Bool(values_equal(a, b)),
             ("!=", a, b) => match self.eval_binop("==", a.clone(), b.clone()) {
                 Value::Bool(v) => Value::Bool(!v),
                 failure => failure,
@@ -31584,6 +31602,7 @@ pub fn values_equal(a: &Value, b: &Value) -> bool {
         (Value::List(a), Value::List(b)) | (Value::Tuple(a), Value::Tuple(b)) => {
             a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| values_equal(x, y))
         }
+        (Value::Set(_), Value::Set(_)) => runtime_values_semantically_equal(a, b),
         _ => false,
     }
 }
@@ -50673,6 +50692,8 @@ impl TypeChecker {
             ("set_intersect", 2),
             ("set_diff", 2),
             ("set_from_list", 1),
+            ("set_subset", 2),
+            ("set_is_empty", 1),
             // Stream
             ("from_list", 1),
             ("scan", 3),
@@ -54831,9 +54852,9 @@ impl TypeChecker {
             ("round" | "floor" | "string_length", 1)
             | ("now", 0)
             | ("index_of" | "time_diff", 2) => Some("Int".to_string()),
-            ("contains" | "map_contains" | "set_contains", 2)
+            ("contains" | "map_contains" | "set_contains" | "set_subset", 2)
             | ("starts_with" | "ends_with" | "regex_match" | "json_has", 2)
-            | ("is_some" | "is_none" | "not" | "file_exists" | "json_bool", 1) => {
+            | ("is_some" | "is_none" | "not" | "file_exists" | "json_bool" | "set_is_empty", 1) => {
                 Some("Bool".to_string())
             }
             ("to_upper" | "to_lower" | "env_var" | "json_string" | "json_emit", 1)
