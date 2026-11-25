@@ -53631,6 +53631,26 @@ fn __futuruna_install_error_hook() {
         }
     }
 
+    /// The receiver of a field read. A variable, or a field path rooted at
+    /// one, whose emission copies the whole value for a later use is read in
+    /// place instead: the caller then copies only the field it reads, so
+    /// `Case(c.name, c.tags)` (a record update's elaboration among them)
+    /// emits `c.name.clone()`, not `c.clone().name.clone()`. Returns the
+    /// receiver and whether it is read in place.
+    fn emit_field_receiver(&mut self, obj: &Expr) -> (String, bool) {
+        let emitted = self.emit_expr(obj);
+        let mut root = obj;
+        while let ExprKind::Field(base, _) = &root.kind {
+            root = base;
+        }
+        if matches!(root.kind, ExprKind::Var(_)) {
+            if let Some(place) = emitted.strip_suffix(".clone()") {
+                return (place.to_string(), true);
+            }
+        }
+        (emitted, false)
+    }
+
     fn emit_expr(&mut self, expr: &Expr) -> String {
         if let Some(path) = pathof_canonical_path(expr) {
             return format!("{:?}.to_string()", path);
@@ -55583,7 +55603,7 @@ fn __futuruna_install_error_hook() {
                     return format!("{}::{}", path, sanitize_name(field));
                 }
                 if let Some((idx, field_ty)) = self.tuple_field_ty(obj, field) {
-                    let obj_str = self.emit_expr(obj);
+                    let (obj_str, _) = self.emit_field_receiver(obj);
                     let clone_suffix = if Self::fir_ty_is_copy(&field_ty) {
                         ""
                     } else {
@@ -55610,11 +55630,12 @@ fn __futuruna_install_error_hook() {
                             if let Some(field_index) =
                                 metadata.fields.iter().position(|name| name == field)
                             {
-                                let obj_str = self.emit_expr(obj);
+                                let (obj_str, receiver_in_place) = self.emit_field_receiver(obj);
                                 let is_boxed = metadata.boxed_args.contains(&field_index);
                                 let field_is_copy =
                                     metadata.field_types.get(field).is_some_and(is_copy_type);
-                                let needs_clone = metadata.uses_rc
+                                let needs_clone = receiver_in_place
+                                    || metadata.uses_rc
                                     || match &obj.as_ref().kind {
                                         ExprKind::Var(var_name) => {
                                             self.current_borrow_params.contains(var_name.as_str())
@@ -55699,12 +55720,14 @@ fn __futuruna_install_error_hook() {
                     // If we know the type and it's a struct, use direct field access
                     if let Some(ref type_name) = obj_type_name {
                         if self.types.struct_types.contains(type_name.as_str()) {
-                            let obj_str = self.emit_expr(obj);
+                            let (obj_str, receiver_in_place) = self.emit_field_receiver(obj);
                             // Per-field box check: only the SPECIFIC field needs
                             // dereferencing if it's recursive. Whole-struct check
                             // would deref every field (including primitives).
                             let is_boxed = self.is_field_boxed(type_name, field);
-                            let needs_clone = if let ExprKind::Var(var_name) = &obj.as_ref().kind {
+                            let needs_clone = if receiver_in_place {
+                                true
+                            } else if let ExprKind::Var(var_name) = &obj.as_ref().kind {
                                 self.current_borrow_params.contains(var_name.as_str())
                                     || self
                                         .var_consuming_counts
@@ -55715,11 +55738,14 @@ fn __futuruna_install_error_hook() {
                             } else {
                                 true
                             };
-                            let clone_suffix = if needs_clone && !self.copy_vars.contains(field) {
-                                ".clone()"
+                            // A receiver read in place lends the field: copy
+                            // it unless its type is Copy.
+                            let clone_suffix = if receiver_in_place {
+                                !Self::fir_ty_is_copy(&self.infer_expr_fir_ty(expr))
                             } else {
-                                ""
+                                needs_clone && !self.copy_vars.contains(field)
                             };
+                            let clone_suffix = if clone_suffix { ".clone()" } else { "" };
                             // `Pair` is lowered to a Rust tuple.
                             let rust_field = match field.as_str() {
                                 "fst"
