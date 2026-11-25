@@ -106,7 +106,7 @@ fn qualified_namespace_calls_match_interpreter_generated_rust_and_smt() {
     let fixture = fixture.to_str().expect("UTF-8 fixture path");
     let interpreted = run_runa(&[fixture]);
     let compiled = run_runa(&["run", fixture]);
-    let verified = run_runa(&["verify", fixture]);
+    let verified = run_runa(&["verify", "--smt", fixture]);
 
     for (mode, output) in [("interpreter", &interpreted), ("compiled", &compiled)] {
         assert!(
@@ -219,7 +219,11 @@ fn verify_rejects_private_and_non_call_qualified_shapes() {
 #[test]
 fn unused_qualified_nominal_metadata_does_not_perturb_root_smt() {
     let fixture = qualified_namespace_metadata_isolation_fixture();
-    let verified = run_runa(&["verify", fixture.to_str().expect("UTF-8 fixture path")]);
+    let verified = run_runa(&[
+        "verify",
+        "--smt",
+        fixture.to_str().expect("UTF-8 fixture path"),
+    ]);
 
     assert_eq!(
         verified.status.success(),
@@ -473,7 +477,7 @@ fn nullary_enum_free_variables_range_over_their_constructors() {
         "Shipped\nCancelled"
     );
 
-    let verified = run_runa(&["verify", fixture]);
+    let verified = run_runa(&["verify", "--smt", fixture]);
     let stdout = String::from_utf8_lossy(&verified.stdout);
     // `wrong_claim` is refuted, so verify fails even though three claims hold.
     assert_eq!(
@@ -536,7 +540,11 @@ fn nullary_enum_free_variables_range_over_their_constructors() {
 fn enum_free_variable_domains_fail_closed_outside_payload_free_enums() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/verify/enum_free_variable_domains.runa");
-    let verified = run_runa(&["verify", fixture.to_str().expect("UTF-8 fixture path")]);
+    let verified = run_runa(&[
+        "verify",
+        "--smt",
+        fixture.to_str().expect("UTF-8 fixture path"),
+    ]);
     let stdout = String::from_utf8_lossy(&verified.stdout);
     assert_eq!(
         verified.status.code(),
@@ -619,7 +627,11 @@ fn enum_free_variable_domains_fail_closed_outside_payload_free_enums() {
 fn record_free_variables_range_over_their_field_values() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/verify/record_free_variable_domains.runa");
-    let verified = run_runa(&["verify", fixture.to_str().expect("UTF-8 fixture path")]);
+    let verified = run_runa(&[
+        "verify",
+        "--smt",
+        fixture.to_str().expect("UTF-8 fixture path"),
+    ]);
     let stdout = String::from_utf8_lossy(&verified.stdout);
     // Two claims are refuted and one is unsupported.
     assert_eq!(
@@ -706,7 +718,11 @@ fn record_free_variables_range_over_their_field_values() {
 fn enum_set_free_variables_range_over_every_subset() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/verify/enum_set_free_variable_domains.runa");
-    let verified = run_runa(&["verify", fixture.to_str().expect("UTF-8 fixture path")]);
+    let verified = run_runa(&[
+        "verify",
+        "--smt",
+        fixture.to_str().expect("UTF-8 fixture path"),
+    ]);
     let stdout = String::from_utf8_lossy(&verified.stdout);
     // One claim is refuted and one is unsupported.
     assert_eq!(
@@ -928,4 +944,216 @@ fn skipped_claim_names_the_gap_of_its_own_rule_scope_member() {
         );
     }
     assert!(!flat.contains("Share.tax"), "{flat}");
+}
+
+/// A rule model shaped like a case-law model: `rulings` rulings of three
+/// courts, a family keyed on the ruling (two guarded clauses for every third
+/// ruling) over a record of findings, a validity predicate, a disjunction of
+/// its applications to every ruling, a per-court answer, and a ranking of
+/// the courts on top.
+fn case_law_model(rulings: usize) -> String {
+    const FINDINGS: usize = 22;
+    let last = rulings - 1;
+    let mut source = String::from(
+        "# YesNo = Yes | No\n\
+         # Assessment = Covered | NotCovered | Discretion | OpenConflict | NoSource\n\
+         # Court = Supreme | Appeal | District | Unregistered\n\
+         # Status = Final | Reversed | Unknown\n",
+    );
+    let names = (0..rulings).map(|i| format!("R{i}")).collect::<Vec<_>>();
+    source.push_str(&format!("# Ruling = {}\n", names.join(" | ")));
+    let fields = (0..FINDINGS)
+        .map(|i| format!("f{i}: YesNo"))
+        .collect::<Vec<_>>();
+    source.push_str(&format!(
+        "# Attack({}, irrelevant: YesNo)\n\n",
+        fields.join(", ")
+    ));
+    source.push_str(
+        "| court(r: Ruling): Court -> Unregistered\n| court(r) -> Supreme under r == R0\n",
+    );
+    for (court, parity) in [("Appeal", 1), ("District", 0)] {
+        let members = (1..rulings)
+            .filter(|i| i % 2 == parity)
+            .map(|i| format!("r == R{i}"))
+            .collect::<Vec<_>>();
+        source.push_str(&format!(
+            "| court(r) -> {court} under {}\n",
+            members.join(" || ")
+        ));
+    }
+    source.push_str(&format!(
+        "| status(r: Ruling): Status -> Unknown\n| status(r) -> Reversed under r == R{last}\n\n"
+    ));
+    source.push_str("| says(r: Ruling, a: Attack): Assessment -> NoSource\n");
+    for i in 0..rulings {
+        let (yes, no) = (i % FINDINGS, (7 * i + 3) % FINDINGS);
+        let verdict = if i % 2 == 0 { "Covered" } else { "NotCovered" };
+        source.push_str(&format!(
+            "| says(R{i}, a) -> {verdict} under a.f{yes} == Yes && a.f{no} == No\n"
+        ));
+        if i % 3 == 0 {
+            source.push_str(&format!(
+                "| says(R{i}, a) -> Discretion under a.f{yes} == No && a.f{} == Yes\n",
+                (i + 5) % FINDINGS
+            ));
+        }
+    }
+    source.push_str(
+        "\n| valid(r: Ruling, level: Court, v: Assessment, a: Attack): Bool -> court(r) == level && status(r) != Reversed && says(r, a) == v\n",
+    );
+    let applications = names
+        .iter()
+        .map(|name| format!("valid({name}, level, v, a)"))
+        .collect::<Vec<_>>();
+    source.push_str(&format!(
+        "| holds(level: Court, v: Assessment, a: Attack): Bool -> {}\n\n",
+        applications.join(" || ")
+    ));
+    source.push_str(
+        "| level_answer(n: Court, a: Attack): Assessment -> NoSource\n\
+         | level_answer(n, a) -> OpenConflict under holds(n, Covered, a) && holds(n, NotCovered, a)\n\
+         | level_answer(n, a) -> Covered under holds(n, Covered, a) && !holds(n, NotCovered, a)\n\
+         | level_answer(n, a) -> NotCovered under holds(n, NotCovered, a) && !holds(n, Covered, a)\n\
+         | level_answer(n, a) -> Discretion under holds(n, Discretion, a) && !holds(n, Covered, a) && !holds(n, NotCovered, a)\n\n\
+         | law(a: Attack): Assessment -> NoSource\n\
+         | law(a) -> Covered under a.f0 == Yes && a.f1 == Yes\n\n\
+         | ranking(statute: Assessment, supreme: Assessment, appeal: Assessment, district: Assessment): Assessment -> district\n\
+         | ranking(statute, supreme, appeal, district) -> statute under statute != NoSource\n\
+         | ranking(statute, supreme, appeal, district) -> supreme under statute == NoSource && supreme != NoSource\n\
+         | ranking(statute, supreme, appeal, district) -> appeal under statute == NoSource && supreme == NoSource && appeal != NoSource\n\n\
+         | answer(a: Attack): Assessment -> ranking(law(a), level_answer(Supreme, a), level_answer(Appeal, a), level_answer(District, a))\n\n\
+         | statute_decides: answer(a) -> law(a) == NoSource || answer(a) == law(a)\n\
+         | disagreement_is_open_conflict: level_answer(n, a) -> !(holds(n, Covered, a) && holds(n, NotCovered, a)) || level_answer(n, a) == OpenConflict\n",
+    );
+    source.push_str(&format!(
+        "| reversed_ruling_never_counts: valid(R{last}, n, v, a) -> !valid(R{last}, n, v, a)\n"
+    ));
+    source.push_str(
+        "| appeal_precedes_district: answer(a) -> law(a) != NoSource || level_answer(Supreme, a) != NoSource || level_answer(Appeal, a) == NoSource || answer(a) == level_answer(Appeal, a)\n\
+         | irrelevant_finding_changes_nothing: answer(a) -> answer(a) == answer(a with { irrelevant = No })\n",
+    );
+    source
+}
+
+const CASE_LAW_CLAIMS: [&str; 5] = [
+    "statute_decides",
+    "disagreement_is_open_conflict",
+    "reversed_ruling_never_counts",
+    "appeal_precedes_district",
+    "irrelevant_finding_changes_nothing",
+];
+
+/// Run `runa` reading at most `limit` bytes of its stdout. A run that
+/// writes more is killed and gives `None`, so a regression fails at once
+/// instead of streaming a script of hundreds of megabytes.
+fn run_runa_bounded(arguments: &[&str], limit: usize) -> Option<(bool, String)> {
+    use std::io::Read;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_runa"))
+        .args(arguments)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .expect("run Futuruna CLI");
+    let mut stdout = Vec::new();
+    child
+        .stdout
+        .take()
+        .expect("piped stdout")
+        .take(limit as u64 + 1)
+        .read_to_end(&mut stdout)
+        .expect("read verify output");
+    if stdout.len() > limit {
+        let _ = child.kill();
+        let _ = child.wait();
+        return None;
+    }
+    let status = child.wait().expect("wait for verify");
+    Some((
+        status.success(),
+        String::from_utf8(stdout).expect("UTF-8 report"),
+    ))
+}
+
+/// Each rule family is one SMT function and a call of it stays a call, so a
+/// claim's script grows linearly with the model. Before, every generated
+/// function inlined the families it called (`answer` held six copies of
+/// `level_answer`, each with nine copies of `holds`), and the definedness
+/// guard repeated every earlier operand of a disjunction: a claim's script
+/// for ten rulings had up to 16 MB, for the 29 rulings of a legal model
+/// over 1 GB.
+#[test]
+fn smt_scripts_grow_linearly_with_a_case_law_model() {
+    // A claim's script may have this many bytes per byte of the model (its
+    // symbols are hex-encoded; datatypes and field readers add a constant).
+    const BYTES_PER_SOURCE_BYTE: usize = 8;
+    let directory = std::env::temp_dir().join(format!(
+        "futuruna-verify-case-law-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&directory).unwrap();
+    let mut largest_scripts = Vec::new();
+    for rulings in [10, 30] {
+        let source = case_law_model(rulings);
+        let path = directory.join(format!("case_law_{rulings}.runa"));
+        std::fs::write(&path, &source).unwrap();
+        let path = path.to_str().expect("UTF-8 fixture path");
+        let limit = CASE_LAW_CLAIMS.len() * BYTES_PER_SOURCE_BYTE * source.len() + 16 * 1024;
+        let (proved, report) =
+            run_runa_bounded(&["verify", "--smt", path], limit).unwrap_or_else(|| {
+                panic!("verify --smt printed more than {limit} bytes for {rulings} rulings")
+            });
+        let mut largest = 0;
+        for claim in CASE_LAW_CLAIMS {
+            let section = invariant_section(&report, claim);
+            assert!(
+                section.contains("(define-fun "),
+                "{claim} printed no script:\n{section}"
+            );
+            assert!(
+                section.len() <= BYTES_PER_SOURCE_BYTE * source.len(),
+                "{claim} has a {} byte script for a {} byte model",
+                section.len(),
+                source.len()
+            );
+            largest = largest.max(section.len());
+        }
+        largest_scripts.push((source.len(), largest));
+
+        // Without `--smt` the report holds the results, not the scripts.
+        let (_, summary) = run_runa_bounded(&["verify", path], 16 * 1024)
+            .expect("verify without --smt prints no script");
+        assert!(
+            !summary.contains("SMT-LIB2") && !summary.contains("(define-fun "),
+            "{summary}"
+        );
+        if z3_available() {
+            assert!(proved, "{report}");
+            for claim in CASE_LAW_CLAIMS {
+                for output in [&report, &summary] {
+                    assert!(
+                        output.contains(&format!("PROVED: |{claim}| holds for every input")),
+                        "missing proof for {claim}:\n{output}"
+                    );
+                }
+            }
+        } else {
+            assert!(summary.contains("Z3 not found"), "{summary}");
+        }
+    }
+    std::fs::remove_dir_all(&directory).unwrap();
+
+    // Three times the rulings add at most the same bytes per added byte of
+    // the model: the growth is linear, not quadratic or worse.
+    let [(small_source, small_script), (large_source, large_script)] = largest_scripts[..] else {
+        unreachable!("two model sizes");
+    };
+    assert!(
+        large_script - small_script <= BYTES_PER_SOURCE_BYTE * (large_source - small_source),
+        "a {small_source} byte model has a {small_script} byte script, a {large_source} byte model a {large_script} byte script"
+    );
 }
