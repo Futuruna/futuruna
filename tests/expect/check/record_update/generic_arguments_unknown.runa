@@ -1,0 +1,6 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `with` needs the type arguments of `Box`, and they are not known here; give the binding or parameter its full type, such as `Box(a)`
+-- A new value could change a type argument the base leaves open.
+# Box(a) = Box(value: a, label: String)
+> relabel(b: Box) -> Box { b with { label = "z" } }

@@ -579,6 +579,72 @@ fn relational_explore_cli_closes_a_successor_built_by_a_polymorphic_helper_exact
 }
 
 #[test]
+fn relational_explore_cli_closes_a_successor_built_by_a_record_update_exactly() {
+    let _host = EXPLORE_HOST
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let temp = TestDirectory::new();
+    let fixture = temp.path().join("record-update-successor.runa");
+    // The successor copies `before` with one field replaced. Explore reads
+    // the checked program before elaboration: the update is a sealed site
+    // over its base and new value, and evaluates to the copied record.
+    std::fs::write(
+        &fixture,
+        r#"# Kind = Alpha | Beta | Gamma
+# Row(kind: Kind, n: Int)
+
+> others(all: List(a), current: a) -> List(a) {
+    filter(all, |x| x != current)
+}
+
+> neighbours(row: Row) -> List(Row) {
+    map(others([Alpha, Beta, Gamma], row.kind), |kind| row with { kind = kind })
+}
+
+? explore record_update_successor {
+    from {
+        vary kind in [Alpha, Beta, Gamma]
+        let before = Row(kind = kind, n = 0)
+        given context = ()
+    }
+
+    transition after in neighbours(before)
+    find all_cases = all
+    find changed = matches of before.kind != after.kind
+    find kept = matches of before.n == after.n
+
+    results changed_summary from find changed {
+        group all
+        aggregate [cases = count_distinct(case_id)]
+        select [cases]
+    }
+}
+"#,
+    )
+    .expect("write record-update Explore fixture");
+    let run_state = temp.path().join("record-update-state");
+    let output_directory = temp.path().join("record-update-output");
+
+    let output = run_explore_query(
+        &fixture,
+        "record_update_successor",
+        &run_state,
+        &output_directory,
+    );
+    assert_success(&output);
+    let report = parse_stdout(&output);
+    assert_complete(&report);
+    // Each Before row has the two other kinds as neighbours; every update
+    // changes the kind and keeps `n`.
+    for find in ["all_cases", "changed", "kept"] {
+        assert_exact_count(&named_find(&report["counts"], find)["selected"], "6");
+        assert_eq!(named_find(&report["answer"], find)["frontier_closed"], true);
+        assert_exact_count(&named_find(&report["answer"], find)["selected_cases"], "6");
+    }
+    assert_eq!(report["publication"]["caught_up"], true);
+}
+
+#[test]
 fn relational_explore_cli_publishes_an_absent_closed_mechanism_as_exact_empty() {
     let _host = EXPLORE_HOST
         .lock()

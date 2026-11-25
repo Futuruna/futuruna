@@ -1,7 +1,8 @@
 ---
-feature_stage: stable
+feature_stage: mixed
 feature_stage_surfaces:
   - core-language-syntax
+  - record-update
 ---
 
 # Futuruna Basics
@@ -248,6 +249,43 @@ A nonexistent field is an error. Known receiver types are checked before
 execution; an untyped receiver is checked when the field is accessed. A real
 field whose value is `()` remains a valid field.
 
+### Record update
+
+A record is a type with one constructor and named fields, such as
+`# Case(name: String, amount: Int, urgent: Bool)`. `base with { field = value }`
+(Preview) is a copy of the record `base` with the named fields replaced; the
+other fields keep the base's values, and `base` itself does not change:
+
+```runa
+# Case(name: String, amount: Int, urgent: Bool)
+
+= case = Case(name = "a", amount = 100, urgent = False)
+= escalated = case with { urgent = True, amount = 0 }
+@ print(show(escalated)) -- Case(name: a, amount: 0, urgent: true)
+@ print(show(case.urgent)) -- false
+```
+
+The type of `base` must be known where the update is written, and the update
+has that type. It names at least one field, each field once, and only fields
+the record declares; each value has its field's type, with units, named
+scalars and the base's type arguments applied, so `b with { value = 3 }` needs
+`b: Box(Int)` for `# Box(a) = Box(value: a, label: String)`. A type with
+several constructors, a record with positional fields and a base of unknown
+type are type errors: build those values with their constructor. The fields may
+span lines and end with a trailing comma.
+
+`with` is postfix and binds like a call, tighter than every binary operator,
+and a field read may follow it: `total + case with { amount = 5 }.amount` adds
+the new amount. The base is computed once, before the new values. A Danish file
+writes `med`: `sag med { offeret_lå_ned = Ja }`.
+
+An update is the record's constructor applied to the base's fields:
+`case with { urgent = True }` is `Case(case.name, case.amount, True)` in the
+interpreter, in native code, in `runa verify` and in `runa audit`. A claim can
+therefore compare a case with one finding changed, such as
+`uafhængig(a) == uafhængig(a with { x = Ja })` for a free variable `a` of a
+record type.
+
 ### Function types
 ```runa
 Int -> Bool              -- function from Int to Bool
@@ -324,6 +362,7 @@ reported at the source expression before program effects run.
 | `<-` | send/push | `subject <- value` |
 | `?.` | safe call | `expr?.field` (None propagation) |
 | `?:` | elvis | `expr ?: default` (unwrap with fallback) |
+| `with` | record update | `case with { urgent = True }` |
 
 The pipe operator inserts the left side as the first argument:
 ```runa

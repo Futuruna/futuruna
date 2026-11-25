@@ -125,6 +125,18 @@
       ]
     },
     {
+      "id": "record-update",
+      "kind": "language",
+      "name": "Record update (`base with { field = value }`)",
+      "stage": "preview",
+      "notes": "Intended for real use while the contract is hardened: a copy of a single-constructor record with named fields replaced, elaborated to the record's constructor call for the interpreter, native code, `runa verify` and `runa audit`. Multi-constructor types are rejected; allowing them when the constructor is statically known may follow.",
+      "docs": [
+        "docs/reference/basics.md",
+        "docs/reference/runes.md",
+        "docs/tutorial/02-types.md"
+      ]
+    },
+    {
       "id": "unit-types",
       "kind": "language",
       "name": "Unit types for whole numbers (`# unit`)",
@@ -695,9 +707,10 @@
     },
     {
       "path": "docs/reference/basics.md",
-      "stage": "stable",
+      "stage": "mixed",
       "surfaces": [
-        "core-language-syntax"
+        "core-language-syntax",
+        "record-update"
       ]
     },
     {
@@ -735,7 +748,8 @@
         "exploratory-audit-tooling",
         "unit-types",
         "named-scalar-types",
-        "rule-result-types"
+        "rule-result-types",
+        "record-update"
       ]
     },
     {
@@ -802,9 +816,10 @@
     },
     {
       "path": "docs/tutorial/02-types.md",
-      "stage": "stable",
+      "stage": "mixed",
       "surfaces": [
-        "core-language-syntax"
+        "core-language-syntax",
+        "record-update"
       ]
     },
     {

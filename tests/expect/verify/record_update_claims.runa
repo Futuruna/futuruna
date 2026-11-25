@@ -1,0 +1,17 @@
+-- expect-command: verify
+-- expect-status: fail
+-- expect-stdout: PROVED: |independent_of_x|
+-- expect-stdout: COUNTEREXAMPLE found for |dependent_on_x|:
+-- expect-stdout: a = Fund(x: Nej,
+-- expect-stdout: Verification: 1 of 2 invariant(s) proved.
+-- `a with { x = Ja }` is a new Fund built from `a`'s other fields, so a claim
+-- compares a record free variable with one finding changed: a rule that does
+-- not read `x` gives the same result, one that reads it may not.
+# JaNej = Ja | Nej
+# Fund(x: JaNej, y: JaNej, n: Int)
+
+| uafhængig(a: Fund): Bool -> a.y == Ja && a.n > 3
+| afhængig(a: Fund): Bool -> a.x == Ja
+
+| independent_of_x: uafhængig(a) -> uafhængig(a) == uafhængig(a with { x = Ja })
+| dependent_on_x: afhængig(a) -> afhængig(a) == afhængig(a with { x = Ja })

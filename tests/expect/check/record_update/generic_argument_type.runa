@@ -1,0 +1,6 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: record `Box` field `value` expects `Int`, got `String`
+-- A new value has the field type the base's type arguments give it.
+# Box(a) = Box(value: a, label: String)
+> rewrite(b: Box(Int)) -> Box(Int) { b with { value = "s" } }

@@ -1,0 +1,6 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `with` names the fields it replaces, and `Pos` has no named fields; build the new value with `Pos(...)`
+# Pos = Pos(Int, Int)
+= origin = Pos(0, 0)
+= moved = origin with { x = 1 }
