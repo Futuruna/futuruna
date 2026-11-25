@@ -1,0 +1,11 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: record `Case` field `amount` expects `Ore`, got `Int`; write `Ore(n)` when the number is an amount in `Ore`
+-- expect-stderr: field_type.runa:10:
+-- A new value has its field's type, units included; a whole-number literal
+-- takes the unit of its field.
+# unit Ore "DKK øre"
+# Case(name: String, amount: Ore)
+= case = Case(name = "a", amount = 100)
+= halved = case with { amount = Int(case.amount) / 2 }
+= zero = case with { amount = 0 }

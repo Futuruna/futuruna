@@ -9,6 +9,7 @@ feature_stage_surfaces:
   - unit-types
   - named-scalar-types
   - rule-result-types
+  - record-update
 ---
 
 # The Seven Runes
@@ -43,7 +44,9 @@ Construction uses **positional** arguments:
 = w = Weather(Copenhagen, 22.0, Sunny, 10.0)
 ```
 
-Fields are accessed with dot notation: `w.temp`, `w.condition`.
+Fields are accessed with dot notation: `w.temp`, `w.condition`. A copy with
+some named fields replaced is a [record update](basics.md#record-update)
+(Preview): `w with { temp = 25.0 }`.
 
 ### Enum (multi-variant algebraic data type)
 ```runa
@@ -1117,6 +1120,13 @@ another field type (such as String or a list), as a generic type, or as two
 different types makes the claim unsupported with a diagnostic. A
 counterexample names each free variable's witness in source syntax, such as
 `s = Shipped` or `a = Fund(x: Ja, n: 0)`.
+
+The checker types such a free variable by the parameters it is passed to as
+well, so a claim may copy it with a [record update](basics.md#record-update)
+and compare the two:
+`| same_without_x: uafhængig(a) -> uafhængig(a) == uafhængig(a with { x = Ja })`
+is proved when `uafhængig` does not read `x`, and refuted with a witness when
+it does.
 
 ### Verifying rule dispatch
 

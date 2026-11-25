@@ -64,4 +64,5 @@ Seed cases:
 | `float_division_by_zero.runa`, `float_division_by_zero_constant.runa` | Float division by zero is a runtime error; folded constants stay valid Rust |
 | `float_collection_keys.runa` | Float Map keys are a check error in both modes |
 | `codegen_valid_programs.runa` | `[]` + `push` inference, `Pair` fields, `count_by`, string concat keys, parenthesized `if`, folded captures, borrowed keys, closures calling `push`, `show(None)`/`show(Ok(1))`, `join([])` |
+| `record_update.runa` | `base with { field = value }` elaborated to a constructor call: the base stays readable after an update, a call base is computed once, nested and generic records, copied String and List fields |
 | `imports/import_mesh_consumer.runa` | nested flat imports, qualified imports, exported ADTs/functions/values, and named HOF callbacks in the differential lane |

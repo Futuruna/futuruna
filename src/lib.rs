@@ -82,6 +82,7 @@ mod ordinary_expressions;
 mod parser_hints;
 pub mod partial;
 pub mod query;
+mod record_update;
 mod references;
 mod rule_declarations;
 mod runtime_diagnostics;
@@ -5776,6 +5777,26 @@ pub const UNKNOWN_MARKER: &str = "__unknown";
 /// so every pass reads the entry call as an ordinary call.
 pub const QUERY_MARKER: &str = "__query";
 
+/// `base with { field = value, ... }`:
+/// `App(Var(RECORD_UPDATE_MARKER), [base, named_arg(field, value), ...])`.
+/// The checker types it as its base and records the record's constructor;
+/// elaboration writes it as that constructor applied to the base's fields
+/// (`record_update`), so the interpreter, the backends and the solver read
+/// an ordinary constructor call.
+pub const RECORD_UPDATE_MARKER: &str = "__record_update";
+
+/// The base and the `field = value` updates of `base with { ... }`.
+pub fn record_update_parts(expr: &Expr) -> Option<(&Expr, &[Expr])> {
+    let ExprKind::App(function, arguments) = &expr.kind else {
+        return None;
+    };
+    if !matches!(&function.kind, ExprKind::Var(name) if name == RECORD_UPDATE_MARKER) {
+        return None;
+    }
+    let (base, updates) = arguments.split_first()?;
+    Some((base, updates))
+}
+
 /// `unknown` is a reserved word: it may not name a binding, parameter or
 /// function.
 pub fn reject_reserved_name(name: &str, line: usize, col: usize) -> Result<(), String> {
@@ -8046,6 +8067,13 @@ fn collect_true_free_symbol_uses(
             if matches!(&func.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
                 if let Some(value) = args.get(1) {
                     collect_true_free_symbol_uses(value, uses, bound, typed_receivers);
+                }
+                return;
+            }
+            // `base with { ... }` reads its base and its new values.
+            if matches!(&func.kind, ExprKind::Var(name) if name == RECORD_UPDATE_MARKER) {
+                for argument in args {
+                    collect_true_free_symbol_uses(argument, uses, bound, typed_receivers);
                 }
                 return;
             }
@@ -14777,6 +14805,64 @@ impl Parser {
                         ],
                     )
                     .into();
+                }
+                // Record update: expr with { field = value, ... }. Postfix,
+                // like a call: it binds tighter than every binary operator.
+                // A function's effect list (`-> T with Effect { body }`)
+                // follows a type, never an expression, and names effects
+                // before its `{`.
+                TokenKind::KW
+                    if self.peek().text == "with"
+                        && self.tokens.get(self.pos + 1).map(|next| next.kind)
+                            == Some(TokenKind::LBrace) =>
+                {
+                    let start_span = lhs.span;
+                    let with_tok = self.advance();
+                    self.expect(TokenKind::LBrace)?;
+                    let updates = self.parse_comma_separated(
+                        TokenKind::RBrace,
+                        "record update field",
+                        |parser| {
+                            let start_tok = parser.peek().clone();
+                            let named = matches!(
+                                start_tok.kind,
+                                TokenKind::Ident | TokenKind::Type | TokenKind::Bool_ | TokenKind::KW
+                            ) && parser.tokens.get(parser.pos + 1).is_some_and(|tok| {
+                                tok.kind == TokenKind::Eq
+                                    || (tok.kind == TokenKind::Op && tok.text == "=")
+                            });
+                            if !named {
+                                return Err(format!(
+                                    "{}:{}: a record update names each field it replaces: `{} {{ field = value }}`",
+                                    start_tok.line, start_tok.col, with_tok.source_text
+                                ));
+                            }
+                            let field = parser.advance().source_text;
+                            parser.advance();
+                            let value = parser.parse_expr()?;
+                            Ok(named_arg_expr_with_span(
+                                field,
+                                value,
+                                parser.span_since(&start_tok),
+                            ))
+                        },
+                    )?;
+                    if updates.is_empty() {
+                        return Err(format!(
+                            "{}:{}: a record update replaces at least one field: `{} {{ field = value }}`",
+                            with_tok.line, with_tok.col, with_tok.source_text
+                        ));
+                    }
+                    let span =
+                        start_span.merge(self.span_since(&self.tokens[self.pos - 1].clone()));
+                    let marker = Expr::new(
+                        ExprKind::Var(RECORD_UPDATE_MARKER.to_string()),
+                        self.token_span(&with_tok),
+                    );
+                    let mut arguments = Vec::with_capacity(updates.len() + 1);
+                    arguments.push(lhs);
+                    arguments.extend(updates);
+                    lhs = Expr::new(ExprKind::App(Box::new(marker), arguments), span);
                 }
                 // Field access: expr.field
                 TokenKind::Dot => {
@@ -24190,6 +24276,12 @@ impl Interpreter {
             if function_name == QUERY_MARKER {
                 return self.eval_query(expression, env);
             }
+            // A checked program runs elaborated, with every record update
+            // written as its constructor call; the checked program Explore
+            // evaluates keeps the update.
+            if function_name == RECORD_UPDATE_MARKER {
+                return self.eval_record_update(expression, env);
+            }
             let namespace = self.namespace_for_env(env);
             if function_name == "lookup"
                 && arguments.len() == 2
@@ -33382,6 +33474,10 @@ pub struct TypeChecker {
     /// Elaboration writes each as the checks it stands for.
     scalar_conversions:
         BTreeMap<Option<PathBuf>, BTreeMap<(usize, usize), scalar_types::ScalarConversion>>,
+    /// Checked record updates (`base with { field = value }`) by file and
+    /// source span. Elaboration writes each as its constructor call.
+    record_updates:
+        BTreeMap<Option<PathBuf>, BTreeMap<(usize, usize), record_update::RecordUpdate>>,
     /// Literals that take a named scalar type, waiting for their checks.
     scalar_literals: RefCell<Vec<scalar_types::ScalarLiteral>>,
     /// Runs the checks of named scalars on literals, built on first use.
@@ -47935,6 +48031,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
                     | REFOF_MARKER
                     | UNKNOWN_MARKER
                     | QUERY_MARKER
+                    | RECORD_UPDATE_MARKER
             ) {
                 return (
                     Some(CheckedCallTarget::Builtin {
@@ -50112,6 +50209,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
                                 | REFOF_MARKER
                                 | UNKNOWN_MARKER
                                 | QUERY_MARKER
+                                | RECORD_UPDATE_MARKER
                         )
                 );
                 let typed_marker =
@@ -50430,6 +50528,7 @@ impl TypeChecker {
             unit_conversions: BTreeMap::new(),
             scalar_types: BTreeMap::new(),
             scalar_conversions: BTreeMap::new(),
+            record_updates: BTreeMap::new(),
             scalar_literals: RefCell::new(Vec::new()),
             scalar_evaluator: None,
             prelude_functions: BTreeSet::new(),
@@ -55255,6 +55354,16 @@ impl TypeChecker {
                             )
                         });
                     }
+                    // `base with { ... }` has the type of its base.
+                    if name == RECORD_UPDATE_MARKER {
+                        return args.first().and_then(|base| {
+                            self.infer_expr_type_name_with_locals_in_scope(
+                                base,
+                                locals,
+                                active_rule_scope,
+                            )
+                        });
+                    }
                     if name == PATHOF_MARKER {
                         return Some("String".to_string());
                     }
@@ -57621,6 +57730,21 @@ impl TypeChecker {
                                 expected,
                             )
                         });
+                    }
+                    // `base with { ... }` is the base's record with new
+                    // field values: each part must have a canonical type.
+                    if name == RECORD_UPDATE_MARKER {
+                        for (index, part) in arguments.iter().enumerate() {
+                            let part = named_arg_parts(part).map_or(part, |(_, value)| value);
+                            self.canonical_dispatch_expr_type(
+                                part,
+                                locals,
+                                active_scope,
+                                visiting_functions,
+                                (index == 0).then_some(expected).flatten(),
+                            )?;
+                        }
+                        return inferred();
                     }
                     if matches!(
                         name.as_str(),
@@ -61377,6 +61501,7 @@ impl TypeChecker {
                 | REFOF_MARKER
                 | UNKNOWN_MARKER
                 | QUERY_MARKER
+                | RECORD_UPDATE_MARKER
         ) {
             return true;
         }
@@ -63897,6 +64022,7 @@ impl TypeChecker {
                     self.variant_refinements.push((depth, name, variant, true));
                 }
                 self.define_rule_head_var_types(subject);
+                self.define_invariant_free_variable_types(&subject_names[0], &[subject, predicate]);
                 self.check_expr(subject, None);
                 self.check_expr(predicate, None);
                 let predicate_type = self.infer_expr_type_name(predicate).or_else(|| {
@@ -64037,6 +64163,12 @@ impl TypeChecker {
                     for argument in args {
                         self.check_expr(argument, _in_fn);
                     }
+                    return;
+                }
+                // `base with { field = value }` checks against the base's
+                // record type.
+                if let Some((base, updates)) = record_update_parts(expr) {
+                    self.check_record_update(expr, base, updates, _in_fn);
                     return;
                 }
                 if let ExprKind::Var(name) = &func.kind {
