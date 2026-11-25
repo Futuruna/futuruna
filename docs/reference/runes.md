@@ -1189,6 +1189,13 @@ untranslatable claims can gate CI. A counterexample, unknown result or solver
 failure still exits 1, and the closing guarantee line names how many claims
 were accepted unchecked.
 
+`runa verify` reports each claim's result. `runa verify --smt` also prints
+each claim's SMT-LIB2 script before its result, to read it or to run Z3 on it
+by hand. Every rule family and function a claim reaches is defined once in its
+script, except a generic one (see below), and a call of one stays a call, so a
+script grows with the size of the model, not with how often or how deeply its
+rules call each other.
+
 `runa verify` can translate pure, non-recursive `|` rule groups directly,
 including rules inside a product RuleScope. Conditions and exceptions use the
 same precedence as execution; there is no need to restate the rule cascade as a

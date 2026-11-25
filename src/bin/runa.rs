@@ -243,6 +243,7 @@ fn main_inner() {
     let mut check_build_deps = false; // --build-deps flag for `runa check`
     let mut add_rev: Option<String> = None; // --rev flag for `runa add`
     let mut verify_allow_unsupported = false; // --allow-unsupported for `runa verify`
+    let mut verify_show_smt = false; // --smt for `runa verify`
     let mut fetch_update = false; // --update flag for `runa fetch`
 
     let mut i = 1;
@@ -294,6 +295,10 @@ fn main_inner() {
             }
             "--allow-unsupported" if mode == "verify" => {
                 verify_allow_unsupported = true;
+                i += 1;
+            }
+            "--smt" if mode == "verify" => {
+                verify_show_smt = true;
                 i += 1;
             }
             "--rev" if mode == "add" => {
@@ -789,6 +794,7 @@ fn main_inner() {
                 );
                 eprintln!("  verify        Generate SMT-LIB2 and verify with Z3");
                 eprintln!("  verify --allow-unsupported  Exit 0 when every claim the SMT layer can translate is PROVED");
+                eprintln!("  verify --smt  Also print each claim's SMT-LIB2 script");
                 eprintln!("  audit         Discover invariant gaps and rule asymmetries");
                 eprintln!(
                     "  cases         Generate conformance cases and clause coverage for an @ entry"
@@ -1463,9 +1469,13 @@ fn main_inner() {
                     "audit" => {
                         audit_source(&source, path, use_prelude, false);
                     }
-                    "verify" => {
-                        verify_with_z3(&source, path, use_prelude, verify_allow_unsupported)
-                    }
+                    "verify" => verify_with_z3(
+                        &source,
+                        path,
+                        use_prelude,
+                        verify_allow_unsupported,
+                        verify_show_smt,
+                    ),
                     "explore" => run_relational_explore_stream(
                         &source,
                         path,
@@ -15421,7 +15431,23 @@ struct SmtLoweringEnv {
     substitutions: BTreeMap<String, Expr>,
     types: BTreeMap<String, String>,
     active_scope: Option<(String, Expr)>,
+    /// Every rule call is an application of its family's generated
+    /// function, also for a family that has none (a claim then names why).
+    /// Otherwise, as in the generated functions themselves, a call is an
+    /// application when the family has a generated function and is expanded
+    /// in place when it has none (a generic or higher-order family): each
+    /// family's clauses are lowered once, never once per call.
     rule_calls_as_symbols: bool,
+}
+
+/// The generated SMT function of a rule family: its parameters (a scoped
+/// family's receiver first), the arguments its clauses are matched against,
+/// and its result.
+struct SmtRuleFunctionSignature {
+    params: Vec<Param>,
+    receiver: Option<Expr>,
+    arguments: Vec<Expr>,
+    return_type: Ty,
 }
 
 /// One rule dispatch candidate after its applicability has been lowered.
@@ -15777,6 +15803,98 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         visit(self, ty, &mut BTreeSet::new())
     }
 
+    /// The generated function of `group`, or why the family has none: a
+    /// parameter or result without an SMT sort (a generic or higher-order
+    /// family).
+    fn rule_function_signature(
+        &self,
+        group: &RuleDispatchGroup<'program>,
+    ) -> Result<SmtRuleFunctionSignature, String> {
+        let display_name = || self.rule_display_name(&group.key);
+        let Some(return_type_name) = group.return_type.as_deref() else {
+            return Err(group.return_type_issue.clone().unwrap_or_else(|| {
+                format!(
+                    "rule `{}` has no inferred return type for SMT",
+                    display_name()
+                )
+            }));
+        };
+        let return_type = parse_type_annotation(return_type_name).map_err(|error| {
+            format!(
+                "rule `{}` return type `{}` cannot be represented for SMT: {}",
+                display_name(),
+                return_type_name,
+                error
+            )
+        })?;
+        if !self.rule_type_is_smt_representable(&return_type) {
+            return Err(format!(
+                "rule `{}` return type `{}` is not representable by the exact SMT backend",
+                display_name(),
+                return_type_name
+            ));
+        }
+
+        let mut params = Vec::new();
+        let receiver = group.key.scope.as_ref().map(|scope| {
+            let name = "__runa_rule_self".to_string();
+            params.push(Param {
+                name: name.clone(),
+                ty: Some(Ty::Name(scope.clone())),
+                inout: false,
+            });
+            Expr::unspanned(ExprKind::Var(name))
+        });
+        let mut arguments = Vec::with_capacity(group.parameters.len());
+        for (index, parameter) in group.parameters.iter().enumerate() {
+            let Some(type_name) = parameter.ty.as_deref() else {
+                return Err(format!(
+                    "rule `{}` parameter {} has no inferred type for SMT",
+                    display_name(),
+                    index + 1
+                ));
+            };
+            let ty = parse_type_annotation(type_name).map_err(|error| {
+                format!(
+                    "rule `{}` parameter type `{}` cannot be represented for SMT: {}",
+                    display_name(),
+                    type_name,
+                    error
+                )
+            })?;
+            if matches!(ty, Ty::Arrow(_, _)) {
+                return Err(format!(
+                    "rule `{}` has a higher-order parameter that is not translatable to first-order SMT",
+                    display_name()
+                ));
+            }
+            if !self.rule_type_is_smt_representable(&ty) {
+                return Err(format!(
+                    "rule `{}` parameter type `{}` is not representable by the exact SMT backend",
+                    display_name(),
+                    type_name
+                ));
+            }
+            let name = format!("__runa_rule_arg_{}", index);
+            params.push(Param {
+                name: name.clone(),
+                ty: Some(ty),
+                inout: false,
+            });
+            arguments.push(Expr::unspanned(ExprKind::Var(name)));
+        }
+        Ok(SmtRuleFunctionSignature {
+            params,
+            receiver,
+            arguments,
+            return_type,
+        })
+    }
+
+    /// One function per rule family: its dispatch over its parameters. A
+    /// call of another family with a generated function stays a call of that
+    /// function, so a script holds each family's clauses once however often
+    /// and however deeply they are called.
     fn generated_rule_functions(
         &self,
     ) -> (
@@ -15785,103 +15903,23 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
     ) {
         let mut functions = Vec::new();
         let mut errors = BTreeMap::new();
+        let mut display_names = BTreeMap::new();
 
         for group in self.registry.groups.values() {
             let function_name = self.rule_function_name(&group.key);
-            let display_name = self.rule_display_name(&group.key);
-            let Some(return_type_name) = group.return_type.as_deref() else {
-                errors.insert(
-                    function_name,
-                    group.return_type_issue.clone().unwrap_or_else(|| {
-                        format!(
-                            "rule `{}` has no inferred return type for SMT",
-                            display_name
-                        )
-                    }),
-                );
-                continue;
-            };
-            let return_type = match parse_type_annotation(return_type_name) {
-                Ok(return_type) => return_type,
+            let SmtRuleFunctionSignature {
+                params,
+                receiver,
+                arguments,
+                return_type,
+            } = match self.rule_function_signature(group) {
+                Ok(signature) => signature,
                 Err(error) => {
-                    errors.insert(
-                        function_name,
-                        format!(
-                            "rule `{}` return type `{}` cannot be represented for SMT: {}",
-                            display_name, return_type_name, error
-                        ),
-                    );
+                    errors.insert(function_name, error);
                     continue;
                 }
             };
-            if !self.rule_type_is_smt_representable(&return_type) {
-                errors.insert(
-                    function_name,
-                    format!(
-                        "rule `{}` return type `{}` is not representable by the exact SMT backend",
-                        display_name, return_type_name
-                    ),
-                );
-                continue;
-            }
-
-            let mut params = Vec::new();
-            let receiver = group.key.scope.as_ref().map(|scope| {
-                let name = "__runa_rule_self".to_string();
-                params.push(Param {
-                    name: name.clone(),
-                    ty: Some(Ty::Name(scope.clone())),
-                    inout: false,
-                });
-                Expr::unspanned(ExprKind::Var(name))
-            });
-            let mut arguments = Vec::with_capacity(group.parameters.len());
-            let mut parameter_error = None;
-            for (index, parameter) in group.parameters.iter().enumerate() {
-                let Some(type_name) = parameter.ty.as_deref() else {
-                    parameter_error = Some(format!(
-                        "rule `{}` parameter {} has no inferred type for SMT",
-                        display_name,
-                        index + 1
-                    ));
-                    break;
-                };
-                let ty = match parse_type_annotation(type_name) {
-                    Ok(ty) => ty,
-                    Err(error) => {
-                        parameter_error = Some(format!(
-                            "rule `{}` parameter type `{}` cannot be represented for SMT: {}",
-                            display_name, type_name, error
-                        ));
-                        break;
-                    }
-                };
-                if matches!(ty, Ty::Arrow(_, _)) {
-                    parameter_error = Some(format!(
-                        "rule `{}` has a higher-order parameter that is not translatable to first-order SMT",
-                        display_name
-                    ));
-                    break;
-                }
-                if !self.rule_type_is_smt_representable(&ty) {
-                    parameter_error = Some(format!(
-                        "rule `{}` parameter type `{}` is not representable by the exact SMT backend",
-                        display_name, type_name
-                    ));
-                    break;
-                }
-                let name = format!("__runa_rule_arg_{}", index);
-                params.push(Param {
-                    name: name.clone(),
-                    ty: Some(ty),
-                    inout: false,
-                });
-                arguments.push(Expr::unspanned(ExprKind::Var(name)));
-            }
-            if let Some(error) = parameter_error {
-                errors.insert(function_name, error);
-                continue;
-            }
+            display_names.insert(function_name.clone(), self.rule_display_name(&group.key));
 
             // Substitution replaces authored head names with generated
             // parameter names. Nested calls must validate those actual names
@@ -15910,6 +15948,48 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     ));
                     errors.insert(function_name, error);
                 }
+            }
+        }
+
+        // A family whose function calls itself, directly or through other
+        // families, is recursive: a `define-fun` cannot refer to itself.
+        let names: BTreeSet<String> = functions.iter().map(|(name, ..)| name.clone()).collect();
+        let calls: BTreeMap<&str, BTreeSet<String>> = functions
+            .iter()
+            .map(|(name, _, _, body)| {
+                let mut called = BTreeSet::new();
+                collect_smt_called_functions(body, &names, &mut called);
+                (name.as_str(), called)
+            })
+            .collect();
+        let reaches_itself = |start: &str| {
+            let mut visited = BTreeSet::new();
+            let mut pending: Vec<&str> = calls[start].iter().map(String::as_str).collect();
+            while let Some(name) = pending.pop() {
+                if name == start {
+                    return true;
+                }
+                if visited.insert(name) {
+                    pending.extend(calls[name].iter().map(String::as_str));
+                }
+            }
+            false
+        };
+        let recursive: BTreeSet<String> = calls
+            .keys()
+            .filter(|name| !errors.contains_key(**name) && reaches_itself(**name))
+            .map(|name| name.to_string())
+            .collect();
+        for (name, _, _, body) in &mut functions {
+            if recursive.contains(name) {
+                *body = smt_bool(false);
+                errors.insert(
+                    name.clone(),
+                    format!(
+                        "recursive rule dispatch for `{}` is not yet translatable to SMT",
+                        display_names[name]
+                    ),
+                );
             }
         }
 
@@ -16460,7 +16540,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         expansion_stack: &mut Vec<RuleDispatchKey>,
     ) -> Result<Expr, String> {
         self.validate_rule_call_arguments(group, &arguments, environment)?;
-        if environment.rule_calls_as_symbols {
+        if environment.rule_calls_as_symbols || self.rule_function_signature(group).is_ok() {
             let mut call_arguments =
                 Vec::with_capacity(arguments.len() + usize::from(receiver.is_some()));
             if let Some(receiver) = receiver {
@@ -21199,7 +21279,14 @@ fn smt_inline_generic_calls(mut statements: Vec<Stmt>) -> Vec<Stmt> {
 /// Successful exit requires every claim to be proved. Unsupported claims and
 /// unavailable solvers are incomplete checks; `allow_unsupported` accepts
 /// claims the SMT layer cannot translate, never refuted or unknown ones.
-fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsupported: bool) {
+/// `show_smt` prints each claim's script before its result.
+fn verify_with_z3(
+    source: &str,
+    filename: &str,
+    use_prelude: bool,
+    allow_unsupported: bool,
+    show_smt: bool,
+) {
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
     let mut parser = Parser::new(tokens, source);
@@ -21880,11 +21967,13 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
         // name and file (`|ratio in a.runa|`), in the script shown and run.
         let smt = futuruna::function_display_smt(&smt).into_owned();
 
-        println!("  SMT-LIB2:");
-        for line in smt.lines() {
-            println!("    {}", line);
+        if show_smt {
+            println!("  SMT-LIB2:");
+            for line in smt.lines() {
+                println!("    {}", line);
+            }
+            println!();
         }
-        println!();
 
         // A model request after unsat is itself a Z3 error. First establish
         // satisfiability, then request a witness only for a counterexample.
@@ -21943,7 +22032,11 @@ fn verify_with_z3(source: &str, filename: &str, use_prelude: bool, allow_unsuppo
                     "  ? {}",
                     futuruna::function_display_text(&error.to_string())
                 );
-                println!("  SMT-LIB2 output above can be piped to z3 manually.");
+                if show_smt {
+                    println!("  SMT-LIB2 output above can be piped to z3 manually.");
+                } else {
+                    println!("  Rerun with --smt to print the SMT-LIB2 script for z3.");
+                }
             }
         }
         println!();

@@ -18,6 +18,7 @@ fn verify(source: &str) -> Output {
         .unwrap_or_else(|| env!("CARGO_BIN_EXE_runa").into());
     let output = Command::new(runa)
         .arg("verify")
+        .arg("--smt")
         .arg(&path)
         .output()
         .unwrap();

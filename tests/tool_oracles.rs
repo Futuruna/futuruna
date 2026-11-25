@@ -471,7 +471,8 @@ fn invariants_proved_by_verify_hold_at_int_boundaries_enum_constructors_and_reco
     let mut failures = Vec::new();
     for path in &files {
         let relative = path.strip_prefix(root()).unwrap().to_str().unwrap();
-        let verify = run(&["verify", relative], Duration::from_secs(120)).unwrap();
+        // `--smt` prints the scripts whose declarations give each sort.
+        let verify = run(&["verify", "--smt", relative], Duration::from_secs(120)).unwrap();
         let report = String::from_utf8_lossy(&verify.stdout);
         let proved: Vec<&str> = report
             .lines()
