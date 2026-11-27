@@ -1,0 +1,13 @@
+# Factor = P1 | P2 | D1 | D2
+# Color = Red | Green | Blue | Black
+
+| member(a: Set(Factor), f: Factor): Bool -> True
+| both(a: Set(Factor), c: Set(Color)): Bool -> True
+
+-- The encoding holds which members a set has, not a list of them; it
+-- represents no set of Int; a set operation takes sets of one enum; and an
+-- empty set needs an element type from where it is used.
+| listed: member(a, f) -> length(set_to_list(a)) <= 4
+| int_literal: member(a, f) -> set_contains(set_from_list([1, 2]), 1)
+| mixed_elements: both(a, c) -> set_union(a, c) == set_union(c, a)
+| unsorted_empty: member(a, f) -> set_is_empty(set_new())

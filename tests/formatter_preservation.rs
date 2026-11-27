@@ -235,6 +235,8 @@ fn repository_format_check_covers_valid_and_intentionally_invalid_sources() {
         "tests/expect/check/field_meta_without_field.runa",
         "tests/expect/check/late_language_directive.runa",
         "tests/expect/check/missing_exception_label.runa",
+        "tests/expect/check/record_update/empty_update.runa",
+        "tests/expect/check/record_update/unnamed_field.runa",
         "tests/expect/check/single_equals_expression.runa",
         "tests/expect/diagnostics/calculate_is_entry.runa",
         "tests/expect/diagnostics/date_shaped_number.runa",

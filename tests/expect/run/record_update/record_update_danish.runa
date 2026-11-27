@@ -1,0 +1,15 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: Sag(offeret_lå_ned: Ja, glasset_knust: Ja, alder: 30)
+-- expect-stdout: Sag(offeret_lå_ned: Nej, glasset_knust: Nej, alder: 31)
+-- expect-stdout: Sag(offeret_lå_ned: Nej, glasset_knust: Ja, alder: 30)
+-- A Danish file writes `with` as `med`.
+@ sprog da
+# Svar = Ja | Nej
+# Sag(offeret_lå_ned: Svar, glasset_knust: Svar, alder: Int)
+
+= sag = Sag(offeret_lå_ned = Nej, glasset_knust = Ja, alder = 30)
+= liggende = sag med { offeret_lå_ned = Ja }
+@ skriv(vis(liggende))
+@ skriv(vis(sag med { alder = 31, glasset_knust = Nej }))
+@ skriv(vis(sag))

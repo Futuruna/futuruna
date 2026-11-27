@@ -323,6 +323,8 @@ and must not be or contain `Float` (check error: use `Int`, e.g. cents, or
 | `set_intersect` | `(Set(a), Set(a)) -> Set(a)` | Intersection |
 | `set_diff` | `(Set(a), Set(a)) -> Set(a)` | Difference (first minus second) |
 | `set_from_list` | `List(a) -> Set(a)` | Create set from list (deduplicates) |
+| `set_subset` | `(Set(a), Set(a)) -> Bool` | Every member of the first is a member of the second |
+| `set_is_empty` | `Set(a) -> Bool` | The set has no members |
 
 ```runa
 = s = set_from_list(["red", "green", "blue", "red"])

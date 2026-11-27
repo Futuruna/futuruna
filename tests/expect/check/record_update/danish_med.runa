@@ -1,0 +1,11 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: record `Sag` has no field `alderr`; its fields are `offeret_lå_ned`, `alder`
+-- expect-stderr: `med` replaces fields of a record; `Int` is not a record type
+-- A Danish file writes `with` as `med`; diagnostics name the keyword it wrote.
+@ sprog da
+# Svar = Ja | Nej
+# Sag(offeret_lå_ned: Svar, alder: Int)
+= sag = Sag(offeret_lå_ned = Nej, alder = 30)
+= ældre = sag med { alderr = 31 }
+= tal = 3 med { alder = 1 }

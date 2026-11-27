@@ -1,4 +1,5 @@
 -- expect-command: verify
+-- expect-args: --smt
 -- expect-status: pass
 -- expect-stdout: (define-fun |ratio in import_scope_written_names_verify_lib.runa|
 -- expect-stdout: PROVED: |ratio_ok|

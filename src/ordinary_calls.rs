@@ -852,6 +852,74 @@ impl TypeChecker {
         self.pop_scope();
     }
 
+    /// An invariant's free variable that nothing else types takes the
+    /// declared parameter type of the calls it is passed to (`f(a)` with
+    /// `| f(a: Fund): Bool`), as `runa verify` quantifies it. One with
+    /// differing or generic parameter types stays untyped.
+    pub(super) fn define_invariant_free_variable_types(
+        &mut self,
+        names: &BTreeSet<String>,
+        expressions: &[&Expr],
+    ) {
+        let mut uses = BTreeMap::<String, BTreeSet<String>>::new();
+        for expression in expressions {
+            self.collect_argument_parameter_types(expression, names, &mut uses);
+        }
+        for (name, types) in uses {
+            if types.len() != 1 {
+                continue;
+            }
+            let Some(type_name) = types.into_iter().next() else {
+                continue;
+            };
+            let untyped = self
+                .ordinary_expression_type(&Expr::unspanned(ExprKind::Var(name.clone())))
+                .is_none();
+            if untyped {
+                self.define_inferred_var_type_name(&name, &type_name);
+            }
+        }
+    }
+
+    fn collect_argument_parameter_types(
+        &self,
+        expression: &Expr,
+        names: &BTreeSet<String>,
+        uses: &mut BTreeMap<String, BTreeSet<String>>,
+    ) {
+        if let ExprKind::App(function, arguments) = &expression.kind {
+            if let (ExprKind::Var(callee), false) = (&function.kind, has_named_args(arguments)) {
+                let declared = match self.ordinary_callable(callee, Some(arguments.len())) {
+                    Some(Some(DeclaredCallable::Function(parameters))) => Some(
+                        parameters
+                            .iter()
+                            .map(|parameter| parameter.ty.clone())
+                            .collect::<Vec<_>>(),
+                    ),
+                    _ => self
+                        .rule_param_types_by_arity
+                        .get(&(callee.clone(), arguments.len()))
+                        .cloned(),
+                };
+                for (argument, ty) in arguments.iter().zip(declared.unwrap_or_default()) {
+                    let (ExprKind::Var(name), Some(ty)) = (&argument.kind, ty) else {
+                        continue;
+                    };
+                    if names.contains(name) && !Self::canonical_type_contains_variable(&ty) {
+                        uses.entry(name.clone())
+                            .or_default()
+                            .insert(Self::canonical_explore_ty_name(&ty));
+                    }
+                }
+            }
+        }
+        visit_ast_expr_children(expression, &mut |child| {
+            if let AstChild::Expr(child) = child {
+                self.collect_argument_parameter_types(child, names, uses);
+            }
+        });
+    }
+
     pub(super) fn ordinary_expression_type(&self, expression: &Expr) -> Option<String> {
         let locals = self.ordinary_locals();
         self.infer_expr_type_name_with_locals(expression, &locals)

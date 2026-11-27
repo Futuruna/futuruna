@@ -911,6 +911,14 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
             visit_type_names(ty, &mut roots);
         }
         for expression in constructor_sources {
+            let mut set_elements = BTreeSet::new();
+            collect_smt_set_helper_elements(expression, &mut set_elements);
+            roots.extend(
+                set_elements
+                    .iter()
+                    .filter_map(|symbol| self.lowerer.set_element_of_symbol(symbol))
+                    .map(str::to_string),
+            );
             walk_ast_expr(expression, &mut |node| {
                 let AstChild::Expr(expression) = node else {
                     return;
@@ -1092,6 +1100,24 @@ impl<'a, 'program, 'registry> Encoder<'a, 'program, 'registry> {
             ));
             smt.push('\n');
         }
+        // The set operations the queries perform, after the enums they read.
+        smt.push_str(
+            &self.lowerer.set_helper_definitions(
+                expressions
+                    .iter()
+                    .copied()
+                    .chain(
+                        variables
+                            .iter()
+                            .filter_map(|name| self.declarations.bindings.get(name)),
+                    )
+                    .chain(
+                        functions.iter().filter_map(|name| {
+                            self.function_map.get(name).map(|(_, _, body)| body)
+                        }),
+                    ),
+            ),
+        );
         for variable in variables {
             if let Some(ty) = sorts.get(variable) {
                 let symbol = smt_value_symbol(variable);
@@ -1656,25 +1682,37 @@ struct WitnessValue {
     term: String,
     display: String,
     /// Soft constraints that keep values the finding does not depend on
-    /// plain: `0`, `false`, `""`, or a string of lowercase ASCII letters.
+    /// plain: `0`, `false`, `""`, a string of lowercase ASCII letters, or
+    /// the empty set.
     preferences: Vec<String>,
+    /// For a set of a payload-free enum, the enum's constructors in
+    /// declaration order, which the value's bits stand for.
+    set_constructors: Option<Vec<String>>,
 }
 
 impl WitnessValue {
-    fn new(term: String, display: String, ty: &Ty) -> Self {
-        let preferences = match ty {
+    fn new(term: String, display: String, ty: &Ty, lowerer: &SmtRuleLowerer) -> Self {
+        Self {
+            preferences: Self::preferences(&term, ty),
+            term,
+            display,
+            set_constructors: lowerer.set_constructors(ty).map(<[String]>::to_vec),
+        }
+    }
+
+    /// The soft constraints that keep a value of `ty` plain.
+    fn preferences(term: &str, ty: &Ty) -> Vec<String> {
+        match ty {
             Ty::Name(name) if name == "Int" => vec![format!("(= {term} 0)")],
             Ty::Name(name) if name == "Bool" => vec![format!("(= {term} false)")],
             Ty::Name(name) if name == "String" => vec![
                 format!("(= {term} \"\")"),
                 format!("(str.in_re {term} (re.* (re.range \"a\" \"z\")))"),
             ],
-            _ => Vec::new(),
-        };
-        Self {
-            term,
-            display,
-            preferences,
+            _ => match smt_set_enum(ty) {
+                Some((_, width)) => vec![format!("(= {term} (_ bv0 {width}))")],
+                None => Vec::new(),
+            },
         }
     }
 }
@@ -1698,6 +1736,7 @@ fn family_signature(encoder: &Encoder, group: &RuleDispatchGroup) -> FamilySigna
                         format!("({} {})", smt_field_function(&selector), receiver_term),
                         format!("self.{}", field.name),
                         &field.ty,
+                        encoder.lowerer,
                     ));
                 }
             }
@@ -1705,6 +1744,7 @@ fn family_signature(encoder: &Encoder, group: &RuleDispatchGroup) -> FamilySigna
                 term: receiver_term,
                 display: "self".to_string(),
                 preferences: Vec::new(),
+                set_constructors: None,
             }),
         }
         Expr::unspanned(ExprKind::Var(RECEIVER.to_string()))
@@ -1729,6 +1769,7 @@ fn family_signature(encoder: &Encoder, group: &RuleDispatchGroup) -> FamilySigna
                         smt_value_symbol(&symbol),
                         display,
                         &ty,
+                        encoder.lowerer,
                     ));
                     types.insert(symbol.clone(), ty.to_string());
                     sorts.insert(symbol.clone(), ty);
@@ -2621,23 +2662,36 @@ fn parse_explanations(
         cores.push(members);
     }
     // `((term value))`: the value is the last element of the pair.
-    let value = |response: String| -> Option<String> {
+    let raw_value = |response: String| -> Option<String> {
         let pair = response
             .strip_prefix('(')?
             .strip_suffix(')')?
             .trim()
             .strip_prefix('(')?
             .strip_suffix(')')?;
-        Some(readable_smt_value(&smt_responses(pair).pop()?))
+        smt_responses(pair).pop()
     };
+    let value = |response: String| raw_value(response).map(|value| readable_smt_value(&value));
     let mut witnesses = Vec::new();
     for &extra in extra {
         if responses.next()? != "sat" {
             return None;
         }
         let mut witness = Vec::new();
-        for WitnessValue { display, .. } in &signature.witness_names {
-            witness.push((display.clone(), value(responses.next()?)?));
+        for WitnessValue {
+            display,
+            set_constructors,
+            ..
+        } in &signature.witness_names
+        {
+            let raw = raw_value(responses.next()?)?;
+            let set = set_constructors.as_deref().and_then(|constructors| {
+                smt_set_value_text(constructors, parse_smt_terms(&raw)?.first()?)
+            });
+            witness.push((
+                display.clone(),
+                set.unwrap_or_else(|| readable_smt_value(&raw)),
+            ));
         }
         let extra_values = (0..extra)
             .map(|_| value(responses.next()?))

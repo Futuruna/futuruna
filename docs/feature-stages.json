@@ -125,6 +125,18 @@
       ]
     },
     {
+      "id": "record-update",
+      "kind": "language",
+      "name": "Record update (`base with { field = value }`)",
+      "stage": "preview",
+      "notes": "Intended for real use while the contract is hardened: a copy of a single-constructor record with named fields replaced, elaborated to the record's constructor call for the interpreter, native code, `runa verify` and `runa audit`. Multi-constructor types are rejected; allowing them when the constructor is statically known may follow.",
+      "docs": [
+        "docs/reference/basics.md",
+        "docs/reference/runes.md",
+        "docs/tutorial/02-types.md"
+      ]
+    },
+    {
       "id": "unit-types",
       "kind": "language",
       "name": "Unit types for whole numbers (`# unit`)",
@@ -185,7 +197,7 @@
       "kind": "verification",
       "name": "runa verify SMT checking of invariants",
       "stage": "preview",
-      "notes": "PROVED means that for every value of the invariant's free variables (Int ranges over the 64-bit values; a variable used as an enum whose constructors carry no payload ranges over exactly those constructors; a variable used as a record ranges over every combination of its field values) the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.",
+      "notes": "PROVED means that for every value of the invariant's free variables (Int ranges over the 64-bit values; a variable used as an enum whose constructors carry no payload ranges over exactly those constructors; a variable used as a set of such an enum ranges over every subset of its constructors; a variable used as a record ranges over every combination of its field values) the predicate is true and no Int operation it evaluates overflows or divides by zero. Claims involving Float are reported as unsupported, never proved.",
       "commands": [
         "verify"
       ],
@@ -695,9 +707,10 @@
     },
     {
       "path": "docs/reference/basics.md",
-      "stage": "stable",
+      "stage": "mixed",
       "surfaces": [
-        "core-language-syntax"
+        "core-language-syntax",
+        "record-update"
       ]
     },
     {
@@ -735,7 +748,8 @@
         "exploratory-audit-tooling",
         "unit-types",
         "named-scalar-types",
-        "rule-result-types"
+        "rule-result-types",
+        "record-update"
       ]
     },
     {
@@ -802,9 +816,10 @@
     },
     {
       "path": "docs/tutorial/02-types.md",
-      "stage": "stable",
+      "stage": "mixed",
       "surfaces": [
-        "core-language-syntax"
+        "core-language-syntax",
+        "record-update"
       ]
     },
     {

@@ -1,0 +1,22 @@
+-- expect-command: emit-rust
+-- expect-status: pass
+-- expect-stdout: Case { name: c.name.clone(), amount: 0i64, tags: c.tags.clone(), urgent: c.urgent.clone() }
+-- expect-stdout: Case { name: "g".to_string(), amount: __updated_record_
+-- expect-stdout: Case { name: o.inner.name.clone(), amount: o.inner.amount, tags: o.inner.tags.clone(), urgent: true }
+-- expect-stdout-not: c.clone().
+-- expect-stdout-not: o.inner.clone().
+-- expect-stdout-not: .clone().amount
+-- A record update is its constructor over the base's fields. Native code
+-- reads each copied field in place and copies only that field, never the
+-- whole base per field; a base that is a call is computed once.
+# Case(name: String, amount: Int, tags: List(String), urgent: Bool)
+# Outer(label: String, inner: Case)
+
+> reset(c: Case) -> Case { c with { amount = 0 } }
+> fresh(n: Int) -> Case { Case(name = "f", amount = n, tags = [], urgent = False) }
+> renamed(n: Int) -> Case { fresh(n) with { name = "g" } }
+> escalate(o: Outer) -> Case { o.inner with { urgent = True } }
+
+@ print(show(reset(fresh(1))))
+@ print(show(renamed(2)))
+@ print(show(escalate(Outer(label = "o", inner = fresh(3)))))

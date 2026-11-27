@@ -1130,3 +1130,39 @@ fn clause_audit_reads_constructor_heads_as_total() {
     }
     assert!(!stdout.contains("in due/2"), "{stdout}");
 }
+
+/// Guards over a set of a payload-free enum are analysed over every subset,
+/// and a witness set is shown as `show` prints it.
+#[test]
+fn clause_audit_analyses_guards_over_enum_sets() {
+    let fixture = topology_fixture("clause_sets.runa");
+    let stdout = audit_stdout(&fixture);
+    if !z3_available() {
+        assert!(stdout.contains("Not run: Z3 not found"), "{stdout}");
+        return;
+    }
+    assert!(
+        stdout.contains("1 rule family, 4 clauses: 4 analyzed, 0 not analyzed"),
+        "{stdout}"
+    );
+    // Both plaintiff factors and D1: the first two guards hold.
+    let overlap = finding_block(&stdout, "Overlapping guards in decide/1: ");
+    let witness = overlap
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("Witness: facts = {"))
+        .and_then(|members| members.strip_suffix('}'))
+        .unwrap_or_else(|| panic!("no set witness:\n{overlap}"));
+    let members: Vec<&str> = witness.split(", ").collect();
+    assert!(
+        ["D1", "P1", "P2"]
+            .iter()
+            .all(|member| members.contains(member)),
+        "{overlap}"
+    );
+    // Four factors make no set of five.
+    let unreachable = finding_block(&stdout, "Unreachable clause in decide/1: ");
+    assert!(
+        unreachable.contains("clause_sets.runa:9 never fires"),
+        "{unreachable}"
+    );
+}

@@ -1,0 +1,4 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `with` replaces fields of a record; `Int` is not a record type
+= n = 3 with { value = 4 }
