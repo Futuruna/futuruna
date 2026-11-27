@@ -1124,11 +1124,13 @@ fn smt_scripts_grow_linearly_with_a_case_law_model() {
         }
         largest_scripts.push((source.len(), largest));
 
-        // Without `--smt` the report holds the results, not the scripts.
+        // Without `--smt` the report holds the results, not the scripts. (When
+        // Z3 is missing the report names the script in a `--smt` hint, so
+        // match the script's own header and its definitions.)
         let (_, summary) = run_runa_bounded(&["verify", path], 16 * 1024)
             .expect("verify without --smt prints no script");
         assert!(
-            !summary.contains("SMT-LIB2") && !summary.contains("(define-fun "),
+            !summary.contains("SMT-LIB2:") && !summary.contains("(define-fun "),
             "{summary}"
         );
         if z3_available() {
