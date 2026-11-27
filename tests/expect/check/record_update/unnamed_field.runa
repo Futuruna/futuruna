@@ -1,0 +1,6 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: 6:22: a record update names each field it replaces: `with { field = value }`
+# Case(name: String)
+= case = Case(name = "a")
+= same = case with { name }

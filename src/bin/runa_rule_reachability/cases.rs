@@ -654,9 +654,7 @@ impl CaseCatalogue {
                 continue;
             }
             if let Some(ty) = &parameter.ty {
-                for preference in
-                    WitnessValue::new(parameter.term.clone(), String::new(), ty).preferences
-                {
+                for preference in WitnessValue::preferences(&parameter.term, ty) {
                     script.push_str(&format!("(assert-soft {})\n", preference));
                 }
             }

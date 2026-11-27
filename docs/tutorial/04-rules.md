@@ -146,19 +146,26 @@ Three assurance levels from the same `?` line:
 `runa verify` is Preview. PROVED means that for every value of the invariant's
 free variables (Int ranges over the 64-bit values; a variable used as an enum
 whose constructors carry no payload ranges over exactly those constructors; a
-variable used as a record ranges over every combination of its field values)
-the predicate is true and no Int operation it evaluates overflows or divides by
-zero. Claims involving Float are reported as unsupported, never proved.
+variable used as a set of such an enum ranges over every subset of its
+constructors; a variable used as a record ranges over every combination of its
+field values) the predicate is true and no Int operation it evaluates overflows
+or divides by zero. Claims involving Float are reported as unsupported, never
+proved.
 
 A free variable passed to a parameter typed with such an enum, or compared with
 one of its constructors, ranges over exactly that enum's constructors. A free
-variable passed to a parameter typed with a record (a non-generic type with one
-constructor) whose fields are Int, Bool, payload-free enums, or such records
-ranges over every value of that record, so a rule can take the whole record
-instead of one parameter per field. Every other free variable ranges over Int.
-Enums whose constructors carry payloads, records with other field types (such
-as String), generic types, and variables used as two different types are
-reported as unsupported.
+variable passed to a parameter typed `Set(E)` of such an enum `E`, or given to
+a set builtin beside a member of `E`, ranges over every subset of `E`'s
+constructors, and claims may use `set_contains`, `set_subset`, `set_union`,
+`set_intersect`, `set_diff`, `set_insert`, `set_remove`, `set_is_empty`,
+`set_len` and `==` on it. A free variable passed to a parameter typed with a
+record (a non-generic type with one constructor) whose fields are Int, Bool,
+payload-free enums, sets of them, or such records ranges over every value of
+that record, so a rule can take the whole record instead of one parameter per
+field. Every other free variable ranges over Int. Enums whose constructors
+carry payloads, sets of other types (such as `Set(Int)`), `set_to_list`,
+records with other field types (such as String), generic types, and variables
+used as two different types are reported as unsupported.
 
 The verifier understands pure, total, non-recursive rule cascades directly. A
 RuleScope does not need a duplicate helper function for Z3:

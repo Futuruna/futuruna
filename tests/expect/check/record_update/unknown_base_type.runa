@@ -1,0 +1,6 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `with` needs the record type of the value it copies, and the type of this value is not known here; give the binding or parameter its record type
+-- expect-stderr: unknown_base_type.runa:6:
+# Case(name: String, n: Int)
+> reset(c) -> Bool { c with { n = 0 } == c }

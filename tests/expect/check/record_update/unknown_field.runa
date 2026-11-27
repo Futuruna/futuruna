@@ -1,0 +1,8 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: record `Case` has no field `stauts`; its fields are `name`, `status`
+-- expect-stderr: unknown_field.runa:8:
+-- A misspelled field is named with the fields the record has.
+# Status = Open | Closed
+# Case(name: String, status: Status)
+= closed = Case(name = "a", status = Open) with { stauts = Closed }

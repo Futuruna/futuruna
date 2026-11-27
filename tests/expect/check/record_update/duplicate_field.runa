@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: record `Case` field `name` is replaced more than once
+-- expect-stderr: duplicate_field.runa:7:37
+# Case(name: String, n: Int)
+= case = Case(name = "a", n = 1)
+= renamed = case with { name = "b", name = "c" }

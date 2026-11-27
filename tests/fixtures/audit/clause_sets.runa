@@ -1,0 +1,10 @@
+# Factor = P1 | P2 | D1 | D2
+# Outcome = Plaintiff | Defendant | Undecided
+
+-- A case with both plaintiff factors is decided for the plaintiff even when
+-- it also has D1; no case has more than four factors.
+| decide(facts: Set(Factor)): Outcome
+| decide(facts) -> Plaintiff under set_subset(set_from_list([P1, P2]), facts)
+| decide(facts) -> Defendant under set_contains(facts, D1)
+| decide(facts) -> Undecided under set_len(facts) > 4
+| decide(facts) -> Undecided

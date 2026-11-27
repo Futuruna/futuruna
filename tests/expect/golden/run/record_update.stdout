@@ -1,0 +1,10 @@
+Case(name: a, amount: 100, status: Open, tags: [x], urgent: true)
+Case(name: a, amount: 100, status: Open, tags: [x], urgent: false)
+Case(name: a, amount: 0, status: Closed, tags: [x], urgent: false)
+Case(name: g, amount: 7, status: Open, tags: [y, z], urgent: false)
+Court(level: 2, case: Case(name: a, amount: 100, status: Open, tags: [x], urgent: true))
+Box(value: 4, label: c)
+110
+read
+[Case(name: a, amount: 1, status: Open, tags: [x], urgent: false), Case(name: a, amount: 2, status: Open, tags: [x], urgent: false)]
+Box(value: [true], label: t)

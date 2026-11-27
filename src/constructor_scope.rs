@@ -358,6 +358,15 @@ impl ConstructorElaboration {
         self.root.take()
     }
 
+    /// The name `constructor` of `owner` has at runtime: its internal name
+    /// when it is shared, else its own.
+    pub(crate) fn constructor_runtime_name(&self, owner: &str, constructor: &str) -> String {
+        self.internal
+            .get(&(owner.to_string(), constructor.to_string()))
+            .cloned()
+            .unwrap_or_else(|| constructor.to_string())
+    }
+
     /// The paths whose rewritten modules this elaboration installs.
     #[cfg(test)]
     pub(crate) fn module_paths(&self) -> impl Iterator<Item = &Path> {
@@ -791,7 +800,11 @@ impl TypeChecker {
     ) -> Option<ConstructorElaboration> {
         let shared = self.shared_constructor_plan();
         let constructors = !shared.owners.is_empty() || self.constructor_scope_used.get();
-        if !constructors && !self.has_unit_conversions() && !self.has_scalar_conversions() {
+        if !constructors
+            && !self.has_unit_conversions()
+            && !self.has_scalar_conversions()
+            && !self.has_record_updates()
+        {
             return None;
         }
         let mut elaboration = if constructors {
@@ -799,6 +812,7 @@ impl TypeChecker {
         } else {
             ConstructorElaboration::default()
         };
+        self.elaborate_record_updates(root, &mut elaboration);
         self.elaborate_unit_conversions(root, &mut elaboration);
         self.elaborate_scalar_conversions(root, &mut elaboration);
         Some(elaboration)
@@ -2149,6 +2163,41 @@ impl ConstructorScopeWalk<'_> {
                 QUERY_MARKER => {
                     for argument in arguments.iter_mut() {
                         self.expr(argument, &Expect::none(), locals);
+                    }
+                    return;
+                }
+                // `base with { field = value }`: the base has the type the
+                // context expects, and each value its field's type.
+                RECORD_UPDATE_MARKER => {
+                    let Some((base, updates)) = arguments.split_first_mut() else {
+                        return;
+                    };
+                    self.expr(base, expect, locals);
+                    let base_ty = self.infer(base, locals).or_else(|| expect.ty().cloned());
+                    let field_types = base_ty
+                        .and_then(|base_ty| {
+                            let owner =
+                                TypeChecker::canonical_nominal_owner(&Self::type_string(&base_ty))?;
+                            let (_, signature) = self
+                                .checker
+                                .record_update_constructor(&owner, "with")
+                                .ok()?;
+                            let types =
+                                self.field_types(&signature, &owner, &Expect::Type(base_ty));
+                            Some(signature.fields.into_iter().zip(types).collect::<Vec<_>>())
+                        })
+                        .unwrap_or_default();
+                    for update in updates {
+                        let expect = named_arg_parts(update)
+                            .and_then(|(field, _)| {
+                                field_types
+                                    .iter()
+                                    .find(|(known, _)| known == field)
+                                    .and_then(|(_, ty)| ty.clone())
+                            })
+                            .map(Expect::Type)
+                            .unwrap_or_else(Expect::none);
+                        self.expr(update, &expect, locals);
                     }
                     return;
                 }

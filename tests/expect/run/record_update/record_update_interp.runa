@@ -1,0 +1,40 @@
+-- expect-command: interp
+-- expect-stdout-file: ../../golden/run/record_update.stdout
+-- `base with { field = value }` copies a record with the named fields replaced,
+-- in the interpreter as natively: several fields, units, nested and generic
+-- records, a base that is a call, and `with` inside a lambda.
+# unit Ore "DKK øre"
+# Status = Open | Closed
+# Case(name: String, amount: Ore, status: Status, tags: List(String), urgent: Bool)
+# Court(level: Int, case: Case)
+# Box(a) = Box(value: a, label: String)
+
+= base = Case(name = "a", amount = 100, status = Open, tags = ["x"], urgent = False)
+
+> close(c: Case) -> Case { c with { status = Closed, amount = 0 } }
+
+> fresh(n: Int) -> Case { Case(name = "f", amount = Ore(n), status = Open, tags = [], urgent = False) }
+
+> promote(c: Court) -> Court {
+    c with { level = c.level + 1, case = c.case with { urgent = True } }
+}
+
+> relabel(b: Box(Int), label: String) -> Box(Int) { b with { label = label } }
+
+-- The base is read again after each update: an update copies it.
+= urgent = base with { urgent = True }
+@ print(show(urgent))
+@ print(show(base))
+@ print(show(close(base)))
+-- A base that is not a name is computed once.
+@ print(show(fresh(7) with { name = "g", tags = ["y", "z"] }))
+@ print(show(promote(Court(level = 1, case = base))))
+@ print(show(relabel(Box(value = 3, label = "b"), "c") with { value = 4 }))
+-- `with` is postfix, like a call: it binds tighter than `+` and a field read
+-- may follow it.
+@ print(show(Int(base.amount) + Int((base with { amount = 5 }).amount) * 2))
+@ print(base with { name = "read" }.name)
+@ print(show(map([1, 2], |n| base with { amount = Ore(n) })))
+-- A generic record keeps its type arguments.
+> retag(b: Box(a), label: String) -> Box(a) { b with { label = label } }
+@ print(show(retag(Box(value = [True], label = "b"), "t")))

@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `with` replaces fields of a record with one constructor; `Shape` has the constructors `Circle`, `Square`
+-- expect-stderr: sum_type.runa:7:
+-- Which fields a value of a sum type has depends on its constructor.
+# Shape = Circle(r: Int) | Square(side: Int)
+> grow(s: Shape) -> Shape { s with { r = 2 } }

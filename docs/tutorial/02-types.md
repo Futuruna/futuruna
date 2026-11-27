@@ -1,7 +1,8 @@
 ---
-feature_stage: stable
+feature_stage: mixed
 feature_stage_surfaces:
   - core-language-syntax
+  - record-update
 ---
 
 # 2. Types and Pattern Matching
@@ -17,6 +18,18 @@ feature_stage_surfaces:
 ```
 
 Structs are defined with `#` and constructed by name. Fields are accessed with dot notation.
+
+`with` copies a struct with some fields replaced (a
+[record update](../reference/basics.md#record-update), Preview); the original
+is unchanged:
+
+```runa
+# Point(x: Float, y: Float)
+
+= p = Point(3.0, 4.0)
+= moved = p with { y = 0.0 }
+@ print(show(moved))
+```
 
 ## Enums (Algebraic Data Types)
 

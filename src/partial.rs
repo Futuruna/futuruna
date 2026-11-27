@@ -1815,6 +1815,8 @@ fn builtin_is_total(name: &str) -> bool {
             | "map_contains"
             | "set_len"
             | "set_contains"
+            | "set_subset"
+            | "set_is_empty"
             | "pair"
             | "triple"
             | "fst"

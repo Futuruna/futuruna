@@ -1,0 +1,30 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: subset=true
+-- expect-stdout: not_subset=false
+-- expect-stdout: empty_subset=true
+-- expect-stdout: empty=true
+-- expect-stdout: not_empty=false
+-- expect-stdout: equal=true
+-- expect-stdout: unequal=true
+-- expect-stdout: records_equal=true
+-- expect-stdout: int_subset=true
+
+-- `set_subset(a, b)` holds when every member of `a` is a member of `b`;
+-- `set_is_empty` when a set has no members. Sets are equal when they have
+-- the same members, also as record fields (before, the interpreter refused
+-- `==` on sets).
+# Factor = P1 | P2 | D1 | D2
+# Precedent(facts: Set(Factor), reason: Set(Factor))
+
+= facts = set_from_list([P1, D1, P2])
+= reason = set_from_list([P2, P1])
+@ print("subset=" + show(set_subset(reason, facts)))
+@ print("not_subset=" + show(set_subset(facts, reason)))
+@ print("empty_subset=" + show(set_subset(set_diff(reason, reason), reason)))
+@ print("empty=" + show(set_is_empty(set_intersect(reason, set_from_list([D1, D2])))))
+@ print("not_empty=" + show(set_is_empty(facts)))
+@ print("equal=" + show(set_insert(reason, D1) == facts))
+@ print("unequal=" + show(reason != facts))
+@ print("records_equal=" + show(Precedent(facts = facts, reason = reason) == Precedent(facts = set_from_list([D1, P2, P1]), reason = set_insert(set_insert(set_new(), P1), P2))))
+@ print("int_subset=" + show(set_subset(set_from_list([2]), set_from_list([1, 2, 3]))))

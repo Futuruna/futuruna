@@ -32,10 +32,11 @@ pub(super) fn and(parts: impl IntoIterator<Item = String>) -> String {
 }
 
 fn ite(condition: &str, yes: String, no: String) -> String {
-    if yes == no {
-        yes
-    } else {
-        format!("(ite {condition} {yes} {no})")
+    match condition {
+        "true" => yes,
+        "false" => no,
+        _ if yes == no => yes,
+        _ => format!("(ite {condition} {yes} {no})"),
     }
 }
 
@@ -200,6 +201,18 @@ pub(super) fn match_value(scrutinee: &Expr, arms: &[MatchArm]) -> Result<String,
     rest.ok_or_else(|| "empty match has no SMT value".into())
 }
 
+/// The operands of a chain of one logical operator, from left to right:
+/// `(a && b) && c` and `a && (b && c)` both give `a`, `b`, `c`.
+fn logic_operands<'e>(expr: &'e Expr, operator: &str, operands: &mut Vec<&'e Expr>) {
+    match &expr.kind {
+        ExprKind::BinOp(op, left, right) if op == operator => {
+            logic_operands(left, operator, operands);
+            logic_operands(right, operator, operands);
+        }
+        _ => operands.push(expr),
+    }
+}
+
 pub(super) fn definedness(
     expr: &Expr,
     guarded_functions: &BTreeSet<String>,
@@ -212,16 +225,38 @@ pub(super) fn definedness(
             .iter()
             .map(defined)
             .collect::<Result<Vec<_>, _>>()?)),
+        ExprKind::BinOp(op, _, _) if op == "&&" || op == "||" => {
+            // `a && b && c` evaluates its operands left to right until one
+            // decides it. The obligation nests to the right, so each operand
+            // is written once more, never once per later operand.
+            let mut operands = Vec::new();
+            logic_operands(expr, op, &mut operands);
+            let mut rest = String::from("true");
+            for operand in operands.into_iter().rev() {
+                rest = if rest == "true" {
+                    defined(operand)?
+                } else {
+                    let value = expr_to_smt(operand);
+                    let continued = if op == "&&" {
+                        ite(&value, rest, "true".into())
+                    } else {
+                        ite(&value, "true".into(), rest)
+                    };
+                    and([defined(operand)?, continued])
+                };
+            }
+            Ok(rest)
+        }
         ExprKind::BinOp(op, left, right) => {
             let left_ok = defined(left)?;
             let right_ok = defined(right)?;
-            let left_value = expr_to_smt(left);
-            let right_value = expr_to_smt(right);
             let condition = match op.as_str() {
-                "&&" => return Ok(and([left_ok, ite(&left_value, right_ok, "true".into())])),
-                "||" => return Ok(and([left_ok, ite(&left_value, "true".into(), right_ok)])),
                 "+" | "-" | "*" => int_domain(&expr_to_smt(expr)),
-                "/" | "%" => format!("(and (distinct {right_value} 0) (not (and (= {left_value} (- 9223372036854775808)) (= {right_value} (- 1)))))"),
+                "/" | "%" => {
+                    let left_value = expr_to_smt(left);
+                    let right_value = expr_to_smt(right);
+                    format!("(and (distinct {right_value} 0) (not (and (= {left_value} (- 9223372036854775808)) (= {right_value} (- 1)))))")
+                }
                 _ => "true".into(),
             };
             Ok(and([left_ok, right_ok, condition]))

@@ -2,6 +2,7 @@
 -- to SMT: `m` is passed where a `Month` is declared, so it is between 1 and
 -- 12, and the quarter is between 1 and 4. Over every Int it is not.
 -- expect-command: verify
+-- expect-args: --smt
 -- expect-status: pass
 -- expect-stdout: ; The checks of named scalar inputs
 -- expect-stdout: (assert (__scalar_check_Month_0 runa_v_6d))
